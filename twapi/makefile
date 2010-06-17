@@ -1,0 +1,73 @@
+# Master TWAPI makefile
+
+!include common.inc
+
+!if "$(MACHINE)" == "AMD64"
+DISTDIR=$(MAKEDIR)\temp\win64
+DISTBASENAME=$(PACKAGE)-x64-$(MODULEVERSION)
+!else
+DISTDIR=$(MAKEDIR)\temp
+DISTBASENAME=$(PACKAGE)-x86-$(MODULEVERSION)
+!endif
+
+PACKAGEDIR="$(DISTDIR)\$(PACKAGE)"
+DISTFILE=$(DISTBASENAME).zip
+TOOLDIR="$(MAKEDIR)\tools"
+STARKITDIR="$(DISTDIR)\$(PACKAGE).vfs"
+
+all: base doc
+
+base: dummy
+        cd base && $(MAKE) $(MAKEFLAGS)
+
+doc: dummy
+        cd doc && $(MAKE) $(MAKEFLAGS)
+
+distribution:
+        -rmdir/s/q $(PACKAGEDIR)
+        -mkdir $(PACKAGEDIR)
+        copy LICENSE $(PACKAGEDIR)
+        cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) distribution
+        cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+!IFNDEF LEAN
+        cd tests && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+        cd doc && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+!ENDIF
+        cd $(DISTDIR) && zip -r "$(DISTDIR)/$(DISTFILE)" $(PACKAGE)
+	if exist "%HOME%\My Documents\Downloads" $(COPY) "$(DISTDIR)\$(DISTFILE)" "%HOME%\My Documents\Downloads"
+        -rmdir/s/q $(STARKITDIR)
+        -mkdir $(STARKITDIR)\lib
+        -rmdir/s/q $(PACKAGEDIR)\doc
+        -rmdir/s/q $(PACKAGEDIR)\tests
+        move $(PACKAGEDIR) $(STARKITDIR)\lib
+        echo package require starkit > $(STARKITDIR)\main.tcl
+        echo starkit::startup >> $(STARKITDIR)\main.tcl
+        cd $(DISTDIR) && $(TOOLDIR)\tclkitsh.exe $(TOOLDIR)\sdx.kit wrap $(PACKAGE).kit
+	move "$(DISTDIR)\$(PACKAGE).kit" "$(DISTDIR)\$(DISTBASENAME).kit"
+
+tmdistribution:
+        -rmdir/s/q $(PACKAGEDIR)
+        -mkdir $(PACKAGEDIR)
+        cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) distribution
+        cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) PACKAGESTYLE=tm distribution
+	$(TCLSH) tools\commentify.tcl LICENSE $(PACKAGEDIR)\LICENSE
+        $(TCLSH) tools\createtmfile.tcl -compress $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_version.tcl $(PACKAGEDIR)\twapi_buildinfo.tcl $(PACKAGEDIR)\win32calls.tcl $(PACKAGEDIR)\twapi.tcl $(PACKAGEDIR)\*.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+        move $(PACKAGE)-$(MODULEVERSION).tm "$(DISTDIR)"
+
+install:
+	$(TCLSH_TARGET) <<
+exec unzip -o [file join {$(DISTDIR)} $(DISTFILE)] -d [lindex [set auto_path] 0]
+<<keep
+
+website:
+        cd doc && $(MAKE) /$(MAKEFLAGS)  website
+
+makefile: common.inc
+
+dummy:
+
+clean:
+        cd base && $(MAKE) /$(MAKEFLAGS) clean
+        cd doc && $(MAKE) /$(MAKEFLAGS) clean
+        cd tcl && $(MAKE) /$(MAKEFLAGS) clean
+        -rmdir/s/q "$(DISTDIR)"

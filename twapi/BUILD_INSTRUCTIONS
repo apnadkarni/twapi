@@ -1,0 +1,96 @@
+NOTE: Build instructions for TWAPI 2.3 have changed significantly from
+previous versions.
+
+What you need (or the official build environment):
+
+- To compile the 32-bit version of TWAPI, you need Visual C++ 6.0. The 64-bit
+version is built with the compiler that ships with the SDK. The primary
+reason for not moving to later versions of Visual Studio is that these
+compilers use C runtime libraries that are present on every version
+of Windows. Later version would require to ship the Microsoft runtime
+redistributable package.
+
+- Microsoft Platform SDK for Windows Server 2003 SP1. Earlier versions
+will not do. Later versions will but you may need to do some tweaking.
+It is unfortunate that you need to install a 350MB package just for
+some headers and libraries but that's life. When installing, make sure
+you include the AMD64 build environment if you want to do 64-bit
+builds. Also ensure you include the Web Workshop component as some
+Windows Shell headers are included there.
+
+- Some version of CVS to check code from the SourceForge repository.
+
+- Note a Tcl installation is no longer required. Appropriate headers and
+libraries are contained within the TWAPI directories.
+
+Here is the step-by-step procedure for compiling twapi on a PC:
+
+Source code checkout
+--------------------
+
+Check out the source code by following the Sourceforge instructions at
+NEED URL
+
+This would be something along the lines of the standard anonymous
+remote-CVS command:
+
+    cvs -z3 -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/twapi co twapi
+
+But if you are behind a firewall which doesn't let traffic through
+on port 2401, you will need to use the following command instead:
+
+     cvs -d:pserver:anonymous@cvs-pserver.sf.net:443/cvsroot/twapi co twapi
+
+This will create a twapi/ subdirectory in your current working
+directory.
+
+Set up 32-bit environment (only for 32-bit builds)
+-------------------------
+
+In a DOS command window, set up the build environment by typing the commands
+
+     "c:\Program Files\Microsoft Visual Studio\vc98\vcvars32"
+     "c:\Program Files\Microsoft Platform SDK\setenv.cmd" /2000 /RETAIL
+
+Note the locations of the Visual Studio and SDK directories may be different
+on your system.
+
+Set up 64-bit environment (only for 64-bit builds)
+-------------------------
+
+In a DOS command window, set up the build environment by typing the command
+
+     "c:\Program Files\Microsoft Platform SDK\setenv.cmd" /XP64 /RETAIL
+
+NOTE: /XP64 and /RETAIL MUST BE IN UPPER CASE.
+
+The locations of the Visual Studio and SDK directories may be different
+on your system.
+
+Building the extension
+----------------------
+
+In either the 32- or 64-bit command windows above, cd to the twapi directory
+and type
+
+    nmake
+
+This will build the binary extension within base\X86\release or 
+base\AMD64\release subdirectories respectively. The documentation will
+be built under the doc subdirectory.
+
+Packaging the distribution
+--------------------------
+
+For this step, you will need to edit the makefile to point
+to zip.exe compression program and run the commands
+
+    nmake distribution
+    nmake tmdistribution
+
+The first command will build TWAPI .zip distributions under the temp
+subdirectory. For 64-bit builds, the distribution will be placed under
+temp\win64.  The second command will build a Tcl 8.5 Tcl module
+instead of a .zip distribution. Both these commands are independent of
+the other.
+
