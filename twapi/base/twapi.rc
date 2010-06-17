@@ -1,0 +1,23 @@
+#include "winver.h"
+
+1 VERSIONINFO
+FILEVERSION MODULEMAJOR, MODULEMINOR, MODULEBUILD, 0
+PRODUCTVERSION MODULEMAJOR, MODULEMINOR, MODULEBUILD, 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_DLL
+{
+    BLOCK "StringFileInfo" {
+        BLOCK "040904b0" {
+            VALUE "FileDescription", "Tcl Windows API Extension DLL"
+            VALUE "OriginalFilename", MODULE_STR
+            VALUE "CompanyName", "Ashok P. Nadkarni"
+            VALUE "FileVersion", FILE_VERSION_STR
+            VALUE "LegalCopyright", "Copyright © 2009 Ashok P. Nadkarni"
+            VALUE "ProductName", "Tcl Windows API Extension"
+            VALUE "ProductVersion", PRODUCT_VERSION_STR
+        }
+    }
+    BLOCK "VarFileInfo" {
+        VALUE "Translation", 0x0409, 0x04B0
+    }
+}
