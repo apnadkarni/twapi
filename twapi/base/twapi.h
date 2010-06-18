@@ -236,7 +236,7 @@
 #define Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), StringObjFromLSA_UNICODE_STRING(&((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromLSA_UNICODE_STRING(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_UUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
@@ -526,6 +526,7 @@ Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
+#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*)
 
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
@@ -546,6 +547,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
 #define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
 
 #define ObjFromUnicode(p_)    Tcl_NewUnicodeObj((p_), -1)
+int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
 
 
@@ -561,13 +563,16 @@ Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP);
 Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
 int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
 
-Tcl_Obj *ObjFromIDispatch(void *p);
-Tcl_Obj *ObjFromIUnknown(void *p);
-int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **idisp);
-int ObjToIUnknown(Tcl_Interp *interp, Tcl_Obj *obj, IUnknown **iunk);
+#define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch");
+#define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown");
+#define ObjToIDispatch(ip_, obj_, ifc_) \
+    ObjToOpaque((ip_), (obj_), (ifc_), "IDispatch")
+#define ObjToIUnknown(ip_, obj_, ifc_) \
+    ObjToOpaque((ip_), (obj_), (ifc_), "IUnknown")
+
 int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP);
 Tcl_Obj *ObjFromBSTR (BSTR bstr);
-BSTR ObjToBSTR (Tcl_Obj *);
+int ObjToBSTR (Tcl_Interp *, Tcl_Obj *, BSTR *);
 int ObjToRangedInt(Tcl_Interp *, Tcl_Obj *obj, int low, int high, int *iP);
 Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP);
 int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
@@ -667,8 +672,26 @@ Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
 
 
+/* System related */
+int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
+                              LPCVOID lpSource, DWORD dwMessageId,
+                              DWORD dwLanguageId, int argc, LPCWSTR *argv );
+int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
+                          LPWSTR username, LPWSTR profilepath);
+BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
+BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
+BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
+BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
+int Twapi_GetSystemWow64Directory(Tcl_Interp *interp);
+int Twapi_GetSystemInfo(Tcl_Interp *interp);
+int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
+int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
+int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
+
+
 
 /* Network related */
+
 int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_FormatExtendedUdpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_GetExtendedTcpTable(Tcl_Interp *interp, void *buf, DWORD buf_sz,
@@ -681,9 +704,11 @@ int ObjToSOCKADDR_IN(Tcl_Interp *, Tcl_Obj *objP, struct sockaddr_in *sinP);
 int Twapi_GetNameInfo(Tcl_Interp *, const struct sockaddr_in* saP, int flags);
 int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
+/* NLS */
 
+int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
-int Twapi_GetWordFromObj(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
 
 /* COM stuff */
@@ -719,6 +744,15 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
 int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid);
 
 
+/* WTS */
+
+int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH);
+int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
+int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
+                                     DWORD  sess_id, WTS_INFO_CLASS info_class);
+
+
+
 /* UI and window related */
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
@@ -743,25 +777,12 @@ typedef int TwapiTclObjCmd(
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TryObjCmd;
 TwapiTclObjCmd Twapi_KlGetObjCmd;
-    TwapiTclObjCmd Twapi_TwineObjCmd;
-    TwapiTclObjCmd Twapi_RecordArrayObjCmd;
-    TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
-int Twapi_IDispatch_InvokeObjCmd(
-    ClientData dummy,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *CONST objv[]);
-int Twapi_SHChangeNotify(
-    ClientData dummy,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *CONST objv[]);
-
-int Twapi_ComEventSinkObjCmd(
-    ClientData dummy,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *CONST objv[]);
+TwapiTclObjCmd Twapi_TwineObjCmd;
+TwapiTclObjCmd Twapi_RecordArrayObjCmd;
+TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
+TwapiTclObjCmd Twapi_IDispatch_InvokeObjCmd;
+TwapiTclObjCmd Twapi_ComEventSinkObjCmd;
+TwapiTclObjCmd Twapi_SHChangeNotify;
 
 /* General utility functions */
 int TwapiGlobCmp (const char *s, const char *pat);
