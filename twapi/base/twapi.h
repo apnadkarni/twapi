@@ -137,6 +137,8 @@
         return ord_ ## ord ## dllname ## _F; \
     }
 
+/* 64 bittedness needs a BOOL version of the FARPROC def */
+typedef BOOL (WINAPI *FARPROC_BOOL)();
 
 
 /*************************
@@ -271,6 +273,13 @@
     Tcl_ListObjAppendElement((interp_),(listp_), ObjFromGUID(&((structp_)->field_))); \
   } while (0)
 
+/*
+ * Macros to build ordered list of names and values of the fields
+ * in a struct while maintaining consistency in the order. 
+ * See services.i for examples of usage
+ */
+#define FIELD_NAME_OBJ(x, unused, unused2) STRING_LITERAL_OBJ(# x)
+#define FIELD_VALUE_OBJ(field, func, structp) func(structp->field)
 
 /******************************
  * Tcl version dependent stuff
@@ -333,6 +342,8 @@ typedef struct {
     DWORD totalentries;
     DWORD_PTR  hresume;
 } TwapiNetEnumContext;
+
+typedef void TWAPI_FILEVERINFO;
 
 /****************************************************************
  * Defintitions used for conversion from Tcl_Obj to C types
@@ -562,6 +573,7 @@ Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
+#define ObjFromHWND(h) ObjFromOpaque((h), "HWND")
 #define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
 
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
@@ -755,6 +767,39 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_GetPrivateProfileSection(Tcl_Interp *interp, LPCWSTR app, LPCWSTR fn);
 int Twapi_GetPrivateProfileSectionNames(Tcl_Interp *interp,LPCWSTR lpFileName);
+int Twapi_GetVersionEx(Tcl_Interp *interp);
+void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
+
+/* Shell stuff */
+void TwapiFreePIDL(LPITEMIDLIST idlistP);
+HRESULT Twapi_SHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken,
+                          DWORD flags, WCHAR *pathbuf);
+BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
+                              LPCWSTR szObject, LPCWSTR szPage);
+
+int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
+HTHEME Twapi_OpenThemeData(HWND win, LPCWSTR classes);
+BOOL Twapi_IsThemeActive(void);
+BOOL Twapi_IsAppThemed(void);
+int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
+void Twapi_CloseThemeData(HTHEME themeH);
+int Twapi_GetShellVersion(Tcl_Interp *interp);
+int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_WriteShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath);
+int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DWORD flags);
+int Twapi_InvokeUrlShortcut(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_SHFileOperation(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_VerQueryValue_FIXEDFILEINFO(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
+int Twapi_VerQueryValue_STRING(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP,
+                               LPCWSTR lang_and_cp, LPWSTR name);
+int Twapi_VerQueryValue_TRANSLATIONS(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
+TWAPI_FILEVERINFO * Twapi_GetFileVersionInfo(LPWSTR path);
+void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
+
 
 /* Processes and threads */
 int Twapi_GetProcessList(Tcl_Interp *interp, DWORD pid, int flags);
@@ -870,6 +915,7 @@ int Twapi_EncryptMessage(Tcl_Interp *interp, SecHandle *INPUT,
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 /* Device related */
+int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
 int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName);
 int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
@@ -1014,6 +1060,19 @@ int Twapi_ReadEventLog(Tcl_Interp *, HANDLE evlH, DWORD  flags, DWORD offset);
 
 
 /* UI and window related */
+int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj);
+int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj);
+Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP);
+int Twapi_EnumWindowStations(Tcl_Interp *interp);
+int Twapi_EnumWindows(Tcl_Interp *interp);
+int Twapi_BlockInput(Tcl_Interp *interp, BOOL block);
+int Twapi_WaitForInputIdle(Tcl_Interp *, HANDLE hProcess, DWORD dwMillisecs);
+int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
+int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta);
+int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle);
+int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
+DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP);
+
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which

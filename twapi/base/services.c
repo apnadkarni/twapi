@@ -75,8 +75,8 @@ static Tcl_Obj *ObjFromENUM_SERVICE_STATUSW(ENUM_SERVICE_STATUSW *essP)
     Tcl_Obj *objP;
     // Order MUST BE same as in NamesFromENUM_SERVICE_STATUSW
     objP = ObjFromSERVICE_STATUS(&essP->ServiceStatus);
-    Tcl_ListObjAppendElement(NULL, objP, TWAPI_NEW_UNICODE_OBJ(essP->lpServiceName));
-    Tcl_ListObjAppendElement(NULL, objP, TWAPI_NEW_UNICODE_OBJ(essP->lpDisplayName));
+    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpServiceName));
+    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpDisplayName));
     return objP;
 }
 
@@ -99,8 +99,8 @@ static Tcl_Obj *ObjFromENUM_SERVICE_STATUS_PROCESSW(ENUM_SERVICE_STATUS_PROCESSW
 
     // Order MUST BE same as in NamesFromENUM_SERVICE_STATUS_PROCESSW
     objP = ObjFromSERVICE_STATUS_PROCESS(&essP->ServiceStatusProcess);
-    Tcl_ListObjAppendElement(NULL, objP, TWAPI_NEW_UNICODE_OBJ(essP->lpServiceName));
-    Tcl_ListObjAppendElement(NULL, objP, TWAPI_NEW_UNICODE_OBJ(essP->lpDisplayName));
+    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpServiceName));
+    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpDisplayName));
     return objP;
 }
 #endif
@@ -137,10 +137,10 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
         objv[2] = objmaker(dwStartType, Tcl_NewLongObj, structp); \
         objv[3] = objmaker(dwErrorControl, Tcl_NewLongObj, structp); \
         objv[4] = objmaker(dwTagId, Tcl_NewLongObj, structp); \
-        objv[5] =objmaker(lpBinaryPathName,  TWAPI_NEW_UNICODE_OBJ, structp); \
-        objv[6] =objmaker(lpLoadOrderGroup,  TWAPI_NEW_UNICODE_OBJ, structp); \
-        objv[7] =objmaker(lpServiceStartName,  TWAPI_NEW_UNICODE_OBJ, structp); \
-        objv[8] =objmaker(lpDisplayName,  TWAPI_NEW_UNICODE_OBJ, structp); \
+        objv[5] =objmaker(lpBinaryPathName,  ObjFromUnicode, structp); \
+        objv[6] =objmaker(lpLoadOrderGroup,  ObjFromUnicode, structp); \
+        objv[7] =objmaker(lpServiceStartName,  ObjFromUnicode, structp); \
+        objv[8] =objmaker(lpDisplayName,  ObjFromUnicode, structp); \
         return Tcl_NewListObj(sizeof(objv)/sizeof(objv[0]), objv);   \
     } while (0)
 
@@ -192,7 +192,7 @@ int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService)
     return TCL_OK;
 }
 
-#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
+//#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
 #ifdef NOOP_BEYOND_VISTA
 /*
  * Helper function to retrieve service lock status info
@@ -303,10 +303,10 @@ int Twapi_EnumServicesStatusEx(
             objP = ObjFromSERVICE_STATUS_PROCESS(&sbuf[i].ServiceStatusProcess);
 
             /* Note order of values should be same as order of names below */
-            keyP = TWAPI_NEW_UNICODE_OBJ(sbuf[i].lpServiceName);
+            keyP = ObjFromUnicode(sbuf[i].lpServiceName);
             Tcl_ListObjAppendElement(NULL, objP, keyP);
             Tcl_ListObjAppendElement(NULL, objP,
-                                     TWAPI_NEW_UNICODE_OBJ(sbuf[i].lpDisplayName));
+                                     ObjFromUnicode(sbuf[i].lpDisplayName));
 
             Tcl_ListObjAppendElement(interp, objv[1], keyP);
             Tcl_ListObjAppendElement(interp, objv[1], objP);
@@ -368,11 +368,11 @@ int Twapi_EnumDependentServices(
         Tcl_Obj *keyP;
 
         objP = ObjFromSERVICE_STATUS(&sbuf[i].ServiceStatus);
-        keyP = TWAPI_NEW_UNICODE_OBJ(sbuf[i].lpServiceName);
+        keyP = ObjFromUnicode(sbuf[i].lpServiceName);
 
         /* Note order should be same as order of field names below */
         Tcl_ListObjAppendElement(NULL, objP, keyP);
-        Tcl_ListObjAppendElement(NULL, objP, TWAPI_NEW_UNICODE_OBJ(sbuf[i].lpDisplayName));
+        Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(sbuf[i].lpDisplayName));
 
         /* Note keyP object is also appended as the "key" for the "record" */
         Tcl_ListObjAppendElement(interp, objv[1], keyP);
@@ -559,8 +559,6 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TwapiReturnSystemError(interp);
 }
 
-//#define NOOP_BEYOND_VISTA // TBD - decide whether to keep these calls
-
 #ifdef NOOP_BEYOND_VISTA
 /*
  * SC_LOCK is a opaque pointer that is a handle to a lock on the SCM database
@@ -569,23 +567,9 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
  * we generate a TCL exception. For database locked error, we will
  * return the string "NULL"
  */
-%apply SWIGTYPE * {SC_LOCK};
-%typemap(out) SC_LOCK %{
-    if ($1 == NULL) {
-        DWORD error_code;
-        error_code = GetLastError();
-        if (error_code != ERROR_SERVICE_DATABASE_LOCKED) {
-            Twapi_AppendSystemError(interp, error_code);
-            SWIG_fail;
-        }
-    }
-    Tcl_SetObjResult(interp,SWIG_NewPointerObj((void *) $1, $1_descriptor,0));
-%}
 
 SC_LOCK LockServiceDatabase(SC_HANDLE   hSCManager);
 EXCEPTION_ON_FALSE UnlockServiceDatabase(SC_LOCK ScLock);
-%apply int Tcl_Result {int Twapi_QueryServiceLockStatus};
-%rename(QueryServiceLockStatus) Twapi_QueryServiceLockStatus;
 int Twapi_QueryServiceLockStatus(
     Tcl_Interp *interp,
     SC_HANDLE hSCManager
