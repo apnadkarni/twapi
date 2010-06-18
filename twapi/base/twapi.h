@@ -697,7 +697,10 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
-
+/* ADSI related */
+int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
+                      LPCWSTR domainnameP, GUID *guidP,
+                      LPCWSTR sitenameP, ULONG flags);
 
 /* Network related */
 

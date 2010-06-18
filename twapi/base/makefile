@@ -32,6 +32,7 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 !ENDIF
 
 OBJS  = \
+	$(OBJDIR)\adsi.obj \
 	$(OBJDIR)\com.obj \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\keylist.obj \
@@ -94,11 +95,17 @@ CALLBACKINCLUDES = $(CALLBACKDIR)\callback.h $(CALLBACKDIR)\callbackint.h \
 DEL           = del
 COPY          = copy
 
+# Make the directory
+!if ![if not exist $(OBJDIR) mkdir $(OBJDIR)]
+!message Output directory is $(OBJDIR)
+!else
+!message Output directory $(OBJDIR) exists
+!endif
+
 # Location of the Visual C++ tools (32 bit assumed)
 VCVER=0
-!if ![echo VCVERSION=_MSC_VER > vercl.x] \
-    && ![if not exist $(OBJDIR) mkdir $(OBJDIR)] \
-    && ![cl -nologo -TC -E vercl.x > $(OBJDIR)\vercl.p 2>NUL]
+!if ![echo VCVERSION=_MSC_VER > $(OBJDIR)\vercl.x] \
+    && ![cl -nologo -TC -E $(OBJDIR)\vercl.x > $(OBJDIR)\vercl.p 2>NUL]
 !include $(OBJDIR)\vercl.p
 !endif
 
