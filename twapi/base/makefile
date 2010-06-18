@@ -43,6 +43,7 @@ OBJS  = \
 	$(OBJDIR)\eventlog.obj \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\gdi.obj \
+	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\nls.obj \
@@ -53,12 +54,15 @@ OBJS  = \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\security.obj \
+	$(OBJDIR)\services.obj \
 	$(OBJDIR)\share.obj \
+	$(OBJDIR)\shell.obj \
 	$(OBJDIR)\system.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\try.obj \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
+	$(OBJDIR)\ui.obj \
 	$(OBJDIR)\util.obj \
 	$(OBJDIR)\win.obj \
 	$(OBJDIR)\wts.obj

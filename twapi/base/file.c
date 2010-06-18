@@ -7,7 +7,6 @@
 
 #include "twapi.h"
 
-typedef void TWAPI_FILEVERINFO;
 
 TWAPI_FILEVERINFO* Twapi_GetFileVersionInfo(LPWSTR path)
 {
