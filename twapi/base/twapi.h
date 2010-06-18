@@ -164,6 +164,13 @@
  * Misc utility macros
  **********************/
 
+/* Verify a Tcl_Obj is an integer/long and return error if not */
+#define CHECK_INTEGER_OBJ(interp_, intvar_, objp_)       \
+    do {                                                                \
+        if (Tcl_GetIntFromObj((interp_), (objp_), &(intvar_)) != TCL_OK) \
+            return TCL_ERROR;                                           \
+    } while (0)
+
 /* String equality test - check first char before calling strcmp */
 #define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! strcmp((x), (y)) )
 #define STREQUN(x, y, n) \
@@ -526,7 +533,7 @@ Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
-#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*)
+#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
 
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
@@ -563,8 +570,8 @@ Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP);
 Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
 int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
 
-#define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch");
-#define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown");
+#define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch")
+#define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown")
 #define ObjToIDispatch(ip_, obj_, ifc_) \
     ObjToOpaque((ip_), (obj_), (ifc_), "IDispatch")
 #define ObjToIUnknown(ip_, obj_, ifc_) \
@@ -670,6 +677,8 @@ Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_PID(Tcl_Interp *, MIB_UDPTABLE_OWNER_PID *tab
 Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_MODULE(Tcl_Interp *, MIB_UDPTABLE_OWNER_MODULE *tab);
 Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
+int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
+Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
 
 
 /* System related */
@@ -751,6 +760,14 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
                                      DWORD  sess_id, WTS_INFO_CLASS info_class);
 
+
+/* Task scheduler related */
+int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
+        IEnumWorkItems *ewiP, unsigned long count);
+int Twapi_IScheduledWorkItem_GetRunTimes(Tcl_Interp *interp,
+        IScheduledWorkItem *swiP, SYSTEMTIME *, SYSTEMTIME *, WORD );
+int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
+                                             IScheduledWorkItem *swiP);
 
 
 /* UI and window related */
