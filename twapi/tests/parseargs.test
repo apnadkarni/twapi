@@ -1,0 +1,662 @@
+#
+# Copyright (c) 2004, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for the parseargs command
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+
+namespace eval twapi::parseargs::test {
+    namespace import ::tcltest::test
+
+    ################################################################
+
+    test parseargs-1.0 {
+        Verify parsing of empty argument list
+    } -constraints {
+    } -body {
+        set vargs {}
+        twapi::parseargs vargs {x.arg y}
+    } -result "y 0"
+
+    ###
+
+    test parseargs-1.1 {
+        Verify parsing of arguments with empty option list
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {arg1 arg2}
+        set opts [twapi::parseargs vargs {}]
+        expr {[string length $opts] == 0 && [string equal $vargs "arg1 arg2"]}
+    } -result 1
+
+    ###
+
+    test parseargs-1.2 {
+        Verify parsing of arguments with multiple character option names
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-option 1 extraarg}
+        array set opts [twapi::parseargs vargs {{option.arg} {b.arg}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(option) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-1.3 {
+        Verify case sensitivity of option names
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-option optvalue -Option OPTVALUE extraarg}
+        array set opts [twapi::parseargs vargs {
+            {option.arg} {Option.arg OPTIONB}
+        }]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(option) eq "optvalue" &&
+              $opts(Option) eq "OPTVALUE"
+          }
+    } -result 1
+
+    ###
+
+    test parseargs-1.4 {
+        Verify parsing of arguments with missing argument values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a}
+        set opts [twapi::parseargs vargs {a.arg}]
+    } -returnCodes {error} -result "No value supplied for option '-a'"
+
+    ###
+
+    test parseargs-1.5 {
+        Verify parsing of arguments of invalid types
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a}
+        set opts [twapi::parseargs vargs {a.foo}]
+    } -returnCodes {error} -result "Invalid option type 'foo'"
+
+    ###
+
+    test parseargs-2.0 {
+        Verify parsing of arguments of type any
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 extraarg}
+        array set opts [twapi::parseargs vargs {{a.arg} {b.arg}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-2.1 {
+        Verify parsing of arguments of type any with default arguments
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue extraarg}
+        array set opts [twapi::parseargs vargs {{a.arg adefault} {b.arg bdefault}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) eq "avalue" &&
+              $opts(b) eq "bdefault"}
+    } -result 1
+
+    ###
+
+    test parseargs-2.2 {
+        Verify parsing of arguments of type any matching enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue -b bvalue -c cvalue extraarg}
+        # Note match for a occurs in first element, for b in second element
+        # for c in last element
+        array set opts [twapi::parseargs vargs {
+            {a.arg adefault {avalue xvalue yvalue }}
+            {b.arg bdefault {xvalue bvalue zvalue}}
+            {c.arg cdefault {xvalue bvalue cvalue}}
+        }]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) eq "avalue" &&
+              $opts(c) eq "cvalue" &&
+              $opts(b) eq "bvalue"}
+    } -result 1
+
+    ###
+
+    test parseargs-2.3 {
+        Verify parsing of arguments of type any not matching enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue -b bvalue -c cvalue extraarg}
+        # Note match for a occurs in first element, for b in second element
+        # for c in last element
+        array set opts [twapi::parseargs vargs {
+            {a.arg adefault {zvalue xvalue yvalue}}
+            {b.arg bdefault {xvalue bvalue zvalue}}
+            {c.arg cdefault {xvalue bvalue cvalue}}
+        }]
+    } -returnCodes {error} -result "Invalid value 'avalue' specified for option '-a'. Must be one of zvalue, xvalue, yvalue"
+
+
+    ###
+
+    test parseargs-2.4 {
+        Verify parsing of missing options of type any with -nulldefault
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue extraarg}
+        array set opts [twapi::parseargs vargs {
+            {a.arg adefault {avalue xvalue yvalue}}
+            b.arg
+        } -nulldefault]
+        set opts(b)
+    } -result ""
+
+    ###
+
+    test parseargs-3.0 {
+        Verify parsing of arguments of type integer
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-3.1 {
+        Verify parsing of arguments of type int with default arguments
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 100}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              $opts(b) == 100}
+    } -result 1
+
+    ###
+
+    test parseargs-3.2 {
+        Verify parsing of arguments of type int that are negative
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a -100 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 100}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == -100 &&
+              $opts(b) == 100}
+    } -result 1
+
+
+    ###
+
+    test parseargs-3.3 {
+        Verify parsing of arguments of type int that are hex
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 0x100 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 0xa0}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 256 &&
+              $opts(b) == 160}
+    } -result 1
+
+    ###
+
+    test parseargs-3.4 {
+        Verify parsing of arguments of type int that are octal
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 0123 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 010}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 83 &&
+              $opts(b) == 8}
+    } -result 1
+
+    ###
+
+    test parseargs-3.5 {
+        Verify parsing of invalid arguments of type int
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a not_an_int extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 100}}]
+    } -returnCodes {error} -result "Non-integer value 'not_an_int' specified for option '-a'"
+
+    ###
+
+    test parseargs-3.6 {
+        Verify parsing of arguments of type int matching enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 -b 2 -c 3 extraarg}
+        # Note match for a occurs in first element, for b in second element
+        # for c in last element
+        array set opts [twapi::parseargs vargs {
+            {a.int 0 {1 2 3}}
+            {b.int 0 {1 2 3}}
+            {c.int 0 {1 2 3}}
+        }]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              $opts(b) == 2 &&
+              $opts(c) == 3
+          }
+    } -result 1
+
+    ###
+
+    test parseargs-3.7 {
+        Verify parsing of arguments of type int not matching enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 0 -b 2 -c 3 extraarg}
+        # Note match for a occurs in first element, for b in second element
+        # for c in last element
+        array set opts [twapi::parseargs vargs {
+            {a.arg 0 {1 2 3}}
+            {b.arg 0 {1 2 3}}
+            {c.arg 0 {1 2 3}}
+        }]
+    } -returnCodes {error} -result "Invalid value '0' specified for option '-a'. Must be one of 1, 2, 3"
+
+    ###
+
+    test parseargs-3.8 {
+        Verify parsing of missing options of type int with -nulldefault
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue extraarg}
+        array set opts [twapi::parseargs vargs {
+            {a.arg adefault {avalue xvalue yvalue}}
+            b.int
+        } -nulldefault]
+        set opts(b)
+    } -result 0
+
+    ###
+
+    test parseargs-4.0 {
+        Verify parsing of arguments of type boolean (integer true)
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 100 extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-4.1 {
+        Verify parsing of arguments of type boolean (integer false)
+    } -constraints {
+    } -body {
+        set vargs {-a 0 extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 0 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+
+    ###
+
+    test parseargs-4.2 {
+        Verify parsing of arguments of type boolean (string true)
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a true extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-4.3 {
+        Verify parsing of arguments of type boolean (string false)
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a false extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 0 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-4.4 {
+        Verify parsing of arguments of type boolean (string on)
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a on extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-4.5 {
+        Verify parsing of arguments of type boolean (string off)
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a off extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool} {b.int}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 0 &&
+              ![info exists opts(b)]}
+    } -result 1
+
+    ###
+
+    test parseargs-4.6 {
+        Verify parsing of default arguments of type boolean
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {extraarg anotherarg}
+        array set opts [twapi::parseargs vargs {{a.bool true} {b.bool 0}}]
+        expr {
+              [llength $vargs] == 2 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              [string equal [lindex $vargs 1] "anotherarg"] &&
+              $opts(a) &&
+              ! $opts(b)}
+    } -result 1
+
+    ###
+
+    test parseargs-4.7 {
+        Verify parsing of invalid arguments of type bool
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a not_a_bool extraarg}
+        array set opts [twapi::parseargs vargs {{a.bool 1} {b.int 100}}]
+    } -returnCodes {error} -result "Non-boolean value 'not_a_bool' specified for option '-a'"
+
+    ###
+
+    test parseargs-4.8 {
+        Verify parsing of arguments of type bool ignore enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a true extraarg}
+        array set opts [twapi::parseargs vargs {
+            {a.bool 0 {XXX YYY}}
+        }]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 1
+          }
+    } -result 1
+
+    ###
+
+    test parseargs-4.9 {
+        Verify parsing of missing options of type bool with -nulldefault
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a avalue extraarg}
+        array set opts [twapi::parseargs vargs {
+            {a.arg adefault {avalue xvalue yvalue}}
+            b.bool
+        } -nulldefault]
+        set opts(b)
+    } -result 0
+
+    ###
+
+    test parseargs-5.0 {
+        Verify parsing of arguments of type switch
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a extraarg}
+        array set opts [twapi::parseargs vargs {{b.switch} {a.switch}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) &&
+              !$opts(b)}
+    } -result 1
+
+    ###
+
+    test parseargs-5.1 {
+        Verify parsing of arguments of type switch ignore defaults
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {extraarg}
+        array set opts [twapi::parseargs vargs {{b.switch} {a.switch 1}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              !$opts(a) &&
+              !$opts(b)
+          }
+    } -result 1
+
+
+    ###
+
+    test parseargs-5.2 {
+        Verify options with no specifiers are treated as type switch
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a arg extraarg}
+        array set opts [twapi::parseargs vargs {a b}]
+        expr {
+              [llength $vargs] == 2 &&
+              [string equal [lindex $vargs 0] "arg"] &&
+              [string equal [lindex $vargs 1] "extraarg"] &&
+              $opts(a) &&
+              !$opts(b)
+          }
+    } -result 1
+
+    ###
+
+    test parseargs-5.3 {
+        Verify parsing of arguments of type switch ignore enumerated values
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a arg extraarg}
+        array set opts [twapi::parseargs vargs {
+            {a switch 0 {XXX YYY}}
+        }]
+        expr {
+              [llength $vargs] == 2 &&
+              [string equal [lindex $vargs 0] "arg"] &&
+              [string equal [lindex $vargs 1] "extraarg"] &&
+              $opts(a) == 1
+          }
+    } -result 1
+
+    ###
+
+    test parseargs-6.0 {
+        Verify parsing of invalid options
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 -b 2 extraarg}
+        array set opts [twapi::parseargs vargs {{b.arg}}]
+    } -returnCodes {error} -result "Unknown option '-a'"
+
+    ###
+
+    test parseargs-6.1 {
+        Verify invalid options without arguments are ignored with -ignoreunknown
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a -b 2 extraarg}
+        array set opts [twapi::parseargs vargs {{b.arg}} -ignoreunknown]
+        expr {
+              [llength $vargs] == 2 &&
+              [string equal [lindex $vargs 0] "-a"] &&
+              [string equal [lindex $vargs 1] "extraarg"] &&
+              $opts(b)}
+    } -result 1
+
+    ###
+
+    test parseargs-6.2 {
+        Verify invalid options with arguments are ignored with -ignoreunknown
+    } -constraints {
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 -b 2 extraarg}
+        array set opts [twapi::parseargs vargs {{b.arg}} -ignoreunknown]
+        expr {
+              [llength $vargs] == 3 &&
+              [string equal [lindex $vargs 0] "-a"] &&
+              [string equal [lindex $vargs 1] "1"] &&
+              [string equal [lindex $vargs 2] "extraarg"] &&
+              $opts(b)}
+    } -result 1
+
+    ################################################################
+
+    test parseargs-7.0 {
+        Verify parsing of leftover arguments (none allowed)
+    } -constraints {
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-b 2 leftoverA}
+    } -body {
+        array set opts [twapi::parseargs vargs {{b.arg}} -maxleftover 0]
+    } -returnCodes {error} -result "Command has extra arguments specified: leftoverA"
+
+    ###
+
+    test parseargs-7.1 {
+        Verify parsing of leftover arguments (more than allowed)
+    } -constraints {
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-b 2 leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {{b.arg}} -maxleftover 1]
+    } -returnCodes {error} -result "Command has extra arguments specified: leftoverA leftoverB"
+
+    ###
+
+    test parseargs-7.2 {
+        Verify parsing of leftover arguments (exactly what's than allowed)
+    } -constraints {
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-b 2 leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {{b.arg}} -maxleftover 2]
+        set vargs
+    } -result "leftoverA leftoverB"
+
+    ###
+
+    test parseargs-7.3 {
+        Verify parsing of leftover arguments (more than what's allowed)
+    } -constraints {
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-b 2 leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {{b.arg}} -maxleftover 3]
+        set vargs
+    } -result "leftoverA leftoverB"
+
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::parseargs::test

@@ -1,0 +1,947 @@
+#
+# Copyright (c) 2003, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the disk.tcl
+# TBD - use the dumpcfg tool from WRK for crosschecking
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::disk::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    # Required attributes based on file system type
+    # List of must haves and list of must not haves
+    array set fs_attrs {
+        NTFS {
+            {case_preserved_names unicode_on_disk persistent_acls}
+            {}
+        }
+        FAT32 {
+            {case_preserved_names unicode_on_disk}
+            {persistent_acls volume_quotas supports_sparse_files named_streams}
+        }
+        FAT {
+            {}
+            {case_preserved_names unicode_on_disk
+                persistent_acls volume_quotas supports_sparse_files
+                named_streams}
+        }
+    }
+
+    # List of drives on the system
+    variable drivecheck
+    proc fill_drivecheck {{refresh 0}} {
+        variable drivecheck
+        if {$refresh || ![info exists drivecheck]} {
+            set fd [open "| cscript.exe /nologo disk.vbs"]
+            while {[gets $fd line] >= 0} {
+                if {[string length $line] == 0} {continue }
+
+                set line [split $line "*"]
+                # Convert serial num to 4X-4X format
+                set serialnum [lindex $line 9]
+                if {$serialnum == ""} {
+                    set serialnum 00000000
+                }
+                set serialnum 0x$serialnum
+                set low [expr {$serialnum & 0x0000ffff}]
+                set high [expr {($serialnum >> 16) & 0x0000ffff}]
+                set line [lreplace $line 9 9 [format "%.4X-%.4X" $high $low]]
+                set drivecheck([string toupper [lindex $line 0]]) $line
+            }
+            close $fd
+        }
+    }
+
+    # Get the specified field from drivecheck
+    proc get_drivecheck_field {drive fieldindex {refresh 0}} {
+        variable drivecheck
+        fill_drivecheck $refresh
+        return [lindex $drivecheck([string toupper [string index $drive 0]]:) $fieldindex]
+    }
+
+    # Check if drive is ready
+    proc drive_ready {drive} {
+        fill_drivecheck
+        # If we have file system type, assume drive is ready
+        return [string length [get_drivecheck_field $drive 2]]
+    }
+
+    # Verify disk information. Returns "" if valid, else error message
+    proc verify_drvinfo {drive v_drvinfo {refresh 0}} {
+        upvar $v_drvinfo drvinfo
+
+        if {![drive_ready $drive]} {
+            return
+        }
+
+        if {[expr {($drvinfo(-freespace) + $drvinfo(-used)) != $drvinfo(-size)}]} {
+            return "Invalid disk space values"
+        }
+
+        if {![regexp {^[[:xdigit:]]{4}-[[:xdigit:]]{4}$} $drvinfo(-serialnum)]} {
+            return "Invalid serial number ($drvinfo(-serialnum))"
+        }
+
+        set missing [list ]
+        foreach field {-size -freespace -used -useravail -serialnum -label -maxcomponentlen -fstype -attr} {
+            if {![info exists drvinfo($field)]} {
+                lappend missing $field
+            }
+        }
+        if {[llength $missing]} {
+            return "Missing drive fields: [join $missing ,]"
+        }
+
+        # Now verify against external data
+        variable drivecheck
+        fill_drivecheck $refresh
+
+        # Size must be exact
+        if {$drvinfo(-size) != [get_volume_size $drive]} {
+            return "Wrong volume size for drive $drive"
+        }
+
+        # Check label
+        if {[string compare $drvinfo(-fstype) [get_volume_fstype $drive]]} {
+            return "Wrong FS type ($drvinfo(-fstype)) for drive $drive"
+        }
+
+        # Free space might change so expect them to be within 1Meg
+        set freespace [get_volume_freespace $drive]
+        if {$freespace < 1000000} {set freespace 1000000}
+        if {($drvinfo(-freespace) > (1000000 + $freespace)) ||
+            ($drvinfo(-freespace) < ($freespace - 1000000))} {
+            return "Wrong free space for drive $drive"
+        }
+
+        # Check label
+        if {[string compare $drvinfo(-label) [get_volume_label $drive]]} {
+            return "Wrong serial number ($drvinfo(-label)) for drive $drive"
+        }
+
+        # Check serial number
+        if {[string compare $drvinfo(-serialnum) [get_volume_serialnum $drive]]} {
+            return "Wrong serial number ($drvinfo(-serialnum)) for drive $drive"
+        }
+
+        return ""
+    }
+
+    foreach {
+        field fieldindex
+    } {
+        id     0
+        fstype 2
+        freespace 3
+        mediatype 4
+        driveletter      5
+        size      6
+        label     8
+        serialnum    9
+    } {
+        proc get_volume_$field {drive {refresh 0}} \
+            "return \[get_drivecheck_field \$drive $fieldindex \$refresh\]"
+    }
+    proc get_volume_type {drive {refresh 0}} {
+        set type [get_drivecheck_field $drive 1 $refresh]
+        switch -exact $type {
+            0 { set type unknown}
+            2 { set type removable}
+            3 { set type fixed}
+            4 { set type remote}
+            5 { set type cdrom}
+            6 { set type ramdisk}
+            default { }
+        }
+        return $type
+    }
+
+
+    #
+    # Function to verify a particular option
+    proc verify_drvinfo_option {option check_proc} {
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            eval set [twapi::get_drive_info $drive $option]
+            twapi::try {
+                set optval [set $option]
+                set checkval [$check_proc $drive]
+                if {[string compare $optval $checkval]} {
+                    lappend result "$option mismatch for $drive ($optval != $checkval)"
+                }
+            } onerror {TWAPI_WIN32 5} {
+                # Ignore access denied
+            }
+        }
+        return [concat [join $result "\n"]]
+    }
+
+    # Get all drives
+    proc get_volume_ids {} {
+        variable drivecheck
+        fill_drivecheck
+        return [lsort [array names drivecheck]]
+    }
+
+    # Helper for user space available
+    proc verify_userspace_avail {incr retval} {
+        fill_drivecheck 1
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            twapi::try {
+                set freespace [get_volume_freespace $drive]
+                if {$retval != [twapi::user_drive_space_available $drive [incr freespace $incr]]} {
+                    lappend result "Free space check failed for drive $drive"
+		}
+	    } onerror {TWAPI_WIN32 5} {
+		# Ignore access denied
+            }
+        }
+        concat [join $result "\n"]
+    }
+
+    # DLL to use for file version checking
+    proc get_filever_dll {} {
+        return [file join $::env(WINDIR) system32 shdocvw.dll]
+    }
+
+    # DLL to use for file version checking
+    proc get_filever_app {} {
+        return [file join $::env(WINDIR) system32 notepad.exe]
+    }
+
+    # 16bit DLL to use for file version checking
+    proc get_filever_dll16 {} {
+        return [file join $::env(WINDIR) system shell.dll]
+    }
+
+    # Driver to use for file version checking
+    proc get_filever_driver {} {
+        return [file join $::env(WINDIR) system32 win32k.sys]
+    }
+
+    # Verify timestamps on a file
+    proc verify_file_times {fn times fields} {
+        verify_kl_fields $times $fields
+
+        # Verify values of atime and mtime.
+        array set ftime $times
+        file stat $fn fstat
+        foreach {opt tclopt} {
+            -atime atime
+            -ctime ctime
+            -mtime mtime
+        } {
+            if {[info exists ftime($opt)]} {
+                set secs [twapi::large_system_time_to_secs $ftime($opt)]
+                if {$secs != $fstat($tclopt)} {
+                    puts stderr "File $fn $opt field value $secs does not match the value $fstat($tclopt) returned by Tcl"
+                    return 0
+                }
+            }
+        }
+        return 1
+    }
+
+    ################################################################
+
+    test get_logical_drives-1.0 {
+        Get list of all drives
+    } -constraints {
+        nt
+    } -body {
+        string equal [twapi::get_logical_drives] [get_volume_ids]
+    } -result 1
+
+    ###
+    test get_logical_drives-1.1 {
+        Get list of all drives of a given type
+    } -constraints {
+        nt
+    } -body {
+        catch {unset drivetypes}
+        foreach drive [get_volume_ids] {
+            set type [get_volume_type [string index $drive 0]]
+            lappend drivetypes($type) $drive
+        }
+        foreach type {unknown removable fixed remote cdrom ramdisk} {
+            set drives [twapi::get_logical_drives -type $type]
+            if {! [info exists drivetypes($type)]} {
+                set drivetypes($type) ""
+            }
+            if {[string compare $drives [lsort $drivetypes($type)]]} {
+                return "Drive list mismatch for type $type: Expected <$drivetypes($type)>, got <$drives>"
+            }
+        }
+        return ""
+    } -result ""
+
+    ###
+    test get_drive_info-1.0 {
+        Get all drive information specifying drive letter without a ':'
+    } -constraints {
+        nt
+    } -body {
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            twapi::try {
+                array set drvinfo [twapi::get_drive_info [lindex $drive 0] -all]
+                lappend result [verify_drvinfo $drive drvinfo]
+            } onerror {TWAPI_WIN32 5} {
+                # Ignore access denied
+            }
+        }
+        concat [join $result "\n"]
+    } -result ""
+
+    ###
+    test get_drive_info-1.1 {
+        Get all drive information specifying drive letter with a ':'
+    } -constraints {
+        nt
+    } -body {
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            twapi::try {
+                array set drvinfo [twapi::get_drive_info $drive -all]
+                lappend result [verify_drvinfo $drive drvinfo]
+            } onerror {TWAPI_WIN32 5} {
+                # Ignore access denied
+            }
+        }
+        concat [join $result "\n"]
+    } -result ""
+
+    ###
+    test get_drive_info-1.2 {
+        Get all drive information specifying drive letter with a ':/'
+    } -constraints {
+        nt
+    } -body {
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            twapi::try {
+                array set drvinfo [twapi::get_drive_info ${drive}/ -all]
+                lappend result [verify_drvinfo $drive drvinfo]
+            } onerror {TWAPI_WIN32 5} {
+                # Ignore access denied
+            }
+        }
+        concat [join $result "\n"]
+    } -result ""
+
+    ###
+    test get_drive_info-1.3 {
+        Get all drive information specifying drive letter with a ':\\'
+    } -constraints {
+        nt
+    } -body {
+        set result ""
+        foreach drive [twapi::get_logical_drives] {
+            if {! [drive_ready $drive]} { continue }
+            twapi::try {
+                array set drvinfo [twapi::get_drive_info ${drive}\\ -all]
+                lappend result [verify_drvinfo $drive drvinfo]
+            } onerror {TWAPI_WIN32 5} {
+                # Ignore access denied
+            }
+        }
+        concat [join $result "\n"]
+    } -result ""
+
+
+    ###
+    test get_drive_info-2.0 {
+        Get drive volume label
+    } -constraints {
+        nt
+    } -body {
+        verify_drvinfo_option -label get_volume_label
+    } -result ""
+
+    ###
+    test get_drive_info-3.0 {
+        Get drive volume serial number
+    } -constraints {
+        nt
+    } -body {
+        verify_drvinfo_option -serialnum get_volume_serialnum
+    } -result ""
+
+    ###
+    test get_drive_info-4.0 {
+        Get drive size information
+    } -constraints {
+        nt
+    } -body {
+        fill_drivecheck 1
+        verify_drvinfo_option -size get_volume_size
+    } -result ""
+
+    ###
+    test get_drive_info-5.0 {
+        Get file system type
+    } -constraints {
+        nt
+    } -body {
+        verify_drvinfo_option -fstype get_volume_fstype
+    } -result ""
+
+    ###
+    test get_drive_info-6.0 {
+        Get drive type
+    } -constraints {
+        nt
+    } -body {
+        verify_drvinfo_option -type get_volume_type
+    } -result ""
+
+    ###
+    test get_drive_info-1.8 {
+        Get file system component max length
+    } -constraints {
+        nt
+    } -body {
+        # Assumes FAT32 or NTFS
+        twapi::get_drive_info C: -maxcomponentlen
+    } -result {-maxcomponentlen 255}
+
+    ###
+    test get_drive_info-1.9 {
+        Get file system attributes
+    } -constraints {
+        nt
+    } -body {
+        set type  [lindex [twapi::get_drive_info C: -fstype] 1]
+        eval set [twapi::get_drive_info C: -attr]
+        if {! [info exists fs_attrs($type)]} {
+            return 1
+        }
+        foreach attr [lindex $fs_attrs($type) 0] {
+            # Make sure this attribute is present
+            if {[lsearch -exact ${-attr} $attr] < 0} {return 2}
+        }
+        foreach attr [lindex $fs_attrs($type) 1] {
+            # Make sure this attribute is NOT present
+            if {[lsearch -exact ${-attr} $attr] >= 0} {return 3}
+        }
+        return 0
+    } -result 0
+
+
+    ################################################################
+
+    test user_drive_space_available-1.0 {
+        Check sufficient drive space (sufficient)
+    } -constraints {
+        nt
+    } -body {
+        verify_userspace_avail -1000000 1
+    } -result ""
+
+    ###
+    test user_drive_space_available-1.1 {
+        Check sufficient drive space (exact - may fail when other apps write to disk)
+    } -constraints {
+        nt
+    } -body {
+        verify_userspace_avail 0 1
+    } -result ""
+
+    ###
+    test user_drive_space_available-1.2 {
+        Check sufficient drive space (insufficient)
+    } -constraints {
+        nt
+    } -body {
+        verify_userspace_avail 1000000 0
+    } -result ""
+
+    ################################################################
+
+    test get_drive_type-1.0 {
+        Check the drive type
+    } -constraints {
+        nt
+    } -body {
+        set result [list ]
+        foreach drive [twapi::get_logical_drives] {
+            if {[string compare [twapi::get_drive_type $drive] [get_volume_type $drive]]} {
+                lappend result "Type mismatch for drive $drive"
+            }
+        }
+        concat [join $result \n]
+    } -result ""
+
+    ################################################################
+
+    test set_drive_label-1.0 {
+        Set the drive volume name
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        # Remember the labels
+        fill_drivecheck 1
+        array set oldlabels {}
+    } -body {
+
+        set fixed_drives [twapi::get_logical_drives -type fixed]
+        set error [catch {
+            # try modifying labels of fixed disks only
+            set xxx ""
+            foreach drive $fixed_drives {
+                set oldlabels($drive) [get_volume_label $drive]
+                set newlabel "DRIVE_[string index $drive 0]"
+                twapi::set_drive_label $drive $newlabel
+                if {[string compare $newlabel [get_volume_label $drive 1]]} {
+                    set xxx "Failed to set label for drive $drive"
+                    break
+                }
+            }
+            set xxx
+        } result]
+
+        set result
+
+    } -cleanup {
+        # Reset drive labels - abort and warn if error
+        if {[catch {
+            foreach {drive oldlabel} [array get oldlabels] {
+                twapi::set_drive_label $drive $oldlabel
+            }
+        }]} {
+            puts stderr "ERROR: COULD NOT RESET DRIVE VOLUME NAMES"
+            puts stderr "Original volume names were as follows:"
+            foreach {drive oldlabel} [array get oldlabels] {
+                puts stderr "$drive $oldlabel"
+            }
+            # TBD - should we call tcltest's cleanup here?
+            exit 1
+        }
+        catch {unset oldlabels}
+    } -result ""
+
+    ################################################################
+
+    test get_file_version_resource-1.0 {
+        get_file_version_resource called with no options
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_file_version_resource [get_filever_dll]
+    } -result ""
+
+    ###
+
+    test get_file_version_resource-2.0 {
+        get_file_version_resource -fileversion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -fileversion]
+        set ver(-fileversion)
+    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
+
+    ###
+
+    test get_file_version_resource-3.0 {
+        get_file_version_resource -fileos
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -fileos]
+        set ver(-fileos)
+    } -result nt_windows32
+
+    ###
+
+    test get_file_version_resource-3.1 {
+        get_file_version_resource -fileos
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll16] -fileos]
+        set ver(-fileos)
+    } -result dos_windows16
+
+    ###
+
+    test get_file_version_resource-4.0 {
+        get_file_version_resource -filetype (DLL)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -filetype]
+        set ver(-filetype)
+    } -result dll
+
+    ###
+
+    test get_file_version_resource-4.1 {
+        get_file_version_resource -filetype (driver)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_driver] -filetype]
+        set ver(-filetype)
+    } -result driver.system
+
+    ###
+
+    test get_file_version_resource-4.2 {
+        get_file_version_resource -filetype (application)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_app] -filetype]
+        set ver(-filetype)
+    } -result application
+
+    ###
+
+    test get_file_version_resource-5.0 {
+        get_file_version_resource -signature
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -signature]
+        set ver(-signature)
+    } -result 0xfeef04bd
+
+    ###
+
+    test get_file_version_resource-6.0 {
+        get_file_version_resource -structversion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -structversion]
+        set ver(-structversion)
+    } -result 1.0
+
+    ###
+
+    test get_file_version_resource-7.0 {
+        get_file_version_resource -flags
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -flags]
+        set ver(-flags)
+    } -match regexp -result {^(debug|prerelease|patched|privatebuild|infoinferred|specialbuild)?([[:space:]]+(debug|prerelease|patched|privatebuild|infoinferred|specialbuild))*$}
+
+    ###
+
+    test get_file_version_resource-8.0 {
+        get_file_version_resource -langid
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -langid 1033 CompanyName]
+        set ver(CompanyName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-9.0 {
+        get_file_version_resource -codepage
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -codepage 0x04b0 CompanyName]
+        set ver(CompanyName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-10.0 {
+        get_file_version_resource NonExisting
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] NonExisting]
+        set ver(NonExisting)
+    } -result ""
+
+    ###
+
+    test get_file_version_resource-11.0 {
+        get_file_version_resource ProductName
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] ProductName]
+        set ver(ProductName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-12.0 {
+        get_file_version_resource ProductVersion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] ProductVersion]
+        set ver(ProductVersion)
+    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
+
+
+    ################################################################
+
+    test get_file_times-1.0 {
+        get_file_times with no options
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_file_times [info nameofexecutable]
+    } -result ""
+
+    ###
+
+    test get_file_times-2.0 {
+        Get all file times using a file name
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+    } -body {
+        set times [twapi::get_file_times $fn -all]
+        verify_file_times $fn $times {-mtime -ctime -atime}
+
+    } -result 1
+
+    ###
+
+    test get_file_times-2.1 {
+        Get file creation time using a file name
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+    } -body {
+        set times [twapi::get_file_times $fn -ctime]
+        verify_file_times $fn $times [list -ctime]
+    } -result 1
+
+    ###
+
+    test get_file_times-2.2 {
+        Get file access time using a file name
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+    } -body {
+        set times [twapi::get_file_times $fn -atime]
+        verify_file_times $fn $times [list -atime]
+    } -result 1
+
+    ###
+
+    test get_file_times-2.3 {
+        Get file modification time using a file name
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+    } -body {
+        set times [twapi::get_file_times $fn -mtime]
+        verify_file_times $fn $times [list -mtime]
+    } -result 1
+
+    ###
+
+    test get_file_times-3.0 {
+        Get all file times using a Tcl file channel
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+        set fd [open $fn r]
+    } -body {
+        set times [twapi::get_file_times $fd -all]
+        verify_file_times $fn $times {-mtime -ctime -atime}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ###
+
+    test get_file_times-4.0 {
+        Get all file times using a file handle
+    } -constraints {
+        nt
+    } -setup {
+        set fn [info nameofexecutable]
+        set fd [open $fn r]
+        set fh [twapi::get_tcl_channel_handle $fd read]
+    } -body {
+        set times [twapi::get_file_times $fh -all]
+        verify_file_times $fn $times {-mtime -ctime -atime}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ################################################################
+
+    test set_file_times-1.0 {
+        Set all file times using a file path
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-1.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+    } -body {
+        set ctime [twapi::secs_since_1970_to_large_system_time 0]
+        set mtime [twapi::secs_since_1970_to_large_system_time 100]
+        set atime [twapi::secs_since_1970_to_large_system_time 200]
+        twapi::set_file_times $fn -ctime $ctime -atime $atime -mtime $mtime
+        file stat $fn fstat
+        expr {$fstat(ctime) == 0 && $fstat(mtime) == 100 && $fstat(atime) == 200}
+    } -result 1
+
+    ###
+
+    test set_file_times-2.0 {
+        Set all file times using a Tcl file channel
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-2.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+        set fd [open $fn a+]
+    } -body {
+        set ctime [twapi::secs_since_1970_to_large_system_time 1000]
+        set mtime [twapi::secs_since_1970_to_large_system_time 2000]
+        set atime [twapi::secs_since_1970_to_large_system_time 3000]
+        twapi::set_file_times $fd -ctime $ctime -atime $atime -mtime $mtime
+        file stat $fn fstat
+        expr {$fstat(ctime) == 1000 && $fstat(mtime) == 2000 && $fstat(atime) == 3000}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ###
+
+    test set_file_times-3.0 {
+        Set all file times using a file handle
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-3.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+        set fd [open $fn a+]
+        set fh [twapi::get_tcl_channel_handle $fd write]
+    } -body {
+        set ctime [twapi::secs_since_1970_to_large_system_time 4000]
+        set mtime [twapi::secs_since_1970_to_large_system_time 5000]
+        set atime [twapi::secs_since_1970_to_large_system_time 6000]
+        twapi::set_file_times $fh -ctime $ctime -atime $atime -mtime $mtime
+        file stat $fn fstat
+        expr {$fstat(ctime) == 4000 && $fstat(mtime) == 5000 && $fstat(atime) == 6000}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ###
+
+    test set_file_times-4.0 {
+        Set only file creation time using a file path
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-4.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+    } -body {
+        set now [clock seconds]
+        set ctime [twapi::secs_since_1970_to_large_system_time 0]
+        twapi::set_file_times $fn -ctime $ctime
+        file stat $fn fstat
+        expr {$fstat(ctime) == 0 && $fstat(mtime) >= $now && $fstat(atime) >= $now}
+    } -result 1
+
+    ###
+
+    test set_file_times-5.0 {
+        Set only file modification time using a Tcl file channel
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-5.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+        set fd [open $fn a+]
+    } -body {
+        set now [clock seconds]
+        set mtime [twapi::secs_since_1970_to_large_system_time 2000]
+        twapi::set_file_times $fd -mtime $mtime
+        file stat $fn fstat
+        expr {$fstat(ctime) >= $now && $fstat(mtime) == 2000 && $fstat(atime) >= $now}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ###
+
+    test set_file_times-6.0 {
+        Set only file access time using a file handle
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-6.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+        set fd [open $fn a+]
+        set fh [twapi::get_tcl_channel_handle $fd write]
+    } -body {
+        set now [clock seconds]
+        set atime [twapi::secs_since_1970_to_large_system_time 6000]
+        twapi::set_file_times $fh -atime $atime
+        file stat $fn fstat
+        expr {$fstat(ctime) >= $now && $fstat(mtime) >= $now && $fstat(atime) == 6000}
+    } -cleanup {
+        close $fd
+    } -result 1
+
+    ###
+
+    test set_file_times-7.0 {
+        Preserve file access time using -preserveatime
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-7.0-[clock clicks]]
+        tcltest::makeFile "" [file tail $fn] [file dirname $fn]
+        # Set some old file access time
+        set atime [twapi::secs_since_1970_to_large_system_time 6000]
+        twapi::set_file_times $fn -atime $atime
+    } -body {
+        # Now open the file and write it so access times get modified
+        set now [clock seconds]
+        set fd [open $fn a+]
+        puts $fd "Just some junk"
+        twapi::set_file_times $fh -preserveatime
+        close $fd
+        file stat $fn fstat
+        # Verify that access time not changed even though we wrote the file
+        expr {$fstat(mtime) >= $now && $fstat(atime) == 6000}
+    } -result 1
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::disk::test

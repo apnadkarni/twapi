@@ -1,0 +1,31 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for power related commands.
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::power::test {
+    namespace import ::tcltest::test
+
+    ################################################################
+
+    # TBD - add tests for all the power.tcl commands
+
+    ################################################################
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::power::test

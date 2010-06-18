@@ -1,0 +1,825 @@
+#
+# Copyright (c) 2005, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from nls.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::nls::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    ################################################################
+
+    test format_currency-1.0 {
+        Format a positive currency value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456.50 1033
+    } -result {$123,456.50}
+    
+    ###
+
+    test format_currency-1.1 {
+        Format a negative currency value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456.50 1033
+    } -result {($123,456.50)}
+    
+    ###
+
+    test format_currency-1.2 {
+        Format a whole positive currency value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 00123456 1033
+    } -result {$123,456.00}
+    
+    ###
+
+    test format_currency-2.0 {
+        Format with locale dependent decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123 1033
+    } -result {$123.00}
+
+    ###
+
+    test format_currency-2.1 {
+        Format whole number with specific number of decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123 1033 -idigits 1
+    } -result {$123.0}
+
+    ###
+
+    test format_currency-2.2 {
+        Format decimal number with rounded number of decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123.45 1033 -idigits 1
+    } -result {$123.5}
+
+    ###
+
+    test format_currency-2.3 {
+        Format decimal number with no decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123.45 1033 -idigits 0
+    } -result {$123}
+
+    ###
+
+    test format_currency-2.4 {
+        Format decimal number with same number of decimal places as original
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456.4 1033 -idigits -1
+    } -result {$123,456.4}
+
+    ###
+
+    test format_currency-3.0 {
+        Format a fractional currency with leading zeroes
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency .12 1033 -ilzero 1
+    } -result {$0.12}
+
+    ###
+
+    test format_currency-3.1 {
+        Format a fractional currency without leading zeroes
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 0.12 1033 -ilzero 0
+    } -result {$.12}
+
+    ###
+
+    test format_currency-4.0 {
+        Format a currency with default grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033
+    } -result {$123,456,789.00}
+
+    ###
+
+    test format_currency-4.1 {
+        Format a currency with no grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -sgrouping 0
+    } -result {$123456789.00}
+
+    ###
+
+    test format_currency-4.2 {
+        Format a currency with non-default grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -sgrouping 2
+    } -result {$1,23,45,67,89.00}
+
+    ###
+
+    test format_currency-4.3 {
+        Format a currency with Indic grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -sgrouping 32
+    } -result {$12,34,56,789.00}
+
+    ###
+
+    test format_currency-5.0 {
+        Format a currency with a specific decimal separator
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123.00 1033 -sdecimal ,
+    } -result {$123,00}
+
+    ###
+
+    test format_currency-6.0 {
+        Format a currency with a specific thousand separator
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -sthousand -
+    } -result {$123-456-789.00}
+
+    ###
+
+    test format_currency-7.0 {
+        Format a currency with a specific negative format
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 0
+    } -result {($123,456,789.00)}
+
+    ###
+
+    test format_currency-7.1 {
+        Format a currency with a specific negative format 1
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 1
+    } -result {-$123,456,789.00}
+
+    ###
+
+    test format_currency-7.2 {
+        Format a currency with a specific negative format 2
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 2
+    } -result {$-123,456,789.00}
+
+    ###
+
+    test format_currency-7.3 {
+        Format a currency with a specific negative format 3
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 3
+    } -result {$123,456,789.00-}
+
+    ###
+
+    test format_currency-7.4 {
+        Format a currency with a specific negative format 4
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 4 
+    } -result {(123,456,789.00$)}
+
+    ###
+
+    test format_currency-7.5 {
+        Format a currency with a specific negative format 5
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 5 
+    } -result {-123,456,789.00$}
+
+    ###
+
+    test format_currency-7.6 {
+        Format a currency with a specific negative format 6
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 6
+    } -result {123,456,789.00-$}
+
+    ###
+
+    test format_currency-7.7 {
+        Format a currency with a specific negative format 7
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 7
+    } -result {123,456,789.00$-}
+
+    ###
+
+    test format_currency-7.8 {
+        Format a currency with a specific negative format 8
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 8
+    } -result {-123,456,789.00 $}
+
+    ###
+
+    test format_currency-7.9 {
+        Format a currency with a specific negative format 9
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 9 
+    } -result {-$ 123,456,789.00}
+
+    ###
+
+    test format_currency-7.10 {
+        Format a currency with a specific negative format 10
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 10
+    } -result {123,456,789.00 $-}
+
+    ###
+
+    test format_currency-7.11 {
+        Format a currency with a specific negative format 11
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 11
+    } -result {$ 123,456,789.00-}
+
+    ###
+
+    test format_currency-7.12 {
+        Format a currency with a specific negative format 12
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 12
+    } -result {$ -123,456,789.00}
+
+    ###
+
+    test format_currency-7.13 {
+        Format a currency with a specific negative format 13
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 13
+    } -result {123,456,789.00- $}
+
+    ###
+
+    test format_currency-7.14 {
+        Format a currency with a specific negative format 14
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 14
+    } -result {($ 123,456,789.00)}
+
+    ###
+
+    test format_currency-7.15 {
+        Format a currency with a specific negative format 15
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency -123456789.00 1033 -inegcurr 15
+    } -result {(123,456,789.00 $)}
+
+    ###
+
+    test format_currency-8.0 {
+        Format a currency with a specific positive format 0
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -icurrency 0
+    } -result {$123,456,789.00}
+
+    ###
+
+    test format_currency-8.1 {
+        Format a currency with a specific positive format 1
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -icurrency 1
+    } -result {123,456,789.00$}
+
+    ###
+
+    test format_currency-8.2 {
+        Format a currency with a specific positive format 2
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -icurrency 2 
+    } -result {$ 123,456,789.00}
+
+    ###
+
+    test format_currency-8.3 {
+        Format a currency with a specific positive format 3
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_currency 123456789.00 1033 -icurrency 3 
+    } -result {123,456,789.00 $}
+
+    ################################################################
+
+    test format_number-1.0 {
+        Format a positive number value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456.50 1035
+    } -result "123\u00a0456,50"
+    
+    ###
+
+    test format_number-1.1 {
+        Format a negative number value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123456.50 1035
+    } -result "-123\u00a0456,50"
+    
+    ###
+
+    test format_number-1.2 {
+        Format a whole positive number value using locale defaults
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 00123456 1035
+    } -result "123\u00a0456,00"
+    
+    ###
+
+    test format_number-2.0 {
+        Format with locale dependent decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123 1035
+    } -result {123,00}
+
+    ###
+
+    test format_number-2.1 {
+        Format whole number with specific number of decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123 1035 -idigits 1
+    } -result {123,0}
+
+    ###
+
+    test format_number-2.2 {
+        Format decimal number with rounded number of decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123.45 1035 -idigits 1
+    } -result {123,5}
+
+    ###
+
+    test format_number-2.3 {
+        Format decimal number with no decimal places
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123.45 1035 -idigits 0
+    } -result {123}
+
+    ###
+
+    test format_number-2.4 {
+        Format decimal number with same number of decimal places as original
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456.4 1035 -idigits -1
+    } -result "123\u00a0456,4"
+
+    ###
+
+    test format_number-3.0 {
+        Format a fractional number with leading zeroes
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number .12 1035 -ilzero 1
+    } -result {0,12}
+
+    ###
+
+    test format_number-3.1 {
+        Format a fractional number without leading zeroes
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 0.12 1035 -ilzero 0
+    } -result {,12}
+
+    ###
+
+    test format_number-4.0 {
+        Format a number with default grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456789.00 1035
+    } -result "123\u00a0456\u00a0789,00"
+
+    ###
+
+    test format_number-4.1 {
+        Format a number with no grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456789.00 1035 -sgrouping 0
+    } -result {123456789,00}
+
+    ###
+
+    test format_number-4.2 {
+        Format a number with non-default grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456789.00 1035 -sgrouping 2
+    } -result "1\u00a023\u00a045\u00a067\u00a089,00"
+
+    ###
+
+    test format_number-4.3 {
+        Format a number with Indic grouping
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456789.00 1035 -sgrouping 32
+    } -result "12\u00a034\u00a056\u00a0789,00"
+
+    ###
+
+    test format_number-5.0 {
+        Format a number with a specific decimal separator
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123.00 1035 -sdecimal .
+    } -result {123.00}
+
+    ###
+
+    test format_number-6.0 {
+        Format a number with a specific thousand separator
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number 123456789.00 1035 -sthousand -
+    } -result {123-456-789,00}
+
+    ###
+
+    test format_number-7.0 {
+        Format a number with a specific negative format
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123.00 1035 -inegnumber 0
+    } -result {(123,00)}
+
+    ###
+
+    test format_number-7.1 {
+        Format a number with a specific negative format 1
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123.00 1035 -inegnumber 1
+    } -result {-123,00}
+
+    ###
+
+    test format_number-7.2 {
+        Format a number with a specific negative format 2
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123.00 1035 -inegnumber 2
+    } -result {- 123,00}
+
+    ###
+
+    test format_number-7.3 {
+        Format a number with a specific negative format 3
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123.00 1035 -inegnumber 3
+    } -result {123,00-}
+
+    ###
+
+    test format_number-7.4 {
+        Format a number with a specific negative format 4
+    } -constraints {
+        nt
+    } -body {
+        twapi::format_number -123.00 1035 -inegnumber 4 
+    } -result {123,00 -}
+
+    ################################################################
+
+    test get_user_default_lcid-1.0 {
+        Get the user default LCID
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_user_default_lcid
+    } -result 1033
+
+    ################################################################
+
+    test get_system_default_lcid-1.0 {
+        Get the system default LCID
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_system_default_lcid
+    } -result 1033
+
+    ################################################################
+
+    test get_user_langid-1.0 {
+        Get the user language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_user_langid
+    } -result 1033
+
+    ################################################################
+
+    test get_system_langid-1.0 {
+        Get the system language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_system_langid
+    } -result 1033
+
+    ################################################################
+
+    test get_user_ui_langid-1.0 {
+        Get the user UI language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_user_ui_langid
+    } -result 1033
+
+    ################################################################
+
+    test get_system_langid-1.0 {
+        Get the system UI language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_system_ui_langid
+    } -result 1033
+
+    ################################################################
+
+    set i 0
+    foreach opt {
+            ilanguage
+            slanguage
+            senglanguage
+            sabbrevlangname
+            snativelangname
+            icountry
+            scountry
+            sengcountry
+            sabbrevctryname
+            snativectryname
+            idefaultlanguage
+            idefaultcountry
+            idefaultcodepage
+            idefaultansicodepage
+            idefaultmaccodepage
+            slist
+            imeasure
+            sdecimal
+            sthousand
+            sgrouping
+            idigits
+            ilzero
+            inegnumber
+            snativedigits
+            scurrency
+            sintlsymbol
+            smondecimalsep
+            smonthousandsep
+            smongrouping
+            icurrdigits
+            iintlcurrdigits
+            icurrency
+            inegcurr
+            sdate
+            stime
+            sshortdate
+            slongdate
+            stimeformat
+            idate
+            ildate
+            itime
+            itimemarkposn
+            icentury
+            itlzero
+            idaylzero
+            imonlzero
+            s1159
+            s2359
+            icalendartype
+            ioptionalcalendar
+            ifirstdayofweek
+            ifirstweekofyear
+            sdayname1
+            sdayname2
+            sdayname3
+            sdayname4
+            sdayname5
+            sdayname6
+            sdayname7
+            sabbrevdayname1
+            sabbrevdayname2
+            sabbrevdayname3
+            sabbrevdayname4
+            sabbrevdayname5
+            sabbrevdayname6
+            sabbrevdayname7
+            smonthname1
+            smonthname2
+            smonthname3
+            smonthname4
+            smonthname5
+            smonthname6
+            smonthname7
+            smonthname8
+            smonthname9
+            smonthname10
+            smonthname11
+            smonthname12
+            smonthname13
+            sabbrevmonthname1
+            sabbrevmonthname2
+            sabbrevmonthname3
+            sabbrevmonthname4
+            sabbrevmonthname5
+            sabbrevmonthname6
+            sabbrevmonthname7
+            sabbrevmonthname8
+            sabbrevmonthname9
+            sabbrevmonthname10
+            sabbrevmonthname11
+            sabbrevmonthname12
+            sabbrevmonthname13
+            spositivesign
+            snegativesign
+            ipossignposn
+            inegsignposn
+            ipossymprecedes
+            ipossepbyspace
+            inegsymprecedes
+            inegsepbyspace
+            fontsignature
+            siso639langname
+            siso3166ctryname
+            idefaultebcdiccodepage
+            ipapersize
+            sengcurrname
+            snativecurrname
+            syearmonth
+            ssortname
+            idigitsubstitution
+    } {
+        test get_locale_info-[incr i].0 "get_locale_info -$opt" -constraints { nt } -body "twapi::get_locale_info 1035 -$opt" -result * -match glob
+    }
+
+    ################################################################
+
+    test map_langid_to_name-1.0 {
+        Map langid to name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_langid_to_name [twapi::get_user_default_langid]
+    } -match regexp -result .+
+
+    test map_langid_to_name-1.1 {
+        Map unknown langid to name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_langid_to_name 123
+    } -result "Language Neutral"
+
+
+    ################################################################
+
+    test map_code_page_to_name-1.0 {
+        Map code page to name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_code_page_to_name 437
+    } -result "OEM - United States"
+
+    ###
+
+    test map_code_page_to_name-1.1 {
+        Map unknown code page to name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_code_page_to_name 123
+    } -result "Code page 123"
+
+
+
+
+    ################################################################
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::nls::test

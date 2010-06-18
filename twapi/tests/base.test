@@ -1,0 +1,46 @@
+#
+# Copyright (c) 2007, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for basic operation
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::base::test {
+    namespace import ::tcltest::test
+
+    ################################################################
+
+    test swig_tcl_vareval-1.0 {
+        Test that SWIG has been patched to not use Tcl_VarEval in Swig_ConvertPtrFromString
+    } -constraints {
+        nt TBD 
+    } -body {
+        TBD - GlobalSize is no longer swigified, need to find another command
+        # We call GlobalSize with a argument that is actually a command.
+        # In the unpatched SWIG, this will actually execute the command
+        # as it tries to convert it into a pointer.
+        # In the patched version, an error will be returned
+        ::twapi::GlobalSize "set ::xx 1;"
+    } -result "Type error. Expected a pointer" -returnCodes 1
+
+    ###
+
+
+    ################################################################
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::base::test

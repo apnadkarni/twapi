@@ -1,0 +1,311 @@
+#
+# Copyright (c) 2004, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the clipboard.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::clipboard::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+   ################################################################
+
+    test open_clipboard-1.0 {
+        Open the clipboard
+    } -constraints {
+        nt
+    } -body {
+        twapi::open_clipboard
+        twapi::close_clipboard
+    } -result ""
+
+    ################################################################
+
+    test close_clipboard-1.0 {
+        Close the clipboard
+    } -constraints {
+        nt
+    } -body {
+        twapi::open_clipboard
+        twapi::close_clipboard
+    } -result ""
+
+    ################################################################
+
+    test empty_clipboard-1.0 {
+        Empty the clipboard
+    } -constraints {
+        nt
+    } -body {
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        twapi::close_clipboard
+    } -result ""
+
+    ################################################################
+
+    test read_clipboard-1.0 {
+        Read the clipboard as Unicode format
+    } -constraints {
+        nt
+    } -body {
+        set text "line1^mline2";        # line1 CR line2 \0
+        notepad_copy $text
+        twapi::open_clipboard
+        set clip_text [twapi::read_clipboard 13]; # Read unicode format
+        twapi::close_clipboard
+        # We should see clipboard results read as unicode characters
+        # "l i n e 1 \r \n l i n e 2 \0"
+        # so check string length is 26 (13 Unicode chars)
+        # and that translates back to original string leaving out trailing null
+        # and translating \r\n to \r
+        expr {[string length $clip_text] == 26 &&
+              [string equal [string map [list "^m" "\r\n"] $text] [string range [encoding convertfrom unicode $clip_text] 0 end-1]]}
+    } -result 1
+
+    ################################################################
+
+    test read_clipboard-1.1 {
+        Read the clipboard as character format
+    } -constraints {
+        nt
+    } -body {
+        set text "line1^mline2";        # line1 CR line2 \0
+        notepad_copy $text
+        twapi::open_clipboard
+        set clip_text [twapi::read_clipboard 1]; # ANSI format
+        twapi::close_clipboard
+        # We should see clipboard results read as unicode characters
+        # "line1\r\nline2\0"
+        # so check string length is 13
+        # and that translates back to original string leaving out trailing null
+        expr {[string length $clip_text] == 13 &&
+              [string equal [string map [list "^m" "\r\n"] $text] [string range $clip_text 0 end-1]]}
+    } -result 1
+
+    ################################################################
+
+    test read_clipboard_text-1.0 {
+        Read the clipboard as text
+    } -constraints {
+        nt
+    } -body {
+        set text "line1^mline2"
+        notepad_copy $text
+        twapi::open_clipboard
+        set clip_text [twapi::read_clipboard_text]
+        twapi::close_clipboard
+        # We should see clipboard results read as characters without
+        # terminating null. Line end is a single \n char
+        # "l i n e 1 \n l i n e 2"
+        # so check string length is 11
+        # and that translates back to original string
+        # and translating \r\n to \r
+        expr {[string length $clip_text] == 11 &&
+              (1 || [string equal [string map [list "^m" "\n"] $text] $clip_text])}
+    } -result 1
+
+    ################################################################
+
+    test read_clipboard_text-1.1 {
+        Read the clipboard as raw text
+    } -constraints {
+        nt
+    } -body {
+        set text "line1^mline2";        # line1 CR line2 \0
+        notepad_copy $text
+        twapi::open_clipboard
+        set clip_text [twapi::read_clipboard_text -raw 1]
+        twapi::close_clipboard
+        # We should see clipboard results read as characters without
+        # terminating null. Line end is \r\n since we are reading raw
+        # "l i n e 1 \r \n l i n e 2"
+        # so check string length is 12
+        # and that translates back to original string
+        expr {[string length $clip_text] == 12 &&
+              [string equal [string map [list "^m" "\r\n"] $text] $clip_text]}
+    } -result 1
+
+    ################################################################
+
+    test clipboard_format_available-1.0 {
+        Check if a clipboard format is available (positive)
+    } -constraints {
+        nt
+    } -body {
+        notepad_copy "Some random text"
+        twapi::clipboard_format_available 1; # 1 -> Text format
+    } -result 1
+
+    ################################################################
+
+    test clipboard_format_available-1.1 {
+        Check if a clipboard format is available (negative)
+    } -constraints {
+        nt
+    } -body {
+        notepad_copy "Some random text"
+        twapi::clipboard_format_available 12345; # Some dummy format
+    } -result 0
+
+    ################################################################
+
+    test get_clipboard_formats-1.0 {
+        Get formats currently stored on the clipboard
+    } -constraints {
+        nt
+    } -body {
+        notepad_copy "Some random text"
+        twapi::open_clipboard
+        set clip_fmts [twapi::get_clipboard_formats]
+        twapi::close_clipboard
+        lsort -integer $clip_fmts
+    } -result {1 7 13 16}
+
+
+    ################################################################
+
+    test register_clipboard_format-1.0 {
+        Register a clipboard format
+    } -constraints {
+        nt
+    } -body {
+        string is integer [twapi::register_clipboard_format "TWAPI format"]
+    } -result 1
+
+    ################################################################
+
+    test get_registered_clipboard_format_name-1.0 {
+        Get the name of a registered clipboard format
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_registered_clipboard_format_name [twapi::register_clipboard_format "HTML Format"]
+    } -result "HTML Format"
+
+    ################################################################
+
+    test get_registered_clipboard_format_name-1.0 {
+        Get the name of a standard clipboard format (should raise error)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_registered_clipboard_format_name 1
+    } -returnCodes {
+        error
+    } -result "The parameter is incorrect."
+
+    ################################################################
+
+    test write_clipboard-1.0 {
+        Write binary data to the clipboard
+    } -constraints {
+        nt
+    } -body {
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        # Write data using our own format 23456 (arbitrary format number)
+        set data [binary format c* {0 1 2 3 4}]
+        twapi::write_clipboard 23456 $data
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard 23456]
+        twapi::close_clipboard
+
+        string equal $data $clip_data
+    } -result 1
+
+    ################################################################
+
+    test write_clipboard-1.1 {
+        Write Unicode data to the clipboard
+    } -constraints {
+        nt
+    } -body {
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        # We have to format the data with a trailing null char
+        set data [encoding convertto unicode "unicode text\0"]
+        twapi::write_clipboard 13 $data
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard 13]
+        twapi::close_clipboard
+
+        string equal $data $clip_data
+    } -result 1
+
+    ################################################################
+
+    test write_clipboard_text-1.0 {
+        Write text to the clipboard
+    } -constraints {
+        nt
+    } -body {
+        set data "TWAPI test data"
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        twapi::write_clipboard_text $data
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard_text]
+        twapi::close_clipboard
+
+        string equal $data $clip_data
+    } -result 1
+
+    ################################################################
+
+    test start_clipboard_monitor-1.0 {
+        Monitor the clipboard
+    } -constraints {
+        nt
+    } -body {
+        set ::clipboard_changed false
+        set ::cl_win [::twapi::start_clipboard_monitor "set ::clipboard_changed true"]
+        notepad_copy "clipboard monitor"
+        update;                 # So callback runs
+        set ::clipboard_changed
+    } -cleanup {
+        ::twapi::stop_clipboard_monitor $::cl_win
+    } -result true
+
+    ################################################################
+
+    test stop_clipboard_monitor-1.0 {
+        Stop monitoring the clipboard
+    } -constraints {
+        nt
+    } -setup {
+        set ::clipboard_changed false
+        set ::cl_win [::twapi::start_clipboard_monitor "set ::clipboard_changed true"]
+        notepad_copy "clipboard monitor"
+        update;                 # So callback runs
+        if {! $::clipboard_changed} {
+            error "Failed to detect clipboard change"
+        }
+    } -body {
+        ::twapi::stop_clipboard_monitor $::cl_win
+        set ::clipboard_changed false
+        notepad_copy "clipboard monitor"
+        update;                 # So callback runs if still registered
+        set ::clipboard_changed
+    } -result false
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::clipboard::test

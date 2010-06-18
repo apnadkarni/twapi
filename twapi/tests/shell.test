@@ -1,0 +1,673 @@
+#
+# Copyright (c) 2004, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the shell.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::shell::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    proc check_csidl {csidl {allow_empty 0}} {
+        set path [twapi::get_shell_folder $csidl]
+
+        if {$path == ""} {
+            return $allow_empty
+        }
+
+        return [file isdirectory [twapi::get_shell_folder $csidl]]
+    }
+
+    ################################################################
+
+    test get_shell_folder-1.0 {
+        Get path to CSIDL_ADMINTOOLS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_ADMINTOOLS 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.1 {
+        Get path to CSIDL_COMMON_ADMINTOOLS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_ADMINTOOLS 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.2 {
+        Get path to CSIDL_APPDATA
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_APPDATA
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.3 {
+        Get path to CSIDL_COMMON_APPDATA
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_APPDATA
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.4 {
+        Get path to CSIDL_COMMON_DESKTOPDIRECTORY
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_DESKTOPDIRECTORY
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.5 {
+        Get path to CSIDL_COMMON_DOCUMENTS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_DOCUMENTS
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.6 {
+        Get path to CSIDL_COMMON_FAVORITES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_FAVORITES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.7 {
+        Get path to CSIDL_COMMON_MUSIC
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_MUSIC 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.8 {
+        Get path to CSIDL_COMMON_PICTURES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_PICTURES 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.9 {
+        Get path to CSIDL_COMMON_PROGRAMS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_PROGRAMS
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.10 {
+        Get path to CSIDL_COMMON_STARTMENU
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_STARTMENU
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.11 {
+        Get path to CSIDL_COMMON_TEMPLATES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_TEMPLATES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.12 {
+        Get path to CSIDL_COMMON_VIDEO
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COMMON_VIDEO 1
+    } -result 1
+
+
+    ###
+
+    test get_shell_folder-1.13 {
+        Get path to CSIDL_COOKIES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_COOKIES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.14 {
+        Get path to CSIDL_DESKTOPDIRECTORY
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_DESKTOPDIRECTORY
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.15 {
+        Get path to CSIDL_FAVORITES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_FAVORITES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.16 {
+        Get path to CSIDL_HISTORY
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_HISTORY
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.17 {
+        Get path to CSIDL_INTERNET_CACHE
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_INTERNET_CACHE
+    } -result 1
+
+
+    ###
+
+    test get_shell_folder-1.18 {
+        Get path to CSIDL_LOCAL_APPDATA
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_LOCAL_APPDATA
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.19 {
+        Get path to CSIDL_MYMUSIC
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_MYMUSIC 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.20 {
+        Get path to CSIDL_MYVIDEO
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_MYVIDEO 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.21 {
+        Get path to CSIDL_NETHOOD
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_NETHOOD
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.22 {
+        Get path to CSIDL_PRINTHOOD
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PRINTHOOD
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.23 {
+        Get path to CSIDL_PROFILE
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PROFILE
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.24 {
+        Get path to CSIDL_PROFILES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PROFILES 1
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.25 {
+        Get path to CSIDL_PROGRAMS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PROGRAMS
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.26 {
+        Get path to CSIDL_PROGRAM_FILES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PROGRAM_FILES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.27 {
+        Get path to CSIDL_PROGRAM_FILES_COMMON
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_PROGRAM_FILES_COMMON
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.28 {
+        Get path to CSIDL_RECENT
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_RECENT
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.30 {
+        Get path to CSIDL_SENDTO
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_SENDTO
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.31 {
+        Get path to CSIDL_STARTMENU
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_STARTMENU
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.32 {
+        Get path to CSIDL_STARTUP
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_STARTUP
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.33 {
+        Get path to CSIDL_SYSTEM
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_SYSTEM
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.34 {
+        Get path to CSIDL_TEMPLATES
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_TEMPLATES
+    } -result 1
+
+    ###
+
+    test get_shell_folder-1.35 {
+        Get path to CSIDL_WINDOWS
+    } -constraints {
+        nt
+    } -body {
+        check_csidl CSIDL_WINDOWS
+    } -result 1
+
+    ###
+
+    test get_shell_folder-2.0 {
+        Verify lower case CSIDL values
+    } -constraints {
+        nt
+    } -body {
+        check_csidl csidl_windows
+    } -result 1
+
+    ###
+
+    test get_shell_folder-2.1 {
+        Verify integer CSIDL values
+    } -constraints {
+        nt
+    } -body {
+        check_csidl 36
+    } -result 1
+
+    ###
+
+    test get_shell_folder-2.2 {
+        Verify CSIDL suffixes
+    } -constraints {
+        nt
+    } -body {
+        check_csidl windows
+    } -result 1
+
+    ###
+
+    test get_shell_folder-3.0 {
+        Verify -create option
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result 1
+
+    ################################################################
+
+    test read_shortcut-1.0 {
+        Verify all fields are present in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        verify_kl_fields [twapi::read_shortcut $path] {-args -desc -hotkey -iconindex -iconpath -idl -path -showcmd -workdir}
+    } -result ""
+
+    ###
+
+    test read_shortcut-2.0 {
+        Verify -path field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        string match -nocase *system32*services.msc $data(-path)
+    } -result 1
+
+    ###
+
+    test read_shortcut-2.1 {
+        Verify -args field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-args)
+    } -result /s
+
+    ###
+
+    test read_shortcut-2.2 {
+        Verify -desc field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-desc)
+    } -match glob -result *services*
+
+    ###
+
+    test read_shortcut-2.3 {
+        Verify -hotkey field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-hotkey)
+    } -result 0
+
+    ###
+
+    test read_shortcut-2.4 {
+        Verify -iconindex field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-iconindex)
+    } -result 0
+
+    ###
+
+    test read_shortcut-2.5 {
+        Verify -iconpath field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        string match -nocase *system32*.dll $data(-iconpath)
+    } -result 1
+
+    ###
+
+    test read_shortcut-2.6 {
+        Verify -showcmd field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-showcmd)
+    } -match regexp -result {normal|minimized|maximized}
+
+    ###
+
+    test read_shortcut-2.7 {
+        Verify -workdir field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-workdir)
+    } -result "%HOMEDRIVE%%HOMEPATH%"
+
+    ###
+
+    test read_shortcut-2.8 {
+        Verify -idl field in shortcut information
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path]
+        set data(-idl)
+        # TBD - need better validation of pidl
+    } -match regexp -result .*
+
+    ###
+
+    test read_shortcut-3.0 {
+        Verify -rawpath option
+    } -constraints {
+        nt
+    } -body {
+        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        array set data [twapi::read_shortcut $path -rawpath]
+        string match -nocase *%systemroot%* $data(-path)
+    } -result 1
+
+    ###
+
+    test read_shortcut-4.0 {
+        Verify options
+    } -constraints {
+        TBD nt
+    } -body {
+    } -result 1
+
+
+    ################################################################
+
+    test write_shortcut-1.0 {
+        TBD - write_shortcut tests
+    } -constraints {
+        TBD nt
+    } -body {
+    } -result 1
+
+    ################################################################
+
+    test read_url_shortcut-1.0 {
+        Read url shortcut
+    } -constraints {
+        nt
+    } -body {
+        set path [lindex [glob [file join [twapi::get_shell_folder favorites] *.url]] 0]
+        string match -nocase http://* [twapi::read_url_shortcut $path]
+    } -result 1
+
+    ################################################################
+
+    test write_url_shortcut-1.0 {
+        Write a URL shortcut
+    } -constraints {
+        nt
+    } -body {
+        set path [get_temp_path write_url_shortcut-1_0.url]
+        twapi::write_url_shortcut $path http://twapi.sf.net
+        twapi::read_url_shortcut $path
+    } -cleanup {
+        file delete $path
+    } -result http://twapi.sf.net/
+
+    ###
+
+    test write_url_shortcut-2.0 {
+        Write a URL ftp shortcut with guessed protocol
+    } -constraints {
+        nt
+    } -body {
+        set path [get_temp_path write_url_shortcut-1_0.url]
+        twapi::write_url_shortcut $path ftp.sf.net -missingprotocol guess
+        twapi::read_url_shortcut $path
+    } -cleanup {
+        file delete $path
+    } -result ftp://ftp.sf.net/
+
+    ###
+
+    test write_url_shortcut-2.1 {
+        Write a URL shortcut to file with guessed protocol
+    } -constraints {
+        nt
+    } -body {
+        set path [get_temp_path write_url_shortcut-1_0.url]
+        twapi::write_url_shortcut $path c:\\file.txt -missingprotocol guess
+        twapi::read_url_shortcut $path
+    } -cleanup {
+        file delete $path
+    } -result file:///c:/file.txt
+
+
+    ###
+
+    test write_url_shortcut-3.0 {
+        Write a URL shortcut with default protocol
+    } -constraints {
+        nt
+    } -body {
+        set path [get_temp_path write_url_shortcut-1_0.url]
+        twapi::write_url_shortcut $path xyz.sf.net -missingprotocol usedefault
+        twapi::read_url_shortcut $path
+    } -cleanup {
+        file delete $path
+    } -result http://xyz.sf.net/
+
+    ################################################################
+
+    test invoke_url_shortcut-1.0 {
+        TBD - invoke_url_shortcut tests
+    } -constraints {
+        TBD nt
+    } -body {
+    } -result 1
+
+    ################################################################
+
+    test recycle_file-1.0 {
+        TBD - recycle_file tests
+    } -constraints {
+        TBD nt
+    } -body {
+    } -result 1
+
+    ################################################################
+
+    test shell_execute-1.0 {
+        TBD - shell_execute tests
+    } -constraints {
+        TBD nt
+    } -body {
+    } -result 1
+
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::shell::test

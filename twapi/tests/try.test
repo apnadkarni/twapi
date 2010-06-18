@@ -1,0 +1,310 @@
+#
+# Copyright (c) 2004, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for the try command
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+
+namespace eval twapi::try::test {
+    namespace import ::tcltest::test
+
+    variable nosuchvar_error "can't read \"nosuchvar\": no such variable"
+
+    ################################################################
+
+
+    test try-1.0 {
+        Verify script with no errors and no onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::try {set x 1}
+        set x
+    } -result 1
+
+    ################################################################
+
+    test try-1.1 {
+        Verify script with errors and no onerror and finally clauses
+    } -constraints {
+    } -body {
+        twapi::try {set nosuchvar}
+    } -returnCodes error -result $nosuchvar_error
+
+    ###
+
+    test try-2.0 {
+        Verify script with no errors and no onerror but finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        expr {
+              [twapi::try {set x 1} finally {set y 2}] == 1 &&
+              $y == 2 &&
+              $x == 1
+          }
+    } -result 1
+
+    ###
+
+    test try-2.1 {
+        Verify script with errors and no onerror clause but with finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set status [catch {
+            twapi::try {set nosuchvar} finally {set y 5}
+        } msg]
+        expr {
+              $status == 1 &&
+              $msg == $nosuchvar_error &&
+              $y == 5
+          }
+    } -result 1
+
+    ###
+
+    test try-3.0 {
+        Verify script with errors and matching onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST 5} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.1 {
+        Verify script with errors and no match on onerror facility
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {XXX 5} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test try-3.2 {
+        Verify script with errors and no match on onerror code
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test try-3.3 {
+        Verify script with errors and default onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX 6} {
+            set x 6
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.4 {
+        Verify multiple onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+            set x "wrong match"
+        } onerror {TEST 5} {
+            set x "correct match"
+        }
+    } -result "correct match"
+
+    ###
+
+    test try-3.5 {
+        Verify sequencing of onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {} {
+            set x "correct order"
+        } onerror {TEST 5} {
+            set x "wrong order"
+        }
+    } -result "correct order"
+
+    ###
+
+    test try-3.6 {
+        Verify script with errors and matching integer format onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 20}
+        } onerror {TEST 0x14} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 20 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.7 {
+        Verify script with errors and matching onerror clause only on facility
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-4.0 {
+        Verify try with no errors with both onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        set result [twapi::try {
+            set x normal
+        } onerror {} {
+            set x "correct order"
+        } finally {
+            set  y final
+        }]
+        expr {$result == "normal" && $x == "normal" && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.1 {
+        Verify try with errors with matching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        } finally {
+            set  y final
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.2 {
+        Verify try with errors with nonmatching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [catch {
+            twapi::try {
+                error "Error message" "This is errorinfo" {TEST 5}
+            } onerror {XXX} {
+                expr {
+                      [lindex $errorCode 0] == "TEST" &&
+                      [lindex $errorCode 1] == 5 &&
+                      $errorResult == "Error message" &&
+                      $errorInfo == "This is errorinfo"
+                  }
+            } finally {
+                set  y final
+            }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.3 {
+        Verify finally clause position can be anywhere
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX} {
+            set y foo
+        } finally {
+            set  y final
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::try::test

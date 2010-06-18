@@ -80,7 +80,7 @@ MODULE_VERSION_STR = $(FILE_VERSION_STR)
 
 # TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
 # to invoke build scripts.
-TCLSH         = "$(TWAPI_SRCROOT)\tools\tclkitsh.exe"
+TCLSH         = "$(TWAPI_SRCROOT)\..\tools\tclkitsh.exe"
 
 # TCLSH_TARGET is the Tcl shell path on target installations. Used to install
 # twapi. Need not be defined unless you are using the makefile to install
