@@ -44,8 +44,13 @@ OBJS  = \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\gdi.obj \
 	$(OBJDIR)\keylist.obj \
+	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\nls.obj \
+	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
+	$(OBJDIR)\pdh.obj \
+	$(OBJDIR)\printer.obj \
+	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\system.obj \
 	$(OBJDIR)\tclobjs.obj \

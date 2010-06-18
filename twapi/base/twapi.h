@@ -684,9 +684,18 @@ Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
 int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
 Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
+int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
+int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
+                                 SECURITY_ATTRIBUTES **secattrPP);
+void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
+void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
+int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
+Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
 
 
 /* System related */
+typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
+NtQuerySystemInformation_t Twapi_GetProc_NtQuerySystemInformation();
 int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
                               DWORD dwLanguageId, int argc, LPCWSTR *argv );
@@ -701,6 +710,7 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp);
 int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
+int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
 /* Crypto API */
 int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
@@ -740,6 +750,21 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path);
 int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir);
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
 
+/* PDH */
+void TwapiPdhRestoreLocale(void);
+int Twapi_PdhParseCounterPath(Tcl_Interp *interp, LPCWSTR buf, DWORD dwFlags);
+int Twapi_PdhGetFormattedCounterValue(Tcl_Interp *, HANDLE hCtr, DWORD fmt);
+int Twapi_PdhLookupPerfNameByIndex(Tcl_Interp *,  LPCWSTR machine, DWORD ctr);
+int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_PdhBrowseCounters(Tcl_Interp *interp);
+int Twapi_PdhEnumObjects(Tcl_Interp *interp, LPCWSTR source, LPCWSTR machine,
+                         DWORD  dwDetailLevel, BOOL bRefresh);
+int Twapi_PdhEnumObjectItems(Tcl_Interp *, LPCWSTR source, LPCWSTR machine,
+                              LPCWSTR objname, DWORD detail, DWORD dwFlags);
+
+
+/* Printers */
+int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
 
 /* Console related */
 int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
@@ -857,6 +882,22 @@ TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_IDispatch_InvokeObjCmd;
 TwapiTclObjCmd Twapi_ComEventSinkObjCmd;
 TwapiTclObjCmd Twapi_SHChangeNotify;
+
+/* Dispatcher routines */
+int Twapi_InitCalls(Tcl_Interp *interp);
+TwapiTclObjCmd Twapi_CallObjCmd;
+TwapiTclObjCmd Twapi_CallUObjCmd;
+TwapiTclObjCmd Twapi_CallSObjCmd;
+TwapiTclObjCmd Twapi_CallHObjCmd;
+TwapiTclObjCmd Twapi_CallHSUObjCmd;
+TwapiTclObjCmd Twapi_CallSSSDObjCmd;
+TwapiTclObjCmd Twapi_CallWObjCmd;
+TwapiTclObjCmd Twapi_CallWUObjCmd;
+TwapiTclObjCmd Twapi_CallPSIDObjCmd;
+TwapiTclObjCmd Twapi_CallNetEnumObjCmd;
+TwapiTclObjCmd Twapi_CallPdhObjCmd;
+TwapiTclObjCmd Twapi_CallCOMObjCmd;
+
 
 /* General utility functions */
 int TwapiGlobCmp (const char *s, const char *pat);
