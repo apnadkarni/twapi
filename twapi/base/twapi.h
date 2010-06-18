@@ -303,6 +303,14 @@ struct TwapiTcl85Stubs {
 
 #endif
 
+/*******************
+ * Misc definitions
+ *******************/
+struct Twapi_EnumCtx {
+    Tcl_Interp *interp;
+    Tcl_Obj    *win_listobj;
+};
+
 
 /****************************************************************
  * Defintitions used for conversion from Tcl_Obj to C types
@@ -367,7 +375,6 @@ typedef enum {
     TRT_WIDE = 47,
 } TwapiResultType;
 
-struct swig_type_info;
 typedef struct {
     TwapiResultType type;
     union {
@@ -650,10 +657,8 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP,
 Tcl_Obj *ObjFromSP_DEVICE_INTERFACE_DATA(SP_DEVICE_INTERFACE_DATA *sdidP);
 Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
+Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD addr, DWORD addr2);
-int Twapi_AllocateAndGetTcpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
-int Twapi_AllocateAndGetUdpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
 Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP);
 Tcl_Obj *ObjFromMIB_IPNETTABLE(Tcl_Interp *interp, MIB_IPNETTABLE *nettP);
 Tcl_Obj *ObjFromMIB_IPFORWARDROW(Tcl_Interp *interp, const MIB_IPFORWARDROW *ipfrP);
@@ -697,6 +702,52 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
+/* Crypto API */
+int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
+int Twapi_InitializeSecurityContext(
+    Tcl_Interp *interp,
+    SecHandle *credentialP,
+    SecHandle *contextP,
+    LPWSTR     targetP,
+    ULONG      contextreq,
+    ULONG      reserved1,
+    ULONG      targetdatarep,
+    SecBufferDesc *sbd_inP,
+    ULONG     reserved2);
+int Twapi_AcceptSecurityContext(Tcl_Interp *interp, SecHandle *credentialP,
+                                SecHandle *contextP, SecBufferDesc *sbd_inP,
+                                ULONG contextreq, ULONG targetdatarep);
+int Twapi_QueryContextAttributes(Tcl_Interp *interp, SecHandle *INPUT,
+                                 ULONG attr);
+SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
+    LPCWSTR user, LPCWSTR domain, LPCWSTR password);
+void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP);
+int Twapi_MakeSignature(Tcl_Interp *interp, SecHandle *INPUT,
+                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
+int Twapi_EncryptMessage(Tcl_Interp *interp, SecHandle *INPUT,
+                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
+int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
+
+/* Device related */
+int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+
+/* File and disk related */
+int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
+int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVolume);
+int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path);
+int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir);
+int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
+
+
+/* Console related */
+int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
+
+/* Clipboard related */
+int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
+
+
 /* ADSI related */
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR domainnameP, GUID *guidP,
@@ -704,6 +755,9 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
 
 /* Network related */
 
+int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD addr, DWORD addr2);
+int Twapi_AllocateAndGetTcpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
+int Twapi_AllocateAndGetUdpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
 int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_FormatExtendedUdpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_GetExtendedTcpTable(Tcl_Interp *interp, void *buf, DWORD buf_sz,

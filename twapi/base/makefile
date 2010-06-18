@@ -33,8 +33,16 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 
 OBJS  = \
 	$(OBJDIR)\adsi.obj \
+	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
+	$(OBJDIR)\console.obj \
+	$(OBJDIR)\crypto.obj \
+	$(OBJDIR)\device.obj \
+	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
+	$(OBJDIR)\eventlog.obj \
+	$(OBJDIR)\file.obj \
+	$(OBJDIR)\gdi.obj \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\parseargs.obj \
