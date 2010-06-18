@@ -390,8 +390,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
             IUnknown *idispP = GETVAL(i, IUnknown *);
             Tcl_ListObjAppendElement(
                 NULL, objv[2],
-                ObjFromIUnknown((idispP)
-                );
+                ObjFromIUnknown(idispP));
         }
         break;
 
@@ -579,14 +578,14 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
          * to know that. We therefore do a AddRef on the pointer here
          * so it can be released later
          */
-        iunk = * (V_UNKNOWNREF(varP));
-        iunk->lpVtbl->AddRef(iunk);
-        objv[1] = ObjFromIUnknown(iunk);
+        iunkP = * (V_UNKNOWNREF(varP));
+        iunkP->lpVtbl->AddRef(iunkP);
+        objv[1] = ObjFromIUnknown(iunkP);
         break;
 
     case VT_UNKNOWN:
-        iunk = V_UNKNOWN(varP);
-        objv[1] = ObjFromIUnknown(iunk);
+        iunkP = V_UNKNOWN(varP);
+        objv[1] = ObjFromIUnknown(iunkP);
         break;
 
     case VT_I1|VT_BYREF:
@@ -2297,7 +2296,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     HRESULT hr;
     TwapiResult result;
     DWORD dw1,dw2,dw3;
-    DWORD_PTR dwp;
+    HANDLE h;
     BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
     BSTR bstr2 = NULL;
     BSTR bstr3 = NULL;
@@ -2306,25 +2305,32 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     void *pv2;
     GUID guid, guid2;
     TYPEKIND tk;
-    LPWSTR s;
+    LPWSTR s, s2;
     WORD w, w2;
     Tcl_Obj *objs[4];
     SYSTEMTIME systime, systime2;
     FUNCDESC *funcdesc;
     VARDESC  *vardesc;
     TASK_TRIGGER tasktrigger;
+    char *cP;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETVOIDP(pv),
+                     GETINT(func), ARGSKIP,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (pv == NULL) {
-        Tcl_SetResult(interp, "NULL interface pointer.", TCL_STATIC);
-        return TCL_ERROR;
+    // ARGSKIP makes sure at least one more argument
+    if (func < 10000) {
+        /* Interface based calls. func codes are all below 10000 */
+        if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
+            return TCL_ERROR;
+        if (pv == NULL) {
+            Tcl_SetResult(interp, "NULL interface pointer.", TCL_STATIC);
+            return TCL_ERROR;
+        }
     }
 
     /* We want stronger type checking so we have to convert the interface
@@ -2351,7 +2357,8 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = ifc.unknown->lpVtbl->AddRef(ifc.unknown);
             break;
         case 3:
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE IID NAME");
+            if (objc < 5)
+                return TCL_ERROR;
             hr = CLSIDFromString(Tcl_GetUnicode(objv[3]), &guid);
             if (hr != S_OK)
                 break;
@@ -2390,7 +2397,8 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             hr = ifc.dispatch->lpVtbl->GetTypeInfo(ifc.dispatch, dw1, dw2, (ITypeInfo **)&result.value.ifc.p);
             break;
         case 103: // GetIDsOfNames
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE NAMES LCID");
+            if (objc < 5)
+                return TCL_ERROR;
             CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
             return TwapiGetIDsOfNamesHelper(
                 interp, ifc.dispatch, objv[3],
@@ -2694,7 +2702,6 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
         case 508: // RecordCopy
             if (objc != 5)
                 goto badargs;
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE FROMRECPTR TORECPTR");
             if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK &&
                 ObjToLPVOID(interp, objv[4], &pv2) != TCL_OK)
                 goto ret_error;
@@ -2767,7 +2774,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             if (objc != 3)
                 goto badargs;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumVARIANT;
+            result.value.ifc.name = "IEnumVARIANT";
             hr = ifc.enumvariant->lpVtbl->Clone(
                 ifc.enumvariant, (IEnumVARIANT **)&result.value.ifc.p);
             break;
@@ -2846,24 +2853,27 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
         }
     } else if (func < 1000) {
         /* IConnectionPointContainer */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.connectionpointcontainer,
-                            SWIGTYPE_p_IConnectionPointContainer, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.connectionpointcontainer,
+                        "IConnectionPointContainer") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 901: // EnumConnectionPoints
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumConnectionPoints;
+            result.value.ifc.name = "IEnumConnectionPoints";
             hr = ifc.connectionpointcontainer->lpVtbl->EnumConnectionPoints(
                 ifc.connectionpointcontainer,
                 (IEnumConnectionPoints **)&result.value.ifc.p);
             break;
         case 902: // FindConnectionPoint
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE IID");
+            if (objc != 4)
+                goto badargs;
             hr = CLSIDFromString(Tcl_GetUnicode(objv[3]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
-                result.value.ifc.swigtype = SWIGTYPE_p_IConnectionPoint;
+                result.value.ifc.name = "IConnectionPoint";
                 hr = ifc.connectionpointcontainer->lpVtbl->FindConnectionPoint(
                     ifc.connectionpointcontainer,
                     &guid,
@@ -2873,128 +2883,138 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
         }
     } else if (func < 1100) {
         /* IEnumConnectionPoints */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.enumconnectionpoints,
-                            SWIGTYPE_p_IEnumConnectionPoints, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumconnectionpoints,
+                        "IEnumConnectionPoints") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 1001: // Clone
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumConnectionPoints;
+            result.value.ifc.name = "IEnumConnectionPoints";
             hr = ifc.enumconnectionpoints->lpVtbl->Clone(
-                ifc.enumconnectionpoints, (IEnumConnectionPoints **)&result.value.ifc.p);
+                ifc.enumconnectionpoints,
+                (IEnumConnectionPoints **) &result.value.ifc.p);
             break;
         case 1002: // Reset
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_EMPTY;
-            hr = ifc.enumconnectionpoints->lpVtbl->Reset(ifc.enumconnectionpoints);
+            hr = ifc.enumconnectionpoints->lpVtbl->Reset(
+                ifc.enumconnectionpoints);
             break;
         case 1003: // Skip
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_EMPTY;
-            hr = ifc.enumconnectionpoints->lpVtbl->Skip(ifc.enumconnectionpoints, dw1);
+            hr = ifc.enumconnectionpoints->lpVtbl->Skip(
+                ifc.enumconnectionpoints,   dw1);
             break;
         case 1004: // Next
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            return TwapiIEnumNextHelper(interp,ifc.enumconnectionpoints,dw1, 2, 0);
+            return TwapiIEnumNextHelper(interp,ifc.enumconnectionpoints,
+                                        dw1, 2, 0);
         }        
     } else if (func < 1200) {
         /* IEnumConnections */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.enumconnections,
-                            SWIGTYPE_p_IEnumConnections, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumconnections,
+                        "IEnumConnections") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 1101: // Clone
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumConnections;
+            result.value.ifc.name = "IEnumConnections";
             hr = ifc.enumconnections->lpVtbl->Clone(
                 ifc.enumconnections, (IEnumConnections **)&result.value.ifc.p);
             break;
         case 1102: // Reset
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.enumconnections->lpVtbl->Reset(ifc.enumconnections);
             break;
         case 1103: // Skip
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_EMPTY;
             hr = ifc.enumconnections->lpVtbl->Skip(ifc.enumconnections, dw1);
             break;
-        case 1104:
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+        case 1104: // Next
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             return TwapiIEnumNextHelper(interp,ifc.enumconnections,dw1,0,0);
         }        
     } else if (func == 1201) {
         /* IProvideClassInfo */
         /* We accept both IProvideClassInfo and IProvideClassInfo2 interfaces */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.provideclassinfo,
-                            SWIGTYPE_p_IProvideClassInfo, 0) != TCL_OK &&
-            SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.provideclassinfo,
-                            SWIGTYPE_p_IProvideClassInfo2,
-                            SWIG_POINTER_EXCEPTION) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo,
+                        "IProvideClassInfo") != TCL_OK &&
+            ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo,
+                        "IProvideClassInfo2") != TCL_OK)
             return TCL_ERROR;
 
         result.type = TRT_INTERFACE;
-        result.value.ifc.swigtype = SWIGTYPE_p_ITypeInfo;
+        result.value.ifc.name = "ITypeInfo";
         hr = ifc.provideclassinfo->lpVtbl->GetClassInfo(
             ifc.provideclassinfo, (ITypeInfo **)&result.value.ifc.p);
     } else if (func == 1301) {
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.provideclassinfo2,
-                            SWIGTYPE_p_IProvideClassInfo2, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo2,
+                        "IProvideClassInfo2")
+            != TCL_OK)
             return TCL_ERROR;
-        CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE GUIDKIND");
+
+        if (objc != 3)
+            goto badargs;
         CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
         result.type = TRT_GUID;
         hr = ifc.provideclassinfo2->lpVtbl->GetGUID(ifc.provideclassinfo2,
                                                     dw1, &result.value.guid);
     } else if (func < 1500) {
         /* ITypeComp */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.typecomp,
-                            SWIGTYPE_p_ITypeComp, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.typecomp, "ITypeComp")
+            != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 1401:
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE INTERFACE NAME FLAGS LCID");
-            if (Twapi_GetWordFromObj(interp, objv[4], &w) != TCL_OK)
-                return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw2, objv[5]);
-            return Twapi_ITypeComp_Bind(interp, ifc.typecomp,
-                                        Tcl_GetUnicode(objv[3]),
-                                        w, dw2);
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s), GETWORD(w), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                goto ret_error;
+            return Twapi_ITypeComp_Bind(interp, ifc.typecomp, s, w, dw2);
         }
     } else if (func < 5100) {
         /* ITaskScheduler */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.taskscheduler,
-                            SWIGTYPE_p_ITaskScheduler, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.taskscheduler,
+                        "ITaskScheduler") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5001: // Activate
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE ITASKSCHEDULER NAME IID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[4]), &guid);
-            if (hr != S_OK)
-                break;
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s), GETVAR(guid, ObjToGUID),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IUnknown;
+            result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->Activate(
-                ifc.taskscheduler,
-                Tcl_GetUnicode(objv[3]),
-                &guid,
+                ifc.taskscheduler,   s,   &guid,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5002: // AddWorkItem
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE ITASKSCHEDULER NAME ISCHEDULEDWORKITEM");
-            if (SWIG_ConvertPtr(interp, objv[4],
-                                (void **)&pv,
-                                SWIGTYPE_p_IScheduledWorkItem, 0) != TCL_OK)
-                return TCL_ERROR;
+            if (objc != 5)
+                goto badargs;
+            if (ObjToOpaque(interp, objv[4], &pv, "IScheduledWorkItem") != TCL_OK)
+                goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->AddWorkItem(
                 ifc.taskscheduler,
@@ -3002,52 +3022,50 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
                 (IScheduledWorkItem *) pv );
             break;
         case 5003: // Delete
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE NAME");
+            if (objc != 4)
+                goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->Delete(ifc.taskscheduler,
                                                    Tcl_GetUnicode(objv[3]));
             break;
         case 5004: // Enum
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumWorkItems;
+            result.value.ifc.name = "IEnumWorkItems";
             hr = ifc.taskscheduler->lpVtbl->Enum(
                 ifc.taskscheduler,
                 (IEnumWorkItems **) &result.value.ifc.p);
             break;
         case 5005: // IsOfType
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE NAME IID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[4]), &guid);
-            if (hr != S_OK)
-                break;
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s), GETVAR(guid, ObjToGUID),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
             result.type = TRT_DWORD;
             result.value.ival = ifc.taskscheduler->lpVtbl->IsOfType(
-                ifc.taskscheduler, Tcl_GetUnicode(objv[3]), &guid);
+                ifc.taskscheduler, s, &guid);
             break;
         case 5006: // NewWorkItem
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE INTERFACE NAME CLSID IID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[4]), &guid);
-            if (hr != S_OK)
-                break;
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[5]), &guid2);
-            if (hr != S_OK)
-                break;
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s),
+                             GETGUID(guid), GETGUID(guid2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IUnknown;
+            result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->NewWorkItem(
-                ifc.taskscheduler,
-                Tcl_GetUnicode(objv[3]),
-                &guid,
-                &guid2,
+                ifc.taskscheduler, s, &guid, &guid2,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5007: // SetTargetComputer
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE SYSTEM");
-            s = Tcl_GetUnicode(objv[3]);
-            NULLIFY_EMPTY(s);
+            if (objc != 4)
+                goto badargs;
+            s = ObjToLPWSTR_NULL_IF_EMPTY(objv[3]);
             hr = ifc.taskscheduler->lpVtbl->SetTargetComputer(
                 ifc.taskscheduler, s);
             break;
         case 5008: // GetTargetComputer
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.taskscheduler->lpVtbl->GetTargetComputer(
                 ifc.taskscheduler, &result.value.lpolestr);
@@ -3055,104 +3073,131 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
         }        
     } else if (func < 5200) {
         /* IEnumWorkItems */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.enumworkitems,
-                            SWIGTYPE_p_IEnumWorkItems, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumworkitems,
+                        "IEnumWorkItems") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5101: // Clone
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IEnumWorkItems;
+            result.value.ifc.name = "IEnumWorkItems";
             hr = ifc.enumworkitems->lpVtbl->Clone(
                 ifc.enumworkitems, (IEnumWorkItems **)&result.value.ifc.p);
             break;
         case 5102: // Reset
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.enumworkitems->lpVtbl->Reset(ifc.enumworkitems);
             break;
         case 5103: // Skip
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_EMPTY;
             hr = ifc.enumworkitems->lpVtbl->Skip(ifc.enumworkitems, dw1);
             break;
         case 5104: // Next
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             return Twapi_IEnumWorkItems_Next(interp,ifc.enumworkitems,dw1);
         }
     } else if (func < 5300) {
         /* IScheduledWorkItem */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.scheduledworkitem,
-                            SWIGTYPE_p_IScheduledWorkItem, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.scheduledworkitem,
+                        "IScheduledWorkItem") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5201: // CreateTrigger
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_OBJV;
             hr = ifc.scheduledworkitem->lpVtbl->CreateTrigger(
                 ifc.scheduledworkitem, &w, (ITaskTrigger **) &pv);
             if (hr != S_OK)
                 break;
             objs[0] = Tcl_NewLongObj(w);
-            objs[1] = SWIG_NewPointerObj(pv, SWIGTYPE_p_ITaskTrigger, 0);
+            objs[1] = ObjFromOpaque(pv, "ITaskTrigger");
             result.type = TRT_OBJV;
             result.value.objv.nobj = 2;
             result.value.objv.objPP = objs;
             break;
         case 5202: // DeleteTrigger
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE TRIGGER");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
-                return TCL_ERROR;
+            if (objc != 4)
+                goto badargs;
+            if (ObjToWord(interp, objv[3], &w) != TCL_OK)
+                goto ret_error;
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->DeleteTrigger(
                 ifc.scheduledworkitem, w);
             break;
         case 5203: // EditWorkItem
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE HWND DWORD");
-            if (TWAPI_HWND_LITERAL_FROM_OBJ(interp, objv[3], &dwp) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETHANDLET(h, HWND), GETINT(dw1),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->EditWorkItem(
-                ifc.scheduledworkitem, (HWND) dwp, dw1);
+                ifc.scheduledworkitem, h, dw1);
             break;
         case 5204: // GetAccountInformation
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.scheduledworkitem->lpVtbl->GetAccountInformation(
                 ifc.scheduledworkitem, &result.value.lpolestr);
             break;
         case 5205: // GetComment
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.scheduledworkitem->lpVtbl->GetComment(
                 ifc.scheduledworkitem, &result.value.lpolestr);
             break;
         case 5206: // GetCreator
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.scheduledworkitem->lpVtbl->GetCreator(
                 ifc.scheduledworkitem, &result.value.lpolestr);
             break;
         case 5207: // GetErrorRetryCount
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetErrorRetryCount(
                 ifc.scheduledworkitem, &w);
             result.value.ival = w;
             break;
         case 5208: // GetErrorRetryInterval
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetErrorRetryInterval(
                 ifc.scheduledworkitem, &w);
             result.value.ival = w;
             break;
         case 5209: // GetExitCode
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetExitCode(
                 ifc.scheduledworkitem, &result.value.ival);
             break;
         case 5210: // GetFlags
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetFlags(
                 ifc.scheduledworkitem, &result.value.ival);
             break;
         case 5211: // GetIdleWait
+            if (objc != 3)
+                goto badargs;
             hr = ifc.scheduledworkitem->lpVtbl->GetIdleWait(
                 ifc.scheduledworkitem, &w, &w2);
             if (hr != S_OK)
@@ -3164,202 +3209,242 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             result.value.objv.objPP = objs;
             break;
         case 5212: // GetMostRecentRunTime
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_SYSTEMTIME;
             hr = ifc.scheduledworkitem->lpVtbl->GetMostRecentRunTime(
                 ifc.scheduledworkitem, &result.value.systime);
             break;
         case 5213: // GetNextRunTime
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_SYSTEMTIME;
             hr = ifc.scheduledworkitem->lpVtbl->GetNextRunTime(
                 ifc.scheduledworkitem, &result.value.systime);
             break;
         case 5214: // GetStatus
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetStatus(
                 ifc.scheduledworkitem, &result.value.ival);
             break;
         case 5215: // GetTrigger
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE TRIGGER");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
+            if (objc != 4)
+                goto badargs;
+            if (ObjToWord(interp, objv[3], &w) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_ITaskTrigger;
+            result.value.ifc.name = "ITaskTrigger";
             hr = ifc.scheduledworkitem->lpVtbl->GetTrigger(
                 ifc.scheduledworkitem, w, (ITaskTrigger **)&result.value.ifc.p);
             break;
         case 5216: // GetTriggerCount
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetTriggerCount(
                 ifc.scheduledworkitem, &w);
             result.value.ival = w;
             break;
         case 5217: // GetTriggerString
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE TRIGGER");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
+            if (objc != 4)
+                goto badargs;
+            if (ObjToWord(interp, objv[3], &w) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_LPOLESTR;
             hr = ifc.scheduledworkitem->lpVtbl->GetTriggerString(
                 ifc.scheduledworkitem, w, &result.value.lpolestr);
             break;
         case 5218: // Run
+            if (objc != 3)
+                goto badargs;
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->Run(ifc.scheduledworkitem);
             break;
         case 5219: // SetAccountInformation
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE NAME PASSWORD");
-            s = NULL;
-            if (objc == 5) {
-                s = Tcl_GetUnicode(objv[4]);
-                if (wcscmp(s, L"__null__") == 0) {
-                    s = NULL;
-                }
-            }
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s),
+                             ARGUSEDEFAULT,
+                             GETNULLTOKEN(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
-                ifc.scheduledworkitem, Tcl_GetUnicode(objv[3]), s);
+                ifc.scheduledworkitem, s, s2);
             break;
         case 5220: // SetComment
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE STRING");
+            if (objc != 4)
+                goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetComment(
                 ifc.scheduledworkitem, Tcl_GetUnicode(objv[3]));
             break;
         case 5221: // SetCreator
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE STRING");
+            if (objc != 4)
+                goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetCreator(
                 ifc.scheduledworkitem, Tcl_GetUnicode(objv[3]));
             break;
         case 5222: // SetErrorRetryCount
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE COUNT");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
-                return TCL_ERROR;
+            if (objc != 4)
+                goto badargs;
+            if (ObjToWord(interp, objv[3], &w) != TCL_OK)
+                goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetErrorRetryCount(
                 ifc.scheduledworkitem, w);
             break;
         case 5223: // SetErrorRetryInterval
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE INTERVAL");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
-                return TCL_ERROR;
+            if (objc != 4)
+                goto badargs;
+            if (ObjToWord(interp, objv[3], &w) != TCL_OK)
+                goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetErrorRetryInterval(
                 ifc.scheduledworkitem, w);
             break;
         case 5224: // SetFlags
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE FLAGS");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetFlags(
                 ifc.scheduledworkitem, dw1);
             break;
         case 5225: // SetIdleWait
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE IDLE DEADLINE");
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK)
-                return TCL_ERROR;
-            if (Twapi_GetWordFromObj(interp, objv[4], &w2) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWORD(w), GETWORD(w2),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetIdleWait(
                 ifc.scheduledworkitem, w, w2);
             break;
         case 5226: // Terminate
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->Terminate(ifc.scheduledworkitem);
             break;
         case 5227: // SetWorkItemData
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE BINDATA");
+            if (objc != 4)
+                goto badargs;
             pv = Tcl_GetByteArrayFromObj(objv[3], &dw1);
             if (dw1 > MAXWORD) {
                 Tcl_SetResult(interp, "Binary data exceeds MAXWORD", TCL_STATIC);
                 return TCL_ERROR;
             }
+            result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetWorkItemData(
                 ifc.scheduledworkitem, (WORD) dw1, pv);
             break;
         case 5228: // GetWorkItemData
+            if (objc != 3)
+                goto badargs;
             return Twapi_IScheduledWorkItem_GetWorkItemData(
                 interp, ifc.scheduledworkitem);
         case 5229: // GetRunTimes
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE INTERFACE BEGINTIME ENDTIME COUNT");
-            if (ObjToSYSTEMTIME(interp, objv[3], &systime) != TCL_OK ||
-                ObjToSYSTEMTIME(interp, objv[4], &systime2) != TCL_OK ||
-                Twapi_GetWordFromObj(interp, objv[5], &w) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETVAR(systime, ObjToSYSTEMTIME),
+                             GETVAR(systime2, ObjToSYSTEMTIME),
+                             GETWORD(w),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_IScheduledWorkItem_GetRunTimes(
                 interp, ifc.scheduledworkitem, &systime, &systime2, w);
         }
     } else if (func < 5400) {
         /* ITask */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.task,
-                            SWIGTYPE_p_ITask, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.task, "ITask") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5301: // GetApplicationName
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.task->lpVtbl->GetApplicationName(
                 ifc.task, &result.value.lpolestr);
             break;
         case 5302: // GetMaxRunTime
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.task->lpVtbl->GetMaxRunTime(ifc.task, &result.value.ival);
             break;
         case 5303: // GetParameters
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.task->lpVtbl->GetParameters(
                 ifc.task, &result.value.lpolestr);
             break;
         case 5304: // GetPriority
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.task->lpVtbl->GetPriority(ifc.task, &result.value.ival);
             break;
         case 5305: // GetTaskFlags
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.task->lpVtbl->GetTaskFlags(ifc.task, &result.value.ival);
             break;
         case 5306: // GetWorkingDirectory
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.task->lpVtbl->GetWorkingDirectory(
                 ifc.task, &result.value.lpolestr);
             break;
         case 5307: // SetApplicationName
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE NAME");
+            if (objc != 4)
+                goto badargs;
             hr = ifc.task->lpVtbl->SetApplicationName(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
         case 5308: // SetParameters
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE PARAMS");
+            if (objc != 4)
+                goto badargs;
             hr = ifc.task->lpVtbl->SetParameters(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
         case 5309: // SetWorkingDirectory
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE DIR");
+            if (objc != 4)
+                goto badargs;
             hr = ifc.task->lpVtbl->SetWorkingDirectory(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
         case 5310: // SetMaxRunTime
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE RUNTIME");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             hr = ifc.task->lpVtbl->SetMaxRunTime(ifc.task, dw1);
             break;
         case 5311: // SetPriority
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE PRIORITY");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             hr = ifc.task->lpVtbl->SetPriority(ifc.task, dw1);
             break;
         case 5312: // SetTaskFlags
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE FLAGS");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             hr = ifc.task->lpVtbl->SetTaskFlags(ifc.task, dw1);
             break;
-            
         }
     } else if (func < 5500) {
         /* ITaskTrigger */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.tasktrigger,
-                            SWIGTYPE_p_ITaskTrigger, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.tasktrigger,
+                        "ITaskTrigger") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5401: // GetTrigger
+            if (objc != 3)
+                goto badargs;
             hr = ifc.tasktrigger->lpVtbl->GetTrigger(ifc.tasktrigger,
                                                      &tasktrigger);
             if (hr != S_OK)
@@ -3368,26 +3453,32 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             result.value.obj = ObjFromTASK_TRIGGER(&tasktrigger);
             break;
         case 5402: // GetTriggerString
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_LPOLESTR;
             hr = ifc.tasktrigger->lpVtbl->GetTriggerString(
                 ifc.tasktrigger, &result.value.lpolestr);
             break;
         case 5403: // SetTrigger
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE TRIGGER");
+            if (objc != 4)
+                goto badargs;
             if (ObjToTASK_TRIGGER(interp, objv[3], &tasktrigger) != TCL_OK)
                 return TCL_ERROR;
+            result.type = TRT_EMPTY;
             hr = ifc.tasktrigger->lpVtbl->SetTrigger(ifc.tasktrigger,
                                                      &tasktrigger);
             break;
         }
     } else if (func < 5600) {
         /* IPersistFile */
-        if (SWIG_ConvertPtr(interp, objv[2],
-                            (void **)&ifc.persistfile,
-                            SWIGTYPE_p_IPersistFile, 0) != TCL_OK)
+        if (ObjToOpaque(interp, objv[2], (void **)&ifc.persistfile,
+                        "IPersistFile") != TCL_OK)
             return TCL_ERROR;
+
         switch (func) {
         case 5501: // GetCurFile
+            if (objc != 3)
+                goto badargs;
             hr = ifc.persistfile->lpVtbl->GetCurFile(
                 ifc.persistfile, &result.value.lpolestr);
             if (hr != S_OK && hr != S_FALSE)
@@ -3400,25 +3491,30 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             result.value.objv.objPP = objs;
             break;
         case 5502: // IsDirty
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_DWORD;
             result.value.ival = ifc.persistfile->lpVtbl->IsDirty(ifc.persistfile);
             break;
         case 5503: // Load
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE PATH MODE");
-            CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
-            hr = ifc.persistfile->lpVtbl->Load(
-                ifc.persistfile, Tcl_GetUnicode(objv[3]), dw1);
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETWSTR(s), GETINT(dw1),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile, s, dw1);
             break;
         case 5504: // Save
-            CHECK_OBJC_COUNT(interp, objv, objc, 5, "CODE INTERFACE PATH REMEMBER");
-            s = Tcl_GetUnicode(objv[3]);
-            NULLIFY_EMPTY(s);
-            if (Tcl_GetBooleanFromObj(interp, objv[4], &dw1) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETNULLIFEMPTY(s), GETINT(dw1),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
+            result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->Save(ifc.persistfile, s, dw1);
             break;
         case 5505: // SaveCompleted
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE INTERFACE PATH");
+            if (objc != 4)
+                goto badargs;
+            result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->SaveCompleted(
                 ifc.persistfile, Tcl_GetUnicode(objv[3]));
             break;
@@ -3426,45 +3522,37 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
     } else {
         /* Commands that are not method calls on interfaces. These
            are here and not in twapi_calls.c because they make use
-           of SWIG COM typedefs */
+           of COM typedefs (historical, not sure that's still true) */
         switch (func) {
         case 10001: // CreateFileMoniker
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IMoniker;
+            result.value.ifc.name = "IMoniker";
             hr = CreateFileMoniker(Tcl_GetUnicode(objv[2]),
                                    (IMoniker **)&result.value.ifc.p);
             break;
         case 10002: // CreateBindCtx
             CHECK_INTEGER_OBJ(interp, dw1, objv[2]);
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IBindCtx;
+            result.value.ifc.name = "IBindCtx";
             hr = CreateBindCtx(dw1, (IBindCtx **)&result.value.ifc.p);
             break;
         case 10003: // GetRecordInfoFromGuids
-            CHECK_OBJC_COUNT(interp, objv, objc, 7, "CODE TYPELIBGUID MAJOR MINOR LCID TYPEINFOGUID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[6]), &guid2);
-            if (hr != S_OK)
-                break;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            CHECK_INTEGER_OBJ(interp, dw2, objv[4]);
-            CHECK_INTEGER_OBJ(interp, dw3, objv[5]);
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), GETINT(dw1), GETINT(dw2),
+                             GETINT(dw3), GETGUID(guid2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IRecordInfo;
+            result.value.ifc.name = "IRecordInfo";
             hr = GetRecordInfoFromGuids(&guid, dw1, dw2, dw3, &guid2,
                                         (IRecordInfo **) &result.value.ifc.p);
             break;
         case 10004: // QueryPathOfRegTypeLib
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE TYPELIBGUID MAJOR MINOR LCID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK ||
-                Twapi_GetWordFromObj(interp, objv[4], &w2) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), GETWORD(w), GETWORD(w2),
+                             GETINT(dw3),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw3, objv[5]);
             result.value.var.bstrVal = NULL;
             hr = QueryPathOfRegTypeLib(&guid, w, w2, dw3, &result.value.var.bstrVal);
             if (hr == S_OK) {
@@ -3473,89 +3561,88 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             }
             break;
         case 10005: // UnRegisterTypeLib
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE GUID MAJOR MINOR LCID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK ||
-                Twapi_GetWordFromObj(interp, objv[4], &w2) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), GETWORD(w), GETWORD(w2),
+                             GETINT(dw3),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw3, objv[5]);
+            result.type = TRT_EMPTY;
             hr = UnRegisterTypeLib(&guid, w, w2, dw3, SYS_WIN32);
             break;
         case 10006: // LoadRegTypeLib
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE TYPELIBGUID MAJOR MINOR LCID");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
-            if (Twapi_GetWordFromObj(interp, objv[3], &w) != TCL_OK ||
-                Twapi_GetWordFromObj(interp, objv[4], &w2) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), GETWORD(w), GETWORD(w2),
+                             GETINT(dw3),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw3, objv[5]);
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_ITypeLib;
+            result.value.ifc.name = "ITypeLib";
             hr = LoadRegTypeLib(&guid, w, w2, dw3,
                                 (ITypeLib **) &result.value.ifc.p);
             break;
         case 10007: // LoadTypeLibEx
-            CHECK_OBJC_COUNT(interp, objv, objc, 4, "CODE PATH REGKIND");
+            if (objc != 4)
+                goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_ITypeLib;
+            result.value.ifc.name = "ITypeLib";
             hr = LoadTypeLibEx(Tcl_GetUnicode(objv[2]), dw1,
                                               (ITypeLib **)&result.value.ifc.p);
             break;
         case 10008: // CoGetObject
-            CHECK_OBJC_COUNT(interp, objv, objc, 6, "CODE NAME BINDOPTIONS IID IIDNAME");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[4]), &guid);
-            if (hr != S_OK)
-                break;
-            if (Tcl_ListObjLength(interp, objv[3], &dw1) == TCL_ERROR || dw1 != 0) {
-                Tcl_SetResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty.", TCL_STATIC); // TBD
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), ARGSKIP, GETGUID(guid), GETWSTR(cP),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
+            if (Tcl_ListObjLength(interp, objv[3], &dw1) == TCL_ERROR ||
+                dw1 != 0) {
+                Tcl_SetResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty.", TCL_STATIC); // TBD
+                goto ret_error;
             }
-            result.type = TRT_SWIGPTR;
-            result.value.swigptr.name = Tcl_GetString(objv[5]);
-            hr = CoGetObject(Tcl_GetUnicode(objv[2]), NULL, &guid, &result.value.swigptr.p);
+            result.type = TRT_INTERFACE;
+            result.value.ifc.name = cP;
+            hr = CoGetObject(s, NULL, &guid, &result.value.ifc.p);
             break;
         case 10009: // GetActiveObject
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
+            if (objc != 3)
+                goto badargs;
+            if (ObjToGUID(interp, objv[2], &guid) != TCL_OK)
+                goto ret_error;
             result.type = TRT_INTERFACE;
-            result.value.ifc.swigtype = SWIGTYPE_p_IUnknown;
+            result.value.ifc.name = "IUnknown";
             hr = GetActiveObject(&guid, NULL, (IUnknown **)&result.value.ifc.p);
             break;
         case 10010: // CLSIDFromString
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
+            if (objc != 3)
+                goto badargs;
+            if (ObjToGUID(interp, objv[2], &guid) != TCL_OK)
+                goto ret_error;
             result.type = TRT_LPOLESTR;
             hr = ProgIDFromCLSID(&guid, &result.value.lpolestr);
             break;
         case 10011:  // CLSIDFromProgID
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_GUID;
             hr = CLSIDFromProgID(Tcl_GetUnicode(objv[2]), &result.value.guid);
             break;
         case 10012: // CoCreateInstance
-            CHECK_OBJC_COUNT(interp, objv, objc, 7, "CODE CLSID IUNKNOWN CONTEXT IID IIDNAME");
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid);
-            if (hr != S_OK)
-                break;
-            if (SWIG_ConvertPtr(interp, objv[3],
-                                (void **)&ifc.unknown,
-                                SWIGTYPE_p_IUnknown, 0) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), ARGSKIP, GETINT(dw1),
+                             GETGUID(guid2), GETASTR(cP),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[5]), &guid2);
-            if (hr != S_OK)
-                break;
-            result.type = TRT_SWIGPTR;
-            result.value.swigptr.name = Tcl_GetString(objv[6]);
+            if (ObjToIUnknown(interp, objv[3], (void **)&ifc.unknown)
+                != TCL_OK)
+                goto ret_error;
+            result.type = TRT_INTERFACE;
+            result.value.ifc.name = cP;
             hr = CoCreateInstance(&guid, ifc.unknown, dw1, &guid2,
-                                  &result.value.swigptr.p);
+                                  &result.value.ifc.p);
             break;
         case 10013:
+            if (objc != 3)
+                goto badargs;
             result.type = TRT_BOOL;
             result.value.bval = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid) == S_OK;
             break;

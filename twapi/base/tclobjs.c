@@ -341,7 +341,6 @@ LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP)
 int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
 {
     int len;
-    BSTR bstr;
     WCHAR *wcharP;
 
     if (objP == NULL) {
