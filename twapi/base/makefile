@@ -32,18 +32,20 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 !ENDIF
 
 OBJS  = \
-	com.obj \
-	errors.obj \
-	keylist.obj \
-	parseargs.obj \
-	recordarray.obj \
-	system.obj \
-	tclobjs.obj \
-	try.obj \
-	twapi.obj \
-	twine.obj \
-	util.obj \
-	win.obj
+	$(OBJDIR)\com.obj \
+	$(OBJDIR)\errors.obj \
+	$(OBJDIR)\keylist.obj \
+	$(OBJDIR)\nls.obj \
+	$(OBJDIR)\parseargs.obj \
+	$(OBJDIR)\recordarray.obj \
+	$(OBJDIR)\system.obj \
+	$(OBJDIR)\tclobjs.obj \
+	$(OBJDIR)\try.obj \
+	$(OBJDIR)\twapi.obj \
+	$(OBJDIR)\twine.obj \
+	$(OBJDIR)\util.obj \
+	$(OBJDIR)\win.obj \
+	$(OBJDIR)\wts.obj
 
 !IFNDEF SERVERONLY
 OBJS  = $(OBJS) \

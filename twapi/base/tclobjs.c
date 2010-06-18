@@ -7,6 +7,270 @@
 
 #include <twapi.h>
 
+
+/*
+ * Generic function for setting a Tcl result. Note following special cases
+ * - for TRT_OBJV types, the objv[] objects are added to a list (and
+ *   their ref counts are therby incremented)
+ * - for TRT_VARIANT types, VariantClear is called. This allows
+ *   callers to directly return after calling this function without
+ *   having to clean up the variant before returning.
+ * - TRT_OLESTR and TRT_PIDL have their memory freed
+ **/
+int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
+{
+    char *typenameP;
+    int tag = resultP->type;
+    Tcl_Obj *resultObj = NULL;
+
+    resultP->type = TRT_UNINITIALIZED;
+
+    switch (tag) {
+    case TRT_GETLASTERROR:      /* Error in GetLastError() */
+        return TwapiReturnSystemError(interp);
+
+    case TRT_BOOL:
+        resultObj = Tcl_NewBooleanObj(resultP->value.bval);
+        break;
+
+    case TRT_EXCEPTION_ON_FALSE:
+    case TRT_NONZERO_RESULT:
+        /* If 0, generate exception */
+        if (! resultP->value.ival)
+            return TwapiReturnSystemError(interp);
+
+        if (tag == TRT_NONZERO_RESULT)
+            resultObj = Tcl_NewLongObj(resultP->value.ival);
+        /* else an empty result is returned */
+        break;
+
+    case TRT_EXCEPTION_ON_ERROR:
+        /* If non-0, generate exception */
+        if (resultP->value.ival) {
+            return Twapi_AppendSystemError(interp, resultP->value.ival);
+        }
+        break;
+
+    case TRT_EXCEPTION_ON_WNET_ERROR:
+        /* If non-0, generate exception */
+        if (resultP->value.ival) {
+            return Twapi_AppendWNetError(interp, resultP->value.ival);
+        }
+        break;
+
+    case TRT_EXCEPTION_ON_MINUSONE:
+        /* If -1, generate exception */
+        if (resultP->value.ival == -1)
+            return TwapiReturnSystemError(interp);
+
+        /* Other values are to be returned */
+        resultObj = Tcl_NewLongObj(resultP->value.ival);
+        break;
+
+    case TRT_UNICODE:
+        if (resultP->value.unicode.str) {
+            resultObj = Tcl_NewUnicodeObj(resultP->value.unicode.str,
+                                          resultP->value.unicode.len);
+        }
+        break;
+
+    case TRT_CHARS:
+        if (resultP->value.chars.str)
+            resultObj = Tcl_NewStringObj(resultP->value.chars.str,
+                                         resultP->value.chars.len);
+        break;
+
+    case TRT_BINARY:
+        resultObj = Tcl_NewByteArrayObj(resultP->value.binary.p,
+                                        resultP->value.binary.len);
+        break;
+
+    case TRT_ADDRESS_LITERAL: // TBD - treat as pointer ?
+        resultObj = ObjFromDWORD_PTR(resultP->value.pval);
+        break;
+
+    case TRT_OBJ:
+        resultObj = resultP->value.obj;
+        break;
+
+    case TRT_OBJV:
+        resultObj = Tcl_NewListObj(resultP->value.objv.nobj, resultP->value.objv.objPP);
+        break;
+
+    case TRT_RECT:
+        resultObj = ObjFromRECT(&resultP->value.rect);
+        break;
+
+    case TRT_POINT:
+        resultObj = ObjFromPOINT(&resultP->value.point);
+        break;
+
+    case TRT_VALID_HANDLE:
+        if (resultP->value.hval == INVALID_HANDLE_VALUE) {
+            return TwapiReturnSystemError(interp);
+        }
+        resultObj = ObjFromHANDLE(resultP->value.hval);
+        break;
+
+    case TRT_HWND:
+        // Note unlike other handles, we do not return an error if NULL
+        resultObj = ObjFromOpaque(resultP->value.hwin, "HWND");
+        break;
+
+    case TRT_HANDLE:
+    case TRT_HGLOBAL:
+    case TRT_HDC:
+    case TRT_HDESK:
+    case TRT_HMONITOR:
+    case TRT_HWINSTA:
+    case TRT_SC_HANDLE:
+    case TRT_LSA_HANDLE:
+    case TRT_SEC_WINNT_AUTH_IDENTITY:
+    case TRT_HDEVINFO:
+    case TRT_NONNULL_LPVOID:
+        if (resultP->value.hval == NULL) {
+            return TwapiReturnSystemError(interp);
+        }
+        switch (tag) {
+        case TRT_HANDLE:
+            typenameP = "HANDLE";
+            break;
+        case TRT_HGLOBAL:
+            typenameP = "HGLOBAL";
+            break;
+        case TRT_HDC:
+            typenameP = "HDC";
+            break;
+        case TRT_HDESK:
+            typenameP = "HDESK";
+            break;
+        case TRT_HMONITOR:
+            typenameP = "HMONITOR";
+            break;
+        case TRT_HWINSTA:
+            typenameP = "HWINSTA";
+            break;
+        case TRT_SC_HANDLE:
+            typenameP = "SC_HANDLE";
+            break;
+        case TRT_LSA_HANDLE:
+            typenameP = "LSA_HANDLE";
+            break;
+        case TRT_SEC_WINNT_AUTH_IDENTITY:
+            typenameP = "SEC_WINNT_AUTH_IDENTITY_W*";
+            break;
+        case TRT_HDEVINFO:
+            typenameP = "HDEVINFO";
+            break;
+        case TRT_NONNULL_LPVOID:
+            typenameP = "void*";
+            break;
+        default:
+            Tcl_SetResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
+        break;
+
+    case TRT_LPVOID:
+        resultObj = ObjFromOpaque(resultP->value.hval, "void*");
+        break;
+
+    case TRT_DWORD:
+        resultObj = Tcl_NewLongObj(resultP->value.ival);
+        break;
+
+    case TRT_WIDE:
+        resultObj = Tcl_NewWideIntObj(resultP->value.wide);
+        break;
+
+    case TRT_DOUBLE:
+        resultObj = Tcl_NewDoubleObj(resultP->value.dval);
+        break;
+
+    case TRT_FILETIME:
+        resultObj = ObjFromFILETIME(&resultP->value.filetime);
+        break;
+
+    case TRT_SYSTEMTIME:
+        resultObj = ObjFromSYSTEMTIME(&resultP->value.systime);
+        break;
+
+    case TRT_EMPTY:
+        Tcl_ResetResult(interp);
+        break;
+
+    case TRT_UUID:
+        resultObj = ObjFromUUID(&resultP->value.uuid);
+        break;
+
+    case TRT_GUID:
+        resultObj = ObjFromGUID(&resultP->value.guid);
+        break;
+
+    case TRT_LUID:
+        resultObj = ObjFromLUID(&resultP->value.luid);
+        break;
+        
+    case TRT_DWORD_PTR:
+        resultObj = ObjFromDWORD_PTR(resultP->value.dwp);
+        break;
+
+    case TRT_INTERFACE:
+        resultObj = ObjFromOpaque(resultP->value.ifc.p, resultP->value.ifc.name);
+        break;
+
+    case TRT_VARIANT:
+        resultObj = ObjFromVARIANT(&resultP->value.var, 0);
+        VariantClear(&resultP->value.var);
+        break;
+
+    case TRT_LPOLESTR:
+        if (resultP->value.lpolestr) {
+            resultObj = Tcl_NewUnicodeObj(resultP->value.lpolestr, -1);
+            CoTaskMemFree(resultP->value.lpolestr);
+        } else
+            Tcl_ResetResult(interp);
+        break;
+
+    case TRT_PIDL:
+        if (resultP->value.pidl) {
+            resultObj = ObjFromPIDL(resultP->value.pidl);
+            CoTaskMemFree(resultP->value.pidl);
+        } else
+            Tcl_ResetResult(interp);
+        break;
+
+    case TRT_OPAQUE:
+        resultObj = ObjFromOpaque(resultP->value.opaque.p,
+                                  resultP->value.opaque.name);
+        break;
+
+    case TRT_TCL_RESULT:
+        /* interp result already stored. Status in ival */
+        return resultP->value.ival;
+        
+    case TRT_NTSTATUS:
+        if (resultP->value.ival != STATUS_SUCCESS)
+            return Twapi_AppendSystemError(interp,
+                                           TwapiNTSTATUSToError(resultP->value.ival));
+
+        break;
+
+    case TRT_BADFUNCTIONCODE:
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
+
+    default:
+        Tcl_SetResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    if (resultObj)
+        Tcl_SetObjResult(interp, resultObj);
+
+    return TCL_OK;
+}
+
 /*
  * Function to free a newly allocated Tcl_Obj that has not yet been referenced
  * from elsewhere. I can't find the call to directly free a list object so
@@ -74,12 +338,24 @@ LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP)
 }
 
 // Return SysAllocStringLen-allocated string
-BSTR ObjToBSTR(Tcl_Obj *objP)
+int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
 {
     int len;
+    BSTR bstr;
     WCHAR *wcharP;
-    wcharP = Tcl_GetUnicodeFromObj(objP, &len);
-    return SysAllocStringLen(wcharP, len);
+
+    if (objP == NULL) {
+        wcharP = L"";
+        len = 0;
+    } else {
+        wcharP = Tcl_GetUnicodeFromObj(objP, &len);
+    }
+    if (bstrP) {
+        *bstrP = SysAllocStringLen(wcharP, len);
+        return TCL_OK;
+    } else {
+        return Twapi_AppendSystemError(interp, E_OUTOFMEMORY);
+    }
 }
 
 Tcl_Obj *ObjFromBSTR (BSTR bstr)
@@ -543,7 +819,7 @@ Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
     return listPtr;
 }
 
-int Twapi_GetWordFromObj(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
+int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
 {
     long lval;
     if (Tcl_GetLongFromObj(interp, obj, &lval) != TCL_OK)
@@ -966,265 +1242,16 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
 }
 
 
-/*
- * Generic function for setting a Tcl result. Note following special cases
- * - for TRT_OBJV types, the objv[] objects are added to a list (and
- *   their ref counts are therby incremented)
- * - for TRT_VARIANT types, VariantClear is called. This allows
- *   callers to directly return after calling this function without
- *   having to clean up the variant before returning.
- * - TRT_OLESTR and TRT_PIDL have their memory freed
- **/
-int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
+Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 {
-    char *typenameP;
-    int tag = resultP->type;
-    Tcl_Obj *resultObj = NULL;
-
-    resultP->type = TRT_UNINITIALIZED;
-
-    switch (tag) {
-    case TRT_GETLASTERROR:      /* Error in GetLastError() */
-        return TwapiReturnSystemError(interp);
-
-    case TRT_BOOL:
-        resultObj = Tcl_NewBooleanObj(resultP->value.bval);
-        break;
-
-    case TRT_EXCEPTION_ON_FALSE:
-    case TRT_NONZERO_RESULT:
-        /* If 0, generate exception */
-        if (! resultP->value.ival)
-            return TwapiReturnSystemError(interp);
-
-        if (tag == TRT_NONZERO_RESULT)
-            resultObj = Tcl_NewLongObj(resultP->value.ival);
-        /* else an empty result is returned */
-        break;
-
-    case TRT_EXCEPTION_ON_ERROR:
-        /* If non-0, generate exception */
-        if (resultP->value.ival) {
-            return Twapi_AppendSystemError(interp, resultP->value.ival);
-        }
-        break;
-
-    case TRT_EXCEPTION_ON_WNET_ERROR:
-        /* If non-0, generate exception */
-        if (resultP->value.ival) {
-            return Twapi_AppendWNetError(interp, resultP->value.ival);
-        }
-        break;
-
-    case TRT_EXCEPTION_ON_MINUSONE:
-        /* If -1, generate exception */
-        if (resultP->value.ival == -1)
-            return TwapiReturnSystemError(interp);
-
-        /* Other values are to be returned */
-        resultObj = Tcl_NewLongObj(resultP->value.ival);
-        break;
-
-    case TRT_UNICODE:
-        if (resultP->value.unicode.str) {
-            resultObj = Tcl_NewUnicodeObj(resultP->value.unicode.str,
-                                          resultP->value.unicode.len);
-        }
-        break;
-
-    case TRT_CHARS:
-        if (resultP->value.chars.str)
-            resultObj = Tcl_NewStringObj(resultP->value.chars.str,
-                                         resultP->value.chars.len);
-        break;
-
-    case TRT_BINARY:
-        resultObj = Tcl_NewByteArrayObj(resultP->value.binary.p,
-                                        resultP->value.binary.len);
-        break;
-
-    case TRT_ADDRESS_LITERAL: // TBD - treat as pointer ?
-        resultObj = ObjFromDWORD_PTR(resultP->value.pval);
-        break;
-
-    case TRT_OBJ:
-        resultObj = resultP->value.obj;
-        break;
-
-    case TRT_OBJV:
-        resultObj = Tcl_NewListObj(resultP->value.objv.nobj, resultP->value.objv.objPP);
-        break;
-
-    case TRT_RECT:
-        resultObj = ObjFromRECT(&resultP->value.rect);
-        break;
-
-    case TRT_POINT:
-        resultObj = ObjFromPOINT(&resultP->value.point);
-        break;
-
-    case TRT_VALID_HANDLE:
-        if (resultP->value.hval == INVALID_HANDLE_VALUE) {
-            return TwapiReturnSystemError(interp);
-        }
-        resultObj = ObjFromHANDLE(resultP->value.hval);
-        break;
-
-    case TRT_HWND:
-        // Note unlike other handles, we do not return an error if NULL
-        resultObj = ObjFromOpaque(resultP->value.hwin, "HWND");
-        break;
-
-    case TRT_HANDLE:
-    case TRT_HGLOBAL:
-    case TRT_HDC:
-    case TRT_HDESK:
-    case TRT_HMONITOR:
-    case TRT_HWINSTA:
-    case TRT_SC_HANDLE:
-    case TRT_LSA_HANDLE:
-    case TRT_SEC_WINNT_AUTH_IDENTITY:
-    case TRT_HDEVINFO:
-    case TRT_NONNULL_LPVOID:
-        if (resultP->value.hval == NULL) {
-            return TwapiReturnSystemError(interp);
-        }
-        switch (tag) {
-        case TRT_HANDLE:
-            typenameP = "HANDLE";
-            break;
-        case TRT_HGLOBAL:
-            typenameP = "HGLOBAL";
-            break;
-        case TRT_HDC:
-            typenameP = "HDC";
-            break;
-        case TRT_HDESK:
-            typenameP = "HDESK";
-            break;
-        case TRT_HMONITOR:
-            typenameP = "HMONITOR";
-            break;
-        case TRT_HWINSTA:
-            typenameP = "HWINSTA";
-            break;
-        case TRT_SC_HANDLE:
-            typenameP = "SC_HANDLE";
-            break;
-        case TRT_LSA_HANDLE:
-            typenameP = "LSA_HANDLE";
-            break;
-        case TRT_SEC_WINNT_AUTH_IDENTITY:
-            typenameP = "SEC_WINNT_AUTH_IDENTITY_W*";
-            break;
-        case TRT_HDEVINFO:
-            typenameP = "HDEVINFO";
-            break;
-        case TRT_NONNULL_LPVOID:
-            typenameP = "void*";
-            break;
-        default:
-            Tcl_SetResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements", TCL_STATIC);
-            return TCL_ERROR;
-        }
-        resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
-        break;
-
-    case TRT_LPVOID:
-        resultObj = ObjFromOpaque(resultP->value.hval, "void*");
-        break;
-
-    case TRT_DWORD:
-        resultObj = Tcl_NewLongObj(resultP->value.ival);
-        break;
-
-    case TRT_WIDE:
-        resultObj = Tcl_NewWideIntObj(resultP->value.wide);
-        break;
-
-    case TRT_DOUBLE:
-        resultObj = Tcl_NewDoubleObj(resultP->value.dval);
-        break;
-
-    case TRT_FILETIME:
-        resultObj = ObjFromFILETIME(&resultP->value.filetime);
-        break;
-
-    case TRT_SYSTEMTIME:
-        resultObj = ObjFromSYSTEMTIME(&resultP->value.systime);
-        break;
-
-    case TRT_EMPTY:
-        Tcl_ResetResult(interp);
-        break;
-
-    case TRT_UUID:
-        resultObj = ObjFromUUID(&resultP->value.uuid);
-        break;
-
-    case TRT_GUID:
-        resultObj = ObjFromGUID(&resultP->value.guid);
-        break;
-
-    case TRT_LUID:
-        resultObj = ObjFromLUID(&resultP->value.luid);
-        break;
-        
-    case TRT_DWORD_PTR:
-        resultObj = ObjFromDWORD_PTR(resultP->value.dwp);
-        break;
-
-    case TRT_INTERFACE:
-        resultObj = ObjFromOpaque(resultP->value.ifc.p,resultP->value.ifc.name);
-        break;
-
-    case TRT_VARIANT:
-        resultObj = ObjFromVARIANT(&resultP->value.var, 0);
-        VariantClear(&resultP->value.var);
-        break;
-
-    case TRT_LPOLESTR:
-        if (resultP->value.lpolestr) {
-            resultObj = Tcl_NewUnicodeObj(resultP->value.lpolestr, -1);
-            CoTaskMemFree(resultP->value.lpolestr);
-        } else
-            Tcl_ResetResult(interp);
-        break;
-
-    case TRT_PIDL:
-        if (resultP->value.pidl) {
-            resultObj = ObjFromPIDL(resultP->value.pidl);
-            CoTaskMemFree(resultP->value.pidl);
-        } else
-            Tcl_ResetResult(interp);
-        break;
-
-    case TRT_OPAQUE:
-        resultObj = ObjFromOpaque(resultP->value.opaque.p,
-                                  resultP->value.opaque.name);
-        break;
-
-    case TRT_TCL_RESULT:
-        /* interp result already stored. Status in ival */
-        return resultP->value.ival;
-        
-    case TRT_NTSTATUS:
-        if (resultP->value.ival != STATUS_SUCCESS)
-            return Twapi_AppendSystemError(interp,
-                                           TwapiNTSTATUSToError(resultP->value.ival));
-
-        break;
-
-    case TRT_BADFUNCTIONCODE:
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
-
-    default:
-        Tcl_SetResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult", TCL_STATIC);
-        return TCL_ERROR;
-    }
-
-    if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
-
-    return TCL_OK;
+    Tcl_Obj *objv[6];
+    objv[0] = Tcl_NewIntObj(spsP->ACLineStatus);
+    objv[1] = Tcl_NewIntObj(spsP->BatteryFlag);
+    objv[2] = Tcl_NewIntObj(spsP->BatteryLifePercent);
+    objv[3] = Tcl_NewIntObj(spsP->Reserved1);
+    objv[4] = Tcl_NewIntObj(spsP->BatteryLifeTime);
+    objv[5] = Tcl_NewIntObj(spsP->BatteryFullLifeTime);
+    return Tcl_NewListObj(6, objv);
 }
+
+
