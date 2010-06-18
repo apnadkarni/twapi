@@ -1,0 +1,19 @@
+# TWAPI example
+# Check for sufficient disk space
+# Usage example: tclsh checkavailablespace.example C: 10000000
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 C: SPACE_IN_BYTES"
+    exit
+}
+
+set drive [lindex $argv 0]
+set space [lindex $argv 1]
+if {[twapi::user_drive_space_available $drive $space]} {
+    puts "Sufficient free disk space"
+} else {
+    puts "Insufficient free disk space"
+}
+

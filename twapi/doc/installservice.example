@@ -1,0 +1,16 @@
+# TWAPI example
+# Install a Windows service
+# Usage example: tclsh installservice.example SERVICENAME DISPLAYNAME COMMAND
+
+package require twapi
+
+if {$argc != 3} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 SERVICENAME DISPLAYNAME COMMAND"
+    exit 1
+}
+
+set internalname [lindex $argv 0]
+set displayname  [lindex $argv 1]
+set command      [lindex $argv 2]
+
+twapi::create_service $internalname $command -display_name $displayname

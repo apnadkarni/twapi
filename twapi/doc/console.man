@@ -1,0 +1,519 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Console" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Windows console mode"]
+[titledesc "Commands related to Windows consoles"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands for manipulating console windows.
+
+[section Consoles]
+
+A console may have multiple processes attached to it. However, a
+process may be attached to at most one console. Character mode applications
+are generally started with a console attached. GUI mode processes however
+do not have a console attached. The command
+[uri \#allocate_console [cmd allocate_console]] may be used to allocate
+and attach to a console. An allocated console may be released with the
+[uri \#free_console [cmd free_console]] command.
+
+[section "Console Handles"]
+The input and screen buffers for a console are identified by handles that
+can be retrieved through the
+[uri \#get_console_handle [cmd get_console_handle]] call. Alternately, the
+the strings [const stdin], [const stdout] and [const stderr] may be passed
+to the various console commands to identify the input, output and error
+handles. The standard input, output and error handles may be retrieved
+through the [uri \#get_standard_handle [cmd get_standard_handle]] calls.
+These may not refer to the console if standard input/output has been
+redirected.
+
+[section "Console Input"]
+A console is associated with an input buffer that contains input events
+such as keyboard and mouse inputs. The console can be read through
+the [uri \#console_read [cmd console_read]] command.
+The number of events in the input buffer can be obtained through
+[uri \#get_console_pending_input_count [cmd get_console_pending_input_count]]
+and any pending events can be flushed through
+[uri \#flush_console_input [cmd flush_console_input]].
+[para]
+Console input is associated with a specific code page that can be retrieved
+and set through the
+[uri \#get_console_input_codepage [cmd get_console_input_codepage]] and
+[uri \#set_console_input_codepage [cmd set_console_input_codepage]] commands.
+
+[para]
+A console control event may be generated with the
+[uri \#generate_console_control_event [cmd generate_console_control_event]]
+command. Console control event handlers may be set up with the
+[uri \#set_console_control_handler [cmd set_console_control_handler]]
+command.
+
+[para]
+The number of mouse buttons available through the console interface is
+returned by the
+[uri \#num_console_mouse_buttons [cmd num_console_mouse_buttons]] command.
+
+[section "Console Output"]
+A console may have one or more screen buffers only one of which is active
+and visible at a time.  A screen buffer is a two dimensional
+array of cells with each cell containing a character and an attribute that
+controls how the character is displayed. Screen buffers can be written to with
+the [uri \#write_console [cmd write_console]] command.
+The code page used for output can be retrieved
+and set through the
+[uri \#get_console_output_codepage [cmd get_console_output_codepage]] and
+[uri \#set_console_output_codepage [cmd set_console_output_codepage]] commands.
+
+
+[para]
+Screen buffers can be allocated through
+[uri \#create_console_screen_buffer [cmd create_console_screen_buffer]] and
+made to be the active buffer by calling
+[uri \#set_console_active_screen_buffer [cmd set_console_active_screen_buffer]].
+The size of the buffer can be controlled through the
+[uri \#set_console_screen_buffer_size [cmd set_console_screen_buffer_size]]
+command.
+[para]
+The console window is the portion of the screen buffer that is actually visible
+on the display. The command
+[uri \#set_console_window_location [cmd set_console_window_location]] can
+be used to control the location of this window into the screen buffer.
+The window handle of the console window can be obtained
+through the [uri \#get_console_window [cmd get_console_window]] command. The
+maximum possible size of the window that can fit on the display given the
+font can be obtained through
+[uri \#get_console_window_maxsize [cmd get_console_window_maxsize]].
+The title associated with a console window may be retrieved and set through
+the [uri \#get_console_title [cmd get_console_title]] and
+[uri \#set_console_title [cmd set_console_title]] respectively.
+
+[para]
+The command [uri \#clear_console [cmd clear_console]] clears the screen buffer
+or a portion of it and can optionally fill it with a specific character.
+
+[para]
+Characteristics of the screen buffer such as buffer size, cursor
+position, window coordinates can be obtained through
+[uri \#get_console_screen_buffer_info [cmd get_console_screen_buffer_info]].
+
+[section "Console Modes"]
+
+A console's input and output modes control how characters are handled when
+when entered and displayed.
+[para]
+Characters typed into a console window may be handled differently based on
+the input mode of the console. The commands
+[uri \#get_console_input_mode [cmd get_console_input_mode]],
+[uri \#set_console_input_mode [cmd set_console_input_mode]] and
+[uri \#modify_console_input_mode [cmd modify_console_input_mode]] allow
+retrieval and setting of the input mode. The various mode settings are
+specified as arguments to these functions and may contain
+zero or more of the following elements:
+
+[list_begin opt]
+[opt_def [cmd -autoposition] [arg BOOL]]
+If true, position of console windows is determined by the
+operating system when the windows are opened.
+[opt_def [cmd -echoinput] [arg BOOL]]
+If true, characters are echoed as they are read in.
+This is only valid if the [cmd -lineinput] mode is true.
+[opt_def [cmd -extendedmode] [arg BOOL]]
+Must be set if [cmd -quickeditmode] or [cmd -insertmode] are specified.
+[opt_def [cmd -insertmode] [arg BOOL]]
+If true, characters are inserted as they entered
+and do not overwrite the characters at the current cursor position.
+[opt_def [cmd -lineinput] [arg BOOL]]
+If true, calls to read input only return when a
+carriage return character is read.
+[opt_def [cmd -mouseinput] [arg BOOL]]
+If true, mouse events are placed in the input queue
+when the console window has focus and the mouse is within the
+window coordinates.
+[opt_def [cmd -processedinput] [arg BOOL]]
+If true, control characters are handled by the
+system and not placed in the input queue. If [cmd -lineinput] is also true,
+carriage returns, line feeds and tabs are also handled by the system.
+[opt_def [cmd -quickeditmode] [arg BOOL]]
+If true, allows the user to use the mouse to
+select and edit text.
+[opt_def [cmd -windowinput] [arg BOOL]]
+If true, changes in the console window coordinates are
+reported through the input queue.
+[list_end]
+In a similar fashion, the characters written to a screen buffer may be
+displayed differently depending on the output mode of the console. The
+commands [uri \#get_console_output_mode [cmd get_console_output_mode]],
+[uri \#set_console_output_mode [cmd set_console_output_mode]] and
+[uri \#modify_console_output_mode [cmd modify_console_output_mode]] allow
+retrieval and setting of the input mode. The various mode settings are
+specified as arguments to these functions and may contain
+zero or more of the following elements:
+
+[list_begin opt]
+[opt_def [cmd -processedoutput] [arg BOOL]]
+If true, characters written to the screen buffer are processed for
+ASCII control characters - backspace, tab, bell, carriage return, linefeed -
+and appropriate action taken.
+[opt_def [cmd -wrapoutput] [arg BOOL]]
+If true, characters written to the screen buffer will wrap around to the next
+row when the end of row is reached. Otherwise, the last character in the row
+will be overwritten with characters that extend beyond the width of the row.
+[list_end]
+
+[section "Text Attributes"]
+Each cell in a screen buffer has attributes that control the display
+characteristics of that cell. The default attribute used for writing to the
+screen buffer can be set through
+[uri \#set_console_default_attr [cmd set_console_default_attr]].
+[para]
+Text attributes are retrieved and controlled
+through the following options:
+[list_begin opt]
+[opt_def [cmd -bg[arg COLOR]] [arg BOOL]]
+If true, adds [arg COLOR] to the background text color. [arg COLOR] may
+be one of [const blue], [const green], [const red],
+[const purple], [const yellow], [const gray],
+or [const white].
+[opt_def [cmd -fg[arg COLOR]] [arg BOOL]]
+If true, adds [arg COLOR] to the foreground text color. [arg COLOR] may
+be one of [const blue], [const green], [const red],
+[const purple], [const yellow], [const gray],
+or [const white].
+[opt_def [cmd -fgbright] [arg BOOL]]
+If true, intensifies the foreground color.
+[opt_def [cmd -bgbright] [arg BOOL]]
+If true, intensifies the background color.
+[list_end]
+
+The command [uri \#fill_console [cmd fill_console]] can be used to change
+the attribute of portions of the screen buffer.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd allocate_console]]
+Allocates a console for the process. If the process already has a console,
+an error exception is generated.
+
+[call [cmd clear_console] [arg CONOUTH] [opt "[cmd -fillchar] [arg CHARACTER]"] [opt "[cmd -windowonly] [arg BOOL]"]]
+If no option are specified, sets the contents of the entire screen buffer
+to spaces. The [cmd -fillchar] option may be used to specify a different
+character to use. If [cmd -windowonly] is specified as true, only the
+portion of screen buffer that is visible is cleared.
+
+[call [cmd console_read] [arg CONINH] [opt "[arg options]"]]
+Reads input from the console. Note that the input is from
+the console even if standard input has been redirected. [arg options]
+specify the input mode to use and
+are passed to [uri \#modify_console_input_mode [cmd modify_console_input_mode]]
+before input is read. The original mode is restored before returning.
+
+[call [cmd create_console_screen_buffer] [opt [arg options]]]
+Creates a new console screen buffer and returns a handle to it. The following
+options may be specified:
+[list_begin opt]
+[opt_def [cmd -inherit] [arg BOOL]]
+If true, the returned handle is inheritable by child processes.
+[opt_def [cmd -mode] [const read|write|readwrite]]
+Specifies whether the buffer access is read, write or both.
+[opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]]
+Specifies a [uri security.html\#securitydescriptors "security descriptor"]
+to be attached to the screen buffer.
+[opt_def [cmd -share] [const none|read|write|readwrite]]
+Specifies whether the buffer is not shared or
+can be shared for read, write or both (default).
+[list_end]
+The allocated screen buffer handle should be closed by calling
+[uri handles.html\#close_handles [cmd close_handles]] when no longer
+needed.
+[call [cmd fill_console] [arg CONOUTH] [opt [arg options]]]
+Sets the text attribute of cells in specified area of the screen buffer.
+The text attributes are specified with one or more of the options
+described in [sectref "Text Attributes"].
+The following additional options may also be specified:
+[list_begin opt]
+[opt_def [cmd -fillchar] [arg CHARACTER]]
+Normally, the command does not change the text contents in the specified
+region. If this option is specified,
+in addition to changing the attributes in the specified region, the contents
+of each cell are set to [arg CHARACTER].
+[opt_def [cmd -mode] [const line|column]]
+If specified as [const column] (default), the fill region in the second
+line starts at the same column as the first line. If specified as [const line],
+the fill region starts at the first column in the second and subsequent lines.
+[opt_def [cmd -numcols] [arg INTEGER]]
+Width of the region to be filled. By default, the fill region extends to the
+rightmost column of the screen buffer.
+[opt_def [cmd -numlines] [arg INTEGER]]
+Number of rows to be filled. By default, the fill region extends to the
+rightmost column of the screen buffer.
+[opt_def [cmd -position] [arg POSITION]]
+Location of the top left corner of the fill region. [arg POSITION] is
+specified as a list of two integers corresponding to the column and row.
+[opt_def [cmd -window] [arg BOOL]]
+If specified as true, the fill region is the visible window portion of the
+screen buffer. This option cannot be used with the [cmd -position],
+[cmd -numlines] and [cmd -numrows] options.
+[list_end]
+
+[call [cmd flush_console_input] [arg CONINH]]
+Removes any pending input events from the buffer of the specified
+input console.
+
+[call [cmd free_console]]
+Frees the console attached to the process.
+
+[call [cmd generate_console_control_event] [arg EVENT] [opt [arg PROCESSGROUP]]]
+Sends a control event to a process group. [arg EVENT] should be one
+of [const ctrl-c] or [const ctrl-break]. [arg PROCESSGROUP] indicates the
+console process group to which the event should be sent. By default, the
+event is sent to all processes sharing the console of the caller.
+
+[call [cmd get_console_handle] [arg TYPE]]
+Returns a handle to console input, output or error. Note if input and
+output have been redirected, the handle may not be the same as returned
+by [uri \#get_standard_handle [cmd get_standard_handle]]. [arg TYPE]
+must be [const stdin] or [const stdout].
+
+[call [cmd get_console_input_codepage]]
+Returns the input code page of the console.
+
+[call [cmd get_console_input_mode] [opt [arg CONINH]]]
+Returns the input mode of the console.
+[arg CONINH] is a handle to console input
+and defaults to [const stdin]. The
+returned value is a list describing the current mode.
+See [sectref "Console Modes"] for the possible values.
+
+[call [cmd get_console_output_mode] [opt [arg CONOUTH]]]
+Returns the output mode of the console.
+[arg CONOUTH] is a handle to console output
+and defaults to [const stdout]. The
+returned value is a list describing the current mode.
+See [sectref "Console Modes"] for the possible values.
+
+[call [cmd get_console_pending_input_count] [arg CONINH]]
+Returns the number of pending input events for the specified console.
+
+[call [cmd get_console_screen_buffer_info] [arg CONH] [opt options]]
+Retrieves various information about a screen buffer as a flat list
+of [arg option] [arg VALUE] pairs. The following options
+determine what information is returned:
+[list_begin opt]
+[opt_def -all]
+Equivalent to specifying all other options.
+[opt_def -cursorpos]
+Returns the cursor position in the screen buffer.
+[opt_def -maxwindowsize]
+Returns the maximum possible size of a window in the screen buffer as
+a pair of integer corresponding to the width and height. This takes
+into account the screen buffer size, the display size and the font being used.
+[opt_def -size]
+Returns a list of two integers containing the number of columns and rows in
+the screen buffer.
+[opt_def -textattr]
+Returns the default text attributes used when writing into the screen buffer.
+[opt_def -windowpos]
+Returns a list of two integers corresponding to the column and row of the top
+left cell of the window.
+[opt_def -windowsize]
+Returns a list of two integers containing the number of columns and rows in
+the window.
+[list_end]
+
+[call [cmd get_console_title]]
+Returns the title of the window of the currently attached console.
+
+[call [cmd get_console_window]]
+Returns the handle to the window displaying the currently attached console.
+
+[call [cmd get_console_window_maxsize]]
+Returns the maximum size of a console window given the current display size
+and font as a list of two integers corresponding to the width and height.
+This command does not take into account the size of the screen buffer itself.
+The [cmd -maxwindowsize] option of
+[uri \#get_console_screen_buffer_info [cmd get_console_screen_buffer_info]]
+does take into account the screen buffer size.
+
+[call [cmd get_standard_handle] [arg TYPE]]
+Returns a handle to standard input, output or error. This may correspond
+to the console or some other device if the standard devices have been
+redirected. If the process does not have associated standard handles,
+an exception is generated with [const errorCode] set to
+[const "WINDOWS 2 [arg ERRORMESSAGE]"].
+If the returned handle corresponds to a console device, it can be passed
+to the other console commands.
+[arg TYPE] is one of [const stdin], [const stdout], [const stderr].
+[nl]
+Note this command returns a handle to standard input, output and error, which
+may not be the console if they have been redirected. To retrieve handles
+to the console, use the [uri \#get_console_handle [cmd get_console_handle]]
+function.
+
+[call [cmd modify_console_input_mode] [arg CONINH] [arg MODEOPTIONS...]]
+Modifies the input modes for the console identified by [arg CONINH]
+according to the mode options specified. [arg MODEOPTIONS] must
+correspond to the input mode options described in [sectref "Console Modes"].
+Any options not specified are unchanged.
+The command returns the previous input modes of the console.
+[nl]
+Also see [uri \#set_console_input_mode [cmd set_console_input_mode]].
+
+[call [cmd modify_console_output_mode] [arg CONOUTH] [arg MODEOPTIONS...]]
+Modifies the output modes for the console identified by [arg CONOUTH]
+according to the mode options specified. [arg MODEOPTIONS] must correspond
+to the output mode options described in [sectref "Console Modes"].
+Any options not specified are unchanged.
+The command returns the previous output modes of the console.
+[nl]
+Also see [uri \#set_console_output_mode [cmd set_console_output_mode]].
+
+[call [cmd num_console_mouse_buttons]]
+Returns the number of console mouse buttons.
+
+[call [cmd set_console_active_screen_buffer] [arg CONOUTH]]
+Sets the active screen buffer of the currently attached console to
+[arg CONOUTH].
+
+[call [cmd set_console_control_handler] [arg SCRIPT]]
+Registers [arg SCRIPT] to be invoked when a console application receives
+one of the control events in the table below. The appropriate event
+name is appended to [arg SCRIPT] before it is invoked. The script should
+return a non-zero integer value if it has handled the event itself. Any
+other value returned from the script will result in the event being passed on
+to other handlers including the operating system default handler.
+[nl]
+Calling the command a second time will result in the previous callback script
+being replaced. So if multiple scripts are to be invoked, the application
+has to do the chaining itself.
+[nl]
+If [arg SCRIPT] is empty, the callback handler is unregistered.
+[nl]
+In order for the callback scripts to be invoked, the Tcl event loop
+must be running (through [cmd vwait], [cmd update] etc.).
+Note that this function should be used only in console applications, not
+Win32 GUI applications.
+[nl]
+The following event names are passed to [arg SCRIPT].
+[list_begin opt]
+[opt_def [const ctrl-c]] A Ctrl-C signal was received.
+[opt_def [const ctrl-break]] A Ctrl-Break signal was received.
+[opt_def [const close]] The user requested the console window to be closed.
+[opt_def [const logoff]] The user is logging off.
+[opt_def [const shutdown]] The system is being shut down.
+[list_end]
+[nl]
+This command requires a threaded build of Tcl and will raise an exception
+on non-threaded builds.
+
+[call [cmd set_console_cursor_position] [arg CONOUTH] [arg {X Y}]]
+Sets the cursor position in a screen buffer. [arg CONOUTH] is the
+handle to the buffer and [arg {X Y}] is a list of two integers specifying
+the column and row that the cursor is to be positioned at.
+
+[call [cmd set_console_default_attr] [arg CONOUTH] [opt [arg options]]]
+Sets the default attribute to be used when writing to the specified
+screen buffer. See [sectref "Text Attributes"] for a list of valid
+options.
+
+[call [cmd set_console_input_codepage] [arg CODEPAGE]]
+Sets the input code page of the console.
+
+[call [cmd set_console_input_mode] [arg CONINH] [arg MODEOPTIONS...]]
+Sets the input mode for the console identified by [arg CONINH] according
+to the mode options specified. [arg MODEOPTIONS] must correspond to the
+input mode options described in [sectref "Console Modes"]. Any options not
+specified are assumed to be false. To change the input mode for specific
+options without affecting others, use
+[uri \#modify_console_input_mode [cmd modify_console_input_mode]].
+For example,
+[example {
+    set_console_input_mode stdin -echoinput 0 -lineinput 1
+}]
+will set the console input to only have mode [const -lineinput] set.
+[const -echoinput] as well as unspecified modes will be reset.
+On the other hand,
+[example {
+    modify_console_input_mode stdin -echoinput 0 -lineinput 1
+}]
+will turn off [const -echoinput] mode, turn on [const -lineinput] mode
+but will leave others unchanged.
+
+[call [cmd set_console_output_codepage] [arg CODEPAGE]]
+Sets the output code page of the console.
+
+[call [cmd set_console_output_mode] [arg CONOUTH] [arg MODEOPTIONS...]]
+Sets the output modes for the console identified by [arg CONOUTH] according
+to the modes specified. [arg MODEOPTIONS] must correspond to the
+output modes described in [sectref "Console Modes"]. Any modes not
+specified are reset. To change the output modes for specific
+options without affecting others, use
+[uri \#modify_console_output_mode [cmd modify_console_output_mode]].
+For example,
+[example {
+    set_console_output_mode stdout -processedoutput 0
+}]
+will set the console output to only have mode [const -processedoutput] set.
+On the other hand,
+[example {
+    modify_console_output_mode stdout -processedoutput 0
+}]
+will turn off [const -processedoutput] mode but leave others unchanged.
+
+[call [cmd set_console_screen_buffer_size] [arg CONOUTH] [arg SCRSIZE]]
+Sets the size of the specified console screen buffer. [arg SCRSIZE]
+should be a list of two integers containing the width and height of the
+screen buffer in characters.
+
+[call [cmd set_console_title] [arg TEXT]]
+Sets the title of the window of the currently attached console to [arg TEXT].
+
+[call [cmd set_console_window_location] [arg CONOUTH] [arg RECT] [opt "[cmd -absolute] [arg BOOL]"]]
+Sets the position and size of the visible window within the
+specified screen buffer. [arg RECT] is a list of four integers containing
+the left column position, the top row position, the right column position
+and the bottom row position. If option [cmd -absolute] is true (default),
+the coordinates are absolute coordinates in the screen buffer. Otherwise,
+they are relative to the current window coordinates.
+
+[call [cmd set_standard_handle] [arg TYPE] [arg HANDLE]]
+Redirects standard input, output or error to the specified [arg HANDLE].
+[arg TYPE] is one of [const stdin], [const stdout], [const stderr].
+[arg HANDLE] may be any handle to a device.
+
+[call [cmd write_console] [arg CONOUTH] [arg STRING] [opt [arg options]]]
+Writes the sequence of characters in [arg STRING] to the screen buffer
+identified by [arg CONOUTH]. The characters are always written to
+the screen buffer in raw mode, i.e. as if the [const -processedoutput] mode
+(see [sectref "Console Modes"]) was off. The original mode setting is
+restored after the write is completed. Note however, that newline characters
+are treated specially.
+[nl]
+In addition, the following options
+may be specified to alter the behavour of the write.
+
+[list_begin opt]
+[opt_def [cmd -newlinemode] [const line|column]]
+If the [cmd -newlinemode] is set to [const column] (default), a
+newline character in [arg STRING] causes further characters to be written
+at the original starting column position on the next line. If the option
+is specified as [const line], characters after the newline character
+are written starting at the first column on the next line.
+[opt_def [cmd -position] [arg COORD]]
+By default, the characters are written starting at the current cursor
+position. This option may be specified to change the location at which
+the characters are written. [arg COORD] is a list of two integers containing
+the column and row coordinates of the starting location.
+[opt_def [cmd -restoreposition] [arg BOOL]]
+[list_end]
+
+
+[list_end]
+
+[keywords "console commands" "screen buffers" "console text attributes" "standard input" "standard output" "console modes" "console input" "console code page" "console control handlers"]
+
+
+[manpage_end]

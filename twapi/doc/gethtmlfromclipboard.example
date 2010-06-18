@@ -1,0 +1,28 @@
+# TWAPI example
+# Get HTML contents of the clipboard
+
+package require twapi
+
+# Internet Explorer registers the clipboard format name as "HTML Format"
+# First get the format identifier for this name
+set html_fmt [twapi::register_clipboard_format "HTML Format"]
+
+# Then open the clipboard ...
+twapi::open_clipboard
+# ... and get available formats
+set available_fmts [twapi::get_clipboard_formats]
+
+# See if HTML format is in the list
+if {[lsearch -integer $available_fmts $html_fmt] < 0} {
+    puts stderr "HTML format is not available on the clipboard"
+    exit 1
+}
+
+# Read the contents ...
+set html [twapi::read_clipboard $html_fmt]
+# ...and close it
+twapi::close_clipboard
+
+# For HTML format, it so happens that the contents are UTF8 so we
+# can just print it
+puts $html

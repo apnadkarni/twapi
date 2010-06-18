@@ -1,0 +1,12 @@
+# TWAPI example
+# Export a network share
+# Usage example: tclsh exportfileshare.example SHAREPATH SHARELABEL
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 C:\\Data MYSHARE"
+    exit
+}
+
+twapi::new_share  [lindex $argv 1] [lindex $argv 0]

@@ -1,0 +1,11 @@
+# TWAPI example
+# List the fixed drives on the system that have less than 10% free space
+
+package require twapi
+
+foreach drive [twapi::get_logical_drives -type fixed] {
+    array set diskinfo [twapi::get_volume_info $drive -freespace -size]
+    if {$diskinfo(-freespace) < ($diskinfo(-size)/10)} {
+        puts "$drive (Free $diskinfo(-freespace), Total $diskinfo(-size))"
+    }
+}

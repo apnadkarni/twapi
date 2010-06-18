@@ -1,0 +1,34 @@
+# TWAPI example
+# Show network statistics
+
+package require twapi
+
+# Print columns
+proc puts_tabular {label value} {
+    set dotlen [expr {40 - [string length $label]-[string length $value]}]
+    if {$dotlen <= 0} {set dotlen 4}
+    puts "  ${label}[string repeat . $dotlen]$value"
+
+}
+
+foreach nif [lsort -integer [twapi::get_netif_indices]] {
+    array set nifinfo [twapi::get_netif_info $nif -description \
+                           -inbytes -outbytes \
+                           -indiscards -outdiscards \
+                           -inerrors -outerrors \
+                           -inunicastpkts -innonunicastpkts \
+                           -outunicastpkts -outnonunicastpkts]
+
+    puts ""
+    puts "$nifinfo(-description) #$nif"
+    puts_tabular  "Bytes in" $nifinfo(-inbytes)
+    puts_tabular  "Bytes out" $nifinfo(-outbytes)
+    puts_tabular  "Packets in" [expr {$nifinfo(-inunicastpkts) +
+                                            $nifinfo(-innonunicastpkts)}]
+    puts_tabular  "Packets out" [expr {$nifinfo(-outunicastpkts) +
+                                            $nifinfo(-outnonunicastpkts)}]
+    puts_tabular  "Discards in" $nifinfo(-indiscards)
+    puts_tabular  "Discards out" $nifinfo(-outdiscards)
+    puts_tabular  "Errors in" $nifinfo(-indiscards)
+    puts_tabular  "Errors out" $nifinfo(-outdiscards)
+}    

@@ -1,0 +1,12 @@
+# TWAPI example
+# Connect to a network share
+# Usage example: tclsh connectfileshare.example SHARE [DRIVE]
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] \\\\SERVERNAME\\SHARENAME \[DRIVE:\]"
+    exit
+}
+
+puts [twapi::connect_share [lindex $argv 0] -localdevice [lindex $argv 1]]

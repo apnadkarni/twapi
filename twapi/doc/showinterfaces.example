@@ -1,0 +1,61 @@
+# TWAPI example
+# Show network interfaces
+
+package require twapi
+
+# Print columns
+proc puts_tabular {width args} {
+    set fmt [string repeat "%-${width}s" [llength $args]]
+    puts [eval [list format $fmt] $args]
+}
+
+if {![twapi::min_os_version 5]} {
+    puts stderr "This example needs Windows 2000 or later"
+    exit 1
+}
+
+array set status_labels {
+    nonoperational "Disconnected"
+    disconnected   "Disconnected"
+    wanconnecting  "Connecting"
+    wanconnected   "Connected"
+    operational    "Connected"
+}
+
+set width 28
+# Interfaces are identified by interface indices
+set sep ""
+foreach ifx [twapi::get_netif_indices] {
+    array set netif [twapi::get_netif_info $ifx -all]
+    set netif(-dnsservers) [join $netif(-dnsservers) ", "]
+    if {[info exists status_labels($netif(-operstatus))]} {
+        set netif(-operstatus) $status_labels($netif(-operstatus))
+    }
+    # Collect the IP addresses
+    set addrs [list ]
+    foreach addr $netif(-ipaddresses) {
+        lappend addrs "[lindex $addr 0] netmask [lindex $addr 1]"
+    }
+    set netif(-ipaddresses) [join $addrs ", "]
+    # Print for this interface
+    puts -nonewline $sep
+    puts "\nAdapter $netif(-description) ($netif(-adaptername))\n"
+    foreach {opt label} {
+        -operstatus          "Status:"
+        -mtu                 "MTU size:"
+        -type                "Interface type:"
+        -speed               "Speed:"
+        -ipaddresses         "IP Addresses:"
+        -defaultgateway      "Default gateway:"
+        -dhcpserver          "DHCP server:"
+        -dnsservers          "DNS servers:"
+        -physicaladdress     "Physical address:"
+        -primarywins         "Primary WINS server:"
+        -secondarywins       "Secondary WINS server:"
+    } {
+        puts_tabular $width "    $label" $netif($opt)
+    }
+    #set sep "-----------------------------------------------------"
+    set sep \n
+}
+

@@ -1,0 +1,501 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Network configuration" n ""]
+[copyright "2004-2009, Ashok P. Nadkarni"]
+[moddesc "Network related commands"]
+[titledesc "Commands related to network configuration"]
+[require twapi]
+[description]
+
+[para]
+This module provides procedures to retrieve network information
+
+[section Overview]
+
+This module provides commands to retrieve various network-related
+data for the local system including DNS and DHCP information,
+type and configuration of network interfaces, traffic statistics and
+various other information.
+
+The module also provides some client side name resolution
+lookup functions including nonblocking name and address lookups.
+
+Many of these commands and some options are not available on all platforms
+as noted in each command description.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd address_to_hostname] [arg IPADDRESS] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
+
+Attempts to map the specified Internet address [arg IPADDRESS] to its
+fully qualified DNS name (FQDN).
+[nl]
+If the [cmd -async] option is not specified, the command returns the FQDN if
+available and the empty string otherwise. Note that this is a blocking call
+and the Tcl event loop will not be run until the command returns.
+[nl]
+If the [cmd -async] option is specified, the command returns right away.
+The address resolution is done in the background and when completed,
+[arg SCRIPT] is called at the global scope. Three additional arguments
+are appended to the script before it is executed - [arg IPADDRESS],
+status [const success] or [const fail] and either the FQDN
+(when the status is [const success]) or the Winsock error code
+(when the status is [const fail]). The Winsock error code
+may be translated to an error string using the
+[uri misc.html\#map_windows_error [cmd map_windows_error]] command.
+If no names are found, the status is [const success] but the
+third argument will be an empty string.
+[nl]
+Note the [cmd -async] option requires a threaded build of Tcl and will 
+raise an exception on non-threaded builds.
+
+[nl]
+Internally, the command maintains a cache of address to hostname mappings
+so as to avoid unnecessary lookups. The result is normally returned from here
+if available. However, if the [cmd -flushcache] option is specified, the
+cache entry is deleted and an explicit lookup up is done.
+
+[call [cmd flush_arp_table] [arg INTERFACEINDEX]]
+Flushes the ARP table associated with the specified network interface.
+
+[call [cmd get_arp_table] [opt [arg options]]]
+
+Returns the entries in the system's ARP table. Each entry is a sublist
+consisting of four elements - the interface index, the hardware address,
+the IP address and the type. The type is one of [const dynamic],
+[const static], [const other]  or [const invalid].
+[nl]
+The following options control the returned data:
+[list_begin opt]
+[opt_def [cmd -ifindex] [arg INTERFACEINDEX]]Limits the returned entries
+to those in the ARP table for the specified network interface with index
+[arg INTERFACEINDEX].
+[opt_def [cmd -sort]]Returns the entries sorted by IP address.
+[opt_def [cmd -validonly]]Skips entries that are marked invalid.
+[list_end]
+
+[call [cmd get_ip_addresses]]
+
+Returns a list of IP addresses for the system.
+
+[call [cmd get_netif_count]]
+Returns the number of network interfaces in the system.
+
+[call [cmd get_netif_indices]]
+
+Network interfaces in the system are identified by integer indices. This
+command retrieves the list of network interfaces in the system.
+[nl]
+[uri showinterfaces.example "Example: Show network interface information"]
+
+[call [cmd get_netif_info] [arg NETWORKINTERFACE] [opt [arg options]]]
+
+Returns various information about the configuration of a network interface.
+[arg NETWORKINTERFACE] must be the index of a
+network interface or a name identifying the interface.
+
+[nl]
+The information returned
+depends on the options specified and is in the form of a flat list of
+the form "[arg option1] [arg value1] ...". The following options may be
+specified:
+[list_begin opt]
+[opt_def [cmd -adapterdescription]]Returns a description of the adapter
+associated with the interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -adapterindex]]Returns the index of the adapter
+associated with the interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -adaptername]]Returns the name of the adapter
+associated with the interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -adminstatus]]Returns 1 or 0 depending on whether the interface
+has been administratively enabled or not.
+[opt_def [cmd -all]] Returns all option values.
+[opt_def [cmd -autoconfigactive]]Returns 1 if the interface has been
+autoconfigured with an address, and 0 otherwise.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -autoconfigenabled]]Returns 1 if autoconfiguration is
+enabled on the interface if a DHCP server cannot be found, and 0 otherwise.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -defaultgateway]]Returns the address of the default
+gateway on the interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -description]]Returns a description of the interface.
+[opt_def [cmd -dhcpenabled]]Returns 1 if DHCP is enabled on the
+interface, else 0.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -dhcpleaseend]]Returns the time, in seconds since Jan 1, 1970,
+that the DHCP lease will expire.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -dhcpleasestart]]Returns the time, in seconds since Jan 1, 1970,
+that the DHCP lease was obtained.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -dhcpserver]]Returns the address of the DHCP server
+on the network interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -havewins]]Returns 1 if the interface uses WINS, else 0.
+This option is supported on Windows 2000 and higher.
+[opt_def [cmd -ifindex]]Returns the interface index. This is the same
+as [arg INTERFACEINDEX] unless the latter is specified as a name.
+[opt_def [cmd -ifname]]Returns the name of the network interface.
+[opt_def [cmd -inbytes]]Returns the number of bytes received through
+this interface.
+[opt_def [cmd -indiscards]]Returns the number of incoming packets on this
+interface that were discarded even though they had no errors.
+[opt_def [cmd -inerrors]]Returns the number of incoming packets on this
+interface that were discarded because of errors.
+[opt_def [cmd -innonunicastpkts]]Returns the number of broadcast
+or multicast packets received through this interface.
+[opt_def [cmd -inunicastpkts]]Returns the number of unicast packets
+received through this interface.
+[opt_def [cmd -inunknownprotocols]]Returns the number of incoming packets
+on this interface that were discarded because of the protocol was unknown.
+[opt_def [cmd -laststatuschange]]Returns the last time the operational
+status changed.
+[opt_def [cmd -ipaddresses]]Returns a list sublists
+containing the IP addresses and masks for the interface.
+[opt_def [cmd -mtu]]Returns the maximum transmission unit of the interface.
+[opt_def [cmd -operstatus]]Returns the operational status of the interface.
+This is one of the values [const nonoperational], [const wanunreachable],
+[const disconnected], [const wanconnecting],
+[const wanconnected], [const operational].
+[opt_def [cmd -outbytes]]Returns the number of bytes transmitted through
+this interface.
+[opt_def [cmd -outdiscards]]Returns the number of outgoing packets on this
+interface that were discarded even though they had no errors.
+[opt_def [cmd -outerrors]]Returns the number of outgoing packets on this
+interface that were discarded because of errors.
+[opt_def [cmd -outnonunicastpkts]]Returns the number of broadcast
+or multicast packets transmitted through this interface.
+[opt_def [cmd -outqlen]]Returns the output queue length on this interface.
+[opt_def [cmd -outunicastpkts]]Returns the number of unicast packets
+transmitted through this interface.
+[opt_def [cmd -physicaladdress]]Returns the physical address of the
+network interface.
+[opt_def [cmd -primarywins]]Returns the address of the primary WINS
+server, if any.
+[opt_def [cmd -reassemblysize]]Returns the maximum size of a reassembled
+packet that is supported by the interface.
+[opt_def [cmd -secondarywins]]Returns the address of the secondary WINS
+server, if any.
+[opt_def [cmd -speed]]Returns the speed of the network interface in bits
+per second.
+[opt_def [cmd -type]] Returns the network interface type. This is one
+of [const ethernet], [const tokenring], [const fddi],
+[const ppp], [const loopback], [const slip] or [const other].
+[list_end]
+
+[nl]
+[uri showinterfaces.example "Example: Show network interface information"]
+[nl]
+[uri shownetworkstats.example "Example: Show network statistics"]
+[nl]
+
+[call [cmd get_network_info] [opt [arg options]]]
+
+Returns various information about network configuration.
+The information returned
+depends on the options specified and is in the form of a flat list of
+the form "[arg option1] [arg value1] ...". The following options may be
+specified:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all values.
+[opt_def [cmd -arpproxyenabled]] Returns 1 if ARP proxying is enabled and 0
+otherwise.[opt_def [cmd -dhcpscopeid]] Returns the DHCP scope id.
+[opt_def [cmd -dnsenabled]] Returns 1 if DNS name resolution is enabled
+on the system and 0 otherwise.
+[opt_def [cmd -dnsservers]] Returns a list of DNS server addresses used for
+name resolution.
+[opt_def [cmd -domain]] Returns the system domain.
+[opt_def [cmd -hostname]] Returns the host name of the system.
+[opt_def [cmd -routingenabled]] Returns 1 if routing is enabled on the system
+and 0 otherwise.
+[list_end]
+
+[call [cmd get_outgoing_interface] [arg DESTADDR]]
+Returns the index of the network interface that will be used to send
+a packet to the IP address specified by [arg DESTADDR]
+
+
+[call [cmd get_route] [opt [arg options]]]
+Returns the best route to a specified destination. The following options
+may be specified:
+[list_begin opt]
+[opt_def [cmd -dest] [arg DESTADDR]]
+Specifies the destination address for which the route is to be returned.
+If unspecified, defaults to [const 0.0.0.0] which corresponds to the
+default route.
+[opt_def [cmd -source] [arg SRCADDR]]
+Specifies the source address to be used. This can affect the route
+selected. Defaults to [const 0.0.0.0] which indicates the source
+address should not affect which route is selected.
+[list_end]
+The returned information is a keyed list with the following fields:
+[list_begin opt]
+[opt_def [cmd -addr]]
+The destination address that together with the [cmd -mask] field
+specifies the address range to which the route applies.
+[opt_def [cmd -age]]
+The age of the route in seconds. This is valid only if the Routing and
+Remote Access service is running and the protocol is [const netmgmt].
+[opt_def [cmd -ifindex]]
+The interface index for this route.
+[opt_def [cmd -mask]]
+The network mask that together with [cmd -dest] specifies the address
+range to which the route applies.
+[opt_def [cmd -metric1]]
+A routing protocol specific metric value.
+[opt_def [cmd -metric2]]
+A routing protocol specific metric value.
+[opt_def [cmd -metric3]]
+A routing protocol specific metric value.
+[opt_def [cmd -metric4]]
+A routing protocol specific metric value.
+[opt_def [cmd -metric5]]
+A routing protocol specific metric value.
+[opt_def [cmd -nexthop]]
+The IP address of next hop in the route to the destination.
+[opt_def [cmd -nexthopas]]
+The autonomous system number of the next hop.
+[opt_def [cmd -policy]]
+Multi-path route selector condition, typically in IP TOS format as
+defined in RFC 1354.
+[opt_def [cmd -protocol]]
+Protocol that generated the route.
+[opt_def [cmd -type]]
+The type of the route. This is one of [const local], [const remote],
+[const other] or [const invalid].
+[list_end]
+
+[call [cmd get_routing_table] [opt [cmd -sort]]]
+Returns the network routing table as a list of routes. Each element
+of the route is in the format described in the
+[uri \#get_route [cmd get_route]] command description.
+
+[call [cmd get_tcp_connections] [opt [arg options]]]
+Retrieves information about currently active TCP connections similar to
+the Windows [cmd netstat] command. The return value is a list of sublists,
+each corresponding to a single connection.
+[nl]
+The information returned for each connection is a flat list of the form
+"[arg option1] [arg value1] ...". The information returned for each
+connection is controlled through the following options:
+
+[list_begin opt]
+[opt_def [cmd -all]]
+Returns all fields for a connection.
+This option is assumed if no other field option is specified.
+[opt_def [cmd -bindtime]]
+Returns the time at which the last bind operation was done
+on the socket, or 0 if no bind has been done. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -localaddr]]
+Returns the local address being used for the connection.
+[opt_def [cmd -localport]]
+Returns the local port number being used for the connection.
+[opt_def [cmd -modulename]]
+Returns the name of the process module that owns the socket. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -modulepath]]
+Returns the path to the process module that owns the socket. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -pid]]
+Returns the PID of the process communicating on the port. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -remoteaddr]]
+Returns the address of the remote end of the connection.
+[opt_def [cmd -remoteport]]
+Returns the port number of the remote end of the connection.
+[opt_def [cmd -state]]
+Returns the connection state. This is one of
+[const closed], [const listen], [const syn_sent], [const syn_rcvd],
+[const estab], [const fin_wait1], [const fin_wait2], [const close_wait],
+[const closing], [const last_ack], [const time_wait] or
+[const delete_tcb].
+[list_end]
+
+In addition, the connections for which information is returned may
+be filtered through the following options. Only those connections that
+match the specified criteria are returned.
+[list_begin opt]
+[opt_def [cmd -matchlocaladdr] [arg HOSTLIST]]
+Only returns those connections whose local address is one of those
+specified in [arg HOSTLIST].
+Each element of HOSTLIST may be either an IP address or a host name.
+[opt_def [cmd -matchlocalport] [arg PORTNUMBER]]
+Only returns those connections whose local port is the specified number.
+[opt_def [cmd -matchpid] [arg PID]]
+Only returns those connections owned by the process with the specified
+PID. On platforms where the PID is not available, specifying this option
+will generate an error.
+[opt_def [cmd -matchremoteaddr] [arg HOSTLIST]]
+Only returns those connections whose remote address is one of those
+specified in [arg HOSTLIST].
+Each element of HOSTLIST may be either an IP address or a host name.
+[opt_def [cmd -matchremoteport] [arg PORTNUMBER]]
+Only returns those connections whose remote port is [arg PORTNUMBER].
+[opt_def [cmd matchstate] [arg STATELIST]]
+Only returns those connections whose state is one those specified in
+[arg STATELIST] which should be a list of connection state values (see above).
+[list_end]
+
+[call [cmd get_udp_connections] [opt [arg options]]]
+Retrieves information about currently active UDP sockets similar to
+the Windows [cmd netstat] command. The return value is a list of sublists,
+each corresponding to a single open socket.
+[nl]
+The information returned for each connection is a flat list of the form
+"[arg option1] [arg value1] ...". The fields returned for each
+connection is controlled through the following options:
+
+[list_begin opt]
+[opt_def [cmd -all]]
+Returns all fields for a connection.
+This option is assumed if no other field option is specified.
+[opt_def [cmd -bindtime]]
+Returns the time at which the last bind operation was done
+on the socket, or 0 if no bind has been done. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -localaddr]]
+Returns the local address being used for the connection.
+[opt_def [cmd -localport]]
+Returns the local port number being used for the connection.
+[opt_def [cmd -modulename]]
+Returns the name of the process module that owns the socket. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -modulepath]]
+Returns the path to the process module that owns the socket. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[opt_def [cmd -pid]]
+Returns the PID of the process communicating on the port. On some platforms,
+this may not be available in which case, an empty string is returned
+for the value.
+[list_end]
+
+In addition, the connections for which information is returned may
+be filtered through the following options. Only those connections that
+match the specified criteria are returned.
+[list_begin opt]
+[opt_def [cmd -matchlocaladdr] [arg HOSTLIST]]
+Only returns those connections whose local address is one of those
+specified in [arg HOSTLIST].
+Each element of HOSTLIST may be either an IP address or a host name.
+[opt_def [cmd -matchlocalport] [arg PORTNUMBER]]
+Only returns those connections whose local port is the specified number.
+[opt_def [cmd -matchpid] [arg PID]]
+Only returns those connections owned by the process with the specified
+PID. On platforms where the PID is not available, specifying this option
+will generate an error.
+[list_end]
+
+[call [cmd hostname_to_address] [arg HOSTNAME] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
+
+Attempts to map the specified host name to its IP addresses. Note there may
+be more than one address associated with a host name.
+[nl]
+If the [cmd -async] option is not specified, the command returns the
+list of IP addresses corresponding to the host if
+available and an empty list otherwise. Note that this is a blocking call
+and the Tcl event loop will not be run until the command returns.
+[nl]
+If the [cmd -async] option is specified, the command returns right away.
+The name resolution is done in the background and when completed,
+[arg SCRIPT] is called at the global scope. Three additional arguments
+are appended to the script before it is executed - [arg HOSTNAME],
+status [const success] or [const fail] and either the list of IP addresses
+(when the status is [const success]) or the Winsock error code
+(when the status is [const fail]). The Winsock error code
+may be translated to an error string using the
+[uri misc.html\#map_windows_error [cmd map_windows_error]] command.
+Note that on some platforms, if no addresses are found, 
+callback may be invoked with a status of [const success] and an empty list
+for the third argument, or it may be invoked with a status of fail
+and an appropriate error code.
+[nl]
+Note the [cmd -async] option requires a threaded build of Tcl and will 
+raise an exception on non-threaded builds.
+
+[nl]
+Internally, the command maintains a cache of address to hostname mappings
+so as to avoid unnecessary lookups. The result is normally returned from here
+if available. However, if the [cmd -flushcache] option is specified, the
+cache entry is deleted and an explicit lookup up is done.
+
+[call [cmd hwaddr_to_ipaddr] [arg HWADDR] [opt [arg VARNAME]]]
+Returns the IP address corresponding to the given hardware address.
+
+If [arg VARNAME] is specified, the command stores the result in
+a variable of that name in the caller's context if a mapping can be found
+and returns 1. Otherwise the command returns 0 without affecting the
+variable.
+
+If [arg VARNAME] is not specified, the command returns the IP
+address if a mapping is found and generates a Tcl exception otherwise.
+
+[call [cmd ipaddr_to_hwaddr] [arg IPADDR] [opt [arg VARNAME]]]
+Returns the hardware address corresponding to the given IP address.
+
+If [arg VARNAME] is specified, the command stores the result in
+a variable of that name in the caller's context if a mapping can be found
+and returns 1. Otherwise the command returns 0 without affecting the
+variable.
+
+If [arg VARNAME] is not specified, the command returns the hardware
+address if a mapping is found and generates a Tcl exception otherwise.
+
+[nl]
+[uri showphysicaladdress.example "Example: Map an IP address to a physical address"]
+[nl]
+
+[call [cmd port_to_service] [arg PORTNUMBER]]
+Returns the service name (e.g. [const http]) corresponding to the
+specified port number. If no corresponding service name exists, an empty
+string is returned.
+
+[call [cmd service_to_port] [arg SERVICENAME]]
+Returns the port number corresponding to the specified
+service name (e.g. [const http]).
+If the service name is not defined, an empty
+string is returned. If [arg SERVICENAME] is a port number, it is returned.
+
+[call [cmd terminate_tcp_connections] [opt [arg options]]]
+Terminates all connections that match all the options specified.
+Any options that are not specified are assumed to match. The valid
+matching options are:
+
+[list_begin opt]
+[opt_def [cmd -matchlocaladdr] [arg IPADDR]]
+Only matches those connections whose local address is bound to [arg IPADDR].
+[opt_def [cmd -matchlocalport] [arg PORTNUMBER]]
+Only matches those connections whose local port is the specified number.
+[opt_def [cmd -matchpid] [arg PID]]
+Only matches those connections owned by the process with the specified
+PID. On platforms where the PID is not available, specifying this option
+will generate an error.
+[opt_def [cmd -matchremoteaddr] [arg IPADDR]]
+Only matches those connections whose remote address is bound to [arg IPADDR].
+[opt_def [cmd -matchremoteport] [arg PORTNUMBER]]
+Only matches those connections whose remote port is [arg PORTNUMBER].
+[opt_def [cmd matchstate] [arg STATELIST]]
+Only matches those connections whose state is one those specified in
+[arg STATELIST] which should be a list of connection state values. See
+[uri \#get_tcp_connections [cmd get_tcp_connections]] for a list of
+valid values.
+[list_end]
+
+[list_end]
+
+[keywords "network information" addresses "Internet addresses" "IP addresses" "network statistics" "ARP table" "Address resolution protocol" "TCP" "UDP" "IP" "ICMP" "DHCP information" "network interface configuration" "network adapters" "DNS server addresses" "WINS servers addresses" "network address" "physical address" "netstat" "connections" "terminate connections" "FQDN" "name resolution" "DNS lookup" "address resolution" routing "network routes"]
+
+[manpage_end]

@@ -1,0 +1,10 @@
+# TWAPI example
+# Print if terminal services are present
+
+package require twapi
+array set osinfo [twapi::get_os_info]
+if {[lsearch -exact $osinfo(suites) "terminal"] >= 0} {
+        puts "Terminal services are present"
+} else {
+        puts "Terminal services are not present"
+}

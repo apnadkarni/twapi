@@ -1,0 +1,11 @@
+# TWAPI example
+# Delete a local group account
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 GROUPNAME"
+    exit
+}
+
+twapi::delete_local_group [lindex $argv 0]

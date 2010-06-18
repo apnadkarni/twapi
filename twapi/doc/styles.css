@@ -1,0 +1,246 @@
+/* WiTS website customization */
+
+/* Yahoo copyrighted section - base-min.css. See base.css for readable version */
+
+/*
+Copyright (c) 2008, Yahoo! Inc. All rights reserved.
+Code licensed under the BSD License:
+http://developer.yahoo.net/yui/license.txt
+version: 2.5.1
+*/
+h1{font-size:138.5%;}h2{font-size:123.1%;}h3{font-size:108%;}h1,h2,h3{margin:1em 0;}h1,h2,h3,h4,h5,h6,strong{font-weight:bold;}abbr,acronym{border-bottom:1px dotted #000;cursor:help;} em{font-style:italic;}blockquote,ul,ol,dl{margin:1em;}ol,ul,dl{margin-left:2em;}ol li{list-style:decimal outside;}ul li{list-style:disc outside;}dl dd{margin-left:1em;}th,td{border:1px solid #000;padding:.5em;}th{font-weight:bold;text-align:center;}caption{margin-bottom:.5em;text-align:center;}p,fieldset,table,pre{margin-bottom:1em;}input[type=text],input[type=password],textarea{width:12.25em;*width:11.9em;}
+
+/* End Yahoo copyright */
+
+/* Twapi customization */
+
+#custom_doc {
+  margin:auto;
+  text-align:left; /* leave unchanged */
+  width: 61.538em;
+  *width: 60.001em; /* For IE */
+  min-width: 600px;
+}
+
+h1,h2,h3 {
+  color: #888888;
+  margin-bottom: 0.5em;
+}
+
+#hd {
+    border-top-style: solid;
+    border-top-width: 10px;
+    border-top-color: #aaaaaa;
+    border-bottom-style: solid;
+    border-bottom-width: 4px;
+    border-bottom-color: #aaaaaa;
+    /* margin-right: 193px; */
+}
+#hd p {
+    margin-bottom: 0px;
+}
+
+#ft {
+    font-size: 77%;
+    text-align: center;
+    border-top: 1px solid #aaaaaa;
+    margin-right: 193px;
+    margin-top: 10px;
+}
+
+div.headingbar {
+    font-family: Trebuchet MS, Helvetica, sans-serif;
+    font-size: 200%;
+    font-weight: bold;
+    color: #888888;
+    background-image: url(twapi-48.png);
+    background-position: center left;
+    background-repeat: no-repeat;
+    text-indent: 60px;
+    line-height: 64px;
+    *line-height: 70px; /* IE heights are a bit different */
+}
+
+div.headingbar a:link, div.headingbar a:visited {
+  text-decoration: none;
+  color: #888888;
+}
+
+div.headingbar a:hover {
+  color: #0000ff;
+}
+
+div.headingads {
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    border: 1px solid #aaaaaa;
+    text-indent: 60px;
+}
+
+div.sideads {
+  margin-top: 2em;
+  margin-left: 0em;
+}
+
+div.navigation {
+  margin-top: 1em;
+}
+
+.navigation h2 {
+  font-size: 100%;
+  margin-bottom: 0.2em;
+  margin-top: 0em;
+  color: #808080;
+}
+
+.navigation ul {
+  margin-left: 1.5em;
+  margin-top: 0em;
+}
+
+.navigation ul li {
+  list-style-image: url(navarrow.png);
+}
+
+.navigation li a:link, .navigation li a:visited {
+  text-decoration: none;
+  color: #808080;
+}
+
+.navigation li a:hover {
+  color: #0000ff;
+}
+
+.seealso ul {
+  margin-top: 0em;
+  margin-left: 0.5em;
+}
+
+.seealso ul li {
+  list-style: none;
+  color: #00f;
+}
+
+.seealso a {
+  text-decoration: none;
+}
+
+a.imgbutton:hover {
+  cursor: default; /* Do not change cursor - instead image should change to active version */
+}
+
+.witsmenu { color: blue; font-family: Arial; font-size: 93%; font-weight: bold;}
+.debug { background-color: red; }
+.seemore {
+  font-size: 93%;
+}
+.blockquote {
+  font-size: 93%;
+  margin-left: 4em;
+}
+.cmd {
+}
+
+.content {
+  font-family: Verdana;
+  font-size: 108%;
+}
+
+.content dl {
+  margin-left: 0em;
+}
+
+.content dl dd {
+  margin-bottom: 1em;
+}
+
+.indexsection {
+   font-weight: bold;
+   font-size: larger;
+}
+
+.index td {
+   border: none;
+   vertical-align: top;
+   padding: 0em;
+   font-size: 93%;
+}
+
+table.opt {
+  margin: 1em;
+  border: thin solid;
+  border-collapse: collapse;
+  border-color: #808080;
+  padding: 4;
+}
+td.opt {
+  border: thin solid;
+  border-color: #808080;
+  vertical-align: top;
+  font-size: normal;
+}
+th.opt {
+  border: thin solid;
+  border-color: #808080;
+  padding: 4px;
+  background-color: #CCCCCC;
+}
+
+table.commandsummary {
+  border: thin solid;
+  border-collapse: collapse;
+  border-color: #b0b0b0;
+  margin: 1em;
+}
+
+.commandsummary td {
+  padding: 0.2em 1em;
+  border: none;
+  background-color: #f8f8f8;
+}
+
+.strong {
+  font-weight: bold;
+}
+
+.em {
+  font-style: italic;
+}
+
+.news {
+  color: #ff0000;
+  font-size: 93%;
+}
+
+div.news {
+  margin-top: 0.5em;
+  margin-bottom: 1em;
+}
+
+.news dl {
+  margin: 0px;
+}
+
+
+.news h2 {
+  margin-top: 1em;
+  margin-bottom: 0em;
+  font-size: 100%;
+}
+
+div.searchbox {
+  font-size: 100%;
+  float: right;
+}
+
+.searchbox td {
+  border: none;
+  padding: 0.2em;
+  background-color: #aaaaaa;
+}
+
+.searchbox table {
+  margin-bottom: 0px;
+}

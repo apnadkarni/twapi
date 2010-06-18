@@ -1,0 +1,25 @@
+# TWAPI example
+# Send a Alt-f X key sequence to the specified window
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set title [lindex $argv 0]
+
+# Get all windows with that title
+set windows [twapi::find_windows -text $title]
+if {[llength $windows]} {
+    set win [lindex $windows 0]
+    # Set the focus to the window
+    twapi::set_focus $win
+    # Feed data in to the input queue. The % is treated as a Alt modifier
+    # Note braces around F4 are also sent to send_keys, hence the whole
+    # string is protected with {}
+    twapi::send_keys {%{F4}}
+} else {
+    puts stderr "No windows found with title '$title'"
+}

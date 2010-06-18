@@ -1,0 +1,21 @@
+# TWAPI example
+# Move windows with a given title to top left corner of screen
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set text [lindex $argv 0]
+
+# Find the windows with the given title
+set toplevels [twapi::find_windows -text $text -toplevel true]
+if {[llength $toplevels]} {
+    foreach win $toplevels {
+        twapi::move_window $win 0 0
+    }
+} else {
+    puts stderr "No window found with title '$text'"
+}

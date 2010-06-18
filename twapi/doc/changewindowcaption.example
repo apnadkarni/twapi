@@ -1,0 +1,22 @@
+# TWAPI example
+# Change the caption of a window
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 OLDTITLE NEWTITLE"
+    exit 1
+}
+
+set old [lindex $argv 0]
+set new [lindex $argv 1]
+
+# Get all windows with that title
+set windows [twapi::find_windows -text $old]
+if {[llength $windows]} {
+    foreach win $windows {
+        twapi::set_window_text $win $new
+    }
+} else {
+    puts stderr "No windows found with title '$old'"
+}

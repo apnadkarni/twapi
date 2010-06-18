@@ -1,0 +1,138 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Power management" n ""]
+[copyright "2008 Ashok P. Nadkarni"]
+[moddesc "Power management"]
+[titledesc "Power management"]
+[require twapi]
+[description]
+
+[para]
+
+This module provides commands related to power management in a Windows
+system.
+
+[section Overview]
+
+The command
+[uri \#suspend_system [cmd suspend_system]] may be used to put the system
+in stand by or hibernate states. You can prevent the system from
+being suspended due to inactivity through the
+[uri #SetThreadExecutionState [cmd SetThreadExecutionState]] command.
+
+[para]
+The current state of the power subsystem, including battery status,
+can be obtained through the
+[uri #get_power_status [cmd get_power_status]] command. The state
+of an individual device can be obtained through the
+[uri #get_device_power_state [cmd get_device_power_state]] command.
+
+[para]
+Changes in the power subsystem state can be monitored through the
+[uri #start_power_monitor [cmd start_power_monitor]] and
+[uri #stop_power_monitor [cmd stop_power_monitor]].
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd get_device_power_state] [arg DEVICEHANDLE]]
+Returns 1 if the device indicated by [arg DEVICEHANDLE] is fully powered up
+and 0 if it is in a low-power state. [arg DEVICEHANDLE] is a handle to the
+device or to an object on the device. For example, it can be the handle
+returned by a [uri handles.html#get_tcl_channel_handle [cmd get_tcl_channel_handle]]
+command corresponding to a Tcl file handle.
+[nl]
+[arg DEVICEHANDLE] must not be a handle to a display device.
+
+[call [cmd get_power_status]]
+Returns a keyed list containing information about the state of the
+power system. The list includes the fields in the table below.
+[list_begin opt]
+[opt_def [const -acstatus]] Indicates the state of the AC power. May
+have the values [const on], [const off] or [const unknown].
+[opt_def [const -batterystate]] Indicates the state of the battery charge.
+May be [const critical], [const low], [const high] or [const unknown].
+[opt_def [const -batterycharging]] Indicates whether the battery is being
+charged. May have the values [const true], [const false] or [const unknown].
+[opt_def [const -batterylifepercent]] Indicates the percentage of the
+full battery life remaining or has the value [const unknown].
+[opt_def [const -batterylifetime]] Indicates the remaining battery life time
+in seconds, if known, or has the value [const unknown].
+[opt_def [const -batteryfulllifetime]] Indicates the number of seconds
+of battery life when it is full, or has the value [const unknown].
+[list_end]
+
+[call [cmd SetThreadExecutionState] [arg EXECUTIONSTATE]]
+Refer to the Windows SDK documentation for details.
+
+[call [cmd start_power_monitor] [arg SCRIPT]]
+Begins monitoring of power state changes.
+[arg SCRIPT] will be invoked when the state of the power subsystem
+changes, for example, when the system switches to battery power.
+[nl]
+The command returns a handle.
+When no longer required, this handle must be passed to the command
+[uri #stop_power_monitor [cmd stop_power_monitor]].
+[nl]
+Multiple monitoring scripts may be active at the same
+time. However, all returned handles must be passed to
+[uri #stop_power_monitor [cmd stop_power_monitor]].
+before the application exits.
+
+[nl]
+The callback script is invoked with two additional arguments.
+The first argument indicates the type of event and has one of the values
+in the table below.
+
+[list_begin opt]
+[opt_def [const apmbatterylow]] Indicates that the system battery is low.
+[opt_def [const apmoemevent]] Indicates an OEM-defined event.
+[opt_def [const apmpowerstatuschange]] Indicates a change in the power
+status. Details may be obtained by calling
+[uri #get_power_status [cmd get_power_status]].
+[opt_def [const apmquerysuspendfailed]] Indicates that a query to suspend
+the computer was denied.
+[opt_def [const apmresumeautomatic]] Indicates that the system has woken
+up to handle an event.
+[opt_def [const apmresumecritical]] Indicates the system has woken up
+after a critical system suspension (e.g. due to very low battery) where
+it was not possible to notify all applications before the suspension.
+[opt_def [const apmresumesuspend]] Indicates that the system has resumed
+normal operation after a suspension.
+[opt_def [const apmsuspend]] Indicates the system is about to be suspended
+and applications should save state and data if necessary.
+[list_end]
+[nl]
+The second argument passed to the callback is only meaningful when
+the event is [const apmoemevent]. The value of the argument is an
+OEM-defined event code.
+[nl]
+This command requires a threaded build of Tcl and will raise an exception
+on non-threaded builds.
+
+[call [cmd stop_power_monitor] [arg POWER_ID]]
+Stops a previously registered script that monitors the power subsystem.
+[arg POWER_ID] is monitoring handle previously returned by
+[uri #start_power_monitor [cmd start_power_monitor]].
+
+[call [cmd suspend_system] [opt [arg options]]]
+Places the system in a stand by or hibernate state. The command takes
+the following options:
+[list_begin opt]
+[opt_def [cmd -state] [arg STATE]] [arg STATE] must be one of [const standby]
+(default) or [const hibernate] depending on whether the state into which
+the system is to be placed.
+[opt_def [cmd -force] [arg BOOLEAN]]
+If [const false] (default), the system sends a PBT_ATMQUERYSUSPEND
+message to all applications before placing the system in stand by or
+hibernate states. If this option is specified as [const true],
+the message is not sent and the system is immediately placed
+into the appropriate state.
+[opt_def [cmd -disablewakeevents] [arg BOOLEAN]]
+If [const false] (default), system wake events remain enabled. If [const true]
+they are disabled.
+[list_end]
+
+[list_end]
+
+[keywords "power management" "battery" "suspend" "hibernate"]
+[manpage_end]

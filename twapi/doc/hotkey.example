@@ -1,0 +1,24 @@
+# TWAPI example
+# Start up notepad when hotkey is pressed
+# Usage example: tclsh hotkey.example
+
+package require twapi
+
+set notepad_hk "Ctrl-Alt-F11"
+set exit_hk    "Ctrl-Alt-F12"
+
+puts "$notepad_hk will bring up a new copy of notepad"
+puts "$exit_hk will unregister the hotkey and exit"
+
+proc remove_hotkeys_and_exit {} {
+    twapi::unregister_hotkey $::notepad_hk_id
+    twapi::unregister_hotkey $::exit_hk_id
+    exit
+}
+
+set notepad_hk_id [twapi::register_hotkey Ctrl-Alt-F11 "exec notepad.exe &"]
+set exit_hk_id    [twapi::register_hotkey Ctrl-Alt-F12 "remove_hotkeys_and_exit"]
+
+# If running in tclsh, need a vwait to get eventloop running.
+# Comment out the line if in wish
+vwait forever

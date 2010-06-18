@@ -1,0 +1,25 @@
+# TWAPI example
+# Hide all windows for the given application
+# Usage example: tclsh hidewindows.example APPLICATIONNAME
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 APPNAME"
+    puts stderr "Example: [info nameofexecutable] $argv0 notepad"
+    exit 1
+}
+
+set appname [lindex $argv 0]
+# Add an extension if none specified
+if {[file extension $appname] == ""} {
+    append appname .*
+}
+
+# Get all pids with that app name
+set pids [twapi::get_process_ids -glob -name $appname]
+
+# Only hide if they are marked as visible
+foreach hwin [twapi::find_windows -pids $pids -visible true] {
+    twapi::hide_window $hwin
+}

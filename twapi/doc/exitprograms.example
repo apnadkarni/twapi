@@ -1,0 +1,20 @@
+# TWAPI example
+# Ask all invocations of a given program to exit
+# Usage example: tclsh exitprograms.example notepad.exe
+# Usage example: tclsh exitprograms.example c:\winnt\system32\notepad.exe
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 PROGRAM_NAME"
+    exit
+}
+
+# Find all programs with the given name or path
+set program [lindex $argv 0]
+set pids [concat [twapi::get_process_ids -name $program] \
+              [twapi::get_process_ids -path $program]]
+foreach pid $pids {
+    # Catch the error in case process does not exist any more
+    catch {twapi::end_process $pid}
+}

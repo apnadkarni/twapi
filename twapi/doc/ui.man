@@ -1,0 +1,1017 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Window management" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "Window management"]
+[titledesc "Commands related to management of windows"]
+[require twapi]
+[description]
+[para]
+
+This package provides procedures related to window management
+on Windows platforms.
+
+[section "Window Management"]
+
+Windows are identified using window [emph handles]. A window handle consisting
+of an empty string represents an invalid or non-existent window when returned
+from a command.
+[para]
+The commands [uri \#get_toplevel_windows [cmd get_toplevel_windows]],
+[uri \#get_descendent_windows [cmd get_descendent_windows]]
+and
+[uri \#get_child_windows [cmd get_child_windows]]
+enumerate the windows on the system.
+[uri \#get_desktop_window [cmd get_desktop_window]]
+and [uri \#get_shell_window [cmd get_shell_window]]
+return handles to
+the desktop window and the shell window respectively.
+[uri \#find_windows [cmd find_windows]]
+returns a list of windows that satisfy matching multiple matching criteria.
+The command
+[uri \#window_exists [cmd window_exists]]
+can be used to check if a specific window exists.
+[para]
+The commands [uri \#get_parent_window [cmd get_parent_window]],
+[uri \#get_owner_window [cmd get_owner_window]],
+[uri \#get_first_child [cmd get_first_child]],
+[uri \#get_next_sibling_window [cmd get_next_sibling_window]],
+[uri \#get_prev_sibling_window [cmd get_prev_sibling_window]],
+[uri \#get_first_sibling_window [cmd get_first_sibling_window]],
+[uri \#get_last_sibling_window [cmd get_last_sibling_window]]
+retrieve handles to windows with the appropriate relationship to the
+specified window. The command [uri \#window_is_child [cmd window_is_child]]
+can be used to check
+parent-child relationships between windows.
+[para]
+The commands [uri \#get_window_process [cmd get_window_process]]
+and [uri \#get_window_thread [cmd get_window_thread]]
+retrieve the process and thread respectively that own the specified window.
+[uri \#get_window_application [cmd get_window_application]]
+returns the application instance for the specified
+window.
+[para]
+The commands
+[uri \#get_foreground_window [cmd get_foreground_window]],
+[uri \#set_foreground_window [cmd set_foreground_window]] and
+[uri \#set_window_zorder [cmd set_window_zorder]]
+deal with the position of windows in the display Z-order.
+
+[para]
+The commands [uri \#show_window [cmd show_window]],
+[uri \#hide_window [cmd hide_window]],
+[uri \#restore_window [cmd restore_window]],
+[uri \#minimize_window [cmd minimize_window]],
+[uri \#maximize_window [cmd maximize_window]],
+[uri \#show_owned_popups [cmd show_owned_popups]],
+and [uri \#hide_owned_popups [cmd hide_owned_popups]]
+control the visibility
+of windows. The commands [uri \#window_minimized [cmd window_minimized]],
+[uri \#window_maximized [cmd window_maximized]],
+[uri \#window_visible [cmd window_visible]]
+check the visibility state of a window.
+[uri \#close_window [cmd close_window]] closes the specified window.
+
+[para]
+The commands [uri \#get_window_style [cmd get_window_style]],
+[uri \#set_window_style [cmd set_window_style]],
+[uri \#get_window_class [cmd get_window_class]],
+[uri \#get_window_real_class [cmd get_window_real_class]],
+[uri \#get_window_long [cmd get_window_long]],
+[uri \#set_window_long [cmd set_window_long]]
+[uri \#get_window_userdata [cmd get_window_userdata]]
+and [uri \#set_window_userdata [cmd set_window_userdata]]
+retrieve and modify
+various attributes associated with windows.
+
+[para]
+The visibility and buttons displayed on the title bar of a window
+can be controlled through the command
+[uri \#configure_window_titlebar [cmd configure_window_titlebar]].
+
+[para]
+The command [uri \#get_window_id [cmd get_window_id]]
+returns the window id of the specified window.
+
+[para]
+[uri \#redraw_window [cmd redraw_window]]
+and [uri \#redraw_window_frame [cmd redraw_window_frame]]
+cause the window and
+the frame of a window to be redrawn respectively.
+
+[para]
+The commands [uri \#move_window [cmd move_window]],
+[uri \#resize_window [cmd resize_window]]
+and [uri \#arrange_icons [cmd arrange_icons]]
+can be used to position and resize windows. The commands
+[uri \#get_window_client_area_size [cmd get_window_client_area_size]]
+and [uri \#get_window_coordinates [cmd get_window_coordinates]] can be
+used to get window location and size. The command
+[uri \#get_window_at_location [cmd get_window_at_location]]
+returns the window at a given screen location.
+
+[para]
+The commands
+[uri \#set_active_window_for_thread [cmd set_active_window_for_thread]],
+[uri \#get_active_window_for_thread [cmd get_active_window_for_thread]],
+[uri \#get_focus_window_for_thread [cmd get_focus_window_for_thread]],
+[uri \#get_active_window_for_current_thread [cmd get_active_window_for_current_thread]]
+deal with the active window state and focus for a particular thread.
+
+[para]
+The commands [uri \#enable_window_input [cmd enable_window_input]],
+[uri \#disable_window_input [cmd disable_window_input]] and
+[uri \#set_focus [cmd set_focus]] deal with controlling input to windows. The command
+[uri \#window_input_enabled [cmd window_input_enabled]]
+can be used to check if input to a window is
+enabled or not.
+[uri \#window_unicode_enabled [cmd window_unicode_enabled]]
+checks if a window is Unicode-enabled or not.
+
+[para]
+The command [uri \#flash_window [cmd flash_window]] can be used to
+grab the user's attention by flashing a window or taskbar icon.
+
+[para]
+The commands [uri \#get_window_text [cmd get_window_text]]
+and [uri \#set_window_text [cmd set_window_text]] retrieve
+and modify the title bar of a window or the text associated with a
+control. In the latter case, only controls in the same application
+are supported.
+
+[para]
+The commands [uri \#get_caret_blink_time [cmd get_caret_blink_time]],
+[uri \#set_caret_blink_time [cmd set_caret_blink_time]],
+[uri \#hide_caret [cmd hide_caret]], [uri \#show_caret [cmd show_caret]],
+[uri \#get_caret_location [cmd get_caret_location]] and
+[uri \#set_caret_location [cmd set_caret_location]]
+allow manipulation of the caret and its position.
+
+[para]
+The command
+[uri \#get_desktop_workarea [cmd get_desktop_workarea]] returns
+the actual usable desktop area (not used by the taskbar etc.).
+[uri \#get_color_depth [cmd get_color_depth]] returns the color
+depth of the display.
+
+
+[para]
+The commands [uri \#get_desktop_wallpaper [cmd get_desktop_wallpaper]]
+and [uri \#set_desktop_wallpaper [cmd set_desktop_wallpaper]]
+can be used to manipulate the wallpaper setting for the desktop.
+
+[section Displays]
+
+Command [uri \#get_display_devices [cmd get_display_devices]] returns
+a list of display devices in the system.
+Command [uri \#get_display_monitors [cmd get_display_monitors]] returns
+a list of monitors in the system.
+The command [uri \#get_display_size [cmd get_display_size]]
+returns the size of the display.
+
+[para]
+The monitor corresponing to a window, virtual screen coordinates or
+virtual screen rectangle be obtained from
+[uri \#get_display_monitor_from_window [cmd get_display_monitor_from_window]],
+[uri \#get_display_monitor_from_point [cmd get_display_monitor_from_point]],
+[uri \#get_display_monitor_from_rect [cmd get_display_monitor_from_rect]]
+respectively.
+
+[para]
+The command
+[uri \#get_display_monitor_info [cmd get_display_monitor_info]]
+returns location and attributes of a specific display monitor.
+[uri \#get_multiple_display_monitor_info [cmd get_multiple_display_monitor_info]] returns the same information for all display monitors in the system.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd arrange_icons] [opt [arg HWIN]]]
+
+Arranges all the minimized (iconized) child windows of the specified window.
+If [arg HWIN] is not specified, it defaults to the desktop window.
+
+The command returns the height of one row of icons.
+
+[call [cmd close_window] [arg HWIN] [opt [arg options]]]
+
+Closes the window specified by [arg HWIN] by sending it a WM_CLOSE message.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -block]] If this option is specified, Windows will block the
+calling thread from processing any other requests until the command returns.
+[opt_def [cmd -wait] [arg TIMEOUT]] Specifies the number of milliseconds to
+wait for the window to process the message (default 10 milliseconds).
+[list_end]
+
+[call [cmd configure_window_titlebar] [arg HWIN] [opt [arg options]]]
+Configures the title bar of the specified window to show or hide specific
+buttons. The following options control what buttons are displayed. If a
+particular option is not specified, the corresponding button is
+unaffected. Note however that the minimize, maximize and context help buttons
+are shown only if the system menu is also visible. Also, the minimize
+and maximize buttons are hidden and displayed as a single group. If one
+is configured to be hidden and the other is not, both buttons are shown
+but the hidden one is disabled.
+[list_begin opt]
+[opt_def [cmd visible] [arg BOOLEAN]]
+Controls whether the title bar is displayed.
+[opt_def [cmd sysmenu] [arg BOOLEAN]]
+Controls whether the system menu button is displayed.
+[opt_def [cmd minimizebox] [arg BOOLEAN]]
+Controls whether the minimize button is displayed.
+[opt_def [cmd maximizebox] [arg BOOLEAN]]
+Controls whether the maximize button is displayed.
+[opt_def [cmd contexthelp] [arg BOOLEAN]]
+Controls whether the context help button is displayed.
+[list_end]
+
+[call [cmd disable_window_input] [arg HWIN]]
+
+Disables mouse and keyboard input to the specified window. Returns 1 if the
+window was previously disabled, else 0.
+
+[call [cmd enable_window_input] [arg HWIN]]
+
+Enables mouse and keyboard input to the specified window. Returns 1 if the
+window was previously disabled, else 0.
+
+[call [cmd find_windows] [opt [arg options]]]
+
+Returns a list of handles corresponding to all windows that match the
+specified criteria.
+
+[nl]
+The options below control the matching
+criteria. Note that the boolean options work in tri-state fashion.
+If the option is not specified, then the corresponding
+window attribute is not used in the matching at all. If the option
+value is specified as [const true], then only windows having
+that attribute are selected. If the option value is [const false],
+only windows without that attribute are selected.
+
+[list_begin opt]
+[opt_def [cmd -ancestor] [arg HWIN]] The window with handle [arg HWIN]
+must be an ancestor of the window.
+[opt_def [cmd -caption] [arg BOOLEAN]]
+The window must or must not have a caption/title bar
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -child] [arg BOOLEAN]]
+The window must or must not be an child window
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -class] [arg CLASS]] The window must belong to the specified
+class.
+[opt_def [cmd -match] [arg MATCHTYPE]] Specifies the method used for
+matching [arg PATTERN] in the [cmd -text] option. This may be one of
+[const string] for an straight character match, [const glob] for matching
+as in the [cmd "string match"] command or [const regexp] for regular
+expression based matching. In all cases, the comparisons are
+case-insensitive.
+[opt_def [cmd -maximize] [arg BOOLEAN]]
+The window must or must not be maximized
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -maximizebox] [arg BOOLEAN]]
+The window must or must not have a maximize box on the title bar
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -messageonlywindow] [arg BOOLEAN]]
+The window must or must not be a message-only window depending
+on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -minimize] [arg BOOLEAN]]
+The window must or must not be minimized
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -minimizebox] [arg BOOLEAN]]
+The window must or must not have a minimize box on the title bar
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -overlapped] [arg BOOLEAN]]
+The window must or must not be an overlapped window
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -pids] [arg PIDLIST]] The window must be owned by a process
+whose id is in [arg PIDLIST].
+[opt_def [cmd -popup] [arg BOOLEAN]]
+The window must or must not be an popup window
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -single]] Returns the first window found without looking
+for additional windows.
+[opt_def [cmd -style] [arg STYLE]] The window must have the specified style.
+[arg STYLE] must be specified as a list of two integer values corresponding
+to the style and extended style for the window. See [cmd get_window_style].
+[opt_def [cmd -text] [arg PATTERN]] The text associated with the window
+(generally the window title) must match [arg PATTERN]. The matching is
+done based on the [cmd -match] option.
+[opt_def [cmd -toplevel] [arg BOOLEAN]]
+The window must or must not be a toplevel window
+depending on whether [arg BOOLEAN] is true or false.
+[opt_def [cmd -visible] [arg BOOLEAN]] The window must be visible if
+[arg BOOLEAN] is true and hidden if it is false.
+[list_end]
+[uri minimizeapp.example "Example: Find all windows for an application"]
+[nl]
+[uri movewindowtoorigin.example "Example: Find all windows with a given title"]
+
+[call [cmd flash_window] [arg HWIN] [opt [arg options]]]
+
+Flashes the window's caption bar or taskbar icon. The following options
+control the type and nature of the flash.
+
+[list_begin opt]
+[opt_def [cmd -count] [arg COUNT]]
+Indicates the number of times the window or icon 
+is to be flashed (default is 1).
+[opt_def [cmd -nocaption]]
+If specified, the window caption is not flashed.
+[opt_def [cmd -notaskbar]]
+If specified, the taskbar icon is not flashed.
+[opt_def [cmd -period] [arg MILLISECONDS]]
+The period of the flash in milliseconds. Defaults to the system cursor blink
+rate.
+[opt_def [cmd -start]]
+Indicates the window should be continously flashed until stopped by
+another call to this command with the [cmd -stop] option.
+[opt_def [cmd -stop]]
+Stops any ongoing flashing of the window. Specifying this option will
+cause all other options to be ignored.
+[opt_def [cmd -untilforeground]]
+Indicates the window should be continuously flashed until brought to the
+foreground. NOTE: Some Windows versions have a bug that results in the window
+being flashed just once.
+[list_end]
+
+
+[call [cmd flash_window_caption] [arg HWIN] [opt [cmd -toggle]]]
+
+This command is obsolete. Use [uri #flash_window [cmd flash_window]] instead.
+
+[call [cmd get_active_window_for_current_thread] [arg TID]]
+
+Returns the current active window for the current thread. If the
+thread does not have a active window, returns [cmd \$twapi::null_hwin].
+
+[call [cmd get_active_window_for_thread] [arg TID]]
+
+Returns the current active window for the thread with id [arg TID]. If the
+thread does not have a active window, returns [cmd \$twapi::null_hwin].
+
+[call [cmd get_caret_blink_time]]
+
+Returns the blink time of the caret in milliseconds.
+
+[call [cmd get_caret_location]]
+
+Returns a list of two integers specifying the caret's coordinates. These
+are always with respect to the client area of the window that owns the
+caret.
+
+[call [cmd get_child_windows] [arg HWIN]]
+
+Returns a list of handles to all windows that are immediate child windows
+of the specified window.
+
+[call [cmd get_color_depth] [opt [arg HWIN]]]
+
+Returns the number of bits per pixel in the device context of the
+window identified by [arg HWIN]. If [arg HWIN] is not specified, the
+color depth of the entire screen is returned.
+
+[call [cmd get_descendent_windows] [arg HWIN]]
+
+Returns a list of handles to all descendent windows of the specified window.
+
+[call [cmd get_desktop_window]]
+
+Returns a handle to the desktop window.
+
+[call [cmd get_desktop_wallpaper]]
+Returns the path to the file containing the
+current wallpaper for the desktop or an empty string
+if no wallpaper is in use.
+
+[call [cmd get_desktop_workarea]]
+
+Returns the screen coordinates of the usable area of the desktop
+as a list of four integers
+corresponding to the left, top, right and bottom coordinates on the
+display. The usable area is that area that is not covered by the taskbar
+and any application desktop toolbars.
+
+[call [cmd get_display_devices]]
+Returns a list of display devices in the system.
+Each element in the list is a keyed list of key value pairs
+with the following fields:
+
+[list_begin opt]
+[opt_def [cmd -description]]
+A string describing the device.
+[opt_def [cmd -desktop]]
+If the value is [const true], the device is attached to the
+desktop.
+[opt_def [cmd -disconnect]]
+
+[opt_def [cmd -flags]]
+An integer value containing the device flags. These are also
+returned as the boolean fields described here.
+[opt_def [cmd -id]]
+The value is the device id for the device.
+[opt_def [cmd -key]]
+The registry key for the device.
+[opt_def [cmd -mirroring]]
+If [const true], the device is a mirroring pseudo driver such as that
+used for NetMeeting.
+[opt_def [cmd -modespruned]]
+If [const true], not all the device modes are supported by its output.
+[opt_def [cmd -multidriver]]
+
+[opt_def [cmd -name]]
+The device name.
+[opt_def [cmd -primary]]
+If [const true], the primary desktop is displayed on this device.
+[opt_def [cmd -remote]]
+[opt_def [cmd -removable]]
+If [const true], the device is removable.
+[opt_def [cmd -vgacompatible]]
+If [const true], the device is VGA compatible.
+[list_end]
+
+[call [cmd get_display_monitor_from_point] [arg X] [arg Y] [opt "[cmd -default] [arg DEFAULTMONITOR]"]]
+
+Returns a handle to the monitor corresponding the virtual screen coordinates
+([arg X],[arg Y]).
+If the coordinates lie outside the extents of any monitor,
+the command will generate an error unless the [cmd -default] option
+is specified. If [cmd -default] is specified with a value of [const primary],
+then a handle to the primary display monitor is returned.
+If the value is [const nearest], the handle
+of the monitor whose extent is closest to the screen coordinates is returned.
+[nl]
+Note that the returned monitor handle is not a Win32 handle and should not
+be closed.
+
+[call [cmd get_display_monitor_from_rect] [arg RECT] [opt "[cmd -default] [arg DEFAULTMONITOR]"]]
+
+Returns a handle to the monitor that has the largest area of intersection
+with the rectangle specified by [arg RECT]. [arg RECT] indicates a virtual
+screen region and should be specified as a list of
+four integers indicating the coordinates of the left, top, right, bottom
+edges.
+If the rectangle does not intersect any monitor,
+the command will generate an error unless the [cmd -default] option
+is specified. If [cmd -default] is specified with a value of [const primary],
+then a handle to the primary display monitor is returned.
+If the value is [const nearest], the handle
+of the monitor whose extent is closest to the rectangle is returned.
+[nl]
+Note that the returned monitor handle is not a Win32 handle and should not
+be closed.
+
+[call [cmd get_display_monitor_from_window] [arg HWIN] [opt "[cmd -default] [arg DEFAULTMONITOR]"]]
+
+Returns a handle to the monitor on which the window identified by [arg HWIN]
+is displayed. If the window is not displayed on any monitor, because
+it is iconified or is placed outside of any monitor extents for example,
+the command will generate an error unless the [cmd -default] option
+is specified. If [cmd -default] is specified with a value of [const primary],
+then a handle to the primary display monitor is returned if the window
+is not currently displayed. If the value is [const nearest], the handle
+of the monitor whose extent is closest to the window is returned.
+[nl]
+Note that the returned monitor handle is not a Win32 handle and should not
+be closed.
+
+[call [cmd get_display_monitors] [opt "[cmd -device] [arg DEVICENAME]"] [opt [cmd -activeonly]]]
+Returns a list of display monitors in the system.
+If [cmd -device] is specified, only monitors attached to the device with
+name [arg DEVICENAME] are returned. If [cmd -activeonly] is specified, only
+monitors marked as active are returned.
+[nl]
+Each element in the returned list is a keyed list of key value pairs
+with the following fields:
+
+[list_begin opt]
+[opt_def [cmd -active]]
+The monitor is active.
+[opt_def [cmd -attached]]
+[opt_def [cmd -description]]
+A string describing the device.
+[opt_def [cmd -flags]]
+An integer value containing the display monitor flags. These are also
+returned as the boolean fields described here.
+[opt_def [cmd -id]]
+The value is the device id for the device.
+[opt_def [cmd -key]]
+The registry key for the device.
+[opt_def [cmd -name]]
+The monitor name.
+[list_end]
+
+[call [cmd get_display_monitor_info] [arg HMONITOR]]
+Returns information about the display monitor identified by
+[arg HMONITOR] which is a monitor handle. The following fields are returned
+in a keyed list:
+
+[list_begin opt]
+[opt_def [cmd -extent]]
+A list of four integers indicating the monitor extent corresponding to
+the left, top, right and bottom edges of the monitor's display area in
+virtual screen coordinates.
+[opt_def [cmd -name]]
+The name identifying the display monitor.
+[opt_def [cmd -primary]]
+A boolean indicating whether the monitor is the primary display monitor.
+[opt_def [cmd -workarea]]
+A list of four integers indicating the usable monitor extent corresponding to
+the left, top, right and bottom edges of the monitor's display area in
+virtual screen coordinates excluding any space taken up by desktop toolbars
+and the taskbar.
+[list_end]
+
+[call [cmd get_display_size]]
+
+Returns a list of two integers specifying the width and height of the
+display.
+
+[call [cmd get_first_child] [arg HWIN]]
+
+Returns a handle to the child window of the specified window that is the
+first (highest) in the display Z-order.
+
+[call [cmd get_first_sibling_window] [arg HWIN]]
+
+Returns a handle to a sibling window (ie. having the same parent)
+of the specified window that is the highest
+in the display Z-order.
+
+[call [cmd get_focus_window_for_thread] [arg TID]]
+
+Returns the window which has the focus the thread with id [arg TID]. If the
+thread does not have a active window, returns [cmd \$twapi::null_hwin].
+
+[call [cmd get_foreground_window]]
+
+Returns the current foreground window on the desktop.
+
+[call [cmd get_last_sibling_window] [arg HWIN]]
+
+Returns a handle to a sibling window (ie. having the same parent)
+of the specified window that is the lowest (least visible)
+in the display Z-order.
+
+[call [cmd get_multiple_display_monitor_info]]
+Returns a list containing information for every monitor in the system.
+The information is in the same format as that returned by
+[uri \#get_display_monitor_info [cmd get_display_monitor_info]].
+
+[call [cmd get_next_sibling_window] [arg HWIN]]
+
+Returns a handle to a sibling window (ie. having the same parent)
+of the specified window that is next in the display Z-order.
+
+[call [cmd get_owner_window] [arg HWIN]]
+
+Returns a handle to the owner window of the specified window or null handle
+if the window does not have a owner.
+
+[call [cmd get_parent_window] [arg HWIN]]
+
+Returns a handle to the parent window of the specified window.
+
+[call [cmd get_prev_sibling_window] [arg HWIN]]
+
+Returns a handle to a sibling window (ie. having the same parent)
+of the specified window that is previous (immediately higher)
+in the display Z-order.
+
+[call [cmd get_shell_window]]
+
+Returns a handle to the Windows shell process' window.
+
+[call [cmd get_toplevel_windows] [opt "[cmd -pid] [arg PID]"]]
+
+Returns a list of handles to toplevel windows in the system. If no options
+are specified, this includes all toplevel windows. If the [cmd -pid] option
+is specified with a numeric value of [arg PID], then only toplevel windows
+owned by the process with id [arg PID] are returned. If [arg PID] is
+non-numeric, it is treated as a process name. In this case, the toplevel
+windows owned by all processes whose name is [arg PID] are returned.
+
+[call [cmd get_window_application] [arg HWIN]]
+
+Returns the application instance associated with the specified window.
+
+[call [cmd get_window_at_location] [arg X] [arg Y]]
+
+Returns the highest window in the X-order that contains the
+screen coordinates ([arg X],[arg Y]). Windows that are disabled or hidden
+are not ignored.
+
+[call [cmd get_window_class] [arg HWIN]]
+
+Returns the class of a window. This is simple wrapper around
+the [cmd GetClassName] Windows function.
+
+[call [cmd get_window_client_area_size] [arg HWIN]]
+
+Returns a list of two integers containing
+the width and height in pixels of the client area of the window.
+
+[call [cmd get_window_coordinates] [arg HWIN]]
+
+Returns the screen coordinates of the window as a list of four integers
+corresponding to the left, top, right and bottom sides
+of the window.
+[nl]
+[uri opensysmenuwithmouse.example "Example: Move mouse to system menu"]
+
+[call [cmd get_window_id] [arg HWIN]]
+
+Returns the window id of the specified window. Note that this is different
+than the window handles.
+
+[call [cmd get_window_long] [arg HWIN] [arg INDEX]]
+
+This is a direct call to the GetWindowsLong function. Refer to Windows
+SDK documentation for details. Several other TWAPI functions act as wrappers
+provide more straightforward access to the values retrieved by this function.
+
+[call [cmd get_window_process] [arg HWIN]]
+
+Returns the id of the process that owns the specified window.
+
+[call [cmd get_window_real_class] [arg HWIN]]
+
+Returns the real class of a window for classes that are wrapped by applications
+into their own set of classes. This is simple wrapper around the
+[cmd RealGetWindowClass] Windows function.
+Windows function.
+
+[call [cmd get_window_style] [arg HWIN]]
+
+Returns a list containing the style and the extended
+style bits respectively followed by symbolic window style attributes
+corresponding to the style bits. The window styles attributes that may be
+returned are shown below.
+Refer to the Windows
+SDK documentation for the meaning of these styles.
+[list_begin opt]
+[opt_def [const overlapped]]
+The window is an overlapped window - this is a toplevel window without a
+parent. This attribute is mutually exclusive with [const popup]
+and [const child].
+[opt_def [const popup]]
+The window is popup window like a dialog box.
+This attribute is mutually exclusive with [const overlapped]
+and [const child].
+[opt_def [const child]]
+The window is the child of some other window.
+This attribute is mutually exclusive with [const popup]
+and [const overlapped].
+[opt_def [const caption]]
+The window has a caption or title bar and a border.
+[opt_def [const border]]
+The window has a normal border and no title bar.
+[opt_def [const dlgframe]]
+The window has a double border as used for dialogs and no title bar.
+[opt_def [const dlgmodalframe]]
+The window has a double border as used for a dialog and may have a caption
+as well.
+[opt_def [const minimize]]
+The window is minimized. Windows with neither [const minimize] or
+[const maximize] attributes are normal windows.
+[opt_def [const minimizebutton]]
+The window has a minimize button on the title bar.
+[opt_def [const maximize]]
+The window is maximized. Windows with neither [const minimize] or
+[const maximize] attributes are normal windows.
+[opt_def [const maximizebutton]]
+The window has a maximize button on the title bar.
+[opt_def [const visible]]
+The window is visible. If this attribute is not present, the window is hidden.
+[opt_def [const disabled]]
+The window is disabled and does not accept input.
+[opt_def [const clipsiblings]]
+Indicates that the screen area occupied by
+sibling windows that overlap will not be overwritten when the window is drawn.
+[opt_def [const clipchildren]]
+Indicates that the screen area occupied by
+child windows will not be overwritten when the window is drawn.
+[opt_def [const vscroll]]
+The window displays a vertical scrollbar.
+[opt_def [const hscroll]]
+The window displays a horizontal scrollbar.
+[opt_def [const sysmenu]]
+The window displays a system menu.
+[opt_def [const thickframe]]
+The window has a thick border that allows for resizing.
+[opt_def [const noparentnotify]]
+The window is a child window that does not send WM_PARENTNOTIFY messages
+to its parent.
+[opt_def [const topmost]]
+The window is a topmost window that is displayed above all non-topmost
+windows even when it is not active.
+[opt_def [const acceptfiles]]
+The window accepts files that are dragged and dropped into it.
+[opt_def [const transparent]]
+The window is transparent and does not obscure windows below it.
+[opt_def [const mdichild]]
+The window is an MDI child window.
+[opt_def [const toolwindow]]
+The window is a floating toolbar. The title bar and caption are shrunk.
+The window does not appear in the task bar and will not show up
+with the [const "ALT-TAB"] hotkey.
+[opt_def [const windowedge]]
+The window has a border with a raised edge.
+[opt_def [const clientedge]]
+The window has a border with a sunken edge.
+[opt_def [const contexthelp]]
+The window has a context help button in the caption bar.
+[opt_def [const controlparent]]
+The window allows navigation between child windows using the [const TAB] key.
+[opt_def [const staticedge]]
+The window has a 3-D border.
+[opt_def [const appwindow]]
+The window is forced on the task bar when visible. Note that this does not
+mean that windows without this attribute will not show up on the task bar. It
+does mean that windows with this attribute will definitely show up on the
+task bar.
+[list_end]
+
+[call [cmd get_window_text] [arg HWIN]]
+
+Gets the title of a window or the text associated with a control. In the latter
+case, the control must belong to the same application.
+
+[call [cmd get_window_thread] [arg HWIN]]
+
+Returns the id of the thread that owns the specified window.
+
+[call [cmd get_window_userdata] [arg HWIN]]
+
+Returns the longword associated as user data with the specified window. This
+maps to the Windows [cmd GetWindowLong] call with an argument of
+[const GWL_USERDATA].
+
+[call [cmd hide_caret]]
+
+Hides the caret. Note that calls to [cmd hide_caret] or [cmd twapi::HideCaret]
+must be matched by an equivalent number of calls to
+[uri \#show_caret [cmd show_caret]] or [cmd twapi::ShowCaret].
+
+[call [cmd hide_owned_popups] [arg HWIN]]
+
+Hides all popup windows that are owned by the specified window.
+
+[call [cmd hide_window] [arg HWIN] [opt [cmd -sync]]]
+
+Hides the specified window so it does not appear on the display or as an icon.
+If option [cmd -sync] is specified, the command will execute synchronously
+and only return when the window procedure of the target window has handled
+the request. Note that if the target window is hung, the command will never
+return.
+[nl]
+Returns 1 if the window was previously visible, else 0. The return value is
+valid only if the [cmd -sync] option is specified.
+[nl]
+[uri hidewindows.example "Example: Hide all windows for an application"]
+
+[call [cmd invalidate_screen_region] [opt [arg options]]]
+
+Marks a region of the screen as invalid. If no options are specified, all
+windows are marked invalid, forcing them to be redrawn.
+The following options may be used with the command:
+
+[list_begin opt]
+[opt_def [cmd -hwin] [arg HWIN]] Indicates the specific window whose
+client region is to be invalidated.
+[opt_def [cmd -rect] [arg RECT]] If specified, this should be a list of
+four integers indicating the coordinates of the left, top, right, bottom
+sides of the region in the window's client area that is to be invalidated.
+If unspecified or an empty list, the entire client region is marked invalid.
+[opt_def [cmd -bgerase]] If specified, the background within the invalidated
+region is erased. Otherwise, it remains unchanged.
+[list_end]
+
+[call [cmd maximize_window] [arg HWIN] [opt [cmd -sync]]]
+
+Maximizes the specified window.
+If option [cmd -sync] is specified, the command will execute synchronously
+and only return when the window procedure of the target window has handled
+the request. Note that if the target window is hung, the command will never
+return.
+[nl]
+The command returns 1 if the window was previously visible, else 0.
+The return value is valid only if the [cmd -sync] option is specified.
+
+[call [cmd minimize_window] [arg HWIN] [opt [arg options]]]
+
+Minimizes the specified window.
+
+[list_begin opt]
+[opt_def [cmd -sync]] If specified, the command will execute synchronously
+and only return when the window procedure of the target window has handled
+the request. Note that if the target window is hung, the command will never
+return.
+[opt_def [cmd -activate]] If specified, in addition to being shown,
+the window is also activated.
+[opt_def [cmd -shownext]] If specified, the next window in the Z-order is
+activated.
+[list_end]
+The command returns 1 if the window was previously visible, else 0.
+The return value is valid only if the [cmd -sync] option is specified.
+[nl]
+[uri minimizeapp.example "Example: Minimize all windows for an application"]
+
+[call [cmd move_window] [arg HWIN] [arg X] [arg Y] [opt [cmd -sync]]]
+
+Moves the specified window such that it's left side is at position [arg X]
+and its top side is at position [arg Y].
+The window is moved asynchronously unless the [cmd -sync]
+option is specified. Note that in this case,
+the command will never return if the target window is hung.
+
+[nl]
+[uri movewindowtoorigin.example "Example: Move a window to top left corner of the screen"]
+
+[call [cmd redraw_window] [arg HWIN] [opt [cmd -force]]]
+
+This command causes the invalidate regions of the
+specified window to be redrawn. If [cmd -force] is specified, the entire
+window is redrawn.
+
+[call [cmd redraw_window_frame] [arg HWIN]]
+
+This command causes the frame of the specified window to be redrawn.
+
+
+[call [cmd resize_window] [arg HWIN] [arg W] [arg H] [opt [cmd -sync]]]
+
+Resizes the specified window to be [arg W] pixels in width and [arg H] pixels
+in height. The resizing is done asynchronously unless the [cmd -sync]
+option is specified.
+Note that in this case,
+the command will never return if the target window is hung.
+
+[call [cmd restore_window] [arg HWIN] [opt [arg options]]]
+Restores a window to its original size and position if it is maximized
+or minimized.
+The command returns 1 if the window was previously visible, else 0.
+The return value is valid only if the [cmd -sync] option is specified.
+
+[list_begin opt]
+[opt_def [cmd -sync]] If specified, the command will execute synchronously
+and only return when the window procedure of the target window has handled
+the request. Note that if the target window is hung, the command will never
+return.
+[opt_def [cmd -activate]] In addition to being shown, the window is
+also activated.
+[list_end]
+
+[call [cmd set_active_window_for_thread] [arg HWIN]]
+
+Sets the specified window to be the active window for its owning thread.
+The window is brought to the foreground if the owning thread belongs to
+the foreground application.
+Returns the handle of the window that was previously active.
+
+[call [cmd set_caret_blink_time] [arg MILLISECONDS]]
+
+Sets the blink time of the caret to [arg MILLISECONDS] milliseconds.
+
+[call [cmd set_caret_location] [arg POINT]]
+
+Sets the caret's location to [arg POINT] which must
+be a list of two integers specifying the caret's coordinates.
+
+[call [cmd set_desktop_wallpaper] [arg PATH] [opt [cmd -persist]]]
+Sets the desktop wallpaper to that specified by the file [arg PATH].
+The file must be in BMP format. If [arg PATH] is specified as an
+empty string or [const none], no wallpaper is displayed on the desktop.
+If [arg PATH] is [const default], the default wallpaper is restored to
+the desktop. If the option [cmd -persist] is specified, the new setting
+is written to the user's profile.
+
+
+[call [cmd set_focus] [arg HWIN]]
+
+Sets the focus to the specified window. The window, or its parent, is also
+activated. The command returns the window that previously had the focus.
+
+[call [cmd set_foreground_window] [arg HWIN]]
+
+Sets the specified window to be the foreground window. Returns
+[const 1] if successful,
+and [const 0] otherwise.
+[nl]
+[uri bringtoforeground.example "Example: Bring a window to the foreground"]
+
+[call [cmd set_window_long] [arg HWIN] [arg INDEX] [arg VALUE]]
+
+This is a direct call to the SetWindowsLong function. Refer to Windows
+SDK documentation for details. Several other TWAPI functions act as wrappers
+and provide more straightforward access to the values set by this function.
+
+[call [cmd set_window_style] [arg HWIN] [arg style] [arg exstyle]]
+
+Sets the style and extended style bits for the specified window.
+[arg style] and [arg exstyle] are bitmasks. Refer
+to the Windows SDK documentation for details.
+[nl]
+[uri removetitlebar.example "Example: Remove the title bar from a window"]
+
+[call [cmd set_window_text] [arg HWIN] [arg TEXT]]
+
+Sets the title of a window or the text associated with a control. In the latter
+case, the control must belong to the same application.
+[nl]
+[uri changewindowcaption.example "Example: Change the title bar of a window"]
+
+[call [cmd set_window_userdata] [arg HWIN] [arg INTEGER]]
+
+Sets the longword associated as user data with the specified window.
+This maps to the Windows [cmd SetWindowLong] call with an argument of
+[const GWL_USERDATA].
+
+[call [cmd set_window_zorder] [arg HWIN] [arg POS]]
+
+Sets the position of the specified window in the Z-order. [arg POS] may be
+either a window handle or a keyword. In the former case, the window is
+placed right after the window specified by [arg POS]. Otherwise, [arg POS]
+must be one of the following keywords:
+
+[list_begin opt]
+[opt_def [const top]] Places the window at the top of the Z-order.
+[opt_def [const bottom]] Places the window at the bottom of the Z-order.
+[opt_def [const toplayer]] Refer to explanation of HWND_TOPMOST in
+the documentation of the function [cmd SetWindowsPos] in the Windows SDK.
+[opt_def [const bottomlayer]] Refer to explanation of HWND_NOTOPMOST in
+the documentation of the function [cmd SetWindowsPos] in the Windows SDK.
+[list_end]
+[uri keepontop.example "Example: Keep a window on top"]
+
+[call [cmd show_caret]]
+
+Shows the caret. Note that calls to
+[uri \#hide_caret [cmd hide_caret]] or [cmd twapi::HideCaret]
+must be matched by an equivalent number of calls to
+[cmd show_caret] or [cmd twapi::ShowCaret] to make the caret visible.
+
+[call [cmd show_owned_popups] [arg HWIN]]
+
+Shows all popup windows owned by the specified window that were hidden
+by a previous call to [cmd hide_owned_popups]. Note that popups that were
+hidden using other functions such as
+[uri \#hide_window [cmd hide_window]] will not be shown
+by this call.
+
+[call [cmd show_window] [arg HWIN] [opt [arg options]]]
+Makes the specified window visible. Note that a visible window may still
+be obscured by other windows or clipped.
+The command returns 1 if the window was previously visible, else 0.
+The return value is valid only if the [cmd -sync] option is specified.
+
+[list_begin opt]
+[opt_def [cmd -sync]] If specified, the command will execute synchronously
+and only return when the window procedure of the target window has handled
+the request. Note that if the target window is hung, the command will never
+return.
+[opt_def [cmd -activate]] In addition to being shown, the window is
+also activated.
+[opt_def [cmd -normal]] If a window is minimized or maximized, restores
+it to its original position.
+[opt_def [cmd -startup]] Shows the window based on the contents of the
+[cmd STARTUPINFO] structure when the process was created.
+[list_end]
+
+[nl]
+If both [cmd -normal] and [cmd -startup] are specified, [cmd -startup] takes
+precedence. If neither is specified, the window is shown in its current form,
+which may be minimized, maximized or normal.
+
+[nl]
+[uri showwindows.example "Example: Show all windows for an application"]
+
+[call [cmd window_exists] [arg HWIN]]
+Returns 1 if the specified window exists, else 0.
+
+[call [cmd window_input_enabled] [arg HWIN]]
+Returns 1 if the specified window has mouse and keyboard input enabled, else 0.
+
+[call [cmd window_is_child] [arg PARENTHWIN] [arg CHILDHWIN]]
+Returns 1 if the window [arg CHILDHWIN] is a child of the
+window [arg PARENTHWIN], else 0.
+
+[call [cmd window_maximized] [arg HWIN]]
+Returns 1 if the specified window is maximized, else 0.
+
+[call [cmd window_minimized] [arg HWIN]]
+Returns 1 if the specified window has been minimized, else 0.
+
+[call [cmd window_visible] [arg HWIN]]
+Returns 1 if the specified window is visible, else 0. Note that visible does
+not imply user can actually see the window (it may be obscured or clipped).
+
+[call [cmd window_unicode_enabled] [arg HWIN]]
+Returns 1 if the specified window is a native Unicode window, else 0.
+
+
+[list_end]
+
+[keywords "styles" "window styles" "window management" "window attributes" "window geometry" "window visibility" "desktop" "wallpaper" "desktop wallpaper" "display size" "desktop workarea" "title bar" "minimize button" "maximize button" "context help button" "system menu" "display devices" "monitors" "multiple monitors"]
+
+[manpage_end]

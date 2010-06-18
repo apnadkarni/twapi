@@ -1,0 +1,393 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Cryptographic API" n ""]
+[copyright "2007-2009 Ashok P. Nadkarni"]
+[moddesc "Cryptographic API"]
+[titledesc "Commands related to cryptographical operations"]
+[require twapi]
+[description]
+[para]
+
+[emph "This module is still experimental and liable to change."]
+
+[para]
+This package provides procedures related to cryptographic services
+provided by the Windows platforms.
+
+[section "SSPI overview"]
+
+The Security Support Provider Interface (SSPI) is a standard interface to
+various security protocols that provide for security functions such
+as authentication, encryption and integrity. The SSPI interface allows
+establishment of a security context that can be used for signing and
+encrypting data passed between a client and a server.
+
+[section "SSPI security context establishment"]
+On the client side, the application program starts off by retrieving
+the credentials to be used to authenticate itself to the server by calling
+[uri \#sspi_new_credentials [cmd sspi_new_credentials]] with
+the [cmd -outbound] option. It then creates a new client security
+context by calling
+[uri \#sspi_client_new_context [cmd sspi_client_new_context]]
+specifying appropriate desired security characteristics. The application
+then exchanges messages with the server to complete the authentication.
+
+[para]
+Depending on the security protocol in use, the authentication between
+the client and the server may require multiple message exchanges between
+the client and the server. Once it obtains its security context,
+the client calls
+[uri \#sspi_security_context_next [cmd sspi_security_context_next]]
+passing it the security context. This command returns an indication
+of whether the authentication is complete, or more exchanges with the
+server are required. In the latter case, data returned by the command
+is sent to the server and the server response is passed back to the
+command. This sequence is repeated until the command indicates the
+authentication is complete or generates a Tcl exception indicating
+authentication failure. The security context generated in this
+manner can then be used to sign and encrypt messages between
+the client and the server.
+
+[para]
+On the server side, the application program starts off by retrieving
+its own credentials by calling
+[uri \#sspi_new_credentials [cmd sspi_new_credentials]] with
+the [cmd -inbound]. It then creates a new server security
+context by calling
+[uri \#sspi_server_new_context [cmd sspi_server_new_context]]
+passing it the authentication data sent by the client. The server
+then enters the authentication loop described below. From this point
+on, the server follows the authentication loop calling
+[uri \#sspi_security_context_next [cmd sspi_security_context_next]]
+in the same manner as described above for the client.
+
+[para]
+Once a security context is established, either on the client or
+the server, its characteristics, including the negotiated parameters,
+security principal name etc. can be retrieved through
+commands
+[uri \#sspi_get_security_context_flags [cmd sspi_get_security_context_flags]],
+[uri \#sspi_get_security_context_username [cmd sspi_get_security_context_username]]
+and
+[uri \#sspi_get_security_context_sizes [cmd sspi_get_security_context_sizes]].
+
+
+
+[para]
+When no longer required, both the server and client ends should free
+resources associated with their credentials by calling
+[uri \#sspi_free_credentials [cmd sspi_free_credentials]].
+Similarly, the security context should be released when
+no longer needed by calling
+[uri \#sspi_close_security_context [cmd sspi_close_security_context]].
+
+
+[section "SSPI message signing and encryption"]
+Once a security context has been completely created as above, it
+can then be used to generate and verify messages signatures using
+[uri \#sspi_generate_signature [cmd sspi_generate_signature]]
+and
+[uri \#sspi_verify_signature [cmd sspi_verify_signature]]
+respectively.
+
+[para]
+Similarly, the security context can be used to encrypt and decrypt
+messages using
+[uri #sspi_encrypt [cmd sspi_encrypt]] and [uri #sspi_decrypt [cmd sspi_decrypt]].
+
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd sspi_client_new_context] [arg CREDENTIALS] [opt [arg options]]]
+Initiates the building of a new client-side, security context from
+based on the specified credentials. [arg CREDENTIALS] is a
+handle to credentials returned by
+[uri #sspi_new_credentials [cmd sspi_new_credentials]].
+The returned value, which is a handle to a security context,
+should be treated as opaque by the caller
+and used as described in [sectref "SSPI security context establishment"].
+
+[nl]
+The options below specify the requirements for the context. Note that
+not all security providers support all options or combinations of options.
+Refer to the Windows SDK for more information about these options.
+
+[list_begin opt]
+[opt_def [cmd -confidentiality] [arg BOOL]]
+If specified as [const true], messages are to be encrypted.
+
+[opt_def [cmd -connection] [arg BOOL]]
+If specified as [const true], the security context will not handle
+formatting of messages.
+
+[opt_def [cmd -datarep] [arg DATAREP]]
+Specifies the data representation on the target. [arg DATAREP]
+must be either [const network] (default) or [const native].
+
+[opt_def [cmd -delegate] [arg BOOL]]
+If specified as [const true], the server can use the context to
+other servers as the client. Requires [cmd -mutualauth] to also
+be specified as [const true].
+
+[opt_def [cmd -extendederror] [arg BOOL]]
+When [const true], the remote end is notified of errors.
+
+[opt_def [cmd -integrity] [arg BOOL]]
+If specified as [const true], messages are to be signed.
+
+[opt_def [cmd -mutualauth] [arg BOOL]]
+If specified as [const true], both the client and server are
+to be authenticated.
+
+[opt_def [cmd -replaydetect] [arg BOOL]]
+If specified as [const true], detection of replayed messages is desired.
+
+[opt_def [cmd -sequencedetect] [arg BOOL]]
+If specified as [const true], detection of out-of-sequence messages is desired.
+
+[opt_def [cmd -stream] [arg BOOL]]
+If specified as [const true], indicates a stream oriented connection.
+
+[opt_def [cmd -target] [arg TARGET]]
+Specifies the target of the security context. The format depends on the
+security service provider.
+
+[opt_def [cmd -usesessionkey] [arg BOOL]]
+If specified as [const true], a new session key must be negotiated.
+
+[list_end]
+
+[nl]
+When a security context is no longer required, it should be released
+by calling
+[uri #sspi_close_security_context [cmd sspi_close_security_context]].
+
+[call [cmd sspi_close_security_context] [arg CONTEXT]]
+Closes a security context constructed through
+[uri #sspi_client_new_context [cmd sspi_client_new_context]] or
+[uri #sspi_server_new_context [cmd sspi_server_new_context]] or
+and frees any associated resources.
+
+[call [cmd sspi_decrypt] [arg CONTEXT] [arg DATA] [arg SIGNATURE] [arg PADDING] [opt [arg options]]]
+[emph TBD]
+
+[call [cmd sspi_encrypt] [arg CONTEXT] [arg DATA] [opt [arg options]]]
+[emph TBD]
+
+[call [cmd sspi_enumerate_packages]]
+Returns a list of the names of the security provider packages available
+on the system.
+
+[call [cmd sspi_generate_signature] [arg CONTEXT] [arg DATA] [opt [arg options]]]
+[emph TBD]
+
+[call [cmd sspi_get_security_context_features] [arg CONTEXT]]
+After a security context is established, this command may be
+used to retrieve information about what security features were
+negotiated. The command returns a keyed list with boolean values
+for the following fields.
+[list_begin opt]
+[opt_def [cmd -confidentiality]]
+If [const true], encryption is supported.
+
+[opt_def [cmd -connection]]
+If [const true], the security context will not handle
+formatting of messages.
+
+[opt_def [cmd -delegate]]
+If [const true], the server can use the context to
+other servers as the client.
+
+[opt_def [cmd -extendederror]]
+If [const true], the remote end is notified of errors.
+
+[opt_def [cmd -integrity]]
+If [const true], messages signing is supported.
+
+[opt_def [cmd -mutualauth]]
+If [const true], both the client and server are
+authenticated.
+
+[opt_def [cmd -replaydetect]]
+If [const true], detection of replayed messages is enabled.
+
+[opt_def [cmd -sequencedetect]]
+If [const true], detection of out-of-sequence messages is enabled.
+
+[opt_def [cmd -stream]]
+If [const true], indicates a stream oriented connection.
+
+[list_end]
+
+[call [cmd sspi_get_security_context_sizes] [arg CONTEXT]]
+Returns a keyed list with the following fields:
+[list_begin opt]
+[opt_def [cmd -maxtoken]]
+Maximum size of token used in the authentication exchange.
+[opt_def [cmd -maxsig]]
+Maximum size of signature.
+[opt_def [cmd -blocksize]]
+Messages should preferably be a multiple of this value.
+[opt_def [cmd -trailersize]]
+Size of security trailer to be appended to messages.
+[list_end]
+
+[call [cmd sspi_get_security_context_username] [arg CONTEXT]]
+[emph TBD]
+
+[call [cmd sspi_free_credentials] arg CREDENTIALS]
+Frees resources associated with credentials returned by
+[uri \#sspi_new_credentials [cmd sspi_new_credentials]].
+
+[call [cmd sspi_new_credentials] [opt [arg options]]]
+Returns credentials that can be used to negotiate and establish a
+security context. The command returns a handle to the credentials
+unless the [cmd -getexpiration] option is specified in which
+case it returns a keyed list with two fields: [cmd -handle] which
+is the handle to the credentials, and [cmd -expiration] which
+returns the time (as number of 100ns intervals since January 1, 1601)
+at which the credentials expire.
+
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -domain] [arg DOMAIN]]
+Specifies the domain to which the user account belongs. Not
+all security providers support this. By default, the user account
+for the current process is used.
+
+[opt_def [cmd -getexpiration]]
+If specified, the expiration time for the returned credentials is also
+returned. See description of command return value above.
+
+[opt_def [cmd -package] [arg SECURITYPACKAGE]]
+Specifies the security package with which the credentials are to
+be used. By default, this is [const NTLM]. The list of available
+security packages on a system can be obtained through
+[uri \#sspi_enumerate_packages [cmd sspi_enumerate_packages]].
+
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies the password for retrieving credentials to the user
+account specified by the [cmd -user] option.
+
+[opt_def [cmd -principal.arg] [arg PRINCIPAL]]
+Specifies the name of the principal whose credentials are to be
+referenced. By default, this is the user account under which
+the process is running.
+[opt_def [cmd -usage] [arg DIRECTION]]
+Indicates how the credentials will be used, based on [arg DIRECTION] -
+[const inbound], [const outbound] or [const both] (default).
+
+[opt_def [cmd -user] [arg USERNAME]]
+Specifies the name of the user account. Not
+all security providers support this. By default, the user account
+for the current process is used.
+[list_end]
+
+[nl]
+The returned credentials must be freed by calling
+[uri \#sspi_free_credentials [cmd sspi_free_credentials]]
+when no longer needed.
+
+[call [cmd sspi_security_context_next] [arg CONTEXT] [opt [arg RESPONSE]]]
+Depending on the security provider in use, building a security context
+may require negotiation with multiple message exchanges between
+the client and server. This command
+indicates to the caller whether the negotiation is complete or additional
+exchange is required. See [sectref "SSPI security context establishment"]
+for an overview of this process.
+
+[nl]
+[arg CONTEXT] contains the security context being built. This is the return
+value from
+[uri #sspi_client_new_context [cmd sspi_client_new_context]],
+[uri #sspi_server_new_context [cmd sspi_server_new_context]] or
+from a previous call to
+[uri #sspi_security_context_next [cmd sspi_security_context_next]].
+
+[nl]
+The command returns a list containing three elements. The first element
+is either [const done], indicating that building of the security context
+was successfully completed, or [const continue], indicating that additional
+negotiation is required. In both cases, if the second element of the returned
+list is not an empty string, it contains data to be sent to the remote end to
+either complete or continue the negotiation. The application should keep
+calling
+[uri #sspi_security_context_next [cmd sspi_security_context_next]]
+until it returns [const done] as the first element of the returned list.
+Finally, the third element of the returned list contains the updated
+context. Callers should pass this in as [arg CONTEXT] in the next call
+to the command.
+
+[nl]
+The command will raise a Tcl exception if the security context negotiation
+fails for any reason, including authentication failures.
+
+[call [cmd sspi_server_new_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
+
+Initiates the building of a new server-side, security context from
+based on the specified credentials and security data received from
+the client. [arg CREDENTIALS] is a
+handle to credentials returned by
+[uri #sspi_new_credentials [cmd sspi_new_credentials]].
+The returned value, which is a handle to a security context,
+should be treated as opaque by the caller
+and used as described in [sectref "SSPI security context establishment"].
+
+[nl]
+The options below specify the requirements for the context. Note that
+not all security providers support all options or combinations of options.
+Refer to the Windows SDK for more information about these options.
+
+[list_begin opt]
+[opt_def [cmd -confidentiality] [arg BOOL]]
+If specified as [const true], messages are to be encrypted.
+
+[opt_def [cmd -connection] [arg BOOL]]
+If specified as [const true], the security context will not handle
+formatting of messages.
+
+[opt_def [cmd -datarep] [arg DATAREP]]
+Specifies the data representation on the target. [arg DATAREP]
+must be either [const network] (default) or [const native].
+
+[opt_def [cmd -delegate] [arg BOOL]]
+If specified as [const true], the server can use the context to
+other servers as the client. Requires [cmd -mutualauth] to also
+be specified as [const true].
+
+[opt_def [cmd -extendederror] [arg BOOL]]
+When [const true], the remote end is notified of errors.
+
+[opt_def [cmd -integrity] [arg BOOL]]
+If specified as [const true], messages are to be signed.
+
+[opt_def [cmd -mutualauth] [arg BOOL]]
+If specified as [const true], both the client and server are
+to be authenticated.
+
+[opt_def [cmd -replaydetect] [arg BOOL]]
+If specified as [const true], detection of replayed messages is desired.
+
+[opt_def [cmd -sequencedetect] [arg BOOL]]
+If specified as [const true], detection of out-of-sequence messages is desired.
+
+[opt_def [cmd -stream] [arg BOOL]]
+If specified as [const true], indicates a stream oriented connection.
+
+[list_end]
+
+[nl]
+When a security context is no longer required, it should be released
+by calling
+[uri #sspi_close_security_context [cmd sspi_close_security_context]].
+
+[call [cmd sspi_verify_signature] [arg CONTEXT] [arg DATA] [arg SIGNATURE] [opt [arg options]]]
+[emph TBD]
+
+[list_end]
+
+[keywords authentication "message digest" encryption decryption SSPI ]
+
+[manpage_end]

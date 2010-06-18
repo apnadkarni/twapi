@@ -1,0 +1,24 @@
+# TWAPI example
+# Send a text string to the specified window
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE TEXT"
+    exit 1
+}
+
+set title [lindex $argv 0]
+set data  [lindex $argv 1]
+
+# Get all windows with that title
+set windows [twapi::find_windows -text $title]
+if {[llength $windows]} {
+    set win [lindex $windows 0]
+    # Set the focus to the window
+    twapi::set_focus $win
+    # Feed data in to the input queue
+    twapi::send_input_text $data
+} else {
+    puts stderr "No windows found with title '$title'"
+}

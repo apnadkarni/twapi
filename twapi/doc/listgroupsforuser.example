@@ -1,0 +1,16 @@
+# TWAPI example
+# List the groups to which a user belongs
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME"
+    exit 1
+}
+
+set user [lindex $argv 1]
+
+array set groups [twapi::get_user_account_info $user -global_groups -local_groups]
+
+puts "Global groups: [join $groups(-global_groups) {, }]"
+puts "Local groups: [join $groups(-local_groups) {, }]"

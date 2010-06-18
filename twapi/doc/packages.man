@@ -1,0 +1,76 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Packages" n ""]
+[copyright "2009 Ashok P. Nadkarni"]
+[moddesc "TWAPI packages"]
+[titledesc "Tcl Windows API V2.2 package description"]
+[description]
+[para]
+
+TWAPI functionality is available through three packages: [cmd twapi],
+[cmd twapi_desktop] and [cmd twapi_server].
+
+[para]
+The entire TWAPI extension described in this manual is available through
+the [cmd twapi] package. Most applications should use this package unless they
+are under severe space constraints such as size of the application distribution
+package. Even then, note the compressed TclKit
+version of the full package in only a little over 300KB and the
+uncompressed Tcl module (usable with Tcl 8.5 and later) is just over 800KB.
+
+[para]
+In situations where even the 300KB kit is too large or if the TclKit
+packaging cannot be used with your Tcl build, TWAPI provides the
+[cmd twapi_desktop] and [cmd twapi_server] packages which contain
+a subset of the most commonly used TWAPI commands for desktop and server
+environments respectively.
+The subset of TWAPI included by each is listed below.
+[emph {It must be emphasized that the subset packages may not include 
+    all commands listed in that section.}]
+Even within an included command, some command options may not be supported.
+This is not explicitly documented, and it is important that
+application writers test that specific commands and options being
+used in their application are available in the subset package in use.
+
+[para]
+The [cmd twapi_desktop] subset package includes the following components:
+[list_begin bullet]
+[bullet] [uri ui.html "Window management"]
+[bullet] [uri com.html "COM"]
+[bullet] [uri shell.html "Windows shell"]
+[bullet] [uri input.html "Keyboard and mouse input"]
+[bullet] [uri sound.html "Sound"]
+[bullet] [uri clipboard.html "Clipboard"]
+[bullet] [uri osinfo.html "System"] (subset)
+[bullet] [uri disk.html "Files, Disks and Volumes"]
+[bullet] [uri inifile.html "Windows INI file"]
+[bullet] [uri errors.html "Error generation and handling"]
+[bullet] [uri misc.html "Miscellaneous"]
+[list_end]
+
+[para]
+The [cmd twapi_server] subset package includes the following components:
+[list_begin bullet]
+[bullet] [uri services.html "Services"]
+[bullet] [uri eventlog.html "Event log"]
+[bullet] [uri osinfo.html "System"] (subset)
+[bullet] [uri disk.html "Files, Disks and Volumes"]
+[bullet] [uri inifile.html "Windows INI file"]
+[bullet] [uri errors.html "Error generation and handling"]
+[bullet] [uri misc.html "Miscellaneous"]
+[list_end]
+
+[para]
+Note the [cmd twapi_desktop] and [cmd twapi_server] packages are not 
+distributed in binary form. To build them from source, run the command
+[example_begin]
+nmake SERVERONLY=1
+[example_end]
+or
+[example_begin]
+nmake DESKTOPONLY=1
+[example_end]
+
+in the top-level TWAPI directory.
+
+
+[manpage_end]

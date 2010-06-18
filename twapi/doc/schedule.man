@@ -1,0 +1,484 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Task Scheduler" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Windows task scheduler"]
+[titledesc "Commands related to the Windows task scheduler"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands for scheduling and running jobs through
+the Windows task scheduler.
+
+[section Overview]
+
+The Windows task scheduler allows programs to be automatically started at
+certain times or when certain conditions are met. Tasks may be scheduled
+on either local or remote computers.
+
+[para]
+The simplest way to create and delete tasks is through
+the [uri \#mstask_create [cmd mstask_create]] and
+[uri \#mstask_delete [cmd mstask_delete]]
+commands. These take care of acquiring and releasing the low
+lever interface handles and deal with the common case where a single
+task trigger is associated with a task.
+
+[para]
+More flexible and complete task scheduler functionality is available
+through commands that expose the interface handles to the different
+types of task scheduler objects.
+Working with the task scheduler involves three types of objects:
+[list_begin bullet]
+[bullet] The task scheduler service which manages tasks
+[bullet] A task which is a unit of work scheduled by the task scheduler and is
+identified by a name unique to a system.
+[bullet] A task trigger which defines the conditions under which a task
+will be run. A task may have multiple associated task triggers.
+[list_end]
+
+An interface to the local or a remote task scheduler is obtained through the
+[uri \#itaskscheduler_new [cmd itaskscheduler_new]] command. The returned
+interface handle can be used to manage tasks on that computer. The
+commands
+[uri \#itaskscheduler_get_target_system [cmd itaskscheduler_get_target_system]] and
+[uri \#itaskscheduler_set_target_system [cmd itaskscheduler_set_target_system]]
+allow retrieving and changing the system associated with the task scheduler
+handle at any time.
+[para]
+Once a task scheduler interface handle is obtained, it can be used
+to access task definitions for that scheduler.
+The
+commands
+[uri \#itaskscheduler_new_itask [cmd itaskscheduler_new_itask]] and
+[uri \#itaskscheduler_get_itask [cmd itaskscheduler_get_itask]]
+will return interfaces to new and existing tasks which can be
+manipulated as described below. Tasks can also be deleted through the
+[uri \#itaskscheduler_delete_task [cmd itaskscheduler_delete_task]]
+command and enumerated using
+[uri \#itaskscheduler_get_tasks [cmd itaskscheduler_get_tasks]].
+Existence of a task definition can be verified using the
+[uri \#itaskscheduler_task_exists [cmd itaskscheduler_task_exists]] command.
+(Note: as a general rule, commands related to tasks that require a task
+ interface handle use [emph itask] in the command name while commands
+ that require a task name use [emph task].)
+[para]
+Once an interface handle to a task is obtained, its settings can be
+accessed and modified through the
+[uri \#itask_get_info [cmd itask_get_info]] and
+[uri \#itask_configure [cmd itask_configure]] commands. Any changes made
+must be saved by then calling the [uri \#itask_save [cmd itask_save]] command.
+Alternately, [uri \#itask_edit_dialog [cmd itask_edit_dialog]] may be
+used to display a dialog that allows the user to configure a task.
+[para]
+In addition to scheduling through the task scheduler, task execution
+can also be directly controlled.
+[uri \#itask_run [cmd itask_run]] will immediately run a task while
+[uri \#itask_end [cmd itask_end]] will terminate a task that is currently
+executing.
+Future times when a task will be run can be obtained using
+the [uri \#itask_get_runtimes_within_interval [cmd itask_get_runtimes_within_interval]] call.
+
+[para]
+Each task is associated with zero or more task triggers that determine when
+and under what conditions the task is executed. The commands
+[uri \#itask_new_itasktrigger [cmd itask_new_itasktrigger]] and
+[uri \#itask_get_itasktrigger [cmd itask_get_itasktrigger]] return
+interface handles to new or existing task triggers. When not required
+triggers can be deleted through
+[uri \#itask_delete_itasktrigger [cmd itask_delete_itasktrigger]].
+The number of triggers associated with a task can be obtained through
+the [uri \#itask_get_itasktrigger_count [cmd itask_get_itasktrigger_count]]
+command.
+[uri \#itask_get_itasktrigger_string [cmd itask_get_itasktrigger_string]]
+returns a string describing the trigger.
+[para]
+Once a handle to a trigger is obtained, its settings can be retrieved
+and modified through the
+[uri \#itasktrigger_get_info [cmd itasktrigger_get_info]] and
+[uri \#itasktrigger_configure [cmd itasktrigger_configure]] commands
+respectively.
+
+[section "Commands"]
+
+[list_begin definitions]
+
+[call [cmd itask_configure] [arg ITASK_HANDLE] [opt [arg options]]]
+Modifies the settings for the task associated with the handle
+[arg ITASK_HANDLE]. Note that the command
+[uri \#itask_save [cmd itask_save]] must be called to save the changes.
+[nl]
+The following options may be specified to change the settings for the task:
+
+[list_begin opt]
+
+[opt_def [cmd -account] [arg USERNAME]]
+Sets [arg USERNAME] as the account under which the task will be run. If
+[arg USERNAME] is specified as the empty string, the task will be run
+under the system account. If any user other than the system account
+is specified, the [cmd -password] option must also be specified.
+[opt_def [cmd -application] [arg PATH]]
+Sets the application to be executed to [arg PATH].
+[opt_def [cmd -comment] [arg COMMENT]]
+Sets the comment for the task.
+[opt_def [cmd -creator] [arg NAME]]
+Sets the task's creator name.
+[opt_def [cmd -data] [arg BINDATA]]
+Stores [arg BINDATA] as the application-defined data for the task.
+[arg BINDATA] is treated as binary data.
+[opt_def [cmd -deletewhendone] [arg BOOLEAN]]
+If specified as [const true], the task will be automatically deleted from
+the task scheduler when it has no more scheduled run times.
+Default is [const false].
+[opt_def [cmd -disabled] [arg BOOLEAN]]
+If specified as [const true], the task is disabled and will not be run
+at its scheduled times.
+Default is [const false].
+[opt_def [cmd -dontstartonbatteries] [arg BOOLEAN]]
+If specified as [const true], the task is not started at the scheduled
+time if the system is running on batteries.
+Default is [const false].
+[opt_def [cmd -hidden] [arg BOOLEAN]]
+If specified as [const true], the task is hidden. Default is [const false].
+[opt_def [cmd -idlewait] [arg MINUTES]]
+Sets the number of minutes that the system must be idle before the task
+runs.
+[opt_def [cmd -idlewaitdeadline] [arg MINUTES]]
+Sets the maximum number of minutes that the task scheduler will wait
+for the system to become idle.
+[opt_def [cmd -killifonbatteries] [arg BOOLEAN]]
+If specified as [const true], the task is not terminated if
+if the system is switches to batteries while the task is running.
+Default is [const false].
+[opt_def [cmd -killonidleend] [arg BOOLEAN]]
+If specified as [const true], the task is terminated, if running,
+when the computer switches
+to a non-idle state (i.e. receives user input).
+Default is [const false].
+[opt_def [cmd -maxruntime] [arg MILLISECONDS]]
+Sets the maximum time (in milliseconds)
+the application can run before it is terminated.
+If [arg MILLISECONDS] is specified as -1, there is no limit on the run time.
+[opt_def [cmd -params] [arg PARAMSTRING]]
+Sets [arg PARAMSTRING] as the parameters to be passed to the application
+when the task is run.
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies [arg PASSWORD] as the password associated with the user account
+specified with the [cmd -account] option.
+[opt_def [cmd -priority] [arg PRIORITY]]
+Sets the priority for the process executing the task. [arg PRIORITY] must
+be one of [const normal], [const abovenormal], [const belownormal],
+[const high], [const realtime], or [const idle].
+[opt_def [cmd -resumesystem] [arg BOOLEAN]]
+If specified as [const true], the system will be awakened from a suspended
+state, if necessary, at the task's scheduled time.
+Default is [const false].
+[opt_def [cmd -restartonidleresume] [arg BOOLEAN]]
+If specified as [const true], the task is restarted when the system
+goes into an idle state and the task had been previously terminated when
+the system went into a non-idle state.
+Default is [const false].
+[opt_def [cmd -runonlyifloggedon] [arg BOOLEAN]]
+If specified as [const true], the task is only run if the user specified
+through the [cmd -account] option is logged on. Default is [const false].
+[opt_def [cmd -startonlyifidle] [arg BOOLEAN]]
+If specified as [const true], the task is only run if the system is idle
+at the task's scheduled run time. Default is [const false].
+[opt_def [cmd -workingdir] [arg PATH]]
+Sets [arg PATH] as the working directory when the task is executed.
+
+[list_end]
+
+[call [cmd itask_delete_itasktrigger] [arg ITASK_HANDLE] [arg INDEX]]
+Deletes the task trigger at position [arg INDEX] in the list of
+triggers for the task associated with handle [arg ITASK_HANDLE].
+
+[call [cmd itask_edit_dialog] [arg ITASK_HANDLE]]
+Displays a dialog that allows the user to edit the task properties. Note
+that the dialog is modal and will lock out other windows until it is closed.
+
+[call [cmd itask_end] [arg ITASK_HANDLE]]
+Terminates (forcibly if necessary) the task associated with
+handle [arg ITASK_HANDLE] it it is running.
+
+[call [cmd itask_get_info] [arg ITASK_HANDLE] [opt [arg options]]]
+Returns the settings for the task associated with handle [arg ITASK_HANDLE].
+Any of the options described in
+[uri \#itask_configure [cmd itask_configure]], except [cmd -password],
+may be specified to retrieve
+the corresponding setting. In addition, the command supports the following
+additional options:
+[list_begin opt]
+[opt_def [cmd -all]]
+Returns all settings.
+[opt_def [cmd -lastruntime]]
+Returns the last time that the task was run in the format
+[arg "Year-Month-Day Hour:Minutes:Seconds"].
+(Note the month must be specified numerically.)
+An empty string is returned
+if the task has not been run yet.
+[opt_def [cmd -nextruntime]]
+Returns the next time that the task is scheduled to run in the format
+[arg "Year-Month-Day Hour:Minutes:Seconds"]. 
+(Note the month must be specified numerically.)
+The return value may also
+be one of [const disabled] if the task is disabled, [const notriggers] if
+no triggers are defined for it, or [const oneventonly] if the task is
+configured to run on events as opposed to time.
+[opt_def [cmd -status]]
+Returns the status of the task which is one of
+[const ready], [const running], [const disabled], [const partiallydefined],
+or [const unknown].
+[list_end]
+
+[call [cmd itask_get_itasktrigger] [arg ITASK_HANDLE] [arg INDEX]]
+Returns an interface handle for an existing task trigger
+for the task associated with the handle
+[arg ITASK_HANDLE]. [arg INDEX] is
+the index of the trigger in the list of triggers
+defined for the task.
+When no longer required, the returned handle must
+be released by calling [uri \#itasktrigger_release [cmd itasktrigger_release]].
+
+[call [cmd itask_get_itasktrigger_count] [arg ITASK_HANDLE]]
+Returns the number of task triggers defined for the task associated with
+handle [arg ITASK_HANDLE].
+
+[call [cmd itask_get_itasktrigger_string] [arg ITASK_HANDLE] [arg INDEX]]
+Returns a string description for an existing task trigger
+for the task associated with the handle
+[arg ITASK_HANDLE]. [arg INDEX] is
+the index of the trigger in the list of triggers
+defined for the task.
+
+[call [cmd itask_get_runtimes_within_interval] [arg ITASK_HANDLE] [opt [arg options]]]
+Returns a list of times that the task is scheduled to run within a specified
+interval. Each item in the list is in the format
+[arg "Year-Month-Day Hour:Minutes:Seconds"]. The following options
+may be specified:
+[list_begin opt]
+[opt_def [cmd -count] [arg COUNT]]
+The maximum number of time elements to return. [arg COUNT] must be less
+than 1440. The actual number returned may of course be less than [arg COUNT]
+depending on how many times the task is scheduled to run in the specified
+interval.
+[opt_def [cmd -end] [arg DATETIMESPEC]]
+The ending time of the interval specified as
+[arg "Year-Month-Day Hour:Minutes:Seconds"]. By default, this is
+January 1, 2038.
+Note the month must be specified numerically.
+[opt_def [cmd -start] [arg DATETIMESPEC]]
+The starting time of the interval specified as
+[arg "Year-Month-Day Hour:Minutes:Seconds"]. By default, this is
+the current time.
+Note the month must be specified numerically.
+[opt_def [cmd -statusvar] [arg VARNAME]]
+If specified, [arg VARNAME] in the caller's context is set to the status
+of the call.
+This is [const success] to indicate successful retrieval of the
+scheduled times. Otherwise, it may also be
+be one of [const disabled] if the task is disabled, [const notriggers] if
+no triggers are defined for it, or [const oneventonly] if the task is
+configured to run on events as opposed to time. In all these three cases,
+the return value of the command is an empty list.
+[list_end]
+
+[call [cmd itask_new_itasktrigger] [arg ITASK_HANDLE]]
+Creates a new task trigger for the task associated with the handle
+[arg ITASK_HANDLE]. The command returns a list of two elements. The
+first is the index of the newly created trigger in the list of triggers
+defined for the task. The second element is an interface handle
+to the newly defined task trigger. When no longer required, this must
+be released by calling [uri \#itasktrigger_release [cmd itasktrigger_release]].
+
+[call [cmd itask_release] [arg ITASK_HANDLE]]
+Releases resources associated with a task handle.
+
+[call [cmd itask_run] [arg ITASK_HANDLE]]
+Runs the task associated with
+handle [arg ITASK_HANDLE].
+
+[call [cmd itask_save] [arg ITASK_HANDLE]]
+Saves any changes that have been made to the task associated with
+handle [arg ITASK_HANDLE].
+
+
+[call [cmd itaskscheduler_delete_task] [arg ITASKSCHEDULER_HANDLE] [arg TASKNAME]]
+Deletes an existing task with name [arg TASKNAME] from the task scheduler
+associated with the handle [arg ITASKSCHEDULER_HANDLE].
+
+[call [cmd itaskscheduler_get_itask] [arg ITASKSCHEDULER_HANDLE] [arg TASKNAME]]
+Returns an interface handle to an existing task with name [arg TASKNAME].
+[arg ITASKSCHEDULER_HANDLE] is an interface handle to
+a task scheduler instance returned by
+[uri \#itaskscheduler_new [cmd itaskscheduler_new]].
+The returned handle must be released by calling
+[uri \#itask_release [cmd itask_release]] when
+it is no longer required.
+
+[call [cmd itaskscheduler_get_target_system] [arg ITASKSCHEDULER_HANDLE]]
+Returns the name of the system that the task scheduler associated
+with the handle [arg ITASKSCHEDULER_HANDLE] operates on.
+
+[call [cmd itaskscheduler_get_tasks] [arg ITASKSCHEDULER_HANDLE]]
+Returns a list of the names of the tasks contained in the task scheduler
+associated with the handle [arg ITASKSCHEDULER_HANDLE].
+
+[call [cmd itaskscheduler_new] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Returns an interface handle to the task scheduler on the local system, or
+if the [cmd -system] option is specified, on a remote system.
+The returned handle must be released by calling
+[uri \#itaskscheduler_release [cmd itaskscheduler_release]] when
+it is no longer required.
+
+
+[call [cmd itaskscheduler_new_itask] [arg ITASKSCHEDULER_HANDLE] [arg TASKNAME]]
+Creates a new task with name [arg TASKNAME] and returns an interface
+handle to it. [arg ITASKSCHEDULER_HANDLE] is an interface handle to
+a task scheduler instance returned by
+[uri \#itaskscheduler_new [cmd itaskscheduler_new]].
+The returned handle must be released by calling
+[uri \#itask_release [cmd itask_release]] when
+it is no longer required.
+
+[call [cmd itaskscheduler_release] [arg ITASKSCHEDULER_HANDLE]]
+Releases resources associated with a task scheduler handle returned by
+[uri \#itaskscheduler_new [cmd itaskscheduler_new]].
+
+[call [cmd itaskscheduler_set_target_system] [arg ITASKSCHEDULER_HANDLE] [arg SYSTEMNAME]]
+Sets the task scheduler associated with the handle [arg ITASKSCHEDULER_HANDLE]
+to be the system identified by [arg SYSTEMNAME].
+
+[call [cmd itaskscheduler_task_exists] [arg ITASKSCHEDULER_HANDLE] [arg TASKNAME]]
+Returns [const true] if a new task with name [arg TASKNAME] exists in the
+task scheduler associated with handle [arg ITASKSCHEDULER_HANDLE].
+
+[call [cmd itasktrigger_configure] [arg ITASKTRIGGER_HANDLE] [opt [arg options]]]
+Configures the task trigger associated with the handle
+[arg ITASKTRIGGER_HANDLE].
+[nl]
+The following options may be specified to
+configure the task trigger:
+[list_begin opt]
+[opt_def [cmd -begindate] [arg DATESPEC]]
+Specifies the date on which the trigger is activated. [arg DATESPEC] must
+be in the format [arg "YEAR-MONTH-DAY"]. Defaults to the current date.
+[opt_def [cmd -daysofmonth] [arg MONTHDAYMASK]]
+Specifies the days of the month that the task is scheduled to run.
+[arg MONTHDAYMASK] is a bitmask with the low order bit corresponding to
+the first day of the month. This option only has effect if the value
+of the [cmd -type] option is [const monthlydate].
+[opt_def [cmd -disabled] [arg BOOLEAN]]
+If specified as [const true], disables the trigger so it has no effect.
+Default is [const false].
+[opt_def [cmd -duration] [arg MINUTES]]
+Specifies the number of minutes after the task starts
+that the trigger is active. The task will be continuously restarted during
+this period with the interval between starts given by the option
+[cmd -interval].
+[opt_def [cmd -enddate] [arg DATESPEC]]
+Specifies the date on which the trigger becomes inactive.
+[arg DATESPEC] must be in the format [arg "YEAR-MONTH-DAY"].
+If [arg DATESPEC] is the empty string, there is no end date and the trigger
+never becomes inactive. This is also the default.
+[opt_def [cmd -interval] [arg MINUTES]]
+See description of [cmd -duration].
+[opt_def [cmd -killatdurationend] [arg BOOLEAN]]
+If specified as [const true], the task is terminated if it is still running
+at the end of the trigger duration. Default is [const false].
+[opt_def [cmd -months] [arg MONTHMASK]]
+Specifies the months in which the trigger is active. [arg MONTHMASK] is
+a bitmask with the low order bit corresponding to January. The trigger
+is active in those months for which the corresponding bit is set.
+By default, the trigger is active for all months. This option is only
+used if the [cmd -type] option specifies the trigger type to be either
+[const monthlydate] or [const monthlydow].
+[opt_def [cmd -period] [arg PERIOD]]
+If [cmd -type] is [const daily], [arg PERIOD] is the number of days between
+invocations of the task.
+Similarly, if [cmd -type] is [const weekly], [arg PERIOD] is the number of
+weeks between invocations of the task. This option is not used for other
+trigger types. If unspecified, this option defaults to [const 1].
+[opt_def [cmd -starttime] [arg TIMESPEC]]
+Specifies the time at which the task is to be run. [arg TIMESPEC] is
+of the form [arg "HOUR:MINUTES"].
+[opt_def [cmd -type] [arg TRIGGERTYPE]]
+Specifies the type of the trigger. If [arg TRIGGERTYPE] is [const once],
+the task will only be run once.
+[nl]
+A value of [const daily]
+or [const weekly] will cause the task
+to be scheduled daily or weekly respectively. In both cases, the interval
+between runs being governed by the [cmd -period] option. Furthermore, in the
+[const weekly] case, the option [cmd -weekdays] will control which days
+of the week the task is run.
+[nl]
+If [arg TRIGGERTYPE] is [const monthlydate], the task will be scheduled
+for the days defined by the [cmd -months] and [cmd -daysofmonth] options.
+[nl]
+A value of [const monthlydow] allows the task to be scheduled during a
+specific week of a month. The [cmd -weekofmonth] option specifies
+which week of the month, the [cmd -weekdays] option specifies which days
+in that week, and [cmd -months] option specifies which months are included.
+[nl]
+In addition, there are three trigger types that are event based -
+if [arg TRIGGERTYPE] is [const onidle], the trigger is activated when
+the system becomes idle, [const atsystemstart] causes the task to run
+every time the system starts and [const atlogon] causes it to run
+everytime the user logs on.
+[opt_def [cmd -weekdays] [arg WEEKMASK]]
+Specifies the days of a week that the trigger should be activated.
+[arg WEEKMASK] is a bitmask corresponding to days of the week with
+the low order bit corresponding to Sunday. This option is only used
+if [cmd -type] is specified as [const weekly] or [const monthlydow].
+[opt_def [cmd -weekofmonth] [arg WEEKNUMBER]]
+Specifies the week of the month that a task should be active.
+[arg WEEKNUMBER] must be an integer in the range [const 1-5] where
+[const 1-4] correspond to the first four weeks while a value of [const 5]
+corresponds to the last week of the month.
+[list_end]
+
+[call [cmd itasktrigger_get_info] [arg ITASKTRIGGER_HANDLE]]
+Returns the settings for the task trigger associated with
+the handle [arg ITASKTRIGGER_HANDLE]. The settings are returned
+as a flat list of [arg "option value"] pairs. See
+[uri \#itasktrigger_configure [cmd itasktrigger_configure]]
+for information about the returned fields. Note that the returned
+fields depend on the trigger type as noted there.
+
+[call [cmd itasktrigger_release] [arg ITASKTRIGGER_HANDLE]]
+Releases resources associated with a task trigger handle.
+
+[call [cmd mstask_create] [arg TASKNAME] [opt [arg options]]]
+This is command is a wrapper around that the various task scheduler
+interfaces that allows for easy creation of a task. It handles the
+common case where a task has a single associated trigger.
+[nl]
+The command creates a new task based on the specified options.
+It accepts all the task related options as described for
+the [uri \#itask_configure [cmd itask_configure]] command. It associates
+a single trigger with the task and accepts all task trigger
+configuration options described for task triggers
+in [uri \#itasktrigger_configure [cmd itasktrigger_configure]]
+except for [cmd -disabled].
+[nl]
+In addition, the command accepts the option [cmd -system] which
+allows specification of which system the task is to be created on.
+By default, the task is created on the local system.
+
+[call [cmd mstask_delete] [arg TASKNAME] [opt [arg options]]]
+This is command is a wrapper around that the various task scheduler
+interfaces that allows for easy deletion of a task. [arg TASKNAME]
+is the name that identifies the task.
+[nl]
+The command accepts the option [cmd -system] which
+allows specification of which system the task is to be deleted.
+By default, the task is deleted on the local system.
+
+[list_end]
+
+
+[keywords "task scheduler" "scheduler" "task" "task trigger" "trigger"]
+
+
+[manpage_end]

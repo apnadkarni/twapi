@@ -1,0 +1,12 @@
+# TWAPI example
+# Change the label of a drive
+# Usage example: tclsh changedrivelabel.example C: "NEWLABEL"
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr {Usage: tclsh changedrivelabel.example C: "NEWLABEL"}
+    exit
+}
+
+twapi::set_drive_volumename [lindex $argv 0] [lindex $argv 1]

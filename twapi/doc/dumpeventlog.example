@@ -1,0 +1,31 @@
+# TWAPI example
+# Dump specified event log to standard output
+
+package require twapi
+
+if {$argc > 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 EVENTLOGNAME"
+    exit
+}
+
+if {$argc == 2} {
+    set source [lindex $argv 1]
+} else {
+    set source "Application"
+}
+
+# Open the specified event log
+set hevl [twapi::eventlog_open -source $source]
+
+# Keep reading record until no more
+while {[llength [set events [twapi::eventlog_read $hevl]]]} {
+    # print out each record
+    foreach eventrec $events {
+        array set event $eventrec
+        set timestamp [clock format $event(-timewritten) -format "%x %X"]
+        set source   $event(-source)
+        set category [twapi::eventlog_format_category $eventrec -width -1]
+        set message  [twapi::eventlog_format_message $eventrec -width -1]
+        puts "Time: $timestamp\nSource: $source\nCategory: $category\n$message\n"
+    }
+}

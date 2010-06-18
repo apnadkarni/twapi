@@ -1,0 +1,26 @@
+# TWAPI example
+# Show all windows for the given application
+# Usage example: tclsh showwindows.example APPLICATIONNAME
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 APPNAME"
+    puts stderr "Example: [info nameofexecutable] $argv0 notepad"
+    exit 1
+}
+
+set appname [lindex $argv 0]
+# Add an extension if none specified
+if {[file extension $appname] == ""} {
+    append appname .*
+}
+
+# Get all pids with that app name
+set pids [twapi::get_process_ids -glob -name $appname]
+
+# We have to be careful to only show windows that are not supposed to be
+# hidden so only show windows if they have a caption
+foreach hwin [twapi::find_windows -pids $pids -caption true] {
+    twapi::show_window $hwin
+}

@@ -1,0 +1,16 @@
+# TWAPI example
+# Show the physical address corresponding to a IP address
+# Usage example: tclsh showphysicaladdress.example IPADDRESS
+
+package require twapi
+
+if {$argc != 1} {
+    puts "Usage: [info nameofexecutable] $argv0 IPADDRESS"
+    exit 1
+}
+
+if {[twapi::ipaddr_to_hwaddr [lindex $argv 0] hwaddr]} {
+    puts "Physical address: $hwaddr"
+} else {
+    puts "Could not map IP address [lindex $argv 0] to a physical address"
+}

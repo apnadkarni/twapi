@@ -1,0 +1,83 @@
+package require twapi
+namespace import twapi::*
+
+# Fire up notepad
+set pid [exec mspaint.exe &]
+
+# Make sure it's ready for input
+process_waiting_for_input $pid -wait 5000
+
+# Locate the window containing the drawing canvas
+# NOTE: THE CLASS MAY BE MSPAINT VERSION DEPENDENT
+
+set frame [lindex [find_windows -pids [list $pid] -class AfxFrameOrView42u] 0]
+if {$frame == ""} {
+    # Maybe the window has not been put up yet. Wait a bit and try again
+    after 500
+    set frame [lindex [find_windows -pids [list $pid] -class AfxFrameOrView42u] 0]
+    if {$frame == ""} {
+        puts stderr "Could not find Mspaint window"
+        exit 1
+    }
+}
+
+set win [lindex [get_child_windows $frame] 0]
+
+# Get the coordinates of the top left corner of drawing window
+foreach {x y} [get_window_coordinates $win] break
+
+# ON Win2K and up, we can block input so as to prevent interference from
+# other input sources
+if {[min_os_version 5]} {
+    block_input
+}
+
+# Enclose in a catch so we remember to unblock input in case of errors
+catch {
+    # Now draw a square in the MSPaint window using the mouse
+    # We use send_input to send buttton down/up events and move_mouse
+    # to move the mouse. We could have instead used send_input for
+    # mouse movement as well. However then we would need to do conversion
+    # between logical/physical coordinates, acceleration settings etc.
+    # move_mouse takes care of all that for us
+
+    # We will draw at offset 10 pixels into the window
+    move_mouse [incr x 10] [incr y 10] 
+
+    # Press the left mouse button. Note it remains pressed
+    # until a -lup event
+    send_input {{mouse 0 0 -ldown}} 
+
+    # Move the mouse 100 pixels down (left button is still pressed)
+    move_mouse $x [incr y 100]
+
+    # Release mouse button to finish first segment, then press it again
+    # to start the second segment
+    send_input {
+        {mouse 0 0 -lup}
+        {mouse 0 0 -ldown}
+    }
+
+    # Draw segment to right
+    move_mouse [incr x 100] $y
+    send_input {
+        {mouse 0 0 -lup}
+        {mouse 0 0 -ldown}
+    }
+
+    # Draw segment going up
+    move_mouse $x [incr y -100]
+    send_input {
+        {mouse 0 0 -lup}
+        {mouse 0 0 -ldown}
+    }
+
+    # Finally go left to complete the square and release the button
+    move_mouse [incr x -100] $y
+    send_input {{mouse 0 0 -lup}}
+}
+
+# Now finally unblock the input
+if {[min_os_version 5]} {
+    unblock_input
+}

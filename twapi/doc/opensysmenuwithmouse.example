@@ -1,0 +1,32 @@
+# TWAPI example
+# Open the system menu of the specified window using the mouse
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set title [lindex $argv 0]
+
+# Get all windows with that title
+set windows [twapi::find_windows -text $title]
+if {[llength $windows]} {
+    set win [lindex $windows 0]
+
+    # Move the window to the foreground
+    twapi::set_foreground_window $win
+
+    # Get top right corner of the window
+    foreach {x y} [twapi::get_window_coordinates $win] break
+
+    # Move the mouse there (plus a small delta to get to the menu)
+    twapi::move_mouse [incr x 10] [incr y 10]
+    
+    # Click the left mouse button
+    twapi::click_mouse_button left
+
+} else {
+    puts stderr "No windows found with title '$title'"
+}

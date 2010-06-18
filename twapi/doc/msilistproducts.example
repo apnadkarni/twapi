@@ -1,0 +1,56 @@
+# List product versions that are installed through Windows Installer
+# Note this is a sample script for illustrative purposes. There is no
+# error handling as such.
+
+# MSI related stuff requires at least V2.0
+package require twapi 2.0
+
+# Array to map product state codes to display strings
+array set product_state_map {
+    -7  "Not used"
+    -6  "Misconfigured"
+    -5  "Incomplete"
+    -4  "Source absent"
+    -1  "Unknown"
+    0   "Broken"
+    1   "Advertised"
+    2   "Absent"
+    3   "Local"
+    4   "Source"
+    5   "Installed"
+}
+
+# Create a new Installer object
+set msiobj [twapi::comobj WindowsInstaller.Installer]
+
+# The Installer objects do not come with their own type library containing
+# method definitions so we need to manually load the definitions
+# for every object we create
+twapi::load_msi_prototypes $msiobj Installer
+
+# Get the product id list (type is StringList)
+set prodidsobj [$msiobj -get Products]
+set prodids    [list ]
+
+if {![$prodidsobj -isnull]} {
+    twapi::load_msi_prototypes $prodidsobj StringList
+    set count [$prodidsobj -get Count]
+    for {set i 0} {$i < $count} {incr i} {
+        lappend prodids [$prodidsobj -get Item $i]
+    }
+}
+$prodidsobj -destroy
+
+# Now we have a list of product id's. Print the product name, version
+foreach prodid $prodids {
+    set encoded_version [$msiobj -get ProductInfo $prodid Version]
+    set version [expr {0xff & ($encoded_version >> 24)}].[expr {0xff & ($encoded_version >> 16)}].[expr {0xffff & $encoded_version}]
+    set state [$msiobj -get ProductState $prodid]
+    if {[info exists product_state_map($state)]} {
+        set state $product_state_map($state)
+    }
+    puts "[$msiobj -get ProductInfo $prodid ProductName] (V$version): $state"
+}
+
+# Get rid of objects we created
+$msiobj -destroy

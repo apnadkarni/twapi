@@ -1,0 +1,39 @@
+# TWAPI example
+# Show properties for the specified user
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME"
+    exit 1
+}
+
+set name [lindex $argv 0]
+
+if {[catch {
+    array set userinfo [twapi::get_user_account_info $name -all]
+
+    set userinfo(-local_groups) [join $userinfo(-local_groups) ", "]
+    set userinfo(-global_groups) [join $userinfo(-global_groups) ", "]
+    foreach {index label} {
+        -name     "Name"
+        -full_name "Full name"
+        -comment  "Comment"
+        -status "Status"
+        -user_id  "User id"
+        -local_groups "Local groups"
+        -global_groups "Global groups"
+        -priv          "Privilege level"
+        -home_dir "Home dir"
+        -profile "Profile"
+        -script_path "Logon script"
+        -code_page  "Code page"
+        -last_logon "Last logon"
+        -acct_expires "Account expiration"
+    } {
+        puts "[format %20.20s $label]: $userinfo($index)"
+    }
+} result]} {
+    puts "Error: $result"
+}
+

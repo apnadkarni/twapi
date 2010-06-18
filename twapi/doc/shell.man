@@ -1,0 +1,457 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Windows Shell" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Windows Shell"]
+[titledesc "Windows shell commands"]
+[require twapi]
+[description]
+[para]
+
+This module provides procedures related to the Windows shell.
+
+[section "Item Identifiers"]
+
+The Windows shell identifies objects in its namespace, including non-file
+objects such as Control Panel applets and printers, using an
+[emph "item ID"]. Similar to a file system path, an object resides within
+the shell namespace object hierarchy and the entire path to the object
+is defined by [emph "item identifier list"].
+
+[section "Folder Paths"]
+
+The command [uri \#get_shell_folder [cmd get_shell_folder]] returns the
+path to the directory specified by a Windows Shell CSIDL.
+
+[section "File Operations"]
+
+The command [uri #shell_execute [cmd shell_execute]] allows invocation
+of any operation of a file or resource as from Windows Explorer, for example,
+opening a URL in a browser, searching a directory, starting a program
+and so on.
+
+[para]
+The command [uri #recycle_file [cmd recycle_file]] sends the specified file
+to the Windows Recycle Bin.
+
+
+[section "Shell Dialogs"]
+The command
+[uri \#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
+displays the property page dialogs for the specified shell objects.
+
+[section Themes]
+The commands [uri \#OpenThemeData [cmd OpenThemeData]],
+[uri \#CloseThemeData [cmd CloseThemeData]],
+[uri \#IsThemeActive [cmd IsThemeActive]],
+[uri \#IsAppThemed [cmd IsAppThemed]],
+[uri \#GetCurrentThemeName [cmd GetCurrentThemeName]],
+[uri \#GetThemeColor [cmd GetThemeColor]] and
+[uri \#GetThemeFont [cmd GetThemeFont]] provide access to information
+related to the current theme if the underlying platform supports themes.
+See the Windows SDK for documentation about these.
+[uri \#TwapiThemeDefineValue [cmd TwapiThemeDefineValue]] is a utility
+function that translates various theme-related symbols described in
+the SDk to their integer values to be passed to the above functions.
+
+[section "Shortcuts"]
+The commands
+[uri \#read_shortcut [cmd read_shortcut]] and
+[uri \#write_shortcut [cmd write_shortcut]] allow reading and writing
+of shell shortcuts.
+[para]
+The commands
+[uri \#read_url_shortcut [cmd read_url_shortcut]] and
+[uri \#write_url_shortcut [cmd write_url_shortcut]] allow reading and writing
+of URL shortcuts. A URL shortcut can be invoked by
+[uri \#invoke_url_shortcut [cmd invoke_url_shortcut]].
+
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd get_shell_folder] [arg CSIDL] [opt [cmd -create]]]
+Returns the path to the file system directory corresponding to the
+Windows shell folder identified by [arg CSIDL]. The path is always
+returned in native format.
+
+[nl]
+[arg CSIDL] must be
+one of the following symbols or the corresponding integer values
+values as defined in the Windows SDK:
+[const csidl_admintools],
+[const csidl_common_admintools],
+[const csidl_appdata],
+[const csidl_common_appdata],
+[const csidl_common_desktopdirectory],
+[const csidl_common_documents],
+[const csidl_common_favorites],
+[const csidl_common_music],
+[const csidl_common_pictures],
+[const csidl_common_programs],
+[const csidl_common_startmenu],
+[const csidl_common_startup],
+[const csidl_common_templates],
+[const csidl_common_video],
+[const csidl_cookies],
+[const csidl_desktopdirectory],
+[const csidl_favorites],
+[const csidl_history],
+[const csidl_internet_cache],
+[const csidl_local_appdata],
+[const csidl_mymusic],
+[const csidl_mypictures],
+[const csidl_myvideo],
+[const csidl_nethood],
+[const csidl_printhood],
+[const csidl_profile],
+[const csidl_profiles],
+[const csidl_programs],
+[const csidl_program_files],
+[const csidl_program_files_common],
+[const csidl_recent],
+[const csidl_sendto],
+[const csidl_startmenu],
+[const csidl_startup],
+[const csidl_system],
+[const csidl_templates],
+[const csidl_windows].
+[nl]
+Refer to the documentation in the Windows SDK for the meaning of each
+of these identifiers.
+[nl]
+If the option [cmd -create] is specified, the folder will be created if it
+does not currently exist.
+[nl]
+On some platforms, some of the above CSIDL's may be invalid. In this case,
+the command will attempt to return equivalent paths through other means
+such as environment variable settings.
+[nl]
+The command will return an empty string if the CSIDL does not exist on
+the platform or if its value cannot be retrieved.
+
+[call [cmd CloseThemeData]]
+See [sectref "Themes"].
+
+[call [cmd GetCurrentThemeName]]
+See [sectref "Themes"].
+
+[call [cmd GetThemeColor]]
+See [sectref "Themes"].
+
+[call [cmd GetThemeFont]]
+See [sectref "Themes"].
+
+[call [cmd invoke_url_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
+Invokes a  URL shortcut. [arg SHORTCUTPATH] specifies the path of
+the URL shortcut itself.
+The following options may be specified.
+
+[list_begin opt]
+[opt_def [cmd -allowui]]
+Allows user interaction.
+[opt_def [cmd -hwin] [arg HWIN]]
+Specifies the parent window handle for user interaction.
+This is ignored if [cmd -verb] is specified or if [cmd -allowui] is
+not specified.
+[opt_def [cmd -verb] [arg VERB]]
+Specifies the verb to invoke on the shortcut, for example [const open],
+[const edit] etc.
+[list_end]
+
+
+[call [cmd IsAppThemed]]
+See [sectref "Themes"].
+
+[call [cmd IsThemeActive]]
+See [sectref "Themes"].
+
+[call [cmd OpenThemeData]]
+See [sectref "Themes"].
+
+[call [cmd read_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
+Reads a shortcut. [arg SHORTCUTPATH] specifies the path of
+the shortcut itself. The contents of the shortcut are returned as
+a keyed list with the following fields.
+
+[list_begin opt]
+[opt_def [cmd -args]]
+Command line arguments for the link.
+[opt_def [cmd -desc]]
+Description of the shortcut. This is the string that is
+visible to the user as the label of the shortcut.
+[opt_def [cmd -hotkey]]
+The hotkey associated with the shortcut. This is
+an integer as described in the documentation of the
+[cmd IShellLink::Hotkey] command in the Platform SDK.
+[opt_def [cmd -iconindex]]
+The index of the icon within the icon file
+specifies by the [cmd -iconpath] field.
+[opt_def [cmd -iconpath]]
+The path to the file from which the icon for the shortcut is to be taken.
+[opt_def [cmd -idl]]
+The [uri \#itemidentifiers "item identifier list"] for the object pointed
+to by the shortcut.
+[opt_def [cmd -path]]
+The file system path in the case that the shortcut points to a file.
+[opt_def [cmd -showcmd]]
+The initial state of the window.
+[opt_def [cmd -workdir]]
+The working directory of the shortcut.
+[list_end]
+Note that the field names are the same as the options for the
+[uri \#write_shortcut [cmd write_shortcut]] command so you can modify
+a shortcut by reading it, changing the specific fields and passing the
+same list to [uri \#write_shortcut [cmd write_shortcut]].
+[nl]
+The content format and operation of the command may be controlled
+through the following options.
+
+[list_begin opt]
+[opt_def [cmd -hwin] [arg HWIN]]
+Identifies the window to be used as the parent of the dialog box
+that pops up to ask the user for more information when the shortcut cannot
+be resolved.
+[opt_def [cmd -install]]
+Calls the MSI installer if the shortcut is an advertised shortcut and the
+target has not been installed yet.
+[opt_def [cmd -nolinkinfo]]
+Disables distributed link tracking.
+[opt_def [cmd -nosearch]]
+Normally, the command will search for the target if it cannot be found
+in the location pointed to by the shortcut. Specifying this option
+disables this search.
+[opt_def [cmd -notrack]]
+Specifies that distributed link tracking to be not used.
+[opt_def [cmd -noui]]
+Specifies that no dialog box should be displayed even if the link cannot
+be resolved.
+[opt_def [cmd -rawpath]]
+Normally, the command resolves any embedded environment variables contained
+in the returned [cmd -path] field and verifies the path exists. Specifying
+this option disables both these features and returns raw path
+contained in the shortcut.
+[opt_def [cmd -shortnames]]
+The path contained in the returned [cmd -path] field uses short name (8.3)
+format.
+[opt_def [cmd -timeout] [arg TIMEOUT]]
+Specifies the timeout, in milliseconds, for resolving the link. This option
+has no effect unless the [cmd -noui] is also specified.
+[opt_def [cmd -uncpath]]
+The path contained in the returned [cmd -path] field is in UNC format.
+[list_end]
+
+[call [cmd read_url_shortcut] [arg SHORTCUTPATH]]
+Returns the URL pointed to by a URL shortcut.
+[arg SHORTCUTPATH] specifies the path of the URL shortcut itself.
+
+[call [cmd recycle_file] [arg FILENAME] [opt "[cmd -confirm] [arg BOOLEAN]"] [opt "[cmd -showerror] [arg BOOLEAN]"]]
+Sends the specified file to the Windows Recycle Bin. Returns [const true] on success
+and [const false] if user aborted the command. Any errors will generate a Tcl exception.
+[list_begin opt]
+[opt_def [cmd -confirm] [arg BOOLEAN]]
+If [const true], a confirmation dialog is displayed to the user.
+Default is [const false].
+[opt_def [cmd -showerror] [arg BOOLEAN]]
+If [const true], an error dialog is displayed to the user in case of errors.
+Default is [const false].
+[list_end]
+
+[call [cmd shell_execute] [opt [arg options]]]
+
+The [cmd shell_execute] command is a wrapper around the Windows
+[cmd ShellExecuteEx] function that allows invocation of various operations
+on file and other resources in the same manner as exposed by Windows Explorer
+as shown in the examples below.
+[nl]
+The command supports the options shown in the table below and returns
+an empty string unless the -getprocesshandle option is specified.
+
+[list_begin opt]
+[opt_def [cmd -asyncok] [arg BOOLEAN]] TBD.
+[opt_def [cmd -class] [arg BOOLEAN]] TBD.
+[opt_def [cmd -connect] [arg BOOLEAN]] TBD.
+[opt_def [cmd -dir] [arg PATH]]
+Path of the working directory. Defaults to the current directory.
+[opt_def [cmd -getprocesshandle] [arg BOOLEAN]]
+Normally, the command returns an empty string. If this option is specified,
+the command returns a handle to the process, if any, that was created
+by the shell to handle the request. If no such process was required to
+be created, or was already running, an empty string is returned. If
+a non-empty handle is returned, it must be closed by calling
+[uri handles.html#close_handles [cmd close_handles]].
+[opt_def [cmd -hicon] [arg HANDLE]] TBD.
+[opt_def [cmd -hkeyclass] [arg BOOLEAN]] TBD.
+[opt_def [cmd -hmonitor] [arg HANDLE]]
+Specifies a handle to a monitor on multiple-monitor systems. Cannot
+be used with the [cmd -hicon] option.
+[opt_def [cmd -hotkey] [arg BOOLEAN]] TBD.
+[opt_def [cmd -hwin] [arg BOOLEAN]]
+Specifies the parent window handle, if any, for dialogs that are displayed.
+By default, no parent window is specified.
+[opt_def [cmd -idl] [arg BOOLEAN]]
+[opt_def [cmd -invokeidlist] [arg BOOLEAN]]
+Normally, the shell will look up the registry for the list of verbs applicable
+for a file. If this option is specified as [const true], the shell will
+look up verbs dynamically added by shell extensions. See examples below.
+Default is [const false].
+[opt_def [cmd -logusage] [arg BOOLEAN]]
+If [const true], the invocation will add to the counter maintained
+by Windows for determining the applications that show up on the Start menu.
+Default is [const false]. Requires Windows XP or later and will generate
+an error on earlier versions of Windows.
+[opt_def [cmd -noconsole] [arg BOOLEAN]]
+If [const true], the current process is not used for any processes
+created for the operation. A new console window is created if required.
+Default is [const false].
+[opt_def [cmd -noui] [arg BOOLEAN]]
+If [const true], any user interaction, such as error display is done.
+Default is [const false].
+[opt_def [cmd -nozonechecks] [arg BOOLEAN]] TBD.
+[opt_def [cmd -params] [arg STRING]]
+Contains the parameter string to be passed to the invoked application.
+Use standard Windows syntax for separating parameters using spaces
+and quotes.
+[opt_def [cmd -path] [arg STRING]]
+Path of the file or object on which the action is to be invoked.
+If unspecified, defaults to the current directory.
+[opt_def [cmd -show] [arg STRING]]
+Specifies how the application invoking the action is to be
+displayed.
+Must be one of [const hide], [const shownormal], [const normal],
+[const showminimized], [const showmaximized], [const maximize],
+[const shownoactivate], [const show], [const minimize],
+[const showminnoactive], [const showna], [const restore],
+[const showdefault], or [const forceminimize]. See the Windows
+SDK documentation of [cmd ShellExecute] for details.
+Default is [const normal].
+[opt_def [cmd -substenv] [arg BOOLEAN]]
+If [const true], any environment variables present in the values of
+the [cmd -path] and [cmd -dir] options are expanded.
+Default is [const false].
+[opt_def [cmd -unicode] [arg BOOLEAN]] TBD.
+[opt_def [cmd -verb] [arg ACTION]]
+Specifies the action to invoke on the resource, for example [const open],
+[const edit] etc. See the examples below.
+[opt_def [cmd -wait] [arg BOOLEAN]]
+Wait for the action to complete before returning. The exact effect of this
+depends on the action being invoked and the application handling the action.
+Default is [const false].
+[opt_def [cmd -waitforinputidle] [arg BOOLEAN]]
+If specified as [const true], the command will wait up to one minute
+for any processes that are created as part of the invocation to
+enter the idle loop. Default is [const false].
+[list_end]
+
+Examples:
+
+Start up an application (notepad.exe):
+
+[example "shell_execute -path notepad.exe"]
+
+Start up an application with parameters:
+
+[example "shell_execute -path notepad.exe -params {sample.txt}"]
+
+Invoke the default action for a particular document. In most cases,
+this will open the application associated with the document type:
+
+[example "shell_execute -path sample.doc"]
+
+Invoke a non-default action on a document (printing using the associated
+application):
+
+[example "shell_execute -path sample.doc -verb print"]
+
+Invoke a non-default action (search) on a directory:
+
+[example "shell_execute -path c:/temp -verb find"]
+
+Open a document in the home directory using environment variables:
+
+[example {shell_execute -path {%HOMEDRIVE%\%HOMEPATH%\My Documents\darknet.pdf} -substenv true}]
+
+Launch a browser for a URL:
+
+[example "shell_execute -path http://www.google.com"]
+
+Compose a email message:
+
+[example "shell_execute -path mailto:someone@somewhere.com"]
+
+Invoke a dynamic action on a file. This will bring up the property sheet for
+[cmd notepad.exe] instead of executing it.
+
+[example "shell_execute -path notepad.exe -verb properties -invokeidlist true"]
+
+
+
+[call [cmd shell_object_properties_dialog] [arg OBJECTPATH] [opt [arg options]]]
+Displays the shell property dialog for the specified object which may be
+a file, a printer or a volume.
+[arg OBJECTPATH] is the path or the name of the object. The following options
+may be specified:
+[list_begin opt]
+[opt_def [cmd -hwin] [arg HWIN]]
+If specified, [arg HWIN] is the handle to the window to be used as
+the parent for the dialog.
+[opt_def [cmd -page] [arg PAGENAME]]
+Specifies the name of the property sheet page to be displayed. If unspecified,
+the default page is displayed.
+[opt_def [cmd -type] [const "file|printer|volume"]]
+Specifies the type of the object identified by [arg OBJECTPATH]. If
+this option is not specified, the command will attempt to figure out
+the object type and display the appropriate dialog.
+[list_end]
+
+[call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
+Writes or creates a shortcut. [arg SHORTCUTPATH] specifies the path of
+the shortcut itself. The following options control the contents of the
+shortcut.
+
+[list_begin opt]
+[opt_def [cmd -args] [arg ARGUMENTS]]
+Specifies the command line arguments for the link.
+[opt_def [cmd -desc] [arg DESCRIPTION]]
+Specifies the description of the shortcut. This is the string that is
+visible to the user as the label of the shortcut.
+[opt_def [cmd -hotkey] [arg HOTKEY]]
+Specifies the hotkey to be associated with the shortcut. [arg HOTKEY] should
+be an integer as described in the documentation of the
+[cmd IShellLink::Hotkey] command in the Platform SDK or a symbolic string
+as described in the [uri input.html\#register_hotkey [cmd register_hotkey]]
+command.
+[opt_def [cmd -iconindex] [arg INDEX]]
+Specifies [arg INDEX] as the index of the icon within the icon file
+specifies by the [cmd -iconpath] option.
+[opt_def [cmd -iconpath] [arg ICONPATH]]
+Specifies [arg ICONPATH] as the path to the file from which the icon for
+the shortcut is to be taken.
+[opt_def [cmd -idl] [arg IDL]]
+Specifies that the shortcut should point to the object identified
+by the [uri \#itemidentifiers "item identifier list"] [arg IDL]. This is
+useful in cases where the target of the short cut is not a file.
+[opt_def [cmd -path] [arg TARGETPATH]]
+Specifies [arg TARGETPATH] as the file system path that the shortcut to
+which the shortcut points.
+[opt_def [cmd -showcmd] [arg WINDOWSTATE]]
+Specifies the initial state of the window. [arg WINDOWSTATE] should be
+one of [const minimized], [const maximized] or [const normal].
+[opt_def [cmd -workdir] [arg DIRPATH]]
+Specifies [arg DIRPATH] as the working directory of the shortcut.
+[list_end]
+
+[call [cmd write_url_shortcut] [arg SHORTCUTPATH] [arg URL] [opt "[cmd -missingprotocol] [const usedefault|guess]"]]
+Writes or creates a  URL shortcut. [arg SHORTCUTPATH] specifies the path of
+the URL shortcut itself. [arg URL] is the URL to which the shortcut should
+point.
+[nl]
+If the [cmd -missingprotocol] option is specified, the system will attempt
+to fill in the protocol if [arg URL] itself does not specify a protocol.
+If the value of this option is [const guess], the system will attempt
+to guess the protocol based on the [arg URL] string. If the option value
+is [const usedefault], the system will use the default protocol scheme.
+
+[list_end]
+
+[keywords "Windows shell" "shell" "CSIDL" "shell folders" "themes" "file property dialog" "volume property dialog" "printer property dialog" "shortcut" "shell link" "item identifier list" "Recycle Bin"]
+[manpage_end]

@@ -1,0 +1,382 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "COM" n ""]
+[copyright "2006-2009 Ashok P. Nadkarni"]
+[moddesc "COM client support"]
+[titledesc "Commands for accessing COM servers"]
+[require twapi]
+[description]
+
+[para]
+This module provides commands for supporting COM clients.
+TWAPI's COM support is limited to client side calls only and is not
+intended to compete with the OpTcl or TCOM packages. It was added
+to allow TWAPI access to some of the simpler COM based API's
+in Windows including WMI and ADSI.
+
+[section "Creation and Destruction of COM objects"]
+
+[para]
+A COM object can be created through the command [uri \#comobj [cmd comobj]]
+using the PROGID or CLSID of the corresponding COM class. This returns
+a Tcl command that may be used to access the object through subcommands.
+The example below creates a COM object using the PROGID for
+Internet Explorer.
+[example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
+
+
+[para]
+Alternatively, the [uri \#comobj_object [cmd comobj_object]] command can
+be used to bind to a COM object identified by its display name. For example,
+the following creates a COM object for an Excel file.
+[example "set xlso \[comobj_object c:\\\\data\\\\myspreadsheet.xls\]"]
+
+[para]
+When an object is no longer required, it must be explicitly destroyed
+by calling the command with the [cmd -destroy] subcommand.
+
+[section "Properties and Methods"]
+
+The properties and methods of a COM object can be accessed as subcommands
+of the Tcl command representing that object. The names of properties and
+methods can in theory overlap. Althouth TWAPI can usually figure
+out whether a property is being retrieved/set or a method is being called,
+you can explicitly control this by using the [cmd -get], [cmd -set] or
+[cmd -call] subcommands followed by the actual name.
+
+The following sequence of commands shows a sample session that drives
+Internet Explorer through its properties and methods.
+
+[para]
+Start up Internet Explorer (note it will not be visible yet)
+[example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
+
+Make its window visible by changing its [var Visible] property.
+
+[example "\$ie Visible true"]
+
+This could also have been written as
+
+[example "\$ie -set Visible true"]
+
+to explicitly indicate we want to set the property called [var Visible]
+as opposed to making a call to the COM object's method of the same name
+(if there was one).
+
+[para]
+To go to the TWAPI home page,
+invoke the [method Navigate] method
+[example "\$ie Navigate http://twapi.sf.net"]
+
+Get the [var LocationURL] property to find the URL after redirection
+[example "\$ie LocationURL"]
+
+Not specifying any parameters gets
+the default value of the object. This is the property marked
+as the default value in the COM object's IDL definition.
+[example "\$ie"]
+
+Ask the application to exit by calling its [method Quit] method.
+[example "\$ie Quit"]
+
+Finally, destroy the COM object.
+[example "\$ie -destroy"]
+
+[section "COM Collections"]
+
+Some COM objects are collection of items which may even
+be other COM objects. The items within
+these collections can be accessed by their index (which is not necessarily
+an integer) but it is often easier to iterate over them using
+the [cmd -iterate] operator on the collection object. The following
+example illustrates this.
+
+[example_begin]
+set fso_obj [lb]comobj Scripting.FileSystemObject[rb]
+set drives_obj [lb]$fso_obj Drives[rb]
+$drives_obj -iterate drive_obj {
+    puts [lb]$drive_obj DriveLetter[rb]
+    $drive_obj -destroy
+}
+$drives_obj -destroy
+$fso_obj -destroy
+[example_end]
+
+The [method Drives] method of the [var Scripting.FileSystemObject]
+returns a collection [var drives_obj]. The [cmd -iterate] operator
+on the collection then loops through each item in the collection,
+assigning the item to [var drive_obj]. In this case, each item is
+itself a COM object from which we get the [var DriveLetter] property.
+Note that the [var drive_obj] object generated in each iteration
+has to be explicitly destroyed.
+
+[section "Navigating Objects"]
+
+In many cases, the desired objects have to be created by navigating through
+other objects. For example, the following example sets all cells within
+a range in a spreadsheet to 12345.
+
+[example_begin]
+set xl [lb]comobj Excel.Application[rb]
+$xl Visible true
+set workbooks [lb]$xl Workbooks[rb]
+set workbook [lb]$workbooks Add[rb]
+set sheets [lb]$workbook Sheets[rb]
+set sheet [lb]$sheets Item 1[rb]
+set cells [lb]$sheet range a1 c3[rb]
+$cells Value 12345
+$cells -destroy
+$sheet -destroy
+$sheets -destroy
+$workbook -destroy
+$workbooks -destroy
+$xl Quit
+$xl -destroy
+[example_end]
+In the above example, in order to get to the range we have to navigate
+through a hierarchy of objects, starting with the application, the workbook
+collection, a workbook within the collection, the worksheets collection, a
+worksheet within that collection and finally the cell range. After setting
+the value, all the created objects have to be deleted.
+
+[para]
+As an alternative, the [cmd -with] subcommand can be used to navigate through
+the intermediate objects as follows:
+
+[example_begin]
+set xl [lb]comobj Excel.Application[rb]
+$xl Visible true
+$xl -with {
+    Workbooks
+    Add
+    Sheets
+    {Item 1}
+    {range a1 c3}
+} Value 12345
+$xl -destroy
+[example_end]
+The [cmd -with] subcommand takes a list of intermediate methods and
+associated parameters each of which should return a new object. Each
+element in the list is invoked on the previously created object and
+in turn should return a new COM object. The final object created
+from this list is passed the remaining arguments in the command.
+All intermediate objects are automatically destroyed.
+
+
+[section "COM Events"]
+
+Some COM objects may generate notifications when certain events occur.
+A callback script may be registered using the [cmd -bind] subcommand
+on a [arg COMOBJ] object. This script is invoked for every notification
+event generated by the COM object. The event name and parameters provided
+by the COM event source are appended to the script.
+
+[para]
+The following example receives events from Internet Explorer and prints
+them.
+
+[example_begin]
+proc print_event args {puts "Received: [lb]join $args ,[rb]"}
+set ie [lb]comobj InternetExplorer.Application -enableaaa[rb]
+$ie Visible true
+set bind_id [lb]$ie -bind print_event[rb]
+$ie Navigate http://www.tcl.tk
+after 2000
+$ie -unbind $bind_id
+$ie Quit
+$ie -destroy
+[example_end]
+
+Note that the script is unregistered using the [cmd -unbind]
+subcommand when no longer needed.
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd clsid_to_progid] [arg CLSID]]
+Returns the PROGID for a given CLSID. For example, 
+[example_begin]
+(tclsh) 53 % clsid_to_progid "{0002DF01-0000-0000-C000-000000000046}"
+InternetExplorer.Application.1
+[example_end]
+
+
+[call [cmd comobj] [arg PROGID_OR_CLSID] [opt [arg options]]]
+
+Creates a COM object and returns the name of a Tcl command that can be
+used to access it. [arg PROGID_OR_CLSID] is either the PROGID or the CLSID
+for the COM object.
+
+[nl]
+The returned value [arg COMOBJ]
+is itself a Tcl command object that can be used to access
+the COM object. When the object is no longer required it should be deleted
+by calling the command with the [cmd -destroy] subcommand. You
+should not delete the command simply by calling the Tcl [cmd rename] command
+as this will lead to memory and resource leaks.
+
+[arg options] may contain one or more of the
+options in the table below. Refer to the
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" "CLSCTX documentation"]
+in the
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/dnanchor/html/anch_win32com.asp" "Windows SDK"]
+for details regarding these options.
+
+[list_begin opt]
+[opt_def [cmd -disablelog] [arg BOOLEAN]]
+If specified as true, disables logging of failures.
+Corresponds to the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_NO_FAILURE_LOG]]
+in the SDK.
+
+[opt_def [cmd -download] [arg BOOLEAN]]
+If specified as true, allows downloading of code from the Internet or Directory
+Service. This corresponds to setting the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_ENABLE_CODE_DOWNLOAD]].
+If specified as false, disallows downloading of code from the Internet or Directory
+Service. This corresponds to setting the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_DISABLE_CODE_DOWNLOAD]].
+[nl]
+If this option is not specified, neither of the flags is set in the
+underlying call to [cmd CoCreateInstance].
+
+[opt_def [cmd -enableaaa] [arg BOOLEAN]]
+If specified as true, enables activate-as-activator activations where
+a server process is launched under the caller's identity.
+This corresponds to setting the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_ENABLE_AAA]].
+If specified as false, disables activate-as-activator activations.
+This corresponds to setting the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_DISABLE_AAA]].
+[nl]
+If this option is not specified, neither of the flags is set in the
+underlying call to [cmd CoCreateInstance].
+
+[opt_def [cmd -model] [arg MODELLIST]]
+Specifies which of the COM hosting models are acceptable. [arg MODELLIST]
+must be a list containing one or more of the symbols
+[const localserver], [const remoteserver], [const inprocserver],
+[const inprochandler], or [const any] signifying any model is
+acceptable.
+
+[opt_def [cmd -nocustommarshal] [arg BOOLEAN]]
+If true, the object creation will fail if it uses custom marshalling.
+Corresponds to the flag
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_NO_CUSTOM_MARSHAL]].
+
+[list_end]
+
+[call [cmd COMOBJ]]
+Without any arguments, returns the value of the
+default property of the COM object.
+
+[call "[arg COMOBJ] [cmd NAME]" [opt "[arg parameter] ..."]]
+The command interprets [arg NAME] as a property or method name of the COM
+object. In case of ambiguity (the object has read and write properties or
+a method of the same name), the command is interpreted as a property
+get if no additional parameters are specified, as a property put if
+exactly one additional parameters is specified and a method invocation
+otherwise.
+
+[call "[arg COMOBJ] [cmd -bind]" [arg SCRIPT]]
+Registers [arg SCRIPT] as a script to be invoked in the global scope
+whenever [arg COMOBJ] generates an event notification.
+The name of the event and any additional parameters in the
+notification are appended to the script.
+[nl]
+The command returns an id. This id must be passed to the [cmd -unbind]
+subcommand to unregister the script.
+[nl]
+The binding is automatically deleted when [arg COMOBJ] is destroyed or
+may be removed explicitly through the [cmd -unbind] subcommand.
+[nl]
+See [sectref "COM Events"] for an example.
+
+[call "[arg COMOBJ] [cmd -call]" [arg METHOD] [opt "[arg parameter] ..."]]
+Calls the specified COM object method with the given parameters and returns
+the result if any.
+
+[call "[arg COMOBJ] [cmd -destroy]"]
+Destroys the COM object, removing any bindings and releasing resources.
+
+[call "[arg COMOBJ] [cmd -get]" [arg PROPERTY] [opt "[arg parameter] ..."]]
+Returns the value of the specified property. Optional parameters may be
+specified if the property is an indexed property.
+
+[call "[arg COMOBJ] [cmd -interface]"]
+Returns the internal [cmd IDispatch] pointer. Used for debugging purposes.
+
+[call "[arg COMOBJ] [cmd -isnull]"]
+Returns [const true] if the object is a NULL COM object, false otherwise.
+This corresponds to a NULL IDispatch pointer that might be returned in
+some COM operations, for example, to indicate the end of a collection.
+
+[call "[arg COMOBJ] [cmd -iterate]" [arg VARNAME] [arg SCRIPT]]
+Iterates over items in [arg COMOBJ] which must be a COM collection.
+In each iteration, [arg SCRIPT] is executed in the caller's context
+with [arg VARNAME] being set to the value of the current item.
+[nl]
+Note that
+if the item is itself a COM object, [arg VARNAME] will contain the
+name of a TCL command corresponding to that object and must be destroyed
+when no longer needed (not necessarily within [arg SCRIPT]).
+[nl]
+See [sectref "COM Collections"] for an example.
+
+[call "[arg COMOBJ] [cmd -print]"]
+Prints to stdout the methods and properties of the object. Used for debugging.
+
+[call "[arg COMOBJ] [cmd -queryinterface]" IID]
+Queries the object for a pointer to another interface for the object. Returns
+a raw handle to the interface.
+
+[call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg parameter] ..."]]
+Sets the value of the specified property. The optional parameters may be
+specified if the property is an indexed property.
+
+[call "[arg COMOBJ] [cmd -unbind]" [arg BINDID]]
+Deletes the COM event binding identified by [arg BINDID].
+
+[call "[arg COMOBJ] [cmd -with]" [arg METHODLIST] [opt "[arg parameters] ..."]]
+
+The [cmd -with] subcommand takes a list of intermediate methods and
+associated parameters. Each element of this list should itself be a list
+the first element being the method or property name and remaining elements
+being the parameters to pass when that method/property is invoked.
+The method or property should return a new object and the next
+element in the list is invoked on the previously returned object.
+The final object created
+from this list is passed the remaining arguments in the command.
+[nl]
+All the intermediate objects created are automatically destroyed.
+[nl]
+See [sectref "Navigating Objects"] for an example.
+
+[call [cmd progid_to_clsid] [arg PROGID]]
+Returns the CLSID for a given PROGID. For example, 
+[example_begin]
+(wish) 51 % progid_to_clsid InternetExplorer.Application
+{0002DF01-0000-0000-C000-000000000046}
+[example_end]
+
+[call [cmd timelist_to_variant_time] [arg TIMELIST]]
+Several COM applications store date and time information as type double
+with the integral part representing the number of days since an epoch
+and the fractional part representing the time in the day. This command
+converts [arg TIMELIST] to this format. [arg TIMELIST] must be a list
+of 7 elements representing the year, month, day, hour, minutes, seconds
+and milliseconds.
+
+[call [cmd variant_time_to_timelist] [arg DOUBLE]]
+Several COM applications store date and time information as type double
+with the integral part representing the number of days since an epoch
+and the fractional part representing the time in the day. This command
+takes such a time value and returns a list
+of 7 elements representing the year, month, day, hour, minutes, seconds
+and milliseconds.
+
+[list_end]
+
+[keywords COM]
+
+[manpage_end]

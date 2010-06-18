@@ -1,0 +1,128 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Handles" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Operating system handles"]
+[titledesc "Commands for managing operating system handles"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands that deal with operating system handles.
+
+[section Overview]
+
+Several Win32 and TWAPI commands return operating system
+handles to various types of resources. The following commands allow
+manipulation and retrieval of information regarding handles.
+
+[para]
+The command [uri #create_file [cmd create_file]] returns a handle
+to a file or device.
+
+[para]
+The operating system associated with a Tcl channel can be retrieved
+using the [uri \#get_tcl_channel_handle [cmd get_tcl_channel_handle]] command.
+[para]
+The command [uri \#duplicate_handle [cmd duplicate_handle]]
+can be used to duplicate a handle,
+for example to pass down to a child process with different access
+rights.
+[para]
+The command [uri \#close_handle [cmd close_handle]]
+closes a operating system handle and
+frees resources associated with it.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd close_handles] [opt "[arg HANDLELIST] [arg HANDLELIST]"]]
+
+This command concatenates its arguments and treats the result as a list
+of operating system handles. It closes each handle in this list. In
+case of errors, closing any handles, it continues to try and close the
+remaining handles before generating an exception.
+
+[call [cmd create_file] [arg PATH] [opt [arg options]]]
+This is a thin wrapper around the Win32 [cmd CreateFile] function that returns
+a handle to a file or device. The wrapper primarily provides mnemonics
+and defaults for the [cmd CreateFile] parameters. [arg PATH] specifies
+the file or device path. Additional options and default values are
+shown below.
+
+[list_begin opt]
+[opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
+rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html#accessrights "Access Rights"]. Defaults to [const generic_read].
+[opt_def [cmd -createdisposition] [arg DISPOSITION]]
+[arg DISPOSITION] must be one of [const create_always], [const create_new],
+[const open_always], [const open_existing] or [const truncate_existing].
+Refer to the Windows SDK for the meaning. Defaults to [const open_always].
+[opt_def [cmd -flags] [arg FLAGS]] An integer bit mask corresponding to
+the [arg dwFlagsAndAttributes] parameter to [cmd CreateFile] function.
+See the Windows SDK for detail. Defaults to 0.
+[opt_def [cmd -inherit] [arg BOOL]]
+If true, the returned handle is inheritable by child processes. Defaults
+to [const false].
+[opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]]
+Specifies a [uri security.html\#securitydescriptors "security descriptor"]
+to be attached to the file or device if it has to be created. Defaults
+to a null security descriptor which results in the process' default
+security descriptor being applied.
+[opt_def [cmd -share]] Specifies the sharing mode of the object. This is list
+containing zero or more of the constants [const read], [const write]
+and [const delete] that control what kind of shared access should be allowed
+while the file or device is open. Defaults to [const {{read write delete}}].
+[opt_def [cmd -templatefile]] A handle to a template file
+with the GENERIC_READ access right from which
+file attributes and extended attributes are to be copied
+for the file that is being created. Defaults to NULL.
+[list_end]
+Refer to the Windows SDK for additional details.
+
+
+[call [cmd duplicate_handle] [arg HANDLE] [opt [arg options]]]
+Duplicates an operating system handle. [arg HANDLE] may be either in
+the form returned by commands such as
+[uri \#get_tcl_channel_handle [cmd get_tcl_channel_handle]] or
+[uri process.html#get_process_handle [cmd get_process_handle]]
+or may be an actual address (integer) literal
+corresponding to the handle.
+The following options specify the context
+of the handle and control attributes of the duplicated handle:
+[list_begin opt]
+[opt_def [cmd -access] [arg ACCESSRIGHTS]]Specifies the access rights
+desired for the new handle. If unspecified, the new handle is created
+with the same access rights as the original one. [arg ACCESSRIGHTS]
+is a list of symbolic constants and bit masks as specified in
+[uri "security.html#accessrights" "Access Rights"].
+[opt_def [cmd -closesource]]If specified, [arg HANDLE] is
+closed after it is duplicated.
+[opt_def [cmd -inherit]]If specified, the new handle marked as inheritable.
+By default, the duplicated handle cannot be inherited by child processes.
+[opt_def [cmd -sourcepid] [arg SOURCEPID]]
+Specifies the PID of the process in whose
+context [arg HANDLE] is a valid handle. Defaults to the current process.
+[opt_def [cmd -targetpid] [arg TARGETPID]]
+Specifies the PID of the process in whose context
+the new handle is to be created. Specifying this also impacts the format
+of the returned handle value.
+[list_end]
+If option [cmd -targetpid] is not specified, the command returns the duplicated
+handle in symbolic form that can be passed to functions such as
+[uri \#close_handle [cmd close_handle]].
+If [cmd -targetpid] is specified, the command returns
+the literal value of the handle. This is true even if the target PID is
+that of the current process.
+
+[call [cmd get_tcl_channel_handle] [arg CHANNEL] [arg DIRECTION]]
+
+Returns the operating system handle corresponding to a Tcl channel identifier
+(for example, returned by the Tcl [cmd open] command). If [arg DIRECTION]
+is [const write], the write-side handle is returned, otherwise the read-side
+handle is returned. (For many channel types, the two are identical.)
+[list_end]
+
+[keywords "channel handle" "operating system handles" "handles"]
+
+[manpage_end]

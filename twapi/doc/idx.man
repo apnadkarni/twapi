@@ -1,0 +1,12 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Index" n ""]
+[copyright "2003, Ashok P. Nadkarni"]
+[moddesc "Tcl Windows API Index"]
+[titledesc "Tcl Windows API extension index"]
+[description]
+[para]
+
+THIS FILE IS JUST A PLACEHOLDER FOR GENERATING A TABLE OF CONTENTS.
+THE ACTUAL INDEX IS AUTOMATICALLY GENERATED.
+
+[manpage_end]

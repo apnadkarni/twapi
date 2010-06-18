@@ -1,0 +1,11 @@
+# TWAPI example
+# Add a user account
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME PASSWORD"
+    exit
+}
+
+twapi::new_user [lindex $argv 0] -password [lindex $argv 1]

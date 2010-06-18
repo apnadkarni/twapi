@@ -1,0 +1,8 @@
+# TWAPI example
+# List the connected shares on a system
+
+package require twapi
+
+foreach share [lsort -index 0 [twapi::get_connected_shares]] {
+    puts "[lindex $share 0] [lindex $share 1]"
+}

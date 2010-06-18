@@ -1,0 +1,203 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Examples" n ""]
+[copyright "2003, Ashok P. Nadkarni"]
+[moddesc "Tcl Windows API extension examples"]
+[titledesc "Tcl Windows API usage examples"]
+[description]
+[para]
+
+The examples in this section are broken out by area.
+Note that many of these will require administrative
+privileges to run. For clarity, the examples do minimal validation and error
+checking.
+[para]
+The examples may be run by passing to a Tcl interpreter. For example,
+[example {tclsh checkservicepack.example 3}]
+will print whether service pack 3 is installed.
+[para]
+The examples are broken up into the following categories:
+[sectref "System information"],
+[sectref "File monitoring"],
+[sectref "Window management"],
+[sectref "Simulating user input"],
+[sectref "Playing sounds"],
+[sectref "Disk configuration"],
+[sectref "Network shares"],
+[sectref "Processes and threads"],
+[sectref "Windows services"],
+[sectref "Users and groups"],
+[sectref "Access control"],
+[sectref "Clipboard access"],
+[sectref "Network configuration"],
+[sectref "Event log"]
+and
+[sectref "Performance monitoring"].
+
+
+[section "System information"]
+[para]
+[uri printsysteminfo.example "Print OS version and configuration"]
+[para]
+[uri verifyTS.example "Verify if Terminal Services are present"]
+[para]
+[uri verifyservicepack.example "Verify a service pack is installed"]
+[para]
+[uri printcomputername.example "Print the NETBIOS name of the computer"]
+
+[section "File monitoring"]
+[para]
+[uri monitordir.example "Monitor changes in a directory"]
+
+[section "Window management"]
+[para]
+[uri minimizeapp.example "Minimize all windows for a given application"]
+[para]
+[uri hidewindows.example "Hide all windows for a given application"]
+[para]
+[uri showwindows.example "Show all windows for a given application"]
+[para]
+[uri movewindowtoorigin.example "Move a window to the top left corner of the screen"]
+[para]
+[uri removetitlebar.example "Remove the title bar from a window"]
+[para]
+[uri bringtoforeground.example "Bring a specified window to the foreground"]
+[para]
+[uri keepontop.example "Keep a window on top of all other windows"]
+[para]
+[uri changewindowcaption.example "Change the caption of a window"]
+
+
+[section "Simulating user input"]
+[para]
+[uri sendtext.example "Send text string to a specified window"]
+[para]
+[uri sendmenuexit.example "Send menu shortcut keys to a specified window"]
+[para]
+[uri opensysmenuwithmouse.example "Open the system menu of the specified window with the mouse"]
+[para]
+[uri hotkey.example "Start a program when a hotkey is pressed"]
+[para]
+[uri sendmouseinput.example "Example: Draw a square in MS Paint using the mouse"]
+
+
+[section "Playing sounds"]
+[para]
+[uri beep.example "Generate a continuous tone on the system speaker"]
+[para]
+[uri playsystemsound.example "Play a system sound"]
+[para]
+[uri continuoussystemsound.example "Play a system sound continuously for 10 seconds"]
+[para]
+[uri playwavfile.example "Play a WAV sound file"]
+
+[section "Disk configuration"]
+[para]
+[uri listdrives.example "List all the drives on the system"]
+[para]
+[uri listremotedrives.example "List all remote drives on the system"]
+[para]
+[uri listfulldrives.example "List all fixed drives that have less than 10% free space"]
+[para]
+[uri changedrivelabel.example "Modify the volume label for a drive"]
+[para]
+[uri checkunicodefilenames.example "Check if the given drive supports Unicode file names"]
+[para]
+[uri checkavailablespace.example "Check if the given drive has sufficient free space"]
+
+[section "Network shares"]
+[para]
+[uri exportfileshare.example "Export a file share that can be connected to from remote clients"]
+[para]
+[uri mapdrive.example "Map a drive to a file share exported from a server"]
+[para]
+[uri listexportedshares.example "List all network shares exported on the system"]
+[para]
+[uri listconnectedshares.example "List all network shares to which the system is connected"]
+[para]
+[uri showmappeddrive.example "Show information related to a mapped drive"]
+
+[section "Processes and threads"]
+[para]
+[uri exitprograms.example "Ask all invocations of a given program to gracefully exit"]
+[para]
+[uri killprograms.example "Forcibly terminate all invocations of a given program"]
+[para]
+[uri showprocessowners.example "Show the user account under which each process is running "]
+[para]
+[uri showprocessmodules.example "Show the DLL's loaded in a process"]
+
+[section "Windows services"]
+[para]
+[uri showrunningservices.example "Show all Windows services that are currently running"]
+[para]
+[uri showautostartservices.example "Show all Windows services that start automatically at boot time"]
+[para]
+[uri restartservice.example "Stop and restart a Windows service"]
+[para]
+[uri changeserviceaccount.example "Change a service configuration to start under a specific user account"]
+[para]
+[uri showservicedependents.example "Show the services that depend on the specified service"]
+[para]
+[uri showservicedependencies.example "Show the services that the specified service depends on"]
+[para]
+[uri installservice.example "Install a service"]
+[para]
+[uri uninstallservice.example "Remove a service"]
+
+[section "Users and groups"]
+[para]
+[uri listusers.example "List the users on a system"]
+[para]
+[uri listgroupsforuser.example "List the group membership for a user"]
+[para]
+[uri listusersingroup.example "List the users in a group"]
+[para]
+[uri showuser.example "Show properties of a user account"]
+[para]
+[uri adduser.example "Create a new user account"]
+[para]
+[uri deleteuser.example "Delete a user account"]
+[para]
+[uri addusertolocalgroup.example "Add a user to a local group"]
+[para]
+[uri removeuserfromlocalgroup.example "Remove a user from a local group"]
+[para]
+[uri addlocalgroup.example "Add a local group account"]
+[para]
+[uri deletelocalgroup.example "Delete a local group account"]
+
+[section "Access control"]
+[para]
+[uri protectfilefromuser.example "Protect a file from access by a specific user"]
+[para]
+[uri showacls.example "Show the access control entries on the specified file"]
+
+[section "Clipboard access"]
+[para]
+[uri getclipboard.example "Copy contents of the clipboard to standard output"]
+[para]
+[uri putclipboard.example "Copy standard input to the clipboard"]
+[para]
+[uri transformclipboard.example "Transform the data in the clipboard"]
+[para]
+[uri gethtmlfromclipboard.example "Get HTML format data from the clipboard"]
+
+[section "Network configuration"]
+[para]
+[uri showinterfaces.example "Show network interfaces"]
+[para]
+[uri showphysicaladdress.example "Map an IP address to a physical address"]
+
+[section "Event log"]
+[para]
+[uri dumpeventlog.example "Dump event log to standard output"]
+
+[section "Performance monitoring"]
+[para]
+[uri showcpuutilization.example "Chart CPU utilization"]
+[para]
+[uri showvmstats.example "Show virtual memory statistics usage"]
+[para]
+[uri shownetworkstats.example "Show network statistics"]
+
+[manpage_end]

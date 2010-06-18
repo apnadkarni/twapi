@@ -1,0 +1,437 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Keyboard and mouse input" n ""]
+[copyright "2003, 2004, Ashok P. Nadkarni"]
+[moddesc "Keyboard and mouse input"]
+[titledesc "Simulation of user input and support for system-wide hotkeys"]
+[require twapi]
+[description]
+[para]
+
+This package provides procedures related to user input
+on Windows platforms.
+
+The commands [uri \#send_input [cmd send_input]],
+[uri \#send_keys [cmd send_keys]],
+[uri \#send_input_text [cmd send_input_text]],
+[uri \#move_mouse [cmd move_mouse]],
+[uri \#click_mouse_button [cmd click_mouse_button]]
+and [uri \#turn_mouse_wheel [cmd turn_mouse_wheel]] can be used
+to simulate user input. The mouse position can be retrieved using
+[uri \#get_mouse_location [cmd get_mouse_location]].
+The commands [uri \#block_input [cmd block_input]] and
+[uri \#unblock_input [cmd unblock_input]]
+can be used to prevent interference from real user input
+while simulating input.
+
+[para]
+The commands [uri \#register_hotkey [cmd register_hotkey]]
+and [uri \#unregister_hotkey [cmd unregister_hotkey]] can be
+used to register scripts to be invoked when the user presses a hotkey
+combination.
+
+[para]
+The amount of time elapsed since the last keyboard or mouse input
+event can be obtained through
+[uri \#get_input_idle_time [cmd get_input_idle_time]].
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd block_input]]
+This command blocks real physical input events and simulated events from
+threads other than the caller from being entered into the input queue. The
+command can be used to prevent interference when the commands such as
+[uri \#send_input [cmd send_input]],
+[uri \#send_input_text [cmd send_input_text]],
+[uri \#click_mouse_button [cmd click_mouse_button]]
+are used to simulate user input. The command
+[uri \#unblock_input [cmd unblock_input]] should
+be called to renable input.
+[nl]The return value of [cmd block_input] is 1 if the input was previously
+unblocked and 0 if the input was already blocked.
+
+[call [cmd click_mouse_button] [arg BUTTON]]
+
+Generates input to simulate clicking the specified mouse button. [arg BUTTON]
+may have one of the values [const left], [const right], [const middle],
+[const x1] or [const x2] to specify the button that was clicked.
+
+[nl]
+[uri opensysmenuwithmouse.example "Example: Open the system menu with the mouse"]
+
+[call [cmd get_input_idle_time]]
+Returns the elapsed time in milliseconds since the last keyboard or mouse
+input event.
+
+[call [cmd get_mouse_location]]
+
+Returns a pair of integers containing the mouse cursor's
+X and Y screen coordinates in pixels.
+
+[call [cmd move_mouse] [arg XPOS] [arg YPOS] [opt [cmd -relative]]]
+
+Generates input to simulate mouse movement. Movement is in absolute mouse
+coordinates unless the option [cmd -relative] is specified. See description
+of [uri \#send_input [cmd send_input]] for more details.
+
+[nl]
+[uri opensysmenuwithmouse.example "Example: Move mouse to system menu"]
+
+[call [cmd register_hotkey] [arg HOTKEY] [arg SCRIPT]]
+
+Registers a script to be invoked when the user presses the hotkey specified
+by [arg HOTKEY]. Note that the script is invoked when the hotkey is pressed
+even if some other application had the input focus. If the caller had
+previously registered a script for the same hotkey, it is replaced by
+[arg SCRIPT].
+[nl]
+[arg HOTKEY] is a string describing the key combination and consists of
+0-4 modifiers followed by the key code, all separated by the [const -] character.
+A modifier may be one of [const ctrl] (or [const control]),
+[const alt] (or [const menu]), [const shift] or
+[const win]. The key code itself may be a single alphanumeric character,
+one of the virtual key names, such as [const F9], listed in
+[uri \#send_input [cmd send_input]],
+or the actual virtual key code itself. Examples are
+[const ctrl-alt-a], [const shift-f9] and [const ctrl-alt-65].
+
+[nl]
+The command returns an identifier corresponding to the specified hotkey
+registration. It should be deregistered when no longer needed by calling
+the [uri \#unregister_hotkey [cmd unregister_hotkey]] function.
+
+[nl]
+[uri hotkey.example "Example: Start a program when a hotkey is pressed"]
+
+[nl]
+This command requires a threaded build of Tcl and will raise an exception
+on non-threaded builds.
+[call [cmd send_input] [arg INPUTLIST]]
+
+Simulates user input by generating keyboard and mouse events based on
+[arg INPUTLIST]. This must be in the form of a list of sublists, each sublist
+being a keyboard or mouse input event specification.
+[nl]
+A [emph "keyboard input specification"] takes the form
+[nl]
+"[arg KEYTYPE] [arg VK] [arg SCANCODE] [opt [arg keyopts]]".
+[nl]
+[arg KEYTYPE] may have one of the following values:
+[list_begin opt]
+[opt_def [const key]] Specifies a virtual key being pressed and released.
+This is a more convenient form of specifying consecutive [cmd keydown],
+[cmd keyup] events.
+[arg VK] should be an integer in the range 1-254 and specifies the virtual key.
+[arg SCANCODE] specifies a hardware scancode for the key. If [const -usescan]
+is specified in [arg keyopts], the specified scan code is used
+and [arg VK] will be ignored by the system. If [const -extended] is specified
+in [arg keyopts], the key is treated as an extended key with the scan code
+being preceded by a byte that has value 0xE0.
+
+[opt_def [const keydown]] Specifies a virtual key being pressed. [arg VK]
+should be an integer in the range 1-254 and specifies the virtual key.
+[arg SCANCODE] specifies a hardware scancode for the key. [arg keyopts] may
+have the same values as specified for [const vkey].
+
+[opt_def [const keyup]] Specifies a virtual key being released. [arg VK]
+should be an integer in the range 1-254 and specifies the virtual key.
+[arg SCANCODE] specifies a hardware scancode for the key. [arg keyopts] may
+have the same values as specified for [const vkey].
+
+[opt_def [const unicode]] Specifies a unicode character. [arg SCANCODE] should
+contain the integer corresponding to the unicode character. [arg VK] and
+any [arg keyopts] are ignored if specified.
+
+[list_end]
+
+[nl]
+For more detailed information, refer the the documentation of the
+[cmd KEYBDINPUT] structure in the Windows SDK.
+
+[nl]
+[cmd send_input] should generally be used only for the most low level
+input sequences involving both keyboard and mouse input. The commands
+[uri \#send_input_text [cmd send_input_text]]
+and [uri \#send_keys [cmd send_keys]] provide more convenient alternatives
+for sending pure text and a combination of text and special keys respectively.
+[nl]
+
+A mouse input specification takes the form
+[nl]
+"[const mouse] [arg XPOS] [arg YPOS] [opt [arg mouseopts]]".
+[nl]
+Arguments [arg XPOS] and [arg YPOS] specify the position of the mouse in
+absolute (default) or relative coordinates. In the former case, the values
+range from 0 to 65535 and are in mouse coordinates. In the latter case,
+the values are in pixels. Note when relative mode is used, the system will
+take into account the mouse speed and acceleration settings. The command
+[cmd move_mouse] is much simpler to use unless you have a need to
+send complex mouse input sequences.
+[nl]
+[arg mouseopts] may contain
+one or more of the following options:
+[list_begin opt]
+[opt_def [cmd -relative]] Indicates that [arg XPOS] and [arg YPOS] should
+be treated as relative to the last reported position, and not as absolute
+coordinates.
+[opt_def [cmd -ldown]] Indicates that the left mouse button has been
+pressed since the last reported event.
+[opt_def [cmd -lup]] Indicates that the left mouse button has been
+released since the last reported event.
+[opt_def [cmd -rdown]] Indicates that the right mouse button has been
+pressed since the last reported event.
+[opt_def [cmd -rup]] Indicates that the right mouse button has been
+released since the last reported event.
+[opt_def [cmd -mdown]] Indicates that the middle mouse button has been
+pressed since the last reported event.
+[opt_def [cmd -mup]] Indicates that the middle mouse button has been
+released since the last reported event.
+[opt_def [cmd -x1down]] Indicates that the first X button has been
+pressed since the last reported event.
+[opt_def [cmd -x1up]] Indicates that the first X button has been
+released since the last reported event.
+[opt_def [cmd -x2down]] Indicates that the second X button has been
+pressed since the last reported event.
+[opt_def [cmd -x2up]] Indicates that the second X button has been
+released since the last reported event.
+[opt_def [cmd -moved]] Indicates that the mouse has moved since the last
+reported event.
+[opt_def "[cmd -wheel] [arg WHEELUNITS]"] Indicates that the mouse wheel was
+rotated by [arg WHEELUNITS]. This may be a positive integer for
+forward rotation, or a negative integer for backward rotation. This option
+may not be used with any of the X button options.
+[list_end]
+For more detailed information, refer the the documentation of the
+[cmd MOUSEINPUT] structure in the Windows SDK.
+[nl]
+The commands [uri \#move_mouse [cmd move_mouse]],
+[uri \#click_mouse_button [cmd click_mouse_button]] and
+[uri \#turn_mouse_wheel [cmd turn_mouse_wheel]]
+may be more convenient for common cases.
+
+[nl]
+[uri sendmouseinput.example "Example: Draw a square in MS Paint using the mouse"]
+
+
+[call [cmd send_input_text] [arg TEXT]]
+
+Simulates user input by generating keyboard events corresponding to [arg TEXT].
+[nl]
+[uri sendtext.example "Example: Send a text string to a specified window"]
+
+[call [cmd send_keys] [arg KEYSEQUENCE]]
+
+Simulates user input of keyboard events. This function differs from
+[uri \#send_input_text [cmd send_input_text]]
+in that the keys generated may include non-text
+keys such as function keys, modifier keys etc.. [arg KEYSEQUENCE] indicates
+the keys to be generated and is specified with the syntax defined below. This
+syntax is a superset of the syntax used by the Visual Basic SendKeys command.
+
+[nl]
+All characters in [arg KEYSEQUENCE] result in the corresponding keystroke
+being generated except for the following characters which have a special
+meaning:
+[nl]
+The [const ~] character stands for the [const ENTER] key.
+
+[nl]
+The [const +], [const ^] and [const %] characters are used as key modifiers
+for the following character or character groups.
+The [const +] character is used to indicate the following character should be
+entered as though the [const SHIFT] key was pressed while entering the
+character. Similarly, [const ^] and [const %] indicate the [const CTRL]
+and [const ALT] modifiers respectively. For example, the sequence
+[const +ab] will result in the following key stroke sequence being generated:
+[const SHIFT] is pressed and held down, the [const a] key is pressed
+and released, the [const SHIFT] key is released, and finally the [const b] key
+is pressed and released.
+
+[nl]
+The [const (] and [const )] characters are used to group a set of
+characters together. This is used for applying a key modifier to a
+sequence of characters. For example, the sequence
+[const +(abc)] will result in the following
+key stroke sequence being generated:
+[const SHIFT] is pressed and held down and then the keys [const a],
+[const b] and [const c] are pressed
+and released before the [const SHIFT] key is released.
+
+[nl]
+The [const \{] and [const \}] keys are used to indicate special keys
+such as function keys and to enter the special characters such as
+[const +]. Thus, [const "\{+\}"] will result in the key [const +]
+being pressed and released. Similarly, [const "\{(\}"] and [const "\{\}\}"]
+indicate the character [const "("] and [const "\}"] being entered.
+As a special case, the form [const "\{[arg C] [arg N]\}"] results
+in the character [arg C] being entered [arg N] times. Note that
+the character may be any character, not just a special character that
+needs to be escaped.
+[nl]
+The other use of the braced escape sequence is to enter special
+keys. These special sequences and the corresponding generated keystrokes are:
+[list_begin opt]
+[opt_def [const "\{BACKSPACE\}"]] Backspace
+[opt_def [const "\{BACK\}"]] (same as [const "\{BACKSPACE\}"])
+[opt_def [const "\{BS\}"]] (same as [const "\{BACKSPACE\}"])
+[opt_def [const "\{BKSP\}"]] (same as [const "\{BACKSPACE\}"])
+[opt_def [const "\{TAB\}"]] Tab
+[opt_def [const "\{CLEAR\}"]]
+[opt_def [const "\{ENTER\}"]] Enter key on the main keyboard
+[opt_def [const "\{RETURN\}"]] (same as [const "\{ENTER\}"])
+[opt_def [const "\{SHIFT\}"]] Shift (see note below on difference
+between this and use of the [const +] modifier).
+[opt_def [const "\{CONTROL\}"]] Shift (see note below on difference
+between this and use of the [const ^] modifier).
+[opt_def [const "\{ALT\}"]] Shift (see note below on difference
+between this and use of the [const %] modifier).
+[opt_def [const "\{MENU\}"]] (same as [const "\{ALT\}"])
+[opt_def [const "\{PAUSE\}"]] Pause
+[opt_def [const "\{BREAK\}"]] Break
+[opt_def [const "\{CAPSLOCK\}"]] Caps Lock
+[opt_def [const "\{CAPITAL\}"]] (same as [const "\{CAPSLOCK\}"])
+[opt_def [const "\{KANA\}"]]
+[opt_def [const "\{HANGEUL\}"]]
+[opt_def [const "\{HANGUL\}"]]
+[opt_def [const "\{JUNJA\}"]]
+[opt_def [const "\{FINAL\}"]]
+[opt_def [const "\{HANJA\}"]]
+[opt_def [const "\{KANJI\}"]]
+[opt_def [const "\{ESCAPE\}"]] Escape
+[opt_def [const "\{ESC\}"]] (same as [const "\{ESCAPE\}"])
+[opt_def [const "\{CONVERT\}"]]
+[opt_def [const "\{NONCONVERT\}"]]
+[opt_def [const "\{ACCEPT\}"]]
+[opt_def [const "\{MODECHANGE\}"]]
+[opt_def [const "\{SPACE\}"]] Spacebar
+[opt_def [const "\{PGUP\}"]] Page Up
+[opt_def [const "\{PRIOR\}"]] (same as [const "\{PGUP\}"])
+[opt_def [const "\{PGDN\}"]] Page Down
+[opt_def [const "\{NEXT\}"]] (same as [const "\{PGDN\}"])
+[opt_def [const "\{END\}"]] End
+[opt_def [const "\{HOME\}"]] Home
+[opt_def [const "\{LEFT\}"]] Left arrow
+[opt_def [const "\{UP\}"]] Up arrow
+[opt_def [const "\{RIGHT\}"]] Right arrow
+[opt_def [const "\{DOWN\}"]] Down arrow
+[opt_def [const "\{SELECT\}"]]
+[opt_def [const "\{PRTSC\}"]] Print Screen key
+[opt_def [const "\{PRINT\}"]] Print key
+[opt_def [const "\{EXECUTE\}"]]
+[opt_def [const "\{SNAPSHOT\}"]]
+[opt_def [const "\{INSERT\}"]] Insert
+[opt_def [const "\{INS\}"]] (same as [const "\{INSERT\}"])
+[opt_def [const "\{DELETE\}"]] Delete
+[opt_def [const "\{DEL\}"]] (same as [const "\{DELETE\}"])
+[opt_def [const "\{HELP\}"]] Help
+[opt_def [const "\{LWIN\}"]] Left Windows key
+[opt_def [const "\{RWIN\}"]] Right Windows key
+[opt_def [const "\{APPS\}"]]
+[opt_def [const "\{SLEEP\}"]]
+[opt_def [const "\{NUMPAD0\}"]] Numeric keypad 0
+[opt_def [const "\{NUMPAD1\}"]] Numeric keypad 1
+[opt_def [const "\{NUMPAD2\}"]] Numeric keypad 2
+[opt_def [const "\{NUMPAD3\}"]] Numeric keypad 3
+[opt_def [const "\{NUMPAD4\}"]] Numeric keypad 4
+[opt_def [const "\{NUMPAD5\}"]] Numeric keypad 5
+[opt_def [const "\{NUMPAD6\}"]] Numeric keypad 6
+[opt_def [const "\{NUMPAD7\}"]] Numeric keypad 7
+[opt_def [const "\{NUMPAD8\}"]] Numeric keypad 8
+[opt_def [const "\{NUMPAD9\}"]] Numeric keypad 9
+[opt_def [const "\{MULTIPLY\}"]] Numeric keypad *
+[opt_def [const "\{ADD\}"]] Numeric keypad +
+[opt_def [const "\{SEPARATOR\}"]]
+[opt_def [const "\{SUBTRACT\}"]] Numeric keypad -
+[opt_def [const "\{DECIMAL\}"]] Numeric keypad .
+[opt_def [const "\{DIVIDE\}"]] Numeric keypad /
+[opt_def [const "\{F1\}"]] Function key F1
+[opt_def [const "\{F2\}"]] Function key F2
+[opt_def [const "\{F3\}"]] Function key F3
+[opt_def [const "\{F4\}"]] Function key F4
+[opt_def [const "\{F5\}"]] Function key F5
+[opt_def [const "\{F6\}"]] Function key F6
+[opt_def [const "\{F7\}"]] Function key F7
+[opt_def [const "\{F8\}"]] Function key F8
+[opt_def [const "\{F9\}"]] Function key F9
+[opt_def [const "\{F10\}"]] Function key F10
+[opt_def [const "\{F11\}"]] Function key F11
+[opt_def [const "\{F12\}"]] Function key F12
+[opt_def [const "\{F13\}"]] Function key F13
+[opt_def [const "\{F14\}"]] Function key F14
+[opt_def [const "\{F15\}"]] Function key F15
+[opt_def [const "\{F16\}"]] Function key F16
+[opt_def [const "\{F17\}"]] Function key F17
+[opt_def [const "\{F18\}"]] Function key F18
+[opt_def [const "\{F19\}"]] Function key F19
+[opt_def [const "\{F20\}"]] Function key F20
+[opt_def [const "\{F21\}"]] Function key F21
+[opt_def [const "\{F22\}"]] Function key F22
+[opt_def [const "\{F23\}"]] Function key F23
+[opt_def [const "\{F24\}"]] Function key F24
+[opt_def [const "\{NUMLOCK\}"]] Numlock
+[opt_def [const "\{SCROLL\}"]] Scroll lock
+[opt_def [const "\{SCROLLLOCK\}"]] Scroll lock
+[opt_def [const "\{LSHIFT\}"]] Left Shift
+[opt_def [const "\{RSHIFT\}"]] Right Shift
+[opt_def [const "\{LCONTROL\}"]] Left Control
+[opt_def [const "\{RCONTROL\}"]] Right Control
+[opt_def [const "\{LALT\}"]] Left Alt
+[opt_def [const "\{LMENU\}"]] (same as [const "\{LALT\}"])
+[opt_def [const "\{RALT\}"]] Right Alt
+[opt_def [const "\{RMENU\}"]] (same as [const "\{RALT\}"])
+[opt_def [const "\{BROWSER_BACK\}"]] Back
+[opt_def [const "\{BROWSER_FORWARD\}"]] Forward
+[opt_def [const "\{BROWSER_REFRESH\}"]]
+[opt_def [const "\{BROWSER_STOP\}"]] Stop
+[opt_def [const "\{BROWSER_SEARCH\}"]] Search
+[opt_def [const "\{BROWSER_FAVORITES\}"]] Favorites
+[opt_def [const "\{BROWSER_HOME\}"]] Web Home
+[opt_def [const "\{VOLUME_MUTE\}"]]
+[opt_def [const "\{VOLUME_DOWN\}"]]
+[opt_def [const "\{VOLUME_UP\}"]]
+[opt_def [const "\{MEDIA_NEXT_TRACK\}"]]
+[opt_def [const "\{MEDIA_PREV_TRACK\}"]]
+[opt_def [const "\{MEDIA_STOP\}"]]
+[opt_def [const "\{MEDIA_PLAY_PAUSE\}"]]
+[opt_def [const "\{LAUNCH_MAIL\}"]]
+[opt_def [const "\{LAUNCH_MEDIA_SELECT\}"]]
+[opt_def [const "\{LAUNCH_APP1\}"]]
+[opt_def [const "\{LAUNCH_APP2\}"]]
+[list_end]
+
+Note that use of the braced sequences for the modifier keys such as
+[const SHIFT] is not the same as the corresponding special characters.
+For example, the string [const "\{SHIFT\}a"] results in the key sequence
+where the [const SHIFT] key is pressed and released [emph before] the
+[const a] key is pressed. The string [const +a] on the other hand results
+in a key sequence where the [const SHIFT] key is released [emph after]
+the [const a] is pressed and released.
+
+[nl]
+[uri sendmenuexit.example "Example: Send an exit command using menu shortcuts"]
+
+[call [cmd turn_mouse_wheel] [arg WHEELUNITS]]
+
+Generates input to simulate turning the wheel. A positive value of
+[arg WHEELUNITS] simulates forward rotation by the specified number
+of units, a negative value simulates backward rotation.
+
+[call [cmd unblock_input]]
+This command reverses the effect of a previous call to
+[uri \#block_input [cmd block_input]].
+[nl]The return value of [cmd unblock_input] is 1 if the input was previously
+blocked and 0 if the input was already unblocked.
+
+[call [cmd unregister_hotkey] [arg HOTKEY_ID]]
+Unregisters a hot key that was previously registered. [arg HOTKEY_ID] should
+be a hotkey identifer returned by a previous call to
+[uri \#register_hotkey [cmd register_hotkey]].
+
+[nl]
+[uri hotkey.example "Example: Start a program when a hotkey is pressed"]
+
+[list_end]
+
+[keywords windows "mouse input" "keyboard input" "input" "hotkeys" "idle time" "idle input"]
+
+[manpage_end]

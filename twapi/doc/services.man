@@ -1,0 +1,893 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Services" n ""]
+[copyright "2003-2008 Ashok P. Nadkarni"]
+[moddesc "Windows services configuration"]
+[titledesc "Commands for configuring and monitoring Windows services"]
+[require twapi]
+[description]
+[para]
+
+This module provides procedures for managing and controlling
+Windows services and also allows for writing Windows services
+in Tcl.
+
+[section "Service Configuration and Monitoring"]
+
+[para]
+The commands [uri \#get_service_internal_name [cmd get_service_internal_name]] and
+[uri \#get_service_display_name [cmd get_service_display_name]]
+map back and forth between the internal
+name and display name of a service.
+
+[para]
+The command [uri \#service_exists [cmd service_exists]]
+checks for the existence of a service while
+[uri \#get_service_state [cmd get_service_state]] returns its state.
+The commands [uri \#get_service_status [cmd get_service_status]],
+[uri \#get_multiple_service_status [cmd get_multiple_service_status]] and
+[uri \#get_dependent_service_status [cmd get_dependent_service_status]]
+retrieve status information for
+one or more services. [uri \#interrogate_service [cmd interrogate_service]]
+can be used to request
+a service to update its status with the service control manager (SCM).
+[para]
+Service configuration changes, including creation of new services
+and deletion of existing ones, can be done through the
+commands [uri \#create_service [cmd create_service]],
+[uri \#delete_service [cmd delete_service]] and
+[uri \#set_service_configuration [cmd set_service_configuration]].
+[para]
+The commands [uri \#start_service [cmd start_service]],
+[uri \#stop_service [cmd stop_service]], [uri \#pause_service [cmd pause_service]]
+and [uri \#continue_service [cmd continue_service]]
+control the run state of a service.
+
+[section "Writing services in Tcl"]
+The command
+[uri #run_as_service [cmd run_as_service]]
+allows an application to run as a Windows service.
+Services are implemented as callback handlers that are invoked in response
+to control signals received from the system. These signals include
+controls to stop the service, to pause and continue, or may be notifications
+of events such as session changes. The list of such signals and their
+handling is detailed in [uri #run_as_service [cmd run_as_service]].
+
+[para]
+While running as a service, applications
+need can update their status with the SCM, either asynchronously or in
+response to control signals. This can be done through
+[uri #update_service_status [cmd update_service_status]].
+
+
+
+
+[section "Standard Options"]
+Most commands allow the following options to be specified:
+
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+Specifies the name of the system on which the command should be invoked.
+By default, this is the local system.
+
+[opt_def [cmd -database] [arg DATABASE]]
+Specifies the service control database to be operated on.
+By default, this is the active service control database on the target system.
+[list_end]
+
+[section "Commands"]
+
+[list_begin definitions]
+
+[call [cmd continue_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command resumes the specified service which must be in a paused state.
+[arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name.
+The command returns 1
+if the service has resumed to a running state
+when the command completes and 0 otherwise.
+Note that a return value of 0 does not imply an error, just that the service
+had not completely resumed by the time the command returned.
+
+[nl]
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+In addition, if the option "[cmd -wait] [arg MILLISECONDS]" is specified
+the command will wait until the service is running or until
+[arg MILLISECONDS] milliseconds have expired.
+
+[call [cmd create_service] [arg INTERNAL_SERVICE_NAME] [arg COMMAND] \
+     [opt [arg options]]]
+
+This command creates a new Windows service in the service control
+manager database.
+[nl]
+[arg INTERNAL_SERVICE_NAME] is the internal
+name by which the service is identified by the service control manager.
+[nl]
+[arg COMMAND] contains the system command to be executed to start the
+service. This includes the path to the executable as well as arguments
+to be passed to it. If the path contains spaces, it must be
+specifically quoted else the operating system will interpret all
+characters after the first space as arguments to be passed to the
+service. For example,
+[example {"\"C:\\Program Files\\MyService\\service.exe\" arg1 arg2"}]
+
+In addition to the [sectref "Standard Options"], the following
+additional options may be specified which control various aspects of
+the service:
+[list_begin opt]
+[opt_def [cmd -displayname] [arg DISPLAYNAME]]
+Specifies the user visible name for the service. This is the name that
+is shown in the [syscmd "net start"] command and the SCM control panel applet.
+[opt_def [cmd -servicetype] [arg SERVICETYPE]]
+Specifies the service type and may have one of the following values:
+[list_begin opt]
+[opt_def [const win32_own_process]] Service that runs in its own process. This
+corresponds to the [const SERVICE_WIN32_OWN_PROCESS] in the Windows
+SDK documentation. This is the default if the option is not specified.
+
+[opt_def [const win32_shared_process]] Service that runs inside a
+process shared
+with other services. This corresponds to the
+[const SERVICE_WIN32_SHARED_PROCESS] in the Windows SDK documentation.
+
+[opt_def [const file_system_driver]] File system driver. This
+corresponds to the
+[const SERVICE_FILE_SYSTEM_DRIVER] in the Windows SDK documentation.
+
+[opt_def [const kernel_driver]] Kernel driver. This corresponds to the
+[const SERVICE_KERNEL_DRIVER] in the Windows SDK documentation.
+[list_end]
+[opt_def [cmd -interactive] [arg BOOLEAN]]
+This option specifies whether the service should be allowed to interact
+with the desktop. This is only valid when [cmd -servicetype] is
+specified to be [const win32_own_process]
+or [const win32_shared_process]. The [cmd -account]
+option must not be used with this option since interactive services must
+run under the
+[const LocalSystem] account.
+
+[opt_def [cmd -starttype] [arg STARTTYPE]]
+Specifies how the service is to be started. [arg STARTTYPE] should
+have one of the following values:
+
+[list_begin opt]
+
+[opt_def [const auto_start]] The service should be
+automatically started by the service control manager during system
+startup. This is the default if the option is not specified.
+
+[opt_def [const boot_start]] The service should be
+automatically started by the system loader during system boot. This is
+only valid when [cmd -servicetype] is specified to be [const kernel_driver]
+or [const file_system_driver].
+
+[opt_def [const demand_start]] The service should be started
+by the system upon receiving an explicit program request.
+
+[opt_def [const disabled]] The service is disabled and cannot be
+started even on program request.
+
+[opt_def [const system_start]] The service is a driver that is started by
+the operating system [cmd IoInitSystem] function during system
+initialization. This is only valid when [cmd -servicetype] is
+specified to be [const kernel_driver] or [const file_system_driver].
+[list_end]
+
+[opt_def [cmd -errorcontrol] [arg ERRORCONTROLMODE]]
+This option specifies how errors during service start are to be
+handled. [arg ERRORCONTROLMODE] may have one of the following values:
+
+[list_begin opt]
+
+[opt_def [const ignore]] An error message will be logged to the
+Windows event log. The system startup will continue.
+
+[opt_def [const normal]] An error message will be logged to the
+Windows event log and a popup displayed to the user. The system
+startup will continue. This is the default.
+
+[opt_def [const severe]] An error message will be logged to the
+Windows event log. The system startup will continue only if the last
+known good configuration is active. Otherwise, the system is restarted
+with the last known good configuration.
+
+[opt_def [const critical]] An error message will be logged to the
+Windows event log if possible. If the last known good configuration is
+active, the system startup is aborted. Otherwise, the system is restarted
+with the last known good configuration.
+
+[list_end]
+
+[opt_def [cmd -loadordergroup] [arg GROUPNAME]]
+Specifies [arg GROUPNAME] to be the service load order group to which
+the service belongs. If the option is not specified, the service is
+assumed to not belong to any load order group.
+
+[opt_def [cmd -dependencies] [arg DEPENDENCYLIST]]
+Specifies the services and service load order groups that are required
+by this service and that must start before this service.
+[arg DEPENDENCYLIST] is a list of service names and load order
+groups. A load order group name must be prefixed with a [const +] character
+to indicate that it is a group name and not a service.
+
+[opt_def [cmd -account] [arg ACCOUNTNAME]]
+Specifies [arg ACCOUNTNAME] to be the user account under which the
+service should run. [arg ACCOUNTNAME] takes the form [arg domain\\username].
+If the account is a local account, [arg ACCOUNTNAME] may be specified
+as [arg .\\username] or [arg username].
+
+If this option is not specified, the service will run under the
+[const LocalSystem] account.
+
+When [cmd -servicetype] is
+[const kernel] or [const filesystem], [arg ACCOUNTNAME] should be the
+name of the driver object that the system uses to load the driver.
+
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies the password corresponding to the user account specified in
+the [cmd -account] option.
+This option is ignored if the [cmd -account] option is not specified.
+[list_end]
+[uri installservice.example "Example: Install a service"]
+[nl]
+
+[call [cmd delete_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command deletes the specified service from the service control
+manager database. [arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+[nl]
+[uri uninstallservice.example "Example: Uninstall a service"]
+
+[call [cmd get_dependent_service_status] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+Retrieves the status of services that are dependent on
+[arg INTERNAL_SERVICE_NAME] and that match a specified service
+state. The standard options described in
+[sectref "Standard Options"] may be specified with this command. In addition,
+the following options may be specified to only include services
+in a given state. If neither of these is
+specified, services in all states are included in the returned list.
+[list_begin opt]
+[opt_def -inactive] Specifying this option will result in inclusion of services
+that are in the [const stopped] state.
+[opt_def -active] Specifying this option will result in inclusion of services
+that are not in the [const stopped] state.
+[list_end]
+
+The command returns a list of alternating elements, the first being the
+internal name of the service, and the second being a keyed list that describes
+a single service. The format of this keyed list
+is identical to that returned
+by the [uri \#get_multiple_service_status [cmd get_multiple_service_status]].
+[nl]
+[uri restartservice.example "Example: Stop and restart a service"]
+[nl]
+[uri showservicedependents.example "Example: Show the dependents of a service"]
+
+[call [cmd get_multiple_service_status] [opt [arg options]]]
+Retrieves the status of multiple services matching the specified service type
+and/or state. The standard options described in
+[sectref "Standard Options"] may be specified with this command. In addition,
+the options may be specified to only include services of a given
+type and in a given state.
+[nl]
+
+One or more from the following service type options may be specified to limit
+the types of services that are included in the returned list:
+[cmd -kernel_driver], [cmd -file_system_driver], [cmd -win32_own_process],
+[cmd -win32_share_process], [cmd -adapter] or [cmd -recognizer_driver]. See
+the description of the
+[cmd -servicetype] option in the
+[uri \#create_service [cmd create_service]] command
+for the semantics of
+these values. If no service type options are specified, all types
+of services are included in the returned list.
+[nl]
+
+One of the following options may be specified to limit
+the returned services to those in a specific state.
+If neither of these is
+specified, services in all states are included in the returned list.
+
+[list_begin opt]
+[opt_def -inactive] Specifying this option will result in inclusion of services
+that are in the [const stopped] state.
+[opt_def -active] Specifying this option will result in inclusion of services
+that are not in the [const stopped] state.
+[list_end]
+The command returns a list of alternating elements, the first being the
+internal name of the service, and the second being a keyed list that describes
+a single service. The format of the sublist is
+a keyed list of the form [arg "field1 value1 ..."]
+with the following fields:
+
+[list_begin opt]
+
+[opt_def [const attrs]] Contains a list of attributes. Currently, the only
+attribute that may appear in this list is [const systemprocess] which
+indicates that the service runs in a system process that must alway be
+running.
+
+[opt_def [const checkpoint]] Contains the last checkpoint value
+reported by the service during a lengthy operation.
+
+[opt_def [const controls_accepted]] Contains a bitmask indicating the
+control commands accepted by the service. Refer to the Windows SDK
+documentation for [syscmd ControlService] for details.
+
+[opt_def [const displayname]] Indicates the user visible name of the service
+
+[opt_def [const exitcode]] The last exit code of the service. If this
+value is 1066, a service specific error code is returned in the
+[const service_code] field.
+
+[opt_def [const interactive]] Indicates whether the service is
+allowed to interact with the desktop ([const 1]) or not ([const 0]).
+
+[opt_def [const name]] Indicates the internal name of the service
+
+[opt_def [const pid]] The PID of the process in which the service is running.
+If the service is currently stopped, this will be 0. A value of -1 indicates
+that the process id of the service cannot be determined.
+
+[opt_def [const service_code]] In case the [const exitcode]
+field contains 1066, this field contains a service specific code
+stored by the service.
+
+[opt_def [const servicetype]] Indicates the type of the service, and
+is one of [const win32_own_process], [const win32_share_process],
+[const kernel_driver], [const file_system_driver], [const adapter],
+[const recognizer_driver] or an integer denoting the type if not one
+of the above.
+
+[opt_def [const state]] Contains the latest reported status of the
+service and may have one of the values [const stopped], [const start_pending],
+[const stop_pending], [const running], [const continue_pending],
+[const pause_pending], [const paused] or an
+integer value indicating the status of the service if not one of the above.
+
+[opt_def [const wait_hint]] Estimated time required to complete an
+start, stop, pause or continue operation as last reported by the service.
+[list_end]
+[uri showrunningservices.example "Example: Show currently running Windows services"]
+[nl]
+[uri showautostartservices.example "Example: Show Windows services that start automatically"]
+[nl]
+
+[call [cmd get_service_configuration] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+This command returns the current configuration data for the specified service.
+[arg INTERNAL_SERVICE_NAME] is the internal
+name by which the service is identified by the service control manager.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+
+[nl]
+The return value is a flat
+list of the form [arg "option1 value1 ..."] that can
+be directly passed to the
+[uri \#set_service_configuration [cmd set_service_configuration]]
+command. The returned values depend on
+which of the following options are specified:
+
+[list_begin opt]
+
+[opt_def [const -all]] Returns all option values
+
+[opt_def [const -description]] Returns description of the service if available,
+otherwise the empty string.
+
+[opt_def [const -displayname]] Returns the user visible name of the
+service.
+
+[opt_def [const -errorcontrol]]
+Returns an indication of how errors during service startup will be handled.
+See description of [uri \#create_service [cmd create_service]] for details.
+
+[opt_def [const -servicetype]] Returns the service type.
+See description of [uri \#create_service [cmd create_service]] for details.
+
+[opt_def [const -interactive]] Returns [const 1] if the service is
+allowed to interact with the desktop and [const 0] otherwise.
+
+[opt_def [const -loadordergroup]]
+Returns the name of the service load order group to which
+the service belongs.
+
+[opt_def [const -dependencies]]
+Returns a list of names of services and service
+load order groups that are required
+by this service and that must start before this service.
+
+[opt_def [const -account]]
+Returns the user account under which the service runs.
+
+[opt_def [const -starttype]]
+See description of [cmd create_service] for details.
+
+[opt_def [const -command]]
+Returns the command, including the executable name and parameters,
+that is invoked to run the Windows service.
+
+[list_end]
+[uri showautostartservices.example "Example: Show Windows services that start automatically"]
+[nl]
+[uri showservicedependencies.example "Example: Show the services that a specified service depends on"]
+[nl]
+[call [cmd get_service_display_name] [arg SERVICE_NAME] [opt [arg options]]]
+
+This command returns the display name of the specified service. If
+[arg SERVICE_NAME] is the display name of a service, it is
+returned. If it is the internal name of a service, the corresponding
+display name is returned. Otherwise, an error is raised.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+
+[call [cmd get_service_internal_name] [arg SERVICE_NAME] [opt [arg options]]]
+
+This command returns the internal name of the specified service. If
+[arg SERVICE_NAME] is the internal name of a service, it is
+returned. If it is the display name of a service, the corresponding
+internal name is returned. Otherwise, an error is raised.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+
+
+[call [cmd get_service_state] [arg INTERNAL_SERVICE_NAME]]
+Returns the last reported state of the service. See the description of
+the [const state] field for the command
+[uri \#get_service_status [cmd get_service_status]] for
+possible values.
+
+[call [cmd get_service_status] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command returns the latest status information sent by the given
+service to the service control manager.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+
+The return value is a flat
+list of the form [arg "field1 value1 ..."].
+
+The following fields are returned:
+
+[list_begin opt]
+
+[opt_def [const attrs]] Contains a list of attributes. Currently, the only
+attribute that may appear in this list is [const systemprocess] which
+indicates that the service runs in a system process that must alway be
+running.
+
+[opt_def [const controls_accepted]] Contains a bitmask indicating the
+control commands accepted by the service. Refer to the Windows SDK
+documentation for [syscmd ControlService] for details.
+
+[opt_def [const exitcode]] The last exit code of the service. If this
+value is 1066, a service specific error code is returned in the
+[const service_code] field.
+
+[opt_def [const interactive]] Indicates whether the service is
+allowed to interact with the desktop ([const 1]) or not ([const 0]).
+
+[opt_def [const servicetype]] Indicates the type of the service, and
+is one of [const win32_own_process], [const win32_share_process],
+[const kernel_driver], [const file_system_driver], [const adapter],
+[const recognizer_driver] or an integer denoting the type if not one
+of the above.
+
+[opt_def [const state]] Contains the latest reported status of the
+service and may have one of the values [const stopped], [const start_pending],
+[const stop_pending], [const running], [const continue_pending],
+[const pause_pending], [const paused] or an
+integer value indicating the status of the service if not one of the above.
+
+[opt_def [const service_code]] In case the [const exitcode]
+field contains 1066, this field contains a service specific code
+stored by the service.
+
+[opt_def [const checkpoint]] Contains the last checkpoint value
+reported by the service during a lengthy operation.
+
+[opt_def [const wait_hint]] Estimated time required to complete an
+start, stop, pause or continue operation as last reported by the service.
+
+[opt_def [const pid]] The PID of the process in which the service is running.
+If the service is currently stopped, this will be 0. A value of -1 indicates
+that the process id of the service cannot be determined (NT 4.0).
+
+[list_end]
+
+[call [cmd interrogate_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command asks the specified service to update the service control
+manager with its current status.
+[arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name.
+The standard options described in
+[sectref "Standard Options"] may be specified with this command.
+
+[call [cmd pause_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command pauses the specified service.
+[arg INTERNAL_SERVICE_NAME] is the internal
+name of the service, not the display name.
+The command returns 1
+if the service is paused when the command completes and 0 otherwise.
+Note that a return value of 0 does not imply an error, just that the service
+had not completely changed to a paused state by the time the command returned.
+A Tcl error is generated if the service was not running.
+[nl]
+The options described in
+[sectref "Standard Options"] may be specified with this command.
+In addition, if the option "[cmd -wait] [arg MILLISECONDS]" is specified
+the command will wait until the service is paused or until
+[arg MILLISECONDS] milliseconds have expired.
+
+[call [cmd run_as_service] [arg SERVICES] [opt "[cmd -interactive] [arg BOOLEAN]"] [opt "[cmd -controls] [arg CONTROLLIST]"]]
+This command sets up the mechanisms that allow a Tcl application
+to act as a Windows service. It must be only called when the application
+is started by the Windows SCM as a Windows service, else it will fail
+silently. The command does not return until the service is ready to exit.
+Rather, it invokes the service handlers that implement each service in
+response to notifications received from the system as described below.
+
+[nl]
+[arg SERVICES] is a list of
+[arg "SERVICENAME HANDLER"] pairs that describe the services that
+will run in the process. Note a single process may host multiple services.
+[arg SERVICENAME] is the internal name
+of a service. [arg HANDLER] is a script that will be invoked
+for that service in response
+to various system notifications as described below.
+[nl]
+The option [cmd -interactive]
+indicates whether the services running in the application will
+require interaction with the desktop.
+
+[nl] The option [cmd -controls] configures what controls messages from the
+system, signals and 
+notifications, are understood
+by the services. The SCM will restrict itself to sending only these
+although for robustness it is recommended that all services gracefully handle
+all signals as described below.
+Note that it is not possible to specify different
+values for this on a per-service basis. By default, [arg CONTROLLIST]
+includes control signals [const stop] and [const shutdown]. Note
+the notification [cmd start] is implicit and must be handled by every 
+service.
+
+[nl] When the application is started by the SCM, it should perform its basic
+application-wide initialization and then call
+[uri #run_as_service [cmd run_as_service]]. The command will then set up
+the communication mechanisms with the SCM and register
+the specified services. The control signals sent by the SCM to
+the service are passed on to the [arg HANDLER]
+script registered for the service by the application.
+
+[nl] The messages sent to a service fall into two categories - control
+signals and notifications. Control signals generally require the service
+to take some action, often a state change such as stopping or pausing
+the service. Notifications are generally of an informational nature
+to apprise the service of some system event such as session changes
+or power events.
+
+[nl]
+There are five controls signals sent by the SCM to control the state
+of a service. These correspond to the tokens
+[const start], [const stop], [const shutdown], 
+[const pause] and [const continue]. For
+each of these,
+[arg HANDLER] is invoked with four additional
+arguments. The first is control signal token itself. The second
+is the name of the service for which the control was sent and
+should match (ignoring case) the corresponding the [arg SERVICENAME] values
+passed to [cmd run_as_service]. The third argument is a sequence number
+(more on this later). The fourth argument is
+a numeric value that is the actual value of the control
+signal sent by the SCM.
+[list_begin opt]
+[opt_def [const start]]
+Sent to start the service.
+[opt_def [const stop]]
+Sent to stop the service.
+[opt_def [const pause]]
+Sent to pause the service without terminating it.
+This is only received if [const pause_continue] has been specified
+as an element in the [cmd -controls] option. 
+[opt_def [const continue]]
+Sent to contiue a service that was previously paused.
+This is only received if [const pause_continue] has been specified
+as an element in the [cmd -controls] option. 
+[opt_def [const shutdown]]
+Sent to indicate the system is shutting down. Should be treated similar
+to [const stop]. 
+[opt_def [const interrogate]]
+Sent to enquire about the service status. TWAPI handles this internally
+and never actually sends this to the application.
+[list_end]
+
+[nl]
+In response to a control signal, the handler must take whatever action
+necessary and then notify the SCM by calling
+[uri #update_service_status [cmd update_service_status]], passing
+it new the process state. For example, in response to a [const pause]
+control, the application may take whatever actions required to
+temporarily pause the service operation and then respond by passing
+the [const paused] state to
+[uri #update_service_status [cmd update_service_status]]. Alternatively,
+if the service cannot be paused for whatever reason, it may
+respond by passing the state [const running]. Refer to
+[uri #update_service_status [cmd update_service_status]]
+for details on valid responses.
+[emph "It is very important to correctly notify the service control manager of the state change."]
+
+[nl]
+The application must respond to every control notification with a
+corresponding call to
+[uri #update_service_status [cmd update_service_status]].
+There is no hard time limit during which this call must be made but
+it is a good idea not to delay the response too long.
+[uri #update_service_status [cmd update_service_status]]
+can be either invoked from the handler itself or scheduled at some
+later point after the necessary actions have been taken by the application.
+During this time, TWAPI may internally send responses to the SCM
+essentially asking it to keep waiting for an answer without timing out.
+
+[nl]
+Because multiple controls may be received from the SCM before previous
+controls have been fully processed, and to allow for asynchronous responses
+from the application, a sequence number is passed as the third argument
+to the callback. When the application responds using
+[uri #update_service_status [cmd update_service_status]],
+this sequence number should be passed to the call. When responses
+are made out-of-order, those with older sequence numbers will
+be ignored.
+
+[nl]
+In addition to the above control signals that may be sent by the SCM,
+it may also send notifications to the service to inform it of system events.
+These are passed on to the appropriate service callback handler in the
+same fashion as the control signals. Unlike for control signals,
+the application need not, and generally should not, respond with a
+call to update status.
+
+[nl]
+In addition to the four arguments
+described for control signals, some notifications may have additional
+arguments. The various notifiations are shown in the able below.
+
+[list_begin opt]
+
+[opt_def [const all_stopped]]
+The [const all_stopped] notification is sent to the last running service
+in the application when all other services in the
+process have been stopped. The application should normally clean up
+and exit when this control is received. The remaining arguments
+passed to the handler are either empty strings or [const 0] and
+should not be used. This notification is internally generated by TWAPI
+and not sent by the system.
+
+[opt_def [const hardwareprofilechange]]
+Notifies the application that the system hardware profile has changed.
+This is only received if [const paramchange] has been specified as an element 
+in the [cmd -controls] option.
+
+[opt_def [const paramchange]]
+Notifies the application that one of its configuration parameters has
+changed and it should re-read its service information from the Windows
+registry.
+This is only received if [const paramchange] has been specified as an element 
+in the [cmd -controls] option to indicate to the service manager that
+the service can read and change its configuration while running.
+
+[opt_def [const netbindadd]]
+Refer to the Windows SDK.
+This is only received if [const netbindchange] has been specified as an element 
+in the [cmd -controls] option. 
+[opt_def [const netbinddisable]]
+Refer to the Windows SDK.
+This is only received if [const netbindchange] has been specified as an element 
+in the [cmd -controls] option. 
+[opt_def [const netbindenable]]
+Refer to the Windows SDK.
+This is only received if [const netbindchange] has been specified as an element 
+in the [cmd -controls] option. 
+[opt_def [const netbindremove]]
+Refer to the Windows SDK.
+This is only received if [const netbindchange] has been specified as an element 
+in the [cmd -controls] option. 
+
+[opt_def [const powerevent]]
+This notifies the application of a change in the power status of the system. 
+This is only received if
+[const powerevent] has been specified as an element in the [cmd -controls]
+option. In addition to the standard arguments, an additional argument is 
+appended detailing the nature of the change. This may be one of
+[const apmsuspend], [const apmstandby], 
+[const apmresumecritical], 
+[const apmresumesuspend], 
+[const apmresumestandby], 
+[const apmbatterylow],
+[const apmpowerstatuschange],
+[const apmoemevent], or
+[const apmresumeautomatic].
+
+[opt_def [const sessionchange]]
+Notifies that a session change event has occurred. This is only received
+if [const sessionchange] has been specified as an element in the [cmd -controls]
+option. In addition to the
+standard arguments, two additional arguments are appended. The first
+of these indicates the nature of the session change and is one of
+[const console_connect],
+[const console_disconnect],
+[const remote_connect],
+[const remote_disconnect],
+[const session_login],
+[const session_logoff],
+[const session_lock],
+[const session_unlock] or
+[const session_remote_control].
+
+[nl] The second additional argument is the session identifier for which
+the event is being reported.
+
+[opt_def [const user_defined]]
+The [const userdefined]
+control is strictly application-dependent and not used by the SCM.
+User defined controls can be sent to a service using command line
+utilities such as the Windows [cmd sc] program.
+The standard four arguments are passed on except that
+the fourth argument, the numeric value of the control, will vary within
+the range 128-255 and can be used by the application
+to distinguish between different signals.
+
+[list_end]
+
+[nl]
+Running as a service requires a threaded build of Tcl. An exception will
+be raised on non-threaded builds.
+
+[call [cmd service_exists] [arg SERVICE_NAME] [opt [arg options]]]
+
+This command returns 1 or 0 depending on whether a service with
+the specified name exists or
+not. [arg SERVICE_NAME] may be either the internal name of the service
+or the display name. The options described in
+[sectref "Standard Options"] may be specified with this command.
+
+[call [cmd set_service_configuration] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+This command allows modification of configuration data for the service
+specified by [arg INTERNAL_SERVICE_NAME]. In addition to
+the options described in
+[sectref "Standard Options"], the following options may be specified to set
+configuration data. The values for any unspecified options will remain
+unchanged.
+
+[list_begin opt]
+[opt_def [cmd -displayname] [arg DISPLAYNAME]]
+Specifies the user visible name for the service. This is the name that
+is shown in the [syscmd "net start"] command and the SCM control panel applet.
+[opt_def [cmd -command] [arg COMMAND]]
+[arg COMMAND] contains the system command to be executed to start the
+service. See description of [uri \#create_service [cmd create_service]]
+for details.
+[opt_def [cmd -servicetype] [arg SERVICETYPE]]
+Specifies the service type.
+See description of [uri \#create_service [cmd create_service]] for details.
+[opt_def [cmd -interactive] [arg BOOLEAN]]
+This option specifies whether the service should be allowed to interact
+with the desktop.
+See description of this option in command
+[uri \#create_service [cmd create_service]] for details.
+[opt_def [cmd -starttype] [arg STARTTYPE]]
+Specifies how the service is to be started.
+See description of this option in command
+[uri \#create_service [cmd create_service]]
+for valid values for [arg STARTTYPE].
+[opt_def [cmd -errorcontrol] [arg ERRORCONTROLMODE]]
+This option specifies how errors during service start are to be
+handled.
+See description of this option in command
+[uri \#create_service [cmd create_service]]
+for valid values for [arg ERRORCONTROL].
+[opt_def [cmd -loadordergroup] [arg GROUPNAME]]
+Specifies [arg GROUPNAME] to be the service load order group to which
+the service belongs. If the option is not specified, the service is
+assumed to not belong to any load order group.
+[opt_def [cmd -dependencies] [arg DEPENDENCYLIST]]
+Specifies the services and service load order groups that are required
+by this service and that must start before this service.
+See description of this option in command
+[uri \#create_service [cmd create_service]] for details.
+[opt_def [cmd -account] [arg ACCOUNTNAME]]
+Specifies [arg ACCOUNTNAME] to be the user account under which the
+service should run.
+See description of this option in command
+[uri \#create_service [cmd create_service]] for details.
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies the password corresponding to the user account specified in
+the [cmd -account] option.
+This option is ignored if the [cmd -account] option is not specified.
+[list_end]
+
+[nl]
+[uri changeserviceaccount.example "Example: Change a Windows service account"]
+[nl]
+
+[call [cmd start_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command starts the specified service if it is not already running.
+[arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name.
+The command returns 1
+if the service is up and running when the command completes and 0 otherwise.
+Note that a return value of 0 does not imply an error, just that the service
+had not completely started by the time the command returned.
+[nl]
+The options described in
+[sectref "Standard Options"] may be specified with this command.
+In addition, if the option "[cmd -wait] [arg MILLISECONDS]" is specified
+the command will wait until the service is running or until
+[arg MILLISECONDS] milliseconds have expired.
+[nl]
+[uri restartservice.example "Example: Stop and restart a service"]
+
+[call [cmd stop_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+
+This command stops the specified service if it is currently running.
+[arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name.
+The command returns 1
+if the service has stopped by the time the command completes and 0 otherwise.
+Note that a return value of 0 does not imply an error, just that the service
+had not completely stopped by the time the command returned.
+[nl]
+The options described in
+[sectref "Standard Options"] may be specified with this command.
+In addition, if the option "[cmd -wait] [arg MILLISECONDS]" is specified
+the command will wait until the service is stopped or until
+[arg MILLISECONDS] milliseconds have expired.
+
+[nl]
+[uri restartservice.example "Example: Stop and restart a service"]
+
+[call [cmd update_service_status] [arg SERVICENAME] [arg SEQNO] [arg STATE] [opt [arg options]]]
+This command should be called by applications, running as a Windows service,
+to update their status information with the Windows service control
+manager (SCM). The command may be called asynchronously at any time, but
+is most often called in response to a control notification from
+the SCM requesting a state change. See
+[uri #run_as_service [cmd run_as_service]] for more detail.
+
+[nl]
+[arg SERVICENAME] is the name of the service whose status is being updated.
+
+[nl]
+[arg SEQ] is the sequence number of the control notification to which
+this is the response. See the discussion in the
+[uri #run_as_service [cmd run_as_service]] documentation. If the call
+is not in response to a control notification, [arg SEQ] should be set
+to 0.
+
+[nl]
+[arg STATE] is the of the application and should be one of the values
+[const stopped], [const running] or [const paused]. Note that an application
+can stop at any time, but should not generally change state to
+[const running] or [const paused] on its own without a control
+notification from the SCM. Doing so will in all likelihood confuse
+the SCM manager sufficiently to make the service unmanageable.
+
+[nl]
+If the service state being specified is [const stopped], the application
+may also indicate a standard Windows exit code and a service-specific
+exit code by specifying their values through the options
+[cmd -exitcode] and [cmd -servicecode] respectively.
+
+[list_end]
+
+[keywords services "Windows services" "service control manager" SCM]
+
+[manpage_end]

@@ -1,0 +1,13 @@
+# TWAPI example
+# Generate a continuous tone
+# Usage example: tclsh beep.example [MILLISECONDS]
+
+package require twapi
+
+if {$argc == 0} {
+    set duration 100
+} else {
+    set duration [lindex $argv 0]
+}
+
+twapi::beep -duration $duration

@@ -1,0 +1,207 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Miscellaneous" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Miscellaneous commands"]
+[titledesc "Various TWAPI ancillary commands"]
+[require twapi]
+[description]
+[para]
+
+This module provides miscellaneous utility commands.
+[para]
+[uri \#get_version [cmd get_version]] returns TWAPI version information. 
+[uri #export_public_commands [cmd export_public_commands]] and
+[uri #import_commands [cmd import_commands]] enable export and import
+of commands defined in the TWAPI namespace.
+[uri \#parseargs [cmd parseargs]] parses an argument list based on specified options.
+[uri \#get_command_line [cmd get_command_line]]
+retrieves the command line passed to the process.
+[uri \#get_command_line_args [cmd get_command_line_args]]
+ parses a command line using Windows conventions.
+The command [uri \#expand_environment_strings [cmd expand_environment_strings]]
+replaces environment variables
+in a string with their values. [uri \#format_message [cmd format_message]]
+formats a operating system
+or application message.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd expand_environment_strings] [arg STRING]]
+Returns the string formed by replacing all environment variable references in
+[arg STRING] with their values. Environment variable references are in the
+form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
+are not replaced.
+
+[call [cmd export_public_commands]]
+Export public commands in the [cmd twapi::] namespace.
+The commands in the [cmd twapi::] namespace are not exported by default.
+
+[call [cmd format_message] [opt [arg options]]]
+Formats and returns
+a message string based on a format string. The format string may be
+directly supplied, obtained from a loaded library
+or module, or the system message tables. The format string may contain
+format insert specifiers of the form [arg %N] where N is a number
+between 1 and 99. The format specifier is replaced by the corresponding
+positional parameter. The format specifier [const %0] is treated
+specially as indicating that a newline character is not to be appended
+to the result.
+See [cmd FormatMessage] in the Windows SDK for more details regarding this
+command including format specifiers.
+The command takes the following options:
+[list_begin opt]
+[opt_def [cmd -module] [arg MODULE]]Specifies that the format string is to be
+loaded from the module identified by [arg MODULE]. [arg MODULE] may either
+be a handle returned from a command such as [cmd load_library] or the path
+to a DLL. If this
+option is specified, options [cmd -messageid] and [cmd -langid] must also
+be specified.
+This option cannot be used with the [cmd -fmtstring] option.
+[opt_def [cmd -fmtstring] [arg FORMATSTRING]]Specifies that
+[arg FORMATSTRING] should be used as the format string for the message.
+Cannot be used with the [cmd -module] option.
+[opt_def [cmd -messageid] [arg MESSAGEID]]Specifies the message identifier
+of the format string.
+This option cannot be used with the [cmd -fmtstring] option.
+[opt_def [cmd -langid] [arg LANGID]]Specifies the language identifier
+to be used in constructing the message.
+This option cannot be used with the [cmd -fmtstring] option.
+[opt_def [cmd -includesystem]]Specifies that the system message tables
+should also be searched in addition to the message tables in the
+module specified by [cmd -module].
+This option cannot be used with the [cmd -fmtstring] option.
+[opt_def [cmd -params] [arg PARAMLIST]]Specifies a list of positional
+parameters that are to be used to replace the [arg %N] format insert
+sequences in the format string. If the number of parameters does not match
+the number of escape sequences, a Tcl exception may be generated unless
+the [cmd -ignoreinserterrors] is specified.
+[opt_def [cmd -ignoreinserterrors]] Normally, a Tcl exception is raised
+if the number of parameters specified through the [cmd -params] option
+does not match the [arg %N] specifiers in the format string. If
+this option is specified, instead of generating an exception, the command
+behaves as though [cmd -ignoreinserts] was specified.
+[opt_def [cmd -ignoreinserts]]If specified, the [arg %N] format insert
+sequences are not replaced in the returned string.
+[opt_def [cmd -width] [arg MAXLINEWIDTH]]By default, the returned string
+contains the same line breaks as in the original format string. The
+[cmd -width] option may be used to control the maximum line width in the
+created message. If [arg MAXLINEWIDTH] is between 1 and 255, the command
+will insert line end characters
+at appropriate points in the message. In this case,
+line end characters in the original message are ignored. However, hard coded
+line end characters, specified as [const %n] in the format string are kept.
+A negative value of [arg MAXLINEWIDTH] also ignores line end characters
+while keeping the hard coded [const %n] line end specifiers, but does
+not insert and line end characters to limit the line length. A
+value of 0 for [arg MAXLINEWIDTH] is identical to the default behaviour.
+[list_end]
+
+[call [cmd get_command_line]]
+
+Returns the command line of the current process. This may be passed to the
+[uri \#get_command_line_args [cmd get_command_line_args]]
+function to split the line into arguments.
+
+[call [cmd get_command_line_args] [arg COMMANDLINE]]
+
+Parses [arg COMMANDLINE] as per Windows command line conventions and returns
+a list of the parsed arguments. The main advantage of this over using
+the [cmd argv] and [cmd argv0] variables in [cmd tclsh] and [cmd wish] is
+that this call will correctly handle Unicode arguments.
+
+[call [cmd get_version] [opt [cmd -patchlevel]]]
+Without any arguments, the command returns the major/minor TWAPI version
+number in the form [arg MAJOR.MINOR]. If the option [cmd -patchlevel] is
+specified, the returned string includes patchlevel and release information
+similar to the Tcl [cmd "info patchlevel"] command, for example,
+[const 1.0.2] for final release of version 1.0 patch 2,
+[const 1.0b3] for the third beta release of version 1.0 and
+[const 1.0a3] for the third alpha release of version 1.0.
+
+[call [cmd import_commands]]
+Imports all public commands in the [cmd twapi::] namespace into the caller's
+namespace.
+
+[call [cmd large_system_time_to_secs_since_1970] [arg SYSTEMTIMEVALUE] [opt BOOLEAN]]
+Some Windows functions return time as the number of 100 nanosecond units
+since Jan 1, 1601. The command converts such time values to seconds since
+the epoch Jan 1, 1970. If [arg BOOLEAN] is false (default), an integral
+number of seconds is returned. Otherwise, the fractional part is also returned.
+
+[call [cmd large_system_time_to_timelist] [arg SYSTEMTIMEVALUE]]
+Some Windows functions return time as the number of 100 nanosecond units
+since Jan 1, 1601. The command converts such time values to a list
+of 7 elements representing the year, month, day, hour, minutes, seconds
+and milliseconds.
+
+[call [cmd parseargs] [arg ARGLISTVAR] [arg OPTLIST] [opt [cmd -ignoreunknown]] [opt [cmd -nulldefault]] [opt "[cmd -maxleftover] [arg MAXLEFTOVER]"]]
+Parses the options specified in a list of arguments.
+[arg ARGLISTVAR] is the name of a variable in the caller's scope that
+contains a list of arguments. Option names are case-sensitive.
+[nl]
+[arg OPTLIST] specifies the valid options
+allowed and is list of option specifiers. Each option specifier is a list
+of up to 3 elements and takes the following form:
+[nl]
+[arg "OPTNAME[opt [cmd .]OPTTYPE]"] [arg [opt "DEFAULTVALUE [opt VALIDVALUELIST]"]]
+[nl]
+[arg OPTNAME] is the name of the option (without a leading [cmd -]) and
+is required.
+[arg OPTTYPE] should be separated
+from the name with a [cmd .] and specifies the type of the option.
+It must have one of the following values: [cmd arg],
+[cmd bool], [cmd int], or [cmd switch]. In
+the first three cases, the argument following the option is taken
+as the value of the option and must be of an appropriate type:
+an arbitrary string, a boolean value ([const "0, 1, off, on, false, true"])
+or an integer respectively. If the option type is [cmd switch], or is
+not specified at all, then
+the option is not associated with any value and is treated as a binary switch.
+[nl]
+[arg DEFAULTVALUE], specifies
+a default value to be assumed for the option if it is not present in
+[arg ARGLISTVAR]. This is ignored for options of type [cmd switch].
+[nl]
+If [arg VALIDVALUELIST] is specified, it is treated as a list of
+allowed values for the option. If an option's value is not in the
+list, the command will return an error. [arg VALIDVALUELIST] is ignored if the
+option type is [cmd bool] or [cmd switch].
+[nl]
+The command returns a list of the form [arg "OPTION VALUE OPTION VALUE..."].
+If the [cmd -nulldefault] option is not present,
+only options that are present in [arg ARGLISTVAR],
+or have a default value specified, or are of type [cmd switch]
+are included in the returned result. If the [cmd -nulldefault] option is
+present, then the returned list also includes values for options that are not
+present - [const 0] for options of type [cmd int] and [cmd bool], and
+an empty string for arguments of type [cmd arg].
+[nl]
+As a side effect, the variable [arg ARGLISTVAR] is modified to
+remove the parsed options and associated values. If the
+[cmd -maxleftover] option is specified, the command will raise a
+Tcl error if the number of arguments left over after parsing
+the options is more than [arg MAXLEFTOVER].
+[nl]
+The command will normally
+generate a Tcl error if the arguments include an unknown option
+(an argument that begins with a [const -] character and is not
+in [arg OPTLIST]). If the [cmd -ignoreunknown] option is specified to
+the command, unknown options in [arg ARGLISTVAR] are ignored instead
+of an error being generated and are not removed from [arg ARGLISTVAR].
+
+[call [cmd secs_since_1970_to_large_system_time] [arg SECONDS]]
+This command converts [arg SECONDS] which is the number of seconds since
+the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
+
+[call [cmd timelist_to_large_system_time] [arg TIMELIST]]
+Converts [arg TIMELIST] to the number of 100 nanoseconds since Jan 1, 1601.
+[arg TIMELIST] must be a list
+of 7 elements representing the year, month, day, hour, minutes, seconds
+and milliseconds.
+
+[list_end]
+
+[keywords "format messages" "messages" "system messages" "environment string" "expand environment strings" "argument parsing" "option parsing" "command line" "version" "TWAPI version" "exception handling" "error handling" "system time conversion" "time conversion"]
+
+[manpage_end]

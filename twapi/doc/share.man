@@ -1,0 +1,540 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Network shares and Lan Manager" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "Network share and Lan Manager session management"]
+[titledesc "Commands related to management of network shares and Lan Manager sessions"]
+[require twapi]
+[description]
+
+[para]
+This module provides commands related to management of
+Windows network shares and the Lan Manager sessions over which they are implemented.
+
+[section "Lan Manager sessions"]
+
+A Lan Manager (LM) session is a logical connection
+between the client and server over which all communications related to
+shares takes place. LM sessions are created and terminated on
+the fly by the client as and when needed.
+
+[para]
+Lan Manager sessions on a server can be enumerated through the
+[uri \#find_lm_sessions [cmd find_lm_sessions]] command. Information
+about individual sessions can be obtained through the
+[uri \#get_lm_session_info [cmd get_lm_session_info]] command. Existing
+sessions can be deleted using
+[uri \#end_lm_sessions [cmd end_lm_sessions]].
+
+[para]
+The files and resource opened within a Lan Manager session
+can be enumerated through the
+[uri \#find_lm_open_files [cmd find_lm_open_files]] command. Information
+about individual open files can be obtained through
+[uri \#get_lm_open_file_info [cmd get_lm_open_file_info]] and closed
+using
+[uri \#close_lm_open_file [cmd close_lm_open_file]].
+
+[para]
+Information about the connections to a shared resource on a system can
+be obtained through
+[uri \#find_lm_connections [cmd find_lm_connections]].
+
+
+[section "Network Shares - Server"]
+
+These commands work with all types of Windows network shares exported
+from a server including files and disks, printers, devices and IPC.
+
+[para]
+The command [uri \#new_share [cmd new_share]]
+creates a new share of the specified type.
+The command [uri \#delete_share [cmd delete_share]] removes an existing share.
+
+[para]
+The commands [uri \#get_shares [cmd get_shares]]
+and [uri \#get_share_info [cmd get_share_info]] allow enumeration
+and retrieval of detailed information about a share. The command
+[uri \#set_share_info [cmd set_share_info]]
+allows attributes of an existing share to be modified.
+
+[section "Network Shares - Client"]
+
+The following commands deal with client side of network share connections.
+
+[para]
+The commands [uri \#connect_share [cmd connect_share]]
+and [uri \#disconnect_share [cmd disconnect_share]] are used to
+establish and remove client side connections to network shares. The command
+[uri \#get_client_shares [cmd get_client_shares]]
+lists all current connections to any network
+share. Details about a particular connected share can be obtained
+through the [uri \#get_client_share_info [cmd get_client_share_info]]
+command.
+
+[para]
+When a local device (for example, a printer port or a drive letter) is mapped
+to a network drive, information about the mapping may be obtained through
+the [uri \#get_client_share_info [cmd get_client_share_info]] command.
+
+[section "Share Types"]
+The type of a network share is indicated by a token that indicates the
+basic type, such as file or print queue, followed by one or more tokens that
+indicate additional attributes such as whether it is a temporary share.
+
+The basic share type token is one of [const file], [const print], [const ipc]
+or [const device] corresponding to a file, print queue, interprocess
+communication, and a communication device respectively.
+
+Additional type information may contain the tokens [const temporary], which
+indicates a temporary share, and [const special], which indicates a
+administrative share.
+
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd close_lm_open_file] [arg FILEID] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Closed the file or resource associated with [arg FILEID]. The file ids
+open within a Lan Manager session may be obtained through the
+[uri \#find_lm_open_files [cmd find_lm_open_files]] command.
+Option [cmd -system] may be specified to indicate the system on which the command
+is to be executed. By default, this is the local system.
+
+[call [cmd connect_share] [arg SERVERSHARE] [opt [arg options]]]
+
+Establishes a new connection to a network share, optionally mapping it
+to a local device. [arg SERVERSHARE] is of the form [arg \\\\SERVERNAME\\SHARE]
+and is the name of the share to connect to. The following options may
+be specified to control the connection characterisics:
+
+[list_begin opt]
+[opt_def [cmd -type]]
+Specifies the type of network share. This must be one of
+[const any] (default), [const file] for file and disk shares or
+[const printer] for print shares.
+[opt_def [cmd -localdevice] [arg DEVICENAME]]
+By default, the command establishes a connection to [arg SERVERSHARE]
+but does not map it to a local device. Specifying this option
+maps the network share connection to a local device, for example
+a drive letter or printer port.
+[nl]
+Note that if this option is specified, the [cmd -type] option must also
+be specified with a value of [const disk] or [const printer].
+[opt_def [cmd -provider] [arg PROVIDERNAME]]
+This option allows specification of a network provider to be used for
+the connection. Generally, this option should not be specified allowing
+Windows to select the appropriate network provider based
+on [arg SERVERSHARE].
+[opt_def [cmd -user] [arg USERNAME]]
+Specifies the user account to use to connect to the network share. By
+default, this is the current user account.
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies the password to be used for connecting to the network share.
+This option is ignored if either [cmd -defaultpassword]
+or [cmd -nopassword] is specified.
+[opt_def [cmd -defaultpassword]]
+Specifies that the password for the current user account is to be used
+for connecting. This option cannot be used with the -nopassword option.
+[opt_def [cmd -nopassword]]
+Specifies that no password is to be used
+for connecting. This option cannot be used with the -defaultpassword option.
+[opt_def [cmd -interactive]]
+Specifies that a user name and password dialog should be displayed to
+the user if the network share login fails. The connection is retried using
+the values entered by the user.
+[opt_def [cmd -prompt]]
+Displays a dialog allowing the user to change the user name and password
+[emph before] the connection attempt is made.
+This option has no effect if [cmd -interactive] is not specified.
+[opt_def [cmd -commandline]]
+If this option is specified, the operating system will prompt the user
+for the password on the command line rather than showing the password dialog.
+This option has no effect if [cmd -interactive] is not specified.
+[emph "This option is not supported on Windows 2000"].
+An error will be generated if this option is specified on those platforms.
+[opt_def [cmd -window] [arg HWIN]]
+Specifies that the window identified by [arg HWIN] is to be used as the
+owner window for any password dialogs that are displayed.
+[opt_def [cmd -updateprofile]]
+If this option is specified, the user's profile is updated so that the
+network share connection will be reestablished every time the user logs in.
+[list_end]
+[uri connectfileshare.example "Example: Map a drive to a network share"]
+
+[call [cmd delete_share] [arg SHARENAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Deletes a share. By default the share is assumed to be on the local system
+unless the [cmd -system] option is specified.
+
+[call [cmd disconnect_share] [arg SHARE] [opt [arg options]]]
+Disconnects the network share [arg SHARE]. The following options may
+be specified:
+[list_begin opt]
+[opt_def [cmd -force]]
+Forces the network share connection
+to be closed even if there are open files or print
+jobs on the connection.
+[opt_def [cmd -updateprofile]]
+If this option is specified, the user's profile is updated so that the
+network share connection will not be reestablished every time the
+user logs in.
+[list_end]
+
+[call [cmd end_lm_sessions] [opt [arg options]]]
+Terminates all [sectref "Lan Manager sessions"] matching the specified
+options. [arg options] may include the following matching
+criteria:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -client] [arg SYSTEMNAME]] Specifies the name of the
+client system whose sessions are to be terminated.
+[opt_def [cmd -user] [arg USERNAME]] Specifies the name of the
+user whose sessions are to be terminated.
+[list_end]
+Note that at least one of the options [cmd -user] or [cmd -client]
+must be specified.
+
+[call [cmd find_lm_connections] [opt [arg options]]]
+Returns information about the connections to a share on a server or
+established from a particular client system. The return value is
+a list of sublists containing information about each connection.
+The actual data included depends on the options
+specified.
+
+[list_begin opt]
+[opt_def [cmd -activeseconds]]
+Returns the number of seconds the connection has been established.
+[opt_def [cmd -all]]
+Returns all data fields for each connection.
+[opt_def [cmd -client] [arg CLIENTNAME]]
+Specifies that only connections from client [arg CLIENTNAME] should
+be included in the returned list. This option and option [cmd -share]
+are mutually exclusive.
+[opt_def [cmd -clientname]]
+Returns the name of the client computer for the connection.
+[opt_def [cmd -id]]
+Returns the connection id.
+[opt_def [cmd -opencount]]
+Returns number of resources currently opened through the connection.
+[opt_def [cmd -share] [arg SHARENAME]]
+Specifies that only connections to the share identified by
+[arg SHARENAME] should
+be included in the returned list. This option and option [cmd -client]
+are mutually exclusive.
+[opt_def [cmd -sharename]]
+Returns the name of the share to which the connection is attached.
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -type]]
+Returns the share type of the resource to which the connection is made
+(see [sectref "Share Types"]).
+[opt_def [cmd -usercount]]
+Returns number of users currently using the connection.
+[opt_def [cmd -username]]
+Returns name of the user that made the connection.
+[list_end]
+
+[call [cmd find_lm_open_files] [opt [arg options]]]
+Returns a list of sublists containing information about files and
+devices opened through a Lan Manager session.
+The actual data included depends on the options
+specified.
+[nl]
+The following [arg options] specify matching
+criteria that control which sessions are returned:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -basepath] [arg PATHPREFIX]] Specifies that all returned
+files should have begin with [arg PATHPREFIX].
+If [arg PATHPREFIX]
+is an empty string (default), all open files are included.
+[list_end]
+Additional options control the data returned for each open file.
+Refer to [uri \#get_lm_open_file_info [cmd get_lm_open_file_info]]
+for a list of these options.
+
+[call [cmd find_lm_sessions] [opt [arg options]]]
+Returns a list of [sectref "Lan Manager sessions"] matching the specified
+options. The list contains sublists containing
+data for each session. The actual data included depends on the options
+specified.
+[nl]
+
+The following [arg options] specify matching
+criteria that control which sessions are returned:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -client] [arg SYSTEMNAME]] Specifies the name of the
+client system whose sessions are to be included. If [arg SYSTEMNAME]
+is an empty string (default), all client systems are included.
+[opt_def [cmd -user] [arg USERNAME]] Specifies the name of the
+user whose sessions are to be included. If [arg USERNAME]
+is an empty string (default), all users are included.
+[list_end]
+Additional options control the data returned for each session.
+Refer to [uri \#get_lm_session_info [cmd get_lm_session_info]]
+for a list of these options.
+
+[call [cmd get_client_share_info] [arg SHAREPATH] [opt [arg options]]]
+Returns information about the connected network share identified
+by [arg SHAREPATH]. [arg SHAREPATH] may be either a UNC format share
+or a locally mapped device.
+[nl]
+The information returned depends on the specified options and is in
+the form of a flat list of "[arg option] [arg value]" pairs.
+[list_begin opt]
+[opt_def [cmd -all]]
+Returns all configuration data for the connected share.
+[opt_def [cmd -comment]]
+Returns the comment describing the connected share, if any
+[opt_def [cmd -domain]]
+Returns the domain name of the connected share.
+[opt_def [cmd -localdevice]]
+Returns the local device to which the share is mapped
+and an empty string otherwise.
+[opt_def [cmd -opencount]]
+Returns the number of open handles that are open to resources on the
+remote share.
+[opt_def [cmd -provider]]
+Returns the name of the network service provider that owns the share.
+[opt_def [cmd -remoteshare]]
+Returns the name of the remote share.
+[opt_def [cmd -status]]
+Returns the status of the share. This may be one of
+[const connected], [const paused], [const lostsession],
+[const disconnected], [const networkerror], [const connecting],
+[const reconnecting] or [const unknown].
+[opt_def [cmd -type]]
+Returns the type of the network share. This may be one of
+[const file], [const printer], [const char], [const ipc]
+or [const unknown].
+[opt_def [cmd -usecount]]
+Returns the number of references to the remote share. Note the remote share
+may be connected multiple times with and without local device mappings.
+[opt_def [cmd -user]]
+The name of the user who initiated the connection.
+[list_end]
+
+[call [cmd get_client_shares] [opt [arg options]]]
+Returns a list of network shares to which a system is currently connected.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+whose shares are to be enumerated. By default, this is the local
+system.
+[opt_def [cmd -level] [arg LEVEL]]
+Specifies the level of detail to be returned (see below).
+[list_end]
+If the [cmd -level] option is not specified, the returned list
+consists of sublists corresponding to each connected network share. The first
+element of each sublist is the local device (for example [const X:]). This
+may be an empty string if the connection has not been mapped to a local device.
+The second element of the sublist is the name of the server share for
+the connection.
+[nl]
+If [cmd -level] is specified, the command returns
+a nested list of keyed lists, one per share. The fields in each keyed list 
+depend on [arg LEVEL] as follows:
+[list_begin opt]
+[opt_def [const 0]]
+[const local], [const remote]
+[opt_def [const 1]]
+[const asg_type], [const local], [const password],
+[const refcount], [const remote], [const status], [const usecount].
+[opt_def [const 2]]
+[const asg_type], [const domainname], [const local], [const password],
+[const refcount], [const remote], [const status], [const usecount],
+[const username].
+[list_end]
+[uri listconnectedshares.example "Example: List connected shares"]
+
+[call [cmd get_mapped_share_info] [arg SHAREPATH] [opt [arg options]]]
+[emph "This command is no longer available. Use [uri \#get_client_share_info [cmd get_client_share_info]] instead."]
+
+[call [cmd get_share_info] [arg SHARENAME] [opt [arg options]]]
+
+Retrieves information pertaining to the specified share. By default,
+the share is assumed to be on the local system. The [cmd -system] may
+be used to specify the name of a remote system.
+
+[nl]
+The information returned depends on the specified options and is in
+the form of a flat list of "[arg option] [arg value]" pairs.
+[list_begin opt]
+[opt_def [cmd -all]] Returns all configuration data for the share.
+[opt_def [cmd -name]] Returns the name of the share as configured. This
+is generally [arg SHARENAME] but may differ in the character case.
+[opt_def [cmd -type]] Returns the type of the share.
+See [sectref "Share Types"] for details.
+[opt_def [cmd -path]] Returns the path or name of the resource being
+shared.
+[opt_def [cmd -comment]] Returns the comment associated with the share.
+[opt_def [cmd -max_conn]] Returns the maximum number of connections
+that are permitted for the share. A value of -1 indicates that there is
+no limit.
+[opt_def [cmd -current_conn]] Returns the current number of connections
+to the share.
+[opt_def [cmd -secd]] Returns the security descriptor attached to the share.
+[list_end]
+[uri listexportedshares.example "Example: List shares exported from a system"]
+
+[call [cmd get_shares] [opt [arg options]]]
+This command enumerates all the shares exported on a system. The following
+options control the shares that are enumerated.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+whose shares are to be enumerated. By default, this is the local
+system.
+[opt_def [cmd -level] [arg LEVEL]]
+Specifies the level of detail to be returned (see below).
+[opt_def [cmd -type] [arg SHARETYPE]] Specifies the type of the share to
+include in the enumeration. [arg SHARETYPE] must be one of base share types
+listed in [sectref "Share Types"]. By default, all share types are
+enumerated.
+[opt_def [cmd -excludespecial]] Specifying this option causes special
+shares (see [sectref "Share Types"]) not to be included in the enumeration.
+[list_end]
+If the [cmd -level] option is not specified, the command returns
+a list of share names. If [cmd -level] is specified the command returns
+a nested list of keyed lists, one per share. The fields in each keyed list 
+depend on [arg LEVEL] as follows:
+[list_begin opt]
+[opt_def [const 0]]
+[const name]
+[opt_def [const 1]] [const name], [const remark], [const type]
+[opt_def [const 2]] [const current_uses],
+[const max_uses], [const netname], [const passwd], [const path],
+[const permissions], [const remark], [const type].
+[list_end]
+
+[uri listexportedshares.example "Example: List shares exported from a system"]
+
+[call [cmd get_lm_open_file_info] [arg FILEID] [opt [arg options]]]
+Returns a list of field values pairs containing data
+for a file or resource opened in a Lan Manager session.
+The file is identified by [arg FILEID].
+[uri \#find_lm_open_files [cmd find_lm_open_files]] returns a list
+of all such ids. The command will generate an
+error there is no file open with the specified id.
+
+[nl]
+The actual data returned depends on the options
+specified.
+The following [arg options] may be specified:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -all]]
+Returns all data fields.
+[opt_def -id] Returns the file id of the open resource.
+[opt_def -lockcount] Returns the number of locks on the open resource.
+[opt_def -path] Returns the path of the open resource.
+[opt_def -permissions] Returns a list of zero or more from among
+[const read], [const write] and [const create] corresponding to the
+access permissions for the opening application.
+[opt_def -username] Returns the name of the user that opened the resource.
+[list_end]
+
+
+[call [cmd get_lm_session_info] [arg CLIENTSYSTEM] [arg USER] [opt [arg options]]]
+Returns a list of field values pairs containing data
+for a Lan Manager session. The Lan Manager session is identified by [arg CLIENTSYSTEM]
+which identifies a client system and [arg USER] which identifies
+the user that authenticated the session.
+The actual data returned depends on the options
+specified.
+The command will generate an
+error if no matching connection is found.
+[nl]
+
+The following [arg options] may be specified:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
+[opt_def [cmd -all]]
+Returns all data fields.
+[opt_def [cmd -activeseconds]]
+Returns the number of seconds session has been active.
+[opt_def [cmd -attrs]]
+Returns a list of tokens describing the session attributes. The tokens
+may include [const guest], indicating the session was established using
+a guest account, and [const noencryption], indicating the session
+was established without using password encryption.
+[opt_def [cmd -clientname]]
+Returns the UNC name of the client system.
+[opt_def [cmd -clienttype]]
+Returns a string identifying the type of client system.
+[opt_def [cmd -idleseconds]]
+Returns the number of seconds the session has been idle.
+[opt_def [cmd -opencount]]
+Returns the number of open files, devices and pipes opened in the
+session.
+[opt_def [cmd -transport]]
+Returns the name of the underlying transport over which the session runs.
+[opt_def [cmd -username]]
+Returns the name of the user account under which the session was
+established.
+[list_end]
+
+[call [cmd new_share] [arg SHARENAME] [arg RESOURCE] [opt [arg options]]]
+
+Creates a new share with name [arg SHARENAME] that exports the specified
+resource [arg RESOURCE]. Unless specified through the [cmd -type] option,
+the share is assumed to be a file share and [arg RESOURCE] is assumed
+to be the directory path.
+[nl]
+The following options control the various attributes of the share:
+
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the share is to be created. By default, this is the local
+system.
+[opt_def [cmd -comment] [arg COMMENT]] Specifies a comment to be associated
+with the share. This is displayed to users connecting to the share. If
+unspecified or empty, this defaults to the share name.
+[opt_def [cmd -max_conn] [arg MAX_NUM_CONNECTION]] Specifies the maximum
+number of connections to be allowed. If this is not specified, or is specified
+as [const -1], there is no limit to the number of connections allowed to the
+share.
+[opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]] Specifies the security
+descriptor to be attached to the share. If unspecified, it defaults to
+allowing group [const Everyone] (well-known SID [const S-1-1-0]) read
+access similar to default permissions when creating a share from
+Windows Explorer.
+[opt_def [cmd -type] [arg SHARETYPE]] Specifies the type of the share.
+See [sectref "Share Types"] for details. This defaults to a file share.
+[list_end]
+[uri exportfileshare.example "Example: Export a network share"]
+
+[call [cmd set_share_info] [arg SHARENAME] [opt [arg options]]]
+
+Changes the configuration of the specified share. By default,
+the share is assumed to be on the local system. The [cmd -system] may
+be used to specify the name of a remote system.
+
+[nl]
+The configuration data that is to be modified is specified
+through the following options:
+
+[list_begin opt]
+[opt_def [cmd -comment] [arg STRING]] Sets the comment associated with the share.
+[opt_def [cmd -max_conn] [arg INTEGER]] Sets the maximum number of connections
+that are permitted for the share. A value of -1 indicates that there is
+not limit.
+[opt_def [cmd -secd] [arg SECD]] Sets the security descriptor attached to the share.
+[list_end]
+
+
+[list_end]
+
+[keywords "network shares" "shares" "file shares" "printer shares" "export" "Lan Manager" "Lan Manager session" "LM session" "network sessions"]
+
+[manpage_end]

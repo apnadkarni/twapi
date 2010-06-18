@@ -1,0 +1,21 @@
+# TWAPI example
+# Keep a window on top of all other windows
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set text [lindex $argv 0]
+
+# Get all windows with that title
+set toplevels [twapi::find_windows -text $text -toplevel]
+if {[llength $toplevels]} {
+    foreach win $toplevels {
+        twapi::set_window_zorder $win toplayer
+    }
+} else {
+    puts stderr "No window found with title '$text'"
+}

@@ -1,0 +1,94 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Desktops and Window stations" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "Desktop and window stations"]
+[titledesc "Commands related to desktops and window stations"]
+[require twapi]
+[description]
+[para]
+
+This package provides procedures related to desktops and window stations
+on Windows platforms.
+
+[section "Window Stations"]
+TBD
+
+[section "Desktops"]
+TBD
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd close_desktop_handle] [arg HDESK]]
+Closes a desktop handle that was previously returned by a call
+to [uri desktop.html\#get_desktop_handle get_desktop_handle] and frees
+and associated resources.
+
+[call [cmd close_window_station_handle] [arg HWINSTA]]
+Closes a window station handle that was previously returned by a call
+to [uri desktop.html\#get_window_station_handle get_window_station_handle].
+
+[call [cmd find_desktops] [opt "[cmd -winsta] [arg HWINSTA]"]]
+Returns a list of desktops. By default, the desktops from the current
+window station are returned. The [cmd -winsta] option may be used to
+specify a different window station.
+
+[call [cmd find_window_stations]]
+Returns a list of identifiers for all window stations in the system for which
+the caller has the [const WINSTA_ENUMERATE] privilege.
+
+[call [cmd get_current_window_station_handle]]
+
+Returns a handle to the window station for the calling process. This
+handle need not (and should not) be closed.
+
+[call [cmd get_desktop_handle] [arg DESKTOP] [opt "[cmd -inherit] [arg BOOL]"] [opt "[cmd -access] [arg ACCESSRIGHTS]"] [opt "[cmd -allowhooks] [arg BOOL]"]]
+
+Returns a handle to the specified desktop.
+[nl]
+The [cmd -inherit] option determines whether the returned handle will be
+inherited by child processes. This is [const false] by default.
+[nl]
+The access rights associated with the handle default to 
+[const GENERIC_READ] unless the [cmd -access] option is specified. 
+[arg ACCESSRIGHTS] specifies the desired access rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html\#accessrights "Access Rights"].
+[nl]
+If the option [cmd -allowhooks] is specified as [const true], processes
+running in other accounts on the desktop will be allowed to set hooks
+in the calling process.
+[nl]
+When no longer needed, the returned handle should be closed with a call to
+to [uri desktop.html\#close_desktop_handle close_desktop_handle].
+
+[call [cmd get_window_station_handle] [arg WINDOWSTATION] [opt "[cmd -inherit] [arg BOOL]"] [opt "[cmd -access] [arg ACCESSRIGHTS]"]]
+
+Returns a handle to the window station identified by WINDOWSTATION. 
+[nl]
+The access rights associated with the handle default to 
+[const GENERIC_READ] unless the [cmd -access] option is specified. 
+[arg ACCESSRIGHTS] specifies the desired access rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html#accessrights "Access Rights"].
+[nl]
+The [cmd -inherit] option determines whether the returned handle will be
+inherited by child processes. This is [const false] by default.
+[nl]
+When no longer needed, the returned handle should be closed with a call to
+to [uri desktop.html\#close_window_station_handle close_window_station_handle].
+
+[call [cmd set_process_window_station] [arg HWINSTA]]
+Assigns the window station identified by [arg HWINSTA] to the calling process.
+[arg HWINSTA] should be a window station handle previously returned by
+[uri \#get_window_station_handle [cmd get_window_station_handle]]. See
+the description of [cmd SetProcessWindowStation] in the Windows SDk for
+more details.
+
+
+[list_end]
+
+[keywords "desktops" "window stations"]
+
+[manpage_end]
