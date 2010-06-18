@@ -81,7 +81,7 @@
  */
 
 #define MAKE_DYNLOAD_FUNC(fnname, dllname, fntype)       \
-    static fntype Twapi_GetProc_ ## fnname (void)      \
+    fntype Twapi_GetProc_ ## fnname (void)               \
     { \
         static HINSTANCE dllname ## _H; \
         static fntype  fnname ## dllname ## _F;       \
@@ -102,7 +102,7 @@
  * cases where function may be in one of several different DLL's
  */
 #define MAKE_DYNLOAD_FUNC2(fnname, dllname) \
-    static FARPROC Twapi_GetProc_ ## fnname ##_ ## dllname (void) \
+    FARPROC Twapi_GetProc_ ## fnname ##_ ## dllname (void) \
     { \
         static HINSTANCE dllname ## _H; \
         static FARPROC   fnname ## dllname ## _F; \
@@ -120,7 +120,7 @@
     }
 
 #define MAKE_DYNLOAD_FUNC_ORDINAL(ord, dllname) \
-    static FARPROC Twapi_GetProc_ ## dllname ## _ ## ord (void) \
+    FARPROC Twapi_GetProc_ ## dllname ## _ ## ord (void) \
     { \
         static HINSTANCE dllname ## _H; \
         static FARPROC   ord_ ## ord ## dllname ## _F; \
@@ -505,10 +505,11 @@ typedef struct {
 #define GETNULLIFEMPTY(v) ARGNULLIFEMPTY, &(v)
 #define GETNULLTOKEN(v) ARGNULLTOKEN, &(v)
 #define GETWORD(v)     ARGWORD, &(v)
-#define GETPTR(v, typestr) ARGPTR, &(v), #typestr
+#define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
 #define GETHANDLE(v)   GETVOIDP(v)
-#define GETHANDLET(v, typestr) GETPTR(v, typestr)
+#define GETHANDLET(v, typesym) GETPTR(v, typesym)
+#define GETHWND(v) GETHANDLET(v, HWND)
 #define GETVAR(v, fn)  ARGVAR, &(v), fn
 #define GETVARWITHDEFAULT(v, fn)  ARGVARWITHDEFAULT, &(v), fn
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
@@ -579,6 +580,7 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
 #define ObjToHANDLE ObjToLPVOID
+#define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
 #ifdef _WIN64
 #define ObjToDWORD_PTR        Tcl_GetWideIntFromObj

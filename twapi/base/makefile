@@ -33,6 +33,7 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 
 OBJS  = \
 	$(OBJDIR)\adsi.obj \
+	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
 	$(OBJDIR)\console.obj \
