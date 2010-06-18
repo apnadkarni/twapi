@@ -1,0 +1,399 @@
+#
+# Copyright (c) 2003, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the share.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::network::test {
+    namespace import ::tcltest::test
+
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    proc validate_netif_indices {indices} {
+        foreach i $indices {
+            if {![string is integer $i]} {return 0}
+        }
+        return 1
+    }
+
+    proc resolvable_hostname {} {
+        return www.yahoo.com
+    }
+
+    proc resolvable_address {} {
+        return 209.131.36.158;          # A yahoo address
+    }
+
+    proc resolvable_address_domain {} {
+        return yahoo.com
+    }
+
+    ################################################################
+
+    test get_ip_addresses-1.0 {
+        Get IP addresses
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch [twapi::get_ip_addresses] 127.0.0.1] >= 0}
+    } -result 1
+
+    ################################################################
+
+    test get_netif_indices-1.0 {
+        Get network interface indices
+    } -constraints {
+        nt
+    } -body {
+        set indices [twapi::get_netif_indices]
+        set bad_indices [list ]
+        foreach i $indices {
+            if {! [string is integer $i]} {
+                lappend bad_indices $i
+            }
+        }
+        set bad_indices
+    } -result ""
+
+    ################################################################
+
+    test get_network_info-1.0 {
+        Get all network information
+    } -constraints {
+        nt
+    } -body {
+        if {[twapi::min_os_version 5]} {
+            array unset netinfo
+            array set netinfo [twapi::get_network_info -all]
+            verify_kl_fields [array get netinfo] {
+                -arpproxyenabled -dhcpscopeid -dnsenabled -dnsservers
+                -domain -hostname -interfaces -ipaddresses -routingenabled
+            }
+            expr {
+                  [string is boolean $netinfo(-arpproxyenabled)] &&
+                  [string is boolean $netinfo(-dnsenabled)] &&
+                  [validate_ip_addresses $netinfo(-dnsservers)] &&
+                  [validate_netif_indices $netinfo(-interfaces)] &&
+                  [validate_ip_addresses $netinfo(-ipaddresses)] &&
+                  [string is boolean $netinfo(-routingenabled)]
+              }
+        } else {
+            # NT 4 - command should throw an error
+            set result [catch {twapi::get_network_info -all} msg]
+        }
+    } -result 1
+
+    ################################################################
+
+    set testnum 1
+    foreach {field validation} {
+        -arpproxyenabled "string is boolean"
+        -dhcpscopeid     "string match *"
+        -dnsenabled      "string is boolean"
+        -dnsservers      "validate_ip_addresses"
+        -domain          "string match *"
+        -hostname        "string match *"
+        -interfaces      "validate_netif_indices"
+        -ipaddresses     "validate_ip_addresses"
+        -routingenabled  "string is boolean"
+    } {
+        test get_network_info-[incr testnum].0 "Verify get_network_info $field" -constraints {
+            nt win2k
+        } -body "
+            set result \[twapi::get_network_info $field \]
+            verify_kl_fields \$result [list $field]
+            eval \$validation \[list \[lindex \$result 1\] \]
+        " -result 1
+    }
+
+    ################################################################
+
+    test get_netif_info-1.0 {
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result ""
+
+    ################################################################
+
+    test hostname_to_address-1.0 {
+        Map host name to address
+    } -constraints {
+        nt
+    } -body {
+        set ipaddrs [twapi::hostname_to_address [resolvable_hostname]]
+        expr {[llength $ipaddrs] && [validate_ip_addresses $ipaddrs]}
+    } -result 1
+
+    ###
+
+    test hostname_to_address-1.1 {
+        Map host name to address (no addresses)
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::hostname_to_address xadf.xtrt.xsfdg.com]
+    } -result 0
+
+    ###
+
+    test hostname_to_address-2.0 {
+        Map host name to address asynchronous (success)
+    } -constraints {
+        nt
+    } -body {
+        set ::hostname_to_address_result [list ]
+        twapi::hostname_to_address [resolvable_hostname] -async {lappend ::hostname_to_address_result}
+        vwait ::hostname_to_address_result
+        foreach {hostname status ipaddrs} $::hostname_to_address_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs]}
+    } -result 1
+
+    ###
+
+    test hostname_to_address-2.1 {
+        Map host name to address asynchronous (no addresses)
+    } -constraints {
+        nt
+    } -body {
+        set ::hostname_to_address_result [list ]
+        twapi::hostname_to_address xno.xsuch.xname.xcom -async {lappend ::hostname_to_address_result}
+        vwait ::hostname_to_address_result
+        foreach {hostname status ipaddrs} $::hostname_to_address_result break
+        expr {($hostname eq "xno.xsuch.xname.xcom") && ($status eq "success") && [llength $ipaddrs] == 0}
+    } -result 1
+
+    ###
+
+    test hostname_to_address-3.0 {
+        Map host name to address -flushcache
+    } -constraints {
+        nt
+    } -setup {
+        # Prepopulate cache
+        twapi::hostname_to_address [resolvable_hostname]
+    } -body {
+        set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
+        set nocache_lookup [time {set ipaddrs [twapi::hostname_to_address [resolvable_hostname] -flushcache]}]
+        expr {[llength $ipaddrs] &&
+              [validate_ip_addresses $ipaddrs] &&
+              [lindex $cache_lookup 0] < 50 &&
+              [lindex $nocache_lookup 0] > 100
+          }
+    } -result 1
+
+    ################################################################
+
+    test address_to_hostname-1.0 {
+        Map address to host name
+    } -constraints {
+        nt
+    } -body {
+        twapi::address_to_hostname [resolvable_address]
+    } -match glob -result *[resolvable_address_domain]
+
+    ###
+
+    test address_to_hostname-1.1 {
+        Map address to host name (no names)
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::address_to_hostname 127.0.0.2]
+    } -result 0
+
+    ###
+
+    test address_to_hostname-1.2 {
+        Map 127.0.0.1
+    } -constraints {
+        nt
+    } -body {
+        twapi::address_to_hostname 127.0.0.1
+    } -result localhost
+
+    ###
+
+    test address_to_hostname-2.0 {
+        Map address to host name asynchronous (success)
+    } -constraints {
+        nt
+    } -body {
+        set ::address_to_hostname_result [list ]
+        twapi::address_to_hostname [resolvable_address] -async {lappend ::address_to_hostname_result}
+        vwait ::address_to_hostname_result
+        foreach {addr status hostname} $::address_to_hostname_result break
+        expr {($addr eq [resolvable_address]) && ($status eq "success") && [string match *[resolvable_address_domain] $hostname]}
+    } -result 1
+
+    ###
+
+    test address_to_hostname-2.1 {
+        Map address to host name asynchronous (no addresses)
+    } -constraints {
+        nt
+    } -body {
+        set ::address_to_hostname_result [list ]
+        twapi::address_to_hostname 127.0.0.2 -async {lappend ::address_to_hostname_result}
+        vwait ::address_to_hostname_result
+        foreach {addr status hostname} $::address_to_hostname_result break
+        expr {($addr eq "127.0.0.2") && ($status eq "success") && $hostname eq ""}
+    } -result 1
+
+    ###
+
+    test address_to_hostname-3.0 {
+        Map address to host name -flushcache
+    } -constraints {
+        nt
+    } -setup {
+        # Prepopulate cache
+        twapi::address_to_hostname [resolvable_address]
+    } -body {
+        set addr [resolvable_address]
+        set cache_lookup [time {twapi::address_to_hostname $addr}]
+        set nocache_lookup [time {set hostname [twapi::address_to_hostname $addr -flushcache]}]
+        expr {[string match *[resolvable_address_domain] $hostname] &&
+              [lindex $cache_lookup 0] < 50 &&
+              [lindex $nocache_lookup 0] > 100
+          }
+    } -result 1
+
+    ################################################################
+
+    test port_to_service-1.0 {
+        Map port number to service name
+    } -constraints {
+        nt
+    } -body {
+        twapi::port_to_service 80
+    } -result http
+
+    ###
+
+    test port_to_service-1.1 {
+        Map port number to service name (non-existent)
+    } -constraints {
+        nt
+    } -body {
+        twapi::port_to_service 1234
+    } -result ""
+
+    ################################################################
+
+    test service_to_port-1.0 {
+        Map service to port number
+    } -constraints {
+        nt
+    } -body {
+        twapi::service_to_port http
+    } -result 80
+
+    ###
+
+    test service_to_port-1.1 {
+        Map service to port (non-existent)
+    } -constraints {
+        nt
+    } -body {
+        twapi::service_to_port httpx
+    } -result ""
+
+    ###
+
+    test service_to_port-1.2 {
+        Map service to port (numeric)
+    } -constraints {
+        nt
+    } -body {
+        twapi::service_to_port 80
+    } -result 80
+
+    ################################################################
+
+    test get_tcp_connections-1.0 {
+        Get TCP connections
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_tcp_connections -all] {
+            -state
+            -localaddr
+            -remoteaddr
+            -localport
+            -remoteport
+            -pid
+            -modulename
+            -modulepath
+            -bindtime
+        }
+    } -result ""
+
+    ###
+
+    test get_tcp_connections-2.0 {
+        Get TCP connections
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_udp_connections-1.0 {
+        Get UDP connections
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_udp_connections -all] {
+            -localaddr
+            -localport
+            -pid
+            -modulename
+            -modulepath
+            -bindtime
+        }
+    } -result ""
+
+    ###
+
+    test get_udp_connections-2.0 {
+        Get UDP connections
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test terminate_tcp_connections-1.0 {
+        Terminate TCP connections
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+    ################################################################
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::network::test

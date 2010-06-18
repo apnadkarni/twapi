@@ -1,0 +1,413 @@
+#
+# Copyright (c) 2004, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the eventlog.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::eventlog::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    # Read the last entry from the specified event log
+    proc get_last_event {source} {
+        set hevl [twapi::eventlog_open -source $source]
+        set event [lindex [twapi::eventlog_read $hevl -direction back] 0]
+        twapi::eventlog_close $hevl
+        return $event
+    }
+
+    proc verify_event {eventrec} {
+        # TBD
+        return
+    }
+
+    ################################################################
+
+    test eventlog_open-1.0 {
+        Open the eventlog for reading using defaults
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        twapi::eventlog_close $hevl
+    } -result ""
+    
+    test eventlog_open-1.1 {
+        Open the eventlog of a specific source for reading
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -source system]
+        twapi::eventlog_close $hevl
+    } -result ""
+
+    test eventlog_open-1.2 {
+        Open a backup eventlog
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -source application]
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        catch {file delete $backup}
+        twapi::eventlog_backup $hevl $backup
+        twapi::eventlog_close $hevl
+        set hevl [twapi::eventlog_open -file $backup]
+        twapi::eventlog_close $hevl
+    } -result ""
+
+    ################################################################
+
+    test eventlog_backup-1.0 {
+        Back up the eventlog
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -source application]
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        catch {file delete $backup}
+        twapi::eventlog_backup $hevl $backup
+        twapi::eventlog_close $hevl
+        file exists $backup
+    } -result 1
+    
+    ################################################################
+
+    test eventlog_clear-1.0 {
+        Clear the event log
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set hevl [twapi::eventlog_open -source application]
+        twapi::eventlog_clear $hevl
+        set count [twapi::eventlog_count $hevl]
+        twapi::eventlog_close $hevl
+        set count
+    } -result 0
+
+    test eventlog_clear-1.1 {
+        Backup and clear the event log
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set hevl [twapi::eventlog_open -source application]
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        catch {file delete $backup}
+        twapi::eventlog_clear $hevl -backup $backup
+        set count [twapi::eventlog_count $hevl]
+        twapi::eventlog_close $hevl
+        expr {[file exists $backup] && ($count == 0)}
+    } -result 1
+
+    ################################################################
+
+    test eventlog_is_full-1.0 {
+        Test if the eventlog is full using a read handle
+    } -constraints {
+        nt win2k
+    } -body {
+        set hevl [twapi::eventlog_open -source application]
+        set full [twapi::eventlog_is_full $hevl]
+        twapi::eventlog_close $hevl
+        expr {$full == 0 || $full == 1}
+    } -result 1
+
+    test eventlog_is_full-1.1 {
+        Test if the eventlog is full using a write handle
+    } -constraints {
+        nt win2k
+    } -body {
+        set hevl [twapi::eventlog_open -write]
+        set full [twapi::eventlog_is_full $hevl]
+        twapi::eventlog_close $hevl
+        expr {$full == 0 || $full == 1}
+    } -result 1
+
+    ################################################################
+
+    test eventlog_log-1.0 {
+        Log a message to the default log
+    } -constraints {
+        nt
+    } -body {
+        twapi::eventlog_log "TWAPI test message"
+        twapi::eventlog_format_message [get_last_event application]
+    } -match glob -result  "*TWAPI test message"
+
+    test eventlog_log-1.1 {
+        Log a message to the application log
+    } -constraints {
+        nt
+    } -body {
+        twapi::eventlog_log "TWAPI Application log test message" -source application
+        twapi::eventlog_format_message [get_last_event application]
+    } -match glob -result  "*TWAPI Application log test message"
+
+    test eventlog_log-1.2 {
+        Log a message to the system log
+    } -constraints {
+        nt
+    } -body {
+        twapi::eventlog_log "TWAPI System log test message" -source system
+        twapi::eventlog_format_message [get_last_event system]
+    } -match glob -result  "*TWAPI System log test message"
+    
+    set testnum 0
+    foreach source {application system} {
+        foreach type {success error warning information} {
+            test eventlog_log-2.[incr testnum] "Log a message of type $type to the $source log" -constraints {
+                nt
+            } -body {
+                twapi::eventlog_log "TWAPI log $type message" -type $type -source $source
+                array set event [get_last_event $source]
+                set event(-type)
+            } -result $type
+        }
+    }
+
+    ################################################################
+
+    test eventlog_oldest-1.0 {
+        Get the oldest record number in the event log
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set oldest [twapi::eventlog_oldest $hevl]
+        twapi::eventlog_close $hevl
+        string is integer -strict $oldest
+    } -result 1
+
+    ################################################################
+
+    test eventlog_count-1.0 {
+        Get the count of records in the event log
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set count [twapi::eventlog_count $hevl]
+        twapi::eventlog_close $hevl
+        string is integer -strict $count
+    } -result 1
+
+    ################################################################
+
+    test eventlog_close-1.0 {
+        Close a read event log handle
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        twapi::eventlog_close $hevl
+        # Should generate error when closing
+        catch {twapi::eventlog_close $hevl}
+    } -result 1
+
+
+    test eventlog_close-1.1 {
+        Close a write event log handle
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -write]
+        twapi::eventlog_close $hevl
+        # Should generate error when closing
+        catch {twapi::eventlog_close $hevl}
+    } -result 1
+
+    ################################################################
+
+    set testnum 0
+    foreach source {application system security} {
+        test eventlog_read-1.[incr testnum] "Read event log records from the $source log" -constraints {
+            nt
+        } -body {
+            set hevl [twapi::eventlog_open -source $source]
+            while {[llength [set events [twapi::eventlog_read $hevl]]]} {
+                foreach eventrec $events {
+                    lappend msgs [verify_event $eventrec]
+                }
+            }
+            twapi::eventlog_close $hevl
+            concat [join $msgs \n]
+        } -result ""
+    }
+
+    test eventlog_read-2.0 {
+        Verify eventlog is read in forward direction by default
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set recs [twapi::eventlog_read $hevl]
+        twapi::eventlog_close $hevl
+        expr {[twapi::kl_get [lindex $recs 0] -recordnum] < [twapi::kl_get [lindex $recs 1] -recordnum]}
+    } -result 1
+
+    #
+
+    test eventlog_read-2.1 {
+        Verify eventlog reading in forward direction
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set recs [twapi::eventlog_read $hevl -direction forward]
+        twapi::eventlog_close $hevl
+        expr {[twapi::kl_get [lindex $recs 0] -recordnum] < [twapi::kl_get [lindex $recs 1] -recordnum]}
+    } -result 1
+
+    #
+
+    test eventlog_read-2.2 {
+        Verify eventlog reading in backward direction
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set recs [twapi::eventlog_read $hevl -direction backward]
+        twapi::eventlog_close $hevl
+        expr {[twapi::kl_get [lindex $recs 0] -recordnum] > [twapi::kl_get [lindex $recs 1] -recordnum]}
+    } -result 1
+
+    #
+
+    test eventlog_read-3.0 {
+        Verify eventlog read from a record position in forward direction
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set oldest [twapi::eventlog_oldest $hevl]
+        set count  [twapi::eventlog_count $hevl]
+        set seekpos [expr {$oldest + ($count/2)}]
+        set recs [twapi::eventlog_read $hevl -seek $seekpos -direction forward]
+        twapi::eventlog_close $hevl
+        set first [twapi::kl_get [lindex $recs 0] -recordnum]
+        set next  [twapi::kl_get [lindex $recs 1] -recordnum]
+        expr {$first == $seekpos && $seekpos == [expr {$next - 1}]}
+    } -result 1
+
+    #
+
+    test eventlog_read-3.1 {
+        Verify eventlog read from a record position in backward direction
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open]
+        set oldest [twapi::eventlog_oldest $hevl]
+        set count  [twapi::eventlog_count $hevl]
+        set seekpos [expr {$oldest + ($count/2)}]
+        set recs [twapi::eventlog_read $hevl -seek $seekpos -direction backward]
+        twapi::eventlog_close $hevl
+        set first [twapi::kl_get [lindex $recs 0] -recordnum]
+        set next  [twapi::kl_get [lindex $recs 1] -recordnum]
+        expr {$first == $seekpos && $seekpos == [expr {$next + 1}]}
+    } -result 1
+
+    ################################################################
+
+    set testnum 0
+    foreach source {application system security} {
+        test eventlog_format_message-1.[incr testnum] "Format event messages from the $source log" -constraints {
+            nt
+        } -body {
+            set hevl [twapi::eventlog_open -source $source]
+            while {[llength [set events [twapi::eventlog_read $hevl]]]} {
+                foreach eventrec $events {
+                    twapi::eventlog_format_message $eventrec
+                }
+            }
+            twapi::eventlog_close $hevl
+        } -result ""
+    }
+
+    ################################################################
+
+    set testnum 0
+    foreach source {application system} {
+        test eventlog_format_category-1.[incr testnum] "Format event category from the $source log" -constraints {
+            nt
+        } -body {
+            set hevl [twapi::eventlog_open -source $source]
+            while {[llength [set events [twapi::eventlog_read $hevl]]]} {
+                foreach eventrec $events {
+                    twapi::eventlog_format_category $eventrec
+                }
+            }
+            twapi::eventlog_close $hevl
+        } -result ""
+    }
+
+    ################################################################
+
+    set testnum 0
+    foreach source {application system} {
+        foreach type {success error warning information} {
+            test eventlog_write-1.[incr testnum] "Write a message of type $type to the $source log" -constraints {
+                nt
+            } -body {
+                set hevl [twapi::eventlog_open -source $source -write]
+                twapi::eventlog_write $hevl 1 -params [list "TWAPI log $type message"] -type $type
+                twapi::eventlog_close $hevl
+                set eventrec [get_last_event $source]
+                expr {([twapi::kl_get $eventrec -type] == $type) &&
+                      [string match "*TWAPI log $type message" [twapi::eventlog_format_message $eventrec]]}
+            } -result 1
+        }
+    }
+
+    test eventlog_write-2.0 {
+        Verify -loguser option when writing to event log
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -write]
+        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with SID"] -loguser
+        twapi::eventlog_close $hevl
+        twapi::kl_get [get_last_event application] -sid
+    } -result [twapi::get_current_user -sid]
+
+    test eventlog_write-3.0 {
+        Verify -data option with text when writing to event log
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -write]
+        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with data"] -data "SOME JUNK DATA"
+        twapi::eventlog_close $hevl
+        twapi::kl_get [get_last_event application] -data
+    } -result "SOME JUNK DATA"
+
+    test eventlog_write-3.1 {
+        Verify -data option with binary data when writing to event log
+    } -constraints {
+        nt
+    } -body {
+        set hevl [twapi::eventlog_open -write]
+        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with data"] -data [binary format h* abcdef]
+        twapi::eventlog_close $hevl
+        binary scan [twapi::kl_get [get_last_event application] -data] h* data
+        set data
+    } -result abcdef
+
+    ################################################################
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::eventlog::test

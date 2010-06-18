@@ -1,0 +1,4471 @@
+#
+# Copyright (c) 2003, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the security.tcl
+
+# TBD - Use CACLS.EXE for ACL testing
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::security::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    # Account name to use for creation/deletion
+    variable user_account_name "TWAPI_TESTER"
+
+    # SID for the account the process is running under
+    variable my_sid [twapi::lookup_account_name $::env(USERNAME)]
+    variable guest_sid [twapi::lookup_account_name Guest]
+
+    # Define expected values for various get_user_account_info fields
+    # assuming [string match -nocase comparison] and Administrator account
+    variable get_user_account_info_fields
+    array set get_user_account_info_fields\
+        [list \
+             -user_id "500" \
+             -usr_comment * \
+             -bad_pw_count * \
+             -logon_hours [string repeat 1 168] \
+             -code_page 0 \
+             -workstations * \
+             -global_groups * \
+             -last_logoff * \
+             -priv "admin" \
+             -name "administrator" \
+             -sid "S-1-5-*" \
+             -profile * \
+             -script_path * \
+             -max_storage * \
+             -password_expired 0 \
+             -parms * \
+             -comment "*built-in*" \
+             -full_name * \
+             -units_per_week 168 \
+             -primary_group_id 513 \
+             -status "enabled" \
+             -logon_server "*" \
+             -country_code 0 \
+             -home_dir * \
+             -password_age * \
+             -home_dir_drive * \
+             -num_logons * \
+             -local_groups "*Administrators*" \
+             -last_logon * \
+             -acct_expires "never"]
+
+    # Current logon session
+    proc current_logon_session {} {
+        variable current_logon_session_id
+        if {![info exists current_logon_session_id]} {
+            set current_logon_session_id [lindex [twapi::get_process_info [pid] -logonsession] 1]
+        }
+        return $current_logon_session_id
+    }
+
+    # Make up an ACL
+    proc make_acl {} {
+        return [twapi::new_acl [list [twapi::new_ace allow Everyone generic_read]]]
+    }
+
+    ################################################################
+
+    test lookup_account_name-1.0 {
+        Look up the SID for a user name
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_sid_syntax [twapi::lookup_account_name $::env(USERNAME)]
+    } -result 1
+
+    ###
+
+    test lookup_account_name-1.1 {
+        Look up the SID for a group name
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_name administrators
+    } -result S-1-5-32-544
+
+    ###
+
+    test lookup_account_name-2.0 {
+        Look up all attributes for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -sid}]] == 0 &&
+              [twapi::is_valid_sid_syntax $unameinfo(-sid)] &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-2.1 {
+        Look up all attributes for a group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -sid}]] == 0 &&
+              $unameinfo(-sid) == "S-1-5-32-544" &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-3.0 {
+        Look up the domain for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [info exists unameinfo(-domain)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-3.1 {
+        Look up the domain for a user name (local computer)
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name guest -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == $::env(COMPUTERNAME)
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-3.2 {
+        Look up the domain for a group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == "BUILTIN"
+          }
+    } -result 1
+
+    test lookup_account_name-4.0 {
+        Look up the type for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-4.1 {
+        Look up the type for an alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-4.2 {
+        Look up the type for a well known group
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name everyone -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "wellknowngroup"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.0 {
+        Look up SID for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              [twapi::is_valid_sid_syntax $unameinfo(-sid)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.1 {
+        Look up SID for a group alias name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-sid) ==  "S-1-5-32-544"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.2 {
+        Look up SID for a well known group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name everyone -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-sid) ==  "S-1-1-0"
+          }
+    } -result 1
+
+    ################################################################
+
+    test lookup_account_sid-1.0 {
+        Look up the name for a user SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_sid $my_sid
+    } -result $::env(USERNAME)
+
+    ###
+
+    test lookup_account_sid-1.1 {
+        Look up the name for a group alias
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_sid S-1-5-32-544
+    } -result Administrators
+
+    ###
+
+    test lookup_account_sid-2.0 {
+        Look up all attributes for a user SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -name}]] == 0 &&
+              $unameinfo(-name) == "$::env(USERNAME)" &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-2.1 {
+        Look up all attributes for a group alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -name}]] == 0 &&
+              $unameinfo(-name) == "Administrators" &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.0 {
+        Look up the domain for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [info exists unameinfo(-domain)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.1 {
+        Look up the domain for a user sid (local computer)
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $guest_sid -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == $::env(COMPUTERNAME)
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.2 {
+        Look up the domain for a group alias sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == "BUILTIN"
+          }
+    } -result 1
+
+    test lookup_account_sid-4.0 {
+        Look up the type for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-4.1 {
+        Look up the type for an alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-4.2 {
+        Look up the type for a well known group sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-1-0 -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "wellknowngroup"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.0 {
+        Look up name for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) == "$::env(USERNAME)"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.1 {
+        Look up name for a group alias SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) ==  "Administrators"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.2 {
+        Look up name SID for a well known group SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-1-0 -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) ==  "Everyone"
+          }
+    } -result 1
+
+    ################################################################
+
+    test map_account_to_sid-1.0 {
+        Map a account name to a SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid Guest
+    } -result $guest_sid
+
+    ###
+
+    test map_account_to_sid-1.1 {
+        Verify mapping account SID returns the same SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $guest_sid
+    } -result $guest_sid
+
+    ###
+
+    test map_account_to_sid-2.0 {
+        Map account to SID on another system (UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $::env(USERNAME) -system \\\\127.0.0.1
+    } -result $my_sid
+
+    ###
+
+    test map_account_to_sid-2.1 {
+        Map account to SID on another system (non-UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $::env(USERNAME) -system 127.0.0.1
+    } -result $my_sid
+
+    ################################################################
+
+    test map_account_to_name-1.0 {
+        Map a account SID to a name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid
+    } -result Guest
+
+    ###
+
+    test map_account_to_name-1.1 {
+        Verify mapping account name returns the same name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name Guest
+    } -result Guest
+
+    ###
+
+    test map_account_to_name-2.0 {
+        Map account to name on another system (UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid -system \\\\127.0.0.1
+    } -result Guest
+
+    ###
+
+    test map_account_to_name-2.1 {
+        Map account to name on another system (non-UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid -system 127.0.0.1
+    } -result Guest
+
+
+    ################################################################
+
+    test get_current_user-1.0 {
+        Get current user name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_current_user
+    } -result $::env(COMPUTERNAME)\\$::env(USERNAME)
+
+    ###
+
+    test get_current_user-2.0 {
+        Get current user SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_current_user -sid
+    } -result $my_sid
+
+
+    ################################################################
+
+    test is_valid_sid_syntax-1.0 {
+        Validate a well-formed syntax for a valid SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_sid_syntax S-1-234-567-890
+    } -result 1
+
+    ### 
+
+    test is_valid_sid_syntax-2.0 {
+        Check invalid syntax for SID (invalid characters)
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_sid_syntax S-ABC-DE
+    } -result 0
+
+    ###
+
+    test is_valid_sid_syntax-2.1 {
+        Check invalid syntax for SID (invalid revision level)
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_sid_syntax S-10-234-567-890
+    } -result 0
+
+    ################################################################
+
+    test open_process_token-1.0 {
+        Open our process token (defaults)
+    } -constraints {
+        nt
+    } -body {
+        twapi::close_token [twapi::open_process_token]
+    } -result ""
+
+
+    ###
+
+    test open_process_token-2.0 {
+        Verify open_process_token access symbols
+    } -constraints {
+        nt
+    } -body {
+        # Verify all access symbols work. Note the actual call may
+        # fail because of access denied. That's ok. It should not
+        # fail because of invalid symbols
+        set status [catch {
+            twapi::open_process_token -access {
+                delete
+                read_control
+                write_dac
+                write_owner
+                synchronize
+                standard_rights_read
+                standard_rights_write
+                standard_rights_execute
+                standard_rights_required
+                standard_rights_all
+                token_adjust_default
+                token_adjust_groups
+                token_adjust_privileges
+                token_adjust_sessionid
+                token_assign_primary
+                token_duplicate
+                token_execute
+                token_impersonate
+                token_query
+                token_query_source
+                token_read
+                token_write
+                token_all_access
+            }
+        } tok]
+
+        if {$status == 0} {
+            twapi::close_token $tok
+        }
+        expr {
+              $status == 0 ||
+              [string equal $tok "Access is denied."]
+        }
+    } -result 1
+
+    ###
+
+    test open_process_token-3.0 {
+        Open another process' token using -pid
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        set tok [twapi::open_process_token -pid $np_pid]
+        # TBD - how to verify we got the right token
+        twapi::close_token $tok
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -result ""
+
+    ###
+
+    test open_process_token-4.0 {
+        Open another process' token using -hprocess
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_h [twapi::get_process_handle $np_pid]
+    } -body {
+        set tok [twapi::open_process_token -hprocess $np_h]
+        # TBD - how to verify we got the right token
+        twapi::close_token $tok
+    } -cleanup {
+        twapi::close_handles $np_h
+        twapi::end_process $np_pid -wait 500
+    } -result ""
+
+
+    ################################################################
+
+    test open_thread_token-1.0 {
+        Open our thread token (defaults)
+    } -constraints {
+        nt
+    } -setup {
+        # To make sure the thread has a token
+        twapi::impersonate_self impersonation
+    } -body {
+        twapi::close_token [twapi::open_thread_token]
+    } -cleanup {
+        twapi::revert_to_self
+    } -result ""
+
+
+    ###
+
+    test open_thread_token-2.0 {
+        Verify open_thread_token access symbols
+    } -constraints {
+        nt
+    } -body {
+        # Verify all access symbols work. Note the actual call may
+        # fail because of access denied. That's ok. It should not
+        # fail because of invalid symbols
+        set status [catch {
+            twapi::open_process_token -access {
+                delete
+                read_control
+                write_dac
+                write_owner
+                synchronize
+                standard_rights_read
+                standard_rights_write
+                standard_rights_execute
+                standard_rights_required
+                standard_rights_all
+                token_adjust_default
+                token_adjust_groups
+                token_adjust_privileges
+                token_adjust_sessionid
+                token_assign_primary
+                token_duplicate
+                token_execute
+                token_impersonate
+                token_query
+                token_query_source
+                token_read
+                token_write
+                token_all_access
+            }
+        } tok]
+
+        if {$status == 0} {
+            twapi::close_token $tok
+        }
+        expr {
+              $status == 0 ||
+              [string equal $tok "Access is denied."]
+        }
+    } -result 1
+
+    ###
+
+    test open_thread_token-3.0 {
+        Open another thread's token
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_tid [lindex [twapi::get_process_thread_ids $np_pid] 0]
+    } -body {
+        # Should get an error since other process has no token
+        twapi::open_thread_token -tid $np_tid
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    }  -returnCodes error -result "An attempt was made to reference a token that does not exist."
+
+    ###
+
+    test open_thread_token-4.0 {
+        Open our thread token -self 0
+    } -constraints {
+        nt
+    } -setup {
+        # To make sure the thread has a token
+        twapi::impersonate_self impersonation
+    } -body {
+        twapi::close_token [twapi::open_thread_token -self 0]
+    } -cleanup {
+        twapi::revert_to_self
+    } -result ""
+
+    ###
+
+    test open_thread_token-4.1 {
+        Open our thread token -self true
+    } -constraints {
+        nt
+    } -setup {
+        # To make sure the thread has a token
+        twapi::impersonate_self impersonation
+    } -body {
+        twapi::close_token [twapi::open_thread_token -self true]
+    } -cleanup {
+        twapi::revert_to_self
+    } -result ""
+
+
+    ################################################################
+
+    test close_token-1.0 {
+        Close a  token
+    } -constraints {
+        nt
+    } -body {
+        twapi::close_token [twapi::open_process_token]
+    } -result ""
+
+    ################################################################
+
+    test get_token_user-1.0 {
+        Get the user account sid for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_user $tok
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [twapi::lookup_account_name $::env(USERNAME)]
+
+    ###
+
+    test get_token_user-2.0 {
+        Get the user account name for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_user $tok -name
+    } -cleanup {
+        twapi::close_token $tok
+    } -result $::env(USERNAME)
+
+    ################################################################
+
+    test get_token_groups-1.0 {
+        Get the group accounts for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_groups $tok
+        set tbd TBD
+    } -cleanup {
+        twapi::close_token $tok
+    } -result TBD
+
+    ###
+
+    test get_token_groups-2.0 {
+        Get the group account names for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_groups $tok -name
+        set tbd TBD
+    } -cleanup {
+        twapi::close_token $tok
+    } -result TBD
+
+
+    ################################################################
+
+    test get_token_group_sids_and_attrs-1.0 {
+        Get the group sids and attributes for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_group_sids_and_attrs $tok
+        set tbd TBD
+    } -cleanup {
+        twapi::close_token $tok
+    } -result TBD
+
+
+    ################################################################
+
+    test get_token_privileges-1.0 {
+        Get the privileges for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        verify_priv_list [twapi::get_token_privileges $tok]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test get_token_privileges-1.1 {
+        Get the privileges for a token -all
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set privs [twapi::get_token_privileges $tok -all]
+        expr {[llength $privs] == 2 &&
+              [verify_priv_list [lindex $privs 0]] &&
+              [verify_priv_list [lindex $privs 1]]}
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+    ################################################################
+
+    test check_enabled_privileges-1.0 {
+        Check if a privilege is enabled (yes)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        # Get the list of privileges
+        set priv [lindex [twapi::get_token_privileges $tok] 0]
+    } -body {
+        twapi::check_enabled_privileges $tok $priv
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+    ###
+
+    test check_enabled_privileges-1.1 {
+        Check if a privilege is enabled (no)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        set disabled_privs [lindex [twapi::get_token_privileges $tok -all] 1]
+        set priv [lindex $disabled_privs 0]
+    } -body {
+        twapi::check_enabled_privileges $tok $priv
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 0
+
+
+    ###
+
+    test check_enabled_privileges-1.2 {
+        Check if multiple privileges are all enabled (true)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        # Get the list of privileges
+        set enabled_privs  [twapi::get_token_privileges $tok]
+    } -body {
+        twapi::check_enabled_privileges $tok $enabled_privs
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+    ###
+
+    test check_enabled_privileges-1.3 {
+        Check if multiple privileges are all enabled (false)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        # Get the list of privileges
+        set privs  [twapi::get_token_privileges $tok]
+        set disabled_privs [lindex [twapi::get_token_privileges $tok -all] 1]
+        lappend privs [lindex $disabled_privs 0]
+    } -body {
+        twapi::check_enabled_privileges $tok $privs
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 0
+
+    ###
+
+    test check_enabled_privileges-2.0 {
+        Check any one of multiple privileges is enabled (true)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        # Get the list of privileges
+        set enabled_privs  [twapi::get_token_privileges $tok]
+        set privs [lindex [twapi::get_token_privileges $tok -all] 1]
+        lappend privs [lindex $enabled_privs 0]
+    } -body {
+        twapi::check_enabled_privileges $tok $privs -any
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test check_enabled_privileges-2.1 {
+        Check any one of multiple privileges is enabled (false)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        set enabled_privs  [twapi::get_token_privileges $tok]
+        set privs [lindex [twapi::get_token_privileges $tok -all] 1]
+    } -body {
+        twapi::check_enabled_privileges $tok $privs -any
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 0
+
+    ################################################################
+
+    test enable_privileges-1.0 {
+        Enable the specified privileges
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        set enabled_privs  [twapi::get_token_privileges $tok]
+        set privs [lindex [twapi::get_token_privileges $tok -all] 1]
+        set privs [lrange $privs 0 2]
+    } -body {
+        set changed_privs [twapi::enable_privileges $privs]
+        expr {
+              [twapi::check_enabled_privileges $tok $privs] &&
+              [llength [setops::symdiff $changed_privs $privs]] == 0
+          }
+    } -cleanup {
+        twapi::disable_privileges $changed_privs
+        twapi::close_token $tok
+    } -result 1
+    
+    ###
+
+    test enable_privileges-1.1 {
+        Enable privileges that were already enabled
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        set privs  [twapi::get_token_privileges $tok]
+        set privs [lrange $privs 0 2]
+    } -body {
+        twapi::enable_privileges $privs
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    ################################################################
+
+    test disable_privileges-1.0 {
+        Disable the specified privileges
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        set privs  [twapi::get_token_privileges $tok]
+        set privs [lrange $privs 0 2]
+    } -body {
+        set changed_privs [twapi::disable_privileges $privs]
+        expr {
+              (! [twapi::check_enabled_privileges $tok $privs -any]) &&
+              [llength [setops::symdiff $changed_privs $privs]] == 0
+          }
+    } -cleanup {
+        twapi::enable_privileges $changed_privs
+        twapi::close_token $tok
+    } -result 1
+    
+    ###
+
+    test disable_privileges-1.1 {
+        Disable privileges that were already disabled
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $privs 0 2]
+    } -body {
+        twapi::disable_privileges $privs
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    ################################################################
+
+    test eval_with_privileges-1.0 {
+        Evaluate a script with the specified privileges
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+    } -body {
+        set privs2 [twapi::eval_with_privileges {
+            twapi::get_token_privileges $tok
+        } $privs]
+        setops::symdiff [concat $enabled_privs $privs] $privs2
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    ###
+
+    test eval_with_privileges-1.1 {
+        Verify privileges are restored after eval_with_privileges
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+    } -body {
+        twapi::eval_with_privileges {
+            set x 1
+        } $privs
+        setops::symdiff $enabled_privs [twapi::get_token_privileges $tok]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    ###
+
+    test eval_with_privileges-1.2 {
+        Verify privileges are restored even after eval_with_privileges error
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+    } -body {
+        catch {
+            twapi::eval_with_privileges {
+                error "Intentional error to check restoration of privileges"
+            } $privs
+        }
+        setops::symdiff $enabled_privs [twapi::get_token_privileges $tok]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    ###
+
+    test eval_with_privileges-1.3 {
+        Verify eval_with_privileges return break code correctly
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+    } -body {
+        set i 0
+        while {[incr i] < 4} {
+            twapi::eval_with_privileges {
+                break
+            } $privs
+        }
+        expr {
+              [llength [setops::symdiff $enabled_privs [twapi::get_token_privileges $tok]]] == 0 &&
+              $i == 1
+          }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test eval_with_privileges-1.4 {
+        Verify eval_with_privileges returns continue code correctly
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+    } -body {
+        set i 0
+        set j 0
+        while {[incr i] < 4} {
+            twapi::eval_with_privileges {
+                continue
+            } $privs
+            incr j
+        }
+        expr {
+              [llength [setops::symdiff $enabled_privs [twapi::get_token_privileges $tok]]] == 0 &&
+              $i == 4 &&
+              $j == 0
+          }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test eval_with_privileges-1.5 {
+        Verify eval_with_privileges returns return code correctly
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+        foreach {enabled_privs disabled_privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $disabled_privs 0 2]
+        proc eval_with_privileges_return_proc args {
+            eval $args
+        }
+    } -body {
+        set x [eval_with_privileges_return_proc \
+                   twapi::eval_with_privileges "return 100" $privs]
+        expr {
+              [llength [setops::symdiff $enabled_privs [twapi::get_token_privileges $tok]]] == 0 &&
+              $x == 100
+          }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+
+    ################################################################
+
+    test get_token_privileges_and_attrs-1.0 {
+        Get token privileges and attributes
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set pass Pass
+        foreach {priv attrs} [twapi::get_token_privileges_and_attrs $tok] {
+            # Ensure valid priv
+            if {[catch {twapi::map_privilege_to_luid $priv} msg]} {
+                set pass $msg
+                break
+            }
+            # Validate attributes
+            foreach attr $attrs {
+                if {[lsearch -exact {enabled enabled_by_default used_for_access} $attr] < 0} {
+                    set pass "Unknown attribute $attr"
+                    break
+                }
+            }
+            if {$pass != "Pass"} break
+        }
+        set pass
+
+    } -cleanup {
+        twapi::close_token $tok
+    } -result "Pass"
+
+    ################################################################
+
+    test get_token_owner-1.0 {
+        Get token owner sid
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set owner [twapi::get_token_owner $tok]
+        # Token owner may be either user or group Administrators ir
+        # we are running under an account belonging to Administrators group
+        expr {$owner eq [twapi::lookup_account_name $::env(USERNAME)] ||
+              $owner eq "S-1-5-32-544"}
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test get_token_owner-2.0 {
+        Get token owner name
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set owner [twapi::get_token_owner $tok -name]
+        # Token owner may be either user or group Administrators ir
+        # we are running under an account belonging to Administrators group
+        expr {$owner eq $::env(USERNAME) || $owner eq [twapi::lookup_account_sid "S-1-5-32-544"]}
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ################################################################
+
+    test get_token_primary_group-1.0 {
+        Get token primary_group sid
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::is_valid_sid_syntax [twapi::get_token_primary_group $tok]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ###
+
+    test get_token_primary_group-2.0 {
+        Get token primary_group name
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_primary_group $tok -name
+        set x TBD
+    } -cleanup {
+        twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test get_token_source-1.0 {
+        Get a token source
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token -access token_query_source]
+    } -body {
+        foreach {src luid} [twapi::get_token_source $tok] break
+        expr {
+              [string match -nocase User32* $src] &&
+              [twapi::_is_valid_luid_syntax $luid]
+          }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ################################################################
+
+    test get_token_type-1.0 {
+        Get a token type (primary)
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token -access token_query]
+    } -body {
+        twapi::get_token_type $tok
+    } -cleanup {
+        twapi::close_token $tok
+    } -result "primary"
+
+    ###
+
+    test get_token_type-1.1 {
+        Get a token type (impersonation)
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD set tok [twapi::open_process_token -access token_query]
+    } -body {
+        twapi::get_token_type $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result "impersonation"
+
+    ################################################################
+
+    test get_token_impersonation_level-1.0 {
+        Get a token impersonation level (impersonation)
+    } -constraints {
+        nt
+    } -setup {
+        twapi::impersonate_self impersonation
+        set tok [twapi::open_thread_token -access token_query]
+    } -body {
+        twapi::get_token_impersonation_level $tok
+    } -cleanup {
+        twapi::revert_to_self
+        twapi::close_token $tok
+    } -result "impersonation"
+
+    ###
+
+    test get_token_impersonation_level-1.1 {
+        Get a token impersonation level (delegation)
+    } -constraints {
+        nt
+    } -setup {
+        twapi::impersonate_self delegation
+        set tok [twapi::open_thread_token -access token_query]
+    } -body {
+        twapi::get_token_impersonation_level $tok
+    } -cleanup {
+        twapi::revert_to_self
+        twapi::close_token $tok
+    } -result "delegation"
+
+    ###
+
+    test get_token_impersonation_level-1.2 {
+        Get a token impersonation level (anonymous)
+    } -constraints {
+        nt TBD
+        TBD - once we impersonate as anonymous, we cannot open token
+    } -setup {
+        twapi::impersonate_self anonymous
+        set tok [twapi::open_thread_token -access token_query]
+    } -body {
+        twapi::get_token_impersonation_level $tok
+    } -cleanup {
+        twapi::revert_to_self
+        twapi::close_token $tok
+    } -result "anonymous"
+
+    ###
+
+    test get_token_impersonation_level-1.3 {
+        Get a token impersonation level (identification)
+    } -constraints {
+        nt TBD
+        TBD - once we impersonate as identification, we cannot open token
+    } -setup {
+        twapi::impersonate_self identification
+        set tok [twapi::open_thread_token -access token_query]
+    } -body {
+        twapi::get_token_impersonation_level $tok
+    } -cleanup {
+        twapi::revert_to_self
+        twapi::close_token $tok
+    } -result "identification"
+
+    ################################################################
+
+    test get_token_statistics-1.0 {
+        Get token statistics
+    } -constraints {
+        nt
+    } -setup {
+        catch {unset stats}
+        set tok [twapi::open_process_token]
+    } -body {
+        array set stats [twapi::get_token_statistics $tok]
+        set labels {
+            luid authluid expiration type impersonationlevel
+            dynamiccharged dynamicavailable groupcount privilegecount
+            modificationluid
+        }
+        expr {
+              [llength [setops::symdiff $labels [array names stats]]] == 0 &&
+              [twapi::_is_valid_luid_syntax $stats(luid)] &&
+              [twapi::_is_valid_luid_syntax $stats(authluid)] &&
+              [string is integer $stats(dynamiccharged)] &&
+              [string is integer $stats(dynamicavailable)] &&
+              [string is integer $stats(groupcount)] &&
+              $stats(privilegecount) == [llength [join [twapi::get_token_privileges $tok -all]]] &&
+              [twapi::_is_valid_luid_syntax $stats(modificationluid)]
+          }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    ################################################################
+
+    test get_token_virtualization-1.0 {
+        Get the virtualization for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test set_token_virtualization-1.0 {
+        Set the virtualization for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test get_token_elevation-1.0 {
+        Get the elevation for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test get_token_integrity-1.0 {
+        Get the integrity level for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test set_token_integrity-1.0 {
+        Set the integrity level for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test get_token_integrity_policy-1.0 {
+        Get the integrity policy for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test set_token_integrity_policy-1.0 {
+        Set the integrity policy for a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test get_token_linked_token-1.0 {
+        Get the linked token for a limited token
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD set tok [twapi::open_process_token]
+    } -body {
+        TBD twapi::get_token_user $tok
+    } -cleanup {
+        TBD twapi::close_token $tok
+    } -result TBD
+
+    ################################################################
+
+    test enable_token_privileges-1.0 {
+        Enable the specified privileges in a token
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set tok [twapi::open_process_token -pid $np_pid -access 0x28]
+        foreach {enabled_privs privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $privs 0 2]
+    } -body {
+        set changed_privs [twapi::enable_token_privileges $tok $privs]
+        expr {
+              [twapi::check_enabled_privileges $tok $privs] &&
+              [llength [setops::symdiff $changed_privs $privs]] == 0
+          }
+    } -cleanup {
+        twapi::close_token $tok
+        twapi::end_process $np_pid -wait 500
+    } -result 1
+    
+    ###
+
+    test enable_token_privileges-1.1 {
+        Enable privileges that were already enabled
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set tok [twapi::open_process_token -pid $np_pid -access 0x28]
+        set privs  [twapi::get_token_privileges $tok]
+        set privs [lrange $privs 0 2]
+    } -body {
+        twapi::enable_token_privileges $tok $privs
+    } -cleanup {
+        twapi::close_token $tok
+        twapi::end_process $np_pid -wait 500
+    } -result ""
+
+    ################################################################
+
+    test disable_token_privileges-1.0 {
+        Disable the specified privileges in a token
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set tok [twapi::open_process_token -pid $np_pid -access 0x28]
+        set privs  [twapi::get_token_privileges $tok]
+        set privs [lrange $privs 0 2]
+    } -body {
+        set changed_privs [twapi::disable_token_privileges $tok $privs]
+        expr {
+              (! [twapi::check_enabled_privileges $tok $privs -any]) &&
+              [llength [setops::symdiff $changed_privs $privs]] == 0
+          }
+    } -cleanup {
+        twapi::close_token $tok
+        twapi::end_process $np_pid -wait 500
+    } -result 1
+    
+    ###
+
+    test disable_token_privileges-1.1 {
+        Disable privileges in a token that were already disabled
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set tok [twapi::open_process_token -pid $np_pid -access 0x28]
+        foreach {enabled_privs privs} [twapi::get_token_privileges $tok -all] break
+        set privs [lrange $privs 0 2]
+    } -body {
+        twapi::disable_token_privileges $tok $privs
+    } -cleanup {
+        twapi::close_token $tok
+        twapi::end_process $np_pid -wait 500
+    } -result ""
+
+    ################################################################
+
+    test disable_all_token_privileges-1.0 {
+        Disable all privileges in a token
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
+        set tok [twapi::open_process_token -pid $np_pid -access 0x28]
+        set privs  [twapi::get_token_privileges $tok]
+    } -body {
+        set changed_privs [twapi::disable_all_token_privileges $tok]
+        expr {
+              [llength [twapi::get_token_privileges $tok]] == 0 &&
+              [llength [setops::symdiff $changed_privs $privs]] == 0
+          }
+    } -cleanup {
+        twapi::close_token $tok
+        twapi::end_process $np_pid -wait 500
+    } -result 1
+    
+    ################################################################
+
+    test get_users-1.0 {
+        Get list of users
+    } -constraints {
+        nt
+    } -body {
+        expr { [lsearch [twapi::get_users] Administrator] >= 0 }
+    } -result 1
+
+    ###
+
+    test get_users-2.0 {
+        Get list of users (-system)
+    } -constraints {
+        nt
+    } -body {
+        expr { [lsearch [twapi::get_users -system $::env(COMPUTERNAME)] Administrator] >= 0 }
+    } -result 1
+
+    ###
+
+    test get_users-2.1 {
+        Get list of users (-system, remote)
+    } -constraints {
+        nt
+    } -body {
+        expr { [lsearch [twapi::get_users -system \\\\127.0.0.1] Administrator] >= 0 }
+    } -result 1
+
+    ################################################################
+
+    test new_user-1.0 {
+        Create a new user account
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test delete_user-1.0 {
+        Delete a user account
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_name-1.0 {
+        Set a new user account name
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_password-1.0 {
+        Set a new user account password
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_home_dir-1.0 {
+        Set a new user account home directory
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_comment-1.0 {
+        Set a new user account comment field
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_script_path-1.0 {
+        Set a new user account script path
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_full_name-1.0 {
+        Set a new user account full name
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_country_code-1.0 {
+        Set a new user account country code
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_profile-1.0 {
+        Set a new user account profile
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_home_dir_drive-1.0 {
+        Set a new user account home directory drive
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_priv_level-1.0 {
+        Set a new user account privilege level
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_expiration-1.0 {
+        Set a new user account expiration time
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test unlock_user-1.0 {
+        Unlock a user account
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test enable_user-1.0 {
+        Enable a user account
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test disable_user-1.0 {
+        Disable a user account
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_user_account_info-1.0 {
+        Set user account information
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
+    test get_user_account_info-1.0 {
+        Get all information about a user account
+    } -constraints {
+        nt
+    } -setup {
+        catch {unset uinfo}
+    } -body {
+        array set uinfo [twapi::get_user_account_info Administrator -all]
+        verify_kl_fields [array get uinfo] [array names get_user_account_info_fields]
+
+        # TBD - need more validation
+        expr {
+              $uinfo(-user_id) == 500 &&
+              [string is integer $uinfo(-bad_pw_count)] &&
+              [regexp {^[01]{168}$} $uinfo(-logon_hours)] &&
+              $uinfo(-code_page) == 0 &&
+              [llength $uinfo(-global_groups)] == 1 &&
+              $uinfo(-country_code) == 0 &&
+              $uinfo(-priv) == "admin" &&
+              [string equal -nocase $uinfo(-name) administrator] &&
+              $uinfo(-password_expired) == 0 &&
+              [string match -nocase "*built-in*" $uinfo(-comment)] &&
+              $uinfo(-units_per_week) == 168 &&
+              $uinfo(-primary_group_id) == 513 &&
+              $uinfo(-status) == "enabled" &&
+              $uinfo(-logon_server) == "\\\\*" &&
+              [lsearch $uinfo(-local_groups) "Administrators"] >= 0 &&
+              $uinfo(-acct_expires) == "never"
+          }
+    } -result 1
+
+    set testnum 1
+
+    foreach {field pat} [array get get_user_account_info_fields] {
+        test get_user_account_info-[incr testnum].0 \
+            "Verify get_user_account_info ${field}" \
+            -setup {
+                catch {unset uinfo}
+            } -body " 
+                array set uinfo \[twapi::get_user_account_info Administrator $field \]
+                string match -nocase $pat \$uinfo($field)
+            " -result 1
+    }
+
+    ################################################################
+
+    test get_global_groups-1.0 {
+        Get global groups
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_groups
+        # TBD how to verify
+        set x TBD
+    } -result TBD
+
+    ###
+
+    test get_global_groups-2.0 {
+        Get global groups (-system)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_groups -system $::env(COMPUTERNAME)
+        # TBD how to verify
+        set x TBD
+    } -result TBD
+
+    ###
+
+    test get_global_groups-2.1 {
+        Get global groups (-system, remote)
+    } -constraints {
+        nt TBD
+    } -body {
+        twapi::get_global_groups -system TBD
+        # TBD how to verify
+        set x TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_local_groups-1.0 {
+        Get local groups
+    } -constraints {
+        nt
+    } -body {
+        set l [twapi::get_local_groups]
+        expr {
+              [lsearch $l Administrators] >= 0 &&
+              [lsearch $l Guests] >= 0 &&
+              [lsearch $l "Power Users"] >= 0
+          }
+    } -result 1
+
+    ###
+
+    test get_local_groups-2.0 {
+        Get local groups (-system)
+    } -constraints {
+        nt
+    } -body {
+        set l [twapi::get_local_groups -system $::env(COMPUTERNAME)]
+        expr {
+              [lsearch $l Administrators] >= 0 &&
+              [lsearch $l Guests] >= 0 &&
+              [lsearch $l "Power Users"] >= 0
+          }
+    } -result 1
+
+    ###
+
+    test get_local_groups-2.1 {
+        Get local groups (-system, remote)
+    } -constraints {
+        nt TBD
+    } -body {
+        twapi::get_local_groups -system TBD
+        # TBD how to verify
+        set x TBD
+    } -result TBD
+
+    ################################################################
+
+    test new_global_group-1.0 {
+        Create a new global group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test new_local_group-1.0 {
+        Create a new local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test delete_global_group-1.0 {
+        Delete a global group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test delete_local_group-1.0 {
+        Delete a local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_global_group_members-1.0 {
+        Get members of a global group
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_local_group_members-1.0 {
+        Get members of a local group
+    } -constraints {
+        nt
+    } -body {
+        set l [twapi::get_local_group_members Guests]
+        expr { [lsearch -glob $l *Guest] >= 0 }
+    } -result 1
+
+    ###
+
+    test get_local_group_members-2.0 {
+        Get members of a local group (-system)
+    } -constraints {
+        nt
+    } -body {
+        set l [twapi::get_local_group_members Guests \
+                   -system $::env(COMPUTERNAME)]
+        expr { [lsearch -glob $l *Guest] >= 0 }
+    } -result 1
+
+    ###
+
+    test get_local_group_members-2.1 {
+        Get members of a local group (-system, remote)
+    } -constraints {
+        nt TBD
+    } -body {
+        set l [twapi::get_local_group_members Administrators \
+                   -system TBD]
+        expr { [lsearch $l Administrator] >= 0 }
+    } -result TBD
+
+    ################################################################
+
+    test add_user_tO_global_group-1.0 {
+        Add user to a global group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
+    test add_member_to_local_group-1.0 {
+        Add a member to a local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test remove_user_from_global_group-1.0 {
+        Remove a user from a global group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test remove_user_from_local_group-1.0 {
+        Remove a member from a local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test map_luid_to_privilege-1.0 {
+        Map an LUID to a privilege
+    } -constraints {
+        nt
+    } -setup {
+        set luid [twapi::map_privilege_to_luid SeDebugPrivilege]
+    } -body {
+        twapi::map_luid_to_privilege $luid
+    } -result "SeDebugPrivilege"
+
+    ###
+
+    test map_luid_to_privilege-1.1 {
+        Verify a privilege gets mapped to itself
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_luid_to_privilege SeDebugPrivilege
+    } -result "SeDebugPrivilege"
+
+    ###
+
+    test map_luid_to_privilege-1.2 {
+        Map an LUID to a privilege (error)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_luid_to_privilege 01010101-02020202
+    } -returnCodes error -result "A specified privilege does not exist."
+
+    ###
+
+    test map_luid_to_privilege-2.0 {
+        Map an LUID to a privilege (-system)
+    } -constraints {
+        nt
+    } -setup {
+        set luid [twapi::map_privilege_to_luid SeDebugPrivilege]
+    } -body {
+        twapi::map_luid_to_privilege $luid -system $::env(COMPUTERNAME)
+    } -result "SeDebugPrivilege"
+
+    ###
+
+    test map_luid_to_privilege-2.1 {
+        Map an LUID to a privilege (-system, remote)
+    } -constraints {
+        nt TBD
+    } -setup {
+        set luid [twapi::map_privilege_to_luid SeDebugPrivilege -system TBD]
+    } -body {
+        twapi::map_luid_to_privilege $luid -system TBD
+    } -result "SeDebugPrivilege"
+
+    ###
+
+    test map_luid_to_privilege-3.0 {
+        Map a unknown LUID to a privilege
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_luid_to_privilege 01010101-02020202 -mapunknown
+    } -result "Privilege-01010101-02020202"
+
+    ################################################################
+
+    test map_privilege_to_luid-1.0 {
+        Map a privilege to an LUID
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_luid_syntax [twapi::map_privilege_to_luid SeDebugPrivilege]
+    } -result 1
+
+    ###
+
+    test map_privilege_to_luid-1.1 {
+        Verify a LUID gets mapped to itself
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_privilege_to_luid 01020304-05060708
+    } -result "01020304-05060708"
+
+    ###
+
+    test map_privilege_to_luid-1.2 {
+        Map a Privilege-LUID to a LUID
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_privilege_to_luid Privilege-01010101-02020202
+    } -result 01010101-02020202
+
+    ###
+
+    test map_privilege_to_luid-1.3 {
+        Map a Privilege-LUID to a LUID (error)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_privilege_to_luid Privilege-01010101-020202022
+    } -returnCodes error -result "A specified privilege does not exist."
+
+    ###
+
+    test map_privilege_to_luid-2.0 {
+        Map a privilege to a LUID (-system)
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_luid_syntax [twapi::map_privilege_to_luid SeDebugPrivilege -system $::env(COMPUTERNAME)]
+    } -result 1
+
+    ###
+
+    test map_privilege_to_luid-2.1 {
+        Map an LUID to a privilege (-system, remote)
+    } -constraints {
+        nt TBD
+    } -body {
+        twapi::is_valid_luid_syntax [twapi::map_privilege_to_luid SeDebugPrivilege -system TBD]
+    } -result 1
+
+    ################################################################
+
+    test is_valid_luid_syntax-1.0 {
+        Verify LUID syntax
+    } -body {
+        twapi::is_valid_luid_syntax 01234567-89abcDEF
+    } -result 1
+
+    ###
+
+    test is_valid_luid_syntax-1.1 {
+        Verify LUID syntax - fail non hex chars
+    } -body {
+        twapi::is_valid_luid_syntax 01234567-89abcDEX
+    } -result 0
+
+    ###
+
+    test is_valid_luid_syntax-1.2 {
+        Verify LUID syntax - fail leader length check
+    } -body {
+        twapi::is_valid_luid_syntax 001234567-89abcDEF
+    } -result 0
+
+    ###
+
+    test is_valid_luid_syntax-1.3 {
+        Verify LUID syntax - fail trailer length check
+    } -body {
+        twapi::is_valid_luid_syntax 01234567-89abcDEFF
+    } -result 0
+
+    ################################################################
+
+    test new_ace-1.0 {
+        Create a new allow ACE with defaults
+    } -body {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-1.1 {
+        Create a new deny ACE with defaults
+    } -body {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-1.2 {
+        Create a new audit ACE with defaults
+    } -body {
+        set ace [twapi::new_ace audit $::env(USERNAME) generic_read]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "audit" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-2.0 {
+        Create a new allow ACE (-self 0)
+    } -body {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read -self 0]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              ! $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-2.1 {
+        Create a new deny ACE (-self true)
+    } -body {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read -self true]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-3.0 {
+        Create a new allow ACE (-recursecontainers 1)
+    } -body {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read -recursecontainers 1]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-3.1 {
+        Create a new deny ACE (-recursecontainers true)
+    } -body {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read -recursecontainers false]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-4.0 {
+        Create a new allow ACE (-recurseobjects 1)
+    } -body {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_write -recurseobjects 1]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_write] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-4.1 {
+        Create a new deny ACE (-recurseobjects true)
+    } -body {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_write -recurseobjects false]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_write] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-5.0 {
+        Create a new allow ACE (-recurseonelevelonly true)
+    } -body {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_write -recurseonelevelonly true]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_write] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test new_ace-5.1 {
+        Create a new deny ACE (-recurseonelevelonly 0)
+    } -body {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_write -recurseonelevelonly 0]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_write] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ################################################################
+
+    test get_ace_type-1.0 {
+        Get the type of an allow ACE
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type $ace
+    } -result "allow"
+
+    ###
+
+    test get_ace_type-1.1 {
+        Get the type of an deny ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type $ace
+    } -result "deny"
+
+    ###
+
+    test get_ace_type-1.2 {
+        Get the type of an audit ACE
+    } -setup {
+        set ace [twapi::new_ace audit $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type $ace
+    } -result "audit"
+
+    ################################################################
+
+    test set_ace_type-1.0 {
+        Set the type of an ACE to allow
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type [twapi::set_ace_type $ace allow]
+    } -result "allow"
+
+    ###
+
+    test set_ace_type-1.1 {
+        Set the type of an ACE to deny
+    } -setup {
+        set ace [twapi::new_ace audit $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type [twapi::set_ace_type $ace deny]
+
+    } -result "deny"
+
+    ###
+
+    test set_ace_type-1.2 {
+        Set the type of an ACE to audit
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_type [twapi::set_ace_type $ace audit]
+
+    } -result "audit"
+
+    ################################################################
+
+    test get_ace_rights-1.0 {
+        Get the rights in an ACE
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace] {
+            standard_rights_required standard_rights_read
+            standard_rights_write standard_rights_execute
+            standard_rights_all specific_rights_all delete
+            read_control write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all 0x00000001 0x00000002 0x00000004 0x00000008
+            0x00000010 0x00000020 0x00000040 0x00000080 0x00000100
+            0x00000200 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000
+            0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.0 {
+        Get the rights of in ACE for a file resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type file] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            file_all_access file_generic_read file_generic_write
+            file_generic_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_append_data file_read_ea file_write_ea
+            file_execute file_delete_child file_read_attributes
+            file_write_attributes 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000 0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.1 {
+        Get the rights of in ACE for a registry resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type registry] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            key_read key_write key_execute
+            key_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all key_query_value key_set_value
+            key_create_sub_key key_enumerate_sub_keys key_notify
+            key_create_link key_wow64_32key key_wow64_64key
+            0x00000040 0x00000080 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.2 {
+        Get the rights of in ACE for a token resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type token] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            token_all_access token_read token_write
+            token_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all token_assign_primary token_duplicate
+            token_impersonate token_query token_query_source
+            token_adjust_privileges token_adjust_groups token_adjust_default
+            token_adjust_sessionid 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.3 {
+        Get the rights of in ACE for a process resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type process] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            process_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all process_terminate process_create_thread
+            process_set_sessionid process_vm_operation process_vm_read
+            process_vm_write process_dup_handle process_create_process
+            process_set_quota process_set_information process_query_information
+            process_suspend_resume 0x00001000 0x00002000 0x00004000 0x00008000
+            0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
+            0x04000000 0x08000000        
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.4 {
+        Get the rights of in ACE for a thread resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type thread] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            thread_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all thread_terminate thread_suspend_resume
+            thread_get_context thread_set_context thread_set_information
+            thread_query_information thread_set_thread_token thread_impersonate
+            thread_direct_impersonation 0x00000004 0x00000400
+            0x00000800 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000  0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.5 {
+        Get the rights of in ACE for a pipe resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type pipe] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            file_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_create_pipe_instance file_read_attributes
+            file_write_attributes 0x00000008 0x00000010 0x00000020
+            0x00000040 0x00000200 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-2.6 {
+        Get the rights of in ACE for a service resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        setops::symdiff [twapi::get_ace_rights $ace -type service] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            service_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all service_query_config service_change_config
+            service_query_status service_enumerate_dependents service_start
+            service_stop service_pause_continue service_interrogate
+            service_user_defined_control 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test get_ace_rights-3.0 {
+        Get the rights in an ACE (raw)
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
+    } -body {
+        twapi::get_ace_rights $ace -raw
+    } -result 0xffffffff
+
+    ################################################################
+
+    test set_ace_rights-1.0 {
+        Set the rights in an ACE
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace] {
+            standard_rights_required standard_rights_read
+            standard_rights_write standard_rights_execute
+            standard_rights_all specific_rights_all delete
+            read_control write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all 0x00000001 0x00000002 0x00000004 0x00000008
+            0x00000010 0x00000020 0x00000040 0x00000080 0x00000100
+            0x00000200 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000
+            0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-2.0 {
+        Set the rights of in ACE for a file resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type file] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            file_all_access file_generic_read file_generic_write
+            file_generic_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_append_data file_read_ea file_write_ea
+            file_execute file_delete_child file_read_attributes
+            file_write_attributes 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000 0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-2.1 {
+        Set specific rights of an ACE for a file resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) 0]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all 
+            file_all_access file_generic_read file_generic_write
+            file_generic_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_append_data file_read_ea file_write_ea
+            file_execute file_delete_child file_read_attributes
+            file_write_attributes
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type file] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-3.0 {
+        Set the rights of an ACE for a registry resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type registry] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            key_read key_write key_execute
+            key_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all key_query_value key_set_value
+            key_create_sub_key key_enumerate_sub_keys key_notify
+            key_create_link key_wow64_32key key_wow64_64key
+            0x00000040 0x00000080 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-3.1 {
+        Set specific rights in ACE for a registry resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all
+            key_read key_write key_execute
+            key_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all key_query_value key_set_value
+            key_create_sub_key key_enumerate_sub_keys key_notify
+            key_create_link key_wow64_32key key_wow64_64key
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type registry] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-4.0 {
+        Set the rights of an ACE for a token resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type token] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            token_all_access token_read token_write
+            token_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all token_assign_primary token_duplicate
+            token_impersonate token_query token_query_source
+            token_adjust_privileges token_adjust_groups token_adjust_default
+            token_adjust_sessionid 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-4.1 {
+        Set specific rights in an ACE for a token resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all
+            token_all_access token_read token_write
+            token_execute delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all token_assign_primary token_duplicate
+            token_impersonate token_query token_query_source
+            token_adjust_privileges token_adjust_groups token_adjust_default
+            token_adjust_sessionid
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type token] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-5.0 {
+        Set the rights of in ACE for a process resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type process] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            process_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all process_terminate process_create_thread
+            process_set_sessionid process_vm_operation process_vm_read
+            process_vm_write process_dup_handle process_create_process
+            process_set_quota process_set_information process_query_information
+            process_suspend_resume 0x00001000 0x00002000 0x00004000 0x00008000
+            0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
+            0x04000000 0x08000000        
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-5.1 {
+        Set specific rights of an ACE for a process resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all
+            process_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all process_terminate process_create_thread
+            process_set_sessionid process_vm_operation process_vm_read
+            process_vm_write process_dup_handle process_create_process
+            process_set_quota process_set_information process_query_information
+            process_suspend_resume
+        }
+
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type process] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-6.0 {
+        Set the rights of an ACE for a thread resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type thread] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            thread_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all thread_terminate thread_suspend_resume
+            thread_get_context thread_set_context thread_set_information
+            thread_query_information thread_set_thread_token thread_impersonate
+            thread_direct_impersonation 0x00000004 0x00000400
+            0x00000800 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000  0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-6.1 {
+        Set specific rights of an ACE for a thread resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all
+            delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all thread_terminate thread_suspend_resume
+            thread_get_context thread_set_context thread_set_information
+            thread_query_information thread_set_thread_token thread_impersonate
+            thread_direct_impersonation
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type thread] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-7.0 {
+        Set the rights of an ACE for a pipe resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type pipe] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            file_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_create_pipe_instance file_read_attributes
+            file_write_attributes 0x00000008 0x00000010 0x00000020
+            0x00000040 0x00000200 0x00000400 0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000 0x00400000 0x00800000 0x01000000
+            0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-7.1 {
+        Set specific rights of an ACE for a pipe resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all 
+            delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all file_read_data file_write_data
+            file_create_pipe_instance file_read_attributes
+            file_write_attributes
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type pipe] $sym_rights
+    } -result ""
+
+    ###
+
+    test set_ace_rights-8.0 {
+        Set the rights of an ACE for a service resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type service] {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all specific_rights_all
+            service_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all service_query_config service_change_config
+            service_query_status service_enumerate_dependents service_start
+            service_stop service_pause_continue service_interrogate
+            service_user_defined_control 0x00000200 0x00000400
+            0x00000800 0x00001000 0x00002000
+            0x00004000 0x00008000 0x00200000
+            0x00400000 0x00800000 0x01000000 0x02000000 0x04000000 0x08000000
+        }
+    } -result ""
+
+    ###
+
+    test set_ace_rights-8.1 {
+        Set specific rights of an ACE for a service resource type
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+    } -body {
+        set sym_rights {
+            standard_rights_required standard_rights_read standard_rights_write
+            standard_rights_execute standard_rights_all 
+            service_all_access delete read_control
+            write_dac write_owner synchronize
+            generic_read generic_write generic_execute
+            generic_all service_query_config service_change_config
+            service_query_status service_enumerate_dependents service_start
+            service_stop service_pause_continue service_interrogate
+            service_user_defined_control
+        }
+        set ace [twapi::set_ace_rights $ace $sym_rights]
+        setops::symdiff [twapi::get_ace_rights $ace -type service] $sym_rights
+    } -result ""
+
+    ################################################################
+
+    test get_ace_sid-1.0 {
+        Get the SID for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+    } -body {
+        twapi::get_ace_sid $ace
+    } -result $my_sid
+
+    ################################################################
+
+    test set_ace_sid-1.0 {
+        Set the SID for an ACE
+    } -setup {
+        set ace [twapi::new_ace allow Guest generic_read]
+    } -body {
+        set ace [twapi::set_ace_sid $ace $my_sid]
+        # Make sure other fields are not changed
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "allow" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test set_ace_sid-1.1 {
+        Set the account for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny Guest generic_read]
+    } -body {
+        set ace [twapi::set_ace_sid $ace $::env(USERNAME)]
+        # Make sure other fields are not changed
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ################################################################
+
+    test get_ace_inheritance-1.0 {
+        Get inheritance settings for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny Guest generic_read]
+        catch {unset aceinheritance}
+    } -body {
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        verify_kl_fields [array get aceinheritance] {
+            -self -recursecontainers -recurseobjects -recurseonelevelonly
+            -inherited
+        }
+        expr {
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ################################################################
+
+    test set_ace_inheritance-1.0 {
+        Set -self inheritance setting for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+        catch {unset aceinheritance}
+    } -body {
+        set ace [twapi::set_ace_inheritance $ace -self false]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        verify_kl_fields [array get aceinheritance] {
+            -self -recursecontainers -recurseobjects -recurseonelevelonly
+            -inherited
+        }
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              ! $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test set_ace_inheritance-1.1 {
+        Set -recursecontainers inheritance setting for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+        catch {unset aceinheritance}
+    } -body {
+        set ace [twapi::set_ace_inheritance $ace -recursecontainers 1]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        verify_kl_fields [array get aceinheritance] {
+            -self -recursecontainers -recurseobjects -recurseonelevelonly
+            -inherited
+        }
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test set_ace_inheritance-1.2 {
+        Set -recurseobjects inheritance setting for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+        catch {unset aceinheritance}
+    } -body {
+        set ace [twapi::set_ace_inheritance $ace -recurseobjects true]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        verify_kl_fields [array get aceinheritance] {
+            -self -recursecontainers -recurseobjects -recurseonelevelonly
+            -inherited
+        }
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              $aceinheritance(-recurseobjects) &&
+              ! $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ###
+
+    test set_ace_inheritance-1.3 {
+        Set -recurseonelevelonly inheritance setting for an ACE
+    } -setup {
+        set ace [twapi::new_ace deny $::env(USERNAME) generic_read]
+        catch {unset aceinheritance}
+    } -body {
+        set ace [twapi::set_ace_inheritance $ace -recurseonelevelonly true]
+        array set aceinheritance [twapi::get_ace_inheritance $ace]
+        verify_kl_fields [array get aceinheritance] {
+            -self -recursecontainers -recurseobjects -recurseonelevelonly
+            -inherited
+        }
+        expr {
+              [twapi::get_ace_type $ace] == "deny" &&
+              [twapi::get_ace_sid $ace] == $my_sid &&
+              [lsearch [twapi::get_ace_rights $ace] generic_read] >= 0 &&
+              $aceinheritance(-self) &&
+              ! $aceinheritance(-recursecontainers) &&
+              ! $aceinheritance(-recurseobjects) &&
+              $aceinheritance(-recurseonelevelonly) &&
+              ! $aceinheritance(-inherited)
+          }
+    } -result 1
+
+    ################################################################
+
+    test sort_aces-1.0 {
+        Sort ACE's in Windows recommended order
+    } -setup {
+        catch {unset aceinheritance}
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        # Fudge the "inherited" flag
+        set flags [lindex $allow_ace 1]
+        twapi::setbits flags 0x10
+        set inherited_allow_ace [lreplace $allow_ace 1 1 $flags]
+        set inherited_deny_ace  [lreplace $deny_ace 1 1 $flags]
+        set aces [list $inherited_allow_ace $inherited_deny_ace $allow_ace $deny_ace]
+    } -body {
+        set aces [twapi::sort_aces $aces]
+        expr {
+              [twapi::get_ace_type [lindex $aces 0]] == "deny" &&
+              ![get_kl_field [twapi::get_ace_inheritance [lindex $aces 0]] -inherited] &&
+              [twapi::get_ace_type [lindex $aces 1]] == "allow" &&
+              ![get_kl_field [twapi::get_ace_inheritance [lindex $aces 1]] -inherited] &&
+              [twapi::get_ace_type [lindex $aces 2]] == "deny" &&
+              [get_kl_field [twapi::get_ace_inheritance [lindex $aces 2]] -inherited] &&
+              [twapi::get_ace_type [lindex $aces 3]] == "allow" &&
+              [get_kl_field [twapi::get_ace_inheritance [lindex $aces 3]] -inherited]
+          }
+    } -result 1
+
+    ################################################################
+
+    test new_acl-1.0 {
+        Create a new empty ACL
+    } -body {
+        set acl [twapi::new_acl]
+        expr {
+              [twapi::get_acl_rev $acl] == 2 &&
+              [llength [twapi::get_acl_aces $acl]] == 0
+          }
+    } -result 1
+
+    ###
+
+    test new_acl-1.1 {
+        Create a ACL with ACE's
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        set aces [list $allow_ace $deny_ace]
+    } -body {
+        set acl [twapi::new_acl $aces]
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces $acl]
+        expr {
+              [twapi::get_acl_rev $acl] == 2 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "allow" &&
+              [twapi::get_ace_type [lindex $aces 1]] == "deny"
+          }
+    } -result 1
+
+    ###
+
+    test new_acl-1.2 {
+        Create a new revision ACL
+    } -setup {
+        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        # Construct an "allow_callback" ace. TWAPI does not support
+        # this so we need to hack it in to test revision setting
+        set ace [lreplace $ace 0 0 9]
+    } -body {
+        set acl [twapi::new_acl [list $ace]]
+        twapi::get_acl_rev $acl
+    } -result 4
+
+
+    ################################################################
+
+    test get_acl_aces-1.0 {
+        Get the ACE's in an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        set aces [list $allow_ace $deny_ace]
+        set acl [twapi::new_acl $aces]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces $acl]
+        expr {
+              [llength $aces] == 2 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "allow" &&
+              [twapi::get_ace_type [lindex $aces 1]] == "deny"
+          }
+    } -result 1
+
+
+    ################################################################
+
+    test set_acl_aces-1.0 {
+        Set the ACE's in an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        set acl [twapi::new_acl [list $allow_ace]]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces [twapi::set_acl_aces $acl [list $deny_ace]]]
+        expr {
+              [llength $aces] == 1 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "deny"
+          }
+    } -result 1
+
+
+    ################################################################
+
+    test append_acl_aces-1.0 {
+        Append the ACE's to an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        set acl [twapi::new_acl [list $allow_ace]]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces [twapi::append_acl_aces $acl [list $deny_ace]]]
+        expr {
+              [llength $aces] == 2 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "allow" &&
+              [twapi::get_ace_type [lindex $aces 1]] == "deny"
+          }
+    } -result 1
+
+    ###
+
+    test append_acl_aces-1.1 {
+        Append empty list of ACE's to an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set acl [twapi::new_acl [list $allow_ace]]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces [twapi::append_acl_aces $acl [list ]]]
+        expr {
+              [llength $aces] == 1 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "allow"
+          }
+    } -result 1
+
+    ################################################################
+
+    test prepend_acl_aces-1.0 {
+        Prepend the ACE's to an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set deny_ace [twapi::set_ace_type $allow_ace deny]
+        set acl [twapi::new_acl [list $allow_ace]]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces [twapi::prepend_acl_aces $acl [list $deny_ace]]]
+        expr {
+              [llength $aces] == 2 &&
+              [twapi::get_ace_type [lindex $aces 1]] == "allow" &&
+              [twapi::get_ace_type [lindex $aces 0]] == "deny"
+          }
+    } -result 1
+
+    ###
+
+    test prepend_acl_aces-1.1 {
+        Prepend empty list of ACE's to an ACL
+    } -setup {
+        set allow_ace [twapi::new_ace allow $::env(USERNAME) generic_read]
+        set acl [twapi::new_acl [list $allow_ace]]
+    } -body {
+        # Note we verify that ACE's did not get reordered
+        set aces [twapi::get_acl_aces [twapi::prepend_acl_aces $acl [list ]]]
+        expr {
+              [llength $aces] == 1 &&
+              [twapi::get_ace_type [lindex $aces 0]] == "allow"
+          }
+    } -result 1
+
+
+    ################################################################
+
+    test get_acl_rev-1.0 {
+        Get the revision of an ACL
+    } -setup {
+        set acl [twapi::new_acl]
+    } -body {
+        twapi::get_acl_rev $acl
+    } -result 2
+
+    ################################################################
+
+    test new_security_descriptor-1.0 {
+        Create a new empty security descriptor
+    } -body {
+        set secd [twapi::new_security_descriptor]
+        expr {
+              [llength $secd] == 5 &&
+              [lindex $secd 0] == 0 &&
+              [lindex $secd 1] == "" &&
+              [lindex $secd 2] == "" &&
+              [lindex $secd 3] == "null" &&
+              [lindex $secd 4] == "null"
+          }
+    } -result 1
+
+    ###
+
+    test new_security_descriptor-2.0 {
+        Create a fully initialized security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+    } -body {
+        set secd [twapi::new_security_descriptor \
+                      -owner $::env(USERNAME) \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+        expr {
+              [twapi::get_security_descriptor_owner $secd] == $my_sid &&
+              [twapi::get_security_descriptor_group $secd] == [twapi::lookup_account_name Administrators] &&
+              [twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_dacl $secd]] 0]] == "deny" &&
+              [twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_sacl $secd]] 0]] == "audit"
+          }
+    } -result 1
+
+    ################################################################
+
+    test get_security_descriptor_owner-1.0 {
+        Get the owner field of a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner $::env(USERNAME) \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_owner $secd
+    } -result $my_sid
+
+
+    ################################################################
+
+    test get_security_descriptor_group-1.0 {
+        Get the group field of a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner $::env(USERNAME) \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_group $secd
+    } -result [twapi::lookup_account_name Administrators]
+
+
+    ################################################################
+
+    test get_security_descriptor_dacl-1.0 {
+        Get the DACL field of a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner $::env(USERNAME) \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_dacl $secd]] 0]
+    } -result "deny"
+
+    ################################################################
+
+    test get_security_descriptor_sacl-1.0 {
+        Get the SACL field of a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner $::env(USERNAME) \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_sacl $secd]] 0]
+    } -result "audit"
+
+    ################################################################
+
+    test set_security_descriptor_owner-1.0 {
+        Set the owner name in a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_owner [twapi::set_security_descriptor_owner $secd $::env(USERNAME)]
+    } -result $my_sid
+
+    ###
+
+    test set_security_descriptor_owner-1.1 {
+        Set the owner SID in a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_owner [twapi::set_security_descriptor_owner $secd $my_sid]
+    } -result $my_sid
+
+    ###
+
+    test set_security_descriptor_owner-2.0 {
+        Set the owner name in a NULL security descriptor
+    } -body {
+        twapi::get_security_descriptor_owner [twapi::set_security_descriptor_owner {} $::env(USERNAME)]
+    } -result $my_sid
+
+    ################################################################
+
+    test set_security_descriptor_group-1.0 {
+        Set the group name in a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group $secd "Power Users"]
+    } -result [twapi::lookup_account_name "Power Users"]
+
+    ###
+
+    test set_security_descriptor_group-1.1 {
+        Set the group SID in a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl $sacl]
+    } -body {
+        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group $secd [twapi::lookup_account_name "Power Users"]]
+    } -result [twapi::lookup_account_name "Power Users"]
+
+    ###
+
+    test set_security_descriptor_group-2.0 {
+        Set the group SID in a NULL security descriptor
+    } -body {
+        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group {} [twapi::lookup_account_name "Power Users"]]
+    } -result [twapi::lookup_account_name "Power Users"]
+
+    ################################################################
+
+    test set_security_descriptor_dacl-1.0 {
+        Set the DACL name in a security descriptor
+    } -setup {
+        set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl null \
+                      -sacl $sacl]
+    } -body {
+        set dacl [twapi::get_security_descriptor_dacl \
+                      [twapi::set_security_descriptor_dacl $secd \
+                           [twapi::new_acl \
+                                [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]]
+]
+        twapi::get_ace_type [lindex [twapi::get_acl_aces $dacl] 0]
+    } -result "deny"
+
+    ###
+
+    test set_security_descriptor_dacl-2.0 {
+        Set the DACL name in a NULL security descriptor
+    } -body {
+        set dacl [twapi::get_security_descriptor_dacl \
+                      [twapi::set_security_descriptor_dacl {} \
+                           [twapi::new_acl \
+                                [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]]
+]
+        twapi::get_ace_type [lindex [twapi::get_acl_aces $dacl] 0]
+    } -result "deny"
+
+    ################################################################
+
+    test set_security_descriptor_sacl-1.0 {
+        Set the SACL name in a security descriptor
+    } -setup {
+        set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
+        set secd [twapi::new_security_descriptor \
+                      -owner Administrator \
+                      -group Administrators \
+                      -dacl $dacl \
+                      -sacl null]
+    } -body {
+        set dacl [twapi::get_security_descriptor_sacl \
+                      [twapi::set_security_descriptor_sacl $secd \
+                           [twapi::new_acl \
+                                [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]]
+]
+        twapi::get_ace_type [lindex [twapi::get_acl_aces $dacl] 0]
+    } -result "audit"
+
+    ###
+
+    test set_security_descriptor_sacl-2.0 {
+        Set the SACL name in a NULL security descriptor
+    } -body {
+        set dacl [twapi::get_security_descriptor_sacl \
+                      [twapi::set_security_descriptor_sacl {} \
+                           [twapi::new_acl \
+                                [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]]
+]
+        twapi::get_ace_type [lindex [twapi::get_acl_aces $dacl] 0]
+    } -result "audit"
+
+    ################################################################
+
+    test get_resource_security_descriptor-1.0 {
+        Get the security descriptor for a resource (default fields)
+    } -constraints {
+        nt
+    } -body {
+        ::twapi::IsValidSecurityDescriptor [::twapi::get_resource_security_descriptor file $::env(TEMP)]
+    } -result 1
+
+    ###
+
+    test get_resource_security_descriptor-2.0 {
+        Get all fields in a security descriptor for a resource using -all
+    } -constraints {
+        nt
+    } -body {
+        twapi::eval_with_privileges {
+            ::twapi::IsValidSecurityDescriptor [::twapi::get_resource_security_descriptor file $::env(TEMP) -all]
+        } {SeSecurityPrivilege}
+    } -result 1
+
+    ###
+
+    test get_resource_security_descriptor-3.0 {
+        Get the DACL in a security descriptor for a resource using -dacl
+    } -constraints {
+        nt
+    } -body {
+        ::twapi::_is_valid_acl [::twapi::get_security_descriptor_dacl [::twapi::get_resource_security_descriptor file $::env(TEMP) -dacl]]
+    } -result 1
+
+    ###
+
+    test get_resource_security_descriptor-4.0 {
+        Get SACL in a security descriptor for a resource using -sacl
+    } -constraints {
+        nt
+    } -body {
+        twapi::eval_with_privileges {
+            ::twapi::_is_valid_acl [::twapi::get_security_descriptor_sacl [::twapi::get_resource_security_descriptor file $::env(TEMP) -sacl]]
+        } {SeSecurityPrivilege}
+    } -result 1
+
+    ###
+
+    test get_resource_security_descriptor-5.0 {
+        Get the owner in a security descriptor for a resource using -owner
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name [::twapi::get_security_descriptor_owner [::twapi::get_resource_security_descriptor file $::env(TEMP) -owner]]
+    } -result $::env(USERNAME)
+
+    ###
+
+    test get_resource_security_descriptor-6.0 {
+        Get the group in a security descriptor for a resource using -group
+    } -constraints {
+        nt
+    } -body {
+        ::twapi::is_valid_sid_syntax [::twapi::get_security_descriptor_group [::twapi::get_resource_security_descriptor file $::env(TEMP) -group]]
+    } -result 1
+
+    ###
+
+    test get_resource_security_descriptor-7.0 {
+        Get the security descriptor for a resource using its handle
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-7.0"
+        tcltest::makeFile "" $fn
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] $fn]
+        set fd [open $path w+]
+        ::twapi::IsValidSecurityDescriptor [::twapi::get_resource_security_descriptor file [twapi::get_tcl_channel_handle $fd read] -handle]
+    } -cleanup {
+        close $fd
+    } -result 1
+
+
+    ################################################################
+
+    test set_resource_security_descriptor-1.0 {
+        Set the security descriptor for a resource (file)
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-1.0"
+        tcltest::makeDirectory $fn
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] $fn]
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl [make_acl]] -dacl -owner
+        set secd [twapi::get_resource_security_descriptor file $path]
+        expr { [twapi::_is_valid_security_descriptor $secd] &&
+               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid "Administrators"]}
+    } -result 1
+
+    ###
+
+    test set_resource_security_descriptor-2.0 {
+        Set a NULL DACL in the security descriptor for a resource
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-2.0"
+        tcltest::makeDirectory $fn
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] $fn]
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl null] -dacl -owner
+        twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor file $path]
+    } -result null
+
+    ###
+
+    test set_resource_security_descriptor-3.0 {
+        Set a empty unprotected DACL in the security descriptor for a resource
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-3.0"
+        tcltest::makeDirectory $fn
+        set path [file join [tcltest::temporaryDirectory] $fn]
+    } -body {
+        # We set an ACL that does not allow access. However, because
+        # it is unprotected, it will inherit allow access from its
+        # ancestors
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -dacl [twapi::new_acl]] -dacl -unprotect_dacl
+        catch {tcltest::removeDirectory $fn}
+    } -result 0
+
+    ###
+
+    test set_resource_security_descriptor-4.0 {
+        Set a empty protected DACL in the security descriptor for a resource
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-4.0"
+        tcltest::makeDirectory $fn
+        set path [file join [tcltest::temporaryDirectory] $fn]
+    } -body {
+        # We set an ACL that does not allow access. Because
+        # it is protected, it will not inherit allow access from its
+        # ancestors and because it is empty it will deny delete access
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl [twapi::new_acl]] -dacl -owner -protect_dacl
+        catch {tcltest::removeDirectory $fn}
+    } -cleanup {
+        # Reset the ACL and remove the file
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -dacl null] -dacl -unprotect_dacl
+        file delete $path
+    } -result 1
+
+    ###
+
+    test set_resource_security_descriptor-5.0 {
+        Set the security descriptor for a resource (file) using its handle
+    } -constraints {
+        nt
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-5.0"
+        set path [file join [tcltest::temporaryDirectory] $fn]
+        tcltest::makeFile "" $fn
+    } -body {
+        # Cannot use Tcl open because the handles they return do not
+        # have rights to modify security decsriptor
+        set h [twapi::CreateFile $path \
+                   $twapi::windefs(FILE_ALL_ACCESS) \
+                   [expr {$twapi::windefs(FILE_SHARE_READ) | $twapi::windefs(FILE_SHARE_WRITE)}] \
+                   {{} 1} \
+                   $twapi::windefs(OPEN_EXISTING) \
+                   0 \
+                   NULL]
+
+        twapi::set_resource_security_descriptor file $h [twapi::new_security_descriptor -owner Administrators -dacl null] -dacl -owner -handle
+        set secd [twapi::get_resource_security_descriptor file $path]
+        expr { [twapi::_is_valid_security_descriptor $secd] &&
+               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid "Administrators"]}
+    } -cleanup {
+        twapi::close_handles $h
+    } -result 1
+
+    ################################################################
+
+    test open_user_token-1.0 {
+        Open a user token
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test impersonate_token-1.0 {
+        Impersonate a token
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test impersonate_user-1.0 {
+        Impersonate a user
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test impersonate_self-1.0 {
+        Impersonate self
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test revert_to_self-1.0 {
+        Revert to self
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test logoff-1.0 {
+        Log off the current session
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test lock_workstation-1.0 {
+        Lock the workstation
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_thread_token-1.0 {
+        Set the token for a thread
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test reset_thread_token-1.0 {
+        Reset the token for a thread
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test new_luid-1.0 {
+        Generate a new LUID
+    } -body {
+        twapi::_is_valid_luid_syntax [twapi::new_luid]
+    } -result 1
+
+    ################################################################
+
+    test new_uuid-1.0 {
+        Generate a new UUID
+    } -body {
+        twapi::new_uuid
+    } -result {^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$} -match regexp
+
+    ################################################################
+
+    test nil_uuid-1.0 {
+        Generate a nil UUID
+    } -body {
+        twapi::nil_uuid
+    } -result "00000000-0000-0000-0000-000000000000"
+
+    ################################################################
+
+    test get_ace_text-1.0 {
+        Generate text description for a deny ACE
+    } -body {
+        twapi::get_ace_text [twapi::new_ace deny $::env(username) ""]
+    } -result Type:\\s*Deny.*User:\\s*$::env(username).* -match regexp
+
+    ###
+
+    test get_ace_text-1.1 {
+        Generate text description for an allow ACE
+    } -body {
+        twapi::get_ace_text [twapi::new_ace allow $::env(username) ""]
+    } -result Type:\\s*Allow.*User:\\s*$::env(username).* -match regexp
+
+    ###
+
+    test get_ace_text-2.0 {
+        Generate text description for a deny ACE of type file with all rights
+    } -body {
+        twapi::get_ace_text [twapi::new_ace deny $::env(username) "file_all_access"] -resourcetype file
+    } -result Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All -match regexp
+
+    ###
+
+    test get_ace_text-2.1 {
+        Generate text description for an allow ACE of type file with specific rights
+    } -body {
+        twapi::get_ace_text [twapi::new_ace deny $::env(username) "file_read_ea"] -resourcetype file
+    } -result Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*file_read_ea -match regexp
+
+    ################################################################
+
+    test get_security_descriptor_text-1.0 {
+        Generate text description for a security descriptor with null ACLs
+    } -body {
+        twapi::get_security_descriptor_text \
+            [twapi::new_security_descriptor \
+                 -owner $::env(username) \
+                 -group Administrators \
+                 -dacl null \
+                 -sacl null]
+    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*null.*SACL Rev:\\s*null" -match regexp
+
+    ###
+
+    test get_security_descriptor_text-1.1 {
+        Generate text description for a security descriptor with a DACL
+    } -body {
+        twapi::get_security_descriptor_text \
+            [twapi::new_security_descriptor \
+                 -owner $::env(username) \
+                 -group Administrators \
+                 -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
+                 -sacl null]
+    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
+    ###
+
+    test get_security_descriptor_text-1.1 {
+        Generate text description for a security descriptor for a file resource
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_security_descriptor_text \
+            [twapi::new_security_descriptor \
+                 -owner $::env(username) \
+                 -group Administrators \
+                 -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
+                 -sacl null] -resourcetype file
+    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
+
+    ################################################################
+
+    test get_user_local_groups_recursive-1.0 {
+        Get list of local groups that user belongs to directly or indirectly
+    } -constraints {
+        nt
+    } -body {
+        # TBD - need to test this with nested groups - need a domain
+        # for that. Also need a more robust test expression
+        set groups [twapi::get_user_local_groups_recursive $::env(username)]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(username) -local_groups] 1]]}
+    } -result 1
+
+    ################################################################
+
+    test find_logon_sessions-1.0 {
+        Get list of logon sessions
+    } -constraints {
+        win2k
+    } -body {
+        twapi::find_logon_sessions
+    } -result {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})+\s*$} -match regexp
+
+    ###
+
+    test find_logon_sessions-2.0 {
+        Get list of logon sessions for a user 
+    } -constraints {
+        win2k
+    } -body {
+        set matches 0
+        foreach sess [twapi::find_logon_sessions -user $::env(username)] {
+            if {[lindex [twapi::get_logon_session_info $sess -user] 1] ne $::env(username)} {
+                set matches -1
+                break
+            }
+            incr matches
+        }
+        expr {$matches > 0}
+    } -result 1
+
+    ###
+
+    set testnum -1
+    # Test each type. For the regexp differs based on whether empty
+    # list is allowed
+    foreach {type regexp} {
+        interactive {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*\s*$}
+        network {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        batch {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        service {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        proxy {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        unlockworkstation {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        networkclear {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        newcredentials {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        remoteinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        cachedinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        cachedremoteinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        cachedunlockworkstation {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
+        {interactive service} {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*\s*$}
+    } {        
+        test find_logon_sessions-3.[incr testnum] "Get list of logon sessions of type $type" \
+            -constraints {
+                win2k
+            } -body "twapi::find_logon_sessions -type \[list $type\]" \
+            -result $regexp -match regexp
+    }
+
+    ###
+
+    test find_logon_sessions-4.0 {
+        Get list of logon sessions for a specific terminal services session
+    } -constraints {
+        win2k
+    } -body {
+        twapi::find_logon_sessions -tssession 0
+    } -result {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})+\s*$} -match regexp
+
+    ################################################################
+
+    test get_logon_session_info-1.0 {
+        Get logon session info (no options)
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session]
+    } -result ""
+
+    ###
+
+    test get_logon_session_info-1.1 {
+        Get logon session info -all
+    } -constraints {
+        win2k
+    } -body {
+        verify_kl_fields [twapi::get_logon_session_info [current_logon_session] -all] {
+            -authpackage -dnsdomain -logondomain -logonid -logonserver
+            -logontime -type -sid -tssession -user -userprincipal
+        }
+    } -result ""
+
+    ###
+
+    test get_logon_session_info-2.0 {
+        Get logon session info -authpackage
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -authpackage
+    } -result [list -authpackage NTLM]
+
+    ###
+
+    test get_logon_session_info-3.0 {
+        Get logon session info -dnsdomain
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -dnsdomain
+    } -result .* -match regexp
+
+    ###
+
+    test get_logon_session_info-4.0 {
+        Get logon session info -logondomain
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -logondomain
+    } -result [list -logondomain $::env(USERDOMAIN)]
+
+    ###
+
+    test get_logon_session_info-5.0 {
+        Get logon session info -logonid
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -logonid
+    } -result [list -logonid [current_logon_session]]
+
+
+    ###
+
+    test get_logon_session_info-6.0 {
+        Get logon session info -logonserver
+    } -constraints {
+        win2k
+    } -body {
+        foreach {fld logonserver} [twapi::get_logon_session_info [current_logon_session] -logonserver] break
+        # Note Win2K will return empty field
+        expr {$fld eq "-logonserver" &&
+              ([string equal -nocase $logonserver $::env(logonserver)] ||
+               [string equal -nocase \\\\$logonserver $::env(logonserver)] ||
+               ($logonserver eq "" && ![twapi::min_os_version 5 1]))}
+    } -result 1
+
+    ###
+
+    test get_logon_session_info-7.0 {
+        Get logon session info -logontime
+    } -constraints {
+        win2k
+    } -body {
+        foreach {fld logontime} [twapi::get_logon_session_info [current_logon_session] -logontime] break
+        set secs [twapi::large_system_time_to_secs $logontime]
+        set now [clock seconds]
+        # Assume logon has to be within the last 6 months
+        expr {$fld eq "-logontime" &&
+              (($now - $secs) < (60*60*24*180))}
+    } -result 1
+
+    ###
+
+    test get_logon_session_info-8.0 {
+        Get logon session info -type
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -type
+    } -result [list -type interactive]
+
+    ###
+
+    test get_logon_session_info-9.0 {
+        Get logon session info -sid
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -sid
+    } -result [list -sid $my_sid]
+
+    ###
+
+    test get_logon_session_info-10.0 {
+        Get logon session info -tssession
+    } -constraints {
+        win2k
+    } -body {
+        # TBD - assumes running in session 0
+        twapi::get_logon_session_info [current_logon_session] -tssession
+    } -result [list -tssession 0]
+
+
+    ###
+
+    test get_logon_session_info-11.0 {
+        Get logon session info -user
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -user
+    } -result [list -user $::env(username)]
+
+
+    ###
+
+    test get_logon_session_info-12.0 {
+        Get logon session info -userprincipal
+    } -constraints {
+        win2k
+    } -body {
+        twapi::get_logon_session_info [current_logon_session] -userprincipal
+    } -result "^-userprincipal\\s+.*" -match regexp
+
+    ################################################################
+
+    test get_global_group_info-1.0 {
+        Get global group info (no options)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_group_info None
+    } -result ""
+
+    ###
+
+    test get_global_group_info-1.1 {
+        Get global group info -all
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_global_group_info None -all] {
+            -comment -name -sid -members -attributes
+        }
+    } -result ""
+
+    ###
+
+    test get_global_group_info-2.0 {
+        Get global group info -comment
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_group_info None -comment
+    } -result "^-comment\\s+.*" -match regexp
+
+    ###
+
+    test get_global_group_info-3.0 {
+        Get global group info -name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_group_info None -name
+    } -result [list -name None]
+
+    ###
+
+    test get_global_group_info-4.0 {
+        Get global group info -sid
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_group_info None -sid
+    } -result "^-sid\\s+S-1-.*" -match regexp
+
+
+    ###
+
+    test get_global_group_info-5.0 {
+        Get global group info -members
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_global_group_info None -members
+    } -result "^-members\\s.*" -match regexp
+
+
+    ################################################################
+
+    test get_local_group_info-1.0 {
+        Get local group info (no options)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_local_group_info Administrators
+    } -result ""
+
+    ###
+
+    test get_local_group_info-1.1 {
+        Get local group info -all
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_local_group_info Administrators -all] {
+            -comment -name -sid -members
+        }
+    } -result ""
+
+    ###
+
+    test get_local_group_info-2.0 {
+        Get local group info -comment
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_local_group_info Administrators -comment
+    } -result "^-comment\\s+.*" -match regexp
+
+    ###
+
+    test get_local_group_info-3.0 {
+        Get local group info -name
+    } -constraints {
+        nt
+    } -body {
+        # Note lower case "administrators"
+        twapi::get_local_group_info administrators -name
+    } -result [list -name Administrators]
+
+    ###
+
+    test get_local_group_info-4.0 {
+        Get local group info -sid
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_local_group_info Administrators -sid
+    } -result "^-sid\\s+S-1-.*" -match regexp
+
+
+    ###
+
+    test get_local_group_info-5.0 {
+        Get local group info -members
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_local_group_info Administrators -members
+    } -result "^-members\\s.*" -match regexp
+
+    ################################################################
+
+    test sddl_to_security_descriptor-1.0 {
+        Convert SDDL to a security descriptor
+    } -constraints {
+        nt
+    } -body {
+        twapi::sddl_to_security_descriptor {O:S-1-5-21-2280003790-624517823-3588787479-1005G:S-1-5-21-2280003790-624517823-3588787479-513D:AI(A;ID;FA;;;BA)(A;ID;FA;;;SY)(A;ID;FA;;;S-1-5-21-2280003790-624517823-3588787479-1005)(A;ID;0x1200a9;;;BU)}
+    } -result {33796 S-1-5-21-2280003790-624517823-3588787479-1005 S-1-5-21-2280003790-624517823-3588787479-513 {2 {{0 16 2032127 S-1-5-32-544} {0 16 2032127 S-1-5-18} {0 16 2032127 S-1-5-21-2280003790-624517823-3588787479-1005} {0 16 1179817 S-1-5-32-545}}} null}
+
+    ################################################################
+
+    test security_descriptor_to_sddl-1.0 {
+        Convert a security descriptor to SDDL
+    } -constraints {
+        nt
+    } -body {
+        twapi::security_descriptor_to_sddl {33796 S-1-5-21-2280003790-624517823-3588787479-1005 S-1-5-21-2280003790-624517823-3588787479-513 {2 {{0 16 2032127 S-1-5-32-544} {0 16 2032127 S-1-5-18} {0 16 2032127 S-1-5-21-2280003790-624517823-3588787479-1005} {0 16 1179817 S-1-5-32-545}}} null}
+    } -result {O:S-1-5-21-2280003790-624517823-3588787479-1005G:S-1-5-21-2280003790-624517823-3588787479-513D:AI(A;ID;FA;;;BA)(A;ID;FA;;;SY)(A;ID;FA;;;S-1-5-21-2280003790-624517823-3588787479-1005)(A;ID;0x1200a9;;;BU)}
+
+    ################################################################
+
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::security::test

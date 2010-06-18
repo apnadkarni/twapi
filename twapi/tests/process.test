@@ -1,0 +1,1929 @@
+#
+# Copyright (c) 2003, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the process.tcl
+# TBD - get_process_handle, get_thread_handle, suspend_thread, resume_thread
+
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Custom proc for matching file paths
+tcltest::customMatch path equal_paths
+tcltest::customMatch set equal_sets
+
+#
+# General definitions and procs used in the tests
+namespace eval ::twapi::process::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    # Constraint wow64 is true if we are a 32-bit process on a 64-bit system
+    ::tcltest::testConstraint wow64 [expr {$::tcl_platform(machine) eq "intel" && [info exists ::env(ProgramW6432)]}]
+    # Constraint x64 is true if we are a 64-bit process
+    ::tcltest::testConstraint x64 [expr {$::tcl_platform(machine) eq "amd64"}]
+
+    # Verify pid $pid has name $name
+    proc verify_pid_name {pid name {refresh 0}} {
+        return [string equal -nocase [get_process_field $pid -name $refresh] $name]
+    }
+
+    # Verify all get_process_info fields are present
+    proc verify_get_process_info_fieldnames {kl} {
+        verify_kl_fields $kl {
+            -basepriority
+            -elevation
+            -parent
+            -tssession
+            -name
+            -createtime
+            -usertime
+            -privilegedtime
+            -elapsedtime
+            -handlecount
+            -pagefaults
+            -pagefilebytes
+            -pagefilebytespeak
+            -poolnonpagedbytes
+            -poolnonpagedbytespeak
+            -poolpagedbytes
+            -poolpagedbytespeak
+            -threadcount
+            -virtualbytes
+            -virtualbytespeak
+            -workingset
+            -workingsetpeak
+            -tids
+            -ioreadops
+            -iowriteops
+            -iootherops
+            -ioreadbytes
+            -iowritebytes
+            -iootherbytes
+            -privatebytes
+            -privilegedutilization
+            -processorutilization
+            -userutilization
+            -iodatabytesrate
+            -iodataopsrate
+            -iootherbytesrate
+            -iootheropsrate
+            -ioreadbytesrate
+            -ioreadopsrate
+            -iowritebytesrate
+            -iowriteopsrate
+            -pagefaultrate
+            -user
+            -groups
+            -primarygroup
+            -privileges
+            -priorityclass
+            -logonsession
+            -pid
+            -path
+            -toplevels
+            -commandline
+            -virtualized
+            -integrity
+        }
+    }
+
+    # Verify as many process fields as possible
+    proc verify_processinfo {pid v_procinfo refresh {verify_all 0}} {
+        variable psinfo
+        upvar $v_procinfo procinfo
+
+        get_processes $refresh
+
+        set mismatches [list ]
+        foreach field {-basepriority -pid -parent} {
+            if {[get_process_field $pid $field] != $procinfo($field)} {
+                lappend mismatches "Mismatch in field $field"
+            }
+        }
+        if {! [string is integer -strict $procinfo(-priorityclass)]} {
+            lappend mismatches "Field -priorityclass is not an integer."
+        }
+
+        foreach field {-name -path} {
+            if {[string compare -nocase [get_process_field $pid $field] $procinfo($field)]} {
+                lappend mismatches "Mismatch in field $field"
+            }
+        }
+        
+        # Logon session - just check syntax
+        if {! [regexp {^[[:xdigit:]]{8}-[[:xdigit:]]{8}$} $procinfo(-logonsession)]} {
+            lappend mismatches "Wrong syntax in field -logonsession"
+        }
+
+        
+        if {![string is boolean -strict $procinfo(-virtualized)]} {
+            lappend mismatches "Invalid value '$procinfo(-virtualized)' for -virtualized field"
+        }
+
+        if {(![string is integer -strict $procinfo(-integrity)]) ||
+            $procinfo(-integrity) < 0 ||
+            $procinfo(-integrity) > 65535} {
+            lappend mismatches "Invalid value '$procinfo(-integrity)' for -integrity field"
+        }
+
+        if {[lsearch -exact {default limited full} $procinfo(-elevation)] < 0} {
+            lappend mismatches "Invalid value '$procinfo(-elevation)' for -elevation field"
+        }
+
+        # Following fields are verified only if $verify_all is 1
+        # since they are volatile and liable to change, particularly
+        # if the process being checked is self
+        if {$verify_all} {
+            foreach field {-handlecount
+                -pagefilebytes -pagefilebytespeak
+                -poolnonpagedbytes -poolpagedbytes
+                -privatebytes -threadcount
+                -virtualbytes -virtualbytespeak
+                -workingset -workingsetpeak} {
+                if {[get_process_field $pid $field] != $procinfo($field)} {
+                    lappend mismatches "Mismatch in field $field"
+                }
+            }
+        }
+
+        return [concat [join $mismatches "\n"]]
+    }
+
+
+    # Verify as many thread fields as possible
+    proc verify_threadinfo {tid v_threadinfo refresh {verify_all 0}} {
+        upvar $v_threadinfo threadinfo
+
+        get_threads $refresh
+
+        set mismatches [list ]
+        foreach field {-tid -pid -basepriority -startaddress} {
+            if {[get_thread_field $tid $field] != $threadinfo($field)} {
+                lappend mismatches "Mismatch in field $field"
+            }
+        }
+
+        if {! [string is integer -strict $threadinfo(-relativepriority)]} {
+            lappend mismatches "Field -relativepriority is not an integer."
+        }
+
+        # Following fields are verified only if $verify_all is 1
+        # since they are volatile and liable to change, particularly
+        # if the process being checked is self
+        if {$verify_all} {
+            foreach field {-state -priority -waitreason} {
+                if {[get_thread_field $tid $field] != $threadinfo($field)} {
+                    lappend mismatches "Mismatch in field $field"
+                }
+            }
+        }
+
+        return [concat [join $mismatches "\n"]]
+    }
+
+    # Compare two sets (dup elements are treated as same)
+    proc equal_sets {s1 s2} {
+        set s1 [lsort -unique $s1]
+        set s2 [lsort -unique $s2]
+        if {[llength $s1] != [llength $s2]} {
+            return 0
+        }
+
+        foreach e1 $s1 e2 $s2 {
+            if {[string compare $e1 $e2]} {
+                return 0
+            }
+        }
+
+        return 1
+    }
+
+
+    # Return a PID one more than an existing pid
+    proc existing_pid_plus_1 {} {
+        # There was a bug in process_exists and get_process_name
+        # where they would return true even when process did not exist
+        # but the pid was within 3 of an existing process. This
+        # proc is used to regression test the fix for the process
+        set pid [get_explorer_pid]
+        return [incr pid]
+    }
+
+    ################################################################
+
+    test get_current_process_id-1.0 {
+        get current process id
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_current_process_id
+    } -result [pid]
+
+    ################################################################
+
+    test get_current_thread_id-1.0 {
+        Get current thread id
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch [get_process_tids [pid]] [twapi::get_current_thread_id]] >= 0}
+    } -result 1
+    
+    
+    ################################################################
+    
+    test get_process_ids-1.0 {
+        Get process ids
+    } -constraints {
+        nt
+    } -body {
+        get_processes 1
+        # At most one process differs (the cscript fired off by get_processes)
+        # Note this may sometimes be too conservative causing test to fail
+        expr {[llength [::setops::symdiff [array names psinfo] [twapi::get_process_ids]]] <= 1}
+    } -result 1
+    
+    ###
+
+    test get_process_ids-2.0 {
+        Get process ids matching our path
+    } -constraints {
+        nt
+    } -body {
+        set pids [twapi::get_process_ids -path [info nameofexecutable]]
+        expr {[lsearch -exact $pids [pid]] >= 0}
+    } -result 1
+    
+    ###
+
+    test get_process_ids-2.1 {
+        Get process ids matching some other process path (native format, lower case)
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        set pids [twapi::get_process_ids -path [get_explorer_path]]
+        # There should be exactly one explorer
+        expr {[llength $pids] == 1 &&
+              [verify_pid_name [lindex $pids 0] "explorer.exe"]}
+    } -result 1
+    
+    ###
+
+    test get_process_ids-2.2 {
+        Get process ids matching some other process path (unix format, lower case)
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        set pids [twapi::get_process_ids -path [file join [get_explorer_path]]]
+        # There should be exactly one explorer
+        expr {[llength $pids] == 1 &&
+              [verify_pid_name [lindex $pids 0] "explorer.exe"]}
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-2.3 {
+        Get process ids matching some other process path (native format, upper case)
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        set pids [twapi::get_process_ids -path [string toupper [get_explorer_path]]]
+        # There should be exactly one explorer
+        expr {[llength $pids] == 1 &&
+              [verify_pid_name [lindex $pids 0] "explorer.exe"]}
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-2.4 {
+        Get process ids (empty) matching non-existent path
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        # Set up a process path that does not exist
+        set explorer_path [file join $::env(WINDIR) "nosuchdir" "explorer.exe"]
+        set explorer_path [string tolower [file nativename $explorer_path]]
+        set pids [twapi::get_process_ids -path $explorer_path]
+        llength $pids
+    } -result 0
+    
+    ###
+
+    test get_process_ids-3.0 {
+        Get process id matching our name 
+    } -constraints {
+        nt
+    } -body {
+        set pids [twapi::get_process_ids -name [file tail [info nameofexecutable]]]
+        expr {[lsearch -exact $pids [pid]] >= 0}
+    } -result 1
+    
+    ###
+
+    test get_process_ids-3.1 {
+        Get process ids matching some other process name (lower case)
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        set pids [twapi::get_process_ids -name "explorer.exe"]
+        # Note there may be more than one explorer if multiple people logged
+        verify_pid_name [lindex $pids 0] "explorer.exe"
+    } -result 1
+    
+    ###
+
+    test get_process_ids-3.2 {
+        Get process ids matching some other process name (upper case)
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        set pids [twapi::get_process_ids -name [string toupper "explorer.exe"]]
+        # Note there may be more than one explorer if multiple people logged
+        verify_pid_name [lindex $pids 0] "explorer.exe"
+    } -result 1
+    
+    ###
+
+    test get_process_ids-3.3 {
+        Get process ids matching some nonexistent name
+    } -constraints {
+        nt
+    } -body {
+        get_processes
+        llength [twapi::get_process_ids -name "nosuchprocess.exe"]
+    } -result 0
+    
+    ###
+    
+    test get_process_ids-4.0 {
+        Verify -path and -name options are mutually exclusive
+    } -constraints {
+        nt
+    } -body {
+        set pids [twapi::get_process_ids -name "nosuchprocess.exe" -path "c:\\nosuchdir\\nosuchprocess.exe"]
+    } -returnCodes {error} -result "Options -path and -name are mutually exclusive"
+    
+    ###
+    
+    test get_process_ids-5.0 {
+        Get process ids using wildcards in process name
+    } -constraints {
+        nt
+    } -body {
+        # May have more than one process
+        expr {[llength [twapi::get_process_ids -glob -name "explo*.*"]] > 0}
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-5.1 {
+        Get process ids using wildcards in full process path
+    } -constraints {
+        nt
+    } -body {
+        # Expect exactly one explorer.exe
+        llength [twapi::get_process_ids -glob -path "*:\\*\\explorer.exe"]
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-5.2 {
+        Get process ids using wildcards in partial process path
+    } -constraints {
+        nt
+    } -body {
+        # Expect exactly one explorer.exe
+        llength [twapi::get_process_ids -glob -path "*\\explorer.exe"]
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-5.3 {
+        Get process ids using wildcards in full process path with Unix separators and upper case
+    } -constraints {
+        nt
+    } -body {
+        expr {[llength [twapi::get_process_ids -glob -path "*:/*/EXPLORER.EXE"]] > 0}
+    } -result 1
+    
+    ###
+    
+    test get_process_ids-5.4 {
+        Get process ids using wildcards with nonexistent name
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::get_process_ids -glob -name "*nosuchexe*.*"]
+    } -result 0
+
+    ###
+
+    test get_process_ids-5.5 {
+        Get process ids using wildcards with nonexistent path
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::get_process_ids -glob -path "*:\\*\\*nosuchexe*.*"]
+    } -result 0
+
+    ###
+
+    test get_process_ids-6.0 {
+        Get process ids matching a user
+    } -constraints {
+        nt
+    } -setup {
+        get_processes
+    } -body {
+        # Not really an exhaustive test but...
+        set pids [twapi::get_process_ids -user $::env(username)]
+        set bad_pids [list ]
+        foreach pid $pids {
+            set user [twapi::kl_get $::psinfo($pid) -user]
+            if {$user ne $::env(username)} {
+                lappend bad_pids $pid
+            }
+        }
+        set bad_pids
+    } -result ""
+
+
+    ################################################################
+
+    test get_process_modules-1.0 {
+        Get handles of modules loaded in a process
+    } -constraints {
+        nt
+    } -body {
+        expr {[llength [twapi::get_process_modules [get_explorer_pid] -handle]] > 0}
+    } -result 1
+    
+    ###
+    
+    test get_process_modules-1.1 {
+        Get names of modules loaded in a process
+    } -constraints {
+        nt
+    } -body {
+        get_kl_field [lindex [twapi::get_process_modules \
+                                    [get_explorer_pid] -name] 0] -name
+    } -match path -result explorer.exe
+    
+    ###
+    
+    test get_process_modules-1.2 {
+        Get paths of modules loaded in a process
+    } -constraints {
+        nt
+    } -body {
+        get_kl_field [lindex [twapi::get_process_modules \
+                                    [get_explorer_pid] -path] 0] -path
+    } -match path -result [get_explorer_path]
+    
+    ###
+    
+    test get_process_modules-1.3 {
+        Get image data of modules loaded in a process
+    } -constraints {
+        nt
+    } -body {
+        # Get all modules and do some minimal checks on first module
+        eval set [lindex [twapi::get_process_modules \
+                              [get_explorer_pid] -imagedata] 0]
+        
+        # Check existence of each field
+        expr {
+              [llength ${-imagedata}] == 3 &&
+              [lsearch {0x400000 0x1000000} [lindex ${-imagedata} 0]] >= 0
+          }
+    } -result 1
+    
+    
+    ###
+
+    test get_process_modules-1.4 {
+        Verify -all option returns all attributes of modules
+    } -constraints {
+        nt
+    } -body {
+        foreach module [twapi::get_process_modules [get_explorer_pid] -all] {
+            # Verify each field exists 
+            # (get_kl_field raises an error if missing)
+            get_kl_field $module -handle
+            get_kl_field $module -name
+            get_kl_field $module -path
+            get_kl_field $module -imagedata
+        }
+        return ""
+    } -result ""
+
+    ################################################################
+
+    test get_process_path-1.0 {
+        Get my process path
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path [pid]
+    } -match path -result [info nameofexecutable]
+    
+    ###
+    
+    test get_process_path-1.1 {
+        Get path of some other process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path [get_explorer_pid]
+    } -match path -result [get_explorer_path]
+    
+    ###
+    
+    test get_process_path-1.2 {
+        Get System process path
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path [get_system_pid]
+    } -result "System"
+    
+    ###
+    
+    test get_process_path-1.3 {
+        Get Idle process path
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path [get_idle_pid]
+    } -result "System Idle Process"
+    
+    ###
+    
+    test get_process_path-1.4 {
+        Get path to non-existent process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path 123
+    } -result "(no such process)"
+    
+    ###
+    
+    test get_process_path-1.5 {
+        Get path to non-existent process using -noexist option
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_path 123 -noexist "Testing -noexist"
+    } -result "Testing -noexist"
+    
+    ###
+    
+    test get_process_path-1.6 {
+        Get path to inaccessible process
+    } -constraints {
+        nt
+    } -body {
+        # Depending on privileges, winlogon may or may not be accessible
+        # TBD - figure out a way to run this test with low privs
+        twapi::get_process_path [get_winlogon_pid]
+    } -match regexp -result {(?i)(.*winlogon.exe)|(\(unknown\))}
+    
+    ###
+    
+    test get_process_path-1.7 {
+        Get path to inaccessible process using -noaccess option
+    } -constraints {
+        nt
+    } -body {
+        # Depending on privileges, winlogon may or may not be accessible
+        # TBD - figure out a way to run this test with low privs
+        twapi::get_process_path [get_winlogon_pid] \
+            -noaccess "no access"
+    } -match regexp -result {(?i)(.*winlogon.exe)|(no access)}
+    
+    
+    ################################################################
+    
+    test get_process_name-1.0 {
+        Get my process name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name [pid]
+    } -match path -result [file tail [info nameofexecutable]]
+    
+    ###
+    
+    test get_process_name-1.1 {
+        Get name of some other process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name [get_explorer_pid]
+    } -match path -result [file tail [get_explorer_path]]
+    
+    ###
+    
+    test get_process_name-1.2 {
+        Get System process name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name [get_system_pid]
+    } -result "System"
+    
+    ###
+    
+    test get_process_name-1.3 {
+        Get Idle process name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name [get_idle_pid]
+    } -result "System Idle Process"
+    
+    ###
+    
+    test get_process_name-1.4 {
+        Get name of non-existent process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name 123
+    } -result "(no such process)"
+    
+    ###
+    
+    test get_process_name-1.5 {
+        Get name of non-existent process using -noexist option
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name 123 -noexist "Testing -noexist"
+    } -result "Testing -noexist"
+    
+    ###
+    
+    test get_process_name-1.6 {
+        Get name of inaccessible process
+    } -constraints {
+        nt
+    } -body {
+        # Depending on privileges, winlogon may or may not be accessible
+        # TBD - figure out a way to run this test with low privs
+        twapi::get_process_name [get_winlogon_pid]
+    } -match regexp -result {(?i)(.*winlogon.exe)|(\(unknown\))}
+    
+    ###
+    
+    test get_process_name-1.7 {
+        Get name to inaccessible process using -noaccess option
+    } -constraints {
+        nt
+    } -body {
+        # Depending on privileges, winlogon may or may not be accessible
+        # TBD - figure out a way to run this test with low privs
+        twapi::get_process_name [get_winlogon_pid] \
+            -noaccess "no access"
+    } -match regexp -result {(?i)(.*winlogon.exe)|(no access)}
+    
+    ###
+    
+    test get_process_name-1.4 {
+        Get name of non-existent process whose PID is within 3 of existing process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_name [existing_pid_plus_1]
+    } -result "(no such process)"
+    
+    ################################################################
+    
+    test get_device_drivers-1.0 {
+        get_device_drivers with no arguments
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::get_device_drivers]
+    } -result 0
+
+    ###
+
+    test get_device_drivers-1.1 {
+        Get load addresses of device drivers
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_device_drivers -base] {-base}
+    } -result ""
+    
+    ###
+    
+    test get_device_drivers-1.2 {
+        Get names of device drivers
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_device_drivers -name] {-name}
+    } -result ""
+    
+    ###
+    
+    test get_device_drivers-1.3 {
+        Get paths of device drivers
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_device_drivers -path] {-path}
+    } -result ""
+
+    ###
+
+    test get_device_drivers-1.4 {
+        Get all attributes of device drivers
+    } -constraints {
+        nt
+    } -body {
+        verify_list_kl_fields [twapi::get_device_drivers -all] {-path -name -base}
+    } -result ""
+    
+
+
+    ################################################################
+    
+    test process_exists-1.0 {
+        Check our process exists
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [pid]
+    } -result 1
+    
+    ###
+    
+    test process_exists-1.1 {
+        Check some other process exists
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid]
+    } -result 1
+    
+    ###
+    
+    test process_exists-1.2 {
+        Check for non-existent process
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists 123
+    } -result 0
+    
+    ###
+    
+    test process_exists-1.3 {
+        Check for PID one more than the pid of an existing process
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [existing_pid_plus_1]
+    } -result 0
+    
+    ###
+    
+    test process_exists-2.0 {
+        Check process exists and has the specified name (yes)
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] -name "explorer.exe"
+    } -result 1
+    
+    ###
+    
+    test process_exists-2.1 {
+        Check process exists and has the specified name (no)
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] -name "dummy.exe"
+    } -result 0
+    
+    ###
+    
+    test process_exists-2.2 {
+        Check process exists and matches the specified glob name when -glob specified
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] \
+            -glob -name "explo*.*"
+    } -result 1
+    
+    ###
+    
+    test process_exists-2.3 {
+        Check existing process does not match glob pattern if -glob not specified
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] -name "explo*.*"
+    } -result 0
+    
+    ###
+    
+    test process_exists-2.4 {
+        Check non-existent pid does not match an existing process of the specified name
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists 123 -name "explorer.exe"
+    } -result 0
+    
+    ###
+    
+    test process_exists-3.0 {
+        Check process exists and has the specified path (yes)
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] \
+            -path [get_explorer_path]
+    } -result 1
+    
+    ###
+    
+    test process_exists-3.1 {
+        Check process exists and has the specified path (no)
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] \
+            -path [get_winlogon_path]
+    } -result 0
+    
+    ###
+    
+    test process_exists-3.2 {
+        Check process exists and matches the specified glob path
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] -glob \
+            -path [file join [file dirname [get_explorer_path]] "*.*"]
+    } -result 1
+    
+    ###
+    
+    test process_exists-3.3 {
+        Check existing process does not match the glob path if -glob not specified
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists [get_explorer_pid] \
+            -path [file join [file dirname [get_explorer_path]] "*.*"]
+    } -result 0
+    
+    ###
+    
+    test process_exists-3.4 {
+        Check non-existent pid does not match an existing process of the specified path
+    } -constraints {
+        nt
+    } -body {
+        twapi::process_exists 123 -path [get_explorer_path]
+    } -result 0
+    
+    ################################################################
+    
+    test end_process-1.0 {
+        Verify unforced termination of a process
+    } -constraints {
+        nt
+    } -body {
+        set notepad_pid [notepad_exec]
+        twapi::end_process $notepad_pid
+        after 50
+        twapi::process_exists $notepad_pid
+    } -result 0
+
+    test end_process-1.1 {
+        Verify forced termination of a process
+    } -constraints {
+        nt
+    } -body {
+        set notepad_pid [notepad_exec_and_insert]
+
+        # Now terminate without a force - it should not work since
+        # the notepad will pop up a confirmation window waiting for user
+        # response
+        twapi::end_process $notepad_pid -wait 1000
+        if {![twapi::process_exists $notepad_pid]} {
+            error "Process ended without -force"
+        }
+        # Now forcibly terminate
+        twapi::end_process $notepad_pid -force -wait 100 -exitcode 3
+        # TBD - how can check the exit code for the process?
+        twapi::process_exists $notepad_pid
+    } -result 0
+    
+    
+    ################################################################
+    
+    test get_thread_parent_process_id-1.0 {
+        Get process id of current thread
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_thread_parent_process_id [twapi::get_current_thread_id]
+    } -result [pid]
+    
+    ###
+    
+    test get_thread_parent_process_id-1.1 {
+        Get process id of a thread in some other process
+    } -constraints {
+        nt
+    } -body {
+        get_threads [get_explorer_pid]
+        twapi::get_thread_parent_process_id [lindex [get_process_tids [get_explorer_pid]] 0]
+    } -result [get_explorer_pid]
+    
+    ################################################################
+    
+    test get_process_thread_ids-1.0 {
+        Get list of thread ids in a process
+    } -constraints {
+        nt
+    } -body {
+        get_threads [get_explorer_pid]
+        set pid [get_explorer_pid]
+        setops::symdiff [twapi::get_process_thread_ids $pid] [get_process_tids $pid]
+    } -result ""
+    
+    ################################################################
+    
+    test get_process_info-1.0 {
+        Verify get_process_info with no options specified
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_info [pid]
+    } -result ""
+    
+    ###
+
+    test get_process_info-2.0 {
+        Verify get_process_info -all for this process
+    } -constraints {
+        nt
+    } -body {
+        # Note we do not verify all fields since they change as we run
+        array set procinfo [twapi::get_process_info [pid] -all]
+        verify_get_process_info_fieldnames [array get procinfo]
+        verify_processinfo [pid] procinfo 0 0
+    } -result ""
+
+    ###
+
+    test get_process_info-2.1 {
+        Verify get_process_info -all for another process
+    } -constraints {
+        nt
+    } -body {
+        set pid [get_explorer_pid]
+        array set procinfo [twapi::get_process_info $pid -all]
+        # We verify *all* fields, assuming they will not change for a different
+        # process while we are running
+        verify_processinfo $pid procinfo 1 1
+    } -result ""
+    
+
+    ## Option tests begin
+
+    test get_process_info-3.0 {
+        Verify get_process_info -toplevels for another process
+    } -constraints {
+        nt
+    } -body {
+        # TBD -need a way to verify these
+        twapi::get_process_info [get_explorer_pid] -toplevels
+        set xxx ""
+    } -result ""
+
+    test get_process_info-4.0 {
+        Verify get_process_info -logonsession for another process
+    } -constraints {
+        nt
+    } -body {
+        # TBD -need a way to verify these other than just syntax
+        eval set [twapi::get_process_info [get_explorer_pid] -logonsession]
+        set -logonsession
+    } -result {^[[:xdigit:]]{8}-[[:xdigit:]]{8}$} -match regexp
+
+    
+    test get_process_info-5.0 {
+        Verify get_process_info -virtualized for another process
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test get_process_info-6.0 {
+        Verify get_process_info -elevation for another process
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test get_process_info-6.0 {
+        Verify get_process_info -integrity for another process
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    set testnum 8;                      # logonsession was 1
+
+    ### Option tests - path type fields
+    foreach field {-name -path} {
+        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+            nt
+        } -body "
+            set pid \[get_explorer_pid\]
+            eval set \[twapi::get_process_info \$pid $field\]
+            set checkval \[get_process_field \$pid $field\]
+            set procval \[set $field\]
+            if {\[equal_paths \$checkval \$procval \]} {
+                return {}
+            } else {
+                return \"Mismatch in field $field (\$procval != \$checkval)\"
+            }
+        " -result ""
+        incr testnum
+    }
+
+    ### Option tests - numeric type fields - exact match
+
+    foreach field {-basepriority -parent -pid -threadcount} {
+        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+            nt
+        } -body "
+            set pid \[get_explorer_pid\]
+            eval set \[twapi::get_process_info \$pid $field\]
+            set checkval \[get_process_field \$pid $field\]
+            set procval \[set $field\]
+            if {\$checkval == \$procval} {
+                return {}
+            } else {
+                return \"Mismatch in field $field (\$procval != \$checkval)\"
+            }
+        " -result ""
+        incr testnum
+    }
+    
+    ### Option tests - numeric type fields - approximate match
+
+    foreach field { -handlecount
+        -pagefilebytes -pagefilebytespeak
+        -poolnonpagedbytes -poolpagedbytes
+        -privatebytes
+        -virtualbytes -virtualbytespeak -workingset -workingsetpeak} {
+        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+            nt
+        } -body "
+            set pid \[get_explorer_pid\]
+            eval set \[twapi::get_process_info \$pid $field\]
+            set checkval \[get_process_field \$pid $field\]
+            set procval \[set $field\]
+            if {\[approx \$checkval \$procval\]} {
+                return {}
+            } else {
+                return \"Mismatch in field $field (\$procval != \$checkval)\"
+            }
+        " -result ""
+        incr testnum
+    }
+
+
+    ### Option tests - fields that cannot be verified but are typed
+
+    foreach {field type} {
+        -elapsedtime       integer
+        -ioreadops         integer
+        -iowriteops        integer
+        -iootherops        integer
+        -ioreadbytes       integer
+        -iowritebytes      integer
+        -iootherbytes      integer
+        -iodatabytesrate   integer
+        -iodataopsrate     integer
+        -iootherbytesrate  integer
+        -iootheropsrate    integer
+        -ioreadbytesrate   integer
+        -ioreadopsrate     integer
+        -iowritebytesrate  integer
+        -iowriteopsrate    integer
+        -pagefaultrate     integer
+        -priorityclass     integer
+        -privilegedutilization double
+        -processorutilization  double
+        -userutilization       double
+
+    } {
+        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+            nt
+        } -body "
+            set pid \[get_explorer_pid\]
+            eval set \[twapi::get_process_info \$pid $field\]
+            string is $type \[set $field\]
+        " -result 1
+        incr testnum
+    }
+
+    ###
+
+    test get_process_info-4.0 {
+        Verify retrieval of information for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_process_info 123 -name] 1
+    } -result "(no such process)"
+
+    ###
+
+    test get_process_info-4.1 {
+        Verify retrieval of -all for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        set values [twapi::get_process_info 123 -all]
+        verify_get_process_info_fieldnames $values
+        set bad [list ]
+        foreach {fld val} $values {
+            if {$fld eq "-pid"} {
+                if {$val != 123} {
+                    lappend bad $fld
+                }
+            } else {
+                if {$val ne "(no such process)"} {
+                    lappend bad $fld
+                }
+            }
+        }
+        set bad
+    } -result ""
+
+    ###
+
+    test get_process_info-4.2 {
+        Verify -noexist option when retrieving information for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_process_info 123 -name -noexist foobar ] 1
+    } -result "foobar"
+
+    ################################################################
+    
+    test get_thread_info-1.0 {
+        Verify get_thread_info with no options specified
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_thread_info [twapi::get_current_thread_id]
+    } -result ""
+    
+    ###
+
+    test get_thread_info-2.0 {
+        Verify get_thread_info -all for this thread
+    } -constraints {
+        nt
+    } -body {
+        set tid [twapi::get_current_thread_id]
+        array set threadinfo [twapi::get_thread_info $tid -all]
+        verify_threadinfo $tid threadinfo 0 0
+    } -result ""
+
+    ###
+
+    test get_thread_info-2.1 {
+        Verify get_thread_info -all for another process
+    } -constraints {
+        nt
+    } -body {
+        set tid [get_explorer_tid]
+        array set threadinfo [twapi::get_thread_info $tid -all]
+        verify_threadinfo $tid threadinfo 1 1
+    } -result ""
+
+    ###
+
+    set testnum 0
+    foreach field {-tid -basepriority -pid -startaddress -priority -state -waitreason} {
+        test get_thread_info-3.$testnum "Verify get_thread_info $field" -constraints {
+            nt
+        } -body "
+            set tid \[get_explorer_tid\]
+            eval set \[twapi::get_thread_info \$tid $field\]
+            expr {\[get_thread_field \$tid $field\] == \[set $field\]}
+        " -result 1
+        incr testnum
+    }
+
+
+    ### Option tests - fields that cannot be verified but should be numeric
+
+    foreach {field type} {
+        -elapsedtime      integer
+        -contextswitches  integer
+        -relativepriority integer
+        -privilegedutilization double
+        -processorutilization double
+        -userutilization double
+    } {
+        test get_thread_info-3.$testnum "Verify get_thread_info $field" -constraints {
+            nt
+        } -body "
+            set tid \[get_explorer_tid\]
+            eval set \[twapi::get_thread_info \$tid $field\]
+            string is $type \[set $field\]
+        " -result 1
+        incr testnum
+    }
+
+    ###
+
+    test get_thread_info-4.0 {
+        Verify retrieval of information for non-existent thread
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_thread_info 123 -user] 1
+    } -result "(no such thread)"
+
+    ###
+
+    test get_thread_info-4.1 {
+        Verify retrieval of -all for non-existent thread
+    } -constraints {
+        nt
+    } -body {
+        set values [twapi::get_thread_info 123 -all]
+        set bad [list ]
+        foreach {fld val} $values {
+            if {$fld eq "-tid"} {
+                if {$val != 123} {
+                    lappend bad $fld
+                }
+            } else {
+                if {$val ne "(no such thread)"} {
+                    lappend bad $fld
+                }
+            }
+        }
+        set bad
+    } -result ""
+
+    ###
+
+    test get_thread_info-4.2 {
+        Verify -noexist option when retrieving information for non-existent thread
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_thread_info 123 -user -noexist foobar ] 1
+    } -result "foobar"
+
+
+    ################################################################
+
+    test create_process-1.0 {
+        Verify create_process using a path
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path]]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        twapi::end_process $pid
+        set result ""
+    } -result ""
+
+    test create_process-1.1 {
+        Verify create_process using a path and a junk command line
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -cmdline "JUNK process.test"]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        set hwins [twapi::find_windows -toplevel true -match glob -text "process.test*" -pids $pid]
+        twapi::end_process $pid
+
+        llength $hwins
+    } -result 1
+
+    ###
+
+    test create_process-2.0 {
+        Verify create_process using a command line
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process "" -cmdline "\"[get_notepad_path]\""]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        twapi::end_process $pid
+        set result ""
+    } -result ""
+
+    ###
+
+    test create_process-2.1 {
+        Verify create_process using a command line with arguments
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process "" -cmdline "\"[get_notepad_path]\" process.test"]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        
+        set hwins [twapi::find_windows -toplevel true -match glob -text "process.test*" -pids $pid]
+        twapi::end_process $pid
+
+        llength $hwins
+    } -result 1
+
+    ###
+
+    test create_process-3.0 {
+        Verify create_process -createsuspended 1
+    } -constraints {
+        nt win2k
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -createsuspended 1 -returnhandles 1]
+        if {[llength $result] != 4} {
+            error "Create process returned [llength $result] elements"
+        }
+        foreach {pid tid phnd thnd} $result {break}
+        if {[twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Created process not suspended"
+        }
+        twapi::ResumeThread $thnd
+
+        twapi::close_handles $thnd $phnd
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Suspended process not resumed"
+        }
+
+        set hwins [twapi::find_windows -toplevel true -pids $pid]
+        twapi::end_process $pid
+
+        expr {[llength $hwins] > 0}
+    } -result 1
+
+    ###
+
+    test create_process-3.1 {
+        Verify create_process -createsuspended 0
+    } -constraints {
+        nt win2k
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -createsuspended 0 -returnhandles 1]
+        if {[llength $result] != 4} {
+            error "Create process returned [llength $result] elements"
+        }
+        foreach {pid tid phnd thnd} $result {break}
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Process creation failed or process suspended"
+        }
+
+        twapi::close_handles $thnd $phnd
+
+        set hwins [twapi::find_windows -toplevel true -pids $pid]
+        twapi::end_process $pid
+
+        expr {[llength $hwins] > 0}
+    } -result 1
+
+    ###
+
+    test create_process-4.0 {
+        Verify create_process -title
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_cmd_path] -newconsole 1 -title TWAPI]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        after 50;                       # Wait for console process to come up
+        
+        set hwins [twapi::find_windows -text "TWAPI" -pids $pid]
+        twapi::end_process $pid
+
+        llength $hwins
+    } -result 1
+
+    ###
+
+    test create_process-5.0 {
+        Verify create_process -windowpos {X Y}
+    } -constraints {
+        nt
+    } -body {
+        set xoff 200
+        set yoff 100
+        set result [twapi::create_process [get_cmd_path] -windowpos "$xoff $yoff" -newconsole 1]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        # Give time to start. wait_for_input_idle is ineffective with console
+        after 50;
+        set pid [lindex $result 0]
+        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        foreach {topx topy botx boty} [twapi::get_window_coordinates $hwin] break
+        twapi::end_process $pid
+
+        expr {$topx == $xoff && $topy == $yoff}
+    } -result 1
+
+    ###
+
+    test create_process-5.1 {
+        Verify create_process -windowpos X,Y
+    } -constraints {
+        nt
+    } -body {
+        set xoff 200
+        set yoff 100
+        set result [twapi::create_process [get_cmd_path] -windowpos "$xoff,$yoff" -newconsole 1]
+        # Give time to start. wait_for_input_idle is ineffective with console
+        after 50
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        foreach {topx topy botx boty} [twapi::get_window_coordinates $hwin] break
+        twapi::end_process $pid
+
+        expr {$topx == $xoff && $topy == $yoff}
+    } -result 1
+
+    ###
+
+    test create_process-6.0 {
+        Verify create_process -windowsize {X Y}
+    } -constraints {
+        nt
+    } -body {
+        set xsize 200
+        set ysize 100
+        set result [twapi::create_process [get_cmd_path] -windowsize "$xsize $ysize" -newconsole 1]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        # Give time to start. wait_for_input_idle is ineffective with console
+        after 50;
+        set pid [lindex $result 0]
+        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        foreach {x y} [twapi::get_window_client_area_size $hwin] break
+        twapi::end_process $pid
+        # Size may not be exact because the window may be slightly off
+        # to account for whole characters
+        expr {$x > ($xsize-10) && $x < ($xsize+10) &&
+              $y > ($ysize-10) && $y < ($ysize+10)}
+    } -result 1
+
+    ###
+
+    test create_process-6.1 {
+        Verify create_process -windowsize X,Y
+    } -constraints {
+        nt
+    } -body {
+        set xsize 200
+        set ysize 100
+        set result [twapi::create_process [get_cmd_path] -windowsize "$xsize,$ysize" -newconsole 1]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        # Give time to start. wait_for_input_idle is ineffective with console
+        after 50;
+        set pid [lindex $result 0]
+        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        foreach {x y} [twapi::get_window_client_area_size $hwin] break
+        twapi::end_process $pid
+        # Size may not be exact because the window may be slightly off
+        # to account for whole characters
+        expr {$x > ($xsize-10) && $x < ($xsize+10) &&
+              $y > ($ysize-10) && $y < ($ysize+10)}
+    } -result 1
+
+    ###
+
+    test create_process-7.0 {
+        Verify create_process -showwindow normal
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -showwindow normal]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        set hwin [lindex [twapi::find_windows -toplevel true -match glob -text "Untitled*" -pids $pid] 0]
+        set result [expr {[twapi::window_visible $hwin] &&
+                          (![twapi::window_maximized $hwin]) &&
+                          (![twapi::window_minimized $hwin])}]
+        twapi::end_process $pid
+
+        set result
+    } -result 1
+
+    ###
+
+    test create_process-7.1 {
+        Verify create_process -showwindow hidden
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -showwindow hidden]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        set hwin [lindex [twapi::find_windows -toplevel true -match glob -text "Untitled*" -pids $pid] 0]
+        set result [twapi::window_visible $hwin]
+        twapi::end_process $pid
+
+        set result
+    } -result 0
+
+    test create_process-7.2 {
+        Verify create_process -showwindow minimized
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -showwindow minimized]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        set hwin [lindex [twapi::find_windows -toplevel true -match glob -text "Untitled*" -pids $pid] 0]
+        set result [expr {[twapi::window_visible $hwin] &&
+                          [twapi::window_minimized $hwin]}]
+        twapi::end_process $pid
+
+        set result
+    } -result 1
+
+    ###
+
+    test create_process-7.3 {
+        Verify create_process -showwindow maximized
+    } -constraints {
+        nt
+    } -body {
+        set result [twapi::create_process [get_notepad_path] -showwindow maximized]
+        if {[llength $result] != 2} {
+            error "Create process returned [llength $result] elements"
+        }
+        set pid [lindex $result 0]
+        if {![twapi::process_waiting_for_input $pid -wait 1000]} {
+            error "Could not start process"
+        }
+        set hwin [lindex [twapi::find_windows -toplevel true -match glob -text "Untitled*" -pids $pid] 0]
+        set result [expr {[twapi::window_visible $hwin] &&
+                          [twapi::window_maximized $hwin]}]
+        twapi::end_process $pid
+
+        set result
+    } -result 1
+
+
+    ################################################################
+
+    test get_priority_class-1.0 {
+        Get our own priority class
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_priority_class [pid]
+    } -result 32
+
+    ###
+
+    test get_priority_class-1.1 {
+        Get priority class of another process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_priority_class [get_explorer_pid]
+    } -result 32
+
+    ################################################################
+
+    test get_thread_relative_priority-1.0 {
+        Get our thread priority
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_thread_relative_priority [twapi::get_current_thread_id]
+    } -result 0
+    
+    ###
+
+    test get_thread_relative_priority-1.1 {
+        Get thread priority of thread in another process
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_thread_relative_priority [get_explorer_tid]
+    } -result 0
+    
+
+    ################################################################
+
+    test set_priority_class-1.0 {
+        Set priority class of a process
+    } -constraints {
+        nt
+    } -body {
+        twapi::set_priority_class [pid] 0x8000
+        set prio [twapi::get_priority_class [pid]]
+        twapi::set_priority_class [pid] 0x20; # Reset priority
+        set prio
+    } -result 32768
+
+
+    ################################################################
+
+    test set_thread_relative_priority-1.0 {
+        Set our thread priority
+    } -constraints {
+        nt
+    } -body {
+        twapi::set_thread_relative_priority [twapi::get_current_thread_id] 1
+        set prio [twapi::get_thread_relative_priority [twapi::get_current_thread_id]]
+        # Reset to normal
+        twapi::set_thread_relative_priority [twapi::get_current_thread_id] 0
+        set prio
+    } -result 1
+
+    ################################################################
+
+    test wow64_process-1.0 {
+        Test if current process is a WoW64 process
+    } -constraints {
+        nt
+    } -body {
+        twapi::wow64_process
+    } -result [expr {$::tcl_platform(machine) eq "intel" && [info exists ::env(ProgramW6432)]}]
+
+    ###
+    test wow64_process-2.0 {
+        Test a non-WoW64 process is correctly identified using -pid
+    } -constraints {
+        nt
+    } -setup {
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) System32 notepad.exe]]
+    } -body {
+        twapi::wow64_process -pid $notepad_pid
+    } -cleanup {
+        twapi::end_process $notepad_pid
+    } -result 0
+
+    ###
+    test wow64_process-2.1 {
+        Test a WoW64 process is correctly identified using -pid
+    } -constraints {
+        nt x64
+    } -setup {
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) SysWow64 notepad.exe]]
+    } -body {
+        twapi::wow64_process -pid $notepad_pid
+    } -cleanup {
+        twapi::end_process $notepad_pid
+    } -result 1
+
+    ###
+    test wow64_process-3.0 {
+        Test a non-WoW64 process is correctly identified using -hprocess
+    } -constraints {
+        nt
+    } -setup {
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) System32 notepad.exe]]
+        set notepad_hpid [twapi::get_process_handle $notepad_pid]
+    } -body {
+        twapi::wow64_process -hprocess $notepad_hpid
+    } -cleanup {
+        twapi::CloseHandle $notepad_hpid
+        twapi::end_process $notepad_pid
+    } -result 0
+
+    ###
+    test wow64_process-3.1 {
+        Test a WoW64 process is correctly identified using -hprocess
+    } -constraints {
+        nt x64
+    } -setup {
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) SysWow64 notepad.exe]]
+        set notepad_hpid [twapi::get_process_handle $notepad_pid]
+    } -body {
+        twapi::wow64_process -hprocess $notepad_hpid
+    } -cleanup {
+        twapi::CloseHandle $notepad_hpid
+        twapi::end_process $notepad_pid
+    } -result 1
+
+
+    ################################################################
+
+    test virtualized_process-1.0 {
+        Test if current process is a virtualized process
+    } -constraints {
+        nt
+    } -body {
+        twapi::virtualized_process
+    } -result 0
+
+    ###
+    test virtualized_process-2.0 {
+        Test a non-virtualized process is correctly identified using -pid
+    } -constraints {
+        nt
+    } -setup {
+        # Notepad is never virtualized
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) System32 notepad.exe]]
+    } -body {
+        twapi::virtualized_process -pid $notepad_pid
+    } -cleanup {
+        twapi::end_process $notepad_pid
+    } -result 0
+
+    ###
+    test virtalized_process-2.1 {
+        Test a virtualized process is correctly identified using -pid
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ###
+    test virtualized_process-3.0 {
+        Test a non-virtualized process is correctly identified using -hprocess
+    } -constraints {
+        nt
+    } -setup {
+        set notepad_pid [start_program [file join $::env(SYSTEMROOT) System32 notepad.exe]]
+        set notepad_hpid [twapi::get_process_handle $notepad_pid]
+    } -body {
+        twapi::virtualized_process -hprocess $notepad_hpid
+    } -cleanup {
+        twapi::CloseHandle $notepad_hpid
+        twapi::end_process $notepad_pid
+    } -result 0
+
+    ###
+    test virtualized_process-3.1 {
+        Test a virtualized process is correctly identified using -hprocess
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_process_virtualization-1.0 {
+        TBD - set_process_virtualization
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_pid_from_handle-1.0 {
+    } -constraints {
+        nt
+    } -setup {
+        set notepad_pid [start_program notepad.exe]
+        set notepad_hpid [twapi::get_process_handle $notepad_pid]
+    } -body {
+        expr {[twapi::get_pid_from_handle $notepad_hpid] == $notepad_pid}
+    } -cleanup {
+        twapi::CloseHandle $notepad_hpid
+        twapi::end_process $notepad_pid
+    } -result 1
+
+
+    ################################################################
+
+    test get_process_elevation-1.0 {
+        TBD - get_process_elevation
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_process_elevation-1.0 {
+        TBD - set_process_elevation
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_process_integrity-1.0 {
+        TBD - get_process_integrity
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test set_process_integrity-1.0 {
+        TBD - set_process_integrity
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test process_in_administrators-1.0 {
+        TBD - process_in_administrators
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+namespace delete ::twapi::process::test

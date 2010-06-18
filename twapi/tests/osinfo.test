@@ -1,0 +1,1170 @@
+#
+# Copyright (c) 2003, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the osinfo.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::osinfo::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint xp [twapi::min_os_version 5 1]
+
+    variable get_processor_info_fields {
+        -processorutilization -dpcqueuerate -interruptutilization
+        -interruptrate -dpcutilization
+        -privilegedutilization -userutilization -dpcrate
+        -processormodel -processorname -processorspeed
+        -processorrev -arch -processorlevel
+        -currentprocessorspeed
+        -interrupts -usertime -privilegedtime -dpctime -interrupttime
+        -idletime
+    }
+
+    # Get the build number
+    proc get_os_build {} {
+        set verstr [exec cmd /c ver]
+        if {![regexp {Version [[:digit:]]+\.[[:digit:]]+\.([[:digit:]]+)} $verstr dontcare build]} {
+            error "Could not get build number"
+        }
+        return $build
+    }
+
+    ################################################################
+
+    test get_os_version-1.0 {
+        get operating system version
+    } -constraints {
+        nt
+    } -body {
+        set ver [twapi::get_os_version]
+        format "%d.%d" [lindex $ver 0] [lindex $ver 1]
+    } -result $::tcl_platform(osVersion)
+
+
+    ################################################################
+
+    test min_os_version-1.0 {
+        meets minimal os version - exact
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version $major $minor $spmajor $spminor
+    } -result 1
+
+    ###
+    test min_os_version-1.1 {
+        meets minimal os version - wanted major < actual
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version [incr major -1] $minor $spmajor $spminor
+    } -result 1
+
+    if {0} {
+        # Cannot run these unless minor/sp are non-0. Need to add a constraing TBD
+        test min_os_version-1.2 {
+            meets minimal os version - wanted minor < actual
+        } {
+            foreach {major minor spmajor spminor} [twapi::get_os_version] break
+            twapi::min_os_version $major [incr minor -1] $spmajor $spminor
+        } 1
+
+        test min_os_version-1.3 {
+            meets minimal os version - wanted SP major < actual
+        } {
+            foreach {major minor spmajor spminor} [twapi::get_os_version] break
+            twapi::min_os_version $major $minor [incr spmajor -1] $spminor
+        } 1
+
+        test min_os_version-1.4 {
+            meets minimal os version - wanted SP minor < actual
+        } {
+            foreach {major minor spmajor spminor} [twapi::get_os_version] break
+            twapi::min_os_version $major $minor $spmajor [incr spminor -1]
+        } 1
+    }
+
+    ###
+    test min_os_version-2.0 {
+        does not meet minimal os version - wanted major > actual
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version [incr major] $minor $spmajor $spminor
+    } -result 0
+
+    ###
+    test min_os_version-2.1 {
+        does not meet minimal os version - wanted minor > actual
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version $major [incr minor] $spmajor $spminor
+    } -result 0
+
+    ###
+    test min_os_version-2.2 {
+        Does not meet minimal os version - wanted SP major > actual
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version $major $minor [incr spmajor] $spminor
+    } -result 0
+
+    ###
+    test min_os_version-2.3 {
+        Does not meet minimal os version - wanted SP minor > actual
+    } -constraints {
+        nt
+    } -body {
+        foreach {major minor spmajor spminor} [twapi::get_os_version] break
+        twapi::min_os_version $major $minor $spmajor [incr spminor]
+    } -result 0
+
+    ################################################################
+
+    test get_os_info-1.0 {
+        Get operating system information 
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_os_info] {
+            platform
+            os_major_version
+            os_minor_version
+            os_build_number
+            sp_major_version
+            sp_minor_version
+            system_type
+            suites
+        }
+    } -result ""
+
+    ###
+    test get_os_info-2.0 {
+        Get operating system version
+    } -constraints {
+        nt
+    } -body {
+        catch {unset osinfo}
+        array set osinfo [twapi::get_os_info]
+        format "%d.%d" $osinfo(os_major_version) $osinfo(os_minor_version)
+    } -result $::tcl_platform(osVersion)
+
+    ###
+    test get_os_info-3.0 {
+        Get operating system platform
+    } -constraints {
+        nt
+    } -body {
+        catch {unset osinfo}
+        array set osinfo [twapi::get_os_info]
+        set osinfo(platform)
+    } -result "NT"
+
+    ###
+    test get_os_info-4.0 {
+        Get operating system build number
+    } -constraints {
+        nt
+    } -setup {
+        set verstr [exec cmd /c ver]
+        if {![regexp {Version [[:digit:]]+\.[[:digit:]]+\.([[:digit:]]+)} $verstr dontcare build]} {
+            error "Could not set up test"
+        }
+    } -body {
+        array set osinfo [twapi::get_os_info]
+        set osinfo(os_build_number)
+    } -result [get_os_build]
+
+
+    ###
+    test get_os_description-1.0 {
+        Get operating system description
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_os_description
+    } -match glob -result "Windows*"
+
+    ###
+    test get_computer_netbios_name-1.0 {
+        Get computer netbios name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_netbios_name
+    } -result $::env(COMPUTERNAME)
+
+    ###
+    test get_processor_info-1.0 {
+        Get processor performance information without options
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_processor_info 0
+    } -result ""
+
+    ###
+    test get_processor_info-1.1 {
+        Get all performance information for all processors
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_processor_info "" -all] $get_processor_info_fields
+    } -result ""
+
+
+    ###
+    test get_processor_info-1.2 {
+        Get all performance information for a processor
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_processor_info 0 -all] $get_processor_info_fields
+    } -result ""
+
+
+    ###
+    test get_processor_info-2.0 {
+        Get processor model
+    } -constraints {
+        nt
+    } -body {
+        set model [twapi::get_processor_info 0 -processormodel]
+        verify_kl_fields $model -processormodel
+    } -result ""
+
+    ###
+    test get_processor_info-3.0 {
+        Get processor name
+    } -constraints {
+        nt
+    } -body {
+        set name [twapi::get_processor_info 0 -processorname]
+        verify_kl_fields $name -processorname
+    } -result ""
+
+    ###
+    test get_processor_info-4.0 {
+        Get processor speed
+    } -constraints {
+        nt
+    } -body {
+        set speed [twapi::get_processor_info 0 -processorspeed]
+        expr {[verify_kl_fields $speed -processorspeed] == "" &&
+             [string is integer [lindex $speed 1]]}
+    } -result 1
+
+
+    ###
+    test get_processor_info-5.0 {
+        Get processor information -interrupts
+    } -constraints {
+        nt
+    } -body {
+        set data [twapi::get_processor_info 0 -interrupts]
+        expr {[verify_kl_fields $data -interrupts] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+
+    ###
+    test get_processor_info-6.0 {
+        Get processor information -idletime
+    } -constraints {
+        nt
+    } -body {
+        set data [twapi::get_processor_info 0 -idletime]
+        expr {[verify_kl_fields $data -idletime] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+
+    ###
+    test get_processor_info-7.0 {
+        Get processor information -privilegedtime
+    } -constraints {
+        nt
+    } -body {
+        set data [twapi::get_processor_info 0 -privilegedtime]
+        expr {[verify_kl_fields $data -privilegedtime] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+
+    ###
+    test get_processor_info-8.0 {
+        Get processor information -dpctime
+    } -constraints {
+        nt
+    } -body {
+        set data [twapi::get_processor_info 0 -dpctime]
+        expr {[verify_kl_fields $data -dpctime] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+    ###
+    test get_processor_info-9.0 {
+        Get processor information -usertime
+    } -constraints {
+        nt
+    } -body {
+        set data [twapi::get_processor_info 0 -usertime]
+        expr {[verify_kl_fields $data -usertime] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+
+    ###
+    test get_processor_info-10.0 {
+        Get processor information -interrupttime
+    } -constraints {
+        nt
+    } -body {
+        # For a change, instead of getting processor 0, we get
+        # all processors ""
+        set data [twapi::get_processor_info "" -interrupttime]
+        expr {[verify_kl_fields $data -interrupttime] == "" &&
+             [string is digit [lindex $data 1]]}
+    } -result 1
+
+
+    set vernum 11
+
+    # Define tests for each utilization type over a default and a specific period
+    foreach utype {
+        processorutilization interruptutilization dpcutilization
+        privilegedutilization userutilization
+    } {
+        set testnum -1
+        # Measure over default period - specific processor
+        test get_processor_info-${vernum}.[incr testnum] "Get $utype over default interval for a specific processor" -constraints {
+            nt
+        } -body {
+            catch {unset utilization}
+            array set utilization [twapi::get_processor_info 0 -${utype}]
+            expr {$utilization(-$utype) >= 0 && $utilization(-$utype) <= 100}
+        } -result 1
+
+        # Measure over specific interval - all processors
+        test get_processor_info-${vernum}.[incr testnum] "Get $utype over a specific interval for all processors" -constraints {
+            nt
+        } -body {
+            set elapsed [lindex [time {
+                twapi::get_processor_info "" -$utype -interval 500
+            }] 0]
+            expr {$elapsed >= (500*1000)}
+        } -result 1
+
+        incr vernum
+    }
+
+    # Define tests for each rate type over a default and a specific period
+    foreach rtype {
+        dpcqueuerate interruptrate dpcrate
+    } {
+        set testnum -1
+
+        # Measure over default period - specific processor
+        test get_processor_info-${vernum}.[incr testnum] "Get $rtype over default interval for a specific processor" -constraints {
+            nt
+        } -body {
+            catch {unset rate}
+            array set rate [twapi::get_processor_info 0 -${rtype}]
+            expr {$rate(-$rtype) >= 0}
+        } -result 1
+
+        # Measure over specific interval - all processors
+        test get_processor_info-${vernum}.[incr testnum] "Get $rtype over a specific interval for all processors" -constraints {
+            nt
+        } -body {
+            set elapsed [lindex [time {
+                twapi::get_processor_info "" -$rtype -interval 500
+            }] 0]
+            expr {$elapsed >= (500*1000)}
+        } -result 1
+
+        incr vernum
+    }
+
+    ################################################################
+
+    test get_memory_info-1.0 {
+        Get memory information without options
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_memory_info
+    } -result ""
+
+    ###
+    test get_memory_info-1.1 {
+        Get all memory information
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_memory_info -all] {
+            -totalphysical -availphysical -totalcommit -availcommit
+            -swapfiles -pagesize -minappaddr -maxappaddr -allocationgranularity
+            -swapfiledetail
+        }
+    } -result ""
+
+    ###
+    test get_memory_info-2.0 {
+        Get memory information option -swapfiles
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -swapfiles]
+        verify_kl_fields $optval [list -swapfiles]
+    } -result ""
+
+    ###
+    test get_memory_info-3.0 {
+        Get memory information option -swapfiledetail
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -swapfiledetail]
+        verify_kl_fields $optval [list -swapfiledetail]
+        set errors [list ]
+        foreach {filename data} [lindex $optval 1] {
+            if {[llength $data] != 3} {
+                lappend errors "Data for $filename has [llength $data] elements"
+                continue
+            }
+            foreach {size used peak} $data break
+            if {$size < $used || $peak < $used} {
+                lappend errors "Inconsistent usage values <$data> for swap file $filename"
+            }
+        }
+        set errors
+    } -result ""
+
+    ###
+    test get_memory_info-4.0 {
+        Get memory information option -pagesize
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -pagesize]
+        verify_kl_fields $optval [list -pagesize]
+        lindex $optval 1
+    } -result 4096
+
+    ###
+    test get_memory_info-5.0 {
+        Get memory information option -minappaddr
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -minappaddr]
+        verify_kl_fields $optval [list -minappaddr]
+        lindex $optval 1
+    } -result 0x10000
+
+    ###
+    test get_memory_info-6.0 {
+        Get memory information option -maxappaddr
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -maxappaddr]
+        verify_kl_fields $optval [list -maxappaddr]
+        lindex $optval 1
+    } -result 0x7ffeffff
+
+    ###
+    test get_memory_info-7.0 {
+        Get memory information option -allocationgranularity
+    } -constraints {
+        nt
+    } -body {
+        set optval [twapi::get_memory_info -allocationgranularity]
+        verify_kl_fields $optval [list -allocationgranularity]
+        lindex $optval 1
+    } -result 65536
+
+    ###
+    test get_memory_info-8.0 {
+        Get memory information option -totalphysical
+    } -constraints {
+        nt
+    } -setup {
+    } -body {
+        set optval [twapi::get_memory_info -totalphysical]
+        verify_kl_fields $optval [list -totalphysical]
+        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem totalvisiblememorysize] 1]}]
+        expr {[lindex $optval 1] == $expected}
+    } -result 1
+
+    ###
+    test get_memory_info-9.0 {
+        Get memory information option -availphysical
+    } -constraints {
+        nt
+    } -setup {
+    } -body {
+        set optval [twapi::get_memory_info -availphysical]
+        verify_kl_fields $optval [list -availphysical]
+        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem freephysicalmemory] 1]}]
+        approx [lindex $optval 1] $expected
+    } -result 1
+
+    ###
+    test get_memory_info-10.0 {
+        Get memory information option -availcommit
+    } -constraints {
+        nt
+    } -setup {
+    } -body {
+        set optval [twapi::get_memory_info -availcommit]
+        verify_kl_fields $optval [list -availcommit]
+        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem freespaceinpagingfiles] 1]}]
+        approx [lindex $optval 1] $expected
+    } -result 1
+
+    ###
+    test get_memory_info-11.0 {
+        Get memory information option -totalcommit
+    } -constraints {
+        nt
+    } -setup {
+    } -body {
+        set optval [twapi::get_memory_info -totalcommit]
+        verify_kl_fields $optval [list -totalcommit]
+        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem SizeStoredInPagingFiles] 1]}]
+        approx [lindex $optval 1] $expected
+    } -result 1
+
+
+    ################################################################
+
+    test get_open_handles-1.0 {
+        Get list of all open handles in the system
+    } -constraints {
+        nt unsupported
+    } -body {
+        foreach elem [twapi::get_open_handles] {
+            verify_kl_fields $elem {-handle -name -pid -type}
+        }
+    } -result ""
+
+    ###
+    test get_open_handles-2.0 {
+        Get list of all open handles for a process
+    } -constraints {
+        nt unsupported
+    } -body {
+        set pid [get_explorer_pid]
+        set msg ""
+        foreach elem [twapi::get_open_handles -pid $pid] {
+            verify_kl_fields $elem {-handle -name -pid -type}
+            if {[get_kl_field $elem -pid] != $pid} {
+                set msg "Pid of handle does not match"
+                break
+            }
+        }
+        set msg
+    } -result ""
+
+    ###
+    set testnum -1
+    foreach type {
+        desktop directory event file iocompletion key mutant port process
+        section semaphore thread timer token windowstation
+    } {
+        # TBD - also need a test that the correct and complete
+        # information is returned
+        test get_open_handles-3.[incr testnum] "Get list of all open handles of type $type" -constraints {
+            nt unsupported
+        } -body {
+            set msg ""
+            foreach elem [twapi::get_open_handles -type $type] {
+                verify_kl_fields $elem {-handle -name -pid -type}
+                set handle_type [get_kl_field $elem -type]
+                if {$handle_type != $type} {
+                    set msg "Type of handle $handle_type does not match expected type $type"
+                    break
+                }
+            }
+            set msg
+        } -result ""
+    }
+
+    ################################################################
+
+    # TBD also try all these test with integer type specifiers
+    test get_open_handle_pids-1.0 {
+        Get list of processes that have an open handle (default type)
+    } -constraints {
+        nt unsupported
+    } -body {
+        set filename [file join $::env(USERPROFILE) "Start Menu"]
+        foreach {name pids} [twapi::get_open_handle_pids $filename] break
+        expr {[lsearch $pids [get_explorer_pid]] >= 0}
+    } -result 1
+
+    ###
+    set testnum 1
+    foreach {
+        type resourcename
+    } [list \
+           windowstation {\Windows\WindowStations\WinSta0} \
+           mutant        {\BaseNamedObjects\ExplorerIsShellMutex} \
+           key           {\REGISTRY\MACHINE\SOFTWARE\Classes\CLSID}  \
+           desktop       {\Default} \
+           file          [file join $::env(USERPROFILE) "Start Menu"] \
+          ] {
+
+        test get_open_handle_pids-[incr testnum].0 "Get list of processes that have an open handle ($type type)" -constraints {
+            nt unsupported
+        } -body {
+            foreach {name pids} [twapi::get_open_handle_pids $resourcename -type $type] break
+            expr {[lsearch $pids [get_explorer_pid]] >= 0}
+        } -result 1
+    }
+
+    ################################################################
+
+    set testnum -1
+    foreach {spi type} {
+        SPI_GETDESKWALLPAPER   {^.*$}
+        SPI_GETBEEP   {^\d+$}
+        SPI_GETMOUSE   {^\d+(\s+\d+){2}$}
+        SPI_GETBORDER   {^\d+$}
+        SPI_GETKEYBOARDSPEED   {^\d+$}
+        SPI_ICONHORIZONTALSPACING   {^\d+$}
+        SPI_GETSCREENSAVETIMEOUT   {^\d+$}
+        SPI_GETSCREENSAVEACTIVE   {^\d+$}
+        SPI_GETKEYBOARDDELAY   {^\d+$}
+        SPI_ICONVERTICALSPACING   {^\d+$}
+        SPI_GETICONTITLEWRAP   {^\d+$}
+        SPI_GETMENUDROPALIGNMENT   {^\d+$}
+        SPI_GETDRAGFULLWINDOWS   {^\d+$}
+        SPI_GETMINIMIZEDMETRICS   {^\d+(\s+\d+){4}$}
+        SPI_GETWORKAREA   {^\d+(\s+\d+){3}$}
+        SPI_GETKEYBOARDPREF   {^\d+$}
+        SPI_GETSCREENREADER   {^\d+$}
+        SPI_GETANIMATION   {^\d+\s+\d+$}
+        SPI_GETFONTSMOOTHING   {^\d+$}
+        SPI_GETLOWPOWERTIMEOUT   {^\d+$}
+        SPI_GETPOWEROFFTIMEOUT   {^\d+$}
+        SPI_GETLOWPOWERACTIVE   {^\d+$}
+        SPI_GETPOWEROFFACTIVE   {^\d+$}
+        SPI_GETSCREENSAVERRUNNING   {^\d+$}
+        SPI_GETFILTERKEYS   {^\d+(\s+\d+){5}$}
+        SPI_GETTOGGLEKEYS   {^\d+\s+\d+$}
+        SPI_GETMOUSEKEYS   {^\d+(\s+-?\d+){6}$}
+        SPI_GETSHOWSOUNDS   {^\d+$}
+        SPI_GETSTICKYKEYS   {^\d+\s+\d+$}
+        SPI_GETACCESSTIMEOUT   {^\d+(\s+\d+){2}$}
+        SPI_GETSNAPTODEFBUTTON   {^\d+$}
+        SPI_GETMOUSEHOVERWIDTH   {^\d+$}
+        SPI_GETMOUSEHOVERHEIGHT   {^\d+$}
+        SPI_GETMOUSEHOVERTIME   {^\d+$}
+        SPI_GETWHEELSCROLLLINES   {^\d+$}
+        SPI_GETMENUSHOWDELAY   {^\d+$}
+        SPI_GETSHOWIMEUI   {^\d+$}
+        SPI_GETMOUSESPEED   {^\d+$}
+        SPI_GETACTIVEWINDOWTRACKING   {^\d+$}
+        SPI_GETMENUANIMATION   {^\d+$}
+        SPI_GETCOMBOBOXANIMATION   {^\d+$}
+        SPI_GETLISTBOXSMOOTHSCROLLING   {^\d+$}
+        SPI_GETGRADIENTCAPTIONS   {^\d+$}
+        SPI_GETKEYBOARDCUES   {^\d+$}
+        SPI_GETMENUUNDERLINES   {^\d+$}
+        SPI_GETACTIVEWNDTRKZORDER   {^\d+$}
+        SPI_GETHOTTRACKING   {^\d+$}
+        SPI_GETMENUFADE   {^\d+$}
+        SPI_GETSELECTIONFADE   {^\d+$}
+        SPI_GETTOOLTIPANIMATION   {^\d+$}
+        SPI_GETTOOLTIPFADE   {^\d+$}
+        SPI_GETCURSORSHADOW   {^\d+$}
+        SPI_GETMOUSESONAR   {^\d+$}
+        SPI_GETMOUSECLICKLOCK   {^\d+$}
+        SPI_GETMOUSEVANISH   {^\d+$}
+        SPI_GETFLATMENU   {^\d+$}
+        SPI_GETDROPSHADOW   {^\d+$}
+        SPI_GETBLOCKSENDINPUTRESETS   {^\d+$}
+        SPI_GETUIEFFECTS   {^\d+$}
+        SPI_GETFOREGROUNDLOCKTIMEOUT   {^\d+$}
+        SPI_GETACTIVEWNDTRKTIMEOUT   {^\d+$}
+        SPI_GETFOREGROUNDFLASHCOUNT   {^\d+$}
+        SPI_GETCARETWIDTH   {^\d+$}
+    } {
+        test get_system_parameters_info-1.[incr testnum] \
+            "get_system_parameters_info -$spi" \
+            -constraints {
+                nt
+            } -body "twapi::get_system_parameters_info $spi" \
+            -result $type -match regexp
+    }
+
+    # Following require XP or later
+    foreach {spi type} {
+        SPI_GETMOUSETRAILS   {^\d+$}
+        SPI_GETMOUSECLICKLOCKTIME   {^\d+$}
+        SPI_GETFONTSMOOTHINGTYPE   {^\d+$}
+        SPI_GETFONTSMOOTHINGCONTRAST   {^\d+$}
+        SPI_GETFOCUSBORDERWIDTH   {^\d+$}
+        SPI_GETFOCUSBORDERHEIGHT   {^\d+$}
+    } {
+        test get_system_parameters_info-1.[incr testnum] \
+            "get_system_parameters_info -$spi" \
+            -constraints {
+                nt xp
+            } -body "twapi::get_system_parameters_info $spi" \
+            -result $type -match regexp
+    }
+
+
+    ################################################################
+
+    test set_system_parameters_info-1.0 {
+        set_system_parameters_info tests TBD
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
+    test get_computer_name-1.0 {
+        Get computer name (default)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name
+    } -result $::env(computername)
+
+    ###
+
+    test get_computer_name-1.1 {
+        Get computer Netbios name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name netbios
+    } -result $::env(computername)
+
+    ###
+
+    test get_computer_name-1.2 {
+        Get computer DNS hostname
+    } -constraints {
+        nt
+    } -body {
+        string tolower [twapi::get_computer_name dnshostname]
+    } -result [string tolower $::env(computername)]
+
+    ###
+
+    test get_computer_name-1.3 {
+        Get computer DNS domain
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name dnsdomain
+    } -result {^[-.\w]*$} -match regexp
+
+    ###
+
+    test get_computer_name-1.4 {
+        Get computer fully qualified DNS hostname
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name dnsfullyqualified
+    } -result "(?i)^$::env(computername)\[-.\\w\]*\$" -match regexp
+
+
+    ###
+
+    test get_computer_name-1.5 {
+        Get physical computer Netbios name
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name physicalnetbios
+    } -result $::env(computername)
+
+    ###
+
+    test get_computer_name-1.6 {
+        Get physical computer DNS hostname
+    } -constraints {
+        nt
+    } -body {
+        string tolower [twapi::get_computer_name physicaldnshostname]
+    } -result [string tolower $::env(computername)]
+
+    ###
+
+    test get_computer_name-1.7 {
+        Get physical computer DNS domain
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name physicaldnsdomain
+    } -result {^[-.\w]*$} -match regexp
+
+    ###
+
+    test get_computer_name-1.8 {
+        Get physical computer fully qualified DNS hostname
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_computer_name physicaldnsfullyqualified
+    } -result "(?i)^$::env(computername)\[-.\\w\]*\$" -match regexp
+
+    ################################################################
+
+    test get_system_info-1.0 {
+        Get system info with no parameters
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_system_info
+    } -result ""
+
+    ###
+
+
+    test get_system_info-1.1 {
+        Get system info -all
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_system_info -all] {
+            -sid
+            -eventcount
+            -handlecount
+            -mutexcount
+            -processcount
+            -sectioncount
+            -semaphorecount
+            -threadcount
+            -uptime
+        }
+    } -result ""
+
+    ###
+
+    test get_system_info-1.2 {
+        Get system SID
+    } -constraints {
+        nt
+    } -body {
+        foreach {fld val} [twapi::get_system_info -sid] break
+        expr {$fld eq "-sid" && [string match S-1-* $val]}
+    } -result 1
+
+    set testnum 2
+
+    foreach opt {
+        -eventcount
+        -handlecount
+        -mutexcount
+        -processcount
+        -sectioncount
+        -semaphorecount
+        -threadcount
+        -uptime
+    } {
+        test get_system_info-1.[incr testnum] "Get system info $opt" \
+        -constraints {
+            nt
+        } -body "foreach {fld val} \[twapi::get_system_info $opt\] break ; expr \"\[string equal \$fld $opt\] && \[string is integer \$val\] \" " \
+        -result 1
+    }
+
+    ################################################################
+
+    test read_inifile_section-1.0 {
+        Read an entire inifile section
+    } -constraints {
+        nt
+    } -setup {
+        catch {unset arr}
+    } -body {
+        array set arr [twapi::read_inifile_section Windows]
+        info exists arr(Programs)
+    } -result 1
+
+    ###
+
+    test read_inifile_section-2.0 {
+        Read an entire inifile section from a non-default ini file
+    } -constraints {
+        nt
+    } -setup {
+        catch {unset arr}
+    } -body {
+        array set arr [twapi::read_inifile_section Patterns -inifile control.ini]
+        info exists arr(Boxes)
+    } -result 1
+
+
+
+    ################################################################
+
+    test read_inifile_section_names-1.0 {
+        Read names of an inifile section
+    } -constraints {
+        nt
+    } -body {
+        set names [twapi::read_inifile_section_names]
+        expr {[lsearch $names Windows] >= 0}
+    } -result 1
+
+    ###
+
+    test read_inifile_section_names-2.0 {
+        Read names of an inifile section from a non-default ini file
+    } -constraints {
+        nt
+    } -body {
+        set names [twapi::read_inifile_section_names -inifile control.ini ]
+        expr {[lsearch $names "Color Schemes"] >= 0}
+    } -result 1
+
+
+    ################################################################
+
+    test read_inifile_key-1.0 {
+        Read an inifile entry
+    } -constraints {
+        nt
+    } -body {
+        string is boolean [twapi::read_inifile_key Windows Beep]
+    } -result 1
+
+    ###
+
+    test read_inifile_key-1.1 {
+        Verify inifile lookups are case-insensitive
+    } -constraints {
+        nt
+    } -body {
+        string is boolean [twapi::read_inifile_key wInDowS bEEp]
+    } -result 1
+
+    ###
+
+    test read_inifile_key-2.0 {
+        Read an inifile entry from a non-default ini file
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::read_inifile_key Patterns Boxes -inifile control.ini]
+    } -result 8
+
+    ###
+
+    test read_inifile_key-2.1 {
+        Verify non-default inifile lookups are case-insensitive
+    } -constraints {
+        nt
+    } -body {
+        llength [twapi::read_inifile_key paTteRns bOxeS -inifile control.ini]
+    } -result 8
+
+    ################################################################
+
+    test write_inifile_key-1.0 {
+        Write an inifile key
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        twapi::write_inifile_key TwapiTestSection TwapiTestKey 12345
+        twapi::read_inifile_key TwapiTestSection TwapiTestKey
+    } -cleanup {
+        twapi::delete_inifile_key TwapiTestSection TwapiTestKey
+    } -result 12345
+
+    ###
+
+    test write_inifile_key-2.0 {
+        Write an inifile key to a non-default file
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        twapi::write_inifile_key TwapiTestSection TwapiTestKey 98765 -inifile control.ini
+        twapi::read_inifile_key TwapiTestSection TwapiTestKey -inifile control.ini
+    } -cleanup {
+        twapi::delete_inifile_key TwapiTestSection TwapiTestKey -inifile control.ini
+    } -result 98765
+
+
+    ################################################################
+
+    test large_system_time_to_secs_since_1970-1.0 {
+        Convert clock epoch base in large system time units to epoch seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000000
+    } -result 0
+
+    ###
+
+    test large_system_time_to_secs_since_1970-2.0 {
+        Convert fractional seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000123 true
+    } -result 0.0000123
+
+    ###
+
+    test large_system_time_to_secs_since_1970-2.0 {
+        Convert fractional seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000123 true
+    } -result 0.0000123
+
+    ###
+
+    test large_system_time_to_secs_since_1970-3.0 {
+        Convert non-whole seconds since clock epoch base in large system time units to epoch whole seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736020000123 false
+    } -result 2
+
+    ###
+
+    test large_system_time_to_secs_since_1970-3.1 {
+        Convert non-whole seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736020000123 true
+    } -result 2.0000123
+
+
+    ################################################################
+
+    test secs_since_1970_to_large_system_time-1.0 {
+        Convert clock epoch base to large system time units
+    } -constraints {
+        nt
+    } -body {
+        twapi::secs_since_1970_to_large_system_time 0
+    } -result 116444736000000000
+
+    ###
+
+    test secs_since_1970_to_large_system_time-2.0 {
+        Convert clock epoch time to large system time units
+    } -constraints {
+        nt
+    } -body {
+        twapi::secs_since_1970_to_large_system_time 2
+    } -result 116444736020000000
+
+    ###
+
+    test secs_since_1970_to_large_system_time-3.0 {
+        Check consistency between secs_since_1970_to_large_system_time and large_system_time_to_secs_since_1970
+    } -constraints {
+        nt
+    } -body {
+        set secs [clock seconds]
+        set secs2 [twapi::large_system_time_to_secs_since_1970 [twapi::secs_since_1970_to_large_system_time $secs]]
+        expr {$secs == $secs2}
+    } -result 1
+
+
+    ################################################################
+
+    test large_system_time_timelist-1.0 {
+        Convert system time epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 0] ,
+    } -result "1601,1,1,0,0,0,0"
+
+    ###
+
+    test large_system_time_timelist-1.1 {
+        Convert current system epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 128121282305000000] ,
+    } -result "2007,1,1,12,30,30,500"
+
+    ################################################################
+
+    test timelist_to_large_system_time-1.0 {
+        Convert timelist format system time epoch to system time
+    } -constraints {
+        nt
+    } -body {
+        twapi::timelist_to_large_system_time {1601 1 1 0 0 0 0}
+    } -result 0
+
+    ###
+
+    test timelist_to_large_system_time-1.1 {
+        Convert timelist format to system time
+    } -constraints {
+        nt
+    } -body {
+        twapi::timelist_to_large_system_time {2007 1 1 12 30 30 500}
+    } -result 128121282305000000
+
+    test large_system_time_timelist-1.1 {
+        Convert current system epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 128121282305000000] ,
+    } -result "2007,1,1,12,30,30,500"
+
+
+    ################################################################
+
+    test find_domain_controller-1.0 {
+        TBD
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::osinfo::test

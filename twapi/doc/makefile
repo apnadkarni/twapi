@@ -17,7 +17,7 @@ DTPQUIET = -quiet
 !endif
 
 !ifndef TOOLDIR
-TOOLDIR= $(TWAPI_SRCROOT)\tools
+TOOLDIR= $(TWAPI_SRCROOT)\..\tools
 !endif
 
 TIDY="$(TOOLDIR)\tidy.exe"

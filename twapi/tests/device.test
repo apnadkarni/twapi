@@ -1,0 +1,55 @@
+
+#
+# Copyright (c) 2008, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the device.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::device::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    ################################################################
+
+    test device_setup_class_name_to_guids-1.0 {
+        Get the guids for a device setup class name
+    } -constraints {
+        nt
+    } -body {
+        string tolower [::twapi::device_setup_class_name_to_guids "Net"]
+    } -result "{{4d36e972-e325-11ce-bfc1-08002be10318}}"
+
+    ################################################################
+
+    test device_setup_class_guid_to_name-1.0 {
+        Get the name for a device setup class guid
+    } -constraints {
+        nt
+    } -body {
+        ::twapi::device_setup_class_guid_to_name "{4D36E972-E325-11CE-bfc1-08002be10318}"
+    } -result Net
+
+    ################################################################
+
+    test get_devinfoset_registry_properties-1.0 {
+        TBD
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::device::test

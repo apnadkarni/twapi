@@ -1,0 +1,431 @@
+#
+# Copyright (c) 2006, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the com.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::shell::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    variable shell_clsid {{13709620-C279-11CE-A49E-444553540000}}
+    variable shell_progid Shell.Application
+    variable ie_clsid {{0002DF01-0000-0000-C000-000000000046}}
+    variable ie_quit_delay 100;   # Ms Delay before calling IE Quit to avoid hang
+
+    ################################################################
+
+    test comobj-1.0 {
+        Create COM object using progid
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_progid] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-1.1 {
+        Create COM object using clsid
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-2.0 {
+        Create COM object with -disablelog true
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -disablelog true] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-2.1 {
+        Create COM object with -disablelog false
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -disablelog false] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-3.0 {
+        Create COM object with -download true
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -download true] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-3.1 {
+        Create COM object with -download false
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -download false] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-4.0 {
+        Create COM object with -enableaaa true
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -enableaaa true] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-4.1 {
+        Create COM object with -enableaaa false
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -enableaaa false] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-5.0 {
+        Create COM object with -model any
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -model any] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-5.1 {
+        Create COM object with -model inprocserver
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -model inprocserver] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-5.2 {
+        Create COM object with -model localserver
+    } -constraints {
+        nt
+    } -body {
+        set ie [twapi::comobj $ie_clsid -model localserver]
+        after $ie_quit_delay;        # Delay before quitting else IE 8 hangs
+        $ie Quit
+        $ie -destroy
+    } -result ""
+
+    ###
+
+    test comobj-5.3 {
+        Create COM object with -model remoteserver
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result ""
+
+    ###
+
+    test comobj-5.4 {
+        Create COM object with -model inprochandler
+    } -constraints {
+        nt TBD
+    } -body {
+        TBD
+    } -result ""
+
+    ###
+
+    test comobj-6.0 {
+        Create COM object with -nocustommarshal true
+    } -constraints {
+        TBD nt
+    } -body {
+        TBD - need to find a COM object that supports this
+        [twapi::comobj TBD -nocustommarshal true] -destroy
+    } -result ""
+
+    ###
+
+    test comobj-6.1 {
+        Create COM object with -nocustommarshal false
+    } -constraints {
+        nt
+    } -body {
+        [twapi::comobj $shell_clsid -nocustommarshal false] -destroy
+    } -result ""
+
+
+    test comobj-7.0 {
+        Get default property value of a COM object
+    } -constraints {
+        nt
+    } -setup {
+        set ie [twapi::comobj InternetExplorer.Application]
+    } -cleanup {
+        after $ie_quit_delay;        # Delay before quitting else IE 8 hangs
+        $ie Quit
+        $ie -destroy
+    } -body {
+        $ie
+    } -result "Windows Internet Explorer"
+
+    ###
+
+    test comobj-8.0 {
+        Get comobj implicit property
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        file normalize [$wscript CurrentDirectory]
+    } -result [pwd]
+
+    ###
+
+    test comobj-8.1 {
+        Put comobj implicit property
+    } -constraints {
+        nt
+    } -setup {
+        set prevdir [pwd]
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+        cd $prevdir
+    } -body {
+        $wscript CurrentDirectory c:/
+        string tolower [pwd]
+    } -result c:/
+
+    ###
+
+    test comobj-8.2 {
+        Invoke comobj implicit method
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        $wscript ExpandEnvironmentStrings %username%
+    } -result $::env(username)
+
+    ###
+
+    test comobj-9.0 {
+        Bind scripts to comobj events using -bind
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -cleanup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+
+    ###
+
+    test comobj-10.0 {
+        Invoke comobj method using -call
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        $wscript -call ExpandEnvironmentStrings %username%
+    } -result $::env(username)
+
+    ###
+
+    test comobj-11.0 {
+        Destroy comobj
+    } -constraints {
+        nt
+    } -body {
+        set wscript [twapi::comobj wscript.shell]
+        $wscript -destroy
+        llength [info commands $wscript]
+    } -result 0
+
+    ###
+
+    test comobj-12.0 {
+        Get comobj property using -get
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        file normalize [$wscript -get CurrentDirectory]
+    } -result [pwd]
+
+    ###
+
+    test comobj-13.0 {
+        Get comobj interface using -interface
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        # Interface should be an IDispatch so try calling one of its methods
+        twapi::idispatch_has_typeinfo [$wscript -interface]
+    } -result 1
+
+    ###
+
+    test comobj-14.0 {
+        Iterate over a comobj collection using -iterate
+    } -constraints {
+        nt
+    } -setup {
+        set fso [twapi::comobj Scripting.FileSystemObject]
+        set drive_coll [$fso Drives]
+    } -cleanup {
+        $drive_coll -destroy
+        $fso -destroy
+    } -body {
+        set drives [list ]
+        $drive_coll -iterate drive_obj {
+            lappend drives [$drive_obj DriveLetter]
+        }
+        llength $drives
+    } -result [llength [twapi::get_logical_drives]]
+
+    ###
+
+    test comobj-15.0 {
+        Get a comobj interface using -queryinterface with an interface name
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        set iunk [$wscript -queryinterface IUnknown]
+        twapi::iunknown_release $iunk
+    } -result 1
+
+    ###
+
+    test comobj-15.1 {
+        Get a comobj interface using -queryinterface with an interface IID
+    } -constraints {
+        nt
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+    } -body {
+        set iunk [$wscript -queryinterface [twapi::name_to_iid IUnknown]]
+        twapi::iunknown_release $iunk
+    } -result 1
+
+    ###
+
+    test comobj-16.0 {
+        Put comobj property using -put
+    } -constraints {
+        nt
+    } -setup {
+        set prevdir [pwd]
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+        cd $prevdir
+    } -body {
+        $wscript -set CurrentDirectory c:/
+        string tolower [pwd]
+    } -result c:/
+
+    ###
+
+    test comobj-17.0 {
+        Unbind scripts from comobj events using -unbind
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -cleanup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ###
+
+    test comobj-18.0 {
+        Navigate comobj hierarchy using -with
+    } -constraints {
+        nt TBD
+    } -setup {
+        TBD
+    } -cleanup {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
+    test variant_time_to_timelist-1.0 {
+        Convert variant time to a time list
+    } -constraints {
+        nt
+    } -body {
+        twapi::variant_time_to_timelist 2.0
+    } -result "1900 1 1 0 0 0 0"
+
+    ################################################################
+
+    test timelist_to_variant_time-1.0 {
+        Convert time list to a variant time
+    } -constraints {
+        nt
+    } -body {
+        twapi::timelist_to_variant_time  "1900 1 1 0 0 0 0"
+    } -result 2.0
+
+
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::shell::test
