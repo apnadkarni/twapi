@@ -410,3 +410,32 @@ BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr)
         return (*Wow64RevertWow64FsRedirectionPtr)(addr);
     }
 }
+int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    char *chan_name;
+    int mode, direction;
+    ClientData h;
+    Tcl_Channel chan;
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETASTR(chan_name), GETINT(direction),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    chan = Tcl_GetChannel(interp, chan_name, &mode);
+    if (chan == NULL) {
+        Tcl_SetResult(interp, "Unknown channel", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    
+    direction = direction ? TCL_WRITABLE : TCL_READABLE;
+    
+    if (Tcl_GetChannelHandle(chan, direction, &h) == TCL_ERROR) {
+        Tcl_SetResult(interp, "Error getting channel handle", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, ObjFromHANDLE(h));
+    return TCL_OK;
+}
+
