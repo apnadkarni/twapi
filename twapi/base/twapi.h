@@ -249,18 +249,18 @@
 #define Twapi_APPEND_UUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), StringObjFromUUID(&((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromUUID(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_LUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), StringObjFromLUID(&((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromLUID(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_PSID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_Obj *obj = StringObjFromSID((structp_)->field_); \
+    Tcl_Obj *obj = ObjFromSIDNoFail((structp_)->field_); \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
     Tcl_ListObjAppendElement((interp_),(listp_), obj ? obj : Tcl_NewStringObj("", 0)); \
   } while (0)
@@ -311,6 +311,28 @@ struct Twapi_EnumCtx {
     Tcl_Obj    *win_listobj;
 };
 
+/* Used to maintain context for common NetEnum* interfaces */
+typedef struct {
+    int    tag;  /* Type of entries in netbufP[] */
+#define TWAPI_NETENUM_USERINFO              0
+#define TWAPI_NETENUM_GROUPINFO             1
+#define TWAPI_NETENUM_LOCALGROUPINFO        2
+#define TWAPI_NETENUM_GROUPUSERSINFO        3
+#define TWAPI_NETENUM_LOCALGROUPUSERSINFO   4
+#define TWAPI_NETENUM_LOCALGROUPMEMBERSINFO 5
+#define TWAPI_NETENUM_SESSIONINFO           6
+#define TWAPI_NETENUM_FILEINFO              7
+#define TWAPI_NETENUM_CONNECTIONINFO        8
+#define TWAPI_NETENUM_SHAREINFO             9
+#define TWAPI_NETENUM_USEINFO              10
+    LPBYTE netbufP;     /* If non-NULL, points to buffer to be freed
+                           with NetApiBufferFree */
+    NET_API_STATUS status;
+    DWORD level;
+    DWORD entriesread;
+    DWORD totalentries;
+    DWORD_PTR  hresume;
+} TwapiNetEnumContext;
 
 /****************************************************************
  * Defintitions used for conversion from Tcl_Obj to C types
@@ -626,9 +648,6 @@ int ObjToWINDOWPLACEMENT(Tcl_Interp *, Tcl_Obj *objP, WINDOWPLACEMENT *wpP);
 Tcl_Obj *ObjFromGUID(GUID *guidP);
 int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP);
 int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP);
-int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
-int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
-int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP);
 int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP);
 int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP);
@@ -641,13 +660,6 @@ Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
 Tcl_Obj *ObjFromUUID (UUID *uuidP);
 int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
 Tcl_Obj *ObjFromLUID (const LUID *luidP);
-int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
-int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
-Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
-int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
-                        LSA_UNICODE_STRING **arrayP, ULONG *countP);
-int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
                               SP_DEVINFO_DATA **sddPP);
@@ -684,6 +696,12 @@ Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
 int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
 Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
+
+int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
+int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
+Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
+int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
+Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
 int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
 int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
                                  SECURITY_ATTRIBUTES **secattrPP);
@@ -691,7 +709,31 @@ void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
 void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
 int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
 Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
-
+Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
+int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
+                              LUID_AND_ATTRIBUTES *luidattrP);
+int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
+Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                                 const TOKEN_PRIVILEGES *tokprivP);
+void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
+int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
+int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
+Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
+int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
+                        LSA_UNICODE_STRING **arrayP, ULONG *countP);
+Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
+int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
+Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
+Tcl_Obj *ObjFromCONNECTION_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromUSE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromSHARE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromFILE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromSESSION_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromUSER_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromLOCALGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
+Tcl_Obj *ObjFromGROUP_USERS_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 
 /* System related */
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
@@ -711,6 +753,95 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetPrivateProfileSection(Tcl_Interp *interp, LPCWSTR app, LPCWSTR fn);
+int Twapi_GetPrivateProfileSectionNames(Tcl_Interp *interp,LPCWSTR lpFileName);
+
+/* Processes and threads */
+int Twapi_GetProcessList(Tcl_Interp *interp, DWORD pid, int flags);
+int Twapi_EnumProcesses (Tcl_Interp *interp);
+int Twapi_EnumDeviceDrivers(Tcl_Interp *interp);
+int Twapi_EnumProcessModules(Tcl_Interp *interp, HANDLE phandle);
+int TwapiCreateProcessHelper(Tcl_Interp *interp, int func, int objc, Tcl_Obj * CONST objv[]);
+int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
+                                                    HANDLE processH);
+int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp,
+                                                   HANDLE threadH);
+int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
+
+/* Shares and LANMAN */
+int Twapi_WNetGetUniversalName(Tcl_Interp *interp, LPCWSTR localpathP);
+int Twapi_WNetGetUser(Tcl_Interp *interp, LPCWSTR  lpName);
+int Twapi_NetScheduleJobEnum(Tcl_Interp *interp, LPCWSTR servername);
+int Twapi_NetShareEnum(Tcl_Interp *interp, LPWSTR server_name);
+int Twapi_NetUseGetInfo(Tcl_Interp *interp, LPWSTR UncServer, LPWSTR UseName, DWORD level);
+int Twapi_NetShareCheck(Tcl_Interp *interp, LPWSTR server, LPWSTR device);
+int Twapi_NetShareGetInfo(Tcl_Interp *interp, LPWSTR server,
+                          LPWSTR netname, DWORD level);
+int Twapi_NetShareSetInfo(Tcl_Interp *interp, LPWSTR server_name,
+                          LPWSTR net_name, LPWSTR remark, DWORD  max_uses,
+                          SECURITY_DESCRIPTOR *secd);
+int Twapi_NetConnectionEnum(Tcl_Interp    *interp, LPWSTR server,
+                            LPWSTR qualifier, DWORD level);
+int Twapi_NetFileEnum(Tcl_Interp *interp, LPWSTR server, LPWSTR basepath,
+                      LPWSTR user, DWORD level);
+int Twapi_NetFileGetInfo(Tcl_Interp    *interp, LPWSTR server,
+                         DWORD fileid, DWORD level);
+int Twapi_NetSessionEnum(Tcl_Interp    *interp, LPWSTR server, LPWSTR client,
+                         LPWSTR user, DWORD level);
+int Twapi_NetSessionGetInfo(Tcl_Interp *interp, LPWSTR server,
+                            LPWSTR client, LPWSTR user, DWORD level);
+int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR server, LPCWSTR domain);
+int Twapi_WNetGetResourceInformation(Tcl_Interp *interp, LPWSTR remoteName,
+                                     LPWSTR provider, DWORD   resourcetype);
+int Twapi_WNetUseConnection(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_NetShareAdd(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+
+
+/* Security related */
+int Twapi_LookupAccountName (Tcl_Interp *interp, LPCWSTR sysname, LPCWSTR name);
+int Twapi_LookupAccountSid (Tcl_Interp *interp, LPCWSTR sysname, PSID sidP);
+int Twapi_NetUserEnum(Tcl_Interp *interp, LPWSTR server_name, DWORD filter);
+int Twapi_NetGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
+int Twapi_NetLocalGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
+int Twapi_NetUserGetGroups(Tcl_Interp *interp, LPWSTR server, LPWSTR user);
+int Twapi_NetUserGetLocalGroups(Tcl_Interp *interp, LPWSTR server,
+                                LPWSTR user, DWORD flags);
+int Twapi_NetLocalGroupGetMembers(Tcl_Interp *interp, LPWSTR server, LPWSTR group);
+int Twapi_NetGroupGetUsers(Tcl_Interp *interp, LPCWSTR server, LPCWSTR group);
+int Twapi_NetUserGetInfo(Tcl_Interp *interp, LPCWSTR server,
+                         LPCWSTR user, DWORD level);
+int Twapi_NetGroupGetInfo(Tcl_Interp *interp, LPCWSTR server,
+                          LPCWSTR group, DWORD level);
+int Twapi_NetLocalGroupGetInfo(Tcl_Interp *interp, LPCWSTR server,
+                               LPCWSTR group, DWORD level);
+int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp);
+int Twapi_LsaQueryInformationPolicy (Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]
+);
+int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp);
+int Twapi_GetSecurityInfo(Tcl_Interp *interp, HANDLE h, int type, int wanted_fields);
+int Twapi_GetNamedSecurityInfo (Tcl_Interp *, LPWSTR name,int type,int wanted);
+int Twapi_LsaGetLogonSessionData(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+
+int TwapiReturnNetEnum(Tcl_Interp *interp, TwapiNetEnumContext *necP);
+int Twapi_NetUseEnum(Tcl_Interp *interp);
+int Twapi_NetUserSetInfoDWORD(int fun, LPCWSTR server, LPCWSTR user, DWORD dw);
+int Twapi_NetUserSetInfoLPWSTR(int fun, LPCWSTR server, LPCWSTR user, LPWSTR s);
+int Twapi_NetUserAdd(Tcl_Interp *interp, LPCWSTR servername, LPWSTR name,
+                     LPWSTR password, DWORD priv, LPWSTR home_dir,
+                     LPWSTR comment, DWORD flags, LPWSTR script_path);
+int Twapi_GetTokenInformation(Tcl_Interp *interp, HANDLE tokenH, int tclass);
+int Twapi_SetTokenPrimaryGroup(HANDLE tokenH, PSID sidP);
+int Twapi_SetTokenVirtualizationEnabled(HANDLE tokenH, DWORD enabled);
+int Twapi_AdjustTokenPrivileges(Tcl_Interp *interp, HANDLE tokenH,
+                                BOOL disableAll, TOKEN_PRIVILEGES *tokprivP);
+DWORD Twapi_PrivilegeCheck(HANDLE tokenH, const TOKEN_PRIVILEGES *tokprivP,
+                           int all_required, int *resultP);
+
+int Twapi_LsaEnumerateAccountRights(Tcl_Interp *interp,
+                                    LSA_HANDLE PolicyHandle, PSID AccountSid);
+int Twapi_LsaEnumerateAccountsWithUserRight(
+    Tcl_Interp *, LSA_HANDLE PolicyHandle, LSA_UNICODE_STRING *UserRights);
+
 
 /* Crypto API */
 int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
@@ -739,6 +870,7 @@ int Twapi_EncryptMessage(Tcl_Interp *interp, SecHandle *INPUT,
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 /* Device related */
+int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName);
 int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
@@ -779,6 +911,15 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR sitenameP, ULONG flags);
 
 /* Network related */
+int Twapi_GetNetworkParams(Tcl_Interp *interp);
+int Twapi_GetAdaptersInfo(Tcl_Interp *interp);
+int Twapi_GetInterfaceInfo(Tcl_Interp *interp);
+int Twapi_GetPerAdapterInfo(Tcl_Interp *interp, int adapter_index);
+int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index);
+int Twapi_GetIfTable(Tcl_Interp *interp, int sort);
+int Twapi_GetIpAddrTable(Tcl_Interp *interp, int sort);
+int Twapi_GetIpNetTable(Tcl_Interp *interp, int sort);
+int Twapi_GetIpForwardTable(Tcl_Interp *interp, int sort);
 
 int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD addr, DWORD addr2);
 int Twapi_AllocateAndGetTcpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
@@ -842,6 +983,21 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
                                      DWORD  sess_id, WTS_INFO_CLASS info_class);
 
+/* Services */
+int Twapi_CreateService(Tcl_Interp *interp, int objc,
+                        Tcl_Obj *CONST objv[]);
+int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc,
+                              Tcl_Obj *CONST objv[]);
+int Twapi_EnumServicesStatusEx(Tcl_Interp *interp, SC_HANDLE hService,
+                               int infolevel, DWORD dwServiceType,
+                               DWORD dwServiceState,  LPCWSTR groupname);
+int Twapi_EnumDependentServices(Tcl_Interp *interp, SC_HANDLE hService, DWORD state);
+int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h, SC_STATUS_TYPE level);
+int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService);
+int Twapi_EnumServicesStatus(Tcl_Interp *interp, SC_HANDLE hService,
+                             DWORD dwServiceType, DWORD dwServiceState);
+
 
 /* Task scheduler related */
 int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
@@ -850,6 +1006,11 @@ int Twapi_IScheduledWorkItem_GetRunTimes(Tcl_Interp *interp,
         IScheduledWorkItem *swiP, SYSTEMTIME *, SYSTEMTIME *, WORD );
 int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
                                              IScheduledWorkItem *swiP);
+
+/* Event log */
+BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP);
+int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ReadEventLog(Tcl_Interp *, HANDLE evlH, DWORD  flags, DWORD offset);
 
 
 /* UI and window related */

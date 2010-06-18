@@ -52,6 +52,8 @@ OBJS  = \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
+	$(OBJDIR)\security.obj \
+	$(OBJDIR)\share.obj \
 	$(OBJDIR)\system.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\try.obj \
