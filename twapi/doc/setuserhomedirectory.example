@@ -1,0 +1,15 @@
+# TWAPI example
+# Set the home directory for a user
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME DIRECTORY"
+    exit
+}
+
+set dir [lindex $argv 1]
+if {![file isdirectory $dir]} {
+    puts stderr "Error: $dir does not exist or is not a directory"
+}
+twapi::set_user_home_dir [lindex $argv 0] $dir

@@ -1,0 +1,928 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Processes, threads and DLLs" n ""]
+[copyright "2003-2010 Ashok P. Nadkarni"]
+[moddesc "Processes, threads and shared libraries"]
+[titledesc "Commands related to processes, threads and dynamic link libraries"]
+[require twapi]
+[description]
+[para]
+
+This module provides procedures related to process, thread and shared
+library management.
+
+[section Overview]
+
+The commands [uri \#get_process_ids [cmd get_process_ids]]
+and [uri \#get_current_process_id [cmd get_current_process_id]] retrieve
+process id (PID) information. [uri \#get_process_parent [cmd get_process_parent]]
+returns the PID for
+the parent process. The commands [uri \#is_system_pid [cmd is_system_pid]]
+and [uri \#is_idle_pid [cmd is_idle_pid]] determine if the given PID is that
+of the system or idle process.
+[para]
+The command [uri \#get_current_thread_id [cmd get_current_thread_id]]
+retrieves the current thread id (TID).
+[uri \#get_thread_parent_process_id [cmd get_thread_parent_process_id]]
+retrieves the PID of the process containing the specified thread.
+[uri \#get_process_thread_ids [cmd get_process_thread_ids]]
+retrieves the TID's of all threads in the
+specified process.
+
+[para]
+Process and thread handles with the appropriate access rights may retrieved
+through the [uri \#get_process_handle [cmd get_process_handle]]
+and [uri \#get_thread_handle [cmd get_thread_handle]] commands
+respectively. A process handle may be mapped back to the corresponding PID
+through [uri #get_pid_from_handle [cmd get_pid_from_handle]].
+
+[para]
+[uri \#get_process_name [cmd get_process_name]]
+and [uri \#get_process_path [cmd get_process_path]] get the name and
+path respectively for a process. The command
+[uri \#get_process_info [cmd get_process_info]] retrieves
+detailed information about internal process data. Similarly,
+[uri \#get_thread_info [cmd get_thread_info]] retrieves
+detailed information about a thread.
+
+[para]
+[uri \#get_process_commandline [cmd get_process_commandline]]
+retrieves the command line with which a process
+was invoked.
+
+[para]
+[uri \#process_exists [cmd process_exists]]
+checks for the existence of a process. The command
+[uri \#process_waiting_for_input [cmd process_waiting_for_input]]
+can be used to check if a process is waiting
+for input, and more specifically if it has finished initialization.
+
+[para]
+[uri \#get_process_modules [cmd get_process_modules]]
+retrieves information pertaining to the
+modules and DLL's loaded into a process.
+The commands [uri \#load_library [cmd load_library]]
+and [uri \#free_library [cmd free_library]] can be used to load
+and free DLL's.
+
+[para]
+The commands [uri \#create_process [cmd create_process]]
+and [uri \#end_process [cmd end_process]]
+allow creation and termination of a process. The exit code from
+a process can be retrieved with the
+[uri \#get_process_exit_code [cmd get_process_exit_code]] command.
+
+[para] The commands [uri \#suspend_thread [cmd suspend_thread]]
+and [uri \#resume_thread [cmd resume_thread]]
+allow threads to be suspended and resumed.
+
+[para]
+The commands [uri #get_priority_class [cmd get_priority_class]],
+[uri #set_priority_class [cmd set_priority_class]],
+[uri #get_thread_relative_priority [cmd get_thread_relative_priority]] and
+[uri #set_thread_relative_priority [cmd set_thread_relative_priority]]
+deal with retrieving and setting process and thread scheduling priorities.
+
+[para]
+[uri \#get_device_drivers [cmd get_device_drivers]]
+retrieves information about the device
+drivers loaded on the system.
+
+[para]
+Commands [uri \#is_wow64_process [cmd is_wow64_process]]
+deal with features related to 64-bit Windows.
+
+[para]
+Command [uri #process_in_administrators [cmd process_in_administrators]]
+can be used to check if the current process is in the administrators group.
+
+[para]
+Commands
+[uri process.html#get_process_elevation [cmd get_process_elevation]],
+[uri process.html#get_process_integrity [cmd get_process_integrity]] and,
+[uri process.html#set_process_integrity [cmd set_process_integrity]] and,
+[uri process.html#virtualized_process [cmd virtualized_process]],
+[uri process.html#set_process_virtualization [cmd set_process_virtualization]]
+deal with
+[uri security.html#useraccountcontrol "Windows UAC"] related features.
+
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd create_process] [arg PROGRAM] [opt [arg options]]]
+
+Creates a new child process. [arg PROGRAM] specifies the program
+to be run and must either include the full path to the program or the program
+must be in the current working directory.
+The function does not search the [const PATH] environment
+variable to locate the program.
+[arg PROGRAM] may be specified as an empty string if the [cmd -cmdline]
+option is specified and includes the path to the program as the first
+argument.
+[nl]
+The command returns a list of two elements - the process id and the thread id
+of the child process. If the [cmd -returnhandles] option is specified, two
+additional elements are returned - handles to the child process and thread.
+Both these handles must be closed when no longer required by calling
+[uri handles.html\#close_handles [cmd close_handles]].
+[nl]
+The following arguments control various characteristics of the
+child process. For all options that take a boolean argument, the default
+is [const 0] (false) unless stated otherwise.
+
+[list_begin opt]
+[opt_def [cmd -background] [arg COLORLIST]] Specifies the background
+color if the child process receives a new console. [arg COLORLIST] is
+a list of one or more of the following values:
+[const blue], [const red], [const green], [const bright], [const white]
+and [const black]. The specified colors are combined to form the foreground
+color. The default is [const black].
+[opt_def [cmd -cmdline] [arg CMDLINE]] Specifies the command line to be passed
+to the created process. This generally includes the program being executed
+as the first token in [arg CMDLINE]. Caller should ensure that
+[arg CMDLINE] is quoted appropriately. The [cmd -cmdline]
+option must be specified if the [arg PROGRAM] parameter is empty.
+[opt_def [cmd -childprocesssecd] [arg SECURITY_DESCRIPTOR]] Specifies
+a security descriptor for the child process. If unspecified, the default
+security descriptor is used.
+[opt_def [cmd -childthreadsecd] [arg SECURITY_DESCRIPTOR]]
+Specifies a security descriptor for the child thread. If unspecified,
+the default security descriptor is used.
+[opt_def [cmd -createsuspended] [arg BOOLEAN]]If [arg BOOLEAN] is true,
+the process and thread are created suspended. The process will not run
+until the thread is resumed with a call to [cmd resume_thread].
+[opt_def [cmd -debugchild] [arg BOOLEAN]]If [arg BOOLEAN] is true,
+indicates that the calling thread
+will be debugging the child process being created. The thread is notified
+of debug events in the child process.
+[emph "There is currently no way to receive these events"].
+[opt_def [cmd -dontdebugchild] [arg BOOLEAN]]If the calling process is
+itself being debugged, then any debug events from the child process are
+sent to the debugger if [arg BOOLEAN] is false. Otherwise, the child process
+has no interaction with the debugger.
+[opt_def [cmd -desktop] [arg DESKTOPNAME]]Specifies the desktop, optionally
+along with the window station, for the new process. By default, this is
+the same as the current process. If [arg DESKTOPNAME] is the empty string,
+the system determines if a new desktop and window station need to be
+created.
+[opt_def [cmd -detached] [arg BOOLEAN]]This option only affects
+console processes. If [arg BOOLEAN] is 0, the child process inherits
+the current process' console. If [arg BOOLEAN] is 1, the console is
+not inherited.
+[opt_def [cmd -env] [arg LIST]]Specifies the environment variables
+inherited by the child process. [arg LIST] is a flat list of the
+form returned by [cmd "array get"] consisting of [arg "ENVVARNAME VALUE"]
+pairs. By default, the child process inherits
+the same environment variables as the current process.
+[opt_def [cmd -feedbackcursoron] [arg BOOLEAN]]If true, specifies that
+the feedback cursor (normally a pointer with an hourglass) is shown
+while the new process starts up.
+[opt_def [cmd -feedbackcursoroff] [arg BOOLEAN]] If true, specifies
+that the feedback cursor is not shown while the new process starts up.
+[opt_def [cmd -foreground] [arg COLORLIST]] Specifies the foreground
+color if the child process receives a new console. [arg COLORLIST] is
+a list of one or more of the following values:
+[const blue], [const red], [const green], [const bright], [const white]
+and [const black]. The specified colors are combined to form the foreground
+color. The default is [const white].
+[opt_def [cmd -fullscreen] [arg BOOLEAN]]If true, the child process
+is run in full screen mode if it is a console process.
+[opt_def [cmd -inheritablechildprocess] [arg BOOLEAN]]If true, the handle
+to the child process is inheritable by other child processes spawned
+off later.
+[opt_def [cmd -inheritablechildthread] [arg BOOLEAN]]If true, the handle
+to the thread in the child process is inheritable by other child processes
+spawned off later.
+[opt_def [cmd -inheriterrormode] [arg BOOLEAN]]If true (default),
+the child process inherits the error mode setting of the current process.
+[opt_def [cmd -inherithandles] [arg BOOLEAN]]If true, the child process
+will inherit all inheritable handles of the current process.
+[opt_def [cmd -newconsole] [arg BOOLEAN]]If true, a new console is created
+for the child process if it is a console mode program. By default,
+the child process inherites the console of the current process if that
+latter is also a console mode program. This option cannot be used
+with the [cmd -detached] option.
+[opt_def [cmd -priority] [arg PRIORITY]]Specifies the priority of the
+child process. This should have one of the values
+[const normal], [const abovenormal], [const belownormal],
+[const high], [const realtime], or [const idle].
+[opt_def [cmd -returnhandles] [arg BOOLEAN]]Normally the
+[cmd create_process] command returns only the ids of the created
+process and thread. If this option is specified as true, the command
+appends handles of the child process and thread to the return value.
+These must later be closed by calling the [cmd close_handles] command.
+[opt_def [cmd -screenbuffersize] [arg XY]]For console processes, this
+controls the initial width and height of the screen buffer in characters.
+[arg XY] can be specified as either a list of two integers or as
+a [arg X,Y] string.
+[opt_def [cmd -separatevdm] [arg BOOLEAN]]If true, child processes
+that are 16-bit executables
+are started in a separate virtual machine. By default, the system will
+follow the setting specified in the registry.
+[opt_def [cmd -sharedvdm] [arg BOOLEAN]]If true, child processes
+that are 16-bit executables
+are started in a common virtual machine. By default, the system will
+follow the setting specified in the registry.
+[opt_def [cmd -showwindow] [arg WINDOWMODE]]Specifies the mode in which
+the first window of the child process is displayed. [arg WINDOWMODE]
+must be one of [const normal], [const minimized],
+[const maximized] or [const hidden].
+[opt_def [cmd -startdir] [arg PATH]]Specifies the initial starting directory
+of the child process. By default the child process starts in the calling
+thread's current directory.
+[opt_def [cmd -stdhandles] [arg HANDLELIST]]Specifies the standard input
+and output handles for the child process. [arg HANDLELIST] is a list
+of three elements corresponding to the handles to be used for standard input,
+standard output and standard error respectively. The handle values
+passed must be Windows handles and must be inheritable. Also, the
+[cmd -inherithandles] option must be true if [cmd -stdhandles] is
+specified. Note that if
+these handles correspond to files, the file position pointer is shared
+with the child process.
+
+[nl]
+This option cannot be used together with the [cmd -stdchannels] option.
+[opt_def [cmd -stdchannels] [arg CHANNELS]]Specifies the standard input
+and output handles for the child process. [arg CHANNELS] is a list
+of three elements corresponding to the Tcl channels
+to be used for standard input,
+standard output and standard error respectively. Note that if
+these channels correspond to files, the file position pointer is shared
+with the child process.
+[nl]
+This option cannot be used together with the [cmd -stdhandles] option.
+Also, the [cmd -inherithandles] option must be
+true if [cmd -stdchannels] is specified.
+[opt_def [cmd -title] [arg TITLE]]Specifies the text to diaplay in the title
+bar if the child process is a console program and receives a new console.
+By default, the name of the executable is displayed.
+[opt_def [cmd -windowpos] [arg XY]]Specifies the initial position in pixels
+of the top left corner of the main window of the child process
+if the child creates the window using defaults.
+[arg XY] can be specified as either a list of two integers or as
+a [arg X,Y] string.
+[opt_def [cmd -windowsize] [arg XY]]Specifies the initial size in pixels
+of the main window of the child process
+if the child creates the window using defaults.
+[arg XY] can be specified as either a list of two integers or as
+a [arg X,Y] string.
+[list_end]
+For further details, see the documentation of [cmd CreateProcess]
+in the Windows SDK documentation.
+
+[call [cmd end_process] [arg PID] [opt [arg options]]]
+
+Terminates the process with id [arg PID]. This function will first try
+to gracefully end the process by sending all its toplevel windows a
+[const WM_CLOSE] command. If the process does not have any toplevels or if it
+does not end by this means and the
+[cmd -force] option is specified, it is forcibly terminated.
+[nl]
+The function returns [const 1] if the process ended and
+[const 0] otherwise. Note that if [cmd -wait] has not been specified,
+or is too short, the function may return a value of 0 in the case
+where the process is in the process of terminating but has not fully exited
+by the time the command returns.
+[nl]
+The following options may be specified with this command:
+[list_begin opt]
+[opt_def [cmd -force]] If this option is specified, the process will
+be forcibly terminated if it does not terminate in response to
+[const WM_CLOSE] messages.
+[opt_def [cmd -wait] [arg MS]]
+Normally, the function will return without
+actually waiting for the process to end. If this option is specified,
+the function returns after waiting for [arg MS] milliseconds
+for the process to end.
+[opt_def [cmd -exitcode] [arg EXITCODE]] Specifies the exit code that
+should be returned by the terminating process. This is [const 1] by
+default. Depending on the application being terminated,
+this may not be the actual exit code returned on application exit.
+Caller should not rely on this.
+[list_end]
+[uri exitprograms.example "Example: Gracefully exit all programs with a given name or path"]
+[nl]
+[uri killprograms.example "Example: Forcibly kill all programs with a given name or path"]
+
+[call [cmd free_library] [arg HMODULE]]
+Frees a loaded module. [arg HMODULE] must be a handle previously
+returned through [uri \#load_library [cmd load_library]].
+
+[call [cmd get_current_process_id]]
+
+Returns the PID of the current process.
+
+[call [cmd get_current_thread_id]]
+
+Returns the TID of the current thread.
+
+[call [cmd get_device_drivers] [opt [arg options]]]
+This command returns information about the device drivers loaded
+in the system.
+The returned information is in the form of
+a list of sublist with each sublist corresponding to a loaded driver.
+Each sublist is a flat list of "[arg option] [arg value]" pairs.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -all]] Returns all device driver attributes below.
+[opt_def [cmd -base]] Returns the base address in memory where the driver
+is loaded
+[opt_def [cmd -path]] Returns the path to the file from which the driver
+was loaded. In some cases, this may not contain a fully
+qualified path.
+[opt_def [cmd -name]] Returns the name of the driver - generally the
+file name portion of the file from which the driver was loaded.
+[list_end]
+
+[call [cmd get_pid_from_handle] [arg HPROCESS]]
+Returns the PID of the process corresponding to the process handle
+[arg HPROCESS].
+
+[call [cmd get_priority_class] [arg PID]]
+Returns the scheduling priority class of the process with id [arg PID].
+
+[call [cmd get_process_commandline] [arg PID]]
+Returns the command line with which the process with id [arg PID] was invoked.
+The following options may be specified with the command.
+[list_begin opt]
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
+be accessed to retrieve the name, the
+command normally returns the string [const "\"(unknown)\""]. This option may
+be used to specify a different string to be returned in such cases.
+[list_end]
+
+[call [cmd get_process_elevation] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg HPROCESS]"]]
+If no options are specified, information for the current process is returned.
+A different process may be specified using its PID with the [cmd -pid] option,
+or with a handle to it through the [cmd -hprocess] option.
+[nl]
+See
+[uri security.html#get_token_elevation [cmd get_token_elevation]] for
+details on the return value and semantics of this command.
+
+[call [cmd get_process_exit_code] [arg HPROCESS]]
+Returns the exit code for a process. [arg HPROCESS] is a handle to the
+process of interest. If the process is still running, a null string
+is returned.
+
+[call [cmd get_process_handle] [arg PID] [arg ACCESSRIGHTS] [opt [arg INHERITMODE]]]
+Returns a handle to the process with id [arg PID].
+[arg ACCESSRIGHTS] specifies the desired access rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html#accessrights "Access Rights"].
+If [arg INHERITMODE] is non-0, the returned
+handle can be inherited by child processes. If it is 0 (default), the
+handle cannot be inherited by child processes.
+
+[call [cmd get_process_ids] [opt [arg options]]]
+
+This command returns a list of the process ids. If no options are
+specified, the list includes all processes on the system. The
+following options may be specified to return a subset of these:
+[list_begin opt]
+[opt_def [cmd -glob]]
+This option modifies the meaning of the [cmd -path] and [cmd -name]
+options. Normally, the match is done using case-insensitive, exact comparison.
+If [cmd -glob] is
+specified, the [arg PROCESSNAME] and [arg EXECUTABLEPATH]
+are matched using glob-style pattern matching as in Tcl's [cmd "string match"]
+command.
+[opt_def [cmd -name] [arg PROCESSNAME]]
+If this option is specified, the returned list only includes those
+processes whose name matches [arg PROCESSNAME]. Generally the name is
+the same as the filename portion of the executable file path. If this
+information is not available for a process, it is not included in the
+returned list.
+This option cannot be used with the [cmd -path] option.
+[opt_def [cmd -path] [arg EXECUTABLEPATH]]
+If this option is specified, the returned list only includes those
+processes created from the executable file matching
+[arg EXECUTABLEPATH]. If this
+information is not available for a process, it is not included in the
+returned list. This option cannot be used with the [cmd -name] option.
+[opt_def [cmd -logonsession] [arg LUID]]
+If this option is specified, the returned list only includes those
+processes running inside the
+[uri security.html\#logonsessions "logon session"] identified
+by the specified [uri security.html\#uniqueidentifiers LUID].
+[opt_def [cmd -user] [arg ACCOUNT]]
+If this option is specified, the returned list only includes those
+processes running under the specified account. [arg ACCOUNT] may
+be either a user name or its SID.
+[list_end]
+[uri minimizeapp.example "Example: Minimize all windows for an application"]
+[nl]
+[uri exitprograms.example "Example: Exit all programs with a given name or path"]
+
+[call [cmd get_process_info] [arg PID] [opt [arg options]]]
+
+Returns various pieces of information related to the process whose id is
+[arg PID]. The information returned
+depends on the options specified and is in the form of a flat list of
+the form "[arg option1] [arg value1] ...".
+The values returned  may
+be scalars (e.g. [const -name]) or rate based measured over an interval
+(e.g. [cmd -processorutilization]). The option [cmd -interval] may be
+used to indicate the interval over which the rate based fields are measured.
+
+One of more of the following options may be specified with the command:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all values except those for unsupported options.
+[opt_def [cmd -basepriority]]
+Returns the base priority of the process.
+[opt_def [cmd -commandline]]
+Returns the command line with which the process was invoked.
+[opt_def [cmd -createtime]]
+Returns the time the process was created as the number of 100ns units
+since Jan 1, 1601. This can be converted to a date and time string
+by passing it to
+[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
+and formatting the result using [cmd "clock format"].
+[opt_def [cmd -elapsedtime]]
+Returns the total time (seconds) that the process has been running.
+[opt_def [cmd -elevation]] Returns the elevation level of the process
+(see [uri #get_process_elevation [cmd get_process_elevation]]).
+[opt_def [cmd -groups]] Returns the list of groups that the process belongs to.
+[opt_def [cmd -handlecount]]
+Returns the number of handles that the process currently has open.
+[opt_def [cmd -handles]]
+Returns the list of open handles in the process as a list of lists. Each
+sublist contains three elements - the handle value, the type of
+the handle, and name of the corresponding resource.
+[emph "This an unsupported option that uses undocumented Windows functions
+and should not be used for production systems."]
+[opt_def [cmd -integrity]] Returns the integrity level of the process
+(see [uri #get_process_integrity [cmd get_process_integrity]]).
+[opt_def [cmd -interval] [arg INTERVAL]] Specifies the number of
+milliseconds over which rate based fields are to be measured. The command
+will not return until this time has elapsed. By default this is 100ms.
+If none of the fields requested is a rate based field, this option
+is ignored and the command returns immediately.
+[opt_def [cmd -iodatabytesrate]]
+Returns the rate at which the process is reading and writing bytes.
+[opt_def [cmd -iodataopsrate]]
+Returns the rate at which the process is issuing I/O operation.
+[opt_def [cmd -iootherbytes]]
+Returns number of non-data bytes the process has read or written through I/O
+operations.
+[opt_def [cmd -iootherbytesrate]]
+Returns the rate at which the process is reading and writing non-data
+bytes (such as control bytes).
+[opt_def [cmd -iootherops]]
+Returns number of non-data I/O operations the process has executed.
+[opt_def [cmd -iootheropsrate]]
+Returns the rate at which the process is issuing non-data I/O operations.
+[opt_def [cmd -ioreadbytes]]
+Returns number of data bytes the process has read through I/O
+operations.
+[opt_def [cmd -ioreadbytesrate]]
+Returns the rate at which the process is reading bytes through I/O
+operations.
+[opt_def [cmd -ioreadops]]
+Returns number of data read I/O operations the process has executed.
+[opt_def [cmd -ioreadopsrate]]
+Returns the rate at which the process is issuing read I/O operations.
+[opt_def [cmd -iowritebytes]]
+Returns number of data bytes the process has written through I/O
+operations.
+[opt_def [cmd -iowritebytesrate]]
+Returns the rate at which the process is writing bytes through I/O
+operations. All types of I/O operations are including in this rate.
+[opt_def [cmd -iowriteops]]
+Returns number of data write I/O operations the process has executed.
+[opt_def [cmd -iowriteopsrate]]
+Returns the rate at which the process is issuing write I/O operations.
+[opt_def [cmd -logonsession]]
+Returns the [uri security.html\#uniqueidentifiers LUID] of the
+[uri security.html\#logonsessions "logon session"] for the process.
+[opt_def [cmd -name]]
+Returns the name of the process. This is identical to the value
+returned by the [cmd get_process_name] function.
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
+be accessed to retrieve the name, the
+command normally returns the string [const "\"(unknown)\""]. This option may
+be used to specify a different string to be returned in such cases.
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
+command returns the string [const "\"(no such process)\""]. This option may
+be used to specify a different string to be returned for non-existent
+processes.
+[opt_def [cmd -pagefaultrate]]
+Returns the rate at which the process is generating page faults.
+[opt_def [cmd -pagefilebytes]]
+Returns total number of bytes in use for this process in all the
+system paging files.
+[opt_def [cmd -pagefilebytespeak]]
+Returns the maximum number of bytes that have been used for this
+process in the system paging file since the process started.
+[opt_def [cmd -parent]]
+Returns id of the process that invoked this process. For the system
+and system idle processes, an empty string is returned since they
+have no parent process.
+[opt_def [cmd -path]]
+Returns the path to the executable file from which this process was
+invoked. This value is the same as that returned by the
+[cmd get_process_path] command.
+[opt_def [cmd -pid]]
+Returns the process id of this process (which should be
+identical to that passed in as the [arg PID] argument.
+[opt_def [cmd -poolnonpagedbytes]]
+Returns the number of bytes of nonpaged pool memory in use for the process.
+[opt_def [cmd -poolpagedbytes]]
+Returns the number of bytes of paged pool memory in use for the process.
+[opt_def [cmd -primarygroup]] Returns the primary group that the
+process belongs to.
+[opt_def [cmd -priorityclass]] Returns the priority class of the process.
+[opt_def [cmd -privatebytes]]
+Returns the number of bytes allocated for this process' private use.
+[opt_def [cmd -privilegedtime]]
+The amount of privileged context CPU time used by the process in 100ns units.
+[opt_def [cmd -privilegedutilization]]
+Returns the percentage of elapsed time
+that this process has spent executing in privileged mode.
+[opt_def [cmd -privileges]] Returns the list of enabled and disabled
+process privileges in the same format as
+[uri security.html\#get_token_privileges [cmd get_token_privileges]].
+[opt_def [cmd -processorutilization]]
+Returns the percentage of CPU time that this process has used.
+[opt_def [cmd -threadcount]]
+Returns the total number of threads in the process.
+[opt_def [cmd -tids]]
+Returns a list of ids of the threads in the process.
+[opt_def [cmd -toplevels]]
+Returns a list of the window handles of all toplevel windows
+owned by the process.
+[opt_def [cmd -tssession]]
+Returns the terminal server session id of the process.
+[opt_def [cmd -user]]
+Returns the user account under which the process is running.
+[opt_def [cmd -usertime]]
+The amount of user context CPU time used by the process in 100ns units.
+[opt_def [cmd -userutilization]]
+Returns the percentage of elapsed time
+that this process has spent executing in user mode.
+[opt_def [cmd -virtualbytes]]
+Returns the current size of the process' virtual address space.
+[opt_def [cmd -virtualbytespeak]]
+Returns the maximum amount of virtual address space that the
+process has used in the course of its execution.
+[opt_def [cmd -virtualized]]
+Returns true if the process is virtualized
+and 0 otherwise. See [uri #virtualized_process [cmd virtualized_process]].
+[opt_def [cmd -workingset]]
+Returns the number of bytes currently in the process' working set.
+[opt_def [cmd -workingsetpeak]]
+Returns the maximum number of bytes in the process' working set since
+it began execution.
+[list_end]
+Note that all the information is not retrieved in a single snapshot so
+there may be discrepancies between various values. For example, the number
+of thread ids returned via [cmd -tids] may not match the thread count
+returned via [cmd -threadcount].
+[nl]
+The [cmd get_process_info] command is intended for one-time retrieval
+of information and is too inefficient for usage in an
+application like performance monitoring. Direct access to the performance
+data should be used in those cases.
+
+[call [cmd get_process_integrity] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg HPROCESS]"] [opt [cmd "-raw | -label"]]]
+If no options are specified, information for the current process is returned.
+A different process may be specified using its PID with the [cmd -pid] option,
+or with a handle to it through the [cmd -hprocess] option.
+[nl]
+See
+[uri security.html#get_token_integrity [cmd get_token_integrity]] for
+details on the other options, return value and semantics of this command.
+
+[call [cmd get_process_modules] [arg PID] [opt [arg options]]]
+This command returns information about the modules loaded in the
+process with id [arg PID]. If no options are specified, the command
+returns a list of handles to the modules.
+[nl]
+If any options are specified, the returned information is in the form of
+a list of sublists each of which corresponds to a loaded
+module. The sublist for each module is in the form
+"[arg option] [arg VALUE]".
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -all]] Returns the data for all options described below.
+[opt_def [cmd -handle]] Includes the handle to the module in the returned
+data for each module.
+[opt_def [cmd -path]] Includes the full path from which the module was loaded.
+[opt_def [cmd -name]] Includes the name of the module - generally the file
+name portion of the path.
+[opt_def [cmd -imagedata]] Includes the base address in memory where the
+module is loaded, the size of the module in memory and the address of
+the entry point to the module as a sublist for each module.
+[list_end]
+[uri showprocessmodules.example "Example: Show the DLL's loaded in a process"]
+
+[call [cmd get_process_name] [arg PID]]
+
+Returns the name of the process with id [arg PID]. This is generally
+the file name component of the full path of the executable file from
+which the process was loaded.
+
+The following options may be specified to with the command:
+[list_begin opt]
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
+command returns the string [const "\"(no such process)\""]. This option may
+be used to specify a different string to be returned for non-existent
+processes.
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
+be accessed to retrieve the name, the
+command normally returns the string [const "\"(unknown)\""]. This option may
+be used to specify a different string to be returned in such cases.
+[list_end]
+[uri showprocessowners.example "Example: Show the user account for each process"]
+
+
+[call [cmd get_process_parent] [arg PID]]
+
+Returns the PID of the process from whom the process with id [arg PID]
+inherited handles and environment.
+The following options may be specified to with the command:
+[list_begin opt]
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
+command returns the string [const "\"(no such process)\""]. This option may
+be used to specify a different string to be returned for non-existent
+processes.
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
+be accessed to retrieve the parent, the
+command normally returns the string [const "\"(unknown)\""]. This option may
+be used to specify a different string to be returned in such cases.
+[list_end]
+
+[call [cmd get_process_path] [arg PID]]
+
+Returns the full path of the executable file from which the process
+with id [arg PID] was loaded.
+
+The following options may be specified to with the command:
+[list_begin opt]
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
+command returns the string [const "(no such process)"]. This option may
+be used to specify a different string to be returned for non-existent
+processes.
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
+be accessed to retrieve the path information, the
+command normally returns the string [const "(unknown)"]. This option may
+be used to specify a different string to be returned in such cases.
+[list_end]
+
+[call [cmd get_process_thread_ids] [arg PID]]
+
+Returns a list of ids of all threads in the process whose id is [arg PID].
+
+[call [cmd get_thread_handle] [arg TID] [arg ACCESSMODE] [opt [arg INHERITMODE]]]
+Returns a handle to the thread with id [arg TID]. [arg ACCESSMODE] specifies
+the desired access rights and may be specified as a list of integer access
+rights flags or symbols. Refer to the documentation of TWAPI Security module
+for more details. If [arg INHERITMODE] is non-0, the returned
+handle can be inherited by child processes. If it is 0 (default), the
+handle cannot be inherited by child processes.
+
+[call [cmd get_thread_info] [arg TID] [opt [arg options]]]
+
+Returns various pieces of information related to the thread whose id is
+[arg TID]. The information returned
+depends on the options specified and is in the form of a flat list of
+the form "[arg option1] [arg value1] ...".
+The values returned  may
+be scalars (e.g. [const -name]) or rate based measured over an interval
+(e.g. [cmd -processorutilization]). The option [cmd -interval] may be
+used to indicate the interval over which the rate based fields are measured.
+
+One of more of the following options may be specified with the command:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all values.
+[opt_def [cmd -basepriority]]
+Returns the base priority of the thread.
+[opt_def [cmd -contextswitches]]
+Returns the number of context switches done by the thread.
+[opt_def [cmd -contextswitchrate]]
+Returns the rate of context switches for the thread.
+[opt_def [cmd -createtime]]
+Returns the time the thread was created as the number of 100ns units
+since Jan 1, 1601. This can be converted to a date and time string
+by passing it to
+[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
+and formatting the result using [cmd "clock format"].
+[opt_def [cmd -elapsedtime]] Returns the total time (seconds)
+that the thread has been running.
+[opt_def [cmd -groups]] Returns the list of groups that the thread belongs to.
+[opt_def [cmd -interval] [arg INTERVAL]] Specifies the number of
+milliseconds over which rate based fields are to be measured. The command
+will not return until this time has elapsed. By default this is 100ms.
+If none of the fields requested is a rate based field, this option
+is ignored and the command returns immediately.
+[opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a thread but cannot
+be accessed, the
+command normally returns the string [const "\"(unknown)\""]. This option may
+be used to specify a different string to be returned in such cases.
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a thread does not exist, the
+command returns the string [const "\"(no such thread)\""]. This option may
+be used to specify a different string to be returned for non-existent
+threads.
+[opt_def [cmd -pid]]
+Returns the id of the process the thread belongs to.
+[opt_def [cmd -primarygroup]] Returns the primary group that the
+thread belongs to.
+[opt_def [cmd -priority]]
+Returns the current priority of the thread.
+[opt_def [cmd -privilegedtime]]
+The amount of privileged context CPU time used by the thread in 100ns units.
+[opt_def [cmd -privilegedutilization]]
+Returns the percentage of elapsed time
+that this process has spent executing in privileged mode.
+[opt_def [cmd -privileges]] Returns the list of the current thread privileges.
+[opt_def [cmd -processorutilization]]
+Returns the percentage of CPU time that this process has used.
+[opt_def [cmd -relativepriority]] Returns the priority level of the thread
+relative to the priority class of the containing process.
+[opt_def [cmd -startaddress]]
+Returns the address at which the thread began execution.
+[opt_def [cmd -state]]
+Returns the current state of the thread.
+[opt_def [cmd -tid]]
+Returns the thread id of this process (which should be
+identical to that passed in as the [arg TID] argument.
+[opt_def [cmd -user]]Returns the user account under which the thread is
+running.
+[opt_def [cmd -usertime]]
+The amount of user context CPU time used by the thread in 100ns units.
+[opt_def [cmd -userutilization]]
+Returns the percentage of elapsed time
+that this process has spent executing in user mode.
+[opt_def [cmd -waitreason]]
+Returns the reason a thread is in wait state. This is only valid when
+the [cmd state] field is 5 indicating the thread is in a wait state.
+[list_end]
+Note that all the information is not retrieved in a single snapshot so
+there may be discrepancies between various values.
+[nl]
+Like the [uri \#get_process_info [cmd get_process_info]]
+command, [cmd get_thread_info] is intended for one-time retrieval
+of information and is too inefficient for usage in an
+application like performance monitoring. Direct access to the performance
+data should be used in those cases.
+
+[call [cmd get_thread_relative_priority] [arg TID]]
+Returns the scheduling priority value of the thread with id [arg TID].
+This is an integer value relative to the
+process' priority class as described in the Windows SDK.
+
+[call [cmd get_thread_parent_process_id] [arg TID]]
+
+Returns the id of the parent process of the thread with
+id [arg TID].
+
+[call [cmd is_idle_pid] [arg PID]]
+
+Returns true if the passed [arg PID] is that of the system idle process.
+
+[call [cmd is_system_pid] [arg PID]]
+
+Returns true if the passed [arg PID] is that of the system process.
+
+[call [cmd load_library] [arg FILEPATH] [opt [arg options]]]
+
+Loads a DLL and returns a handle to it. This handle
+may be passed to other commands, such as
+[uri misc.html\#format_message [cmd format_message]] that expect
+a module handle as a parameter. The handle must later be released by calling
+[uri \#free_library [cmd free_library]].
+
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -dontresolverefs]]Normally, if the module being loaded is a DLL,
+the system will load any other modules referenced by it and also call its
+[cmd DllMain] function to initialize it. If this option is specified, neither
+of these actions will be done.
+[opt_def [cmd -datafile]]If specified, the module is loaded as a data file as
+opposed to an executable module. This is useful when the file is being
+loaded only to extract resources or messages.
+[opt_def [cmd -alteredpath]]Uses an alternative search strategy to find
+modules referenced by this module. See the Windows SDK for more details.
+[list_end]
+
+[nl]
+See [cmd LoadLibraryEx] in the Windows SDK for more details regarding this
+command.
+
+
+[call [cmd process_exists] [arg PID] [opt [arg options]]]
+
+This command returns [const 1] if a process with id [arg PID] exists
+and [const 0] otherwise.
+The following options may be specified to further restrict the match:
+[list_begin opt]
+[opt_def [cmd -path] [arg EXECUTABLEPATH]]
+If this option is specified, the matched process must have been
+created from the executable file matching [arg EXECUTABLEPATH].
+This option cannot be used with the [cmd -name] option.
+[opt_def [cmd -name] [arg PROCESSNAME]]
+If this option is specified, the matched process must have a name
+that matches [arg PROCESSNAME]. Generally the name is
+the same as the filename portion of the executable file path.
+This option cannot be used with the [cmd -path] option.
+[opt_def [cmd -glob]]
+This option modifies the meaning of the [cmd -path] and [cmd -name]
+options. Normally, the match is done using case-insensitive, exact comparison.
+If [cmd -glob] is
+specified, the [arg PROCESSNAME] and [arg EXECUTABLEPATH]
+are matched using glob-style pattern matching.
+[list_end]
+
+[call [cmd process_in_administrators]]
+Returns true if a process belongs to an account which is in the
+Windows administrators group and false otherwise.
+
+[call [cmd process_waiting_for_input] [arg PID] [opt "[cmd -wait] [arg MILLISECONDS]"]]
+Returns 1 if the specified process is idle, waiting for input, and 0 otherwise.
+The main use of this command is to detect when a process (for example,
+a child process that has just been created) has finished initialization.
+Note that a console process will always return 1.
+[nl]
+The command normally returns right away. Specifying the [cmd -wait] option
+causes the command to wait until either [arg MILLISECONDS] have passed
+or the process is idle before returning. Specifying a value of -1 will cause
+the command to wait without timing out.
+
+[call [cmd resume_thread] [arg TID]]
+The command checks the suspend count
+(see [uri \#suspend_thread [cmd suspend_thread]]) of the
+specified thread. If it is 0, the thread is not suspended and the
+command has no effect. Otherwise, the suspend count is decremented.
+If the value is now 0, the thread resumes execution.
+The command returns thread's previous suspend count - a value of 0
+meaning the thread was not suspended, 1 meaning the suspending thread
+is not resumed, and other values signifying that the thread is still
+suspended.
+
+[call [cmd set_priority_class] [arg PID] [arg PRIORITYCLASS]]
+Sets the scheduling priority class of the process with id [arg PID] to
+[arg PRIORITYCLASS]. [arg PRIORITYCLASS] is an integer value identifying
+a priority class as described in the Windows SDK.
+
+[call [cmd set_process_integrity] [arg INTEGRITY] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg HPROCESS]"]]
+Sets the integrity level of a process to [arg INTEGRITY]. 
+If no options are specified, the integrity level of the 
+current process is modified.
+A different process may be specified using its PID with the [cmd -pid] option,
+or with a handle to it through the [cmd -hprocess] option.
+[nl]
+See
+[uri security.html#set_token_integrity [cmd set_token_integrity]] for
+possible values of [arg INTEGRITY].
+
+[call [cmd set_process_virtualization] [arg ENABLED] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg HPROCESS]"]]
+Enables or disables the virtualization state of a process depending on the
+boolean value of [arg ENABLED].
+If no options are specified, the virtualization level of the 
+current process is modified.
+A different process may be specified using its PID with the [cmd -pid] option,
+or with a handle to it through the [cmd -hprocess] option.
+[nl]
+See
+[uri security.html#set_token_virtualization [cmd set_token_integrity]] for
+more information.
+
+
+[call [cmd set_thread_relative_priority] [arg TID] [arg PRIORITY]]
+Sets the scheduling priority value of the thread with id [arg TID] to
+[arg PRIORITY]. [arg PRIORITY] is an integer value relative to the
+process' priority class as described in the Windows SDK.
+
+[call [cmd suspend_thread] [arg TID]]
+Suspends execution of the thread with id [arg TID]. The system keeps track
+of a suspend count for each thread. This is incremented every time a call
+is made to suspend the thread, and decremented every time a call is made
+to resume it. The command returns thread's previous suspend count.
+
+[call [cmd virtualized_process] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg PROCESSHANDLE]"]]
+Returns true if a process is running as a virtualized process where the system
+redirects writes to protected file and registry locations and false otherwise.
+On systems that do not support UAC, the command will always return false.
+[nl]
+With no options specified,
+the command checks the current process. If the [cmd -pid] option is specified,
+it checks the process with the specific PID. If the [cmd -hprocess] option is
+specified, [arg PROCESSHANDLE] must be a handle to the process to be checked.
+The two options must not be used together.
+
+[call [cmd wow64_process] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg PROCESSHANDLE]"]]
+Returns true if a process is running as a 32-bit Windows process on a 64-bit
+Windows system and returns false otherwise. With no options specified,
+the command checks the current process. If the [cmd -pid] option is specified,
+it checks the process with the specific PID. If the [cmd -hprocess] option is
+specified, [arg PROCESSHANDLE] must be a handle to the process to be checked.
+The two options must not be used together.
+
+
+[list_end]
+
+[keywords process thread "executable path" "device driver" "process modules" "CPU utilization" "process existence" "process priority" "memory usage" "virtual memory" "working set" "I/O rates" "performance" "process termination" "waiting for input" "idle" "process creation" "run program" DLL "shared library" "load shared library" "free shared library" "command line" "exit code" "priority" "elevation" "WoW64" UAC "User Account Control"]
+
+[manpage_end]

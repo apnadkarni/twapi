@@ -1,0 +1,615 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "System" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "System and processor"]
+[titledesc "Operating system and machine configuration and control"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands related to the system
+configuration including operating system functions and hardware configuration.
+
+[section Overview]
+
+The commands [uri \#get_os_version [cmd get_os_version]]
+and [uri \#min_os_version [cmd min_os_version]] get and verify
+operating system version information.
+[para]
+The commands [uri \#get_os_info [cmd get_os_info]] and
+[uri \#get_os_description [cmd get_os_description]] allow retrieval of more detailed
+operating system information than the standard Tcl commands which
+do not distinguish between service packs, Professional versus Server
+versions and so on.
+[para]
+The command [uri \#get_system_info [cmd get_system_info]]
+returns information about the current system.
+[para]
+The command [uri \#get_computer_name [cmd get_computer_name]]
+returns one of several forms of the system name.
+The command [uri \#get_computer_netbios_name [cmd get_computer_netbios_name]]
+returns the NETBIOS name
+of the computer. Domain and workgroup information about the system
+can be obtained through the
+[uri \#get_primary_domain_info [cmd get_primary_domain_info]]
+command. [uri \#find_domain_controller [cmd find_domain_controller]]
+returns information about a domain controller with specified characteristics.
+[uri \#get_primary_domain_controller [cmd get_primary_domain_controller]]
+returns the name
+of the primary domain controller of the computer.
+[para]
+The commands [uri \#get_processor_count [cmd get_processor_count]],
+[uri \#get_active_processor_mask [cmd get_active_processor_mask]]
+and [uri \#get_processor_info [cmd get_processor_info]]
+retrieve information about the
+processors in the system including type and utilization.
+
+[para]
+The command [uri \#get_memory_info [cmd get_memory_info]]
+returns the physical and virtual memory
+configuration of the system.
+
+[para]
+The command [uri \#get_system_time [cmd get_system_time]] returns
+the current system time in high resolution.
+The command [uri \#get_system_uptime [cmd get_system_uptime]] returns
+the how long the system has been running.
+The command [uri \#shutdown_system [cmd shutdown_system]] may be used
+to shutdown or reboot the system. The command
+[uri \#abort_system_shutdown [cmd abort_system_shutdown]]
+may be used to abort an ongoing system shutdown.
+The commands [uri \#logoff [cmd logoff]]
+and [uri \#lock_workstation [cmd lock_workstation]]
+may be used to log out of a user account and to lock a workstation
+respectively.
+
+[para]
+Various system settings related to the user experience can be retrieved
+and set through the
+[uri osinfo.html\#get_system_parameters_info [cmd get_system_parameters_info]]
+and
+[uri osinfo.html\#set_system_parameters_info [cmd set_system_parameters_info]]
+commands.
+
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd abort_system_shutdown] [opt "[cmd -system] [arg SYSTEM]"]]
+Aborts a previously initiated system shut down or reboot. Note this is only
+possible if the system shutdown was initiated with a non-zero timeout value.
+The command enables any required privileges and restores
+the original privileges before returning.
+
+
+[call [cmd find_domain_controller] [opt [arg options]]]
+Returns the name of a domain controller with specified characteristics
+and optionally, details about its characteristics and capabilities.
+
+
+[list_begin opt]
+[opt_def [cmd -allowstale] [arg BOOLEAN]]
+If specified as [const true], the system will return cached domain
+controller information even if it is marked as expired.
+Default is [const false].
+This option has no effect if [cmd -rediscover] is specified as [const true].
+[opt_def [cmd -avoidself] [arg BOOLEAN]]
+If specified as [const true], and the command is run on
+a domain controller, the domain controller will return the name of another
+domain controller, not itself. Default is [const false].
+[opt_def [cmd -domain] [arg DOMAINNAME]]
+Specifies the domain whose
+domain controller is to be retrieved.
+If unspecified, defaults to the primary domain
+of the computer.
+[opt_def [cmd -domainguid] [arg GUID]]
+If the domain specified by the [cmd -domain] option or the primary
+domain of system cannot be found, the command will attempt to return
+the domain controller for the domain with the specified GUID.
+[opt_def [cmd -getdetails]]
+By default, the command returns the name of the domain controller.
+If this option is specified, the command returns detailed information
+whose format is described below.
+[opt_def [cmd -inputnameformat] [arg NAMEFORMAT]]
+Specifies the format of the specified domain name.
+[arg NAMEFORMAT] may be one of [const dns], which implies DNS format,
+[const flat] which implies flat Netbios format, or [const any] (default)
+which results in the command searching both namespaces.
+[opt_def [cmd -justldap] [arg BOOLEAN]]
+If specified as [const true], the command searches for a LDAP server
+without caring if it is a domain controller.
+[opt_def [cmd -rediscover] [arg BOOLEAN]]
+If specified as [const true], the system ignores
+any cached domain controller data. Default is [const false].
+Note specifying this option as [const true] significantly increases
+the time to execute the command.
+[opt_def [cmd -outputaddrformat] [arg ADDRFORMAT]]
+If [arg ADDRFORMAT] is specified as [const ip], the
+[cmd -dcaddr] field in the returned information is the Internet address.
+[opt_def [cmd -outputnameformat] [arg NAMEFORMAT]]
+Specifies the format in which the domain controller and domain names
+should be returned.
+[arg NAMEFORMAT] may be one of [const dns], which implies DNS format,
+[const flat] which implies flat Netbios format, or [const any] (default).
+The command will raise an error if the name is not available in the
+specified format.
+[opt_def [cmd -prefer] [arg FEATURELIST]]
+Indicates that the domain controller that support
+the specified features and services is returned in preference
+to one that does not. [arg FEATURELIST] is a list of zero or more elements
+from [const directoryservice] and [const timeserver] (see below).
+[opt_def [cmd -require] [arg FEATURELIST]]
+Indicates that the domain controller to be returned must support
+the specified features and services. [arg FEATURELIST] is a list of
+zero or more features from the following:
+[const directoryservice] (Active Directory support),
+[const globalcatalog] (global catalog server for the forest rooted by this
+domain),
+[const pdc] (primary domain controller for this domain)
+[const kdc] (Kerberos Key Distribution center service)
+[const timeserver] (running Windows Time Service)
+[const writable] (must not be read-only). Note that the features
+[const pdc], [const kdc] and [const globalcatalog] are mutually
+exclusive and must not be specified together.
+[opt_def [cmd -site] [arg SITENAME]]
+Specifies the name of the site where the domain controller should be
+physically located. If an empty string (default), the command will
+attempt to return a controller in a site that is closest to the site
+of the system specified by the [cmd -system] option.
+[opt_def [cmd -system] [arg COMPUTERNAME]] Specifies the DNS or
+NETBIOS name of the computer on which the lookup is to be done. If
+unspecified, defaults to the local system.
+[list_end]
+
+If the [cmd -getdetails] option is specified, the command returns
+detailed information about the controller instead of just its name.
+The returned information is a flat list of key value pairs with
+the following elements:
+[list_begin opt]
+[opt_def [cmd -clientsite]] The name of the site containing the
+system specified by the [cmd -system] option.
+[opt_def [cmd -dcname]] Name of the domain controller which may be
+either in DNS or Netbios format.
+[opt_def [cmd -dcnameformat]] Either [const dns] if the [cmd -dcname]
+field is in DNS format, or [const netbios] if it is a Netbios name.
+[opt_def [cmd -dcaddr]] Address of the domain controller. This may be
+either the Netbios address or the IP address depending on the
+value of the specified [cmd -outputaddrformat] option.
+[opt_def [cmd -dcaddrformat]] Either [const ip] if the [cmd -dcaddr]
+field is in IP address format, or [const netbios] if it is a Netbios address.
+[opt_def [cmd -dcsite]] The name of the site containing the domain controller.
+[opt_def [cmd -dnsforest]] Name of the domain that is at the root of the
+directory service tree.
+[opt_def [cmd -dnsforestformat]] Either [const dns] if the [cmd -dnsforestformat]
+field is in DNS format, or [const netbios] if it is a Netbios name.
+[opt_def [cmd -domainguid]] GUID of the domain.
+[opt_def [cmd -domain]] Name of the domain.
+[opt_def [cmd -domainformat]] Either [const dns] if the [cmd -domain]
+field is in DNS format, or [const netbios] if it is a Netbios name.
+[opt_def [cmd -features]] Contains a list describing domain controller
+features. This list may contain zero or more of the following:
+[const directoryservice] (Active Directory support),
+[const globalcatalog] (global catalog server for the forest rooted by this
+domain),
+[const pdc] (primary domain controller for this domain),
+[const kdc] (Kerberos Key Distribution center service),
+[const timeserver] (running Windows Time Service),
+[const goodtimeserver] (running Windows Time Service with a physical clock),
+[const writable] (is not read-only).
+[list_end]
+Note that any of these fields may have empty string values if the information
+is not relevant or cannot be found.
+
+[call [cmd get_active_processor_mask]]Returns a mask representing the
+processors configured into the system.
+
+[call [cmd get_computer_name] [opt [arg NAMETYPE]]]
+Returns the name of the computer. [arg NAMETYPE] must be one of the
+following:
+[list_begin opt]
+[opt_def [const netbios]]
+Returns the NETBIOS name of the local computer or the cluster virtual server
+if it is in a cluster.
+[opt_def [const dnshostname]]
+Returns the DNS host name of the local computer or the cluster virtual server
+if it is in a cluster.
+[opt_def [const dnsdomain]]
+Returns the DNS domain of the local computer or the cluster virtual server
+if it is in a cluster.
+[opt_def [const dnsfullyqualified]]
+Returns the fully qualified DNS domain of the local computer
+or the cluster virtual server if it is in a cluster.
+[opt_def [const physicalnetbios]]
+Returns the NETBIOS name of the local computer.
+[opt_def [const physicaldnshostname]]
+Returns the DNS host name of the local computer.
+[opt_def [const physicaldnsdomain]]
+Returns the DNS domain of the local computer.
+[opt_def [const physicaldnsfullyqualified]]
+Returns the fully qualified DNS name of the local computer.
+[list_end]
+If [arg NAMETYPE] is not specified, it defaults to [const netbios].
+
+[call [cmd get_computer_netbios_name]]
+Returns the NETBIOS name of the computer.
+[nl]
+[uri printcomputername.example "Example: print the computer name"]
+
+[call [cmd get_memory_info] [opt [arg options]]]
+Returns various information about the physical and virtual memory configuration
+of the system. The information returned is in the form of a flat list of
+the form "[arg field1] [arg value1] [arg field2] [arg value2] ..." depending
+on which of the following options are specified:
+
+[list_begin opt]
+[opt_def [cmd -all]]Returns all the options listed below.
+[opt_def [cmd -allocationgranularity]]Returns the granularity with
+which virtual memory is allocated.
+[opt_def [cmd -availcommit]]Returns the amount of free virtual memory
+available to commit.
+[opt_def [cmd -availphysical]]Returns the amount of free physical memory.
+[opt_def [cmd -maxappaddr]]Returns the highest address that may be mapped
+into an application's address space.
+[opt_def [cmd -minappaddr]]Returns the lowest address that may be mapped
+into an application's address space.
+[opt_def [cmd -pagesize]]Returns the size of a virtual memory page
+[opt_def [cmd -swapfiles]]Returns a list of the swap files for the system.
+[opt_def [cmd -swapfiledetail]]
+Returns a flat list of pairs corresponding to the swap files.
+The first element of each pair is the name of the swap file. The second
+element is a list of consisting of the current size of the file (in pages),
+the number of pages in use, and the peak number of pages that have been
+used in the file.
+[opt_def [cmd -totalcommit]]Returns the maximum amount of virtual memory that
+can be committed without extending the swap files.
+[opt_def [cmd -totalphysical]]Returns the total amount of physical memory
+installed in the system.
+[list_end]
+[uri showvmstats.example "Example: Show virtual memory statistics"]
+[nl]
+
+[call [cmd get_primary_domain_controller] [opt [arg options]]]
+Returns the primary domain controller (PDC) for a domain.
+The command [uri \#find_domain_controller [cmd find_domain_controller]] should
+be preferred to this command.
+[nl]
+The following
+options may be specified:
+[list_begin opt]
+[opt_def [cmd -domain] [arg DOMAINNAME]] Specifies the domain whose
+PDC is to be retrieved. If unspecified, defaults to the primary domain.
+[opt_def [cmd -system] [arg COMPUTERNAME]] Specifies the DNS or
+NETBIOS name of the computer on which the lookup is to be done. If
+unspecified, defaults to the local system.
+[list_end]
+
+[call [cmd get_primary_domain_info] [opt [arg options]]]
+
+Returns information about the primary domain or workgroup of the system
+as a flat list of option value pairs.
+The following options control what information is returned.
+
+[list_begin opt]
+[opt_def [cmd -all]]
+Equivalent to specifying all options.
+[opt_def [cmd -dnsdomainname]]
+Returns the DNS name of the primary domain.
+[opt_def [cmd -dnsforestname]]
+Returns the DNS forest name of the primary domain.
+[opt_def [cmd -domainguid]]
+Returns the GUID of the primary domain.
+[opt_def [cmd -name]]
+Returns the domain or workgroup name.
+[opt_def [cmd -sid]]
+Returns the SID of the primary domain.
+[opt_def [cmd -type]]
+Returns [const workgroup] or [const domain] depending on whether the system
+belongs to a workgroup or a domain.
+[list_end]
+If the system belongs to a workgroup, all options will return empty values
+except [cmd -name] and [cmd -type].
+
+[call [cmd get_os_description]]
+This commmand returns the same operating system information as returned
+by [uri \#get_os_info [cmd get_os_info]]
+but in a form suitable for displaying to a
+user.
+
+[call [cmd get_os_info]]
+
+This command retrieves operating system version and configuration
+information and returns a keyed list with the following fields:
+[list_begin opt]
+[opt_def [const os_build_number]] Contains the operating system build
+number.
+[opt_def [const os_major_version]]
+Major operating system version.
+[opt_def [const os_minor_version]]
+Minor operating system version.
+[opt_def [const sp_major_version]]
+Major service pack version.
+[opt_def [const sp_minor_version]]
+Minor service pack version.
+[opt_def [const suites]] Contains a list of values
+(see below) that indicate various options that may be installed as
+part of the operating system.
+[opt_def [const system_type]] Indicates the operating system base type.
+This is [const workstation] for
+[const "Windows NT 4.0 Workstation"],
+[const "Windows 2000 Professional"], or any
+[const "Windows XP"] operating system versions. If the system is a
+domain controller, this value is [const domain_controller]. In all other cases,
+this value is [const server].
+[list_end]
+
+The [const suites] element in the returned array contains a list of
+values from the following set that indicates additional operating
+system components that are present:
+[list_begin opt]
+[opt_def [const backoffice]] Microsoft BackOffice components are installed.
+[opt_def [const blade]] Windows .NET Server 2003 family Web Edition is installed.
+[opt_def [const communications]] A version of Microsoft Office Communications
+Server is installed.
+[opt_def [const compute_server]] Windows Server 2003 family Computer Cluster Edition is installed.
+[opt_def [const datacenter]] Datacenter version of Windows 2000, Windows
+Server 2003 or Windows Server 2008 is installed.
+[opt_def [const embeddednt]] Windows XP Embedded is installed.
+[opt_def [const embedded_restricted]]
+[opt_def [const enterprise]] Windows 2000
+Advanced Server, or the Enterprise version of Windows Server 2003 or
+Windows Server 2008 is installed.
+[opt_def [const personal]] A Home Edition of Windows XP, Windows Vista or
+Windows 7 is installed.
+[opt_def [const security_appliance]] A hardened installation of 
+Windows Server 2003 in a security appliance.
+[opt_def [const singleuserrts]] Remote desktop is supported only for
+a single interactive session.
+[opt_def [const smallbusiness]] Microsoft Small Business Server is installed.
+[opt_def [const smallbusiness_restricted]] Microsoft Small Business Server is
+installed with the restrictive client license in force.
+[opt_def [const storage_server]] A Windows Storage Server version of
+Windows 2003 or Windows 2003 R2 is installed.
+[opt_def [const terminal]] Terminal Services are installed.
+[opt_def [const wh_server]] Windows Home Server is installed.
+
+[list_end]
+
+[uri verifyTS.example "Example: check if terminal services are present"]
+[nl]
+
+[call [cmd get_os_version]]
+
+This command returns the operating system version as list of four
+elements - the operating system major version number, the operating
+system minor version number, the service pack major version number,
+the service pack minor version number.
+[nl]
+[uri verifyservicepack.example "Example: verify if a service pack is installed"]
+
+[call [cmd get_processor_count]]Returns the number of processors in the system.
+
+[call [cmd get_processor_info] [arg PROCESSOR] [opt [arg options]]]
+
+Returns various pieces of information related to the processors in
+the system. [arg PROCESSOR] identifies the processor whose information
+is to be retrieving. If specified as an empty string, information across
+all processors in the system is returned.
+The information returned is in the form of a flat list of
+the form "[arg field1] [arg value1] [arg field2] [arg value2] ...".
+The fields returned depend on the specified options and their values may
+be scalars (e.g. [const -name]) or rate based measured over an interval
+(e.g. [const -processorutilization]). The option [const -interval] may be
+used to indicate the interval over which the rate based fields are measured.
+
+One of more of the following options may be specified with the command:
+
+[list_begin opt]
+[opt_def [const -all]] Returns all fields listed below.
+[opt_def [const -apcbypassrate]] Returns the field
+[const apcbypassrate] which is the rate (per second) that
+kernel APC interrupts were bypassed as computed over the measured interval.
+[opt_def [const -arch]] Returns the processor architecture.
+[opt_def [const -dpcbypassrate]] Returns the field
+[const dpcbypassrate] which is the rate (per second) that
+deferred procedure calls were avoided as computed over the measured interval.
+[opt_def [const -dpcqueuerate]] Returns the field [const dpcqueuerate]
+containing
+the rate at which deferred procedure calls are being added to the DPC queue
+as measured over the specified interval.
+[opt_def [const -dpcrate]] Returns the field [const dpcrate] containing
+the rate at which deferred procedure calls are being added to the DPC queue.
+This rate is based on the observed value over the last two timer ticks of the
+processor clock, and [emph not] that over the measured interval.
+[opt_def [cmd -dpctime]]
+The amount of CPU time in 100ns units spent in servicing deferred
+procedure calls. Note this value is included in the [cmd -privilegedtime]
+value.
+[opt_def [const -dpcutilization]] Returns the
+field [const dpcutilization] containing the percentage of time
+that this processor has spent servicing deferred procedure calls
+over the measured interval. This is included in the
+[const privilegedutilization] value.
+[opt_def [cmd -idletime]]
+The amount of idle CPU time in 100ns units since system start.
+Note this value is included in the [cmd -privilegedtime] value.
+[opt_def [const -interrupts]] Returns the total number of interrupts
+serviced since system start.
+[opt_def [const -interruptrate]] Returns the field [const interruptrate]
+containing the number of hardware interrupts being processed per second
+over the measured interval.
+[opt_def [cmd -interrupttime]]
+The amount of CPU time in 100ns units spent in servicing interrupts.
+Note this value is included in the [cmd -privilegedtime]
+value.
+[opt_def [const -interruptutilization]] Returns the
+field [const interruptutilization] containing the percentage of time
+that this processor has spent servicing interrupts
+over the measured interval. This is included in the
+[const privilegedutilization] value.
+[opt_def [cmd -privilegedtime]]
+The amount of privileged (kernel) context CPU time since system start
+in 100ns units. Note
+this includes the DPC, interrupt and idle CPU cycles.
+[opt_def [const -privilegedutilization]] Returns the
+field [const privilegedutilization] containing the percentage of time
+that this processor has spent executing a non-idle thread
+in privileged mode during the measured interval.
+[opt_def [const -processormodel]] Returns the processor model.
+[arg PROCESSOR] must not be an empty string if this option is specified.
+[opt_def [const -processorname]] Returns a human readable form of the processor
+description.
+[arg PROCESSOR] must not be an empty string if this option is specified.
+[opt_def [const -processorrev]] Returns the processor revision as defined by
+the CPU manufacturer.
+[arg PROCESSOR] must not be an empty string if this option is specified.
+[opt_def [const -processorspeed]] Returns the nominal speed in Mhz of the
+processor
+[arg PROCESSOR] must not be an empty string if this option is specified.
+[opt_def [const -processorutilization]] Returns the field
+[const processorutilization] containing the percentage of CPU time that
+this processor has been executing a non-idle thread over the measured interval.
+[opt_def [const -processorlevel]] Returns the processor level as defined by
+the CPU manufacturer.
+[opt_def [cmd -usertime]]
+The amount of user context CPU time in 100ns units since the system was
+started.
+[opt_def [const -userutilization]] Returns the
+field [const userutilization] containing the percentage of time
+that this processor has spent executing a non-idle thread
+in user mode during the measured interval.
+[list_end]
+
+[call [cmd get_system_info] [opt [arg options]]]
+
+Returns various pieces of information related to the system.
+The information returned is in the form of a flat list of
+the form "[arg field1] [arg value1] [arg field2] [arg value2] ...".
+One of more of the following options may be specified with the command
+to control what information is returned:
+
+[list_begin opt]
+[opt_def [const -all]] Returns all fields listed below.
+[opt_def [const -eventcount]]
+Returns the number of synchronization events in use.
+[opt_def [const -handlecount]]
+Returns the number of handles that are currently open.
+[opt_def [const -mutexcount]]
+Returns the number of synchronization mutexes in use.
+[opt_def [const -processcount]]
+Returns the number of processes that are currently running.
+[opt_def [const -sectioncount]]
+Returns the number of sections in use.
+[opt_def [const -semaphorecount]]
+Returns the number of synchronization semaphores in use.
+[opt_def [const -sid]]
+Returns the SID of the system.
+[opt_def [const -threadcount]]
+Returns the number of threads that are currently running.
+[opt_def [const -uptime]]
+Returns the number of seconds elapsed since the system was booted.
+[list_end]
+
+[call [cmd get_system_parameters_info] [arg PARAMETER]]
+This command wraps the Windows [cmd SystemParametersInfo] function
+and allows retrieval of various user interface settings such as screensaver
+timeout, mouse speed etc. The information retrieved depends on the
+[arg PARAMETER] which must be one of the [const SPI_] symbols listed
+in the [cmd SystemParametersInfo]
+[uri http://msdn.microsoft.com/library/default.asp?url=/library/en-us/sysinfo/base/systemparametersinfo.asp documentation].
+
+
+[call [cmd get_system_time]]
+Returns the current system time in UTC as the number of 100 nanosecond units
+since Jan 1, 1601. This can be converted to a format suitable for use
+with the [cmd clock] command through the use of the command
+[uri misc.html\#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
+
+[call [cmd get_system_uptime]]
+Returns the number of seconds elapsed since the system was booted.
+
+[call [cmd lock_workstation]]
+Initiates a request to lock the work station display.
+
+[call [cmd logoff] [opt [cmd -force]] [opt [cmd -forceifhung]]]
+
+Logs off the current session. If [cmd -force] is specified, it forces
+processes to terminate without notifying them. This options should generally
+not be specified as it can result in data loss. If [cmd -forceifhung] is
+specified, it only terminates processes if they do not respond to the
+session end notifications.
+
+[call [cmd min_os_version] [arg osmajor] [opt [arg osminor]] \
+      [opt [arg spmajor]] [opt [arg spminor]]]
+
+This function checks that the operating system version meets the
+specified minimum version. It returns 1 if the operating system
+version is greater than [arg "osmajor.osminor.spmajor.spminor"].
+Otherwise it returns 0.
+Any unspecified optional arguments default to 0.
+
+[call [cmd set_system_parameters_info] [arg PARAMETER] [arg VALUE] [opt [cmd -persist]] [opt [cmd -notify]]]
+This command wraps the Windows [cmd SystemParametersInfo] function
+and allows setting of various user interface settings such as screensaver
+timeout, mouse speed etc. The information retrieved depends on the
+[arg PARAMETER] which must be one of the [const SPI_] symbols listed
+in the [cmd SystemParametersInfo]
+[uri http://msdn.microsoft.com/library/default.asp?url=/library/en-us/sysinfo/base/systemparametersinfo.asp documentation]. The corresponding setting is
+assigned [arg VALUE].
+[nl]
+If the [cmd -persist] is specified, the changed setting is written to the
+user's profile. If [cmd -notify] is specified, all applications are notified
+of the change. Note [cmd -notify] only has effect if [cmd -persist] is
+also specified since other applications will update based on the
+user's persistent profile.
+
+[call [cmd shutdown_system] [opt [arg options]]]
+Initiates a system shut down or reboot.
+The command enables any required privileges and restores
+the original privileges before returning.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system to be
+shut down. By default, this is the local system.
+[opt_def [cmd -timeout] [arg SECONDS]] Specifies the amount of time to
+wait before shutting down the system. During this time, a shutdown dialog
+is displayed to the user. If a value of 0 is specified, the system is shut
+down immediately and no dialog is displayed to the user.
+[opt_def [cmd -message] [arg MESSAGE]] Specifies a message to be displayed
+to the user in the shutdown dialog.
+[opt_def [cmd -force]] Normally, the system displays a dialog box asking the
+user to close any applications with unsaved data. If the [cmd -force] option
+is specified, applications are forcible closed resulting in possible data loss.
+[opt_def [cmd -restart]] If specified, the system is restarted after the shut
+down.
+[list_end]
+
+[call [cmd suspend_system] [opt [arg options]]]
+Places the system in a stand by or hibernate state. The command takes
+the following options:
+[list_begin opt]
+[opt_def [cmd -state] [arg STATE]] [arg STATE] must be one of [const standby]
+(default) or [const hibernate] depending on whether the state into which
+the system is to be placed.
+[opt_def [cmd -force] [arg BOOLEAN]]
+If [const false] (default), the system sends a PBT_ATMQUERYSUSPEND
+message to all applications before placing the system in stand by or
+hibernate states. If this option is specified as [const true],
+the message is not sent and the system is immediately placed
+into the appropriate state.
+[opt_def [cmd -disablewakeevents] [arg BOOLEAN]]
+If [const false] (default), system wake events remain enabled. If [const true]
+they are disabled.
+[list_end]
+
+[list_end]
+
+[keywords "operating system version" "CPU utilization" "interrupts" \
+     "idle time" "interrupt time" \
+     "performance" "operating system components" "computer name" "reboot" \
+     "shutdown" "shutdown abort" "processor model" "processor speed" \
+     "physical memory" "memory" "virtual memory" "swap files" \
+     "memory commit charge" "domain" "primary domain" workgroup \
+     "domain controller" "primary domain controller" \
+     "logoff" "lock workstation" "up time" "suspend" "hibernate" "stand by"]
+[manpage_end]

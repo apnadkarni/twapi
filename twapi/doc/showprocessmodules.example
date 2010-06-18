@@ -1,0 +1,18 @@
+# TWAPI example
+# Show the modules loaded in a process
+# Usage example: tclsh showprocessmodules.example PID
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 PID"
+    exit 1
+}
+
+set pid [lindex $argv 0]
+puts "Modules for Process $pid ([twapi::get_process_name $pid])"
+set modules [list ]
+foreach module [twapi::get_process_modules $pid -path] {
+    lappend modules [lindex $module 1]
+}
+puts [join [lsort -dictionary $modules] \n]

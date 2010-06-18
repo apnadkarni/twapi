@@ -1,0 +1,13 @@
+# TWAPI example
+# Show CPU utilization
+
+package require twapi
+
+# Measure over 2 second intervals
+puts "Hit Control-C to abort\n+"
+while {1} {
+    set cpu [lindex [twapi::get_processor_info 0 -processorutilization -interval 1000] 1]
+    # Display as units of 2
+    set units [expr {int((($cpu)+1.5)/2)}]
+    puts "|[string repeat - $units] [format %3.2f $cpu]"
+}

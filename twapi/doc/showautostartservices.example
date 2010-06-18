@@ -1,0 +1,27 @@
+# TWAPI example
+# Show currently running Windows services
+# Usage example: tclsh showautostartservices.example
+
+package require twapi
+
+set services [list ]
+
+# Get services of types -win32_own_process -win32_share_process. The other
+# types are actually drivers which are not normally treated as Windows
+# services. 
+foreach svc [twapi::get_multiple_service_status \
+                 -win32_own_process -win32_share_process] {
+    # Convert the keylist for each service to an array  ...
+    array set svcinfo $svc        
+    # ... and pick out the service internal and display names
+    set svcname $svcinfo(name)        
+    set svcdisplayname $svcinfo(displayname)        
+    # See if its configured to auto-start
+    set startmode [lindex [twapi::get_service_configuration $svcname -starttype] 1]
+    if {[string equal $startmode auto_start] ||
+        [string equal startmode boot_start]} {
+        lappend services $svcdisplayname
+    }
+    
+}
+puts [join [lsort -dictionary $services] \n]

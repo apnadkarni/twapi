@@ -1,0 +1,100 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Error generation and handling" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "TWAPI error generation and handling"]
+[titledesc "TWAPI error generation and handling"]
+[description]
+[para]
+This module provides various facilities for generating and handing
+errors and Tcl exceptions.
+
+[section "Error generation"]
+
+TWAPI generates Tcl exceptions when errors are
+encountered. Information pertaining to the error is stored in Tcl
+global variables as with any standard Tcl errors. The global variable
+[cmd errorInfo] contains a traceback of the Tcl stack when the error
+occured. The global [cmd errorCode] contains a list with additional
+information about the error. The first element is the error class
+and determines the format of the rest of the list. This may take
+one of the following values:
+
+[list_begin opt]
+[opt_def [const TWAPI_WIN32]]
+This error class corresponds to Windows error codes. The second element of
+the list is the integer Windows error code. The third element is the
+corresponding localized text string describing the error. The fourth element
+is optional and its format is dependent on the specific error code.
+[nl]
+The command [uri \#win32_error [cmd win32_error]] can be used to generate
+an error in this format.
+[opt_def [const TWAPI]]
+This error class is used for non-Windows related errors, for example invalid
+options to commands. The format is similar to that of [const TWAPI_WIN32]
+except that the error code is an internal TWAPI error code and the text
+is not localized.
+[list_end]
+
+[section "Error handling"]
+
+Several TWAPI commands pertain to error handling.
+[uri \#map_windows_error [cmd map_windows_error]]
+returns the text description
+of an operating system error code.
+
+[para]
+[uri \#try [cmd try]] provides exception handling with finalization features.
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd map_windows_error] [arg ERRORCODE]]
+Returns the text string corresponding to a Windows error code.
+
+[call [cmd try] [arg SCRIPT] [opt "[cmd onerror] [arg ERRORPATTERN] [arg ERRORSCRIPT]"]... [opt "[cmd finally] [arg FINALSCRIPT]"]]
+
+The command executes [arg SCRIPT] in the caller's context. If the script
+completes without generating any Tcl exceptions, the command executes
+the script [arg FINALSCRIPT] if specified. The result of the command is
+the result of [arg SCRIPT].
+[nl]
+If [arg SCRIPT] generates any errors, the command matches the
+Tcl global [cmd ::errorCode] variable against each specified
+[arg ERRORPATTERN] in turn. When the first match is found, the corresponding
+[arg ERRORSCRIPT] is executed. Then [arg FINALSCRIPT] is executed if specified.
+The return value from the command
+is the result of the executed [arg ERRORSCRIPT]  script.
+[nl]
+If the none of the [arg ERRORPATTERN] arguments match when an error
+occurs in [arg SCRIPT], the command executes [arg FINALSCRIPT] if specified,
+and then regenerates the original error.
+[nl]
+Each [arg ERRORPATTERN] should be a list and is matched against the first
+(facility) and second (code) elements of [cmd ::errorCode]. If
+[arg ERRORPATTERN] is empty, it matches any value of [cmd ::errorCode].
+If [arg ERRORPATTERN] contains only one element, it is matched against
+the first element of [cmd ::errorCode] with the second field of
+[cmd ::errorCode] not used for matching. When matching against the second
+element of [cmd ::errorCode], first a exact string match is tried and
+if that fails, an integer match is tried if both operands being compared
+are valid integers.
+[nl]
+When a [arg ERRORSCRIPT] script is run, the global Tcl variables
+[cmd ::errorCode], [cmd ::errorInfo] are automatically brought into scope
+without needing a [cmd global] statement in the script and contain
+the values set when [arg SCRIPT] generated the error. In addition,
+the variable [cmd ::errorResult] is set to the error message set by
+the original error. This behavior is
+similar to the [cmd try_eval] command from [uri http://tclx.sf.net TclX].
+
+[call [cmd win32_error] [arg WINERROR] [opt [arg MESSAGE]]]
+Generates a Tcl exception corresponding to the Windows error code WINERROR.
+[arg MESSAGE] may be specified as the error message in which case the
+system error message for [arg WINERROR] is appended to it.
+
+[list_end]
+
+[keywords "exception handling" "error handling" errorCode]
+
+[manpage_end]

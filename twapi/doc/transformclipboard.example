@@ -1,0 +1,15 @@
+# TWAPI example
+# Transform contents of clipboard - converts to upper case
+
+package require twapi
+
+# First need to open the clipboard
+twapi::open_clipboard
+# Then read the text
+set text [twapi::read_clipboard_text]
+# Then empty it and take ownership
+twapi::empty_clipboard
+# Write the transformed text back
+twapi::write_clipboard_text [string toupper $text]
+# Remember to close the clipboard
+twapi::close_clipboard

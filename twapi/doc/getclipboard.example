@@ -1,0 +1,13 @@
+# TWAPI example
+# Write the contents of the clipboard to standard output
+
+package require twapi
+
+# First need to open the clipboard
+twapi::open_clipboard
+# Then read the text
+set text [twapi::read_clipboard_text]
+# Remember to close the clipboard
+twapi::close_clipboard
+# Print to stdout
+puts $text

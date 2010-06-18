@@ -1,0 +1,22 @@
+# TWAPI example
+# Monitor a directory for changes
+# Usage example: tclsh monitordir.example DIRNAME
+
+package require twapi
+
+if {$argc == 0} {
+    puts "Usage: [info nameofexecutable] $argv0 DIRNAME"
+    exit 1
+}
+
+set path [lindex $argv 0]
+if {![file isdirectory $path]} {
+    puts stderr "$path not found or is not a directory"
+    exit 1
+}
+
+set handle [twapi::begin_filesystem_monitor $path "puts \"\$path changed\"" -filename true -dirname true -size true -lastwrite true]
+
+puts stderr "Type Ctrl-C to exit"
+vwait forever
+twapi::cancel_filesystem_monitor $handle

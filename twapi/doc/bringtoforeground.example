@@ -1,0 +1,20 @@
+# TWAPI example
+# Bring the first matching window to the foreground
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set text [lindex $argv 0]
+
+# Get all windows with that title
+set toplevels [twapi::find_windows -text $text -toplevel]
+if {[llength $toplevels]} {
+    # Bring first matching window to the foreground
+    twapi::set_foreground_window [lindex $toplevels 0]
+} else {
+    puts stderr "No window found with title '$text'"
+}

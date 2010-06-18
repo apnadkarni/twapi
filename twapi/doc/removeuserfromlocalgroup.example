@@ -1,0 +1,13 @@
+# TWAPI example
+# Remove user from a local group
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME GROUPNAME"
+    exit
+}
+
+if {[catch {twapi::remove_member_from_local_group [lindex $argv 1] [lindex $argv 0]} msg]} {
+    puts stderr "Error: $msg"
+}

@@ -1,0 +1,13 @@
+# TWAPI example
+# Add user to a local group
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 USERNAME GROUPNAME"
+    exit
+}
+
+if {[catch {twapi::add_member_to_local_group [lindex $argv 1] [lindex $argv 0]} msg]} {
+    puts stderr "Error: $msg"
+}

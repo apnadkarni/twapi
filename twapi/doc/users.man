@@ -1,0 +1,864 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Users and Groups" n ""]
+[copyright "2004-2010, Ashok P. Nadkarni"]
+[moddesc "User and group account management commands"]
+[titledesc "Commands related to user and group accounts"]
+[require twapi]
+[description]
+[para]
+
+This module provides procedures related to management of user and group
+accounts on Windows operating systems.
+
+[section "Standard Options"]
+
+Most commands allow the following options to be specified:
+
+[list_begin opt]
+
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+Several commands, for example, looking up account names or adding users,
+may be carried out on a target system other than the local system. The
+[cmd -system] option allows specification of the target system. This option
+defaults to the local system if unspecified.
+
+[list_end]
+
+[section "User and Group Accounts"]
+
+The command [uri \#lookup_account_name [cmd lookup_account_name]],
+[uri \#map_account_to_name [cmd map_account_to_name]],
+[uri \#lookup_account_sid [cmd lookup_account_sid]]
+and [uri \#map_account_to_sid [cmd map_account_to_sid]]
+translate between user and group account names and their SID's.
+The command [uri \#is_valid_sid_syntax [cmd is_valid_sid_syntax]]
+validates the syntax of an SID.
+
+[para]
+The commands [uri \#new_user [cmd new_user]] and
+[uri \#delete_user [cmd delete_user]]
+allow addition and deletion of user accounts. The commands
+[uri \#enable_user [cmd enable_user]], [uri \#disable_user [cmd disable_user]]
+and [uri \#unlock_user [cmd unlock_user]] may be used
+to change the state of a user account.
+The command [uri \#get_user_account_info [cmd get_user_account_info]]
+returns various attributes and
+properties of a user account. These may be modified through the
+[uri \#set_user_account_info [cmd set_user_account_info]]
+function or alternatively, modified individually
+through the following set of functions:
+[uri \#set_user_name [cmd set_user_name]],
+[uri \#set_user_password [cmd set_user_password]],
+[uri \#set_user_home_dir [cmd set_user_home_dir]],
+[uri \#set_user_comment [cmd set_user_comment]],
+[uri \#set_user_script_path [cmd set_user_script_path]],
+[uri \#set_user_full_name [cmd set_user_full_name]],
+[uri \#set_user_country_code [cmd set_user_country_code]],
+[uri \#set_user_profile [cmd set_user_profile]],
+[uri \#set_user_home_dir_drive [cmd set_user_home_dir_drive]],
+[uri \#set_user_priv_level [cmd set_user_priv_level]],
+[uri \#set_user_expiration [cmd set_user_expiration]].
+
+[para]
+Information about global and local groups may be retrieved through
+the [uri security.html\#get_global_group_info [cmd get_global_group_info]] and
+[uri security.html\#get_local_group_info [cmd get_local_group_info]] commands.
+New global groups may be created and deleted through the
+[uri \#new_global_group [cmd new_global_group]]
+and [uri \#delete_global_group [cmd delete_global_group]] commands.
+The equivalent commands for
+local groups are [uri \#new_local_group [cmd new_local_group]]
+and [uri \#delete_local_group [cmd delete_local_group]]. Users may
+be added and removed using the commands
+[uri \#add_user_to_global_group [cmd add_user_to_global_group]],
+[uri \#add_member_to_local_group [cmd add_member_to_local_group]],
+[uri \#remove_user_from_global [cmd remove_user_from_global]] and
+[uri \#remove_member_from_local_group [cmd remove_member_from_local_group]].
+[para]
+The rights and privileges associated with accounts can be managed through
+the [uri \#get_account_rights [cmd get_account_rights]],
+[uri \#find_accounts_with_right [cmd find_accounts_with_right]],
+[uri \#add_account_rights [cmd add_account_rights]] and
+[uri \#remove_account_rights [cmd remove_account_rights]] commands.
+
+[section "Enumerating Accounts"]
+There are several commands for enumerating users and groups, including group 
+membership.
+[para]
+The commands [uri \#get_users [cmd get_users]],
+[uri \#get_global_groups [cmd get_global_groups]] and
+[uri \#get_local_groups [cmd get_local_groups]]
+enumerate users and groups on a system.
+[para]
+The commands [uri \#get_local_group_members [cmd get_local_group_members]]
+and [uri \#get_global_group_members [cmd get_global_group_members]]
+allow enumeration of the members of a group.
+[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
+returns information about the local groups in which the user account
+has direct or indirect membership.
+[para]
+With the exception of
+[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]],
+all these commands follow the same pattern of invocation 
+and use a standard set of options. Without any optional arguments, the
+commands return a simple list of user or group names as appropriate. However, 
+the commands also allow retrieval of information with additional
+detail or in incremental fashion.
+[para]
+To get more detail about about the accounts being returned without
+making separate calls for each individual account, the [cmd -level]
+option may be specified.  When this option is specified, the list of
+accounts returned is a nested list instead of a flat list of names.
+Each sublist is a keyed list containing details for the account.
+The argument value passed with the option is an integer that indicates
+the level of detail desired. The valid values for the argument and
+the specific fields returned in the sublist are dependent on the
+command and are described in the documentation for the command. See
+the examples below for sample useage.
+
+[para]
+On systems (including domains) with a very large number of accounts, it 
+may be better for performance and user responsiveness to retrieve the
+list in incremental fashion through [cmd -resume] option.
+On the initial call to any of the commands, the [arg RESUMEHANDLE] value
+for the option must be specified as 0. The command will then return
+a list of the form [arg \{] [arg MOREDATA] [arg RESUMEHANDLE] [arg COUNT] [arg VALUELIST] [arg \}]. In the returned list, [arg MOREDATA] is a boolean 
+indicating if there are more accounts to be enumerated. If this value is
+[const 1], then the appropriate command can be called again, this time
+passing [arg RESUMEHANDLE] as the value for the [cmd -resume] option.
+This process can be repeated as long the [arg MOREDATA] field in the
+returned result is [const 1]. If [arg MOREDATA] is [const 0], there
+is no more data to be retrieved. The [arg RESUMEHANDLE] must be treated
+as opaque and must not be modified in any way before being passed back
+in the next call to the command. 
+[emph "It is critical that the command be repeated with the correct value of [arg RESUMEHANDLE] and only if [arg MOREDATA] is 1."]
+The system does not protect against bad values which can crash your
+application. The other elements returned when the [cmd -resume] option 
+is used are [arg COUNT] and [arg VALUELIST]. The former is an estimate
+of the sum of items returned in this call and those remaining to be
+returned. Note this is only an estimate and should not be relied on except
+for rough purposes such as displaying a progress bar. The [arg VALUELIST]
+element is the actual values that are the result of the call. The format
+of this depends on the use of the [cmd -level] option as described above.
+[para]
+The following sample session demonstrates the use of the two options
+and the format of the returned data:
+
+[example_begin]
+(tcl) 63 % get_local_group_members Administrators
+Administrator ashok
+(tcl) 64 % get_local_group_members Administrators -level 1
+{sid S-1-5-21-776561741-1580818891-725345543-500 sidusage 1 name Administrator} {sid S-1-5-21-776561741-1580818891-725345543-1003 sidusage 1 name ashok}
+(tcl) 65 % get_local_group_members Administrators -resume 0
+0 0 2 {Administrator ashok}
+(tcl) 66 % get_local_group_members Administrators -resume 0 -level 1
+0 0 2 {{sid S-1-5-21-776561741-1580818891-725345543-500 sidusage 1 name Administrator} {sid S-1-5-21-776561741-1580818891-725345543-1003 sidusage 1 name ashok}}
+[example_end]
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd add_account_rights] [arg ACCOUNTNAME] [arg RIGHTS] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Adds the privileges and account rights listed in [arg RIGHTS]
+to the account specified by [arg ACCOUNTNAME]. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+[arg RIGHTS] is a list of privileges and account rights.
+Refer to
+[uri {http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/authorization_constants.asp} "Authorization constants"]
+in the Windows SDK for valid values.
+[emph "Note: you must use the string form of the privilege or right, for example, SeBatchLogon, not SE_BATCH_LOGON_NAME."]
+
+[call [cmd add_user_to_global_group] [arg GROUPNAME] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Adds the user account specified by [arg USERNAME] to the global group
+[arg GROUPNAME]. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd add_member_to_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Adds the account specified by [arg ACCOUNTNAME] to the local group
+[arg GROUPNAME]. [arg ACCOUNTNAME] may be either a user name or a global
+group and may include a domain in the form [arg {domainname\username}].
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[nl]
+[uri addusertolocalgroup.example "Example: Add a user to a local group"]
+
+[call [cmd delete_global_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Deletes a global group [arg GROUPNAME]. Also, deletes any rights associated
+with the account in the LSA rights database.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd delete_local_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Deletes a local group [arg GROUPNAME]. Also, deletes any rights associated
+with the account in the LSA rights database.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[nl]
+[uri deletelocalgroup.example "Example: Delete a local group"]
+
+[call [cmd delete_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Delete the specified user account. Also, deletes any rights associated
+with the account in the LSA rights database.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+[uri deleteuser.example "Example: Delete a user account"]
+
+[call [cmd disable_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Disables a user account. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd enable_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Enables a user account. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd find_accounts_with_right] [arg RIGHT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [cmd -name]]]
+
+Returns a list of all accounts (user and group) that hold the right or
+privilege specified by [arg RIGHT]. The returned list contains the SID's
+of the account unless the [cmd -name] option is specified in which
+case the account names are returned instead.
+[nl]
+Refer to
+[uri {http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/authorization_constants.asp} "Authorization constants"]
+in the Windows SDK for valid values for [arg RIGHT].
+[emph "Note: you must use the string form of the privilege or right, for example, SeBatchLogon, not SE_BATCH_LOGON_NAME."]
+
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+
+[call [cmd get_account_rights] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Returns the list of rights and privileges for the user or group
+specified by [arg ACCOUNTNAME]. This only includes those directly
+belonging to the account, and does not include the ones inherited from
+membership in groups.
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd get_global_group_info] [arg GROUPNAME] [opt [arg options]]]
+Retrieves information about the specified global group. The actual information
+returned depends on the specified options and is returned as a list
+of the form "[arg option] [arg value]...". The following options may be
+specified:
+[list_begin opt]
+[opt_def [cmd -all]] Returns all data items.
+[opt_def [cmd -attributes]] Returns the group attributes as a list. See
+[uri security.html#get_token_groups_and_attrs [cmd get_token_groups_and_attrs]]
+for values.
+[opt_def [cmd -comment]]
+Returns the comment associated with the group account.
+[opt_def [cmd -name]]
+Returns the name of the group.
+[opt_def [cmd -sid]] Returns the SID for the group.
+[opt_def [cmd -members]] Returns the members of the group.
+[list_end]
+
+[call [cmd get_global_group_members] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+If no options are specified,
+returns a list of user accounts that are members of the
+global group [arg GROUPNAME].
+[nl]
+The following options may be specified to modify the behaviour of the command.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+See [sectref "Standard Options"].
+[opt_def [cmd -level] [arg LEVEL]]
+See [sectref "Enumerating Accounts"] for how this option changes the format
+of the returned data. The valid values of [arg LEVEL] and the corresponding
+fields returned are described below.
+[opt_def [cmd -resume] [arg RESUMEHANDLE]]
+Returns account information in incremental mode.
+See [sectref "Enumerating Accounts"].
+[list_end]
+The valid values for [arg LEVEL] and the corresponding fields are shown
+in the following table:
+[list_begin opt]
+[opt_def [const 0]]
+[const name]
+[opt_def [const 1]]
+[const attributes],
+[const name]
+[list_end]
+
+[nl]
+[uri listusersingroup.example "Example: List the users in a group"]
+
+[call [cmd get_global_groups] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+If no options are specified,
+returns the list of global groups on the system.
+[nl]
+The following options may be specified to modify the behaviour of the command.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+See [sectref "Standard Options"].
+[opt_def [cmd -level] [arg LEVEL]]
+See [sectref "Enumerating Accounts"] for how this option changes the format
+of the returned data. The valid values of [arg LEVEL] and the corresponding
+fields returned are described below.
+[opt_def [cmd -resume] [arg RESUMEHANDLE]]
+Returns account information in incremental mode.
+See [sectref "Enumerating Accounts"].
+[list_end]
+The valid values for [arg LEVEL] and the corresponding fields are shown
+in the following table:
+[list_begin opt]
+[opt_def [const 0]]
+[const name]
+[opt_def [const 1]]
+[const comment],
+[const name]
+[opt_def [const 2]]
+[const attributes],
+[const comment],
+[const group_id],
+[const name]
+[opt_def [const 3]]
+[const attributes],
+[const comment],
+[const group_sid],
+[const name].
+[emph "This level may not be supported on all versions of Windows."]
+[list_end]
+Refer to the documentation of 
+[uri #get_global_group_info [cmd get_global_group_info]]
+for a description of these fields.
+
+[call [cmd get_local_group_info] [arg GROUPNAME] [opt [arg options]]]
+Retrieves information about the specified local group. The actual information
+returned depends on the specified options and is returned as a list
+of the form "[arg option] [arg value]...". The following options may be
+specified:
+[list_begin opt]
+[opt_def [cmd -all]] Returns all data items.
+[opt_def [cmd -comment]]
+Returns the comment associated with the group account.
+[opt_def [cmd -name]]
+Returns the name of the group.
+[opt_def [cmd -sid]] Returns the SID for the group.
+[opt_def [cmd -members]] Returns the members of the group.
+[list_end]
+
+[call [cmd get_local_group_members] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+If no options are specified,
+returns a list of user accounts that are members of the
+local group [arg GROUPNAME].
+[nl]
+The following options may be specified to modify the behaviour of the command.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+See [sectref "Standard Options"].
+[opt_def [cmd -level] [arg LEVEL]]
+See [sectref "Enumerating Accounts"] for how this option changes the format
+of the returned data. The valid values of [arg LEVEL] and the corresponding
+fields returned are described below.
+[opt_def [cmd -resume] [arg RESUMEHANDLE]]
+Returns account information in incremental mode.
+See [sectref "Enumerating Accounts"].
+[list_end]
+The valid values for [arg LEVEL] and the corresponding fields are shown
+in the following table:
+[list_begin opt]
+[opt_def [const 0]]
+[const sid]
+[opt_def [const 1]]
+[const name],
+[const sid],
+[const sidusage]
+[opt_def [const 2]]
+[const domainandname],
+[const sid],
+[const sidusage]
+[opt_def [const 3]]
+[const domainandname]
+[list_end]
+The meanings of the fields should be self-evident.
+
+[nl]
+[uri listusersingroup.example "Example: List the users in a group"]
+
+[call [cmd get_local_groups] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+If no options are specified, returns the list of local groups on the system.
+[nl]
+The following options may be specified to modify the behaviour of the command.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+See [sectref "Standard Options"].
+[opt_def [cmd -level] [arg LEVEL]]
+See [sectref "Enumerating Accounts"] for how this option changes the format
+of the returned data. The valid values of [arg LEVEL] and the corresponding
+fields returned are described below.
+[opt_def [cmd -resume] [arg RESUMEHANDLE]]
+Returns account information in incremental mode.
+See [sectref "Enumerating Accounts"].
+[list_end]
+The valid values for [arg LEVEL] and the corresponding fields are shown
+in the following table:
+[list_begin opt]
+[opt_def [const 0]]
+[const name]
+[opt_def [const 1]]
+[const comment],
+[const name]
+[list_end]
+Refer to the documentation of 
+[uri #get_local_group_info [cmd get_local_group_info]]
+for a description of these fields.
+
+[call [cmd get_user_account_info] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [arg options]]]
+
+Returns attributes and properties of a user account as a list of
+the form "[arg option1] [arg value1] ...".
+[arg ACCOUNT] specifies the user account for which the information is to
+be retrieved. The option [cmd -system] may be used to specify the system from
+whose context the account lookup should be performed.
+[nl]
+The data returned depends on which of the following options are specified:
+[list_begin opt]
+[opt_def [cmd -all]] Returns all data items.
+[opt_def [cmd -comment]] Returns the comment associated with the user account.
+[opt_def [cmd -password_expired]]
+Returns a value of 1 if the account password has expired, and 0 otherwise.
+[opt_def [cmd -full_name]] Returns the full name of the user.
+[opt_def [cmd -parms]] Returns an application specific string.
+[opt_def [cmd -sid]] Returns the SID of the user.
+[opt_def [cmd -units_per_week]] Returns an integer
+indicating the number of equal time units into
+which a week is divided (see [cmd -logon_hours]).
+[opt_def [cmd -primary_group_id]] Returns the
+the RID (relative id component of a SID) of the primary
+global group for the account.
+[opt_def [cmd -global_groups]] Returns the global groups of which the account
+is a member.
+[opt_def [cmd -local_groups]] Returns the local groups of which the account
+is a member. This includes only groups of which the account is directly
+a member and does [emph not] include indirect membership
+through a global group which is itself a member of a local group.
+See
+[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
+for a command that will recursively include groups.
+[opt_def [cmd -status]] Returns one
+of the values [const disabled], [const enabled] or [const locked].
+[opt_def [cmd -logon_server]]
+Returns the name of the server to which logon requests are sent.
+[opt_def [cmd -country_code]]
+Returns an integer country/region value for the user's preferred language.
+[opt_def [cmd -home_dir]]
+Returns the full path to the user's home directory.
+[opt_def [cmd -password_age]]
+Returns the number of seconds since the password was last changed for the
+account.
+[opt_def [cmd -home_dir_drive]]
+Returns the drive letter assigned to the user's home directory.
+[opt_def [cmd -num_logons]]
+Returns the number of times the user has logged on.
+In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried (using the [cmd -system] option) separately. A value
+of -1 indicates the number is unknown.
+[opt_def [cmd -acct_expires]]
+Returns the time in GMT when the account is set to expire. This value may
+also be [const never] or [const unknown].
+[opt_def [cmd -last_logon]]
+Returns the time in GMT when the user last logged in. This value may
+also be [const never] or [const unknown]. In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried separately (using the [cmd -system] option).
+[opt_def [cmd -last_logoff]]
+Returns the time in GMT when the user last logged off. This value may
+also be [const never] or [const unknown]. In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried separately (using the [cmd -system] option).
+[opt_def [cmd -user_id]]
+Returns RID component of the user's SID.
+[opt_def [cmd -usr_comment]]
+Returns the user comment for the account.
+[opt_def [cmd -bad_pw_count]]
+Returns the number of login attempts for that account
+that failed because of a bad password. In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried separately (using the [cmd -system] option).
+[opt_def [cmd -code_page]]
+Returns an integer corresponding to the code page
+for the user's preferred language.
+[opt_def [cmd -logon_hours]]
+Returns a bit string of 1's and 0's corresponding to each hour
+in the week that the
+user is allowed to log on. Note the week starts based on GMT time, not local
+time.
+[opt_def [cmd -workstations]]
+Returns a comma-separated list of upto eight workstations from which
+the user can log in.
+[opt_def [cmd -name]]
+Returns the name of the account.
+[opt_def [cmd -script_path]]
+Returns the full path to the user's logon script.
+[opt_def [cmd -priv]]
+Returns one of the values
+[const admin], [const user] or [const guest] corresponding
+to the privilege level for the account.
+[opt_def [cmd -profile]]
+Returns the full path to the user's profile.
+[opt_def [cmd -max_storage]]
+Returns the maximum amount of disk space the user is allowed to use.
+[list_end]
+[uri listgroupsforuser.example "Example: List the group membership for a user"]
+[nl]
+[uri showuser.example "Example: Show user account settings"]
+
+[call [cmd get_user_local_groups_recursive] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Returns the local groups in which the given user account is a member either
+directly or indirectly by belonging to a global group which is a member
+of a local group. This differs from the [cmd -local_groups] option of
+the [uri \#get_user_account_info [cmd get_user_account_info]] command.
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+
+[call [cmd get_users] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+If no options are specified, returns the list of user accounts on the system.
+Note the returned list
+includes only accounts defined on the system, not all accounts
+that are known to the system.
+[nl]
+The following options may be specified to modify the behaviour of the command.
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]]
+See [sectref "Standard Options"].
+[opt_def [cmd -level] [arg LEVEL]]
+See [sectref "Enumerating Accounts"] for how this option changes the format
+of the returned data. The valid values of [arg LEVEL] and the corresponding
+fields returned are described below.
+[opt_def [cmd -resume] [arg RESUMEHANDLE]]
+Returns account information in incremental mode.
+See [sectref "Enumerating Accounts"].
+[list_end]
+The valid values for [arg LEVEL] and the corresponding fields are shown
+in the following table:
+[list_begin opt]
+[opt_def [const 0]]
+[cmd name]
+[opt_def [const 1]]
+[const comment], [const flags], [const home_dir], [const name],
+[const password], [const password_age], [const priv], [const script_path].
+[opt_def [const 2]]
+[const acct_expires],
+[const auth_flags],
+[const bad_pw_count],
+[const code_page],
+[const comment],
+[const country_code],
+[const flags],
+[const full_name],
+[const home_dir],
+[const last_logoff],
+[const last_logon],
+[const logon_hours],
+[const logon_server],
+[const max_storage],
+[const name],
+[const num_logons],
+[const parms],
+[const password],
+[const password_age],
+[const priv],
+[const script_path],
+[const units_per_week],
+[const usr_comment],
+[const workstations].
+[opt_def [const 3]]
+[const acct_expires],
+[const auth_flags],
+[const bad_pw_count],
+[const code_page],
+[const comment],
+[const country_code],
+[const flags],
+[const full_name],
+[const home_dir],
+[const home_dir_drive],
+[const last_logoff],
+[const last_logon],
+[const logon_hours],
+[const logon_server],
+[const max_storage],
+[const name],
+[const num_logons],
+[const parms],
+[const password],
+[const password_age],
+[const password_expired],
+[const primary_group_id],
+[const priv],
+[const profile],
+[const script_path],
+[const units_per_week],
+[const user_id],
+[const usr_comment],
+[const workstations].
+[list_end]
+Refer to [uri #get_user_account_info [cmd get_user_account_info]] for
+the meaning of these fields.
+[nl]
+[uri listusers.example "Example: List the user accounts on a system"]
+
+[call [cmd lookup_account_name] [arg name] [opt [arg options]]]
+[arg name] specifies the name of the account and may be fully qualified
+in the form [arg {domain\name}].
+[nl]
+If no options are specified, this command returns the SID for the account.
+If one or more options are specified, returns a flat list of
+the form "[arg option1] [arg value1] ...".
+The following options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all values.
+[opt_def [cmd -sid]]
+Returns the SID for the account.
+[opt_def [cmd -domain]]
+Returns the domain in which the account was found.
+[opt_def [cmd -system]] Specifies the name of the system on which the
+account is to be looked up. If unspecified, the local system is used.
+[opt_def [cmd -type]] Returns the account type. This may be one
+of [const user], [const group] (domain group),
+[const domain], [const alias] (system local group), [const logonid],
+[const wellknowngroup], [const deletedaccount], [const invalid],
+[const unknown], or [const computer]. The [const logonid] type is returned
+for SID's that identify a logon session.
+[list_end]
+
+[call [cmd lookup_account_sid] [arg sid] [opt [arg options]]]
+Argument [arg sid] specifies the SID of the account.
+If no options are specified, this command returns the name for the account.
+If one or more options are specified, the command returns a flat list of
+the form "[arg option1] [arg value1] ...".
+The following options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all values.
+[opt_def [cmd -name]]
+Returns the name for the account.
+[opt_def [cmd -domain]]
+Returns the domain in which the account was found.
+[opt_def [cmd -system]] Specifies the name of the system on which the
+account is to be looked up. If unspecified, the local system is used.
+[opt_def [cmd -type]] Returns the account type. This may be one
+of [const user], [const group] (domain group), [const domain],
+[const alias] (system local group),
+[const wellknowngroup], [const deletedaccount], [const invalid],
+[const unknown], or [const computer].
+[list_end]
+
+
+[call [cmd map_account_to_name] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Returns the name for an account. If [arg ACCOUNT] is a valid account name,
+it is returned as is. Otherwise, it is assumed to be a SID
+and the corresponding account name is returned.
+An exception is raised if neither
+of these is true. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd map_account_to_sid] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Returns the SID corresponding to an account. If [arg ACCOUNT] is a SID,
+it is returned as is. Otherwise, it is assumed to be an account name
+and the corresponding SID is returned. An exception is raised if neither
+of these is true. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+
+[call [cmd new_global_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -comment] [arg COMMENT]"]]
+
+Creates a global group [arg GROUPNAME]. The option [cmd -comment]
+allows a comment to be associated with the group.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd new_local_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -comment] [arg COMMENT]"]]
+
+Creates a local group [arg GROUPNAME]. The option [cmd -comment]
+allows a comment to be associated with the group.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[nl]
+[uri addlocalgroup.example "Example: Create a local group"]
+
+[call [cmd new_user] [arg USERNAME] [opt [arg options]]]
+
+Creates a new user account. The following options may be specified to
+set the account properties:
+
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Indicates the system on which to
+create the account.
+[opt_def [cmd -comment] [arg STRING]] Sets the comment associated with the
+account.
+[opt_def [cmd -home_dir] [arg PATH]] Sets the account's home directory path.
+[opt_def [cmd -script_path] [arg PATH]] Sets the path to the
+logon script for the account.
+[opt_def [cmd -priv] [arg PRIVLEVEL]] Sets the privilege level for the account.
+[arg PRIVLEVEL] should be
+one of the values [const admin], [const user] or [const guest]. If unspecified,
+this defaults to [const user].
+[opt_def [cmd -password] [arg STRING]] Sets the password for the account.
+[list_end]
+[uri adduser.example "Example: Create a new user account"]
+
+[call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Removes the user account or global group specified by [arg ACCOUNTNAME]
+from the local group [arg GROUPNAME]. [arg ACCOUNTNAME] may be a domain
+account in the form [arg domainname\\username].
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[nl]
+[uri removeuserfromlocalgroup.example "Example: Remove a user from a local group"]
+
+
+[call [cmd remove_account_rights] [arg ACCOUNTNAME] [arg RIGHTS] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+Removes the privileges and account rights listed in [arg RIGHTS]
+from the account specified by [arg ACCOUNTNAME]. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+[arg RIGHTS] is a list of privileges and account rights.
+Refer to
+[uri {http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/authorization_constants.asp} "Authorization constants"]
+in the Windows SDK for valid values.
+[emph "Note: you must use the string form of the privilege, for example, SeBatchLogon, not SE_BATCH_LOGON_NAME."]
+
+[call [cmd remove_user_from_global_group] [arg GROUPNAME] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Removes the user account specified by [arg USERNAME] from the global group
+[arg GROUPNAME]. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_account_info] [arg account] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [arg options]]]
+
+Sets attributes and properties of a user account.
+[arg account] specifies the user account for which the information is to
+be retrieved. The option [cmd -system] may be used to specify the system from
+whose context the account lookup should be performed. The following options
+may be specified to set various properties of the account:
+
+[list_begin opt]
+[opt_def [cmd -comment] [arg STRING]] Sets the comment associated with the
+account.
+[opt_def [cmd -full_name] [arg STRING]] Sets the full name of the user.
+[opt_def [cmd -country_code] [arg INTEGER]] Sets the country code
+associated with the user account.
+[opt_def [cmd -home_dir] [arg PATH]] Sets the account's home directory path.
+[opt_def [cmd -home_dir_drive]] Sets the account's home directory drive.
+[opt_def [cmd -acct_expires] [arg DATETIME]] Sets the time at which the
+account will expire. [arg DATETIME] may be specified in any format accepted
+by the [cmd "clock scan"] command, or may be the string [const never]
+to indicate that the account should never expire.
+[opt_def [cmd -name] [arg STRING]] Sets the [const name] field containing
+the name of the account.
+[opt_def [cmd -script_path] [arg PATH]] Sets the path to the
+logon script for the account.
+[opt_def [cmd -priv] [arg PRIVLEVEL]] Sets the privilege level for the account.
+[arg PRIVLEVEL] should be
+one of the values [const admin], [const user] or [const guest].
+[opt_def [cmd -profile] [arg PATH]] Sets the path to the account's profile.
+[list_end]
+
+[call [cmd set_user_comment] [arg USERNAME] [arg STRING] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the comment associated with the specified user account to [arg STRING]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_country_code] [arg USERNAME] [arg INTEGER] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the country code for the specified user account. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_expiration] [arg USERNAME] [arg DATETIME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the time at which the specified user account expires.
+[arg DATETIME] may be specified in any format accepted
+by the [cmd "clock scan"] command, or may be the string [const never]
+to indicate that the account should never expire. The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_full_name] [arg USERNAME] [arg STRING] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the full name for the specified user to [arg STRING].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_home_dir] [arg USERNAME] [arg PATH] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the home directory for the specified user account to [arg PATH].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_home_dir_drive] [arg USERNAME] [arg DRIVEPATH] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the home directory drive for the specified user account.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+
+[call [cmd set_user_name] [arg USERNAME] [arg NEWNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Modifies the name of the specified user account to [arg NEWNAME].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_password] [arg USERNAME] [arg PASSWORD] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the password of the specified user account to [arg PASSWORD].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_priv_level] [arg USERNAME] [arg PRIVLEVEL] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the privilege level of the specified user account to [arg PRIVLEVEL].
+[arg PRIVLEVEL] should be
+one of the values [const admin], [const user] or [const guest].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_profile] [arg USERNAME] [arg PATH] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the location of the profile of the specified user account to [arg PATH].
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_user_script_path] [arg USERNAME] [arg PATH] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Sets the path to the login script for the specified user account.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd unlock_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+
+Unlocks a user account that has been locked out.
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+
+[list_end]
+
+[keywords \
+     SID "locally unique identifiers" "users" "user accounts" \
+     groups "group accounts" "account rights" "account privileges"\
+     "passwords" "group members" "privileges" \
+     ]
+[manpage_end]

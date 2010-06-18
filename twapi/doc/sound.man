@@ -1,0 +1,100 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Sound" n ""]
+[copyright "2003, Ashok P. Nadkarni"]
+[moddesc "Playing sounds"]
+[titledesc "Basic sound functions"]
+[require twapi]
+[description]
+[para]
+
+This package provides commands for playing sounds on
+Windows platforms.
+
+[sectref Overview]
+
+The commands [uri \#beep [cmd beep]],
+[uri \#play_sound [cmd play_sound]] and [uri \#stop_sound [cmd stop_sound]] provide basic
+functions for generating sound. For more sophisticated needs,
+there are other Tcl extensions available, such as the
+[uri http://www.speech.kth.se/snack "Snack Sound Toolkit"].
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd beep] [opt [arg options]]]
+Generates a sound on the system speaker.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -frequency] [arg FREQUENCY]] The frequency of the sound
+to be produced (default 1000 Hz).
+[opt_def [cmd -duration] [arg MILLISECONDS]] The duration of the sound
+to be produced (default 100 milliseconds).
+[opt_def [cmd -type] [arg SOUNDIDENTIFIER]] Specifies the type of sound to
+produce. [arg SOUNDIDENTIFIER] may be one of [const ok], [const hand],
+[const question], [const exclamation] or [const asterisk]. These will
+produce the corresponding sounds configured in the Windows control panel.
+If this option is specified, the options
+[cmd -duration] and [cmd -frequency] are ignored.
+[list_end]
+[uri beep.example "Example: Generate a continuous tone"]
+
+[call [cmd play_sound] [arg NAME] [opt [arg options]]]
+
+Plays a sound on the system audio device. The sound may either be a WAV
+file or a system defined sound (if the [cmd -alias] option is
+specified).  The command returns [const 1] if successful else [const 0].
+
+[nl]
+The following options may be specified to control the sound:
+
+[list_begin opt]
+[opt_def [cmd -alias]] By default, [arg NAME] is assumed to be the path
+of a WAV file.
+If [cmd -alias] is specified, [arg NAME] is assumed to be the name of a
+system sound.
+The following system defined sounds are guaranteed to
+be present on all systems: [const SystemAsterisk], [const SystemExclamation],
+[const SystemExit], [const SystemHand], [const SystemQuestion] and
+[const SystemStart]. Other system defined names can be located under
+the [const {HKEY_CURRENT_USER\AppEvents\EventLabels}] registry key. Note
+that a sound will only be played if a WAV file has been associated with
+it through the control panel.
+[opt_def [cmd -async]] If specified, the sound is played asynchronously
+and command will return immediately.
+By default, the command will return only after the sound
+has completed playing.
+[opt_def [cmd -loop]] Specification of this option causes the sound to
+be played repeatedly until stopped through a [cmd stop_sound] command.
+This option also automatically enables the [cmd -async] option.
+[opt_def [cmd -nodefault]] If the system cannot find the specified sound,
+it plays a default sound file. If this option is specified, the command
+will return without playing any sound if the specified sound file is
+not found.
+[opt_def [cmd -nostop]] Normally, the audio device is playing some other file,
+the command will attempt to stop the currently playing sound.
+If [cmd -nostop] is
+specified, the command will return immediately without attempting to stop
+the current sound.
+[opt_def [cmd -wait]] If the audio driver is busy, the command will return
+right away. If this option is specified, the command will wait for the driver
+to become available.
+[list_end]
+[uri playsystemsound.example "Example: Play a system sound"]
+[nl]
+[uri continuoussystemsound.example "Example: Play a continous system sound"]
+[nl]
+[uri playwavfile.example "Example: Play a WAV file"]
+
+[call [cmd stop_sound]]
+Stops all currently playing sounds that have been started by the current
+task.
+Returns [const 1] if successful, else [const 0].
+[nl]
+[uri continuoussystemsound.example "Example: Play a continous system sound"]
+[nl]
+
+[list_end]
+
+[keywords sound beep]
+
+[manpage_end]

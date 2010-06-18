@@ -1,0 +1,227 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Clipboard" n ""]
+[copyright "2004-2009 Ashok P. Nadkarni"]
+[moddesc "Clipboard access"]
+[titledesc "Commands related to accessing the clipboard"]
+[require twapi]
+[description]
+
+[para]
+This module provides procedures to read and write the clipboard.
+
+[section Overview]
+
+The command [uri \#read_clipboard [cmd read_clipboard]]
+and [uri \#write_clipboard [cmd write_clipboard]] allow reading and
+writing to the Windows clipboard. Tcl/Tk has a [cmd clipboard]
+command that provides similar functionality. The [cmd TWAPI] commands
+are useful in two circumstances:
+[list_begin bullet]
+[bullet]The Tcl [cmd clipboard] command is not available
+in console-based Tcl programs that do not load [cmd Tk]. The [cmd TWAPI]
+command may be used to access the clipboard in this case.
+[bullet]More control is desired over the specific format of the data stored
+into the clipboard.
+[list_end]
+In other cases, the Tcl/Tk [cmd clipboard] command should be preferred.
+
+[section "Clipboard formats"]
+
+Data may be stored in the clipboard in any number for formats
+identified by integer values. When reading clipboard data, applications
+must check in what formats the current clipboard data is currently
+available and specify one of these formats when reading the
+data. Similarly, when writing data to the clipboard, applications need
+to specify the format in which data is to stored in the clipboard.
+In some cases, Windows will automatically make multiple formats
+available. For example, storing text in format type [const 1] (text)
+will also make format type [const 13] (Unicode) available in the clipboard.
+
+[para]
+
+In addition to the standard set of formats defined by Windows
+applications may register their own formats with the system. The format
+values associated with these are created the first time the format name
+is registered through
+[uri \#register_clipboard_format [cmd register_clipboard_format]] and can be
+retrieved later with the same call. Conversely, the name associated
+with a format can be obtained through the
+[uri \#get_registered_clipboard_format_name [cmd get_registered_clipboard_format_name]]
+command. An example of a
+registered application format name is "HTML Format" which is used
+by Internet Explorer to store HTML fragments on the clipboard.
+
+[para]
+Multiple formats may be simultaneously stored into the clipboard. The formats
+currently stored in the clipboard may be obtained through the
+[uri \#get_clipboard_formats [cmd get_clipboard_formats]] command.
+
+[para]
+When reading or writing data, the application is responsible for formatting
+data appropriately, possibly through the use of Tcl's [cmd binary] command.
+The exceptions to this are the
+[uri \#read_clipboard_text [cmd read_clipboard_text]] and
+[uri \#write_clipboard_text [cmd write_clipboard_text]]
+commands which assume the data is just text.
+
+[section "Reading and Writing Data"]
+
+In the general case, the clipboard must first be
+opened with the [uri \#open_clipboard [cmd open_clipboard]]
+ call before data can be read or written
+to it. Data may be read and written using the
+[uri \#read_clipboard [cmd read_clipboard]] and
+[uri \#write_clipboard [cmd write_clipboard]]
+ commands respectively. The clipboard must then be closed
+by calling [uri \#close_clipboard [cmd close_clipboard]].
+There may be multiple write commands between
+the clipboard open and close to store data in multiple formats.
+
+[para]
+For the simple case of reading and storing text data, the commands
+[uri \#read_clipboard_textwrite_clipboard [cmd write_clipboard]]
+and [uri \#write_clipboard_text [cmd write_clipboard_text]] may be used.
+
+[section "Monitoring clipboard changes"]
+An application can monitor the clipboard by calling
+[uri #start_clipboard_monitor [cmd start_clipboard_monitor]] to set up a notification
+callback that is invoked when the contents of the clipboard change.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd clipboard_format_available] [arg FORMAT]]
+Returns 1 if the clipboard contains data in the specified format, and
+0 otherwise. This command does not require the clipboard to have been
+opened.
+
+[call [cmd close_clipboard]]
+
+Closes the clipboard which must have been
+previously opened with [uri \#open_clipboard [cmd open_clipboard]].
+
+[nl]
+[uri putclipboard.example "Example: Copy standard input to the clipboard"]
+
+[call [cmd get_clipboard_formats]]
+Returns a list of the formats currently available in the clipboard. The
+clipboard must have been opened before this function is called.
+[nl]
+[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
+
+[call [cmd get_registered_clipboard_format_name] [arg FORMAT]]
+Returns the name associated with a registered clipboard format. [arg FORMAT]
+identifies the format and must correspond to a registered format. An
+exception will be raised if [arg FORMAT] is a standard Windows format or
+a unregistered private format.
+
+[call [cmd open_clipboard]]
+
+Opens the clipboard for reading or writing. Most clipboard operations
+require the clipboard to have been previously opened. The clipboard must
+be closed once the operations are done by calling
+[uri \#close_clipboard [cmd close_clipboard]].
+
+[nl]
+[uri putclipboard.example "Example: Copy standard input to the clipboard"]
+
+[call [cmd read_clipboard] [arg FORMAT]]
+
+Reads the contents of the clipboard in the given format and returns it.
+The clipboard must have been previously opened through
+[uri \#open_clipboard [cmd open_clipboard]]
+and remains open when the command returns except in the case of any Tcl
+exceptions. In these cases, the clipboard is closed before the exception is
+thrown.
+[nl]
+[arg FORMAT] must be one of the clipboard formats as defined in
+[sectref "Clipboard formats"]. The content is an exact copy of the
+contents of the clipboard in binary format. Callers will need to
+use Tcl commands such as [cmd binary] and [cmd encoding] to parse the data.
+
+[nl]
+[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
+
+[call [cmd read_clipboard_text] [opt [cmd -raw]]]
+
+Retrieves the content of the clipboard as text. The clipboard must have been
+previously opened through [uri \#open_clipboard [cmd open_clipboard]]
+and remains open when the command returns except in the case of any Tcl
+exceptions. In these cases, the clipboard is closed before the exception is
+thrown.
+[nl]
+Normally the command converts CR-LF line terminators in clipboard content
+to LF line terminators. If the [cmd -raw] option is specified, the command
+does no conversion of the clipboard data.
+[nl]
+[uri getclipboard.example "Example: Copy clipboard contents to standard output"]
+
+[call [cmd register_clipboard_format] [arg FORMATNAME]]
+
+Registers an application defined format with the system
+(see [sectref "Clipboard Formats"]). [arg FORMATNAME] is the name
+associated with the format. The command returns an integer format identifier
+that may be used in calls to read and write data. If the format name
+is already registered, the same integer format value is returned.
+This command does not require the clipboard to be open.
+
+[nl]
+[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
+
+[call [cmd start_clipboard_monitor] [arg SCRIPT]]
+Begins monitoring of clipboard contents.
+[arg SCRIPT] will be invoked when the clipboard
+is written to by any application.
+[nl]
+The command returns a handle.
+When no longer required, this handle must be passed to the command
+[uri #stop_clipboard_monitor [cmd stop_clipboard_monitor]].
+[nl]
+Multiple clipboard monitoring scripts may be active at the same
+time. However, all returned handles must be passed to
+[uri #stop_clipboard_monitor [cmd stop_clipboard_monitor]].
+before the application exits.
+[nl]
+This command requires a threaded build of Tcl and will raise an exception
+on non-threaded builds.
+
+[call [cmd stop_clipboard_monitor] [arg MONITOR_ID]]
+Stops a previously registered script that monitors clipboard contents.
+[arg MONITOR_ID] is monitoring handle previously returned by
+[uri #start_clipboard_monitor [cmd start_clipboard_monitor]].
+
+[call [cmd write_clipboard] [arg FORMAT] [arg DATA]]
+
+Writes [arg DATA] to the clipboard in the given format.
+The clipboard must have been previously opened through
+[uri \#open_clipboard [cmd open_clipboard]]
+and remains open when the command returns except in the case of any Tcl
+exceptions. In these cases, the clipboard is closed before the exception is
+thrown.
+[nl]
+[arg FORMAT] must be one of the clipboard formats as defined in
+[sectref "Clipboard formats"]. The content is an exact copy of the
+contents of the clipboard in binary format. Callers will need to
+use Tcl commands such as [cmd binary] and [cmd encoding] to parse the data.
+[nl]
+Multiple [cmd write_clipboard] commands may be executed between
+a [uri \#open_clipboard [cmd open_clipboard]]
+and [uri \#close_clipboard [cmd close_clipboard]] pair as long as the
+specified formats are different for each. Writing a format previously
+specified in the sequence overwrites the previous contents of that format.
+
+[call [cmd write_clipboard_text] [arg TEXT]]
+
+Writes the given text string to the clipboard. The clipboard must have
+been previously opened through [uri \#open_clipboard [cmd open_clipboard]]
+and remains open when the command returns except in the case of any Tcl
+exceptions. In these cases, the clipboard is closed before the exception is
+thrown.
+[nl]
+[uri putclipboard.example "Example: Copy standard input to the clipboard"]
+
+[list_end]
+
+[keywords clipboard "format, clipboard" "read clipboard" "clipboard formats" "write clipboard"]
+
+[manpage_end]

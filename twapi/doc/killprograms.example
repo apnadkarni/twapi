@@ -1,0 +1,20 @@
+# TWAPI example
+# Forcibly terminate all invocations of a given program
+# Usage example: tclsh killprograms.example notepad.exe
+# Usage example: tclsh killprograms.example c:\winnt\system32\notepad.exe
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 PROGRAM_NAME_OR_PATH"
+    exit
+}
+
+# Find all programs with the given name or path
+set program [lindex $argv 0]
+set pids [concat [twapi::get_process_ids -name $program] \
+              [twapi::get_process_ids -path $program]]
+foreach pid $pids {
+    # Catch the error in case process does not exist any more
+    catch {twapi::end_process $pid -force}
+}

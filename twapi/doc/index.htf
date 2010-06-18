@@ -1,0 +1,45 @@
+<div class='news'>
+<dl>
+<dt>Dec 23, 2009:</dt>
+<dd>Tcl Windows API extension 2.2.3 released</dd>
+</dl>
+</div>
+
+<p>
+  The Tcl Windows API (TWAPI) extension
+  provides Tcl bindings to over 470 functions in the
+  Windows API.
+</p>
+<p>
+  The extension provides access to the Windows API at two levels.
+  A direct interface to the supported Windows API is provided where the
+  Tcl commands directly map to Windows functions as described in
+  Microsoft Windows
+  SDK. The recommended interface is a higher level interface
+  that is more convenient, powerful and easier to use
+  than the Windows API.
+</p>
+<p>
+  In combination with the built-in facilities in
+  <a href="http://www.tcl.tk">Tcl</a>, TWAPI makes it possible
+  to write a wide variety of Windows applications ranging from
+  desktop applications to web servers running as Windows services.
+  See <a href="http://wits.magicsplat.com">Windows
+  Inspection Tool Set</a> for an example of Tcl/TWAPI based application.
+</p>
+<p>
+  TWAPI is open source and hosted on <a href="http://www.sourceforge.net">Sourceforge</a>.
+</p>
+<ul>
+  <li>Follow the links on the left for the <a href="overview.html">documentation</a></li>
+  <li>Go to the <a href="http://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
+  <li>See some <a href="examples.html">examples</a>.</li>
+  <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
+  <li>Browse the <a href="http://twapi.cvs.sourceforge.net/twapi">CVS source repository</a></li>
+  <li>Documentation for older versions: 
+    <a href="http://twapi.magicsplat.com/v2.1">2.1</a>
+    <a href="http://twapi.magicsplat.com/v2.0">2.0</a>
+    <a href="http://twapi.magicsplat.com/v1.1">1.1</a>
+  </li>
+</ul>
+

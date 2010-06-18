@@ -1,0 +1,5 @@
+# TWAPI example
+# Print operating system version and configuration
+
+package require twapi
+puts [twapi::get_os_description]

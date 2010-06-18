@@ -1,0 +1,14 @@
+# TWAPI example
+# Show properties for a connected share
+# Usage example: tclsh showmappeddrive.example DRIVE
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] [info script] DRIVE:"
+    exit
+}
+
+set drive [lindex $argv 0]
+array set driveinfo [twapi::get_mapped_share_info $drive -uncvolume -user]
+puts "Drive $drive mapped to $driveinfo(-uncvolume) (as user $driveinfo(-user))"

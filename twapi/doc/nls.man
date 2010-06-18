@@ -1,0 +1,288 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Internationalization" n ""]
+[copyright "2005-2009 Ashok P. Nadkarni"]
+[moddesc "Internationalization"]
+[titledesc "Commands related to internationalization"]
+[require twapi]
+[description]
+[para]
+
+This package provides procedures related to internationalization
+capabilities on Windows platforms.
+
+[section "Locales"]
+A [emph locale] defines user preferences related to languages and
+culture-dependent formatting of numbers, currencies etc..
+A locale identifier ([cmd LCID]) is an integer or one of the keywords
+[const systemdefault] or [const userdefault] corresponding to the system
+and user default locales respectively.
+[para]
+The system maintains locale settings for the system as well as the user.
+These can be retrieved through the
+commands [uri \#get_system_default_lcid [cmd get_system_default_lcid]]
+and [uri \#get_user_default_lcid [cmd get_user_default_lcid]]
+respectively.
+[para]
+The command [uri \#get_locale_info [cmd get_locale_info]] can be used
+to retrieve the settings associated with a particular locale.
+
+[section "Languages"]
+
+Languages are identified by a 16 bit integer ([cmd LANGID]) that includes
+the primary and sublanguage information. The commands
+[uri \#extract_primary_langid [cmd extract_primary_langid]] and
+[uri \#extract_sublanguage_langid [cmd extract_sublanguage_langid]]
+may be used to retrieve these from the language identifier.
+
+[para]
+The system maintains several language
+settings. These can be retrieved through the
+commands [uri \#get_system_default_langid [cmd get_system_default_langid]],
+[uri \#get_system_ui_langid [cmd get_system_ui_langid]],
+[uri \#get_user_default_langid [cmd get_user_default_langid]] and
+[uri \#get_user_ui_langid [cmd get_user_ui_langid]]. Information related
+to a [cmd LANGID], such as it full name, can be retrieved by passing
+it to [uri \#get_locale_info [cmd get_locale_info]].
+
+[section "Formatting"]
+
+Windows provides functions for formatting data as per local conventions.
+The command [uri \#format_number [cmd format_number]] formats numbers
+using a given locale as a base and with the ability to override
+particular format settings.
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd extract_primary_langid] [arg LANGID]]
+Returns the primary language identifier for the language identifier
+specified by [arg LANGID].
+
+[call [cmd extract_sublanguage_langid] [arg LANGID]]
+Returns the sublanguage identifier for the language identifier
+specified by [arg LANGID].
+
+[call [cmd format_currency] [arg NUMBER] [arg LCID] [opt [arg options]]]
+Formats [arg NUMBER] as a currency string
+per the given formatting specifications.
+[arg LCID] is a [uri \#Locales "locale identifier"].
+[arg NUMBER] must be in decimal format (the fractional part is optional) and
+may have a leading negative sign.
+[nl]
+If no options are specified, the settings in the locale identified by
+[arg LCID] are used for formatting [arg NUMBER].
+[nl]
+If one or more of the following options are specified, they
+override the settings in the locale given by [arg LCID].
+[list_begin opt]
+[opt_def [cmd -icurrency] [arg CURRENCYFORMAT]] Controls how positive
+currency numbers are formatted including spacing, position of the currency
+symbol etc.. See the documentation for
+[cmd LOCALE_ICURRENCY] in the Windows SDK for possible values
+of [arg CURRENCYFORMAT].
+[opt_def [cmd -idigits] [arg DECIMALPLACES]] Indicates the number of digits
+after the decimal point to include in the result. If specified as [const -1],
+the number of decimal places in the result is the same as in [arg NUMBER].
+[opt_def [cmd -ilzero] [arg BOOLEAN]] Specifies whether
+the result includes leading zeroes (true) or not (false) when
+[arg NUMBER] is a pure fraction.
+[opt_def [cmd -inegcurr] [arg NEGFORMAT]] Controls how negative
+numbers are formatted including location of the currency symbol, the negative
+number indicator etc.. See the documentation for [cmd LOCALE_INEGCURR]
+in the Windows SDK for possible values of [arg NEGFORMAT].
+[opt_def [cmd -scurrency] [arg SYMBOL]] Specifies that the string
+[arg SYMBOL] should be used as the monetary symbol.
+[opt_def [cmd -sdecimal] [arg DECIMALSEPARATOR]] Specifies the
+string to be used to represent the decimal point.
+[opt_def [cmd -sgrouping] [arg GROUPNUM]] Specifies the size of each group
+of digits to the left of the decimal point. [arg GROUPNUM] may be any
+integer between [const 0] and [const 9] or the value [const 32] which
+indicates the Indic convention of the grouping by the first thousand (3 digits)
+followed by groups of 2 digits.
+[opt_def [cmd -sthousand] [arg THOUSANDSEPARATOR]] Specifies the
+string to be used as the thousands' separator.
+[list_end]
+
+[call [cmd format_number] [arg NUMBER] [arg LCID] [opt [arg options]]]
+Formats the number [arg NUMBER] as per the given formatting specifications.
+[arg LCID] is a [uri \#Locales "locale identifier"].
+[arg NUMBER] must be in decimal format (the fractional part is optional) and
+may have a leading negative sign.
+[nl]
+If no options are specified, the settings in the locale identified by
+[arg LCID] are used for formatting [arg NUMBER].
+[nl]
+If one or more of the following options are specified, they
+override the settings in the locale given by [arg LCID].
+[list_begin opt]
+[opt_def [cmd -idigits] [arg DECIMALPLACES]] Indicates the number of digits
+after the decimal point to include in the result. If specified as [const -1],
+the number of decimal places in the result is the same as in [arg NUMBER].
+[opt_def [cmd -ilzero] [arg BOOLEAN]] Specifies whether the result
+the result includes leading zeroes (true) or not (false).
+[opt_def [cmd -inegnumber] [arg NEGFORMAT]] Controls how negative
+numbers are formatted. See the documentation for [cmd LOCALE_INEGNUMBER]
+in the Windows SDK for possible values of [arg NEGFORMAT].
+[opt_def [cmd -sgrouping] [arg GROUPNUM]] Specifies the size of each group
+of digits to the left of the decimal point. [arg GROUPNUM] may be any
+integer between [const 0] and [const 9] or the value [const 32] which
+indicates the Indic convention of the grouping by the first thousand (3 digits)
+followed by groups of 2 digits.
+[opt_def [cmd -sdecimal] [arg DECIMALSEPARATOR]] Specifies the
+string to be used to represent the decimal point.
+[opt_def [cmd -sthousand] [arg THOUSANDSEPARATOR]] Specifies the
+string to be used as the thousands' separator.
+[list_end]
+
+[call [cmd get_locale_info] [arg LCID] [opt [arg options]]]
+Returns a list containing information about the [uri \#Locales "locale"]
+identified by [arg LCID]. The information returned depends on the options
+specified and is formatted as a list of the form "[arg option] [arg VALUE]...".
+
+[list_begin opt]
+[opt_def [cmd -ilanguage]]    language id
+[opt_def [cmd -slanguage]]    localized name of language
+[opt_def [cmd -senglanguage]]    English name of language
+[opt_def [cmd -sabbrevlangname]]    abbreviated language name
+[opt_def [cmd -snativelangname]]    native name of language
+[opt_def [cmd -icountry]]    country code
+[opt_def [cmd -scountry]]    localized name of country
+[opt_def [cmd -sengcountry]]    English name of country
+[opt_def [cmd -sabbrevctryname]]    abbreviated country name
+[opt_def [cmd -snativectryname]]    native name of country
+[opt_def [cmd -idefaultlanguage]]    default language id
+[opt_def [cmd -idefaultcountry]]    default country code
+[opt_def [cmd -idefaultcodepage]]    default oem code page
+[opt_def [cmd -idefaultansicodepage]]    default ansi code page
+[opt_def [cmd -idefaultmaccodepage]]    default mac code page
+[opt_def [cmd -slist]]    list item separator
+[opt_def [cmd -imeasure]]    0 = metric, 1 = US
+[opt_def [cmd -sdecimal]]    decimal separator
+[opt_def [cmd -sthousand]]    thousand separator
+[opt_def [cmd -sgrouping]]    digit grouping
+[opt_def [cmd -idigits]]    number of fractional digits
+[opt_def [cmd -ilzero]]    leading zeros for decimal
+[opt_def [cmd -inegnumber]]    negative number mode
+[opt_def [cmd -snativedigits]]    native ascii 0-9
+[opt_def [cmd -scurrency]]    local monetary symbol
+[opt_def [cmd -sintlsymbol]]    intl monetary symbol
+[opt_def [cmd -smondecimalsep]]    monetary decimal separator
+[opt_def [cmd -smonthousandsep]]    monetary thousand separator
+[opt_def [cmd -smongrouping]]    monetary grouping
+[opt_def [cmd -icurrdigits]]    # local monetary digits
+[opt_def [cmd -iintlcurrdigits]]    # intl monetary digits
+[opt_def [cmd -icurrency]]    positive currency mode
+[opt_def [cmd -inegcurr]]    negative currency mode
+[opt_def [cmd -sdate]]    date separator
+[opt_def [cmd -stime]]    time separator
+[opt_def [cmd -sshortdate]]    short date format string
+[opt_def [cmd -slongdate]]    long date format string
+[opt_def [cmd -stimeformat]]    time format string
+[opt_def [cmd -idate]]    short date format ordering
+[opt_def [cmd -ildate]]    long date format ordering
+[opt_def [cmd -itime]]    time format specifier
+[opt_def [cmd -itimemarkposn]]    time marker position
+[opt_def [cmd -icentury]]    century format specifier (short date)
+[opt_def [cmd -itlzero]]    leading zeros in time field
+[opt_def [cmd -idaylzero]]    leading zeros in day field (short date)
+[opt_def [cmd -imonlzero]]    leading zeros in month field (short date)
+[opt_def [cmd -s1159]]    AM designator
+[opt_def [cmd -s2359]]    PM designator
+[opt_def [cmd -icalendartype]]    type of calendar specifier
+[opt_def [cmd -ioptionalcalendar]]    additional calendar types specifier
+[opt_def [cmd -ifirstdayofweek]]    first day of week specifier
+[opt_def [cmd -ifirstweekofyear]]    first week of year specifier
+[opt_def [cmd -sdayname1]]    long name for Monday
+[opt_def [cmd -sdayname2]]    long name for Tuesday
+[opt_def [cmd -sdayname3]]    long name for Wednesday
+[opt_def [cmd -sdayname4]]    long name for Thursday
+[opt_def [cmd -sdayname5]]    long name for Friday
+[opt_def [cmd -sdayname6]]    long name for Saturday
+[opt_def [cmd -sdayname7]]    long name for Sunday
+[opt_def [cmd -sabbrevdayname1]]    abbreviation for Monday
+[opt_def [cmd -sabbrevdayname2]]    abbreviation for Tuesday
+[opt_def [cmd -sabbrevdayname3]]    abbreviation for Wednesday
+[opt_def [cmd -sabbrevdayname4]]    abbreviation for Thursday
+[opt_def [cmd -sabbrevdayname5]]    abbreviation for Friday
+[opt_def [cmd -sabbrevdayname6]]    abbreviation for Saturday
+[opt_def [cmd -sabbrevdayname7]]    abbreviation for Sunday
+[opt_def [cmd -smonthname1]]    long name for January
+[opt_def [cmd -smonthname2]]    long name for February
+[opt_def [cmd -smonthname3]]    long name for March
+[opt_def [cmd -smonthname4]]    long name for April
+[opt_def [cmd -smonthname5]]    long name for May
+[opt_def [cmd -smonthname6]]    long name for June
+[opt_def [cmd -smonthname7]]    long name for July
+[opt_def [cmd -smonthname8]]    long name for August
+[opt_def [cmd -smonthname9]]    long name for September
+[opt_def [cmd -smonthname10]]    long name for October
+[opt_def [cmd -smonthname11]]    long name for November
+[opt_def [cmd -smonthname12]]    long name for December
+[opt_def [cmd -smonthname13]]    long name for 13th month (if exists)
+[opt_def [cmd -sabbrevmonthname1]]    abbreviation for January
+[opt_def [cmd -sabbrevmonthname2]]    abbreviation for February
+[opt_def [cmd -sabbrevmonthname3]]    abbreviation for March
+[opt_def [cmd -sabbrevmonthname4]]    abbreviation for April
+[opt_def [cmd -sabbrevmonthname5]]    abbreviation for May
+[opt_def [cmd -sabbrevmonthname6]]    abbreviation for June
+[opt_def [cmd -sabbrevmonthname7]]    abbreviation for July
+[opt_def [cmd -sabbrevmonthname8]]    abbreviation for August
+[opt_def [cmd -sabbrevmonthname9]]    abbreviation for September
+[opt_def [cmd -sabbrevmonthname10]]    abbreviation for October
+[opt_def [cmd -sabbrevmonthname11]]    abbreviation for November
+[opt_def [cmd -sabbrevmonthname12]]    abbreviation for December
+[opt_def [cmd -sabbrevmonthname13]]    abbreviation for 13th month (if exists)
+[opt_def [cmd -spositivesign]]    positive sign
+[opt_def [cmd -snegativesign]]    negative sign
+[opt_def [cmd -ipossignposn]]    positive sign position
+[opt_def [cmd -inegsignposn]]    negative sign position
+[opt_def [cmd -ipossymprecedes]]    mon sym precedes pos amt
+[opt_def [cmd -ipossepbyspace]]    mon sym sep by space from pos amt
+[opt_def [cmd -inegsymprecedes]]    mon sym precedes neg amt
+[opt_def [cmd -inegsepbyspace]]    mon sym sep by space from neg amt
+[opt_def [cmd -fontsignature]]    font signature
+[opt_def [cmd -siso639langname]]    ISO language abbreviation
+[opt_def [cmd -siso3166ctryname]]    ISO country name abbreviation
+[opt_def [cmd -idefaultebcdiccodepage]]    default ebcdic code page
+[opt_def [cmd -ipapersize]]    1 = letter, 5 = legal, 8 = a3, 9 = a4
+[opt_def [cmd -sengcurrname]]    english name of currency
+[opt_def [cmd -snativecurrname]]    native name of currency
+[opt_def [cmd -syearmonth]]    year month format string
+[opt_def [cmd -ssortname]]    sort name
+[opt_def [cmd -idigitsubstitution]]    0 = context, 1 = none, 2 = national
+[list_end]
+
+[call [cmd get_system_default_langid]]
+Returns the default [uri #Languages "language identifier"] for the system.
+
+[call [cmd get_system_default_lcid]]
+Returns the default [uri #Locales "locale identifier"] for the system.
+
+[call [cmd get_system_ui_langid]]
+Returns the [uri #Languages "language identifier"] for the system default
+UI language.
+
+[call [cmd get_user_default_langid]]
+Returns the default [uri \#Languages "user language identifier"].
+
+[call [cmd get_user_default_lcid]]
+Returns the default [uri \#Locales "user-locale identifier"].
+
+[call [cmd get_user_ui_langid]]
+Returns the [uri \#Languages "language identifier"] for the user's UI language.
+
+
+[call [cmd map_code_page_to_name] [arg CODEPAGENUM]]
+Returns the name of the code page identified by [arg CODEPAGENUM].
+
+[call [cmd map_langid_to_name] [arg LANGID]]
+Returns the name of the language identified by [arg LANGID].
+
+[list_end]
+
+[keywords internationalization globalization localization locales language \
+     LCID LANGID "number formatting" "currency formatting" formatting \
+     "code page" "primary language" "sublanguage"]
+
+[manpage_end]

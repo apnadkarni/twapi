@@ -1,0 +1,21 @@
+# TWAPI example
+# Show currently running Windows services
+# Usage example: tclsh showrunningservices.example
+
+package require twapi
+
+set services [list ]
+
+# Get services of types -win32_own_process -win32_share_process. The other
+# types are actually drivers. Specify -active since we are not interested
+# in services that are in a stopped state
+
+foreach svc [twapi::get_multiple_service_status \
+                 -win32_own_process -win32_share_process \
+                 -active] {
+    # Convert the keylist for each service to an array  ...
+    array set svcinfo $svc        
+    # ... and pick out the service display name
+    lappend services $svcinfo(displayname)        
+}
+puts [join [lsort -dictionary $services] \n]

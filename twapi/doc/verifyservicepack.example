@@ -1,0 +1,16 @@
+# TWAPI example
+# Verify that the specified service pack (or greater) is installed
+# Without any arguments, just prints the service pack number
+
+package require twapi
+set servicepack [lindex [twapi::get_os_version] 2]
+if {$argc} {
+    set wanted [lindex $argv 0]
+    if {$servicepack >= $wanted} {
+        puts "Service pack $wanted (or greater) is installed"
+    } else {
+        puts "Service pack $wanted not installed"
+    }
+} else {
+    puts "Installed service pack is $servicepack"
+}

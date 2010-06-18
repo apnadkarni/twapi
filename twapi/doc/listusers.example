@@ -1,0 +1,5 @@
+# TWAPI example
+# List the user accounts on the system
+
+package require twapi
+puts [join [twapi::get_users] ", "]

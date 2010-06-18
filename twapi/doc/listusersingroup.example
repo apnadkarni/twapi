@@ -1,0 +1,27 @@
+# TWAPI example
+# List the users belonging to a group
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 GROUPNAME"
+    exit 1
+}
+
+set group [lindex $argv 1]
+
+# Group may be local or global
+set no_globals [catch {twapi::get_global_group_members $group} global_users]
+set no_locals  [catch {twapi::get_local_group_members $group} local_users]
+
+if {$no_globals && $no_locals} {
+    puts stderr "Global users: $global_users\nLocal users: $local_users"
+    exit 1
+}
+
+if {! $no_globals} {
+    puts "Global group: [join $global_users {, }]"
+}
+if {! $no_locals} {
+    puts "Local group: [join $local_users {, }]"
+}

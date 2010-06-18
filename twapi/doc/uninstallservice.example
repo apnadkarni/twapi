@@ -1,0 +1,13 @@
+# TWAPI example
+# Install a Windows service
+# Usage example: tclsh uninstallservice.example SERVICENAME
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 SERVICENAME"
+    exit 1
+}
+
+set svcname [twapi::get_service_internal_name [lindex $argv 0]]
+twapi::delete_service $svcname

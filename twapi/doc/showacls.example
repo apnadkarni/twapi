@@ -1,0 +1,24 @@
+# TWAPI example
+# Show the access control lists on a file
+# Usage example: tclsh showacls.example
+
+package require twapi
+
+if {$argc == 0} {
+    puts stderr "Usage: [info nameofexecutable] [info script] FILENAME"
+    exit 1
+}
+
+# Get the security descriptor
+set secd [twapi::get_resource_security_descriptor file [lindex $argv 0] -dacl]
+
+# Extract the ACE's from the descriptor and print them
+set dacl [twapi::get_security_descriptor_dacl $secd]
+foreach ace [twapi::get_acl_aces $dacl] {
+    set action [twapi::get_ace_type $ace]; # allow/deny etc.
+    set sid    [twapi::get_ace_sid $ace]; # Trustee SID
+    set account [twapi::lookup_account_sid $sid]; # map to a name
+    set rights   [twapi::get_ace_rights $ace -type file]
+    puts "[string totitle $action] $account"
+    puts "\t[join [lsort $rights] \n\t]"
+}

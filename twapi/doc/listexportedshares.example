@@ -1,0 +1,10 @@
+# TWAPI example
+# List the exported shares on a system
+
+package require twapi
+
+puts "Share\tPath\tType\t\tComment\n"
+foreach share [lsort [twapi::get_shares]] {
+    array set shareinfo [twapi::get_share_info $share -path -comment -type]
+    puts "$share:\t$shareinfo(-path)\t$shareinfo(-type)\t$shareinfo(-comment)"
+}

@@ -1,0 +1,25 @@
+# TWAPI example
+# Remove the title bar from a window
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 WINDOWTITLE"
+    exit 1
+}
+
+set text [lindex $argv 0]
+
+# Get all windows with that title
+set toplevels [twapi::find_windows -text $text -toplevel]
+if {[llength $toplevels]} {
+    foreach win $toplevels {
+        # Get the current styles
+        foreach {style exstyle} [twapi::get_window_style $win] { break }
+        # Get rid of the title bar in the styles
+        set style [expr {$style & ~ $twapi::windefs(WS_CAPTION)}]
+        twapi::set_window_style $win $style $exstyle
+    }
+} else {
+    puts stderr "No window found with title '$text'"
+}

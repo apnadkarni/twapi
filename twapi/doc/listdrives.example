@@ -1,0 +1,5 @@
+# TWAPI example
+# List the drives on the system
+
+package require twapi
+puts [twapi::get_logical_drives]

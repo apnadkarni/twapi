@@ -1,0 +1,67 @@
+code {margin-left: 1cm; font: courier; font-size: normal;}
+h1, h2, h3 {font-size: 1.1em;}
+body, td, th { font-size: normal; margin-left: 20; margin-right: 10}
+tr { vertical-align: top }
+strong { font-size: normal; }
+.arg { font-size: 0.8em; }
+.cmd { }
+.sample {margin-left: 25; font-family: courier; font-size: smaller;}
+.navbar {
+  color: white;
+  padding: 5px;
+  background-color: #333399;
+  margin-bottom: 10px;
+  font-size: large;
+}
+.navbar table {
+  color: white;
+  font-size: large;
+  width: 100%;
+}
+.navbar a:link, .navbar a:visited {
+  font-size: smaller;
+  text-decoration: none;
+  color: white;
+}
+body.toc {
+  background-color: #333399;
+  color: #FFFFFF;
+  margin-left: 10;
+  margin-right: 0;
+  font-size: normal;
+}
+table.opt {
+  margin: 1em;
+  border: thin solid;
+  border-collapse: collapse;
+  border-color: #999999;
+  padding: 4;
+}
+td.opt {
+  border: thin solid;
+  border-color: #999999;
+  padding: 4;
+  font-size: normal;
+}
+th.opt {
+  border: thin solid;
+  border-color: #999999;
+  padding: 4;
+  background-color: #CCCCCC;
+}
+.news { color: red; font-size: smaller;}
+
+.news h2 {
+  font-size: smaller;
+  margin-bottom: 0px;
+}
+
+table.adbox {
+  border: thin solid
+  padding: 0px
+}
+form { margin: 0px; padding:0px }
+
+dl dd {
+   margin-bottom: 1em;
+}

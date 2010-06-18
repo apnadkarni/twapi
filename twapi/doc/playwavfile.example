@@ -1,0 +1,21 @@
+# TWAPI example
+# Play a WAV sound file
+# Usage example: tclsh playwavsound.example FILENAME
+
+package require twapi
+
+if {$argc == 0} {
+    puts "Usage: [info nameofexecutable] $argv0 FILENAME"
+    exit 1
+}
+
+set path [lindex $argv 0]
+if {![file exists $path]} {
+    set path "[string trimright $path .].WAV"
+    if {![file exists $path]} {
+        puts stderr "Could not find file [lindex $argv 0] or $path"
+        exit 1
+    }
+}
+
+twapi::play_sound $path

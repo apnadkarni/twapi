@@ -1,0 +1,23 @@
+# TWAPI example
+# Play a system sound continuously for the specified duration
+# Usage example: tclsh playsystemsound.example DURATION [SOUNDNAME] 
+
+package require twapi
+
+# Defaults
+set sound SystemHand
+set duration 1000
+
+if {$argc > 0} {
+    set duration [lindex $argv 0]
+}
+
+if {$argc > 1} {
+    set sound [lindex $argv 1]
+}
+
+# Play the sound continusly (-loop option)
+twapi::play_sound $sound -alias -loop -nodefault
+after $duration
+twapi::stop_sound
+

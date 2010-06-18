@@ -1,0 +1,13 @@
+# TWAPI example
+# Play a system sound
+# Usage example: tclsh playsystemsound.example [SOUNDNAME]
+
+package require twapi
+
+if {$argc == 0} {
+    set sound SystemExclamation
+} else {
+    set sound [lindex $argv 0]
+}
+
+twapi::play_sound $sound -alias

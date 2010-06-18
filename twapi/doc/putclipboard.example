@@ -1,0 +1,20 @@
+# TWAPI example
+# Copy standard input to the clipboard
+
+package require twapi
+
+# To avoid keeping the clipboard open, first read in all the data
+set text ""
+while {[gets stdin line] >= 0} {
+    # Clipboard expects DOS style CR-LF
+    append text $line\r\n
+}
+
+# Now open the clipboard
+twapi::open_clipboard
+# Then empty it and take ownership
+twapi::empty_clipboard
+# Write the text
+twapi::write_clipboard_text $text
+# Remember to close the clipboard
+twapi::close_clipboard

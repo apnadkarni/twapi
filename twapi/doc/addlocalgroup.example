@@ -1,0 +1,11 @@
+# TWAPI example
+# Add a local group account
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] $argv0 GROUPNAME"
+    exit
+}
+
+twapi::new_local_group [lindex $argv 0]

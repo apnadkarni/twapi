@@ -1,0 +1,19 @@
+# TWAPI example
+# Check if the given drive supports unicode filenames
+# Usage example: tclsh checkunicodefilenames.example C:
+
+package require twapi
+
+if {$argc == 0} {
+    # No drive specified, use current drive
+    set drive [string range [pwd] 0 1]
+} else {
+    set drive [lindex $argv 0]
+}
+
+array set diskinfo [twapi::get_volume_info $drive -attr]
+if {[lsearch -exact $diskinfo(-attr) "unicode_on_disk"] >= 0} {
+    puts "Drive $drive supports Unicode file names"
+} else {
+    puts "Drive $drive does not support Unicode file names"
+}

@@ -1,0 +1,12 @@
+# TWAPI example
+# Disconnect a network share
+# Usage example: tclsh unmapdrive.example [DRIVE]
+
+package require twapi
+
+if {$argc != 1} {
+    puts stderr "Usage: [info nameofexecutable] DRIVE:"
+    exit
+}
+
+twapi::disconnect_share [lindex $argv 0]

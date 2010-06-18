@@ -1,0 +1,97 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Windows INI file" n ""]
+[copyright "2004, Ashok P. Nadkarni"]
+[moddesc "Windows INI files"]
+[titledesc "Commands for accessing Windows INI files"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands to access Windows INI files
+
+[section Overview]
+
+These commands are wrappers to the Windows functions that provide access
+to INI files such as [cmd GetPrivateProfileString].
+[para]
+The commands [uri \#read_inifile_key [cmd read_inifile_key]],
+[uri \#write_inifile_key [cmd write_inifile_key]] and
+[uri \#delete_inifile_key [cmd delete_inifile_key]]
+can be used for manipulating individual entries.
+[para]
+The commands
+[uri \#read_inifile_section_names [cmd read_inifile_section_names]],
+[uri \#read_inifile_section [cmd read_inifile_section]]
+and [uri \#delete_inifile_section [cmd delete_inifile_section]]
+may be used for manipulating entire sections of INI files.
+[para]
+Note these commands
+take into account INI file mappings set up in the
+[const {HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\IniFileMapping}] registry key.
+[para]
+A cross-platform package that provides similar functionality
+is available in the available in the [uri http://tcllib.sf.net "tcllib"]
+standard library. However, that does not take into account the
+registry mappings on Windows platforms.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd delete_inifile_key] [arg SECTION] [arg KEY] [opt "[cmd -inifile] [arg FILENAME]"]]
+
+Deletes the key [arg KEY] from the INI file section [arg SECTION].
+By default, the command writes to
+the [const win.ini] file in the system directory. The [cmd -inifile]
+option may be used to specify different INI file.
+
+[call [cmd delete_inifile_section] [arg SECTION] [opt "[cmd -inifile] [arg FILENAME]"]]
+
+Deletes the entire section [arg SECTION]
+from an INI file. By default, the command writes to
+the [const win.ini] file in the system directory. The [cmd -inifile]
+option may be used to specify a different INI file.
+
+[call [cmd read_inifile_key] [arg SECTION] [arg KEY] [opt [arg options]]]
+
+Returns the value of the key [arg KEY] in the INI file section [arg SECTION].
+If the key is not found, an empty string is returned unless the
+[cmd -default] option is specified.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -default] [arg DEFAULTVALUE]]If the key is not found in the
+section, the command returns [arg DEFAULTVALUE] instead of an empty string.
+[opt_def [cmd -inifile] [arg FILENAME]]By default, the command looks up
+the [const win.ini] file in the system directory. This option may be used
+to look up a different INI file instead.
+[list_end]
+
+[call [cmd read_inifile_section] [arg SECTION] [opt "[cmd -inifile] [arg FILENAME]"]]
+
+Returns all the entries in section [arg SECTION]
+of an INI file as a list of key value pairs. By default, the command
+reads
+the [const win.ini] file in the system directory. The [cmd -inifile]
+option may be used to specify a different INI file.
+
+[call [cmd read_inifile_section_names] [opt "[cmd -inifile] [arg FILENAME]"]]
+
+Returns the names of all sections in
+an INI file. By default, the command
+reads
+the [const win.ini] file in the system directory. The [cmd -inifile]
+option may be used to specify a different INI file.
+
+[call [cmd write_inifile_key] [arg SECTION] [arg KEY] [arg VALUE] [opt "[cmd -inifile] [arg FILENAME]"]]
+
+Writes [arg VALUE] as the value of the key [arg KEY] in the INI file
+section [arg SECTION]. The section and key are created if they did not already
+exist.
+By default, the command writes to
+the [const win.ini] file in the system directory. The [cmd -inifile]
+option may be used to look up a different INI file instead.
+
+[list_end]
+
+[keywords "INI file" "profile"]
+
+[manpage_end]

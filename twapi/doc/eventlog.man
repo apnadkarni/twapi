@@ -1,0 +1,240 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Event log" n ""]
+[copyright "2004, Ashok P. Nadkarni"]
+[moddesc "Event Log"]
+[titledesc "Commands relating to reading and writing the Windows event log"]
+[require twapi]
+[description]
+[para]
+
+This module provides commands for reading and writing the Windows event log.
+
+[section Overview]
+
+Most access to the event log requires a handle returned by
+the [uri \#eventlog_open [cmd eventlog_open]]
+command. A handle allows either read or write
+access, but never both. Events can be written using the
+[uri \#eventlog_write [cmd eventlog_write]]
+command. The [uri \#eventlog_log [cmd eventlog_log]]
+command provides an alternate, simpler but less flexible,
+interface for writing events. Events can be read from an event log
+through the [uri \#eventlog_read [cmd eventlog_read]]
+command. The returned event record can be
+formatted using [uri \#eventlog_format_message [cmd eventlog_format_message]] and
+[uri \#eventlog_format_category [cmd eventlog_format_category]].
+[para]
+Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
+or as
+a side effect of clearing the log through
+[uri \#eventlog_clear [cmd eventlog_clear]]. The
+backup file can be read using the standard
+[uri \#eventlog_open [cmd eventlog_open]] and
+[uri \#eventlog_read [cmd eventlog_read]] commands.
+[para]
+The command [uri \#eventlog_count [cmd eventlog_count]]
+returns the number of records in the event
+log. [uri \#eventlog_oldest [cmd eventlog_oldest]]
+returns the record number of the oldest record.
+The command [uri \#eventlog_is_full [cmd eventlog_is_full]]
+indicates whether the event log is full.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd eventlog_backup] [arg "EVENTLOGHANDLE"] [arg FILENAME]]
+Backs up the specified event log to the file [arg FILENAME]. The file
+may be opened for reading using the
+[uri \#eventlog_open [cmd eventlog_open]] command.
+[arg EVENTLOGHANDLE] must be a read handle.
+
+[call [cmd eventlog_clear] [arg "EVENTLOGHANDLE"] [opt "[cmd -backup] [arg FILENAME]"]]
+Clears the specified event log. If the [cmd -backup] option is specified, the
+event log is first backed to the file [arg FILENAME].
+[arg EVENTLOGHANDLE] must be a read handle (even though the command
+actually modifies the event log).
+
+[call [cmd eventlog_close] [arg "EVENTLOGHANDLE"]]
+Closes a handle previously returned by
+[uri \#eventlog_open [cmd eventlog_open]] and frees any
+associated resources.
+
+[call [cmd eventlog_count] [arg EVENTLOGHANDLE]]
+Returns the number of records in the specified event log.
+[arg EVENTLOGHANDLE] must be a read handle.
+
+[call [cmd eventlog_format_category] [arg EVENT_RECORD] [opt [arg options]]]
+Returns the text corresponding to the numeric category field in
+[arg EVENT_RECORD] by looking up the appropriate resources. [arg EVENT_RECORD]
+must be an element of the event record list returned from the
+[uri \#eventlog_read [cmd eventlog_read]] command.
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -langid] [arg LANGID]] Passed to the [cmd format_message]
+command for formatting. See the description of that function for details.
+[opt_def [cmd -width] [arg MAXLINEWIDTH]] Passed to the [cmd format_message]
+command for formatting. See the description of that function for details.
+[list_end]
+
+[call [cmd eventlog_format_message] [arg EVENT_RECORD] [opt [arg options]]]
+Returns the text corresponding to the message in
+[arg EVENT_RECORD] by looking up the appropriate resources. [arg EVENT_RECORD]
+must be an element of the event record list returned from the
+[uri \#eventlog_read [cmd eventlog_read]] command.
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -langid] [arg LANGID]] Passed to the [cmd format_message]
+command for formatting. See the description of that function for details.
+[opt_def [cmd -width] [arg MAXLINEWIDTH]] Passed to the
+[uri misc.html\#format_message [cmd format_message]]
+command for formatting. See the description of that function for details.
+[list_end]
+
+[call [cmd eventlog_is_full] [arg EVENTLOGHANDLE]]
+Returns 1 if the specified event log is full, and 0 otherwise.
+[arg EVENTLOGHANDLE] may be either a read or a write handle.
+
+[call [cmd eventlog_log] [arg MESSAGE] [opt [arg options]]]
+Writes a record into the specified event log. This is a wrapper around
+[uri \#eventlog_open [cmd eventlog_open]],
+[uri \#eventlog_write [cmd eventlog_write]],
+[uri \#eventlog_close [cmd eventlog_close]] for simple
+logging needs and should be used for applications that do not have
+a message file.
+[nl]
+The following options may be specified to control the values of the various
+fields in the event log record:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+[opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
+returned handle will refer to the event log to which events from
+[arg SOURCENAME] are logged. This defaults to the filename portion (without
+the path or extension) of the executable file.
+[opt_def [cmd -type] [arg EVENTTYPE]] Indicates the type or severity of
+the event. [arg EVENTTYPE] should be one of [const success], [const error],
+[const warning], [const information] (default), [const auditsuccess] or [const auditfailure].
+[opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
+to a category id in the event source's category or message file. This value
+defaults to 1.
+[list_end]
+
+
+[call [cmd eventlog_oldest] [arg EVENTLOGHANDLE]]
+Returns the record number of the oldest record in the specified event log.
+[arg EVENTLOGHANDLE] must be a read handle.
+
+[call [cmd eventlog_open] [opt [arg options]]]
+
+Returns a handle to the specified event log. When no longer required, it
+should be closed by passing it to
+[uri \#eventlog_close [cmd eventlog_close]]. Various options
+specify the event log to be opened and the read-write mode.
+
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+[opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
+returned handle will refer to the event log to which events from
+[arg SOURCENAME] are logged. This defaults to the filename portion (without
+the path or extension) of the executable file.
+This option may not be used with the [cmd -file] option.
+[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
+Specifies the name of a backed up event log file.
+This option may not be used with the [cmd -source] or [cmd -file] options.
+[opt_def [cmd -write]] Returns a handle used for writing to the event log.
+By default, a read handle is returned. Note that event log handles
+are never read-write. Applications wishing to do both need to open two
+separate handles. This option may not be used with the [cmd -file] option
+as event log backup files cannot be written to.
+[list_end]
+
+[call [cmd eventlog_read] [arg EVENTLOGHANDLE] [opt [arg options]]]
+Returns a list of event records read from the specified event log.
+[arg EVENTLOGHANDLE] must be a read handle. The number of records
+returned may vary depending on the number of records in the event log
+as well as internal buffering limits. Returns an empty list
+when no more records can be read. Each
+[uri \#eventlog_read [cmd eventlog_read]] command
+moves the event log read pointer.
+[nl]
+The following options may be specified to control the read operation:
+[list_begin opt]
+[opt_def [cmd -seek] [arg RECORDNUMBER]]Normally the command returns
+event log records starting from current read pointer. If this option
+is specified, the command will return records starting with the one
+with record number [arg RECORDNUMBER].
+[opt_def [cmd -direction] "[const backward]|[const forward]"]
+Controls the direction in which the read pointer moves. By default,
+the commands will return records reading forwards from the current read
+pointer.
+[list_end]
+Each element in the returned list corresponds to an event log record
+and is a list of the form [arg "field value ..."]. The following fields
+are returned in each event record:
+[list_begin opt]
+[opt_def [const -category]] This is an integer corresponding
+to a category id in the event source's category or message file.
+[opt_def [const -data]]Raw binary data stored as part
+of the event record.
+[opt_def [const -eventid]] The event id that identifies the event type.
+See [cmd eventlog_write] for how this may be used.
+[opt_def [const -params]] A list of strings
+corresponding to the positional [arg %N] format specifiers in the format
+string for the event in the message file.
+[opt_def [const -sid]] The SID of the user account of the thread that logged
+the event. This may be a null string if this information was not included
+in the record.
+[opt_def [const -recordnum]] The record number for this record. This may be
+used with the [cmd -seek] option to locate a record.
+[opt_def [const -source]] The event source that logged the event.
+[opt_def [const -system]] The name of the system on which the event
+was generated.
+[opt_def [const -timegenerated]]Contains the time that the event was
+generated (UTC) expressed as an offset in seconds since
+00:00:00 Jan 1, 1970. This can be passed to the [cmd "clock format"] command to
+convert to an absolute time.
+[opt_def [const -timewritten]]Contains the time (UTC) that the event was
+written into the event log expressed as an offset in seconds since
+00:00:00 Jan 1, 1970. This can be passed to the [cmd "clock format"] command to
+convert to an absolute time.
+[opt_def [const -type]] Indicates the type or severity of
+the event. The value is one of [const success], [const error],
+[const warning], [const information],
+[const auditsuccess] or [const auditfailure].
+[list_end]
+
+[call [cmd eventlog_write] [arg EVENTLOGHANDLE] [arg EVENTID] [opt [arg options]]]
+Writes a record into the specified event log. [arg EVENTLOGHANDLE] must be
+a write handle for an event log. [arg EVENTID] is a integer that identifies
+the specific event. If the event source is configured in the registry, this
+is the message id for the event in the message file for the source. If
+no message file has been configured, this event id is irrelevant.
+[nl]
+The following options may be specified to control the values of the various
+fields in the event log record:
+[list_begin opt]
+[opt_def [cmd -type] [arg EVENTTYPE]] Indicates the type or severity of
+the event. [arg EVENTTYPE] should be one of [const success], [const error],
+[const warning], [const information] (default), [const auditsuccess] or [const auditfailure]. Note that the last two may only be used when writing to the
+Security event log.
+[opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
+to a category id in the event source's category or message file. This value
+defaults to 1.
+[opt_def [cmd -loguser]] Specifying this will cause the SID of the user
+account for this thread to be included in the event record.
+[opt_def [cmd -params] [arg PARAMLIST]] Specifies a list of strings
+corresponding to the positional [arg %N] format specifiers in the format
+string for the event in the message file. If the source has not been
+configured with a message file in the registry, event viewers will generally
+display this as a list of strings.
+[opt_def [cmd -data] [arg DATA]]Raw binary data that should be stored as part
+of the event record.
+[list_end]
+
+[list_end]
+
+[keywords "event log"]
+[manpage_end]

@@ -1,0 +1,66 @@
+# TWAPI example
+# Protect a file from being accessed by a particular user
+# Usage example: tclsh protectfilefromuser.example FILENAME USER
+
+package require twapi
+
+if {$argc != 2} {
+    puts stderr "Usage: [info nameofexecutable] FILENAME USER"
+    exit
+}
+
+# Path to the file
+set path [lindex $argv 0]
+
+# Get the SID for the user
+set sid [twapi::map_account_to_sid [lindex $argv 1]]
+
+# Get the security descriptor for the file
+set secd [twapi::get_resource_security_descriptor file $path]
+
+# Get the DACL (discretionary access control list) in the security descriptor
+set dacl [twapi::get_security_descriptor_dacl $secd]
+
+# Get the ACEs (access control entries) within the DACL
+set aces [twapi::get_acl_aces $dacl]
+
+# Create a new list of ACES with just the deny ACE for our new DACL
+set new_aces [list [twapi::new_ace deny $sid generic_all]]
+
+# Now go through the existing ACE's one at a time.
+# If the ACE's SID is the one we want to deny, discard it as
+# we will be creating a new ACE for it. If the ACE is for a different
+# SID, we keep it as it is. Note that since we are adding a DENY ACE,
+# discarding ACE's that match the SID of interest is not strictly necessary
+# since the DENY ACE will always land up at the front of the list. But
+# discarding it is cleaner.
+foreach ace $aces {
+    # Skip existing ACE's for this SID
+    if {[string equal -nocase $sid [twapi::get_ace_sid $ace]]} {
+        continue
+    }
+    lappend new_aces $ace
+}
+
+# Sort the ACE's in the Windows approved order. This example is a simple
+# case, but for more complex cases you would need to be aware of what
+# this approved order is when building ACE's else you might not get
+# what you expect! We could also leave off the sorting and Windows will
+# keep the exact order we specified but Windows tools which expect the
+# "approved" order get confused.
+set new_aces [twapi::sort_aces $new_aces]
+
+# Now create a new DACL based on these new ACES
+set new_dacl [twapi::new_acl]
+set new_dacl [twapi::set_acl_aces $new_dacl $new_aces]
+
+# Modify the security descriptor with the new DACL
+set secd [twapi::set_security_descriptor_dacl $secd $new_dacl]
+
+# Now finally set the actual resource security descriptor dacl. Again, the
+# -protect_dacl is not strictly necessary since we have added a deny all
+# ACE, any inherited ACE's will not override the deny.
+twapi::set_resource_security_descriptor file $path $secd -dacl -protect_dacl
+
+# All done
+exit 0

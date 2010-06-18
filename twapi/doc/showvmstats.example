@@ -1,0 +1,22 @@
+# TWAPI example
+# Show virtual memory statistics
+
+package require twapi
+
+# Convert to MB
+proc toMB {n} {
+    return [expr {$n / (1024*1024)}]
+}
+
+# Print columns
+proc puts_tabular {width args} {
+    set fmt [string repeat "%-${width}s" [llength $args]]
+    puts [eval [list format $fmt] $args]
+}
+
+set width 18
+array set meminfo [twapi::get_memory_info -all]
+puts_tabular $width "Physical memory:" "Total [toMB $meminfo(-totalphysical)] MB, Available [toMB $meminfo(-availphysical)] MB"
+#puts "Physical memory: Total [toMB $meminfo(-totalphysical)] MB, Available [toMB $meminfo(-availphysical)] MB"
+puts_tabular $width "Commit:"  "Total [toMB $meminfo(-totalcommit)] MB, Available [toMB $meminfo(-availcommit)] MB"
+puts_tabular $width "Swap files:" "[join $meminfo(-swapfiles) {, }]"

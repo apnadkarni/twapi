@@ -1,0 +1,24 @@
+# TWAPI example
+# Show the user account for each process
+# Usage example: tclsh showprocessowners.example
+
+package require twapi
+
+foreach pid [lsort -integer [twapi::get_process_ids]] {
+    # Open each process token to extract user information
+    # Ignore errors assuming process has gone away or we don't have privs
+    if {[catch {
+        set token [twapi::open_process_token $pid token_query]
+        set user [twapi::get_token_user $token -name]
+        twapi::close_token $token
+        puts [format "%-5d %-20s %s" $pid [twapi::get_process_name $pid] $user]
+    }]} {
+        # Could not get the owner, at least see if we can get the name
+        if {[catch {twapi::get_process_name $pid} name]} {
+            # Not even that...
+            puts [format "%-5d %s" $pid <Unknown>]
+        } else {
+            puts [format "%-5d %s" $pid $name]
+        }
+    }
+}

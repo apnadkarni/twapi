@@ -1,0 +1,25 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Overview" n ""]
+[copyright "2003-2009 Ashok P. Nadkarni"]
+[moddesc "TWAPI Version 3.0 Overview"]
+[titledesc "Tcl Windows API V3.0 overview"]
+[description]
+[para]
+
+The Tcl Windows API (TWAPI) extension provides access to functions in the
+Windows API from within the Tcl scripting language.
+
+[para]
+The extension provides access to the Windows API at two levels:
+[list_begin bullet]
+[bullet] a [uri raw.html "raw interface"]
+to the supported Windows API is provided where the
+Tcl commands directly map to Windows functions. Programmers who are
+familiar with the Win32 API and prefer to do things the hard way may
+prefer to use this interface.
+[bullet] a more convenient and powerful higher level interface
+that makes the API much more accessible. This is the interface
+documented in the remaining sections.
+[list_end]
+
+[manpage_end]
