@@ -33,6 +33,7 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 
 OBJS  = \
 	$(OBJDIR)\adsi.obj \
+	$(OBJDIR)\async.obj \
 	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
@@ -43,6 +44,7 @@ OBJS  = \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\eventlog.obj \
 	$(OBJDIR)\file.obj \
+	$(OBJDIR)\hotkey.obj \
 	$(OBJDIR)\gdi.obj \
 	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \

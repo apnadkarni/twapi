@@ -317,24 +317,24 @@ static TwapiMakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *cod
     Tcl_CreateAlias(interp, fn, interp, callcmd, 1, &code);
 }
 
-int Twapi_InitCalls(Tcl_Interp *interp)
+int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     Tcl_LinkVar(interp, "::twapi::netenum_bufsize",
                 (char *)&twapi_netenum_bufsize, TCL_LINK_INT);
 
     /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::Call", Twapi_CallObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallHSU", Twapi_CallHSUObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallW", Twapi_CallWObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallPSID", Twapi_CallPSIDObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallNetEnum", Twapi_CallNetEnumObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallPdh", Twapi_CallPdhObjCmd, NULL, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallCOM", Twapi_CallCOMObjCmd, NULL, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Call", Twapi_CallObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallHSU", Twapi_CallHSUObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallW", Twapi_CallWObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallPSID", Twapi_CallPSIDObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallNetEnum", Twapi_CallNetEnumObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallPdh", Twapi_CallPdhObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CallCOM", Twapi_CallCOMObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
@@ -597,6 +597,7 @@ int Twapi_InitCalls(Tcl_Interp *interp)
     CALL_(VerLanguageName, CallU, 36);
     CALL_(UnregisterDirChangeNotifier, CallU, 37);
     CALL_(GetBestInterface, CallU, 38);
+    CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
 
     CALL_(Twapi_GetProcessList, CallU, 1001);
     CALL_(Beep, CallU, 1002);
@@ -614,13 +615,13 @@ int Twapi_InitCalls(Tcl_Interp *interp)
     CALL_(OpenThread, CallU, 2002);
     CALL_(OpenInputDesktop, CallU, 2003);
     CALL_(AttachThreadInput, CallU, 2004);
+    CALL_(RegisterHotKey, CallU, 2005);
 
     CALL_(GlobalAlloc, CallU, 10001);
     CALL_(LHashValOfName, CallU, 10002);
     CALL_(SetClipboardData, CallU, 10003);
     CALL_(SetStdHandle, CallU, 10004);
     CALL_(CreateConsoleScreenBuffer, CallU, 10006);
-    CALL_(RegisterHotKey, CallU, 10007);
 
     // CallS - function(LPWSTR)
     CALL_(RegisterClipboardFormat, CallS, 1);
@@ -649,6 +650,7 @@ int Twapi_InitCalls(Tcl_Interp *interp)
     CALL_(Twapi_SendUnicode, CallS, 20);
     CALL_(Twapi_GetFileVersionInfo, CallS, 21);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
+    CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
@@ -2531,7 +2533,7 @@ int Twapi_CallObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
     return TwapiSetResult(interp, &result);
 }
 
-int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD dw, dw2, dw3;
     TwapiResult result;
@@ -2668,10 +2670,8 @@ int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
             break;
         case 27:
             return Twapi_BlockInput(interp, dw);
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
         case 28:
-            return Twapi_UnregisterHotKey(interp, dw);
-#endif
+            return Twapi_UnregisterHotKey(ticP, dw);
         case 29:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetCaretBlinkTime(dw);
@@ -2725,6 +2725,12 @@ int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
                 result.value.ival = dw2;
                 result.type = TRT_DWORD;
             }
+            break;
+        case 39:
+            SetLastError(0);    /* As per MSDN */
+            GlobalDeleteAtom((WORD)dw);
+            result.value.ival = GetLastError();
+            result.type = TRT_EXCEPTION_ON_ERROR;
             break;
         }
     } else if (func < 2000) {
@@ -2806,6 +2812,8 @@ int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
             result.type = TRT_BOOL;
             result.value.bval = AttachThreadInput(dw, dw2, dw3);
             break;
+        case 2005:
+            return Twapi_RegisterHotKey(ticP, dw, dw2, dw3);
         }
     } else {
         /* Any number (> 0) of additional arguments */
@@ -2847,14 +2855,6 @@ int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
             result.value.hval = CreateConsoleScreenBuffer(dw, dw2, u.secattrP, dw3, NULL);
             TwapiFreeSECURITY_ATTRIBUTES(u.secattrP);
             break;
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
-        case 10007: // RegisterHotKey
-            if (TwapiGetArgs(interp, objc-3, objv+3,
-                             GETINT(dw2), GETASTR(u.utf8),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_RegisterHotKey(interp, dw, dw2, u.utf8);
-#endif
         }
 
     }
@@ -2862,7 +2862,7 @@ int Twapi_CallUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
     return TwapiSetResult(interp, &result);
 }
 
-int Twapi_CallSObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR arg;
     TwapiResult result;
@@ -2984,6 +2984,10 @@ int Twapi_CallSObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
             }
             if (bufP != u.buf)
                 free(bufP);
+            break;
+        case 23: // GlobalAddAtom
+            result.value.ival = GlobalAddAtomW(arg);
+            result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         }
     } else if (func < 1000) {

@@ -1134,14 +1134,47 @@ proc twapi::send_keys {keys} {
 
 
 # Register a hotkey
-proc twapi::register_hotkey {hotkey script} {
-    foreach {modifiers vk} [_hotkeysyms_to_vk $hotkey] break
+proc twapi::_hotkey_handler {atom key} {
+    variable _hotkeys
 
-    RegisterHotKey $modifiers $vk $script
+    # Note it is not an error if a hotkey does not exist since it could
+    # have been deregistered in the time between hotkey input and receiving it.
+    if {[info exists _hotkeys($atom)]} {
+        eval $_hotkeys($atom)
+    }
+    return;                     # Return "", not output of eval'ed script
 }
 
-proc twapi::unregister_hotkey {id} {
-    UnregisterHotKey $id
+proc twapi::register_hotkey {hotkey script} {
+    variable _hotkeys
+
+    set script [lrange $script 0 end]; # Ensure a valid list
+
+    foreach {modifiers vk} [_hotkeysyms_to_vk $hotkey] break
+    set hkid "twapi_hk_${vk}_$modifiers"
+    set atom [GlobalAddAtom $hkid]
+    if {[info exists _hotkeys($atom)]} {
+        GlobalDeleteAtom $atom; # Undo above AddAtom since already there
+        set _hotkeys($atom) $script; # Replace previous script
+        return $atom
+    }
+    try {
+        RegisterHotKey $atom $modifiers $vk
+    } onerror {} {
+        GlobalDeleteAtom $atom; # Undo above AddAtom
+        error "Error registering hotkey." $errorInfo $errorCode
+    }
+    set _hotkeys($atom) $script
+    return $atom
+}
+
+proc twapi::unregister_hotkey {atom} {
+    variable _hotkeys
+    if {[info exists _hotkeys($atom)]} {
+        UnregisterHotKey $atom
+        GlobalDeleteAtom $atom
+        unset _hotkeys($atom)
+    }
 }
 
 
