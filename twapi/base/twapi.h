@@ -58,9 +58,9 @@
 #include "twapi_sdkdefs.h"
 /* TBD #include "callback.h" */
 #include "twapi_ddkdefs.h"
+#include "zlist.h"
 
 #define TWAPI_TCL_NAMESPACE "twapi"
-
 
 /*
  * Macro to create a stub to load and return a pointer to a function
@@ -516,6 +516,88 @@ typedef struct {
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
+/******************************************************************
+ * Definitions related to queueing async callbacks such as hotkeys
+ ******************************************************************/
+
+/* Forward decls */
+struct _TwapiInterpContext;
+typedef struct _TwapiPendingCallback TwapiPendingCallback;
+
+/*
+ * For asynchronous notifications of events, there is a common framework
+ * that passes events from the asynchronous handlers into the Tcl event
+ * dispatch loop. From there, the framework calls a function of type
+ * TwapiCallbackFn. This function should parse the event into a Tcl script
+ * and return ERROR_SUCCESS on success. On failure, the function should
+ * return an appropriate Win32 error code. In both cases, it can optionally
+ * store a pointer to a Tcl_Obj in the second parameter. On an ERROR_SUCCESS
+ * return, the framework will evaluate the object (which would generally
+ * map to a script), and return the result to the original async handler
+ * if required. On an error return, the returned object, if any, is directly
+ * passed back to the asynchronous handler if required.
+ */
+typedef DWORD TwapiCallbackFn(struct _TwapiPendingCallback *, Tcl_Obj **);
+
+/*
+ * Definitions relating to queue of pending callbacks. All pending callbacks
+ * structure definitions must start with this structure as the header.
+ */
+
+/* Creates list link definitions */
+ZLINK_CREATE_TYPEDEFS(TwapiPendingCallback); 
+typedef struct _TwapiPendingCallback {
+    struct _TwapiInterpContext *ticP; /* Interpreter context */
+    TwapiCallbackFn  *callback;     /* Function to call back - see notes
+                                       in the TwapiCallbackFn typedef */
+    LONG volatile     nrefs;       /* Ref count - use InterlockedIncrement */
+    HANDLE            completion_event;
+    ZLINK_DECL(TwapiPendingCallback); /* Link for list */
+    DWORD             status;         /* Return status - Win32 error code */
+    WCHAR            *resultP;        /* TwapiAlloc'ed memory */
+} TwapiPendingCallback;
+
+/* Create list header definitions */
+ZLIST_CREATE_TYPEDEFS(TwapiPendingCallback);
+
+/*
+ * TwapiInterpContext keeps track of a per-interpreter context.
+ * This is allocated when twapi is loaded into an interpreter and
+ * passed around as ClientData to most commands. It is never
+ * deallocated as there is no callback associated with interp deletion.
+ */
+typedef struct _TwapiInterpContext {
+    LONG volatile         nrefs;   /* Reference count for alloc/free */
+
+    /* Back pointer to the associated interp. This must only be modified or
+     * accessed in the Tcl thread. THIS IS IMPORTANT AS THERE IS NO
+     * SYNCHORNIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
+     * ACCESSED FROM OTHER THREADS
+     */
+    Tcl_Interp *interp;
+
+
+    ZLIST_DECL(TwapiPendingCallback) pending; /* List of pending callbacks */
+    int              pending_suspended;       /* If true, do not pend events */
+    CRITICAL_SECTION pending_cs; /* Controls access to pending and
+                                    pending_suspended */
+    
+    /* Tcl Async callback token. This is created on initialization
+     * Note this CANNOT be left to be done when the event actually occurs.
+     */
+    Tcl_AsyncHandler async_handler;
+
+    HWND          notification_win; /* Window used for various notificatins */
+} TwapiInterpContext;
+
+/*
+ * Structure used for passing events into the Tcl core.
+ */
+typedef struct _TwapiTclEvent {
+    Tcl_Event event;            /* Must be first field */
+    TwapiPendingCallback *pending_callback;
+} TwapiTclEvent;
+
 
 /*****************************************************************
  * Prototypes and globals
@@ -539,6 +621,11 @@ extern int TclIsThreaded;
     } while (0)
 
 
+/* Memory allocation */
+#define TwapiAlloc(sz_) malloc(sz_)
+#define TwapiFree(p_) free(p_)
+WCHAR *TwapiAllocString(WCHAR *, int len);
+
 /* C - Tcl result and parameter conversion  */
 int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
@@ -561,11 +648,23 @@ int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
 
 /* Wrappers around saving/restoring Tcl state */
 void *Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status);
-int Twapi_RestoreResultErrorInfo (
-    Tcl_Interp *interp,
-    void       *savePtr
-);
+int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr);
 void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr);
+
+/* Async handling related */
+#define TwapiPendingCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
+void TwapiPendingCallbackUnref(TwapiPendingCallback *pcbP, int);
+void TwapiPendingCallbackDelete(TwapiPendingCallback *pcbP);
+TwapiPendingCallback *TwapiPendingCallbackNew(
+    TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
+int TwapiEnqueueCallback(
+    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP, int timeout,
+    WCHAR **resultPP);
+int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
+#define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
+void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
+DWORD TwapiInterpContextEnqueueCallback(
+    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP, int need_response);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
@@ -1074,15 +1173,19 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta);
 int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle);
 int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
 DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP);
+int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id);
+int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk);
+LRESULT TwapiHotkeyHandler(TwapiInterpContext *, WPARAM id, LPARAM modifiers);
+HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
  * may be NULL)
  */
-typedef LRESULT (*TwapiHiddenWindowCallbackProc)(Tcl_Interp *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
-int Twapi_CreateHiddenWindow(Tcl_Interp *interp,
-                             TwapiHiddenWindowCallbackProc winProc,
+typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
+int Twapi_CreateHiddenWindow(TwapiInterpContext *,
+                             TwapiHiddenWindowCallbackProc *winProc,
                              LONG_PTR clientdata, HWND *winP);
 
 
@@ -1106,7 +1209,7 @@ TwapiTclObjCmd Twapi_ComEventSinkObjCmd;
 TwapiTclObjCmd Twapi_SHChangeNotify;
 
 /* Dispatcher routines */
-int Twapi_InitCalls(Tcl_Interp *interp);
+    int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TwapiTclObjCmd Twapi_CallObjCmd;
 TwapiTclObjCmd Twapi_CallUObjCmd;
 TwapiTclObjCmd Twapi_CallSObjCmd;

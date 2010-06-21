@@ -220,3 +220,15 @@ overrun:
 }
 
 
+WCHAR *TwapiAllocString(WCHAR *src, int len)
+{
+    WCHAR *dst;
+    if (len < 0) {
+        len = lstrlenW(src);
+    }
+    dst = TwapiAlloc(sizeof(WCHAR) * (len+1));
+    if (dst == NULL)
+        Tcl_Panic("Could not allocate memory");
+    MoveMemory(dst, src, len);
+    return dst;
+}

@@ -992,6 +992,11 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
      */
     this->lpVtbl->AddRef(this);
 
+    /* TBD - is this safe as we are being called from the message dispatch
+       loop? Or should we queue to pending callback queue ? But in that
+       case we cannot get results back as we can't block in this thread
+       as the script invocation will also be in this thread.
+    */
     /* If hr is not TCL_OK, it is a HRESULT error code */
     Tcl_SaveResult(me->interp, &savedresult);
     hr = Tcl_EvalObjv(me->interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
@@ -1056,7 +1061,7 @@ int Twapi_ComEventSinkObjCmd(
     /* Fill in the cmdargs slots from the arguments */
     sinkP->idispP.lpVtbl = &Twapi_EventSink_Vtbl;
     sinkP->iid = iid;
-    Tcl_Preserve(interp);
+    Tcl_Preserve(interp);   /* TBD - inappropriate use of interp, use ticP */
     sinkP->interp = interp;
     sinkP->refc = 1;
     Tcl_IncrRefCount(objv[2]);
