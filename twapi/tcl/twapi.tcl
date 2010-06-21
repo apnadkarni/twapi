@@ -17,6 +17,8 @@ namespace eval twapi {
     variable nullptr "__null__"
     variable scriptdir [file dirname [info script]]
 
+    # Counter used for name/handle generation
+    variable _name_ctr 0
 }
 
 if {![info exists twapi::version]} {

@@ -8,17 +8,6 @@
 #include <twapi.h>
 #include "twapi_wm.h"
 
-/* Name of hidden window class */
-#define TWAPI_HIDDEN_WINDOW_CLASS_L L"TwapiHiddenWindow"
-
-/*
- * Define offsets in window data
- */
-#define TWAPI_HIDDEN_WINDOW_CONTEXT_OFFSET     0
-#define TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET   (TWAPI_HIDDEN_WINDOW_CONTEXT_OFFSET + sizeof(LONG_PTR))
-#define TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET (TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET + sizeof(LONG_PTR))
-#define TWAPI_HIDDEN_WINDOW_DATA_SIZE       (TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET + sizeof(LONG_PTR))
-
 
 /* Window proc for Twapi hidden windows */
 LRESULT CALLBACK TwapiHiddenWindowProc(
@@ -165,7 +154,9 @@ static LRESULT TwapiNotificationWindowHandler(
 
 /*
  * To minimize number of windows, we have a "common" window that can be shared
- * by notifications. This returns that window, creating if necessary.
+ * by notifications. This returns that window, creating if necessary. Note
+ * This window is limited in the sense that it is not possible to store
+ * custom data in the window.
  */
 HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP)
 {
