@@ -2790,6 +2790,24 @@ namespace eval twapi::clipboard::test {
     } -body {
     } -result ""
 
+    ###
+
+    test register_hotkey-2.0 {
+        Register multiple scripts for a hot key with -append
+    } -constraints {
+        nt TBD
+    } -body {
+    } -result ""
+
+    ###
+
+    test register_hotkey-2.1 {
+        Test break return from hot key scripts
+    } -constraints {
+        nt TBD
+    } -body {
+    } -result ""
+
     ################################################################
 
     test unregister_hotkey-1.0 {
