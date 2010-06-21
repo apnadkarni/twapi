@@ -81,6 +81,10 @@ Added [cmd -hprocess] and [cmd -hthread] options to
 [bullet] Added the [cmd -attributes] option to
 [uri users.html#get_global_group_info [cmd get_global_group_info]].
 
+[bullet] Added [cmd -append] option to
+[uri input.html#register_hotkey [cmd register_hotkey]]
+to allow multiple scripts to register for the same hotkey.
+
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
 [cmd lock_scm_db], [cmd unlock_scm_db] and [cmd query_scm_db_lock_status]
 as they have no effect on Vista and later systems and were rarely used
