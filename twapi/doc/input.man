@@ -77,16 +77,22 @@ of [uri \#send_input [cmd send_input]] for more details.
 [nl]
 [uri opensysmenuwithmouse.example "Example: Move mouse to system menu"]
 
-[call [cmd register_hotkey] [arg HOTKEY] [arg SCRIPT]]
+[call [cmd register_hotkey] [arg HOTKEY] [arg SCRIPT] [opt [cmd -append]]]
 
 Registers a script to be invoked when the user presses the hotkey specified
 by [arg HOTKEY]. Note that the script is invoked when the hotkey is pressed
 even if some other application had the input focus. If the caller had
 previously registered a script for the same hotkey, it is replaced by
-[arg SCRIPT].
+[arg SCRIPT] unless the [cmd -append] option is specified. In this latter
+case, [arg SCRIPT] is added to the list of scripts. These are
+invoked in turn in the order they were registered. If any of the scripts
+returns an error or a return code value of 3 (break), subsequent scripts
+in the list are not invoked. Any errors are reported as background errors
+using the standard Tcl background error mechanism.
 [nl]
 [arg HOTKEY] is a string describing the key combination and consists of
-0-4 modifiers followed by the key code, all separated by the [const -] character.
+0-4 modifiers followed by the key code, all separated by the [const -]
+character.
 A modifier may be one of [const ctrl] (or [const control]),
 [const alt] (or [const menu]), [const shift] or
 [const win]. The key code itself may be a single alphanumeric character,
