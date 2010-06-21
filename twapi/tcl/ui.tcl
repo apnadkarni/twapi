@@ -1139,14 +1139,37 @@ proc twapi::_hotkey_handler {atom key} {
 
     # Note it is not an error if a hotkey does not exist since it could
     # have been deregistered in the time between hotkey input and receiving it.
+    set code 0
     if {[info exists _hotkeys($atom)]} {
-        eval $_hotkeys($atom)
+        foreach handler $_hotkeys($atom) {
+            set code [catch {eval $handler} msg]
+            switch -exact -- $code {
+                0 {
+                    # Normal, keep going
+                }
+                1 {
+                    # Error - put in background and abort
+                    after 0 [list error $msg $::errorInfo $::errorCode]
+                    break
+                }
+                3 {
+                    break;      # Ignore remaining handlers
+                }
+                default {
+                    # Keep going
+                }
+            }
+        }
     }
-    return;                     # Return "", not output of eval'ed script
+    return -code $code ""
 }
 
-proc twapi::register_hotkey {hotkey script} {
+proc twapi::register_hotkey {hotkey script args} {
     variable _hotkeys
+
+    array set opts [parseargs args {
+        append
+    } -maxleftover 0]
 
     set script [lrange $script 0 end]; # Ensure a valid list
 
@@ -1155,7 +1178,11 @@ proc twapi::register_hotkey {hotkey script} {
     set atom [GlobalAddAtom $hkid]
     if {[info exists _hotkeys($atom)]} {
         GlobalDeleteAtom $atom; # Undo above AddAtom since already there
-        set _hotkeys($atom) $script; # Replace previous script
+        if {$opts(append)} {
+            lappend _hotkeys($atom) $script
+        } else {
+            set _hotkeys($atom) [list $script]; # Replace previous script
+        }
         return $atom
     }
     try {
@@ -1164,7 +1191,7 @@ proc twapi::register_hotkey {hotkey script} {
         GlobalDeleteAtom $atom; # Undo above AddAtom
         error "Error registering hotkey." $errorInfo $errorCode
     }
-    set _hotkeys($atom) $script
+    set _hotkeys($atom) [list $script]; # Replace previous script
     return $atom
 }
 
