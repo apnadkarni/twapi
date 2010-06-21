@@ -215,6 +215,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
     ticP->notification_win = NULL; /* Created only on demand */
+    ticP->clipboard_win = NULL; /* Created only on demand */
 
     return ticP;
 }
@@ -276,6 +277,10 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
     if (ticP->notification_win) {
         DestroyWindow(ticP->notification_win);
         ticP->notification_win = 0;
+    }
+    if (ticP->clipboard_win) {
+        DestroyWindow(ticP->clipboard_win);
+        ticP->clipboard_win = 0;
     }
     
 }

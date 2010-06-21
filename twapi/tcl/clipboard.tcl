@@ -161,8 +161,63 @@ proc twapi::clipboard_format_available {fmt} {
     return [IsClipboardFormatAvailable $fmt]
 }
 
+
+
 # Start monitoring of the clipboard
-interp alias {} ::twapi::start_clipboard_monitor {} ::twapi::MonitorClipboardStart
+proc twapi::_clipboard_handler {} {
+    variable _clipboard_monitors
+
+    if {![info exists _clipboard_monitors] ||
+        [llength $_clipboard_monitors] == 0} {
+        return; # Not an error, could have deleted while already queued
+    }
+
+    foreach {id script} $_clipboard_monitors {
+        set code [catch {eval $script} msg]
+        if {$code == 1} {
+            # Error - put in background but we do not abort
+            after 0 [list error $msg $::errorInfo $::errorCode]
+        }
+    }
+    return
+}
+
+proc twapi::start_clipboard_monitor {script} {
+    variable _name_ctr
+    variable _clipboard_monitors
+
+    set script [lrange $script 0 end]; # Verify syntactically a list
+
+    set id "clip[incr _name_ctr]"
+    if {![info exists _clipboard_monitors] ||
+        [llength $_clipboard_monitors] == 0} {
+        # No clipboard monitoring in progress. Start it
+        MonitorClipboardStart
+    }
+
+    lappend _clipboard_monitors $id $script
+    return $id
+}
+
+
 
 # Stop monitoring of the clipboard
-interp alias {} ::twapi::stop_clipboard_monitor {} ::twapi::MonitorClipboardStop
+proc twapi::stop_clipboard_monitor {clipid} {
+    variable _clipboard_monitors
+
+    if {![info exists _clipboard_monitors]} {
+        return;                 # Should we raise an error instead?
+    }
+
+    set new_monitors {}
+    foreach {id script} $_clipboard_monitors {
+        if {$id ne $clipid} {
+            lappend new_monitors $id $script
+        }
+    }
+
+    set _clipboard_monitors $new_monitors
+    if {[llength $_clipboard_monitors] == 0} {
+        MonitorClipboardStop
+    }
+}

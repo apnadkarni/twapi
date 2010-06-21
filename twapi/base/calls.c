@@ -413,6 +413,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
+    CALL_(MonitorClipboardStart, Call, 69);
+    CALL_(MonitorClipboardStop, Call, 70);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -420,7 +422,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(GetDeviceDriverBaseName, Call, 1005);
     CALL_(GetDeviceDriverFileName, Call, 1006);
-    CALL_(MonitorClipboardStart, Call, 1007);
     CALL_(QuerySecurityContextToken, Call, 1008);
     CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
@@ -789,7 +790,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetWindowDC, CallW, 26);
     CALL_(Twapi_PowerNotifyStop, CallW, 27);
     CALL_(EnumChildWindows, CallW, 28);
-    CALL_(MonitorClipboardStop, CallW, 29);
     CALL_(GetWindowPlacement, CallW, 30); // TBD - Tcl wrapper
     CALL_(GetWindowInfo, CallW, 31); // TBD - Tcl wrapper
 
@@ -1067,7 +1067,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 }
 
 
-int Twapi_CallObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     int func;
@@ -1382,6 +1382,10 @@ int Twapi_CallObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
             } else
                 result.type = TRT_EXCEPTION_ON_FALSE;
             break;
+        case 69:
+            return Twapi_MonitorClipboardStart(ticP);
+        case 70:
+            return Twapi_MonitorClipboardStop(ticP);
         }
 
         return TwapiSetResult(interp, &result);
@@ -1436,10 +1440,7 @@ int Twapi_CallObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Ob
                 result.type = TRT_GETLASTERROR;
             break;
 #endif
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
-        case 1007:
-            return Twapi_MonitorClipboardStart(interp, Tcl_GetString(objv[2]));
-#endif
+//        case 1007: UNUSED
         case 1008:
             if (ObjToSecHandle(interp, objv[2], &sech) != TCL_OK)
                 return TCL_ERROR;
@@ -3986,10 +3987,7 @@ int Twapi_CallWObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
     case 28:
         return Twapi_EnumChildWindows(interp, hwnd);
 
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
-    case 29:
-        return Twapi_MonitorClipboardStop(interp, hwnd);
-#endif
+//  case 29: NOT USED
 
     case 30:
         if (GetWindowPlacement(hwnd, &u.winplace)) {

@@ -587,7 +587,8 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_AsyncHandler async_handler;
 
-    HWND          notification_win; /* Window used for various notificatins */
+    HWND          notification_win; /* Window used for various notifications */
+    HWND          clipboard_win;    /* Window used for clipboard notifications */
 } TwapiInterpContext;
 
 /*
@@ -597,6 +598,20 @@ typedef struct _TwapiTclEvent {
     Tcl_Event event;            /* Must be first field */
     TwapiPendingCallback *pending_callback;
 } TwapiTclEvent;
+
+
+/****************************************
+ * Definitions related to hidden windows
+ ****************************************/
+/* Name of hidden window class */
+#define TWAPI_HIDDEN_WINDOW_CLASS_L L"TwapiHiddenWindow"
+
+/* Define offsets in window data */
+#define TWAPI_HIDDEN_WINDOW_CONTEXT_OFFSET     0
+#define TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET   (TWAPI_HIDDEN_WINDOW_CONTEXT_OFFSET + sizeof(LONG_PTR))
+#define TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET (TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET + sizeof(LONG_PTR))
+#define TWAPI_HIDDEN_WINDOW_DATA_SIZE       (TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET + sizeof(LONG_PTR))
+
 
 
 /*****************************************************************
@@ -1050,6 +1065,8 @@ int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
 
 /* Clipboard related */
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
+int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP);
+int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP);
 
 
 /* ADSI related */
