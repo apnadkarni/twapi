@@ -431,7 +431,8 @@ blocked and 0 if the input was already unblocked.
 [call [cmd unregister_hotkey] [arg HOTKEY_ID]]
 Unregisters a hot key that was previously registered. [arg HOTKEY_ID] should
 be a hotkey identifer returned by a previous call to
-[uri \#register_hotkey [cmd register_hotkey]].
+[uri \#register_hotkey [cmd register_hotkey]]. All scripts associated with
+the hotkey are unregistered.
 
 [nl]
 [uri hotkey.example "Example: Start a program when a hotkey is pressed"]
