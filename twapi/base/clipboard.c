@@ -78,7 +78,7 @@ static LRESULT TwapiClipboardMonitorWinProc(
         case WM_DRAWCLIPBOARD:  // clipboard contents changed.
             pcbP = TwapiPendingCallbackNew(ticP, TwapiClipboardCallbackFn,
                                            sizeof(*pcbP));
-            TwapiEnqueueCallback(ticP, pcbP, 0, NULL);
+            TwapiEnqueueCallback(ticP, pcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
 
             /* Pass the message to the next window in clipboard chain */
             if (clip_stateP->next_win != NULL)

@@ -576,6 +576,7 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_Interp *interp;
 
+    Tcl_ThreadId thread;     /* Id of interp thread */
 
     ZLIST_DECL(TwapiPendingCallback) pending; /* List of pending callbacks */
     int              pending_suspended;       /* If true, do not pend events */
@@ -673,13 +674,17 @@ void TwapiPendingCallbackDelete(TwapiPendingCallback *pcbP);
 TwapiPendingCallback *TwapiPendingCallbackNew(
     TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
 int TwapiEnqueueCallback(
-    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP, int timeout,
+    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP,
+    int enqueue_method,
+    int timeout,
     WCHAR **resultPP);
+#define TWAPI_ENQUEUE_DIRECT 0
+#define TWAPI_ENQUEUE_ASYNC  1
+
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
 void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
-DWORD TwapiInterpContextEnqueueCallback(
-    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP, int need_response);
+
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 

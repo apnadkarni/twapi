@@ -25,6 +25,8 @@ int TwapiEnqueueCallback(
                                    go away until this function returns */
     TwapiPendingCallback *pcbP, /* Must be NEWLY Initialized. Ref count
                                    expected to be 0! */
+    int    enqueue_method, /* Use the Tcl_Async route to queue. If 0,
+                              Tcl_QueueEvent is directly called */
     int    timeout,             /* How long to wait for a result. Must be 0
                                   IF CALLING FROM A TCL THREAD ELSE
                                   DEADLOCK MAY OCCUR */
@@ -54,12 +56,53 @@ int TwapiEnqueueCallback(
             
     }
     
-    status = TwapiInterpContextEnqueueCallback(ticP, pcbP, (timeout != 0));
-    if (status != ERROR_SUCCESS) {
-        if (pcbP->completion_event)
-            CloseHandle(pcbP->completion_event);
-        TwapiPendingCallbackDelete(pcbP);
-        return ERROR_RESOURCE_NOT_PRESENT; /* For lack of anything better */
+    if (enqueue_method == TWAPI_ENQUEUE_DIRECT) {
+        /* Queue via the older Tcl_Async mechanism. */
+        EnterCriticalSection(&ticP->pending_cs);
+
+        if (ticP->pending_suspended) {
+            LeaveCriticalSection(&ticP->pending_cs);
+            if (pcbP->completion_event)
+                CloseHandle(pcbP->completion_event);
+            TwapiPendingCallbackDelete(pcbP);
+            return ERROR_RESOURCE_NOT_PRESENT; /* For lack of anything better */
+        }
+
+        /* Place on the pending queue. The Ref ensures it does not get
+         * deallocated while on the queue. The corresponding Unref will 
+         * be done by the receiver. ALWAYS. Do NOT add a Unref here 
+         *
+         * In addition, if we are not done with the pcbP after queueing
+         * as we need to await for a response, we have to add another Ref
+         * to make sure it does not go away. In that case we Ref by 2.
+         * The corresponding Unref will happen below after we get the response
+         * or time out.
+         */
+        TwapiPendingCallbackRef(pcbP, (timeout ? 2 : 1));
+        ZLIST_APPEND(&ticP->pending, pcbP); /* Enqueue */
+
+        /* Also make sure the ticP itself does not go away */
+        pcbP->ticP = ticP;
+        TwapiInterpContextRef(ticP, 1);
+
+        /* To avoid races, the AsyncMark should also happen in the crit sec */
+        Tcl_AsyncMark(ticP->async_handler);
+    
+        LeaveCriticalSection(&ticP->pending_cs);
+    } else {
+        /* Queue directly to the Tcl event loop for the thread */
+        /* Note the CallbackEvent gets freed by the Tcl code and hence
+           must be allocated using Tcl_Alloc, not malloc or TwapiAlloc */
+        TwapiTclEvent *tteP = (TwapiTclEvent *) Tcl_Alloc(sizeof(*tteP));
+        tteP->event.proc = Twapi_TclEventProc;
+        tteP->pending_callback = pcbP;
+        /* For similar reasons to above, bump ref counts */
+        TwapiPendingCallbackRef(pcbP, (timeout ? 2 : 1));
+        pcbP->ticP = ticP;
+        TwapiInterpContextRef(ticP, 1);
+
+        Tcl_ThreadQueueEvent(ticP->thread, (Tcl_Event *) tteP, TCL_QUEUE_TAIL);
+        
     }
 
     if (timeout == 0)
@@ -275,4 +318,5 @@ void TwapiPendingCallbackUnref(TwapiPendingCallback *pcbP, int decr)
     if (InterlockedExchangeAdd(&pcbP->nrefs, -decr) <= decr)
         TwapiPendingCallbackDelete(pcbP);
 }
+
 

@@ -79,6 +79,6 @@ LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, WPARAM id, LPARAM key)
 
     hkcbP->wparam = id;
     hkcbP->lparam = key;
-    TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) hkcbP, 0, NULL);
+    TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) hkcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
     return (LRESULT) NULL;
 }
