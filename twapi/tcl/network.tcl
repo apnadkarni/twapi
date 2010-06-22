@@ -756,7 +756,10 @@ proc twapi::address_to_hostname {addr args} {
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
-        Twapi_ResolveAddressAsync $addr "::twapi::_ResolveAddress_handler [list $opts(async)]"
+        variable _name_ctr
+        variable _address_handler_scripts
+        set _address_handler_scripts([incr _name_ctr]) [list $addr $opts(async)]
+        Twapi_ResolveAddressAsync $_name_ctr $addr
         return ""
     }
 
@@ -800,17 +803,18 @@ proc twapi::hostname_to_address {name args} {
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
-        Twapi_ResolveHostnameAsync $name "::twapi::_ResolveHostname_handler [list $opts(async)]"
+        variable _name_ctr
+        variable _hostname_handler_scripts
+        set _hostname_handler_scripts([incr _name_ctr]) [list $name $opts(async)]
+        Twapi_ResolveHostnameAsync $_name_ctr $name
         return ""
     }
 
     # Resolve address synchronously
     set addrs [list ]
-    catch {
-        foreach endpt [twapi::getaddrinfo $name 0 0] {
-            foreach {addr port} $endpt break
-            lappend addrs $addr
-        }
+    foreach endpt [twapi::getaddrinfo $name 0 0] {
+        foreach {addr port} $endpt break
+        lappend addrs $addr
     }
 
     set name2addr($name) $addrs
@@ -977,17 +981,37 @@ proc twapi::_hwaddr_binary_to_string {b {joiner -}} {
 }
 
 # Callback for address resolution
-proc twapi::_ResolveAddress_handler {script addr status hostname} {
+proc twapi::_address_resolve_handler {id status hostname} {
+    variable _address_handler_scripts
+
+    if {![info exists _address_handler_scripts($id)]} {
+        # Queue a background error
+        after 0 [list error "Error: No entry found for id $id in address request table"]
+        return
+    }
+    foreach {addr script} $_address_handler_scripts($id) break
+    unset _address_handler_scripts($id)
+
     # Before invoking the callback, store result if available
     if {$status eq "success"} {
         set ::twapi::addr2name($addr) $hostname
     }
-    eval $script [list $addr $status $hostname]
+    eval [linsert $script end $addr $status $hostname]
     return
 }
 
 # Callback for hostname resolution
-proc twapi::_ResolveHostname_handler {script name status addrs} {
+proc twapi::_hostname_resolve_handler {id status addrs} {
+    variable _hostname_handler_scripts
+
+    if {![info exists _hostname_handler_scripts($id)]} {
+        # Queue a background error
+        after 0 [list error "Error: No entry found for id $id in hostname request table"]
+        return
+    }
+    foreach {name script} $_hostname_handler_scripts($id) break
+    unset _hostname_handler_scripts($id)
+
     # Before invoking the callback, store result if available
     if {$status eq "success"} {
         set ::twapi::name2addr($name) $addrs
@@ -999,7 +1023,7 @@ proc twapi::_ResolveHostname_handler {script name status addrs} {
         set addrs [list ]
     }
 
-    eval $script [list $name $status $addrs]
+    eval [linsert $script end $name $status $addrs]
     return
 }
 

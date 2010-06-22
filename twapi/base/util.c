@@ -220,15 +220,34 @@ overrun:
 }
 
 
-WCHAR *TwapiAllocString(WCHAR *src, int len)
+WCHAR *TwapiAllocWString(WCHAR *src, int len)
 {
     WCHAR *dst;
     if (len < 0) {
         len = lstrlenW(src);
     }
     dst = TwapiAlloc(sizeof(WCHAR) * (len+1));
-    if (dst == NULL)
-        Tcl_Panic("Could not allocate memory");
-    MoveMemory(dst, src, len);
+    MoveMemory(dst, src, sizeof(WCHAR)*len);
+    dst[len] = 0; /* Source string may not have been terminated after len chars */
     return dst;
+}
+
+char *TwapiAllocAString(char *src, int len)
+{
+    char *dst;
+    if (len < 0) {
+        len = lstrlenA(src);
+    }
+    dst = TwapiAlloc(len+1);
+    MoveMemory(dst, src, len);
+    dst[len] = 0; /* Source string may not have been terminated after len chars */
+    return dst;
+}
+
+void *TwapiAlloc(size_t sz)
+{
+    void *p = malloc(sz);
+    if (p == NULL)
+        Tcl_Panic("Could not allocate %d bytes.", sz);
+    return p;
 }

@@ -42,7 +42,7 @@ status [const success] or [const fail] and either the FQDN
 (when the status is [const success]) or the Winsock error code
 (when the status is [const fail]). The Winsock error code
 may be translated to an error string using the
-[uri misc.html\#map_windows_error [cmd map_windows_error]] command.
+[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
 If no names are found, the status is [const success] but the
 third argument will be an empty string.
 [nl]
@@ -417,7 +417,7 @@ status [const success] or [const fail] and either the list of IP addresses
 (when the status is [const success]) or the Winsock error code
 (when the status is [const fail]). The Winsock error code
 may be translated to an error string using the
-[uri misc.html\#map_windows_error [cmd map_windows_error]] command.
+[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
 Note that on some platforms, if no addresses are found, 
 callback may be invoked with a status of [const success] and an empty list
 for the third argument, or it may be invoked with a status of fail

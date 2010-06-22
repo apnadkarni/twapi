@@ -596,7 +596,13 @@ typedef struct _TwapiInterpContext {
 } TwapiInterpContext;
 
 /*
- * Structure used for passing events into the Tcl core.
+ * Structure used for passing events into the Tcl core. In some instances
+ * you can directly inherit from Tcl_Event and do not have to go through
+ * the expense of an additional allocation. However, Tcl_Event based
+ * structures have to be allocated using Tcl_Alloc and we prefer not
+ * to do that from outside Tcl threads. In such cases, pending_callback
+ * is allocated using TwapiAlloc, passed between threads, and attached
+ * to a Tcl_Alloc'ed TwapiTclEvent in a Tcl thread. See async.c
  */
 typedef struct _TwapiTclEvent {
     Tcl_Event event;            /* Must be first field */
@@ -641,9 +647,10 @@ extern int TclIsThreaded;
 
 
 /* Memory allocation */
-#define TwapiAlloc(sz_) malloc(sz_)
+void *TwapiAlloc(size_t sz);
 #define TwapiFree(p_) free(p_)
-WCHAR *TwapiAllocString(WCHAR *, int len);
+WCHAR *TwapiAllocWString(WCHAR *, int len);
+char *TwapiAllocAString(char *, int len);
 
 /* C - Tcl result and parameter conversion  */
 int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
@@ -1109,6 +1116,8 @@ Tcl_Obj *ObjFromIP_ADAPTER_INFO_table(Tcl_Interp *, IP_ADAPTER_INFO *ainfoP);
 int ObjToSOCKADDR_IN(Tcl_Interp *, Tcl_Obj *objP, struct sockaddr_in *sinP);
 int Twapi_GetNameInfo(Tcl_Interp *, const struct sockaddr_in* saP, int flags);
 int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* NLS */
 
