@@ -17,8 +17,6 @@ int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT 
 {
     HWND hwnd;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
-
     // Get the common notification window.
     hwnd = TwapiGetNotificationWindow(ticP);
     if (hwnd == NULL)
@@ -70,7 +68,7 @@ DWORD TwapiHotkeyCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
  * Called from the notification window message handler when a hotkey message
  * is received. Allocates and enqueues a callback.
  */
-LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, WPARAM id, LPARAM key)
+LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, UINT msg, WPARAM id, LPARAM key)
 {
     TwapiHotkeyCallback *hkcbP;
 

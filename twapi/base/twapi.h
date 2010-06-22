@@ -590,6 +590,7 @@ typedef struct _TwapiInterpContext {
 
     HWND          notification_win; /* Window used for various notifications */
     HWND          clipboard_win;    /* Window used for clipboard notifications */
+    int           power_events_on; /* True-> send through power notifications */
 } TwapiInterpContext;
 
 /*
@@ -1197,9 +1198,14 @@ int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
 DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP);
 int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id);
 int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk);
-LRESULT TwapiHotkeyHandler(TwapiInterpContext *, WPARAM id, LPARAM modifiers);
+LRESULT TwapiHotkeyHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
 HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 
+/* Power management */
+LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
+int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
+int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
+DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which

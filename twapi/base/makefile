@@ -53,6 +53,7 @@ OBJS  = \
 	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
+	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
