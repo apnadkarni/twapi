@@ -199,7 +199,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
 
     ticP->nrefs = 0;
     ticP->interp = interp;
-
+    ticP->thread = Tcl_GetCurrentThread();
 
     /* Initialize the critical section used for controlling
      * the notification list
@@ -219,44 +219,6 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
 
     return ticP;
 }
-
-/* Enqueues a callback within an interp context. Returns a Win32 error code */
-DWORD TwapiInterpContextEnqueueCallback(TwapiInterpContext *ticP,
-                                     TwapiPendingCallback *pcbP,
-                                     int need_response)
-{
-    EnterCriticalSection(&ticP->pending_cs);
-
-    if (ticP->pending_suspended) {
-        LeaveCriticalSection(&ticP->pending_cs);
-        return ERROR_RESOURCE_NOT_PRESENT; /* For lack of anything better */
-    }
-
-    /* Place on the pending queue. The Ref ensures it does not get
-     * deallocated while on the queue. The corresponding Unref will 
-     * be done by the receiver. ALWAYS. Do NOT add a Unref here 
-     *
-     * In addition, if we are not done with the pcbP after queueing
-     * as we need to await for a response, we have to add another Ref
-     * to make sure it does not go away. In that case we Ref by 2.
-     * The corresponding Unref will happen below after we get the response
-     * or time out.
-     */
-    TwapiPendingCallbackRef(pcbP, (need_response ? 2 : 1));
-    ZLIST_APPEND(&ticP->pending, pcbP); /* Enqueue */
-
-    /* Also make sure the ticP itself does not go away */
-    pcbP->ticP = ticP;
-    TwapiInterpContextRef(ticP, 1);
-
-    /* To avoid races, note the AsyncMark should also happen in the crit sec */
-    Tcl_AsyncMark(ticP->async_handler);
-    
-    LeaveCriticalSection(&ticP->pending_cs);
-
-    return ERROR_SUCCESS;
-}
-
 
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
