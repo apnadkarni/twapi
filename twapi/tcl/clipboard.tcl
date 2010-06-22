@@ -188,11 +188,11 @@ proc twapi::start_clipboard_monitor {script} {
 
     set script [lrange $script 0 end]; # Verify syntactically a list
 
-    set id "clip[incr _name_ctr]"
+    set id "clip#[incr _name_ctr]"
     if {![info exists _clipboard_monitors] ||
         [llength $_clipboard_monitors] == 0} {
         # No clipboard monitoring in progress. Start it
-        MonitorClipboardStart
+        Twapi_MonitorClipboardStart
     }
 
     lappend _clipboard_monitors $id $script
@@ -218,6 +218,6 @@ proc twapi::stop_clipboard_monitor {clipid} {
 
     set _clipboard_monitors $new_monitors
     if {[llength $_clipboard_monitors] == 0} {
-        MonitorClipboardStop
+        Twapi_MonitorClipboardStop
     }
 }
