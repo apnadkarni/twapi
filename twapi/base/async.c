@@ -56,7 +56,7 @@ int TwapiEnqueueCallback(
             
     }
     
-    if (enqueue_method == TWAPI_ENQUEUE_DIRECT) {
+    if (enqueue_method == TWAPI_ENQUEUE_ASYNC) {
         /* Queue via the older Tcl_Async mechanism. */
         EnterCriticalSection(&ticP->pending_cs);
 
