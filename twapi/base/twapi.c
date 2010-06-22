@@ -217,6 +217,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->notification_win = NULL; /* Created only on demand */
     ticP->clipboard_win = NULL;    /* Created only on demand */
     ticP->power_events_on = 0;
+    ticP->console_ctrl_hooked = 0;
 
     return ticP;
 }
@@ -236,7 +237,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
 
     DeleteCriticalSection(&ticP->pending_cs);
 
-    /* TBD - should this be in the Twapi_InterpCleanup instead ? */
+    /* TBD - should rest of this be in the Twapi_InterpCleanup instead ? */
     if (ticP->notification_win) {
         DestroyWindow(ticP->notification_win);
         ticP->notification_win = 0;
@@ -245,7 +246,6 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
         DestroyWindow(ticP->clipboard_win);
         ticP->clipboard_win = 0;
     }
-    
 }
 
 /* Decrement ref count and free if 0 */
@@ -266,7 +266,11 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     ticP->pending_suspended = 1;
     LeaveCriticalSection(&ticP->pending_cs);
 
+    if (ticP->console_ctrl_hooked)
+        Twapi_StopConsoleEventNotifier(ticP);
+
     /* TBD - call other callback module clean up procedures */
+
     
     TwapiInterpContextUnref(ticP, 1);
 }

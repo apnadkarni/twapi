@@ -409,6 +409,12 @@ The following event names are passed to [arg SCRIPT].
 This command requires a threaded build of Tcl and will raise an exception
 on non-threaded builds.
 
+[nl]
+Only one Tcl interp should register a console control handler. Behaviour
+with multiple registrations is undefined.
+
+
+
 [call [cmd set_console_cursor_position] [arg CONOUTH] [arg {X Y}]]
 Sets the cursor position in a screen buffer. [arg CONOUTH] is the
 handle to the buffer and [arg {X Y}] is a list of two integers specifying

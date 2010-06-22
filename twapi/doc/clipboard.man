@@ -181,9 +181,6 @@ Multiple clipboard monitoring scripts may be active at the same
 time. However, all returned handles must be passed to
 [uri #stop_clipboard_monitor [cmd stop_clipboard_monitor]].
 before the application exits.
-[nl]
-This command requires a threaded build of Tcl and will raise an exception
-on non-threaded builds.
 
 [call [cmd stop_clipboard_monitor] [arg MONITOR_ID]]
 Stops a previously registered script that monitors clipboard contents.
