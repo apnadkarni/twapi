@@ -143,7 +143,11 @@ static LRESULT TwapiNotificationWindowHandler(
     switch (msg)
     {
     case WM_HOTKEY:
-        return TwapiHotkeyHandler(ticP, wParam, lParam);
+        return TwapiHotkeyHandler(ticP, msg, wParam, lParam);
+    case WM_POWERBROADCAST:
+        if (ticP->power_events_on)
+            return TwapiPowerHandler(ticP, msg, wParam, lParam);
+        /* FALLTHRU */
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }

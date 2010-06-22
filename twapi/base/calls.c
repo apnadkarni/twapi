@@ -413,8 +413,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
-    CALL_(MonitorClipboardStart, Call, 69);
-    CALL_(MonitorClipboardStop, Call, 70);
+    CALL_(Twapi_MonitorClipboardStart, Call, 69);
+    CALL_(Twapi_MonitorClipboardStop, Call, 70);
+    CALL_(Twapi_PowerNotifyStart, Call, 71);
+    CALL_(Twapi_PowerNotifyStop, Call, 72);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -433,7 +435,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
-    CALL_(Twapi_PowerNotifyStart, Call, 1019);
     CALL_(Twapi_StopServiceThread, Call, 1020);
     CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
@@ -788,7 +789,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetWindowThreadProcessId, CallW, 24);
     CALL_(GetWindowText, CallW, 25);
     CALL_(GetWindowDC, CallW, 26);
-    CALL_(Twapi_PowerNotifyStop, CallW, 27);
     CALL_(EnumChildWindows, CallW, 28);
     CALL_(GetWindowPlacement, CallW, 30); // TBD - Tcl wrapper
     CALL_(GetWindowInfo, CallW, 31); // TBD - Tcl wrapper
@@ -1386,6 +1386,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_MonitorClipboardStart(ticP);
         case 70:
             return Twapi_MonitorClipboardStop(ticP);
+        case 71:
+            return Twapi_PowerNotifyStart(ticP);
+        case 72:
+            return Twapi_PowerNotifyStop(ticP);
         }
 
         return TwapiSetResult(interp, &result);
@@ -1525,9 +1529,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
             break;
+//      case 1019: UNUSED
 #if ! defined(TWAPI_NOCALLBACKS)
-        case 1019:
-            return Twapi_PowerNotifyStart(interp, Tcl_GetString(objv[2]));
         case 1020:
             return Twapi_StopServiceThread(interp, Tcl_GetString(objv[2]));
 #endif
@@ -3980,10 +3983,7 @@ int Twapi_CallWObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
         result.type = TRT_HDC;
         result.value.hval = GetWindowDC(hwnd);
         break;
-#if ! defined(TWAPI_NOCALLBACKS)
-    case 27:
-        return Twapi_PowerNotifyStop(interp, hwnd);
-#endif
+//  case 27: NOT USED
     case 28:
         return Twapi_EnumChildWindows(interp, hwnd);
 
