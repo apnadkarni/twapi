@@ -7,6 +7,17 @@
 
 #include "twapi.h"
 
+typedef struct _TwapiConsoleCtrlCallback {
+    TwapiPendingCallback pcb;   /* Must be first field */
+    DWORD ctrl;
+} TwapiConsoleCtrlCallback;
+
+static TwapiInterpContext * volatile console_control_ticP;
+
+static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl_event);
+static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
+
+
 int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
 {
     WCHAR  buf[256];
@@ -31,4 +42,117 @@ vamoose:
     if (bufP != buf)
         free(bufP);
     return status;
+}
+
+int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
+{
+    void *pv;
+
+    ERROR_IF_UNTHREADED(ticP->interp);
+    pv = InterlockedCompareExchangePointer(&console_control_ticP,
+                                           ticP, NULL);
+    if (pv) {
+        Tcl_SetResult(ticP->interp, "Console control handler is already set.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    if (SetConsoleCtrlHandler(TwapiConsoleCtrlHandler, TRUE)) {
+        ticP->console_ctrl_hooked = 1;
+        TwapiInterpContextRef(ticP, 1);
+        return TCL_OK;
+    }
+    else {
+        InterlockedExchangePointer(&console_control_ticP, NULL);
+        return TwapiReturnSystemError(ticP->interp);
+    }
+}
+
+    
+int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
+{
+    void *pv;
+    pv = InterlockedCompareExchangePointer(&console_control_ticP,
+                                           NULL, ticP);
+    if (pv != (void*) ticP) {
+        Tcl_SetResult(ticP->interp, "Console control handler not set by this interpreter.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    SetConsoleCtrlHandler(TwapiConsoleCtrlHandler, FALSE);
+    ticP->console_ctrl_hooked = 0;
+    TwapiInterpContextUnref(ticP, 1);
+    return TCL_OK;
+}
+
+
+/* Directly called by Windows in a separate thread */
+static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
+{
+    TwapiConsoleCtrlCallback *cbP;
+    WCHAR *resultP;
+    BOOL handled = FALSE;
+    WCHAR *w;
+
+    /* TBD - there is a race here. */
+    if (console_control_ticP == NULL)
+        return FALSE;
+
+    cbP = (TwapiConsoleCtrlCallback *) TwapiPendingCallbackNew(
+        console_control_ticP, TwapiConsoleCtrlCallbackFn, sizeof(*cbP));
+
+    cbP->ctrl = ctrl;
+    if (TwapiEnqueueCallback(console_control_ticP,
+                             (TwapiPendingCallback*) cbP,
+                             TWAPI_ENQUEUE_DIRECT,
+                             100, /* Timeout (ms) */
+                             &resultP) == ERROR_SUCCESS
+        && resultP) {
+        /* As per backward compatibility, any non-0 integer string is
+           true, anything else is false. Do not use atoi or strtol etc.
+           because their conversion are slightly different */
+
+        w = resultP;
+        while (*w >= L'0' && *w <= L'9')
+            ++w;
+        if (w != resultP && *w == 0)
+            handled = TRUE;
+    }
+
+    if (resultP)
+        TwapiFree(resultP);     /* May be non-NULL even on errors */
+
+    return handled;
+}
+
+
+static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
+{
+    TwapiConsoleCtrlCallback *cbP = (TwapiConsoleCtrlCallback *)pcbP;
+    char *event_str;
+    Tcl_Obj *objs[3];
+
+    switch (cbP->ctrl) {
+    case CTRL_C_EVENT:
+        event_str = "ctrl-c";
+        break;
+    case CTRL_BREAK_EVENT:
+        event_str = "ctrl-break";
+        break;
+    case CTRL_CLOSE_EVENT:
+        event_str = "close";
+        break;
+    case CTRL_LOGOFF_EVENT:
+        event_str = "logoff";
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        event_str = "shutdown";
+        break;
+    default:
+        // Unknown event type
+        return ERROR_INVALID_PARAMETER;
+    }
+
+    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
+    objs[1] = Tcl_NewStringObj(event_str, -1);
+    *objPP = Tcl_NewListObj(2, objs);
+    return ERROR_SUCCESS;
 }

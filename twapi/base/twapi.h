@@ -591,6 +591,8 @@ typedef struct _TwapiInterpContext {
     HWND          notification_win; /* Window used for various notifications */
     HWND          clipboard_win;    /* Window used for clipboard notifications */
     int           power_events_on; /* True-> send through power notifications */
+    int           console_ctrl_hooked; /* True -> This interp is handling
+                                          console ctrol signals */
 } TwapiInterpContext;
 
 /*
@@ -1073,6 +1075,8 @@ int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
 int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP);
 int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP);
+int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP);
+int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP);
 
 
 /* ADSI related */

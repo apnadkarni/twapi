@@ -560,11 +560,25 @@ proc twapi::_console_read {conh args} {
 interp alias {} twapi::console_gets {} twapi::_do_console_proc twapi::_console_gets stdin
 
 # Set up a console handler
-proc twapi::set_console_control_handler {script {timeout 100}} {
+proc twapi::_console_ctrl_handler {ctrl} {
+    variable _console_control_script
+    if {[info exists _console_control_script]} {
+        return [eval [linsert $_console_control_script end $ctrl]]
+    }
+    return 0;                   # Not handled
+}
+proc twapi::set_console_control_handler {script} {
+    variable _console_control_script
     if {[string length $script]} {
-        RegisterConsoleEventNotifier $script $timeout
+        if {![info exists _console_control_script]} {
+            Twapi_StartConsoleEventNotifier
+        }
+        set _console_control_script $script
     } else {
-        UnregisterConsoleEventNotifier
+        if {[info exists _console_control_script]} {
+            Twapi_StopConsoleEventNotifier
+            unset _console_control_script
+        }
     }
 }
 

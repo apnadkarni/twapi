@@ -409,7 +409,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCaretPos, Call, 62);
     CALL_(GetCaretBlinkTime, Call, 63);
     CALL_(EnumWindows, Call, 64);
-    CALL_(UnregisterConsoleEventNotifier, Call, 65);
+    CALL_(Twapi_StopConsoleEventNotifier, Call, 65);
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
@@ -417,6 +417,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MonitorClipboardStop, Call, 70);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
+    CALL_(Twapi_StartConsoleEventNotifier, Call, 73);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -498,7 +499,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleInformation, Call, 10056);
     CALL_(Twapi_VerQueryValue_STRING, Call, 10057);
     CALL_(DsGetDcName, Call, 10058);
-    CALL_(RegisterConsoleEventNotifier, Call, 10059);
     CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
     CALL_(SetupDiGetClassDevsEx, Call, 10061);
     CALL_(SetupDiEnumDeviceInfo, Call, 10062);
@@ -1360,10 +1360,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 64:
             return Twapi_EnumWindows(interp);
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
         case 65:
-            return Twapi_UnregisterConsoleEventNotifier(interp);
-#endif
+            return Twapi_StopConsoleEventNotifier(ticP);
         case 66:
             return TwapiFirstVolume(interp, NULL); /* FindFirstVolume */
         case 67:
@@ -1390,6 +1388,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_PowerNotifyStart(ticP);
         case 72:
             return Twapi_PowerNotifyStop(ticP);
+        case 73:
+            return Twapi_StartConsoleEventNotifier(ticP);
         }
 
         return TwapiSetResult(interp, &result);
@@ -2117,14 +2117,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
-        case 10059: // RegisterConsoleEventNotifier
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETASTR(cP), GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_RegisterConsoleEventNotifier(interp, cP, dw);
-#endif
+//        case 10059: NOT USED
 
 #ifndef TWAPI_LEAN
         case 10060: // SetupDiCreateDeviceInfoListExW

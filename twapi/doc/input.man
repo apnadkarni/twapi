@@ -109,9 +109,6 @@ the [uri \#unregister_hotkey [cmd unregister_hotkey]] function.
 [nl]
 [uri hotkey.example "Example: Start a program when a hotkey is pressed"]
 
-[nl]
-This command requires a threaded build of Tcl and will raise an exception
-on non-threaded builds.
 [call [cmd send_input] [arg INPUTLIST]]
 
 Simulates user input by generating keyboard and mouse events based on
