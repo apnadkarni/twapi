@@ -57,6 +57,7 @@ OBJS  = \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
+	$(OBJDIR)\resolve.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\services.obj \
 	$(OBJDIR)\share.obj \

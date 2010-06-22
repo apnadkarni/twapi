@@ -1566,16 +1566,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
                 (interp, pv, dw, dw2, dw3, dw4);
 
-#if !defined(TWAPI_NOCALLBACKS)
         case 10004: // ResolveAddressAsync
         case 10005: // ResolveHostnameAsync
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETASTR(cP), GETASTR(c2P),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
             return (func == 10004 ? Twapi_ResolveAddressAsync : Twapi_ResolveHostnameAsync)
-                (interp, cP, c2P);
-#endif
+                (ticP, objc-2, objv+2);
+
         case 10006:
             return Twapi_GetAddrInfo(interp, objc-2, objv+2);
         case 10007:

@@ -246,7 +246,7 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
             /* Get and pass on result if necessary */
             if (pcbP->completion_event) {
                 wP = Tcl_GetUnicodeFromObj(objP, &len);
-                pcbP->resultP = TwapiAllocString(wP, len);
+                pcbP->resultP = TwapiAllocWString(wP, len);
             }
             Tcl_DecrRefCount(objP);
 
@@ -290,11 +290,6 @@ TwapiPendingCallback *TwapiPendingCallbackNew(
     }
         
     pcbP = (TwapiPendingCallback *) TwapiAlloc(sz);
-    if (pcbP == NULL) {
-        if (ticP && ticP->interp)
-            Twapi_AppendSystemError(ticP->interp, E_OUTOFMEMORY);
-        return NULL;
-    }
 
     pcbP->callback = callback;
     pcbP->nrefs = 0;

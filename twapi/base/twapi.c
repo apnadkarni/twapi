@@ -31,6 +31,9 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
     int result;
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
+    /* Make sure Winsock is initialized */
+    WSADATA ws_data;
+    WORD    ws_ver = MAKEWORD(1,1);
 
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
@@ -39,6 +42,10 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 #endif
+
+    /* NOTE: no point setting Tcl_SetREsult for errors as they are not
+       looked at when DLL is being loaded */
+
     Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { }");
 
     Tcl_GetVersion(&TclVersion.major,
@@ -64,6 +71,10 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
      * here. Even using the Interlocked* functions. TBD
      */
     if (InterlockedIncrement(&twapi_initialized) == 1) {
+
+        if (WSAStartup(ws_ver, &ws_data) != 0) {
+            return TCL_ERROR;
+        }
 
         /* Single-threaded COM model */
         CoInitializeEx(NULL,
@@ -188,6 +199,8 @@ static void Twapi_Cleanup(ClientData clientdata)
 #if 0
     CoUninitialize();
 #endif
+
+    WSACleanup();
 }
 
 
