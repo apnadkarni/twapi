@@ -76,3 +76,77 @@ proc twapi::get_power_status {} {
         -batteryfulllifetime
     } [list $acstatus $batterystate $batterycharging $batterylifepercent $batterylifetime $batteryfulllifetime]]
 }
+
+
+# Start monitoring of the clipboard
+proc twapi::_power_handler {power_event lparam} {
+    variable _power_monitors
+
+    if {![info exists _power_monitors] ||
+        [llength $_power_monitors] == 0} {
+        return; # Not an error, could have deleted while already queued
+    }
+
+    if {![kl_vget {
+        0 apmquerysuspend
+        2 apmquerysuspendfailed
+        4 apmsuspend
+        6 apmresumecritical
+        7 apmresumesuspend
+        9 apmbatterylow
+        10 apmpowerstatuschange
+        11 apmoemevent
+        18 apmresumeautomatic
+    } $power_event power_event]} {
+        return;                 # Do not support this event
+    }
+
+    foreach {id script} $_power_monitors {
+        set code [catch {eval [linsert $script end $power_event $lparam]} msg]
+        if {$code == 1} {
+            # Error - put in background but we do not abort
+            after 0 [list error $msg $::errorInfo $::errorCode]
+        }
+    }
+    return
+}
+
+proc twapi::start_power_monitor {script} {
+    variable _name_ctr
+    variable _power_monitors
+
+    set script [lrange $script 0 end]; # Verify syntactically a list
+
+    set id "power#[incr _name_ctr]"
+    if {![info exists _power_monitors] ||
+        [llength $_power_monitors] == 0} {
+        # No power monitoring in progress. Start it
+        Twapi_PowerNotifyStart
+    }
+
+    lappend _power_monitors $id $script
+    return $id
+}
+
+
+
+# Stop monitoring of the power
+proc twapi::stop_power_monitor {clipid} {
+    variable _power_monitors
+
+    if {![info exists _power_monitors]} {
+        return;                 # Should we raise an error instead?
+    }
+
+    set new_monitors {}
+    foreach {id script} $_power_monitors {
+        if {$id ne $clipid} {
+            lappend new_monitors $id $script
+        }
+    }
+
+    set _power_monitors $new_monitors
+    if {[llength $_power_monitors] == 0} {
+        Twapi_PowerNotifyStop
+    }
+}
