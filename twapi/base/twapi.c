@@ -11,6 +11,15 @@
 #error _WIN32_WINNT too low
 #endif
 
+        
+#define TWAPI_TCL_MAJOR 8
+#ifdef _WIN64
+#define TWAPI_MIN_TCL_MINOR 5
+#else
+#define TWAPI_MIN_TCL_MINOR 4
+#endif
+
+
 /*
  * Globals
  */
@@ -18,12 +27,21 @@ OSVERSIONINFO TwapiOSVersionInfo;
 GUID TwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion TclVersion;
 int TclIsThreaded;
+/*
+ * Whether the callback dll/libray has been initialized.
+ * The value must be managed using the InterlockedCompareExchange functions to
+ * ensure thread safety. The value returned by InterlockedCompareExhange
+ * 0 -> first to call, do init,  1 -> init in progress by some other thread
+ * 2 -> Init done
+ */
+static TwapiOneTimeInitState TwapiInitialized;
 
 
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp);
 static void TwapiInterpContextDelete(ticP, interp);
+static int TwapiOneTimeInit(Tcl_Interp *interp);
 
 /* Main entry point */
 __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
@@ -32,71 +50,30 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
     /* Make sure Winsock is initialized */
-    WSADATA ws_data;
-    WORD    ws_ver = MAKEWORD(1,1);
-
     /* IMPORTANT */
-    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
+       done for EVERY interp creation or move into one-time above ? TBD
+     */
 #ifdef USE_TCL_STUBS
     if (Tcl_InitStubs(interp, "8.4", 0) == NULL) {
         return TCL_ERROR;
     }
 #endif
 
-    /* NOTE: no point setting Tcl_SetREsult for errors as they are not
+
+    /* Init unless already done. */
+    if (! TwapiDoOneTimeInit(&TwapiInitialized, TwapiOneTimeInit, interp))
+        return TCL_ERROR;
+
+    /* NOTE: no point setting Tcl_SetResult for errors as they are not
        looked at when DLL is being loaded */
 
-    Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { }");
-
-    Tcl_GetVersion(&TclVersion.major,
-                   &TclVersion.minor,
-                   &TclVersion.patchlevel,
-                   &TclVersion.reltype);
-
-#ifdef _WIN64
-    if (TclVersion.major < 8 ||
-        (TclVersion.major == 8 && TclVersion.minor < 5)) {
-        return TCL_ERROR;
-    }
-#else
-    if (TclVersion.major < 8 ||
-        (TclVersion.major == 8 && TclVersion.minor < 4)) {
-        return TCL_ERROR;
-    }
-#endif
-
-    /* Do the once per process stuff */
-
-    /* Yes, there is a tiny race condition
-     * here. Even using the Interlocked* functions. TBD
+    /*
+     * Per interp initialization
      */
-    if (InterlockedIncrement(&twapi_initialized) == 1) {
 
-        if (WSAStartup(ws_ver, &ws_data) != 0) {
-            return TCL_ERROR;
-        }
-
-        /* Single-threaded COM model */
-        CoInitializeEx(NULL,
-                       COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-        TwapiOSVersionInfo.dwOSVersionInfoSize = sizeof(TwapiOSVersionInfo);
-        if (! GetVersionEx(&TwapiOSVersionInfo)) {
-            Tcl_SetResult(interp, "Could not get OS version", TCL_STATIC);
-            return TCL_ERROR;
-        }
-
-        if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
-            TclIsThreaded = 1;
-        else
-            TclIsThreaded = 0;
-    } else {
-        // Not first caller. Already initialized
-        // TBD - FIX - SHOULD ENSURE WE WAIT FOR FIRST INITIALIZER TO FINISH
-        // INITIALIZING
-    }
-
-    /* Per interp initialization */
+    /* Create the name space. Needed for some scripts bound into the dll */
+    Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { }");
 
     /* Allocate a context that will be passed around in all interpreters */
     ticP = TwapiInterpContextNew(interp);
@@ -137,7 +114,6 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
     Tcl_CreateObjCommand(interp, "twapi::SHChangeNotify", Twapi_SHChangeNotify,
                          ticP, NULL);
 #endif
-    Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
 
     return TCL_OK;
 }
@@ -231,6 +207,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->clipboard_win = NULL;    /* Created only on demand */
     ticP->power_events_on = 0;
     ticP->console_ctrl_hooked = 0;
+    ticP->device_notification_tid = 0;
 
     return ticP;
 }
@@ -259,6 +236,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
         DestroyWindow(ticP->clipboard_win);
         ticP->clipboard_win = 0;
     }
+
 }
 
 /* Decrement ref count and free if 0 */
@@ -283,7 +261,54 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
         Twapi_StopConsoleEventNotifier(ticP);
 
     /* TBD - call other callback module clean up procedures */
-
+    // TBD - terminate device notification thread;
     
     TwapiInterpContextUnref(ticP, 1);
+}
+
+
+/* One time (per process) initialization */
+static int TwapiOneTimeInit(Tcl_Interp *interp)
+{
+    HRESULT hr;
+    WSADATA ws_data;
+    WORD    ws_ver = MAKEWORD(1,1);
+
+
+    if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
+        TclIsThreaded = 1;
+    else
+        TclIsThreaded = 0;
+
+    /*
+     * Deeply nested if's because it is easier to track what to undo
+     * in case of errors
+     */
+
+    Tcl_GetVersion(&TclVersion.major,
+                   &TclVersion.minor,
+                   &TclVersion.patchlevel,
+                   &TclVersion.reltype);
+    if (TclVersion.major ==  TWAPI_TCL_MAJOR &&
+        TclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
+        TwapiOSVersionInfo.dwOSVersionInfoSize =
+            sizeof(TwapiOSVersionInfo);
+        if (GetVersionEx(&TwapiOSVersionInfo)) {
+            /* Sockets */
+            if (WSAStartup(ws_ver, &ws_data) == 0) {
+                /* Single-threaded COM model - TBD */
+                hr = CoInitializeEx(
+                    NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+                if (hr == S_OK || hr == S_FALSE) {
+                    /* All init worked. */
+                    Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
+                    return TCL_OK;
+                } else {
+                    WSACleanup();
+                }
+            }
+        }
+    }
+
+    return TCL_ERROR;
 }

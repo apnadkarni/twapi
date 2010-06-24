@@ -983,7 +983,8 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
                  
 
     for (i = 0; i < cmdobjc; ++i) {
-        Tcl_IncrRefCount(cmdobjv[i]); /* Protect while we are using it */
+        Tcl_IncrRefCount(cmdobjv[i]); /* Protect while we are using it.
+                                         Required by Tcl_EvalObjv */
     }
 
     /*
@@ -995,7 +996,9 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     /* TBD - is this safe as we are being called from the message dispatch
        loop? Or should we queue to pending callback queue ? But in that
        case we cannot get results back as we can't block in this thread
-       as the script invocation will also be in this thread.
+       as the script invocation will also be in this thread. Also, is
+       the Tcl_SaveResult/RestoreResult really necessary ?
+       Note tclWinDde also evals in this fashion.
     */
     /* If hr is not TCL_OK, it is a HRESULT error code */
     Tcl_SaveResult(me->interp, &savedresult);

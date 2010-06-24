@@ -201,8 +201,8 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
     int len;
     WCHAR *wP;
 
-    /* We only handle file-type events here. TBD - is this right? */
-    if (!(flags & TCL_FILE_EVENTS)) return 0;
+    /* We only handle window and file-type events here. TBD - is this right? */
+    if (!(flags & (TCL_WINDOW_EVENTS|TCL_FILE_EVENTS))) return 0;
 
     pcbP = tteP->pending_callback;
 

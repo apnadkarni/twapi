@@ -56,7 +56,6 @@
 
 #include "tcl.h"
 #include "twapi_sdkdefs.h"
-/* TBD #include "callback.h" */
 #include "twapi_ddkdefs.h"
 #include "zlist.h"
 
@@ -140,6 +139,15 @@
 /* 64 bittedness needs a BOOL version of the FARPROC def */
 typedef BOOL (WINAPI *FARPROC_BOOL)();
 
+
+/*
+ * Support for one-time initialization 
+ */
+typedef volatile LONG TwapiOneTimeInitState;
+#define TWAPI_INITSTATE_NOT_DONE    0
+#define TWAPI_INITSTATE_IN_PROGRESS 1
+#define TWAPI_INITSTATE_DONE        2
+#define TWAPI_INITSTATE_ERROR       3
 
 /*************************
  * Error code definitions
@@ -593,6 +601,7 @@ typedef struct _TwapiInterpContext {
     int           power_events_on; /* True-> send through power notifications */
     int           console_ctrl_hooked; /* True -> This interp is handling
                                           console ctrol signals */
+    DWORD         device_notification_tid; /* device notification thread id */
 } TwapiInterpContext;
 
 /*
@@ -1052,6 +1061,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONS
 int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
+
 /* File and disk related */
 int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
 int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVolume);
@@ -1274,6 +1284,9 @@ int Twapi_malloc(Tcl_Interp *interp, char *msg, size_t size, void **pp);
 void DebugOutput(char *s);
 int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+
+typedef int TwapiOneTimeInitFn(void *);
+int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 
 
 #ifdef __cplusplus

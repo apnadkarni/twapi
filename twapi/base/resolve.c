@@ -59,8 +59,10 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
                                      Tcl_NewLongObj(theP->status));
         }
         /* Invoke the script */
-        /* Do we need TclSave/RestoreResult ? */
+        /* Do we need a Tcl_SaveResult/RestoreResult ? */
+        Tcl_IncrRefCount(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
+        Tcl_DecrRefCount(objP);
         /* TBD - check for error and add to background ? */
     }
 
@@ -185,7 +187,9 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
         }
         /* Invoke the script */
         /* Do we need TclSave/RestoreResult ? */
+        Tcl_IncrRefCount(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
+        Tcl_DecrRefCount(objP);
         /* TBD - check for error and add to background ? */
     }
     
