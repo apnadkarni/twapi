@@ -47,20 +47,16 @@ int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id)
  * Constructs the hotkey script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-DWORD TwapiHotkeyCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
+int TwapiHotkeyCallbackFn(TwapiPendingCallback *pcbP)
 {
     Tcl_Obj *objs[3];
 
     TwapiHotkeyCallback *hkcbP = (TwapiHotkeyCallback *) pcbP;
 
-    if (objPP == NULL)
-        return ERROR_SUCCESS;   /* Allowed to be NULL */
-
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_hotkey_handler", -1);
     objs[1] = ObjFromDWORD_PTR(hkcbP->wparam);
     objs[2] = ObjFromDWORD_PTR(hkcbP->lparam);
-    *objPP = Tcl_NewListObj(3, objs);
-    return ERROR_SUCCESS;
+    return TwapiEvalAndUpdateCallback(pcbP, 3, objs, TRT_EMPTY);
 }
 
 

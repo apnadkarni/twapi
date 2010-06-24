@@ -413,7 +413,9 @@ typedef enum {
     TRT_SEC_WINNT_AUTH_IDENTITY = 44,
     TRT_HDEVINFO = 45,
     TRT_PIDL = 46,              /* Freed using CoTaskMemFree */
-    TRT_WIDE = 47,
+    TRT_WIDE = 47,              /* Tcl_WideInt */
+    TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
+    TRT_CHARS_DYNAMIC = 49,       /* Char string to be freed through TwapiFree */
 } TwapiResultType;
 
 typedef struct {
@@ -545,7 +547,7 @@ typedef struct _TwapiPendingCallback TwapiPendingCallback;
  * if required. On an error return, the returned object, if any, is directly
  * passed back to the asynchronous handler if required.
  */
-typedef DWORD TwapiCallbackFn(struct _TwapiPendingCallback *, Tcl_Obj **);
+typedef int TwapiCallbackFn(struct _TwapiPendingCallback *);
 
 /*
  * Definitions relating to queue of pending callbacks. All pending callbacks
@@ -559,10 +561,10 @@ typedef struct _TwapiPendingCallback {
     TwapiCallbackFn  *callback;     /* Function to call back - see notes
                                        in the TwapiCallbackFn typedef */
     LONG volatile     nrefs;       /* Ref count - use InterlockedIncrement */
-    HANDLE            completion_event;
     ZLINK_DECL(TwapiPendingCallback); /* Link for list */
     DWORD             status;         /* Return status - Win32 error code */
-    WCHAR            *resultP;        /* TwapiAlloc'ed memory */
+    HANDLE            completion_event;
+    TwapiResult response;
 } TwapiPendingCallback;
 
 /* Create list header definitions */
@@ -659,10 +661,13 @@ extern int TclIsThreaded;
 void *TwapiAlloc(size_t sz);
 #define TwapiFree(p_) free(p_)
 WCHAR *TwapiAllocWString(WCHAR *, int len);
+WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
 char *TwapiAllocAString(char *, int len);
+char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
 
 /* C - Tcl result and parameter conversion  */
 int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
+void TwapiClearResult(TwapiResult *resultP);
 int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmt, ...);
 
@@ -696,9 +701,11 @@ int TwapiEnqueueCallback(
     TwapiInterpContext *ticP, TwapiPendingCallback *pcbP,
     int enqueue_method,
     int timeout,
-    WCHAR **resultPP);
+    TwapiPendingCallback **responseP
+    );
 #define TWAPI_ENQUEUE_DIRECT 0
 #define TWAPI_ENQUEUE_ASYNC  1
+int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
 
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
@@ -1228,7 +1235,7 @@ HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
 int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
 int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
-DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
+//DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which

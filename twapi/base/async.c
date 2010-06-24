@@ -15,7 +15,8 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags);
 /* This routine is called from a notification thread. Which may or may not
  * be a Tcl interpreter thread. It arranges for a callback to be invoked
  * in the interpreter. pcbP must not be accessed on return, either
- * successful or error.
+ * successful or error. Note however, that *responseP may in fact point
+ * to pcbP. However, it must be treated as independent.
  *
  * Returns 0 on success, or a Windows error code.
  * ERROR_INSUFFICIENT_BUFFER means buf[] not big enough for return value.
@@ -30,8 +31,10 @@ int TwapiEnqueueCallback(
     int    timeout,             /* How long to wait for a result. Must be 0
                                   IF CALLING FROM A TCL THREAD ELSE
                                   DEADLOCK MAY OCCUR */
-    WCHAR **resultPP            /* TwapiAlloc'ed, must be TwapiFree'ed
-                                   by caller */
+    TwapiPendingCallback **responseP /* May or may not be same as pcbP.
+                                      If non-NULL, caller must call
+                                      TwapiPendingCallbackUnref on it.
+                                     */
     )
 {
     DWORD status = ERROR_SUCCESS;
@@ -39,6 +42,9 @@ int TwapiEnqueueCallback(
     /*
      * WE MAY NOT BE IN A TCL THREAD. DO NOT CALL ANY INTERP FUNCTIONS
      */
+
+    if (responseP)
+        *responseP = NULL;
 
     if (timeout) {
         /* We have to wait for a response */
@@ -117,14 +123,11 @@ int TwapiEnqueueCallback(
         if (status == WAIT_FAILED)
             status = GetLastError();
     } else {
-        if (resultPP)
-                *resultPP = pcbP->resultP; /* Caller owns resultP */
-            else if (pcbP->resultP)
-                TwapiFree(pcbP->resultP); /* Else we free it */
-
-        pcbP->resultP = NULL;
         status = pcbP->status;
-        TwapiPendingCallbackUnref(pcbP, 1);
+        if (responseP)
+                *responseP = pcbP; /* Caller owns */
+        else 
+            TwapiPendingCallbackUnref(pcbP, 1);
     }
 
     return status;
@@ -221,40 +224,14 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
      */
     if (pcbP->ticP->interp == NULL ||
         Tcl_InterpDeleted(pcbP->ticP->interp)) {
-        status = ERROR_DS_NO_SUCH_OBJECT; /* Best match we can find */
+        pcbP->status = ERROR_DS_NO_SUCH_OBJECT; /* Best match we can find */
     } else {
-        status = pcbP->callback(pcbP, &objP);
-        if (objP) {        
-            /* In case callback has no reference to it, we need to delete
-             * object when done. On the other hand, if there is some ref
-             * to it elsewhere, the Decr below will delete it if we do not
-             * Incr it. To take care of both cases, we need a Incr/Decr pair
-             */
-            Tcl_IncrRefCount(objP);
-            if (status == ERROR_SUCCESS) {
-                /* Do we need TclSave/RestoreResult ? */
-                status = Tcl_EvalObjEx(pcbP->ticP->interp, objP,
-                                       TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
-                status == TCL_OK ? ERROR_SUCCESS : E_FAIL;
-                Tcl_DecrRefCount(objP); /* GONE */
-                /* Note interp may be (logically) deleted, but we
-                   should still be able to get the result */
-                objP = Tcl_GetObjResult(pcbP->ticP->interp);
-                Tcl_IncrRefCount(objP);
-            }
-
-            /* Get and pass on result if necessary */
-            if (pcbP->completion_event) {
-                wP = Tcl_GetUnicodeFromObj(objP, &len);
-                pcbP->resultP = TwapiAllocWString(wP, len);
-            }
-            Tcl_DecrRefCount(objP);
-
-            Tcl_ResetResult(pcbP->ticP->interp);/* Don't leave crud from eval */
+        if (pcbP->callback(pcbP) != TCL_OK) {
+            /* TBD - log internal error */
         }
+        /* Note even for errors, pcbP response is set */
     }
 
-    pcbP->status = status;
     if (pcbP->completion_event)
         SetEvent(pcbP->completion_event);
 
@@ -295,6 +272,7 @@ TwapiPendingCallback *TwapiPendingCallbackNew(
     pcbP->nrefs = 0;
     pcbP->completion_event = NULL;
     ZLINK_INIT(pcbP);
+    pcbP->response.type = TRT_EMPTY;
     return pcbP;
 }
 
@@ -304,6 +282,7 @@ void TwapiPendingCallbackDelete(TwapiPendingCallback *pcbP)
         if (pcbP->completion_event)
             CloseHandle(pcbP->completion_event);
     }
+    TwapiClearResult(&pcbP->response);
 }
 
 void TwapiPendingCallbackUnref(TwapiPendingCallback *pcbP, int decr)

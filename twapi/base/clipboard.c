@@ -8,7 +8,7 @@
 #include "twapi.h"
 #include "twapi_wm.h"
 
-static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
+static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP);
 
 
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
@@ -130,8 +130,8 @@ int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP)
 /* Called (indirectly) from the Tcl notifier loop with a new clipboard event.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
+static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP)
 {
-    *objPP =  Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_clipboard_handler", -1);
-    return ERROR_SUCCESS;
+    Tcl_Obj *objP = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_clipboard_handler", -1);
+    return TwapiEvalAndUpdateCallback(pcbP, 1, &objP, TRT_EMPTY);
 }

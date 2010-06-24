@@ -15,7 +15,7 @@ typedef struct _TwapiConsoleCtrlCallback {
 static TwapiInterpContext * volatile console_control_ticP;
 
 static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl_event);
-static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
+static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP);
 
 
 int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
@@ -104,27 +104,21 @@ static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
                              (TwapiPendingCallback*) cbP,
                              TWAPI_ENQUEUE_DIRECT,
                              100, /* Timeout (ms) */
-                             &resultP) == ERROR_SUCCESS
-        && resultP) {
-        /* As per backward compatibility, any non-0 integer string is
-           true, anything else is false. Do not use atoi or strtol etc.
-           because their conversion are slightly different */
+                             (TwapiPendingCallback **)&cbP)
+        == ERROR_SUCCESS) {
 
-        w = resultP;
-        while (*w >= L'0' && *w <= L'9')
-            ++w;
-        if (w != resultP && *w == 0)
-            handled = TRUE;
+        if (cbP && cbP->pcb.response.type == TRT_BOOL)
+            handled = cbP->pcb.response.value.bval;
     }
 
-    if (resultP)
-        TwapiFree(resultP);     /* May be non-NULL even on errors */
+    if (cbP)
+        TwapiPendingCallbackUnref((TwapiPendingCallback *)cbP, 1);
 
     return handled;
 }
 
 
-static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
+static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP)
 {
     TwapiConsoleCtrlCallback *cbP = (TwapiConsoleCtrlCallback *)pcbP;
     char *event_str;
@@ -153,6 +147,5 @@ static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **ob
 
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
     objs[1] = Tcl_NewStringObj(event_str, -1);
-    *objPP = Tcl_NewListObj(2, objs);
-    return ERROR_SUCCESS;
+    return TwapiEvalAndUpdateCallback(pcbP, 2, objs, TRT_BOOL);
 }

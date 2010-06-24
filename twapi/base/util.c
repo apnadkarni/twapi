@@ -232,6 +232,15 @@ WCHAR *TwapiAllocWString(WCHAR *src, int len)
     return dst;
 }
 
+WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *objP, int *lenP) {
+    WCHAR *wP;
+    int len;
+    if (lenP == NULL)
+        lenP = &len;
+    wP = Tcl_GetUnicodeFromObj(objP, lenP);
+    return TwapiAllocWString(wP, *lenP);
+}
+
 char *TwapiAllocAString(char *src, int len)
 {
     char *dst;
@@ -242,6 +251,15 @@ char *TwapiAllocAString(char *src, int len)
     MoveMemory(dst, src, len);
     dst[len] = 0; /* Source string may not have been terminated after len chars */
     return dst;
+}
+
+char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
+    char *cP;
+    int len;
+    if (lenP == NULL)
+        lenP = &len;
+    cP = Tcl_GetStringFromObj(objP, lenP);
+    return TwapiAllocAString(cP, *lenP);
 }
 
 void *TwapiAlloc(size_t sz)
@@ -303,3 +321,108 @@ int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *fn, Cl
     return 0;
 }
 
+/* 
+ * Invokes a Tcl command from objv[] and updates the passed 
+ * TwapiPendingCallback structure result. Note the following:
+ *  - the objv[] array generally must not be accessed again by caller
+ *    unless they previously do a Tcl_IncrRef on each element of the array
+ *  - the pcbP->status and pcbP->response fields are updated.
+ *  - assumes cbP->ticP->interp is valid
+ *  - the pcbP->response field type will not always match response_type
+ *    unless the function returns TCL_OK
+ *
+ * Return values are as follows:
+ * TCL_ERROR - error - you called me with bad arguments, dummy.
+ *   cbP is unchanged except its status is set to ERROR_INVALID_ARGS
+ *   and cbP->response is set to TRT_EMPTY.
+ *   Do what you will.
+ * TCL_OK - either everything went fine, or there was an error. Distinguish
+ *   by checking the cbP->status field. Either way cpP->response has
+ *   been set appropriately.
+ */
+int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type)
+{
+    int i;
+    Tcl_Obj *objP;
+    int tcl_status;
+    TwapiResult *responseP = &cbP->response;
+
+    if (cbP->ticP->interp == NULL ||
+        Tcl_InterpDeleted(cbP->ticP->interp)) {
+        cbP->status = ERROR_DS_NO_SUCH_OBJECT; /* Best match we can find */
+        cbP->response.type = TRT_EMPTY;
+        return TCL_OK;          /* See function comments */
+    }
+
+    /* Before we eval, make sure stuff does not disappear in the eval */
+    for (i = 0; i < objc; ++i) {
+        Tcl_IncrRefCount(objv[i]);
+    }
+    TwapiInterpContextRef(cbP->ticP, 1);
+    Tcl_Preserve(cbP->ticP->interp);
+
+    tcl_status = Tcl_EvalObjv(cbP->ticP->interp, objc, objv, 
+                               TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
+    if (tcl_status != TCL_OK) {
+        /* TBD - see if errorcode is TWAPI_WIN32 and return that if so */
+        cbP->status = E_FAIL;
+        response_type = TRT_CHARS_DYNAMIC;
+        tcl_status = TCL_OK; /* See function comments */
+    } else {
+        cbP->status = ERROR_SUCCESS;
+    }
+    
+    objP = Tcl_GetObjResult(cbP->ticP->interp); /* OK even if interp
+                                                   logically deleted */
+     /* 
+      * If there are any errors in conversion, we will return TCL_ERROR
+      * as caller should know the type of result to expect
+      */
+    switch (response_type) {
+    case TRT_CHARS_DYNAMIC:
+        responseP->value.chars.str =
+            TwapiAllocAStringFromObj(
+                objP, &responseP->value.chars.len);
+        break;
+    case TRT_UNICODE_DYNAMIC:
+        responseP->value.unicode.str =
+            TwapiAllocWStringFromObj(
+                objP, &responseP->value.unicode.len);
+        break;
+    case TRT_DWORD:
+        tcl_status = Tcl_GetLongFromObj(cbP->ticP->interp, objP,
+                                        &responseP->value.ival);
+        /* Errors will be handled below */
+        break;
+    case TRT_BOOL:
+        tcl_status = Tcl_GetBooleanFromObj(cbP->ticP->interp, objP,
+                                           &responseP->value.bval);
+        /* Errors will be handled below */
+        break;
+    case TRT_EMPTY:
+        break;                  /* Empty string */
+    default:
+        tcl_status = TCL_ERROR;
+        cbP->status = ERROR_INVALID_PARAMETER;
+        break;
+    }
+
+    if (tcl_status == TCL_OK)
+        cbP->response.type = response_type;
+    else
+        cbP->response.type = TRT_EMPTY;
+
+    Tcl_ResetResult(cbP->ticP->interp);/* Don't leave crud from eval */
+    Tcl_Release(cbP->ticP->interp);
+    TwapiInterpContextUnref(cbP->ticP, 1);
+
+    /* 
+     * Undo the incrref above. This will delete the object unless
+     * caller had done an incr-ref on it.
+     */
+    for (i = 0; i < objc; ++i) {
+        Tcl_DecrRefCount(objv[i]);
+    }
+
+    return tcl_status;
+}
