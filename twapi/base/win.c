@@ -40,6 +40,7 @@ LRESULT CALLBACK TwapiHiddenWindowProc(
 
         /* Reset the window data, just in case */
         SetWindowLongPtrW(hwnd, TWAPI_HIDDEN_WINDOW_CONTEXT_OFFSET, (LONG_PTR) 0);
+        SetWindowLongPtrW(hwnd, TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET, (LONG_PTR) 0);
         SetWindowLongPtrW(hwnd, TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET, (LONG_PTR) 0);
         /* Fall thru to call DefWindowProc for WM_DESTROY */
     } 
