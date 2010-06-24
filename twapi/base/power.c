@@ -42,20 +42,17 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP)
  * Constructs the script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP)
+DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP)
 {
     Tcl_Obj *objs[3];
 
     TwapiPowerCallback *cbP = (TwapiPowerCallback *) pcbP;
 
-    if (objPP == NULL)
-        return ERROR_SUCCESS;   /* Allowed to be NULL */
-
     objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_power_handler");
     objs[1] = ObjFromDWORD_PTR(cbP->wparam);
     objs[2] = ObjFromDWORD_PTR(cbP->lparam);
-    *objPP = Tcl_NewListObj(3, objs);
-    return ERROR_SUCCESS;
+    /* TBD - do power events have a response ? */
+    return TwapiEvalAndUpdateCallback(pcbP, 3, objs, TRT_EMPTY);
 }
 
 

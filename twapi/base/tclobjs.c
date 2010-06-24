@@ -15,17 +15,15 @@
  * - for TRT_VARIANT types, VariantClear is called. This allows
  *   callers to directly return after calling this function without
  *   having to clean up the variant before returning.
- * - TRT_OLESTR and TRT_PIDL have their memory freed
+ * - Similarly, TRT_UNICODE_DYNAMIC, TRT_CHARS_DYNAMIC, TRT_OLESTR and TRT_PIDL
+ *   have their memory freed
  **/
 int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
     char *typenameP;
-    int tag = resultP->type;
     Tcl_Obj *resultObj = NULL;
 
-    resultP->type = TRT_UNINITIALIZED;
-
-    switch (tag) {
+    switch (resultP->type) {
     case TRT_GETLASTERROR:      /* Error in GetLastError() */
         return TwapiReturnSystemError(interp);
 
@@ -67,6 +65,7 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         resultObj = Tcl_NewLongObj(resultP->value.ival);
         break;
 
+    case TRT_UNICODE_DYNAMIC:
     case TRT_UNICODE:
         if (resultP->value.unicode.str) {
             resultObj = Tcl_NewUnicodeObj(resultP->value.unicode.str,
@@ -74,6 +73,7 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         }
         break;
 
+    case TRT_CHARS_DYNAMIC:
     case TRT_CHARS:
         if (resultP->value.chars.str)
             resultObj = Tcl_NewStringObj(resultP->value.chars.str,
@@ -222,13 +222,11 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 
     case TRT_VARIANT:
         resultObj = ObjFromVARIANT(&resultP->value.var, 0);
-        VariantClear(&resultP->value.var);
         break;
 
     case TRT_LPOLESTR:
         if (resultP->value.lpolestr) {
             resultObj = Tcl_NewUnicodeObj(resultP->value.lpolestr, -1);
-            CoTaskMemFree(resultP->value.lpolestr);
         } else
             Tcl_ResetResult(interp);
         break;
@@ -236,7 +234,6 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_PIDL:
         if (resultP->value.pidl) {
             resultObj = ObjFromPIDL(resultP->value.pidl);
-            CoTaskMemFree(resultP->value.pidl);
         } else
             Tcl_ResetResult(interp);
         break;
@@ -265,11 +262,48 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         return TCL_ERROR;
     }
 
+    TwapiClearResult(resultP);  /* Clear out resources */
+
     if (resultObj)
         Tcl_SetObjResult(interp, resultObj);
 
+
     return TCL_OK;
 }
+
+/* Frees allocated resources, sets resultP to type TRT_EMPTY */
+void TwapiClearResult(TwapiResult *resultP)
+{
+    switch (resultP->type) {
+    case TRT_UNICODE_DYNAMIC:
+        if (resultP->value.unicode.str)
+            TwapiFree(resultP->value.unicode.str);
+        break;
+    case TRT_CHARS_DYNAMIC:
+        if (resultP->value.chars.str)
+            TwapiFree(resultP->value.chars.str);
+        break;
+    case TRT_VARIANT:
+        VariantClear(&resultP->value.var);
+        break;
+    case TRT_LPOLESTR:
+        if (resultP->value.lpolestr)
+            CoTaskMemFree(resultP->value.lpolestr);
+        break;
+
+    case TRT_PIDL:
+        if (resultP->value.pidl)
+            CoTaskMemFree(resultP->value.pidl);
+        break;
+
+    default:
+        break;                  /* Nothing to clear */
+
+    }
+
+    resultP->type = TRT_EMPTY;
+}
+
 
 /*
  * Function to free a newly allocated Tcl_Obj that has not yet been referenced
