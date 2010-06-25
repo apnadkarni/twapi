@@ -76,43 +76,9 @@ OBJS  = \
 OBJS  = $(OBJS) \
 !ENDIF
 
-CALLBACKDIR   = ..\callback
-!IFDEF NOCALLBACKS
-CALLBACKOBJS  =
-!ELSE
-!IFDEF LEAN
-!IFDEF SERVERONLY
-CALLBACKOBJS  = \
-	$(OBJDIR)\callback.obj \
-	$(OBJDIR)\service.obj \
-	$(OBJDIR)\systemeventdispatcher.obj
-!ELSE
-CALLBACKOBJS  =
-!ENDIF
-!ELSE
-CALLBACKOBJS  = \
-	$(OBJDIR)\callback.obj \
-	$(OBJDIR)\service.obj \
-	$(OBJDIR)\systemeventdispatcher.obj \
-	$(OBJDIR)\clipboardmonitor.obj \
-	$(OBJDIR)\hotkey.obj \
-        $(OBJDIR)\ipresolver.obj  \
-	$(OBJDIR)\consoleevent.obj \
-        $(OBJDIR)\devicenotification.obj \
-	$(OBJDIR)\dirchange.obj \
-	$(OBJDIR)\powermanagement.obj
-!ENDIF
-!ENDIF
-
 
 IFILE         = $(MODULENAME)
 CINCLUDES     = twapi.h twapi_ddkdefs.h
-CALLBACKINCLUDES = $(CALLBACKDIR)\callback.h $(CALLBACKDIR)\callbackint.h \
-	$(CALLBACKDIR)\consoleevent.h $(CALLBACKDIR)\dirchange.h \
-	$(CALLBACKDIR)\hotkey.h $(CALLBACKDIR)\ipresolver.h \
-	$(CALLBACKDIR)\mtlock.h $(CALLBACKDIR)\mtmap.h $(CALLBACKDIR)\mtqueue.h \
-	$(CALLBACKDIR)\ptrref.h $(CALLBACKDIR)\resource.h \
-	$(CALLBACKDIR)\systemeventdispatcher.h $(CALLBACKDIR)\workq.h
 
 
 # General tools
@@ -228,15 +194,8 @@ CDEBUG = -O1 -Zi -DNDEBUG -W3
 
 # C compiler flags
 
-INCFLAGS       =  -I. -I..\callback -I$(TCLDIR)\include
+INCFLAGS       =  -I. -I$(TCLDIR)\include
 
-!IF "x$(CALLBACKOBJS)" == "x"
-CONFIGFLAGS = $(CONFIGFLAGS) -DTWAPI_NOCALLBACKS
-!ELSE
-# /EHsc -> enable exception handling for C++ with assumption C functions nothrow
-CALLBACK_CFLAGS = /EHsc
-CONFIGFLAGS = $(CONFIGFLAGS) -DSTATIC_CALLBACK_BUILD
-!ENDIF
 
 CFLAGS    = $(CDEBUG) /c /nologo /MD /DWIN32 /D_WIN32 /D_WINDOWS -D_DLL -DTCL_THREADS=1 -DUSE_TCL_STUBS -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
 !if "$(MACHINE)" == "AMD64"
@@ -252,15 +211,12 @@ LOPT = $(LOPT) /debug:full /debugtype:cv
 
 all: $(OBJDIR)\$(MODULE)
 
-$(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(CALLBACKOBJS) $(OBJDIR)\twapi.res makefile
+$(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(OBJDIR)\twapi.res makefile
 #        rc $(INCFLAGS) -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" twapi.rc
-        $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(CALLBACKOBJS) $(OBJDIR)\twapi.res
+        $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(OBJDIR)\twapi.res
 
 $(OBJS): $(CINCLUDES) makefile
 
-!IF "x$(CALLBACKOBJS)" != "x"
-$(CALLBACKOBJS): $(OBJDIR) $(CINCLUDES) $(CALLBACKINCLUDES) makefile
-!ENDIF
 
 $(OBJDIR)\twapi.res: $(OBJDIR) twapi.rc makefile
         rc $(INCFLAGS) -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\" -fo $@ twapi.rc
@@ -290,7 +246,4 @@ clean:
 
 .c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
-
-{$(CALLBACKDIR)}.cpp{$(OBJDIR)}.obj::
-        $(CC) $(CFLAGS) $(CALLBACK_CFLAGS) -Fo$(OBJDIR)\  $<
 
