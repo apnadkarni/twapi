@@ -59,7 +59,8 @@ OBJS  = \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\resolve.obj \
 	$(OBJDIR)\security.obj \
-	$(OBJDIR)\services.obj \
+	$(OBJDIR)\scm.obj \
+	$(OBJDIR)\service.obj \
 	$(OBJDIR)\share.obj \
 	$(OBJDIR)\shell.obj \
 	$(OBJDIR)\system.obj \
