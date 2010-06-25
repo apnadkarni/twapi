@@ -9,7 +9,17 @@
 # Callback invoked for device changes.
 # Does some processing of passed data and then invokes the
 # real callback script
-proc twapi::_device_change_callback {script args} {
+proc twapi::_device_notification_handler {id args} {
+    variable _device_notifiers
+
+    set idstr "devnotifier#$id"
+    if {![info exists $device_notifiers($idstr)]} {
+        # Notifications that expect a response default to "true"
+        return 1
+    }
+
+    set script [lindex $_device_notifiers($idstr) 0]
+
     # For volume notifications, change drive bitmask to
     # list of drives before passing back to script
     set event [lindex $args 1]
@@ -34,6 +44,11 @@ proc twapi::_device_change_callback {script args} {
 }
 
 proc twapi::start_device_notifier {script args} {
+    variable _name_ctr
+    variable _device_notifiers
+
+    set script [lrange $script 0 end]; # Verify syntactically a list
+
     array set opts [parseargs args {
         deviceinterface.arg
         handle.arg
@@ -63,7 +78,6 @@ proc twapi::start_device_notifier {script args} {
     # GUID_DEVINTERFACE_USB_HOST_CONTROLLER - {3abf6f2d-71c4-462a-8a92-1e6861e6af27}
 
 
-
     if {[info exists opts(deviceinterface)] && [info exists opts(handle)]} {
         error "Options -deviceinterface and -handle are mutually exclusive."
     }
@@ -85,12 +99,26 @@ proc twapi::start_device_notifier {script args} {
         }
     }
 
+    set id [incr _name_ctr]
+    set idstr "devnotifier#$id"
 
-    return [Twapi_RegisterDeviceNotification $type $opts(deviceinterface) $opts(handle) [list ::twapi::_device_change_callback $script]]
+    Twapi_RegisterDeviceNotification $id $type $opts(deviceinterface) $opts(handle)
+    set _device_notifiers($idstr) [list $id $script]
+    return $idstr
 }
 
 # Stop monitoring of device changes
-interp alias {} ::twapi::stop_device_notifier {} ::twapi::Twapi_UnregisterDeviceNotification
+proc twapi::stop_device_notifier {idstr} {
+    variable _device_notifiers
+
+    if {![info exists _device_notifiers($idstr)]} {
+        return;
+    }
+
+    Twapi_UnregisterDeviceNotification [lindex $_device_notifiers($idstr) 0]
+    unset _device_notifiers($idstr)
+}
+
 
 # Retrieve a device information set for a device setup or interface class
 proc twapi::update_devinfoset {args} {

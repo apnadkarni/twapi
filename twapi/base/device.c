@@ -83,6 +83,8 @@ static void TwapiReportDeviceNotificationError(
     TwapiDeviceNotificationContext *dncP, char *msg, DWORD winerr);
 static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP);
 static Tcl_Obj *ObjFromDevtype(DWORD devtype);
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(int id);
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND);
 
 
 Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP)
@@ -329,10 +331,11 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
 
     /* Deal with the error notification case first. */
     if (cbP->cb.status != ERROR_SUCCESS) {
-        /* TBD - deal with later. 2.2 does not generate these error callbacks either */
-        cbP->cb.status = 0;
-        cbP->cb.response.type = TRT_EMPTY;
-        return TCL_OK;
+        objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
+        objs[1] = Tcl_NewLongObj(cbP->id);
+        objs[2] = STRING_LITERAL_OBJ("error");
+        objs[3] = Tcl_NewLongObj(cbP->cb.status);
+        return TwapiEvalAndUpdateCallback(&cbP->cb, 4, objs, TRT_EMPTY);
     }
 
     dbhP = &cbP->data.device.dev_bcast_hdr;
@@ -440,7 +443,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
     if (nobjs > ARRAYSIZE(objs))
         Tcl_Panic("Internal error: exceeded bounds (%d) of device notification array", nobjs);
 
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
+    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
     objs[1] = Tcl_NewLongObj(cbP->id);
     objs[2] = Tcl_NewStringObj(notification_str, -1);
     if (response_type == TRT_EMPTY) {
@@ -459,6 +462,45 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
         return TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, response_type);
 }
 
+/* 
+ * Cleans up a device notification window, including unregistering the
+ * notification, removing from registered queue, deref'ing objects etc.
+ */
+static LRESULT TwapiDeviceNotificationWinCleanup(HWND hwnd)
+{
+    TwapiDeviceNotificationContext *dncP;
+
+    /* Find the window in the registration chain */
+    dncP = TwapiFindDeviceNotificationByHwnd(hwnd);
+    if (dncP == NULL)
+        return 0;               /* Can this happen? */
+
+    /* Note single thread access so no locking anywhere here */
+
+    if (dncP->hnotification)
+        UnregisterDeviceNotification(dncP->hnotification);
+    dncP->hnotification = NULL; /* Else we will repeat when actually freeing */
+
+    /*
+     * Unlink from the registered notificaitons chain and window before
+     * freeing it up.
+     */
+    ZLIST_REMOVE(&TwapiDeviceNotificationRegistry, dncP);
+
+    /*
+     * Window data points to dncP via TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET.
+     * The hidden window andler will remove it so do the corresponding deref.
+     * In addition, we removed from the notification registry list above so
+     * deref once more for a total of 2 derefs.
+     *
+     * Note unlinking from ticP etc. will happen inside Unref if required.
+     */
+    TwapiDeviceNotificationContextUnref(dncP, 2);
+    dncP = NULL;                /* Make sure we do not access it */
+
+    return 0;
+}
+
 
 static LRESULT TwapiDeviceNotificationWinProc(
     TwapiInterpContext *notused, /* NULL */
@@ -474,6 +516,14 @@ static LRESULT TwapiDeviceNotificationWinProc(
     TwapiDeviceNotificationCallback *cbP;
     int    need_response = 0;
     LRESULT lres = TRUE;
+
+    if (msg == WM_DESTROY) {
+        return TwapiDeviceNotificationWinCleanup(hwnd);
+    } else if (msg != WM_DEVICECHANGE) {
+        return 0;
+    }
+
+    /* msg == WM_DEVICECHANGE at this point */
 
     switch (wparam) {
     case DBT_CONFIGCHANGECANCELED:
@@ -576,11 +626,11 @@ static LRESULT TwapiDeviceNotificationWinProc(
         if (cbP)
             TwapiPendingCallbackUnref((TwapiPendingCallback *)cbP, 1);
     } else {
-        /* TBD - on error, do we send an error notification ? */
         TwapiEnqueueCallback(dncP->ticP, &cbP->cb,
                              TWAPI_ENQUEUE_DIRECT,
                              0, /* No response wanted */
                              NULL);
+        /* TBD - on error, do we send an error notification ? */
     }
     return lres;
 }
@@ -664,6 +714,7 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
 static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
 {
     MSG msg;
+    HWND hwnd;
     TwapiDeviceNotificationContext *dncP;
 
     /* Keeps track of all device registrations */
@@ -706,7 +757,14 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
                 break;
 
             case TWAPI_WM_REMOVE_DEVICE_NOTIFICATION:
-                //TBD;
+                /*
+                 * Find the appropriate window and destroy it. Once again,
+                 * note no need for locking as all access through single
+                 * thread.
+                 */
+                dncP = TwapiFindDeviceNotificationById((int)msg.wParam);
+                if (dncP && dncP->hwnd)
+                    DestroyWindow(dncP->hwnd);
                 break;
             default:
                 break;          /* Ignore */
@@ -762,6 +820,7 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
 int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiDeviceNotificationContext *dncP;
+    GUID *guidP;
 
     ERROR_IF_UNTHREADED(ticP->interp);
     
@@ -772,14 +831,19 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
     /* Device notification threaded guaranteed running */
     dncP = TwapiDeviceNotificationContextNew(ticP); /* Always non-NULL return */
 
+    guidP = &dncP->device.guid;
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETINT(dncP->id), GETINT(dncP->devtype),
-                     GETGUID(dncP->device.guid), GETHANDLE(dncP->device.hdev),
+                     GETVAR(guidP, ObjToGUID_NULL),
+                     GETHANDLE(dncP->device.hdev),
                      ARGEND) == TCL_ERROR) {
         TwapiDeviceNotificationContextDelete(dncP);
         return TCL_ERROR;
     }
 
+    /* guidP == NULL -> empty string - use a NULL guid */
+    if (guidP == NULL)
+        dncP->device.guid = TwapiNullGuid;
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0))
@@ -835,16 +899,18 @@ TwapiDeviceNotificationContext *TwapiDeviceNotificationContextNew(
 
 
 
+/* Delete a notification context. Internal resources freed up but it
+ * must NOT be on the notification registry list or attached to a window.
+ */
 void TwapiDeviceNotificationContextDelete(TwapiDeviceNotificationContext *dncP)
 {
     /* No locking needed as dncP is only accessed from one thread at a time */
+    if (dncP->hnotification)
+        UnregisterDeviceNotification(dncP->hnotification);
+    dncP->hnotification = NULL;
     if (dncP->ticP) {
-        dncP->ticP = NULL;
         TwapiInterpContextUnref(dncP->ticP, 1);
-    }
-    if (dncP->hwnd) {
-        DestroyWindow(dncP->hwnd);
-        dncP->hwnd = NULL;
+        dncP->ticP = NULL;
     }
 }
 
@@ -955,4 +1021,31 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
         objs[2] = Tcl_NewObj();
     
     return Tcl_NewListObj(3, objs);
+}
+
+
+/* Find the window handle corresponding to a device notification id */
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(int id)
+{
+    TwapiDeviceNotificationContext *dncP;
+
+    /* No need for locking, only accessed from a single thread */
+    dncP = ZLIST_HEAD(&TwapiDeviceNotificationRegistry);
+#define DNC_COMPARE_ID(dnc_, id_) ((dnc_)->id == (id_))
+    ZLIST_FIND(dncP, DNC_COMPARE_ID, id);
+    return dncP;
+#undef DNC_COMPARE_ID
+}
+
+/* Find the window handle corresponding to a device notification id */
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hwnd)
+{
+    TwapiDeviceNotificationContext *dncP;
+
+    /* No need for locking, only accessed from a single thread */
+    dncP = ZLIST_HEAD(&TwapiDeviceNotificationRegistry);
+#define DNC_COMPARE_HWND(dnc_, hwnd_) ((dnc_)->hwnd == (hwnd_))
+    ZLIST_FIND(dncP, DNC_COMPARE_HWND, hwnd);
+    return dncP;
+#undef DNC_COMPARE_HWND
 }
