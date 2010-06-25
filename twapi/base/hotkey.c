@@ -68,11 +68,14 @@ LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, UINT msg, WPARAM id, LPARAM
 {
     TwapiHotkeyCallback *hkcbP;
 
-    hkcbP = (TwapiHotkeyCallback *) TwapiPendingCallbackNew(
-        ticP, TwapiHotkeyCallbackFn, sizeof(*hkcbP));
+    if (msg == WM_HOTKEY) {
+        hkcbP = (TwapiHotkeyCallback *) TwapiPendingCallbackNew(
+            ticP, TwapiHotkeyCallbackFn, sizeof(*hkcbP));
 
-    hkcbP->wparam = id;
-    hkcbP->lparam = key;
-    TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) hkcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+        hkcbP->wparam = id;
+        hkcbP->lparam = key;
+        TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) hkcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+    }
+
     return (LRESULT) NULL;
 }

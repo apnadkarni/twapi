@@ -64,13 +64,16 @@ LRESULT TwapiPowerHandler(TwapiInterpContext *ticP, UINT msg, WPARAM wparam, LPA
 {
     TwapiPowerCallback *cbP;
 
-    cbP = (TwapiPowerCallback *) TwapiPendingCallbackNew(
-        ticP, TwapiPowerCallbackFn, sizeof(*cbP));
+    if (msg == WM_POWERBROADCAST) {
+        cbP = (TwapiPowerCallback *) TwapiPendingCallbackNew(
+            ticP, TwapiPowerCallbackFn, sizeof(*cbP));
 
-    cbP->wparam = wparam;
-    cbP->lparam = lparam;
-    TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+        cbP->wparam = wparam;
+        cbP->lparam = lparam;
+        TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
 
-    /* For querysuspend, make sure we allow the suspend - TBD */
-    return (LRESULT) (wparam == PBT_APMQUERYSUSPEND ? TRUE : 0);
+        /* For querysuspend, make sure we allow the suspend - TBD */
+        return (LRESULT) (wparam == PBT_APMQUERYSUSPEND ? TRUE : 0);
+    }
+    return (LRESULT) NULL;
 }

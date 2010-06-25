@@ -590,9 +590,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetCaretBlinkTime, CallU, 29);
     CALL_(MessageBeep, CallU, 30);
     CALL_(GetGUIThreadInfo, CallU, 31);
-#if !defined(TWAPI_NOCALLBACKS)
     CALL_(Twapi_UnregisterDeviceNotification, CallU, 32);
-#endif
     CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
@@ -1530,7 +1528,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
             break;
 //      case 1019: UNUSED
-#if ! defined(TWAPI_NOCALLBACKS)
+#ifdef TBD
         case 1020:
             return Twapi_StopServiceThread(interp, Tcl_GetString(objv[2]));
 #endif
@@ -1631,7 +1629,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10013:
             return Twapi_ReportEvent(interp, objc-2, objv+2);
         case 10014:
-            return Twapi_RegisterDeviceNotification(ticP, objc, objP);
+            return Twapi_RegisterDeviceNotification(ticP, objc-2, objv+2);
         case 10015: // CreateProcess
         case 10016: // CreateProcessAsUser
             return TwapiCreateProcessHelper(interp, func==10016, objc-2, objv+2);
@@ -1856,7 +1854,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.hval = OpenDesktopW(s, dw, dw2, dw3);
             break;
 
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
+#ifdef TBD
         case 10035: // RegisterDirChangeNotifier
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETWSTR(s), GETINT(dw), GETINT(dw2), GETASTR(cP),
@@ -2319,7 +2317,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             NULLIFY_EMPTY(cP);
             return Twapi_GenerateWin32Error(interp, dw, cP);
-#if ! defined(TWAPI_NOCALLBACKS)
+#ifdef TBD
         case 10082:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETASTR(cP), GETINT(dw), GETINT(dw2), GETINT(dw3),
@@ -2693,7 +2691,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             else
                 result.type = TRT_GETLASTERROR;
             break;
-#if !defined(TWAPI_LEAN) && ! defined(TWAPI_NOCALLBACKS)
+#ifdef TBD
         case 37:
             return Twapi_UnregisterDirChangeNotifier(interp, dw);
 #endif
