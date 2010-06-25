@@ -9,16 +9,15 @@
 # Callback invoked for device changes.
 # Does some processing of passed data and then invokes the
 # real callback script
+
 proc twapi::_device_notification_handler {id args} {
     variable _device_notifiers
-
     set idstr "devnotifier#$id"
-    if {![info exists $device_notifiers($idstr)]} {
+    if {![info exists _device_notifiers($idstr)]} {
         # Notifications that expect a response default to "true"
         return 1
     }
-
-    set script [lindex $_device_notifiers($idstr) 0]
+    set script [lindex $_device_notifiers($idstr) 1]
 
     # For volume notifications, change drive bitmask to
     # list of drives before passing back to script

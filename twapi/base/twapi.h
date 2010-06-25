@@ -540,14 +540,10 @@ typedef struct _TwapiPendingCallback TwapiPendingCallback;
  * dispatch loop. From there, the framework calls a function of type
  * TwapiCallbackFn. This function should parse the event into a Tcl script
  * and return ERROR_SUCCESS on success. On failure, the function should
- * return an appropriate Win32 error code. In both cases, it can optionally
- * store a pointer to a Tcl_Obj in the second parameter. On an ERROR_SUCCESS
- * return, the framework will evaluate the object (which would generally
- * map to a script), and return the result to the original async handler
- * if required. On an error return, the returned object, if any, is directly
- * passed back to the asynchronous handler if required.
+ * return an appropriate Win32 error code. *cbP, including status codes,
+ * should be set appropriately. TBD - clarify/expand on this
  */
-typedef int TwapiCallbackFn(struct _TwapiPendingCallback *);
+typedef int TwapiCallbackFn(struct _TwapiPendingCallback *cbP);
 
 /*
  * Definitions relating to queue of pending callbacks. All pending callbacks
@@ -562,7 +558,10 @@ typedef struct _TwapiPendingCallback {
                                        in the TwapiCallbackFn typedef */
     LONG volatile     nrefs;       /* Ref count - use InterlockedIncrement */
     ZLINK_DECL(TwapiPendingCallback); /* Link for list */
-    DWORD             status;         /* Return status - Win32 error code */
+    DWORD             status;         /* Return status - Win32 error code
+                                         Currently only used to send status
+                                         back to initiator, not the other way
+                                       */
     HANDLE            completion_event;
     TwapiResult response;
 } TwapiPendingCallback;
