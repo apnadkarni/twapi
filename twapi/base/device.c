@@ -55,8 +55,8 @@ ZLIST_DECL(TwapiDeviceNotificationContext) TwapiDeviceNotificationRegistry;
  * NOTE THIS IS A VARIABLE SIZE STRUCTURE AS DEVICE_DEPENDENT DATA IS
  * TACKED ON AT THE END.
  */
-typedef struct _TwapiDeviceNotificationEvent {
-    TwapiPendingCallback  cbP;  /* Must be first field */
+typedef struct _TwapiDeviceNotificationCallback {
+    TwapiPendingCallback  cb;   /* Must be first field */
     int id;                     /* Id of notification context */
     DWORD winerr;               /* 0 or Win32 error */
     union {
@@ -66,7 +66,7 @@ typedef struct _TwapiDeviceNotificationEvent {
         } device;
         char msg[1];            /* Actually variable size */
     } data;
-} TwapiDeviceNotificationEvent;
+} TwapiDeviceNotificationCallback;
 
 static TwapiOneTimeInitState TwapiDeviceNotificationInitialized;
 static DWORD TwapiDeviceNotificationTid;
@@ -81,10 +81,8 @@ void TwapiDeviceNotificationContextUnref(TwapiDeviceNotificationContext *, int);
     do {(p_)->nrefs += (incr_);} while (0)
 static void TwapiReportDeviceNotificationError(
     TwapiDeviceNotificationContext *dncP, char *msg, DWORD winerr);
-static const char *TwapiDecodeCustomDeviceNotification(PDEV_BROADCAST_HDR);
-static const char *TwapiDevtypeToString(DWORD devtype);
-
-
+static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP);
+static Tcl_Obj *ObjFromDevtype(DWORD devtype);
 
 
 Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP)
@@ -319,6 +317,148 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
     return success ? TCL_OK : TCL_ERROR;
 }
 
+static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
+{
+    TwapiDeviceNotificationCallback *cbP = (TwapiDeviceNotificationCallback *)p;
+    PDEV_BROADCAST_HDR dbhP;
+    char *notification_str = NULL;
+    TwapiResultType response_type = TRT_EMPTY;
+
+    Tcl_Obj *objs[10];
+    int nobjs;
+
+    /* Deal with the error notification case first. */
+    if (cbP->cb.status != ERROR_SUCCESS) {
+        /* TBD - deal with later. 2.2 does not generate these error callbacks either */
+        cbP->cb.status = 0;
+        cbP->cb.response.type = TRT_EMPTY;
+        return TCL_OK;
+    }
+
+    dbhP = &cbP->data.device.dev_bcast_hdr;
+
+    /* Note objs[0..2] are common and will be filled at end */
+    nobjs = 3;
+    switch (cbP->data.device.wparam) {
+    case DBT_CONFIGCHANGECANCELED:
+        notification_str = "configchangecanceled";
+        break;
+
+    case DBT_CONFIGCHANGED:
+        notification_str = "configchanged";
+        break;
+
+    case DBT_CUSTOMEVENT:
+        notification_str = "customevent";
+        objs[nobjs++] = ObjFromDevtype(dbhP->dbch_devicetype);
+        objs[nobjs++] = ObjFromCustomDeviceNotification(dbhP);
+        break;
+
+    case DBT_DEVICEARRIVAL: /* Fall thru */
+    case DBT_DEVICEQUERYREMOVE: /* Fall thru */
+    case DBT_DEVICEQUERYREMOVEFAILED: /* Fall thru */
+    case DBT_DEVICEREMOVECOMPLETE:
+    case DBT_DEVICEREMOVEPENDING:
+    case DBT_DEVICETYPESPECIFIC:
+        switch (cbP->data.device.wparam) {
+        case DBT_DEVICEARRIVAL:
+            notification_str = "devicearrival";
+            break;
+        case DBT_DEVICEQUERYREMOVE:
+            notification_str = "devicequeryremove";
+            response_type = TRT_BOOL;
+            break;
+        case DBT_DEVICEQUERYREMOVEFAILED: /* Fall thru */
+            notification_str = "devicequeryremovefailed";
+            break;
+        case DBT_DEVICEREMOVECOMPLETE:
+            notification_str = "deviceremovecomplete";
+            break;
+        case DBT_DEVICEREMOVEPENDING: 
+            notification_str = "deviceremovepending";
+            break;
+        case DBT_DEVICETYPESPECIFIC: 
+            notification_str = "devicetypespecific";
+            break;
+       }
+
+        objs[nobjs++] = ObjFromDevtype(dbhP->dbch_devicetype);
+        switch( dbhP->dbch_devicetype ) {
+        case DBT_DEVTYP_DEVICEINTERFACE:
+            /* First tack on the GUID, then the name */
+            objs[nobjs++] = ObjFromGUID(&((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid);
+            objs[nobjs++] = Tcl_NewUnicodeObj(((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_name, -1);
+            break;
+
+        case DBT_DEVTYP_HANDLE:
+            objs[nobjs++] = ObjFromHANDLE(((PDEV_BROADCAST_HANDLE)dbhP)->dbch_handle);
+            objs[nobjs++] = ObjFromOpaque(((PDEV_BROADCAST_HANDLE)dbhP)->dbch_hdevnotify, "HDEVNOTIFY");
+
+            /*
+             * No additional arguments are passed since there is no other
+             * useful information in the structure unless the event is
+             * DBT_CUSTOMEVENT which is not handled here.
+             */
+            break;
+
+        case DBT_DEVTYP_OEM:
+            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_OEM)dbhP)->dbco_identifier);
+            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_OEM)dbhP)->dbco_suppfunc);
+            break;
+
+        case DBT_DEVTYP_PORT:
+            objs[nobjs++] = Tcl_NewUnicodeObj(((PDEV_BROADCAST_PORT_W)dbhP)->dbcp_name, -1);
+            break;
+
+        case DBT_DEVTYP_VOLUME:
+            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_unitmask);
+            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_flags);
+            break;
+        }
+        
+        break;
+
+    case DBT_DEVNODES_CHANGED:
+        notification_str = "devnodes_changed";
+        break;
+
+    case DBT_QUERYCHANGECONFIG:
+        notification_str = "querychangeconfig";
+        response_type = TRT_BOOL;     /* Force using response from script */
+        break;
+
+    case DBT_USERDEFINED:
+        notification_str = "userdefined";
+        objs[nobjs++] = Tcl_NewStringObj(((struct _DEV_BROADCAST_USERDEFINED *)dbhP)->dbud_szName, -1);
+        break;
+
+    default:
+        break;            // No idea what this is, just ignore
+    }
+
+    /* Be paranoid in case we add more objects later and forget to grow array */
+    if (nobjs > ARRAYSIZE(objs))
+        Tcl_Panic("Internal error: exceeded bounds (%d) of device notification array", nobjs);
+
+    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
+    objs[1] = Tcl_NewLongObj(cbP->id);
+    objs[2] = Tcl_NewStringObj(notification_str, -1);
+    if (response_type == TRT_EMPTY) {
+        /*
+         * Return true, even on errors as we do not want to block a
+         * notification. Likely will be ignored anyway, but just in case
+         */
+        if (TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, response_type) != TCL_OK) {
+            /* TBD - log background error ? */
+            TwapiClearResult(&cbP->cb.response);
+        }
+        cbP->cb.response.type = TRT_BOOL;
+        cbP->cb.response.value.bval = 1;
+        return TCL_OK;
+    } else 
+        return TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, response_type);
+}
+
 
 static LRESULT TwapiDeviceNotificationWinProc(
     TwapiInterpContext *notused, /* NULL */
@@ -331,8 +471,9 @@ static LRESULT TwapiDeviceNotificationWinProc(
     TwapiDeviceNotificationContext *dncP =
         (TwapiDeviceNotificationContext *) clientdata;
     PDEV_BROADCAST_HDR dbhP = NULL;
-    TwapiDeviceNotificationEvent *dneP;
+    TwapiDeviceNotificationCallback *cbP;
     int    need_response = 0;
+    LRESULT lres = TRUE;
 
     switch (wparam) {
     case DBT_CONFIGCHANGECANCELED:
@@ -359,6 +500,18 @@ static LRESULT TwapiDeviceNotificationWinProc(
         dbhP = (PDEV_BROADCAST_HDR) lParam;
         if (dbhP == NULL || dbhP->dbch_devicetype != dncP->devtype)
             return TRUE;
+        
+        if (dbhP->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE &&
+            (! IsEqualGUID(&dncP->device.guid, &TwapiNullGuid)) &&
+            (! IsEqualGUID(&dncP->device.guid,
+                           & (((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid)))) {
+            // We want a specific GUID and this one does not
+            // match what we are looking for
+            // TBD - not sure this additional check is really needed.
+            // The window should not receive any other guids I think
+            return TRUE;
+        }
+
         switch (wparam) {
         case DBT_DEVICEARRIVAL:
             break;
@@ -394,31 +547,42 @@ static LRESULT TwapiDeviceNotificationWinProc(
     /* Build the device notification Tcl event */
     if (dbhP) {
         /* Need to tack on additional data */
-        dneP = (TwapiDeviceNotificationEvent *)
+        cbP = (TwapiDeviceNotificationCallback *)
             TwapiPendingCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
-                                    sizeof(*dneP) + dbhP->dbch_size - sizeof(dneP->dev_bcast_hdr));
-        MoveMemory(&dneP->dev_bcast_hdr, dbhP, dbhP->dbch_size);
+                                    sizeof(*cbP) + dbhP->dbch_size - sizeof(cbP->data.device.dev_bcast_hdr));
+        MoveMemory(&cbP->data.device.dev_bcast_hdr, dbhP, dbhP->dbch_size);
     } else {
         /* No additional data */
-        dneP = (TwapiDeviceNotificationEvent *)
+        cbP = (TwapiDeviceNotificationCallback *)
             TwapiPendingCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
-                                    sizeof(*dneP));
-        dneP = (TwapiDeviceNotificationEvent *) TwapiAlloc(sizeof(*dneP));
+                                    sizeof(*cbP));
+        cbP = (TwapiDeviceNotificationCallback *) TwapiAlloc(sizeof(*cbP));
     }
-    dneP->id = dncP->id;
-    dneP->wparam = wparam;
-    dneP->winerr = ERROR_SUCCESS;
+    cbP->id = dncP->id;
+    cbP->data.device.wparam = wparam;
+    cbP->winerr = ERROR_SUCCESS;
     if (need_response) {
-        TBD;
+        if (TwapiEnqueueCallback(dncP->ticP,
+                                 &cbP->cb,
+                                 TWAPI_ENQUEUE_DIRECT,
+                                 30*1000, /* TBD - Timeout (ms) */
+                                 (TwapiPendingCallback **)&cbP)
+            == ERROR_SUCCESS) {
+            if (cbP && cbP->cb.response.type == TRT_BOOL)
+                lres = cbP->cb.response.value.bval;
+        }
+        if (cbP)
+            TwapiPendingCallbackUnref((TwapiPendingCallback *)cbP, 1);
     } else {
         /* TBD - on error, do we send an error notification ? */
-        TwapiEnqueuCallback(dncP->ticP, &dneP->cpB, TWAPI_ENQUEUE_DIRECT,
-                            0, NULL);
-        
-        return TRUE;
+        TwapiEnqueueCallback(dncP->ticP, &cbP->cb,
+                             TWAPI_ENQUEUE_DIRECT,
+                             0, /* No response wanted */
+                             NULL);
     }
+    return lres;
 }
 
 /*
@@ -594,10 +758,10 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
 
 }
 
+
 int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiDeviceNotificationContext *dncP;
-    DWORD winerr;
 
     ERROR_IF_UNTHREADED(ticP->interp);
     
@@ -606,8 +770,6 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
         return TCL_ERROR;
 
     /* Device notification threaded guaranteed running */
-    
-
     dncP = TwapiDeviceNotificationContextNew(ticP); /* Always non-NULL return */
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
@@ -620,7 +782,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
 
     TwapiDeviceNotificationContextRef(dncP, 1);
-    if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, NULL))
+    if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0))
         return TCL_OK;
     else {
         DWORD winerr = GetLastError();
@@ -629,6 +791,26 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
     }
 }
 
+int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, int id)
+{
+    TwapiDeviceNotificationContext *dncP;
+
+    ERROR_IF_UNTHREADED(ticP->interp);
+    
+    if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
+                             TwapiDeviceNotificationModuleInit, NULL))
+        return TCL_ERROR;
+
+    if (PostThreadMessageW(TwapiDeviceNotificationTid,
+                           TWAPI_WM_REMOVE_DEVICE_NOTIFICATION,
+                           (WPARAM) id,
+                           0))
+        return TCL_OK;
+    else {
+        DWORD winerr = GetLastError();
+        return Twapi_AppendSystemError(ticP->interp, winerr);
+    }
+}
 
 TwapiDeviceNotificationContext *TwapiDeviceNotificationContextNew(
     TwapiInterpContext *ticP)
@@ -647,6 +829,8 @@ TwapiDeviceNotificationContext *TwapiDeviceNotificationContextNew(
     ZLINK_INIT(dncP);
     dncP->hwnd = NULL;
     dncP->hnotification = NULL;
+
+    return dncP;
 }
 
 
@@ -687,66 +871,88 @@ static void TwapiReportDeviceNotificationError(
 }
 
 
-static const char *TwapiDevtypeToString(DWORD devtype)
+static Tcl_Obj *ObjFromDevtype(DWORD devtype)
 {
+    const char *cP;
+
     switch (devtype) {
     case DBT_DEVTYP_DEVICEINTERFACE:
-        return "deviceinterface";
+        cP = "deviceinterface";
     case DBT_DEVTYP_HANDLE:
-        return "handle";
+        cP = "handle";
     case DBT_DEVTYP_VOLUME:
-        return "volume";
+        cP = "volume";
     case DBT_DEVTYP_OEM:
-        return "oem";
+        cP = "oem";
     case DBT_DEVTYP_PORT:
-        return "port";
+        cP = "port";
     default:
-        return "unknown";
+        cP = "unknown";
     }
+    return Tcl_NewStringObj(cP, -1);
 }
 
 
-static const char *TwapiDecodeCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
+static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
 {
+    char *custom_str;
     PDEV_BROADCAST_HANDLE dhP = (PDEV_BROADCAST_HANDLE)dbhP;
+    Tcl_Obj *objs[3];
 
-    /* Do not know how to parse anything else other than HANDLE */
-    if (dbhP->dbch_devicetype != DBT_DEVTYP_HANDLE)
-        return NULL;
-    if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_CHANGE))
-        return "io_volume_change";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_DISMOUNT))
-        return "io_volume_dismount";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_DISMOUNT_FAILED))
-        return "io_volume_dismount_failed";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_MOUNT))
-        return "io_volume_mount";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_LOCK))
-        return "io_volume_lock";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_LOCK_FAILED))
-        return "io_volume_lock_failed";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_UNLOCK))
-        return "io_volume_unlock";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_NAME_CHANGE))
-        return "io_volume_name_change";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_PHYSICAL_CONFIGURATION_CHANGE))
-        return "io_volume_physical_configuration_change";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_VOLUME_DEVICE_INTERFACE))
-        return "io_volume_device_interface";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_MEDIA_ARRIVAL))
-        return "io_media_arrival";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_MEDIA_REMOVAL))
-        return "io_media_removal";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_DEVICE_BECOMING_READY))
-        return "io_device_becoming_ready";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_DEVICE_EXTERNAL_REQUEST))
-        return "io_device_external_request";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_MEDIA_EJECT_REQUEST))
-        return "io_media_eject_request";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_DRIVE_REQUIRES_CLEANING))
-        return "io_drive_requires_cleaning";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_TAPE_ERASE))
-        return "io_tape_erase";
-    else if (IsEqualGUID(dhP->dbch_eventguid, GUID_IO_DISK_LAYOUT_CHANGE))
-        return "io_disk_layout_change";
+    /*
+     * Do not know how to parse anything else other than HANDLE. Also
+     * verify minimum size.
+     */
+    if (dbhP->dbch_devicetype != DBT_DEVTYP_HANDLE ||
+        dbhP->dbch_size < offsetof(DEV_BROADCAST_HANDLE, dbch_nameoffset))
+        return Tcl_NewObj();
+    
+    if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_CHANGE))
+        custom_str = "io_volume_change";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_DISMOUNT))
+        custom_str = "io_volume_dismount";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_DISMOUNT_FAILED))
+        custom_str = "io_volume_dismount_failed";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_MOUNT))
+        custom_str = "io_volume_mount";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_LOCK))
+        custom_str = "io_volume_lock";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_LOCK_FAILED))
+        custom_str = "io_volume_lock_failed";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_UNLOCK))
+        custom_str = "io_volume_unlock";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_NAME_CHANGE))
+        custom_str = "io_volume_name_change";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_PHYSICAL_CONFIGURATION_CHANGE))
+        custom_str = "io_volume_physical_configuration_change";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_DEVICE_INTERFACE))
+        custom_str = "io_volume_device_interface";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_MEDIA_ARRIVAL))
+        custom_str = "io_media_arrival";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_MEDIA_REMOVAL))
+        custom_str = "io_media_removal";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_DEVICE_BECOMING_READY))
+        custom_str = "io_device_becoming_ready";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_DEVICE_EXTERNAL_REQUEST))
+        custom_str = "io_device_external_request";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_MEDIA_EJECT_REQUEST))
+        custom_str = "io_media_eject_request";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_DRIVE_REQUIRES_CLEANING))
+        custom_str = "io_drive_requires_cleaning";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_TAPE_ERASE))
+        custom_str = "io_tape_erase";
+    else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_DISK_LAYOUT_CHANGE))
+        custom_str = "io_disk_layout_change";
+    else
+        custom_str = "unknown";
+
+    objs[0] = Tcl_NewStringObj(custom_str, -1);
+    objs[1] = ObjFromGUID(&dhP->dbch_eventguid);
+    if (dhP->dbch_size > sizeof(DEV_BROADCAST_HANDLE) &&
+        dhP->dbch_nameoffset > 0) {
+        objs[2] = Tcl_NewStringObj(dhP->dbch_nameoffset + (char*)dhP, -1);
+    } else
+        objs[2] = Tcl_NewObj();
+    
+    return Tcl_NewListObj(3, objs);
 }

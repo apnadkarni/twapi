@@ -1630,18 +1630,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                       
         case 10013:
             return Twapi_ReportEvent(interp, objc-2, objv+2);
-#if ! defined(TWAPI_NOCALLBACKS)
         case 10014:
-            guidP = &guid;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETINT(dw),
-                             GETVAR(guidP, ObjToGUID_NULL),
-                             GETHANDLE(h),
-                             GETASTR(cP),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_RegisterDeviceNotification(interp, dw, guidP, h, cP);
-#endif            
+            return Twapi_RegisterDeviceNotification(ticP, objc, objP);
         case 10015: // CreateProcess
         case 10016: // CreateProcessAsUser
             return TwapiCreateProcessHelper(interp, func==10016, objc-2, objv+2);
@@ -2674,10 +2664,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 31:
             return Twapi_GetGUIThreadInfo(interp, dw);
-#if !defined(TWAPI_NOCALLBACKS)
         case 32:
-            return Twapi_UnregisterDeviceNotification(interp, dw);
-#endif
+            return Twapi_UnregisterDeviceNotification(ticP, dw);
         case 33:
             Sleep(dw);
             result.type = TRT_EMPTY;
@@ -3049,7 +3037,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 }
 
 
-int Twapi_CallHObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE h, h2;
     DWORD dw, dw2;
@@ -3524,7 +3512,7 @@ int Twapi_CallHObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
  * Note - s1 will be passed on as NULL if empty string (LPWSTR_NULL_IF_EMPTY
  * semantics). S2,S3,DWORD default to "", "", 0 respectively if not passed in.
 */
-int Twapi_CallSSSDObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
     LPWSTR s1, s2, s3, s4, s5, s6;
@@ -3829,7 +3817,7 @@ int Twapi_CallSSSDObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
     return TwapiSetResult(interp, &result);
 }
 
-int Twapi_CallWObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HWND hwnd, hwnd2;
     TwapiResult result;
@@ -4065,7 +4053,7 @@ int Twapi_CallWObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_O
     return TwapiSetResult(interp, &result);
 }
 
-int Twapi_CallWUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HWND hwnd;
     TwapiResult result;
@@ -4200,7 +4188,7 @@ int Twapi_CallWUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_
 }
 
 
-int Twapi_CallHSUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE h;
     LPCWSTR s;
@@ -4290,7 +4278,7 @@ int Twapi_CallHSUObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
  * string based call dispatchers Also, there is other special
  * processing required such as freeing memory.
 */
-int Twapi_CallPSIDObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PSID sidP = NULL;
     int func;
@@ -4396,7 +4384,7 @@ int Twapi_CallPSIDObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tc
 }
 
 /* Call Net*Enum style API */
-int Twapi_CallNetEnumObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
     LPWSTR s1, s2, s3;
@@ -4589,7 +4577,7 @@ int Twapi_CallNetEnumObjCmd(ClientData clientData, Tcl_Interp *interp, int objc,
 
 /* Call PDH API. This is special-cased because we have to do a restore
    locale after every PDH call on some platforms */
-int Twapi_CallPdhObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
     LPWSTR s, s2, s3;

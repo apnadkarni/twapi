@@ -37,7 +37,7 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         if (! resultP->value.ival)
             return TwapiReturnSystemError(interp);
 
-        if (tag == TRT_NONZERO_RESULT)
+        if (resultP->type == TRT_NONZERO_RESULT)
             resultObj = Tcl_NewLongObj(resultP->value.ival);
         /* else an empty result is returned */
         break;
@@ -131,7 +131,7 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         if (resultP->value.hval == NULL) {
             return TwapiReturnSystemError(interp);
         }
-        switch (tag) {
+        switch (resultP->type) {
         case TRT_HANDLE:
             typenameP = "HANDLE";
             break;

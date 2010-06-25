@@ -1067,7 +1067,8 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName);
 int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-
+int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, int id);
 
 /* File and disk related */
 int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
@@ -1235,7 +1236,6 @@ HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
 int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
 int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
-//DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP, Tcl_Obj **objPP);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which

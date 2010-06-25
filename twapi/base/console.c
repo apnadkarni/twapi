@@ -15,7 +15,7 @@ typedef struct _TwapiConsoleCtrlCallback {
 static TwapiInterpContext * volatile console_control_ticP;
 
 static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl_event);
-static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP);
+static int TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP);
 
 
 int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
@@ -118,7 +118,7 @@ static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
 }
 
 
-static DWORD TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP)
+static int TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP)
 {
     TwapiConsoleCtrlCallback *cbP = (TwapiConsoleCtrlCallback *)pcbP;
     char *event_str;
