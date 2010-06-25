@@ -94,7 +94,6 @@ static LRESULT TwapiClipboardMonitorWinProc(
 
 int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP)
 {
-    HWND hwnd;
     struct TwapiClipboardMonitorState *clip_stateP;
 
     clip_stateP = (struct TwapiClipboardMonitorState *)

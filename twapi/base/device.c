@@ -330,11 +330,11 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
     int nobjs;
 
     /* Deal with the error notification case first. */
-    if (cbP->cb.status != ERROR_SUCCESS) {
+    if (cbP->winerr != ERROR_SUCCESS) {
         objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
         objs[1] = Tcl_NewLongObj(cbP->id);
         objs[2] = STRING_LITERAL_OBJ("error");
-        objs[3] = Tcl_NewLongObj(cbP->cb.status);
+        objs[3] = Tcl_NewLongObj(cbP->winerr);
         return TwapiEvalAndUpdateCallback(&cbP->cb, 4, objs, TRT_EMPTY);
     }
 
@@ -608,7 +608,6 @@ static LRESULT TwapiDeviceNotificationWinProc(
             TwapiPendingCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
                                     sizeof(*cbP));
-        cbP = (TwapiDeviceNotificationCallback *) TwapiAlloc(sizeof(*cbP));
     }
     cbP->id = dncP->id;
     cbP->data.device.wparam = wparam;
@@ -730,7 +729,7 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
     SetEvent(sig);
 
     /* Now start processing messages */
-    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) { 
+    while (GetMessage(&msg, NULL, 0, 0)) { 
         /*
          * Note messages posted to the thread are not (and cannot be) 
          * dispatched through DispatchMessage. These are processed
@@ -791,6 +790,7 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
     HANDLE threadH;
     HANDLE sig;
     int status = TCL_ERROR;
+    DWORD winerr;
 
     
     sig = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -802,18 +802,19 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
         if (threadH) {
             CloseHandle(threadH);
             /* Wait for the thread to get running and sit in its message loop */
-            if (WaitForSingleObject(sig, 2000) == WAIT_OBJECT_0)
+            if (WaitForSingleObject(sig, 5000) == WAIT_OBJECT_0)
                 status = TCL_OK;
+            else
+                winerr = GetLastError();
         }
+        CloseHandle(sig);
     }
 
+
     if (status != TCL_OK)
-        TwapiReturnSystemError(ticP->interp);
+        Twapi_AppendSystemError(ticP->interp, winerr);
 
-    if (sig)
-        CloseHandle(sig);
     return status;
-
 }
 
 
@@ -825,7 +826,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
     ERROR_IF_UNTHREADED(ticP->interp);
     
     if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
-                             TwapiDeviceNotificationModuleInit, NULL))
+                             TwapiDeviceNotificationModuleInit, ticP))
         return TCL_ERROR;
 
     /* Device notification threaded guaranteed running */
@@ -944,16 +945,22 @@ static Tcl_Obj *ObjFromDevtype(DWORD devtype)
     switch (devtype) {
     case DBT_DEVTYP_DEVICEINTERFACE:
         cP = "deviceinterface";
+        break;
     case DBT_DEVTYP_HANDLE:
         cP = "handle";
+        break;
     case DBT_DEVTYP_VOLUME:
         cP = "volume";
+        break;
     case DBT_DEVTYP_OEM:
         cP = "oem";
+        break;
     case DBT_DEVTYP_PORT:
         cP = "port";
+        break;
     default:
         cP = "unknown";
+        break;
     }
     return Tcl_NewStringObj(cP, -1);
 }
@@ -1010,7 +1017,7 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
     else if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_DISK_LAYOUT_CHANGE))
         custom_str = "io_disk_layout_change";
     else
-        custom_str = "unknown";
+        custom_str = "unknown_guid";
 
     objs[0] = Tcl_NewStringObj(custom_str, -1);
     objs[1] = ObjFromGUID(&dhP->dbch_eventguid);

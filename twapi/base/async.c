@@ -270,8 +270,9 @@ TwapiPendingCallback *TwapiPendingCallbackNew(
 
     pcbP->callback = callback;
     pcbP->nrefs = 0;
-    pcbP->completion_event = NULL;
     ZLINK_INIT(pcbP);
+    pcbP->status = ERROR_SUCCESS;
+    pcbP->completion_event = NULL;
     pcbP->response.type = TRT_EMPTY;
     return pcbP;
 }
