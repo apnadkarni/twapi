@@ -270,6 +270,14 @@ void *TwapiAlloc(size_t sz)
     return p;
 }
 
+void *TwapiAllocZero(size_t sz)
+{
+    void *p = calloc(sz, 1);
+    if (p == NULL)
+        Tcl_Panic("Could not allocate %d bytes.", sz);
+    return p;
+}
+
 
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *fn, ClientData clientdata)
 {

@@ -658,6 +658,7 @@ extern int TclIsThreaded;
 
 /* Memory allocation */
 void *TwapiAlloc(size_t sz);
+void *TwapiAllocZero(size_t sz);
 #define TwapiFree(p_) free(p_)
 WCHAR *TwapiAllocWString(WCHAR *, int len);
 WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);

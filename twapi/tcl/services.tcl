@@ -695,16 +695,18 @@ proc twapi::run_as_service {services args} {
 
 
 # Callback that handles requests from the service control manager
-proc twapi::_safe_service_handler {name service_status_handle control args} {
+proc twapi::_service_handler {name service_status_handle control args} {
+    # TBD - should we catch the error or let the C code see it ?
     if {[catch {
-        _service_handler $name $service_status_handle $control $args
+        _service_handler_unsafe $name $service_status_handle $control $args
     } msg]} {
         # TBD - log error message
         catch {eventlog_log "Error in service handler for service $name. $msg Stack: $::errorInfo" -type error}
     }
 }
 
-proc twapi::_service_handler {name service_status_handle control extra_args} {
+# Can raise an error
+proc twapi::_service_handler_unsafe {name service_status_handle control extra_args} {
     variable service_state
 
     set name [string tolower $name]
@@ -778,46 +780,15 @@ proc twapi::_service_handler {name service_status_handle control extra_args} {
         _report_service_status $name
     }
 
+    set result 1
     if {$tell_app} {
-        # Map numerics to symbols
-        # Note - be careful with the string map ambiguity if you add
-        # codes whose digits overlap!
-        switch -exact -- $control {
-            sessionchange {
-                set extra_args [lreplace $extra_args 1 1 [string map {
-                    1 console_connect
-                    2 console_disconnect
-                    3 remote_connect
-                    4 remote_disconnect
-                    5 session_login
-                    6 session_logoff
-                    7 session_lock
-                    8 session_unlock
-                    9 session_remote_control
-                } [lindex $extra_args 1]]]
-            }
-            powerevent {
-                set extra_args [lreplace $extra_args 1 1 [string map {
-                    10 apmpowerstatuschange
-                    11 apmoemevent
-                    18 apmresumeautomatic
-                    4 apmsuspend
-                    5 apmstandby
-                    6 apmresumecritical
-                    7 apmresumesuspend
-                    8 apmresumestandby
-                    9 apmbatterylow
-                } [lindex $extra_args 1]]]
-            }
-        }
-
         if {[catch {
             if {$need_response} {
                 set seq [incr service_state($name,seq)]
             } else {
                 set seq -1
             }
-            eval [linsert $service_state($name,script) end $control $name $seq] $extra_args
+            set result [eval [linsert $service_state($name,script) end $control $name $seq] $extra_args]
             # Note that if the above script may call back into us,
             # via update_service_status for example, the service
             # state may be updated at this point
@@ -825,7 +796,7 @@ proc twapi::_service_handler {name service_status_handle control extra_args} {
             # TBD - report if the script throws errors
         }
     }
-    return
+    return $result
 }
 
 # Called by the application to update it's status
