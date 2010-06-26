@@ -443,7 +443,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
     if (nobjs > ARRAYSIZE(objs))
         Tcl_Panic("Internal error: exceeded bounds (%d) of device notification array", nobjs);
 
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
+    objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_device_notification_handler");
     objs[1] = Tcl_NewLongObj(cbP->id);
     objs[2] = Tcl_NewStringObj(notification_str, -1);
     if (response_type == TRT_EMPTY) {
