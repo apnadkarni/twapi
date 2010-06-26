@@ -652,6 +652,7 @@ proc twapi::run_as_service {services args} {
 
     # Currently service controls are per process, not per service and
     # are fixed for the duration of the process.
+    # TBD - C code actually allows for per service controls. Expose?
     set service_state(controls) [_parse_service_accept_controls $opts(controls)]
 
     if {[llength $services] == 1} {
@@ -663,11 +664,11 @@ proc twapi::run_as_service {services args} {
         setbits type 0x100;     # INTERACTIVE_PROCESS
     }
 
-    set service_names [list ]
+    set service_defs [list ]
     foreach service $services {
         foreach {name script} $service break
         set name [string tolower $name]
-        lappend service_names $name
+        lappend service_defs [list $name $service_state(controls)]
         set service_state($name,state)       stopped
         set service_state($name,script)      $script
         set service_state($name,checkpoint)  0
@@ -678,7 +679,7 @@ proc twapi::run_as_service {services args} {
         set service_state($name,seqack)      0
     }
 
-    twapi::Twapi_BecomeAService $service_names $type ::twapi::_safe_service_handler $service_state(controls)
+    eval [list twapi::Twapi_BecomeAService $type] $service_defs
 
     # Turn off console events by installing our own handler,
     # else tclsh will exit when a user logs off even if it is running

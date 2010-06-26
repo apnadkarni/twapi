@@ -88,9 +88,7 @@ int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
 static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
 {
     TwapiConsoleCtrlCallback *cbP;
-    WCHAR *resultP;
     BOOL handled = FALSE;
-    WCHAR *w;
 
     /* TBD - there is a race here. */
     if (console_control_ticP == NULL)

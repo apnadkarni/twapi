@@ -1117,10 +1117,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     GUID guid;
     GUID *guidP;
     LPITEMIDLIST idlP;
-#if !defined(TWAPI_NOCALLBACKS)
-    DWORD dw5, dw6;
-    unsigned char *c2P;
-#endif
 
     if (objc < 2)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -2317,40 +2313,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             NULLIFY_EMPTY(cP);
             return Twapi_GenerateWin32Error(interp, dw, cP);
-#ifdef TBD
         case 10082:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETASTR(cP), GETINT(dw), GETINT(dw2), GETINT(dw3),
-                             GETINT(dw4), GETINT(dw5),
-                             ARGUSEDEFAULT, GETINT(dw6),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (dw6 == 0) {
-                // Default service controls
-                dw6 = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN
-                    | SERVICE_ACCEPT_PAUSE_CONTINUE;
-            }
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Twapi_SetServiceStatus(cP, dw, dw2, dw3, dw4,
-                                                       dw5, dw6);
-            break;
+            return Twapi_SetServiceStatus(ticP, objc-2, objv+2);
         case 10083:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             ARGSKIP, GETINT(dw), GETASTR(cP),
-                             ARGUSEDEFAULT, GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-
-            if (ObjToArgvA(interp, objv[2], u.argv, ARRAYSIZE(u.argv), &dw3) != TCL_OK)
-                return TCL_ERROR;
-            
-            if (dw2 == 0) {
-                // Default service controls
-                dw2 = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN
-                    | SERVICE_ACCEPT_PAUSE_CONTINUE;
-            }
-            return Twapi_BecomeAService(interp, dw3, u.argv, dw, cP, dw2);
-#endif
+            return Twapi_BecomeAService(ticP, objc-2, objv+2);
         case 10084:
             return Twapi_WNetUseConnection(interp, objc-2, objv+2);
         case 10085:
