@@ -1198,6 +1198,9 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h, SC_STATUS_TYPE l
 int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService);
 int Twapi_EnumServicesStatus(Tcl_Interp *interp, SC_HANDLE hService,
                              DWORD dwServiceType, DWORD dwServiceState);
+int Twapi_BecomeAService(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+
+int Twapi_SetServiceStatus(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
 
 
 /* Task scheduler related */

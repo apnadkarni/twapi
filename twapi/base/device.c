@@ -713,7 +713,6 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
 static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
 {
     MSG msg;
-    HWND hwnd;
     TwapiDeviceNotificationContext *dncP;
 
     /* Keeps track of all device registrations */
@@ -858,8 +857,6 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
 int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, int id)
 {
-    TwapiDeviceNotificationContext *dncP;
-
     ERROR_IF_UNTHREADED(ticP->interp);
     
     if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,

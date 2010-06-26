@@ -199,10 +199,6 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
 {
     TwapiTclEvent *tteP = (TwapiTclEvent *) tclevP;
     TwapiPendingCallback *pcbP;
-    DWORD status;                 /* Win32 error */
-    Tcl_Obj *objP;
-    int len;
-    WCHAR *wP;
 
     /* We only handle window and file-type events here. TBD - is this right? */
     if (!(flags & (TCL_WINDOW_EVENTS|TCL_FILE_EVENTS))) return 0;
