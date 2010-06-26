@@ -781,7 +781,7 @@ proc twapi::_service_handler_unsafe {name service_status_handle control extra_ar
         _report_service_status $name
     }
 
-    set result 1
+    set result 0
     if {$tell_app} {
         if {[catch {
             if {$need_response} {
@@ -797,6 +797,13 @@ proc twapi::_service_handler_unsafe {name service_status_handle control extra_ar
             # TBD - report if the script throws errors
         }
     }
+
+    if {$result eq "allow"} {
+        set result 0
+    } elseif {$result eq "deny"} {
+        set result  0x424D5144; # BROADCAST_QUERY_DENY
+    }
+
     return $result
 }
 
