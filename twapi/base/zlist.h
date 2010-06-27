@@ -142,6 +142,18 @@ to null if non match occurred.
 	} \
     } while (0)
 
+/*
+ * Same as ZLINK_NAMED_FIND except that the comparison is a straight
+ * comparison with a specific field
+ */
+#define ZLINK_NAMED_LOCATE(objptr_, field_, cmpfield_, cmpmacroarg_)     \
+    do {                                                                \
+	while (objptr_) {                                               \
+	    if (((objptr_)->cmpfield_) == (cmpmacroarg_))               \
+		break; \
+	    (objptr_) = ZLINK_NAMED_NEXT((objptr_), field_); \
+	} \
+    } while (0)
 
 
 /* Note that *tailPtrPtr is only used for returning the tail of the sorted
@@ -401,8 +413,17 @@ The macro should return 0 if match succeeds, else non-0.
 objptr_ will be set to the first element for which the match succeeded or
 to null if non match occurred.
 */
-#define ZLIST_NAMED_FIND(objptr_, field_, cmpmacro_, cmpmacroarg_) \
-    ZLINK_NAMED_FIND(objptr_, field_, cmpmacro_, cmpmacroarg_)
+#define ZLIST_NAMED_FIND(objptr_, listptr_, field_, cmpmacro_, cmpmacroarg_) \
+    do {                                                                \
+        objptr_ = ZLIST_HEAD(listptr_);                                 \
+        ZLINK_NAMED_FIND(objptr_, field_, cmpmacro_, cmpmacroarg_);     \
+    } while (0)
+#define ZLIST_NAMED_LOCATE(objptr_, listptr_, field_, cmpfield_, cmpmacroarg_) \
+    do {                                                                \
+        objptr_ = ZLIST_HEAD(listptr_);                                 \
+        ZLINK_NAMED_LOCATE(objptr_, field_, cmpfield_, cmpmacroarg_);     \
+    } while (0)
+
 
 #define ZLIST_NAMED_SORT_DECL(sortfunc_, objtypedef_, field_) \
     void sortfunc_ (ZLIST_NAMED_DECL(objtypedef_, field_) *listPtr, \
@@ -518,6 +539,9 @@ Define a list with default field names.
 #define ZLINK_FIND(objptr_, cmpmacro_, macroarg_) \
     ZLINK_NAMED_FIND(objptr_, ZLINKNAME__, cmpmacro_, macroarg_)
 
+#define ZLINK_LOCATE(objptr_, cmpfield_, macroarg_) \
+    ZLINK_NAMED_LOCATE(objptr_, ZLINKNAME__, cmpfield_, macroarg_)
+
 #define ZLINK_SORT_DECL(sortfunc_, objtypedef_) \
     ZLINK_NAMED_SORT_DECL(sortfunc_, objtypedef_, ZLINKNAME__)
 
@@ -565,8 +589,11 @@ Define a list with default field names.
 #define ZLIST_CONCAT(listptr1_, listptr2_) \
     ZLIST_NAMED_CONCAT(listptr1_, listptr2_, ZLINKNAME__)
 
-#define ZLIST_FIND(objptr_, cmpmacro_, cmpmacroarg_) \
-    ZLIST_NAMED_FIND((objptr_), ZLINKNAME__, cmpmacro_, (cmpmacroarg_))
+#define ZLIST_FIND(objptr_, listptr_, cmpmacro_, cmpmacroarg_)           \
+    ZLIST_NAMED_FIND(objptr_, listptr_, ZLINKNAME__, cmpmacro_, (cmpmacroarg_))
+
+#define ZLIST_LOCATE(objptr_, listptr_, cmpfield_, cmpmacroarg_)         \
+    ZLIST_NAMED_LOCATE(objptr_, listptr_, ZLINKNAME__, cmpfield_, (cmpmacroarg_))
 
 #define ZLIST_SORT_DECL(sortfunc_, objtypedef_) \
     ZLIST_NAMED_SORT_DECL(sortfunc_, objtypedef_, ZLINKNAME__)
