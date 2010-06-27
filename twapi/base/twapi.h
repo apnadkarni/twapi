@@ -320,6 +320,7 @@ struct TwapiTcl85Stubs {
 
 #endif
 
+
 /*******************
  * Misc definitions
  *******************/
@@ -526,6 +527,7 @@ typedef struct {
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
+
 /******************************************************************
  * Definitions related to queueing async callbacks such as hotkeys
  ******************************************************************/
@@ -620,8 +622,10 @@ typedef struct _TwapiTclEvent {
 } TwapiTclEvent;
 
 
+
 /****************************************
  * Definitions related to hidden windows
+ * TBD - should this be in twapi_wm.h ?
  ****************************************/
 /* Name of hidden window class */
 #define TWAPI_HIDDEN_WINDOW_CLASS_L L"TwapiHiddenWindow"
@@ -643,13 +647,13 @@ extern "C" {
 #endif
 
 /* GLOBALS */
-extern OSVERSIONINFO TwapiOSVersionInfo;
-extern GUID TwapiNullGuid;
-extern struct TwapiTclVersion TclVersion;
-extern int TclIsThreaded;
+extern OSVERSIONINFO gTwapiOSVersionInfo;
+extern GUID gTwapiNullGuid;
+extern struct TwapiTclVersion gTclVersion;
+extern int gTclIsThreaded;
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \
-        if (! TclIsThreaded) {                                          \
+        if (! gTclIsThreaded) {                                          \
             if (interp_) Tcl_SetResult((interp_), "This command requires a threaded build of Tcl.", TCL_STATIC); \
             return TCL_ERROR;                                           \
         }                                                               \

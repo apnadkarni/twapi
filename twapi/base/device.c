@@ -552,7 +552,7 @@ static LRESULT TwapiDeviceNotificationWinProc(
             return TRUE;
         
         if (dbhP->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE &&
-            (! IsEqualGUID(&dncP->device.guid, &TwapiNullGuid)) &&
+            (! IsEqualGUID(&dncP->device.guid, &gTwapiNullGuid)) &&
             (! IsEqualGUID(&dncP->device.guid,
                            & (((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid)))) {
             // We want a specific GUID and this one does not
@@ -680,14 +680,14 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
         di_filter.dbcc_size = sizeof(di_filter);
         di_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
         notify_flags = DEVICE_NOTIFY_WINDOW_HANDLE;
-        if (! IsEqualGUID(&dncP->device.guid, &TwapiNullGuid)) {
+        if (! IsEqualGUID(&dncP->device.guid, &gTwapiNullGuid)) {
             // Specific GUID requested
             di_filter.dbcc_classguid = dncP->device.guid;
         }
         else {
             // XP and later allow notification of ALL interfaces
-            if (TwapiOSVersionInfo.dwMajorVersion == 5 &&
-                TwapiOSVersionInfo.dwMinorVersion == 0) {
+            if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
+                gTwapiOSVersionInfo.dwMinorVersion == 0) {
                 TwapiReportDeviceNotificationError(dncP, "Device interface must be specified on Windows 2000.", ERROR_INVALID_FUNCTION);
                 return FALSE;
             }
@@ -843,7 +843,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     /* guidP == NULL -> empty string - use a NULL guid */
     if (guidP == NULL)
-        dncP->device.guid = TwapiNullGuid;
+        dncP->device.guid = gTwapiNullGuid;
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0))

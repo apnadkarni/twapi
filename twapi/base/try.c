@@ -286,7 +286,7 @@ Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status)
        will use the new 8.5 routines through the stubs table. Note
        we don't run against older than 8.4 anyways */
 
-    if (TclVersion.major == 8 && TclVersion.minor == 4) {
+    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
         Tcl_Obj *saveObjv [5];
         Tcl_Obj *listObj;
 
@@ -348,7 +348,7 @@ int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr)
        will use the new 8.5 routines through the stubs table. Note
        we don't run against older than 8.4 anyways */
 
-    if (TclVersion.major == 8 && TclVersion.minor == 4) {
+    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
         Tcl_Obj *saveObjPtr = (Tcl_Obj *)savePtr;
         Tcl_Obj **saveObjv;
         int saveObjc;
@@ -397,7 +397,7 @@ void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr)
        will use the new 8.5 routines through the stubs table. Note
        we don't run against older than 8.4 anyways */
 
-    if (TclVersion.major == 8 && TclVersion.minor == 4) {
+    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
         Tcl_DecrRefCount ((Tcl_Obj *)savePtr);
     }
     else {

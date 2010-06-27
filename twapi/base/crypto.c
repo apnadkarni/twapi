@@ -203,8 +203,8 @@ int Twapi_InitializeSecurityContext(
     TimeStamp     expiration;
     TimeStamp    *expirationP;
 
-    if (TwapiOSVersionInfo.dwMajorVersion == 5 &&
-        TwapiOSVersionInfo.dwMinorVersion >= 1) {
+    if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
+        gTwapiOSVersionInfo.dwMinorVersion >= 1) {
         /* XP and above */
         expirationP = &expiration;
     } else {
@@ -284,8 +284,8 @@ int Twapi_AcceptSecurityContext(
     TimeStamp     expiration;
     TimeStamp    *expirationP;
 
-    if (TwapiOSVersionInfo.dwMajorVersion == 5 &&
-        TwapiOSVersionInfo.dwMinorVersion >= 1) {
+    if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
+        gTwapiOSVersionInfo.dwMinorVersion >= 1) {
         /* XP and above */
         expirationP = &expiration;
     } else {
