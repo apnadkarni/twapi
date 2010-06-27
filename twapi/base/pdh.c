@@ -18,13 +18,13 @@ void TwapiPdhRestoreLocale()
      * around this, we reset the locale after every PDH call. Tcl 8.5 and
      * later or OS XP or later apparently do not need this.
      */
-    if (TclVersion.major > 8 ||
-        (TclVersion.major == 8 && TclVersion.minor > 4))
+    if (gTclVersion.major > 8 ||
+        (gTclVersion.major == 8 && gTclVersion.minor > 4))
         return;
 
     /* Note test below assumes twapi does not load at all if major < 5 */
-    if (TwapiOSVersionInfo.dwMajorVersion > 5 ||
-        TwapiOSVersionInfo.dwMinorVersion != 0)
+    if (gTwapiOSVersionInfo.dwMajorVersion > 5 ||
+        gTwapiOSVersionInfo.dwMinorVersion != 0)
         return;
 
     setlocale(LC_ALL, "C");

@@ -23,10 +23,11 @@
 /*
  * Globals
  */
-OSVERSIONINFO TwapiOSVersionInfo;
-GUID TwapiNullGuid;             /* Initialized to all zeroes */
-struct TwapiTclVersion TclVersion;
-int TclIsThreaded;
+OSVERSIONINFO gTwapiOSVersionInfo;
+GUID gTwapiNullGuid;             /* Initialized to all zeroes */
+struct TwapiTclVersion gTclVersion;
+int gTclIsThreaded;
+
 /*
  * Whether the callback dll/libray has been initialized.
  * The value must be managed using the InterlockedCompareExchange functions to
@@ -34,8 +35,7 @@ int TclIsThreaded;
  * 0 -> first to call, do init,  1 -> init in progress by some other thread
  * 2 -> Init done
  */
-static TwapiOneTimeInitState TwapiInitialized;
-
+static TwapiOneTimeInitState gTwapiInitialized;
 
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
@@ -62,7 +62,7 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
 
 
     /* Init unless already done. */
-    if (! TwapiDoOneTimeInit(&TwapiInitialized, TwapiOneTimeInit, interp))
+    if (! TwapiDoOneTimeInit(&gTwapiInitialized, TwapiOneTimeInit, interp))
         return TCL_ERROR;
 
     /* NOTE: no point setting Tcl_SetResult for errors as they are not
@@ -276,24 +276,24 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
 
 
     if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
-        TclIsThreaded = 1;
+        gTclIsThreaded = 1;
     else
-        TclIsThreaded = 0;
+        gTclIsThreaded = 0;
 
     /*
      * Deeply nested if's because it is easier to track what to undo
      * in case of errors
      */
 
-    Tcl_GetVersion(&TclVersion.major,
-                   &TclVersion.minor,
-                   &TclVersion.patchlevel,
-                   &TclVersion.reltype);
-    if (TclVersion.major ==  TWAPI_TCL_MAJOR &&
-        TclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
-        TwapiOSVersionInfo.dwOSVersionInfoSize =
-            sizeof(TwapiOSVersionInfo);
-        if (GetVersionEx(&TwapiOSVersionInfo)) {
+    Tcl_GetVersion(&gTclVersion.major,
+                   &gTclVersion.minor,
+                   &gTclVersion.patchlevel,
+                   &gTclVersion.reltype);
+    if (gTclVersion.major ==  TWAPI_TCL_MAJOR &&
+        gTclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
+        gTwapiOSVersionInfo.dwOSVersionInfoSize =
+            sizeof(gTwapiOSVersionInfo);
+        if (GetVersionEx(&gTwapiOSVersionInfo)) {
             /* Sockets */
             if (WSAStartup(ws_ver, &ws_data) == 0) {
                 /* Single-threaded COM model - TBD */
