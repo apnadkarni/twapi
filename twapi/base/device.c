@@ -47,7 +47,7 @@ typedef struct _TwapiDeviceNotificationContext {
  * and hence requires no locking.
  */
 ZLIST_CREATE_TYPEDEFS(TwapiDeviceNotificationContext);
-ZLIST_DECL(TwapiDeviceNotificationContext) TwapiDeviceNotificationRegistry;
+ZLIST_DECL(TwapiDeviceNotificationContext) gTwapiDeviceNotificationRegistry;
 
 /*
  * Device notification events delivered via the Tcl event queue.
@@ -485,7 +485,7 @@ static LRESULT TwapiDeviceNotificationWinCleanup(HWND hwnd)
      * Unlink from the registered notificaitons chain and window before
      * freeing it up.
      */
-    ZLIST_REMOVE(&TwapiDeviceNotificationRegistry, dncP);
+    ZLIST_REMOVE(&gTwapiDeviceNotificationRegistry, dncP);
 
     /*
      * Window data points to dncP via TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET.
@@ -703,7 +703,7 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
 
     /* Add to our list of registrations */
     TwapiDeviceNotificationContextRef(dncP, 1);
-    ZLIST_APPEND(&TwapiDeviceNotificationRegistry, dncP);
+    ZLIST_APPEND(&gTwapiDeviceNotificationRegistry, dncP);
     return TCL_OK;
 
 }
@@ -716,7 +716,7 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
     TwapiDeviceNotificationContext *dncP;
 
     /* Keeps track of all device registrations */
-    ZLIST_INIT(&TwapiDeviceNotificationRegistry);      /* TBD - free this registry */
+    ZLIST_INIT(&gTwapiDeviceNotificationRegistry);      /* TBD - free this registry */
 
     /*
      * Initialize the message queue so the initiating interp can post
@@ -1034,11 +1034,8 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(int id)
     TwapiDeviceNotificationContext *dncP;
 
     /* No need for locking, only accessed from a single thread */
-    dncP = ZLIST_HEAD(&TwapiDeviceNotificationRegistry);
-#define DNC_COMPARE_ID(dnc_, id_) ((dnc_)->id == (id_))
-    ZLIST_FIND(dncP, DNC_COMPARE_ID, id);
+    ZLIST_LOCATE(dncP, &gTwapiDeviceNotificationRegistry, id, id);
     return dncP;
-#undef DNC_COMPARE_ID
 }
 
 /* Find the window handle corresponding to a device notification id */
@@ -1047,9 +1044,6 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hw
     TwapiDeviceNotificationContext *dncP;
 
     /* No need for locking, only accessed from a single thread */
-    dncP = ZLIST_HEAD(&TwapiDeviceNotificationRegistry);
-#define DNC_COMPARE_HWND(dnc_, hwnd_) ((dnc_)->hwnd == (hwnd_))
-    ZLIST_FIND(dncP, DNC_COMPARE_HWND, hwnd);
+    ZLIST_LOCATE(dncP, &gTwapiDeviceNotificationRegistry, hwnd, hwnd);
     return dncP;
-#undef DNC_COMPARE_HWND
 }
