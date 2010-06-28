@@ -118,6 +118,7 @@ int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     TwapiGetArgsFn converter_fn;
     int        len;
     int        use_default = 0;
+    int        *iP;
 
     va_start(ap,fmtch);
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, char)) {
@@ -269,6 +270,24 @@ int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                 if (converter_fn(interp, objP, p) != TCL_OK)
                     goto argerror;
             }
+            break;
+
+        case ARGAARGV:
+        case ARGWARGV:
+            if (objP) {
+                ival = va_arg(ap, int);
+                iP = va_arg(ap, int *);
+                if (iP == NULL)
+                    iP = &ival;
+                if (fmtch == ARGAARGV) {
+                    if (ObjToArgvA(interp, objP, p, ival, iP) != TCL_OK)
+                        goto argerror;
+                } else {
+                    if (ObjToArgvW(interp, objP, p, ival, iP) != TCL_OK)
+                        goto argerror;
+                }
+            } else if (iP)
+                *iP = 0;
             break;
 
         default:
@@ -2231,12 +2250,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), GETHANDLET(h, HMODULE), GETINT(dw2),
                              GETINT(dw3),
-                             ARGSKIP, /* Ensures argument exists */
+                             GETWARGV(u.wargv, ARRAYSIZE(u.wargv), dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
-            if (ObjToArgvW(interp, objv[6], u.wargv, ARRAYSIZE(u.wargv), &dw4) != TCL_OK)
-                return TCL_ERROR;
             /* Only look at select bits from dwFlags as others are used when
                formatting from string */
             dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
@@ -2245,12 +2262,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10074: // Twapi_FormatMessageFromString
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), GETWSTR(s),
-                             ARGSKIP, /* Ensures argument exists */
+                             GETWARGV(u.wargv, ARRAYSIZE(u.wargv), dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
-            if (ObjToArgvW(interp, objv[4], u.wargv, ARRAYSIZE(u.wargv), &dw4) != TCL_OK)
-                return TCL_ERROR;
             /* Only look at select bits from dwFlags as others are used when
                formatting from module */
             dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;

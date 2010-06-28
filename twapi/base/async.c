@@ -64,10 +64,10 @@ int TwapiEnqueueCallback(
     
     if (enqueue_method == TWAPI_ENQUEUE_ASYNC) {
         /* Queue via the older Tcl_Async mechanism. */
-        EnterCriticalSection(&ticP->pending_cs);
+        EnterCriticalSection(&ticP->lock);
 
         if (ticP->pending_suspended) {
-            LeaveCriticalSection(&ticP->pending_cs);
+            LeaveCriticalSection(&ticP->lock);
             if (pcbP->completion_event)
                 CloseHandle(pcbP->completion_event);
             TwapiPendingCallbackDelete(pcbP);
@@ -94,7 +94,7 @@ int TwapiEnqueueCallback(
         /* To avoid races, the AsyncMark should also happen in the crit sec */
         Tcl_AsyncMark(ticP->async_handler);
     
-        LeaveCriticalSection(&ticP->pending_cs);
+        LeaveCriticalSection(&ticP->lock);
     } else {
         /* Queue directly to the Tcl event loop for the thread */
         /* Note the CallbackEvent gets freed by the Tcl code and hence
@@ -150,7 +150,7 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
      * Tcl_AsyncMark manpage for details.
      */
     
-    EnterCriticalSection(&ticP->pending_cs);
+    EnterCriticalSection(&ticP->lock);
 
     /*
      * Loop and queue up all pending events. Note we do this even if
@@ -165,7 +165,7 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
         ZLIST_REMOVE(&ticP->pending, pcbP);
 
         /* Unlock before entering Tcl code */
-        LeaveCriticalSection(&ticP->pending_cs);
+        LeaveCriticalSection(&ticP->lock);
 
         /*
          * The following two Ref/Unref cancel each other so
@@ -184,10 +184,10 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
         Tcl_QueueEvent((Tcl_Event *) tteP, TCL_QUEUE_TAIL);
 
         /* Lock again before checking if empty */
-        EnterCriticalSection(&ticP->pending_cs);
+        EnterCriticalSection(&ticP->lock);
     }
 
-    LeaveCriticalSection(&ticP->pending_cs);
+    LeaveCriticalSection(&ticP->lock);
     return code;
 }
 

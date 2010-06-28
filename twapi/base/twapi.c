@@ -19,7 +19,6 @@
 #define TWAPI_MIN_TCL_MINOR 4
 #endif
 
-
 /*
  * Globals
  */
@@ -27,6 +26,11 @@ OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 int gTclIsThreaded;
+
+/* List of allocated interpreter - used primarily for unnotified cleanup */
+CRITICAL_SECTION gTwapiInterpContextsCS; /* To protect the same */
+ZLIST_DECL(TwapiInterpContext) gTwapiInterpContexts;
+
 
 /*
  * Whether the callback dll/libray has been initialized.
@@ -84,8 +88,15 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
      * ref for the context, not one per command. This is sufficient since
      * when the interp gets deleted, all the commands get deleted as well.
      * The corresponding Unref happens when the interp is deleted.
+     *
+     * In addition, we add one more ref because we will place it on the global
+     * queue.
      */
-    TwapiInterpContextRef(ticP, 1);
+    TwapiInterpContextRef(ticP, 1+1);
+    EnterCriticalSection(&gTwapiInterpContextsCS);
+    ZLIST_PREPEND(&gTwapiInterpContexts, ticP);
+    LeaveCriticalSection(&gTwapiInterpContextsCS);
+
 
     Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, ticP);
 
@@ -159,6 +170,8 @@ Twapi_GetTwapiBuildInfo(
 
 static void Twapi_Cleanup(ClientData clientdata)
 {
+    /* TBD - do we need to protect against more than one call ? */
+
     // Commented out CoUninitialize for the time being.
     // If there are event sinks in use, and the application exits
     // when the main window is closed, then Twapi_Cleanup gets
@@ -175,7 +188,9 @@ static void Twapi_Cleanup(ClientData clientdata)
 #if 0
     CoUninitialize();
 #endif
+    // TBD - clean up allocated interp context lists, threads etc.
 
+    DeleteCriticalSection(&gTwapiInterpContextsCS);
     WSACleanup();
 }
 
@@ -191,16 +206,24 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->thread = Tcl_GetCurrentThread();
 
     /* Initialize the critical section used for controlling
-     * the notification list
+     * various attached lists
+     *
+     * TBD - what's an appropriate spin count? Default of 0 is not desirable
+     * As per MSDN, Windows heap manager uses 4000 so we do too.
      */
+    InitializeCriticalSectionAndSpinCount(&ticP->lock, 4000);
+
+    /* Init queue of callbacks that are pending */
     ZLIST_INIT(&ticP->pending);
     ticP->pending_suspended = 0;
-    InitializeCriticalSection(&ticP->pending_cs);
+
+    /* Init queue of registered thread pool handles pending */
+    ZLIST_INIT(&ticP->directory_monitors);
 
     /* Register a async callback with Tcl. */
     /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
-       or should it be per process ? Or per thread ?
-    */
+     * or should it be per process ? Or per thread ? Do we need this at all?
+     */
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
     ticP->notification_win = NULL; /* Created only on demand */
@@ -225,7 +248,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
         Tcl_AsyncDelete(ticP->async_handler);
     ticP->async_handler = 0;    /* Just in case */
 
-    DeleteCriticalSection(&ticP->pending_cs);
+    DeleteCriticalSection(&ticP->lock);
 
     /* TBD - should rest of this be in the Twapi_InterpCleanup instead ? */
     if (ticP->notification_win) {
@@ -248,22 +271,36 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
 
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
+    TwapiInterpContext *tic2P;
+
     if (ticP->interp == NULL)
         return;
 
+
+    EnterCriticalSection(&gTwapiInterpContextsCS);
+    ZLIST_LOCATE(tic2P, &gTwapiInterpContexts, interp, ticP->interp);
+    if (tic2P != ticP) {
+        LeaveCriticalSection(&gTwapiInterpContextsCS);
+        /* Either not found, or linked to a different interp. */
+        Tcl_Panic("TWAPI interpreter context not found or attached to the wrong Tcl interpreter.");
+    }
+    ZLIST_REMOVE(&gTwapiInterpContexts, ticP);
+    LeaveCriticalSection(&gTwapiInterpContextsCS);
+
     ticP->interp = NULL;        /* Must not access during cleanup */
     
-    EnterCriticalSection(&ticP->pending_cs);
+    EnterCriticalSection(&ticP->lock);
     ticP->pending_suspended = 1;
-    LeaveCriticalSection(&ticP->pending_cs);
+    LeaveCriticalSection(&ticP->lock);
 
     if (ticP->console_ctrl_hooked)
         Twapi_StopConsoleEventNotifier(ticP);
 
     /* TBD - call other callback module clean up procedures */
-    // TBD - terminate device notification thread;
+    /* TBD - terminate device notification thread; */
     
-    TwapiInterpContextUnref(ticP, 1);
+    /* Unref for unlinking interp, +1 for removal from gTwapiInterpContexts */
+    TwapiInterpContextUnref(ticP, 1+1);
 }
 
 
@@ -274,6 +311,8 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
 
+    InitializeCriticalSection(&gTwapiInterpContextsCS);
+    ZLIST_INIT(&gTwapiInterpContexts);
 
     if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
         gTclIsThreaded = 1;
@@ -312,3 +351,4 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
 
     return TCL_ERROR;
 }
+

@@ -108,7 +108,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sddP->ClassGuid, ObjToGUID),
                          GETINT(sddP->DevInst),
-                         GETDWORD_PTR(sddP->Reserved)) != TCL_OK) {
+                         GETDWORD_PTR(sddP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
     } else
@@ -151,7 +151,7 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sdiP->InterfaceClassGuid, ObjToGUID),
                          GETINT(sdiP->Flags),
-                         GETDWORD_PTR(sdiP->Reserved)) != TCL_OK) {
+                         GETDWORD_PTR(sdiP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
     } else
