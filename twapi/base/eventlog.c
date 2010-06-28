@@ -26,18 +26,16 @@ int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hEventLog), GETWORD(wType), GETWORD(wCategory),
                      GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSID),
-                     ARGSKIP, GETBIN(data, datalen),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
-
-    if (datalen == 0)
-        data = NULL;
-
-    if (ObjToArgvW(interp, objv[5], argv, ARRAYSIZE(argv), &argc) != TCL_OK) {
+                     GETWARGV(argv, ARRAYSIZE(argv), argc),
+                     GETBIN(data, datalen),
+                     ARGEND) != TCL_OK) {
         if (lpUserSid)
             free(lpUserSid);
         return TCL_ERROR;
     }
+
+    if (datalen == 0)
+        data = NULL;
 
     status = ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
                           (WORD) argc, datalen, argv, data);

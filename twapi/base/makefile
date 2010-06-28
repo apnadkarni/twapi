@@ -40,6 +40,7 @@ OBJS  = \
 	$(OBJDIR)\console.obj \
 	$(OBJDIR)\crypto.obj \
 	$(OBJDIR)\device.obj \
+	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\eventlog.obj \

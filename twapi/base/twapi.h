@@ -475,32 +475,35 @@ typedef struct {
 /*
  * Macros for passing arguments to TwapiGetArgs.
  * v is a variable of the appropriate type.
+ * I is an int variable or const
  * n is a variable of type int
  * typestr - is any type string such as "HSERVICE" that indicates the type
  * fn - is a function to call to convert the value. The function
  *   should have the prototype TwapiGetArgFn
  */
+#define ARGEND      0
+#define ARGTERM     1
 #define ARGBOOL    'b'
 #define ARGBIN     'B'
+#define ARGDOUBLE  'd'
+#define ARGNULLIFEMPTY 'E'
 #define ARGINT     'i'
 #define ARGWIDE    'I'
-#define ARGDOUBLE  'd'
+#define ARGNULLTOKEN 'N'
 #define ARGOBJ     'o'
+#define ARGPTR      'p'
 #define ARGDWORD_PTR 'P'
+#define ARGAARGV   'r'
+#define ARGWARGV   'R'
 #define ARGASTR      's'
 #define ARGASTRN     'S'
 #define ARGWSTR     'u'
 #define ARGWSTRN    'U'
-#define ARGWORD     'w'
-#define ARGPTR      'p'
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
-#define ARGEND      0
-#define ARGTERM     1
+#define ARGWORD     'w'
 #define ARGSKIP     'x'
 #define ARGUSEDEFAULT '?'
-#define ARGNULLIFEMPTY 'E'
-#define ARGNULLTOKEN 'N'
 
 #define GETBOOL(v)    ARGBOOL, &(v)
 #define GETBIN(v, n)  ARGBIN, &(v), &(n)
@@ -524,17 +527,42 @@ typedef struct {
 #define GETVAR(v, fn)  ARGVAR, &(v), fn
 #define GETVARWITHDEFAULT(v, fn)  ARGVARWITHDEFAULT, &(v), fn
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
+/* For GETAARGV/GETWARGV, v is of type char *v[n], or WCHAR *v[n] */
+#define GETAARGV(v, I, n) ARGAARGV, (v), (I), &(n)
+#define GETWARGV(v, I, n) ARGWARGV, (v), (I), &(n)
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
 
-/******************************************************************
- * Definitions related to queueing async callbacks such as hotkeys
- ******************************************************************/
-
-/* Forward decls */
-struct _TwapiInterpContext;
+/*
+ * Forward decls
+ */
+typedef struct _TwapiInterpContext TwapiInterpContext;
+ZLINK_CREATE_TYPEDEFS(TwapiInterpContext); 
+ZLIST_CREATE_TYPEDEFS(TwapiInterpContext);
 typedef struct _TwapiPendingCallback TwapiPendingCallback;
+ZLINK_CREATE_TYPEDEFS(TwapiPendingCallback); 
+ZLIST_CREATE_TYPEDEFS(TwapiPendingCallback);
+typedef struct _TwapiThreadPoolRegisteredHandle TwapiThreadPoolRegisteredHandle;
+typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
+ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
+ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
+
+#if 0
+/*
+ * We need to keep track of handles that are being tracked by the 
+ * thread pool so they can be released on interp deletion even if
+ * the application code does not explicitly release them.
+ */
+ZLINK_CREATE_TYPEDEFS(TwapiThreadPoolRegisteredHandle); 
+ZLIST_CREATE_TYPEDEFS(TwapiThreadPoolRegisteredHandle); 
+typedef struct _TwapiThreadPoolRegisteredHandle {
+    HANDLE handle;              /* Handle being waited on by thread pool */
+    HANDLE tp_handle;           /* Corresponding handle returned by pool */
+    ZLINK_DECL(TwapiThreadPoolRegisteredHandle); /* Link for tracking list */
+} TwapiThreadPoolRegisteredHandle;
+#endif
+
 
 /*
  * For asynchronous notifications of events, there is a common framework
@@ -553,7 +581,6 @@ typedef int TwapiCallbackFn(struct _TwapiPendingCallback *cbP);
  */
 
 /* Creates list link definitions */
-ZLINK_CREATE_TYPEDEFS(TwapiPendingCallback); 
 typedef struct _TwapiPendingCallback {
     struct _TwapiInterpContext *ticP; /* Interpreter context */
     TwapiCallbackFn  *callback;     /* Function to call back - see notes
@@ -564,20 +591,22 @@ typedef struct _TwapiPendingCallback {
                                          Currently only used to send status
                                          back to initiator, not the other way
                                        */
+
     HANDLE            completion_event;
     TwapiResult response;
 } TwapiPendingCallback;
 
-/* Create list header definitions */
-ZLIST_CREATE_TYPEDEFS(TwapiPendingCallback);
-
 /*
  * TwapiInterpContext keeps track of a per-interpreter context.
  * This is allocated when twapi is loaded into an interpreter and
- * passed around as ClientData to most commands. It is never
- * deallocated as there is no callback associated with interp deletion.
+ * passed around as ClientData to most commands. It is reference counted
+ * for deletion purposes and also placed on a global list for cleanup
+ * purposes when a thread exits.
  */
 typedef struct _TwapiInterpContext {
+    ZLINK_DECL(TwapiInterpContext); /* Links all the contexts, primarily
+                                       to track cleanup requirements */
+
     LONG volatile         nrefs;   /* Reference count for alloc/free */
 
     /* Back pointer to the associated interp. This must only be modified or
@@ -589,11 +618,22 @@ typedef struct _TwapiInterpContext {
 
     Tcl_ThreadId thread;     /* Id of interp thread */
 
-    ZLIST_DECL(TwapiPendingCallback) pending; /* List of pending callbacks */
+    /*
+     * A single lock that is shared among multiple lists attached to this
+     * structure as contention is expected to be low.
+     */
+    CRITICAL_SECTION lock;
+
+    /* List of pending callbacks. Accessed controlled by the lock field */
+    ZLIST_DECL(TwapiPendingCallback) pending;
     int              pending_suspended;       /* If true, do not pend events */
-    CRITICAL_SECTION pending_cs; /* Controls access to pending and
-                                    pending_suspended */
     
+    /*
+     * List of directory change monitor contexts.
+     * Accessed controlled by the lock field.
+     */
+    ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
+
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
      */
@@ -605,6 +645,8 @@ typedef struct _TwapiInterpContext {
     int           console_ctrl_hooked; /* True -> This interp is handling
                                           console ctrol signals */
     DWORD         device_notification_tid; /* device notification thread id */
+    
+
 } TwapiInterpContext;
 
 /*
