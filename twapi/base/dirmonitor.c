@@ -56,11 +56,10 @@ static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *);
 static DWORD TwapiDirectoryMonitorInitiateRead(TwapiDirectoryMonitorContext *);
 #define TwapiDirectoryMonitorContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void TwapiDirectoryMonitorContextUnref(TwapiDirectoryMonitorContext *dcmP, int decr);
-VOID CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
+static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
     PVOID lpParameter,
     BOOLEAN TimerOrWaitFired
 );
-
 
 
 int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
@@ -112,10 +111,14 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         goto system_error;
     }
 
-    /* Create an event to use for notification of completion */
+    /*
+     * Create an event to use for notification of completion. The event
+     * must be auto-reset to prevent multiple callback queueing on a single 
+     * input notification. See MSDN docs for RegisterWaitForSingleObject.
+     */
     dmcP->completion_event = CreateEvent(
         NULL,                   /* No security attrs */
-        TRUE,                   /* Manual reset */
+        FALSE,                  /* Auto reset */
         FALSE,                  /* Not Signaled */
         NULL);                  /* Unnamed event */
 
@@ -262,7 +265,7 @@ static DWORD TwapiDirectoryMonitorInitiateRead(
         iobP = (TwapiDirectoryMonitorBuffer *)TwapiAlloc(sizeof(*iobP) + 4000);
         iobP->buf_sz = 4000;
         dmcP->iobP = iobP;
-    }        
+    }
 
     iobP->ovl.Internal = 0;
     iobP->ovl.InternalHigh = 0;
@@ -291,4 +294,71 @@ void TwapiDirectoryMonitorContextUnref(TwapiDirectoryMonitorContext *dcmP, int d
         TwapiDirectoryMonitorContextDelete(dcmP);
 }
 
+
+/*
+ * Called from the Windows thread pool when a dir change notification is 
+ * signaled.
+ */
+static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
+    PVOID pv,
+    BOOLEAN timeout
+)
+{
+    TwapiDirectoryMonitorContext *dmcP = (TwapiDirectoryMonitorContext *) pv;
+    DWORD bytes_read;
+    DWORD winerr;
+    TwapiPendingCallback *cbP;
+    TwapiDirectoryMonitorBuffer *iobP;
+
+    /*
+     * We can safely access fields in *dmcP because the owning interp
+     * thread will not pull it out from under us without unregisetring
+     * the handle from the thread pool, which the thread pool will block
+     * until we return
+     */
+
+    if (timeout) {
+        /* Huh? Should not happen, we never set a timer - TBD */
+        goto error_handler;
+    }
+
+    /*
+     * The thread pool requires that the event we used was auto-reset to
+     * prevent multiple callbacks being queued for a single operation.
+     * This means the event is now in a non-signaled state. So make sure
+     * the last bWait param to GetOverlappedResult is FALSE else the
+     * call will hang forever (since we will not issue another read
+     * until later)
+     */
+    if (GetOverlappedResult(dmcP->directory_handle, &dmcP->iobP->ovl, &bytes_read, 0) == FALSE) {
+        /* Error. */
+        winerr = GetLastError();
+        if (winerr == ERROR_IO_INCOMPLETE) {
+            /* Huh? then why were we signaled? But don't treat as error */
+            return;
+        }
+        TBD;
+        goto error_handler;
+    }
+    
+    /*
+     * Success, Initiate the next read as soon as possible, and then
+     * send the current buffer over to the interp.
+     */
+    iobP = dmcP->iobP;
+    dmcP->iobP = NULL;
+    if (TwapiDirectoryMonitorInitiateRead(dmcP) != ERROR_SUCCESS) {
+        TBD - error;
+        goto error_handler;
+    }
+    cbP = TwapiPendingCallbackNew(dmcP->ticP, TwapiDirectoryMonitorCallbackFn,
+                                  sizeof(*cbP));
+    cbP->clientdata = iobP;
+    TwapiEnqueueCallback(dmcP->ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+    return;
+    
+
+error_handler:
+    TBD;
+}
 
