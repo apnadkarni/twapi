@@ -587,11 +587,11 @@ typedef struct _TwapiPendingCallback {
                                        in the TwapiCallbackFn typedef */
     LONG volatile     nrefs;       /* Ref count - use InterlockedIncrement */
     ZLINK_DECL(TwapiPendingCallback); /* Link for list */
-    DWORD             status;         /* Return status - Win32 error code
+    DWORD             status;         /* Return status - Win32 error code.
                                          Currently only used to send status
-                                         back to initiator, not the other way
-                                       */
-
+                                         back to callback initiator, not
+                                         the other way */
+    DWORD_PTR         clientdata;     /* For use by client code */
     HANDLE            completion_event;
     TwapiResult response;
 } TwapiPendingCallback;

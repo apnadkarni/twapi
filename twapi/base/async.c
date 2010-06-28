@@ -270,6 +270,7 @@ TwapiPendingCallback *TwapiPendingCallbackNew(
     pcbP->status = ERROR_SUCCESS;
     pcbP->completion_event = NULL;
     pcbP->response.type = TRT_EMPTY;
+    pcbP->clientdata = 0;
     return pcbP;
 }
 
