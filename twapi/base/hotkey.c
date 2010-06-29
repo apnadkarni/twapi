@@ -7,12 +7,6 @@
 
 #include "twapi.h"
 
-typedef struct _TwapiHotkeyCallback {
-    TwapiPendingCallback pcb;   /* Must be first field */
-    WPARAM wparam;
-    LPARAM lparam;
-} TwapiHotkeyCallback;
-
 int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk)
 {
     HWND hwnd;
@@ -47,16 +41,14 @@ int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id)
  * Constructs the hotkey script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-int TwapiHotkeyCallbackFn(TwapiPendingCallback *pcbP)
+int TwapiHotkeyCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *objs[3];
 
-    TwapiHotkeyCallback *hkcbP = (TwapiHotkeyCallback *) pcbP;
-
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_hotkey_handler", -1);
-    objs[1] = ObjFromDWORD_PTR(hkcbP->wparam);
-    objs[2] = ObjFromDWORD_PTR(hkcbP->lparam);
-    return TwapiEvalAndUpdateCallback(pcbP, 3, objs, TRT_EMPTY);
+    objs[1] = ObjFromDWORD_PTR(cbP->clientdata);
+    objs[2] = ObjFromDWORD_PTR(cbP->clientdata2);
+    return TwapiEvalAndUpdateCallback(cbP, 3, objs, TRT_EMPTY);
 }
 
 
@@ -66,15 +58,13 @@ int TwapiHotkeyCallbackFn(TwapiPendingCallback *pcbP)
  */
 LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, UINT msg, WPARAM id, LPARAM key)
 {
-    TwapiHotkeyCallback *hkcbP;
+    TwapiCallback *cbP;
 
     if (msg == WM_HOTKEY) {
-        hkcbP = (TwapiHotkeyCallback *) TwapiPendingCallbackNew(
-            ticP, TwapiHotkeyCallbackFn, sizeof(*hkcbP));
-
-        hkcbP->wparam = id;
-        hkcbP->lparam = key;
-        TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) hkcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+        cbP = TwapiCallbackNew(ticP, TwapiHotkeyCallbackFn, sizeof(*cbP));
+        cbP->clientdata = id;
+        cbP->clientdata2 = key;
+        TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
     }
 
     return (LRESULT) NULL;

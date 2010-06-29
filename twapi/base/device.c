@@ -56,9 +56,8 @@ ZLIST_DECL(TwapiDeviceNotificationContext) gTwapiDeviceNotificationRegistry;
  * TACKED ON AT THE END.
  */
 typedef struct _TwapiDeviceNotificationCallback {
-    TwapiPendingCallback  cb;   /* Must be first field */
+    TwapiCallback  cb;   /* Must be first field */
     int id;                     /* Id of notification context */
-    DWORD winerr;               /* 0 or Win32 error */
     union {
         struct {
             WPARAM wparam;              /* wparam from the WM_DEVICECHANGE message */
@@ -319,7 +318,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
     return success ? TCL_OK : TCL_ERROR;
 }
 
-static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
+static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
 {
     TwapiDeviceNotificationCallback *cbP = (TwapiDeviceNotificationCallback *)p;
     PDEV_BROADCAST_HDR dbhP;
@@ -330,11 +329,11 @@ static int TwapiDeviceNotificationCallbackFn(TwapiPendingCallback *p)
     int nobjs;
 
     /* Deal with the error notification case first. */
-    if (cbP->winerr != ERROR_SUCCESS) {
+    if (cbP->cb.winerr != ERROR_SUCCESS) {
         objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
         objs[1] = Tcl_NewLongObj(cbP->id);
         objs[2] = STRING_LITERAL_OBJ("error");
-        objs[3] = Tcl_NewLongObj(cbP->winerr);
+        objs[3] = Tcl_NewLongObj(cbP->cb.winerr);
         return TwapiEvalAndUpdateCallback(&cbP->cb, 4, objs, TRT_EMPTY);
     }
 
@@ -598,32 +597,32 @@ static LRESULT TwapiDeviceNotificationWinProc(
     if (dbhP) {
         /* Need to tack on additional data */
         cbP = (TwapiDeviceNotificationCallback *)
-            TwapiPendingCallbackNew(dncP->ticP,
+            TwapiCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
                                     sizeof(*cbP) + dbhP->dbch_size - sizeof(cbP->data.device.dev_bcast_hdr));
         MoveMemory(&cbP->data.device.dev_bcast_hdr, dbhP, dbhP->dbch_size);
     } else {
         /* No additional data */
         cbP = (TwapiDeviceNotificationCallback *)
-            TwapiPendingCallbackNew(dncP->ticP,
+            TwapiCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
                                     sizeof(*cbP));
     }
     cbP->id = dncP->id;
     cbP->data.device.wparam = wparam;
-    cbP->winerr = ERROR_SUCCESS;
+    cbP->cb.winerr = ERROR_SUCCESS;
     if (need_response) {
         if (TwapiEnqueueCallback(dncP->ticP,
                                  &cbP->cb,
                                  TWAPI_ENQUEUE_DIRECT,
                                  30*1000, /* TBD - Timeout (ms) */
-                                 (TwapiPendingCallback **)&cbP)
+                                 (TwapiCallback **)&cbP)
             == ERROR_SUCCESS) {
             if (cbP && cbP->cb.response.type == TRT_BOOL)
                 lres = cbP->cb.response.value.bval;
         }
         if (cbP)
-            TwapiPendingCallbackUnref((TwapiPendingCallback *)cbP, 1);
+            TwapiCallbackUnref((TwapiCallback *)cbP, 1);
     } else {
         TwapiEnqueueCallback(dncP->ticP, &cbP->cb,
                              TWAPI_ENQUEUE_DIRECT,

@@ -7,15 +7,11 @@
 
 #include "twapi.h"
 
-typedef struct _TwapiConsoleCtrlCallback {
-    TwapiPendingCallback pcb;   /* Must be first field */
-    DWORD ctrl;
-} TwapiConsoleCtrlCallback;
 
 static TwapiInterpContext * volatile console_control_ticP;
 
 static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl_event);
-static int TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP);
+static int TwapiConsoleCtrlCallbackFn(TwapiCallback *cbP);
 
 
 int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
@@ -87,42 +83,41 @@ int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
 /* Directly called by Windows in a separate thread */
 static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
 {
-    TwapiConsoleCtrlCallback *cbP;
+    TwapiCallback *cbP;
     BOOL handled = FALSE;
 
-    /* TBD - there is a race here. */
+    /* TBD - there is a race here? */
     if (console_control_ticP == NULL)
         return FALSE;
 
-    cbP = (TwapiConsoleCtrlCallback *) TwapiPendingCallbackNew(
+    cbP = TwapiCallbackNew(
         console_control_ticP, TwapiConsoleCtrlCallbackFn, sizeof(*cbP));
 
-    cbP->ctrl = ctrl;
+    cbP->clientdata = ctrl;
     if (TwapiEnqueueCallback(console_control_ticP,
-                             (TwapiPendingCallback*) cbP,
+                             cbP,
                              TWAPI_ENQUEUE_DIRECT,
                              100, /* Timeout (ms) */
-                             (TwapiPendingCallback **)&cbP)
+                             &cbP)
         == ERROR_SUCCESS) {
 
-        if (cbP && cbP->pcb.response.type == TRT_BOOL)
-            handled = cbP->pcb.response.value.bval;
+        if (cbP && cbP->response.type == TRT_BOOL)
+            handled = cbP->response.value.bval;
     }
 
     if (cbP)
-        TwapiPendingCallbackUnref((TwapiPendingCallback *)cbP, 1);
+        TwapiCallbackUnref((TwapiCallback *)cbP, 1);
 
     return handled;
 }
 
 
-static int TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP)
+static int TwapiConsoleCtrlCallbackFn(TwapiCallback *cbP)
 {
-    TwapiConsoleCtrlCallback *cbP = (TwapiConsoleCtrlCallback *)pcbP;
     char *event_str;
     Tcl_Obj *objs[3];
 
-    switch (cbP->ctrl) {
+    switch (cbP->clientdata) {
     case CTRL_C_EVENT:
         event_str = "ctrl-c";
         break;
@@ -145,5 +140,5 @@ static int TwapiConsoleCtrlCallbackFn(TwapiPendingCallback *pcbP)
 
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
     objs[1] = Tcl_NewStringObj(event_str, -1);
-    return TwapiEvalAndUpdateCallback(pcbP, 2, objs, TRT_BOOL);
+    return TwapiEvalAndUpdateCallback(cbP, 2, objs, TRT_BOOL);
 }

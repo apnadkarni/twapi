@@ -335,37 +335,43 @@ int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *fn, Cl
  *  - the objv[] array generally must not be accessed again by caller
  *    unless they previously do a Tcl_IncrRef on each element of the array
  *  - the pcbP->status and pcbP->response fields are updated.
- *  - assumes cbP->ticP->interp is valid
  *  - the pcbP->response field type will not always match response_type
  *    unless the function returns TCL_OK
  *
  * Return values are as follows:
  * TCL_ERROR - error - you called me with bad arguments, dummy.
- *   cbP is unchanged except its status is set to ERROR_INVALID_ARGS
- *   and cbP->response is set to TRT_EMPTY.
- *   Do what you will.
- * TCL_OK - either everything went fine, or there was an error. Distinguish
+ *   cbP is unchanged.
+ *   Do what you will or let the framework return an error.
+ * TCL_OK - either everything went fine, or there was an error in script
+ *   evaluation. Distinguish
  *   by checking the cbP->status field. Either way cpP->response has
  *   been set appropriately.
  */
-int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type)
+int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type)
 {
     int i;
     Tcl_Obj *objP;
     int tcl_status;
     TwapiResult *responseP = &cbP->response;
 
-    if (cbP->ticP->interp == NULL ||
-        Tcl_InterpDeleted(cbP->ticP->interp)) {
-        cbP->status = ERROR_DS_NO_SUCH_OBJECT; /* Best match we can find */
-        cbP->response.type = TRT_EMPTY;
-        return TCL_OK;          /* See function comments */
-    }
-
-    /* Before we eval, make sure stuff does not disappear in the eval */
+    /*
+     * Before we eval, make sure stuff does not disappear in the eval. We
+     * do this even if the interp is deleted since we have to call decrref
+     * on exit
+     */
     for (i = 0; i < objc; ++i) {
         Tcl_IncrRefCount(objv[i]);
     }
+
+    if (cbP->ticP->interp == NULL ||
+        Tcl_InterpDeleted(cbP->ticP->interp)) {
+        cbP->winerr = ERROR_DS_NO_SUCH_OBJECT; /* Best match we can find */
+        cbP->response.type = TRT_EMPTY;
+        tcl_status = TCL_OK;         /* See function comments */
+        goto vamoose;
+    }
+
+    /* Preserve structures during eval */
     TwapiInterpContextRef(cbP->ticP, 1);
     Tcl_Preserve(cbP->ticP->interp);
 
@@ -373,11 +379,11 @@ int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *obj
                                TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
     if (tcl_status != TCL_OK) {
         /* TBD - see if errorcode is TWAPI_WIN32 and return that if so */
-        cbP->status = E_FAIL;
+        cbP->winerr = ERROR_FUNCTION_FAILED;
         response_type = TRT_CHARS_DYNAMIC;
         tcl_status = TCL_OK; /* See function comments */
     } else {
-        cbP->status = ERROR_SUCCESS;
+        cbP->winerr = ERROR_SUCCESS;
     }
     
     objP = Tcl_GetObjResult(cbP->ticP->interp); /* OK even if interp
@@ -411,7 +417,7 @@ int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *obj
         break;                  /* Empty string */
     default:
         tcl_status = TCL_ERROR;
-        cbP->status = ERROR_INVALID_PARAMETER;
+        cbP->winerr = ERROR_INVALID_PARAMETER;
         break;
     }
 
@@ -424,6 +430,7 @@ int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *obj
     Tcl_Release(cbP->ticP->interp);
     TwapiInterpContextUnref(cbP->ticP, 1);
 
+vamoose:
     /* 
      * Undo the incrref above. This will delete the object unless
      * caller had done an incr-ref on it.

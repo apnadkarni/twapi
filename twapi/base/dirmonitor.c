@@ -11,11 +11,14 @@
 
 #define MAXPATTERNS 32
 
+typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
+
 typedef struct _TwapiDirectoryMonitorBuffer {
     OVERLAPPED ovl;
+    TwapiDirectoryMonitorContext *dmcP;  /* dir monitor context */
     int        buf_sz;          /* Actual size of buf[] */
     char       buf[1];          /* Variable sized */
-}  TwapiDirectoryMonitorBuffer;
+} TwapiDirectoryMonitorBuffer;
 
 /*
  * Struct used to hold dir change notification context.
@@ -34,9 +37,11 @@ typedef struct _TwapiDirectoryMonitorContext {
     DWORD   filter;
     int     include_subtree;
     int     npatterns;
-    char   *patterns[1];
+    WCHAR  *patterns[1];
     /* VARIABLE SIZE AREA FOLLOWS */
 } TwapiDirectoryMonitorContext;
+
+
 
 
 /*
@@ -49,18 +54,18 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     int    path_len,            /* -1 -> null terminated */
     int    include_subtree,
     DWORD  filter,
-    char  **patterns,
+    WCHAR **patterns,
     int    npatterns
     );
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *);
 static DWORD TwapiDirectoryMonitorInitiateRead(TwapiDirectoryMonitorContext *);
 #define TwapiDirectoryMonitorContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void TwapiDirectoryMonitorContextUnref(TwapiDirectoryMonitorContext *dcmP, int decr);
-static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
+static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
     PVOID lpParameter,
     BOOLEAN TimerOrWaitFired
 );
-
+static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *p);
 
 int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
@@ -70,7 +75,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     int    path_len;
     int    include_subtree;
     int    npatterns;
-    char  *patterns[MAXPATTERNS];
+    WCHAR  *patterns[MAXPATTERNS];
     DWORD  winerr;
     DWORD filter;
 
@@ -80,7 +85,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
                      GETINT(id),
                      GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
                      GETINT(filter),
-                     GETAARGV(patterns, ARRAYSIZE(patterns), npatterns),
+                     GETWARGV(patterns, ARRAYSIZE(patterns), npatterns),
                      ARGEND)
         != TCL_OK)
         return TCL_ERROR;
@@ -145,7 +150,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     if (RegisterWaitForSingleObject(
             &dmcP->thread_pool_registry_handle,
             dmcP->completion_event,
-            TwapiDirectoryMonitorThreadPoolCallback,
+            TwapiDirectoryMonitorThreadPoolFn,
             dmcP,
             INFINITE,           /* No timeout */
             WT_EXECUTEINIOTHREAD
@@ -180,17 +185,17 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     int    path_len,            /* -1 -> null terminated */
     int    include_subtree,
     DWORD  filter,
-    char  **patterns,
+    WCHAR **patterns,
     int    npatterns
     )
 {
     int sz;
     TwapiDirectoryMonitorContext *dmcP;
     int i;
-    int lengths[MAXPATTERNS];
+    int bytelengths[MAXPATTERNS];
     char *cP;
 
-    if (npatterns > ARRAYSIZE(lengths)) {
+    if (npatterns > ARRAYSIZE(bytelengths)) {
         /* It was caller's responsibility to check */
         Tcl_Panic("Internal error: caller exceeded pattern limit.");
     }
@@ -202,8 +207,8 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
 
     sz += npatterns * sizeof(dmcP->patterns[0]); /* Space for patterns array */
     for (i=0; i < npatterns; ++i) {
-        lengths[i] = lstrlenA(patterns[i]) + 1;
-        sz += lengths[i];
+        bytelengths[i] = sizeof(WCHAR) * lstrlenW(patterns[i]) + 1;
+        sz += bytelengths[i];
     }
     sz += sizeof(WCHAR);                /* Sufficient space for alignment pad */
     sz += sizeof(WCHAR) * (path_len+1); /* Space for path to be monitored */
@@ -223,9 +228,9 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
         (npatterns*sizeof(dmcP->patterns[0])) +
         (char *)dmcP;
     for (i=0; i < npatterns; ++i) {
-        dmcP->patterns[i] = cP;
-        MoveMemory(cP, patterns[i], lengths[i]);
-        cP += lengths[i];
+        dmcP->patterns[i] = (WCHAR *) cP;
+        MoveMemory(cP, patterns[i], bytelengths[i]);
+        cP += bytelengths[i];
     }
     /* Align up to WCHAR boundary */
     dmcP->pathP = (WCHAR *)((sizeof(WCHAR)-1 + (DWORD_PTR)cP) & ~ (sizeof(WCHAR)-1));
@@ -299,7 +304,7 @@ void TwapiDirectoryMonitorContextUnref(TwapiDirectoryMonitorContext *dcmP, int d
  * Called from the Windows thread pool when a dir change notification is 
  * signaled.
  */
-static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
+static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
     PVOID pv,
     BOOLEAN timeout
 )
@@ -307,7 +312,7 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
     TwapiDirectoryMonitorContext *dmcP = (TwapiDirectoryMonitorContext *) pv;
     DWORD bytes_read;
     DWORD winerr;
-    TwapiPendingCallback *cbP;
+    TwapiCallback *cbP;
     TwapiDirectoryMonitorBuffer *iobP;
 
     /*
@@ -337,7 +342,7 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
             /* Huh? then why were we signaled? But don't treat as error */
             return;
         }
-        TBD;
+        //TBD;
         goto error_handler;
     }
     
@@ -347,18 +352,182 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolCallback(
      */
     iobP = dmcP->iobP;
     dmcP->iobP = NULL;
+    iobP->dmcP = dmcP;
+    TwapiDirectoryMonitorContextRef(dmcP, 1); /* Since iobP is being queued */
+
     if (TwapiDirectoryMonitorInitiateRead(dmcP) != ERROR_SUCCESS) {
-        TBD - error;
+        //TBD - error;
         goto error_handler;
     }
-    cbP = TwapiPendingCallbackNew(dmcP->ticP, TwapiDirectoryMonitorCallbackFn,
+    cbP = TwapiCallbackNew(dmcP->ticP, TwapiDirectoryMonitorCallbackFn,
                                   sizeof(*cbP));
-    cbP->clientdata = iobP;
+    cbP->clientdata = (DWORD_PTR) iobP;
     TwapiEnqueueCallback(dmcP->ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
     return;
     
 
 error_handler:
-    TBD;
+    //TBD;
+    return;
 }
 
+static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
+{
+    Tcl_Obj *scriptObj[3];
+    Tcl_Obj *fnObj[2];
+    Tcl_Obj *actionObj[6];
+    int      ngenerated;
+    FILE_NOTIFY_INFORMATION *fniP;
+    TwapiDirectoryMonitorBuffer *iobP;
+    char      *endP;
+    int        i;
+
+    iobP = (TwapiDirectoryMonitorBuffer *) cbP->clientdata;
+    if (iobP == NULL || iobP->ovl.Internal != ERROR_SUCCESS || iobP->dmcP == NULL) {
+        //Error;
+        //TBD;
+        //Remember to unref dmcP;
+        return TCL_ERROR;
+    }    
+
+    scriptObj[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_dirmonitor_handler");
+    scriptObj[1] = Tcl_NewLongObj(iobP->dmcP->id);
+    scriptObj[2] = Tcl_NewListObj(0, NULL);
+
+    fniP = (FILE_NOTIFY_INFORMATION *) iobP->buf;
+    /* InternalHigh is byte count */
+    endP = iobP->ovl.InternalHigh + iobP->buf;
+    ngenerated = 0;
+    fnObj[1] = NULL;
+    for (i=0; i < ARRAYSIZE(actionObj); ++i) {
+        actionObj[i] = NULL;
+    }
+    while ((endP - sizeof(FILE_NOTIFY_INFORMATION)) > (char *)fniP) {
+        if ((fniP->FileNameLength == 0) || (fniP->FileNameLength & 1)) {
+            /*
+             * Number of bytes should be positive and even. Ignore all
+             * remaining. TBD - error
+             */
+            break;
+        }
+
+        /* Double check lengths are OK.  Note FileNameLength is in bytes. */
+        if ((fniP->FileNameLength + (char *)fniP->FileName) > endP) {
+            /* Suspect length. TBD - error */
+            break;
+        }
+
+        /*
+         * Skip if pattern specified and do not match. We first create
+         * a Tcl_Obj and then do the match because unfortunately, the
+         * the filenames in iobP are not null terminated so we would have
+         * to copy them somewhere anyways to compare. We could temporarily
+         * overwrite the next char with \0 but that would not work for
+         * the last filename.
+         */
+        if (fnObj[1]) {
+            /* Left over from last iteration so use it */
+            Tcl_SetUnicodeObj(fnObj[1], fniP->FileName, fniP->FileNameLength/2);
+        } else 
+            fnObj[1] = Tcl_NewUnicodeObj(fniP->FileName, fniP->FileNameLength/2);
+        if (iobP->dmcP->npatterns) {
+            /* Need to match on pattern */
+            int i;
+            for (i = 0; i < iobP->dmcP->npatterns; ++i) {
+                if (Tcl_UniCharCaseMatch(Tcl_GetUnicode(fnObj[1]),
+                                         iobP->dmcP->patterns[i], 1))
+                    break;
+            }
+            if (i == iobP->dmcP->npatterns) {
+                /*
+                 * No match. Try next name. Note fnObj will be released
+                 * later if necessary or reused in next iteration
+                 */
+                continue;
+            }
+        }
+        
+        /*
+         * We reuse the action names instead of allocating new ones. Much
+         * more efficient in space and time when many notifications.
+         */
+        switch (fniP->Action) {
+        case FILE_ACTION_ADDED:
+            if (actionObj[0] == NULL) {
+                actionObj[0] = STRING_LITERAL_OBJ("added");
+                Tcl_IncrRefCount(actionObj[0]);
+            }
+            fnObj[0] = actionObj[0];
+            break;
+        case FILE_ACTION_REMOVED:
+            if (actionObj[1] == NULL) {
+                actionObj[1] = STRING_LITERAL_OBJ("removed");
+                Tcl_IncrRefCount(actionObj[1]);
+            }
+            fnObj[0] = actionObj[1];
+            break;
+        case FILE_ACTION_MODIFIED:
+            if (actionObj[2] == NULL) {
+                actionObj[2] = STRING_LITERAL_OBJ("modified");
+                Tcl_IncrRefCount(actionObj[2]);
+            }
+            fnObj[0] = actionObj[2];
+            break;
+        case FILE_ACTION_RENAMED_OLD_NAME:
+            if (actionObj[3] == NULL) {
+                actionObj[3] = STRING_LITERAL_OBJ("renameold");
+                Tcl_IncrRefCount(actionObj[3]);
+            }
+            fnObj[0] = actionObj[3];
+            break;
+        case FILE_ACTION_RENAMED_NEW_NAME:
+            if (actionObj[4] == NULL) {
+                actionObj[4] = STRING_LITERAL_OBJ("renamenew");
+                Tcl_IncrRefCount(actionObj[4]);
+            }
+            fnObj[0] = actionObj[4];
+            break;
+        default:
+            if (actionObj[5] == NULL) {
+                actionObj[5] = STRING_LITERAL_OBJ("unknown");
+                Tcl_IncrRefCount(actionObj[5]);
+            }
+            fnObj[0] = actionObj[5];
+            break;
+        }
+        Tcl_ListObjAppendElement(iobP->dmcP->ticP->interp, scriptObj[2],
+                                 Tcl_NewListObj(2, fnObj));
+        fnObj[1] = NULL;           /* So we don't mistakenly reuse it */
+        ++ngenerated;
+
+        if (fniP->NextEntryOffset == 0)
+            break;          // No more entries
+
+        fniP = (FILE_NOTIFY_INFORMATION *) (fniP->NextEntryOffset + (char *)fniP);
+    } /* while */
+
+    /* Matches Ref from when iobP was queued */
+    TwapiDirectoryMonitorContextUnref(iobP->dmcP, 1);
+    TwapiFree(iobP);
+    iobP = NULL;
+    cbP->clientdata = 0;        /* iobP */
+
+    if (fnObj[1])
+        Twapi_FreeNewTclObj(fnObj[1]); /* Allocated but not used */
+
+    /* Deref the action objs. Note if in use by lists this will not free them */
+    for (i=0; i < ARRAYSIZE(actionObj); ++i) {
+        if (actionObj[i])
+            Tcl_DecrRefCount(actionObj[i]);
+        actionObj[i] = NULL;
+    }
+
+    if (ngenerated == 0) {
+        /* No files matched so no need to invoke callback */
+        cbP->winerr = ERROR_SUCCESS;
+        cbP->response.type = TRT_EMPTY;
+        return TCL_OK;
+    } else {
+        return TwapiEvalAndUpdateCallback(cbP, 3, scriptObj, TRT_EMPTY);
+    }
+}
