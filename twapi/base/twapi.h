@@ -540,9 +540,9 @@ typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 typedef struct _TwapiInterpContext TwapiInterpContext;
 ZLINK_CREATE_TYPEDEFS(TwapiInterpContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiInterpContext);
-typedef struct _TwapiPendingCallback TwapiPendingCallback;
-ZLINK_CREATE_TYPEDEFS(TwapiPendingCallback); 
-ZLIST_CREATE_TYPEDEFS(TwapiPendingCallback);
+typedef struct _TwapiCallback TwapiCallback;
+ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
+ZLIST_CREATE_TYPEDEFS(TwapiCallback);
 typedef struct _TwapiThreadPoolRegisteredHandle TwapiThreadPoolRegisteredHandle;
 typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
@@ -568,12 +568,44 @@ typedef struct _TwapiThreadPoolRegisteredHandle {
  * For asynchronous notifications of events, there is a common framework
  * that passes events from the asynchronous handlers into the Tcl event
  * dispatch loop. From there, the framework calls a function of type
- * TwapiCallbackFn. This function should parse the event into a Tcl script
- * and return ERROR_SUCCESS on success. On failure, the function should
- * return an appropriate Win32 error code. *cbP, including status codes,
- * should be set appropriately. TBD - clarify/expand on this
+ * TwapiCallbackFn. On entry to this function,
+ *  - a non-NULL pointer to the callback structure (cbP) is passed in
+ *  - the cbP->ticP, which contains the interp context is also guaranteed
+ *    to be non-NULL.
+ *  - the cbP->ticP->interp is the Tcl interp if non-NULL. This may be NULL
+ *    if the original associated interp has been logically or physically 
+ *    deleted.
+ *  - the cbP->clientdata field may contain any callback-specific data
+ *    set by the enqueueing module.
+ *  - the cbP->status field is set by the enqueuing module to ERROR_SUCCESS
+ *    or a Win32 error code. It is up to the callback and enqueuing module
+ *    to figure out what to do with it.
+ *  - the cbP pointer may actually point to a "derived" structure where
+ *    the callback structure is just the header. The enqueuing module
+ *    should use the TwapiCallbackNew function to allocate
+ *    and initialize. This function allows the size of allocated storage
+ *    to be specified.
+ *
+ * If the Tcl interp is valid (non-NULL), the callback function is expected
+ * to invoke an appropriate script in the interp and store an appropriate
+ * result in the cbP->response field. Generally, callbacks build a script
+ * and make use of the TwapiEvalAndUpdateCallback utility function to
+ * invoke the script and store the result in cbP->response.
+ *
+ * If the callback function returns TCL_OK, the cbP->status and cbP->response
+ * fields are returned to the enqueuing code if it is waiting for a response.
+ * Note that the cbP->status may itself contain a Win32 error code to
+ * indicate an error. It is entirely up to the enqueuing module to interpret
+ * the response.
+ *
+ * If the callback fails with TCL_ERROR, the framework will set cbP->status
+ * to an appropriate Win32 error code and set cbP->response to TRT_EMPTY.
+ *
+ * In all cases (success or fail), any additional resources attached
+ * to cbP, for example buffers, should be freed, or arranged to be freed,
+ * by the callback. Obviously, the framework cannot arrange for this.
  */
-typedef int TwapiCallbackFn(struct _TwapiPendingCallback *cbP);
+typedef int TwapiCallbackFn(struct _TwapiCallback *cbP);
 
 /*
  * Definitions relating to queue of pending callbacks. All pending callbacks
@@ -581,20 +613,19 @@ typedef int TwapiCallbackFn(struct _TwapiPendingCallback *cbP);
  */
 
 /* Creates list link definitions */
-typedef struct _TwapiPendingCallback {
+typedef struct _TwapiCallback {
     struct _TwapiInterpContext *ticP; /* Interpreter context */
-    TwapiCallbackFn  *callback;     /* Function to call back - see notes
+    TwapiCallbackFn  *callback;  /* Function to call back - see notes
                                        in the TwapiCallbackFn typedef */
     LONG volatile     nrefs;       /* Ref count - use InterlockedIncrement */
-    ZLINK_DECL(TwapiPendingCallback); /* Link for list */
-    DWORD             status;         /* Return status - Win32 error code.
-                                         Currently only used to send status
-                                         back to callback initiator, not
-                                         the other way */
-    DWORD_PTR         clientdata;     /* For use by client code */
+    ZLINK_DECL(TwapiCallback); /* Link for list */
     HANDLE            completion_event;
+    DWORD             winerr;         /* Win32 error code. Used in both
+                                         callback request and response */
+    DWORD_PTR         clientdata;     /* For use by client code */
+    DWORD_PTR         clientdata2;    /* == ditto == */
     TwapiResult response;
-} TwapiPendingCallback;
+} TwapiCallback;
 
 /*
  * TwapiInterpContext keeps track of a per-interpreter context.
@@ -625,7 +656,7 @@ typedef struct _TwapiInterpContext {
     CRITICAL_SECTION lock;
 
     /* List of pending callbacks. Accessed controlled by the lock field */
-    ZLIST_DECL(TwapiPendingCallback) pending;
+    ZLIST_DECL(TwapiCallback) pending;
     int              pending_suspended;       /* If true, do not pend events */
     
     /*
@@ -660,7 +691,7 @@ typedef struct _TwapiInterpContext {
  */
 typedef struct _TwapiTclEvent {
     Tcl_Event event;            /* Must be first field */
-    TwapiPendingCallback *pending_callback;
+    TwapiCallback *pending_callback;
 } TwapiTclEvent;
 
 
@@ -738,20 +769,20 @@ int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr);
 void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr);
 
 /* Async handling related */
-#define TwapiPendingCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
-void TwapiPendingCallbackUnref(TwapiPendingCallback *pcbP, int);
-void TwapiPendingCallbackDelete(TwapiPendingCallback *pcbP);
-TwapiPendingCallback *TwapiPendingCallbackNew(
+#define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
+void TwapiCallbackUnref(TwapiCallback *pcbP, int);
+void TwapiCallbackDelete(TwapiCallback *pcbP);
+TwapiCallback *TwapiCallbackNew(
     TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
 int TwapiEnqueueCallback(
-    TwapiInterpContext *ticP, TwapiPendingCallback *pcbP,
+    TwapiInterpContext *ticP, TwapiCallback *pcbP,
     int enqueue_method,
     int timeout,
-    TwapiPendingCallback **responseP
+    TwapiCallback **responseP
     );
 #define TWAPI_ENQUEUE_DIRECT 0
 #define TWAPI_ENQUEUE_ASYNC  1
-int TwapiEvalAndUpdateCallback(TwapiPendingCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
+int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
 
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))

@@ -8,7 +8,7 @@
 #include "twapi.h"
 #include "twapi_wm.h"
 
-static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP);
+static DWORD TwapiClipboardCallbackFn(TwapiCallback *pcbP);
 
 
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
@@ -48,11 +48,10 @@ static LRESULT TwapiClipboardMonitorWinProc(
     LPARAM lParam)
 {
     struct TwapiClipboardMonitorState *clip_stateP = (struct TwapiClipboardMonitorState *) clientdataP;
-    TwapiPendingCallback *pcbP;
+    TwapiCallback *cbP;
 
     switch (uMsg)
     {
-
         case TWAPI_WM_HIDDEN_WINDOW_INIT:
             // Add the window to the clipboard viewer chain.
             clip_stateP->next_win = SetClipboardViewer(hwnd);
@@ -76,9 +75,9 @@ static LRESULT TwapiClipboardMonitorWinProc(
             break;
 
         case WM_DRAWCLIPBOARD:  // clipboard contents changed.
-            pcbP = TwapiPendingCallbackNew(ticP, TwapiClipboardCallbackFn,
-                                           sizeof(*pcbP));
-            TwapiEnqueueCallback(ticP, pcbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+            cbP = TwapiCallbackNew(ticP, TwapiClipboardCallbackFn,
+                                   sizeof(*cbP));
+            TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
 
             /* Pass the message to the next window in clipboard chain */
             if (clip_stateP->next_win != NULL)
@@ -129,8 +128,8 @@ int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP)
 /* Called (indirectly) from the Tcl notifier loop with a new clipboard event.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-static DWORD TwapiClipboardCallbackFn(TwapiPendingCallback *pcbP)
+static DWORD TwapiClipboardCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *objP = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_clipboard_handler", -1);
-    return TwapiEvalAndUpdateCallback(pcbP, 1, &objP, TRT_EMPTY);
+    return TwapiEvalAndUpdateCallback(cbP, 1, &objP, TRT_EMPTY);
 }

@@ -7,12 +7,6 @@
 
 #include "twapi.h"
 
-typedef struct _TwapiPowerCallback {
-    TwapiPendingCallback pcb;   /* Must be first field */
-    WPARAM wparam;
-    LPARAM lparam;
-} TwapiPowerCallback;
-
 int Twapi_PowerNotifyStart(TwapiInterpContext *ticP)
 {
     HWND hwnd;
@@ -42,17 +36,15 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP)
  * Constructs the script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP)
+DWORD TwapiPowerCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *objs[3];
 
-    TwapiPowerCallback *cbP = (TwapiPowerCallback *) pcbP;
-
     objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_power_handler");
-    objs[1] = ObjFromDWORD_PTR(cbP->wparam);
-    objs[2] = ObjFromDWORD_PTR(cbP->lparam);
+    objs[1] = ObjFromDWORD_PTR(cbP->clientdata);
+    objs[2] = ObjFromDWORD_PTR(cbP->clientdata2);
     /* TBD - do power events have a response ? */
-    return TwapiEvalAndUpdateCallback(pcbP, 3, objs, TRT_EMPTY);
+    return TwapiEvalAndUpdateCallback(cbP, 3, objs, TRT_EMPTY);
 }
 
 
@@ -62,15 +54,14 @@ DWORD TwapiPowerCallbackFn(TwapiPendingCallback *pcbP)
  */
 LRESULT TwapiPowerHandler(TwapiInterpContext *ticP, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    TwapiPowerCallback *cbP;
+    TwapiCallback *cbP;
 
     if (msg == WM_POWERBROADCAST) {
-        cbP = (TwapiPowerCallback *) TwapiPendingCallbackNew(
-            ticP, TwapiPowerCallbackFn, sizeof(*cbP));
+        cbP = TwapiCallbackNew(ticP, TwapiPowerCallbackFn, sizeof(*cbP));
 
-        cbP->wparam = wparam;
-        cbP->lparam = lparam;
-        TwapiEnqueueCallback(ticP, (TwapiPendingCallback*) cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+        cbP->clientdata = wparam;
+        cbP->clientdata2 = lparam;
+        TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
 
         /* For querysuspend, make sure we allow the suspend - TBD */
         return (LRESULT) (wparam == PBT_APMQUERYSUSPEND ? TRUE : 0);

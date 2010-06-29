@@ -33,7 +33,7 @@ typedef struct _TwapiServiceContext {
  * TACKED ON AT THE END.
  */
 typedef struct _TwapiServiceControlCallback {
-    TwapiPendingCallback  cb;   /* Must be first field */
+    TwapiCallback  cb;   /* Must be first field */
     int   service_index;        /* Index into global service table */
     DWORD ctrl;                 /* The service control received */
     DWORD event;                /* Control-dependent code */
@@ -170,14 +170,14 @@ error_handler:
     return TCL_ERROR;
 }
 
-static int TwapiServiceControlCallbackFn(TwapiPendingCallback *p)
+static int TwapiServiceControlCallbackFn(TwapiCallback *p)
 {
     TwapiServiceControlCallback *cbP = (TwapiServiceControlCallback *)p;
     char *ctrl_str = NULL;
     char *event_str = NULL;
 
     if (cbP->service_index >= gNumServiceContexts) {
-        cbP->cb.status = ERROR_INVALID_PARAMETER;
+        cbP->cb.winerr = ERROR_INVALID_PARAMETER;
         return TCL_ERROR;
     }
     switch (cbP->ctrl) {
@@ -333,7 +333,7 @@ static int TwapiServiceControlCallbackFn(TwapiPendingCallback *p)
         return TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, TRT_DWORD);
     } else {
         /* Unknown event - ignore TBD */
-        cbP->cb.status = ERROR_INVALID_FUNCTION;
+        cbP->cb.winerr = ERROR_INVALID_FUNCTION;
         return TCL_ERROR;
     }
 }
@@ -425,7 +425,7 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
     }
 
     cbP = (TwapiServiceControlCallback *)
-        TwapiPendingCallbackNew(gServiceInterpContextP,
+        TwapiCallbackNew(gServiceInterpContextP,
                                 TwapiServiceControlCallbackFn,
                                 sizeof(*cbP));
 
@@ -438,7 +438,7 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
                                  &cbP->cb,
                                  TWAPI_ENQUEUE_DIRECT,
                                  30*1000, /* TBD - Timeout (ms) */
-                                 (TwapiPendingCallback **)&cbP)
+                                 (TwapiCallback **)&cbP)
             == ERROR_SUCCESS) {
             if (cbP && cbP->cb.response.type == TRT_DWORD)
                 status = cbP->cb.response.value.ival;
@@ -447,7 +447,7 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
                                            for permission */
         }
         if (cbP)
-            TwapiPendingCallbackUnref(&cbP->cb, 1);
+            TwapiCallbackUnref(&cbP->cb, 1);
     } else {
 
         /* TBD - in call below, on error, do we send an error notification ? */
