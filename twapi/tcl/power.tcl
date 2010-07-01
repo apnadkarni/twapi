@@ -117,7 +117,7 @@ proc twapi::start_power_monitor {script} {
 
     set script [lrange $script 0 end]; # Verify syntactically a list
 
-    set id "power#[incr _name_ctr]"
+    set id "power#[TwapiId]"
     if {![info exists _power_monitors] ||
         [llength $_power_monitors] == 0} {
         # No power monitoring in progress. Start it

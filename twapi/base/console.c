@@ -117,6 +117,11 @@ static int TwapiConsoleCtrlCallbackFn(TwapiCallback *cbP)
     char *event_str;
     Tcl_Obj *objs[3];
 
+    /*
+     * Note - event if interp is gone, we let TwapiEvalAndUpdateCallback
+     * deal with it.
+     */
+
     switch (cbP->clientdata) {
     case CTRL_C_EVENT:
         event_str = "ctrl-c";

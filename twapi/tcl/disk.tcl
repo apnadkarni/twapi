@@ -193,8 +193,21 @@ proc twapi::unmap_drive_local {drive args} {
     DefineDosDevice $flags $drive [file nativename $opts(path)]
 }
 
+
+# Callback from C code
+proc twapi::_filesystem_monitor_handler {id args} {
+    variable _filesystem_monitor_scripts
+    if {[info exists _filesystem_monitor_scripts($id)]} {
+        return [eval [concat $_filesystem_monitor_scripts($id) $args]]
+    } else {
+        # Callback queued after close. Ignore
+    }
+}
+
 # Monitor file changes
 proc twapi::begin_filesystem_monitor {path script args} {
+    variable _filesystem_monitor_scripts
+
     array set opts [parseargs args {
         {subtree.bool false}
         filename.bool
@@ -255,28 +268,19 @@ proc twapi::begin_filesystem_monitor {path script args} {
         set flags 0x17f
     }
 
-    return [RegisterDirChangeNotifier $path $opts(subtree) $flags $script $opts(patterns)]
+    set id [Twapi_RegisterDirectoryMonitor $path $opts(subtree) $flags $opts(patterns)]
+    set _filesystem_monitor_scripts($id) $script
 }
 
 # Stop monitoring of files
 proc twapi::cancel_filesystem_monitor {id} {
-    UnregisterDirChangeNotifier $id
-}
-
-
-# Get list of volumes
-proc twapi::find_volumes {} {
-    set vols [list ]
-    set found 1
-    # Assumes there has to be at least one volume
-    foreach {handle vol} [FindFirstVolume] break
-    while {$found} {
-        lappend vols $vol
-        foreach {found vol} [FindNextVolume $handle] break
+    variable _filesystem_monitor_scripts
+    if {[info exists _filesystem_monitor_scripts($id)]} {
+        Twapi_UnregisterDirectoryMonitor $id
+        unset _filesystem_monitor_scripts(id)
     }
-    FindVolumeClose $handle
-    return $vols
 }
+
 
 # Get list of volumes
 proc twapi::find_volumes {} {

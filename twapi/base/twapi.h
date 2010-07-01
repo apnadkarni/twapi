@@ -324,12 +324,22 @@ struct TwapiTcl85Stubs {
 /*******************
  * Misc definitions
  *******************/
+
+/*
+ * Type for generating ids. Because they are passed around in windows
+ * messages, make them the same size as DWORD_PTR though we would have
+ * liked them to be 64 bit even on 32-bit platforms.
+ */
+typedef DWORD_PTR TwapiId;
+#define ObjFromTwapiId ObjFromDWORD_PTR
+
+
+/* Used to maintain context for common NetEnum* interfaces */
 struct Twapi_EnumCtx {
     Tcl_Interp *interp;
     Tcl_Obj    *win_listobj;
 };
 
-/* Used to maintain context for common NetEnum* interfaces */
 typedef struct {
     int    tag;  /* Type of entries in netbufP[] */
 #define TWAPI_NETENUM_USERINFO              0
@@ -622,6 +632,11 @@ typedef struct _TwapiCallback {
     HANDLE            completion_event;
     DWORD             winerr;         /* Win32 error code. Used in both
                                          callback request and response */
+    /*
+     * Associates with a particular notification handle. Not used by all
+     * notifications.
+     */
+    TwapiId           receiver_id;
     DWORD_PTR         clientdata;     /* For use by client code */
     DWORD_PTR         clientdata2;    /* == ditto == */
     TwapiResult response;
@@ -660,8 +675,8 @@ typedef struct _TwapiInterpContext {
     int              pending_suspended;       /* If true, do not pend events */
     
     /*
-     * List of directory change monitor contexts.
-     * Accessed controlled by the lock field.
+     * List of directory change monitor contexts. ONLY ACCESSED
+     * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
      */
     ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
 
@@ -670,6 +685,9 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_AsyncHandler async_handler;
 
+    TwapiId       idgen;        /* Used for generating interp-specific ids.
+                                   Only modified in interp thread */
+#define TWAPI_NEWID(ticP_) ((ticP_)->idgen++)
     HWND          notification_win; /* Window used for various notifications */
     HWND          clipboard_win;    /* Window used for clipboard notifications */
     int           power_events_on; /* True-> send through power notifications */
@@ -1145,7 +1163,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONS
 int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, int id);
+int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id);
 
 /* File and disk related */
 int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
@@ -1153,6 +1171,8 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
 int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path);
 int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir);
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
+int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle);
 
 /* PDH */
 void TwapiPdhRestoreLocale(void);
@@ -1175,8 +1195,8 @@ int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
 
 /* Clipboard related */
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
-int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP);
-int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP);
+int Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP);
+int Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP);
 int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP);
 int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP);
 

@@ -432,11 +432,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
-    CALL_(Twapi_MonitorClipboardStart, Call, 69);
-    CALL_(Twapi_MonitorClipboardStop, Call, 70);
+    CALL_(Twapi_ClipboardMonitorStart, Call, 69);
+    CALL_(Twapi_ClipboardMonitorStop, Call, 70);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
     CALL_(Twapi_StartConsoleEventNotifier, Call, 73);
+    CALL_(TwapiId, Call, 74);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -494,7 +495,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetNamedSecurityInfo, Call, 10032);
     CALL_(CreateWindowStation, Call, 10033);
     CALL_(OpenDesktop, Call, 10034);
-    CALL_(RegisterDirChangeNotifier, Call, 10035);
+    CALL_(Twapi_RegisterDirectoryMonitor, Call, 10035);
     CALL_(LookupPrivilegeName, Call, 10036);
     CALL_(PlaySound, Call, 10037);
     CALL_(SetConsoleWindowInfo, Call, 10038);
@@ -614,7 +615,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
     CALL_(VerLanguageName, CallU, 36);
-    CALL_(UnregisterDirChangeNotifier, CallU, 37);
     CALL_(GetBestInterface, CallU, 38);
     CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
 
@@ -733,6 +733,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSEnumerateProcesses, CallH, 50);
     CALL_(WTSCloseServer, CallH, 51);
     CALL_(GetFileTime, CallH, 52);
+    CALL_(Twapi_UnregisterDirectoryMonitor, CallU, 53);
     CALL_(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, CallH, 56);
     CALL_(SetupDiDestroyDeviceInfoList, CallH, 57);
     CALL_(GetMonitorInfo, CallH, 58);
@@ -1394,15 +1395,19 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         case 69:
-            return Twapi_MonitorClipboardStart(ticP);
+            return Twapi_ClipboardMonitorStart(ticP);
         case 70:
-            return Twapi_MonitorClipboardStop(ticP);
+            return Twapi_ClipboardMonitorStop(ticP);
         case 71:
             return Twapi_PowerNotifyStart(ticP);
         case 72:
             return Twapi_PowerNotifyStop(ticP);
         case 73:
             return Twapi_StartConsoleEventNotifier(ticP);
+        case 74:
+            result.type = TRT_WIDE;
+            result.value.wide = TWAPI_NEWID(ticP);
+            break;
         }
 
         return TwapiSetResult(interp, &result);
@@ -1868,22 +1873,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HDESK;
             result.value.hval = OpenDesktopW(s, dw, dw2, dw3);
             break;
-
-#ifdef TBD
         case 10035: // RegisterDirChangeNotifier
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2), GETASTR(cP),
-                             ARGSKIP,
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            /* Note - the ARGSKIP above ensures there is an argument present
-               at objv[6]
-             */
-            if (ObjToArgvA(interp, objv[6], u.argv, ARRAYSIZE(u.argv), &dw3) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_RegisterDirChangeNotifier(
-                interp, s, dw, dw2, Tcl_GetString(objv[5]), dw3, u.argv);
-#endif
+            return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
         case 10036: // LookupPrivilegeName
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETWSTR(s), GETVAR(luid, ObjToLUID),
@@ -2672,10 +2663,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             else
                 result.type = TRT_GETLASTERROR;
             break;
-#ifdef TBD
-        case 37:
-            return Twapi_UnregisterDirChangeNotifier(interp, dw);
-#endif
+//      case 37: UNUSED
         case 38:
             result.value.ival = GetBestInterface(dw, &dw2);
             if (result.value.ival)
@@ -3267,7 +3255,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-//      case 53: UNUSED
+        case 53: 
+            return Twapi_UnregisterDirectoryMonitor(ticP, h);
 //      case 54: UNUSED
 //      case 55: UNUSED
         case 56:
