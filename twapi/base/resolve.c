@@ -89,7 +89,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
     theP->tcl_ev.proc = TwapiHostnameEventProc;
     theP->status = getaddrinfo(theP->name, "0", &hints, &addrP);
     if (theP->status) {
-        Tcl_ThreadQueueEvent(theP->ticP->thread, &theP->tcl_ev, TCL_QUEUE_TAIL);
+        TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
         return 0;               /* Return value does not matter */
     }
 
@@ -111,7 +111,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
     if (saved_addrP)
         freeaddrinfo(saved_addrP);
 
-    Tcl_ThreadQueueEvent(theP->ticP->thread, &theP->tcl_ev, TCL_QUEUE_TAIL);
+    TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
 
     return 0;                   /* Return value is ignored by thread pool */
 }
@@ -168,7 +168,6 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
         /* Invoke the script */
         Tcl_Interp *interp = theP->ticP->interp;
         Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
-        int i;
 
         Tcl_ListObjAppendElement(
             interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_address_resolve_handler"));
@@ -234,7 +233,7 @@ static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
         }
     }
 
-    Tcl_ThreadQueueEvent(theP->ticP->thread, &theP->tcl_ev, TCL_QUEUE_TAIL);
+    TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
     return 0;                   /* Return value ignored anyways */
 }
 

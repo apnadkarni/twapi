@@ -529,7 +529,6 @@ static DWORD WINAPI TwapiServiceMasterThread(LPVOID unused)
 {
     SERVICE_TABLE_ENTRYW *steP;
     int i;
-    DWORD status;
 
     /*
      * Construct the service descriptors to pass to the SCM. Note

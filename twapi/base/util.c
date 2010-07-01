@@ -441,3 +441,9 @@ vamoose:
 
     return tcl_status;
 }
+
+void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
+{
+    Tcl_ThreadQueueEvent(ticP->thread, evP, TCL_QUEUE_TAIL);
+    Tcl_ThreadAlert(ticP->thread); /* Wake up the thread */
+}

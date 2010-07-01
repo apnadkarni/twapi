@@ -107,7 +107,6 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *);
 int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiDirectoryMonitorContext *dmcP;
-    int    id;
     LPWSTR pathP;
     int    path_len;
     int    include_subtree;

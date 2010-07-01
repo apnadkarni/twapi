@@ -107,8 +107,7 @@ int TwapiEnqueueCallback(
         cbP->ticP = ticP;
         TwapiInterpContextRef(ticP, 1);
 
-        Tcl_ThreadQueueEvent(ticP->thread, (Tcl_Event *) tteP, TCL_QUEUE_TAIL);
-        
+        TwapiEnqueueTclEvent(ticP, &tteP->event);
     }
 
     if (timeout == 0)
@@ -181,7 +180,10 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
         tteP = (TwapiTclEvent *) Tcl_Alloc(sizeof(*tteP));
         tteP->event.proc = Twapi_TclEventProc;
         tteP->pending_callback = cbP;
+
+        /* We do not use TwapiEnqueueTclEvent since queueing to same thread */
         Tcl_QueueEvent((Tcl_Event *) tteP, TCL_QUEUE_TAIL);
+        /* Tcl_ThreadAlert(ticP->thread) - Needed? TBD */
 
         /* Lock again before checking if empty */
         EnterCriticalSection(&ticP->lock);
