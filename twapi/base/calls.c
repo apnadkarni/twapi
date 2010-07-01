@@ -733,7 +733,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSEnumerateProcesses, CallH, 50);
     CALL_(WTSCloseServer, CallH, 51);
     CALL_(GetFileTime, CallH, 52);
-    CALL_(Twapi_UnregisterDirectoryMonitor, CallU, 53);
+    CALL_(Twapi_UnregisterDirectoryMonitor, CallH, 53);
     CALL_(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, CallH, 56);
     CALL_(SetupDiDestroyDeviceInfoList, CallH, 57);
     CALL_(GetMonitorInfo, CallH, 58);
