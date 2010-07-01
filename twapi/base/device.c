@@ -57,7 +57,6 @@ ZLIST_DECL(TwapiDeviceNotificationContext) gTwapiDeviceNotificationRegistry;
  */
 typedef struct _TwapiDeviceNotificationCallback {
     TwapiCallback  cb;   /* Must be first field */
-    int id;                     /* Id of notification context */
     union {
         struct {
             WPARAM wparam;              /* wparam from the WM_DEVICECHANGE message */
@@ -328,10 +327,17 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
     Tcl_Obj *objs[10];
     int nobjs;
 
+    if (cbP->cb.ticP->interp == NULL ||
+        Tcl_InterpDeleted(cbP->cb.ticP->interp)) {
+        cbP->cb.winerr = ERROR_INVALID_STATE; /* Best match we can find */
+        cbP->cb.response.type = TRT_EMPTY;
+        return TCL_ERROR;
+    }
+
     /* Deal with the error notification case first. */
     if (cbP->cb.winerr != ERROR_SUCCESS) {
         objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
-        objs[1] = Tcl_NewLongObj(cbP->id);
+        objs[1] = ObjFromTwapiId(cbP->cb.receiver_id);
         objs[2] = STRING_LITERAL_OBJ("error");
         objs[3] = Tcl_NewLongObj(cbP->cb.winerr);
         return TwapiEvalAndUpdateCallback(&cbP->cb, 4, objs, TRT_EMPTY);
@@ -443,7 +449,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
         Tcl_Panic("Internal error: exceeded bounds (%d) of device notification array", nobjs);
 
     objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_device_notification_handler");
-    objs[1] = Tcl_NewLongObj(cbP->id);
+    objs[1] = Tcl_NewLongObj(cbP->cb.receiver_id);
     objs[2] = Tcl_NewStringObj(notification_str, -1);
     if (response_type == TRT_EMPTY) {
         /*
@@ -608,7 +614,7 @@ static LRESULT TwapiDeviceNotificationWinProc(
                                     TwapiDeviceNotificationCallbackFn,
                                     sizeof(*cbP));
     }
-    cbP->id = dncP->id;
+    cbP->cb.receiver_id = dncP->id;
     cbP->data.device.wparam = wparam;
     cbP->cb.winerr = ERROR_SUCCESS;
     if (need_response) {
@@ -832,7 +838,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     guidP = &dncP->device.guid;
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(dncP->id), GETINT(dncP->devtype),
+                     GETINT(dncP->devtype),
                      GETVAR(guidP, ObjToGUID_NULL),
                      GETHANDLE(dncP->device.hdev),
                      ARGEND) == TCL_ERROR) {
@@ -840,21 +846,24 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
         return TCL_ERROR;
     }
 
+    dncP->id = TWAPI_NEWID(ticP);
+
     /* guidP == NULL -> empty string - use a NULL guid */
     if (guidP == NULL)
         dncP->device.guid = gTwapiNullGuid;
 
     TwapiDeviceNotificationContextRef(dncP, 1);
-    if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0))
+    if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0)) {
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(dncP->id));
         return TCL_OK;
-    else {
+    } else {
         DWORD winerr = GetLastError();
         TwapiDeviceNotificationContextUnref(dncP, 1);
         return Twapi_AppendSystemError(ticP->interp, winerr);
     }
 }
 
-int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, int id)
+int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id)
 {
     ERROR_IF_UNTHREADED(ticP->interp);
     

@@ -226,6 +226,8 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
      */
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
+    ticP->idgen = 1;            /* Id/handle generator */
+
     ticP->notification_win = NULL; /* Created only on demand */
     ticP->clipboard_win = NULL;    /* Created only on demand */
     ticP->power_events_on = 0;

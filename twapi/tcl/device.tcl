@@ -98,10 +98,9 @@ proc twapi::start_device_notifier {script args} {
         }
     }
 
-    set id [incr _name_ctr]
+    set id [Twapi_RegisterDeviceNotification $type $opts(deviceinterface) $opts(handle)]
     set idstr "devnotifier#$id"
 
-    Twapi_RegisterDeviceNotification $id $type $opts(deviceinterface) $opts(handle)
     set _device_notifiers($idstr) [list $id $script]
     return $idstr
 }

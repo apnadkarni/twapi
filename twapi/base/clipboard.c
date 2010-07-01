@@ -91,7 +91,7 @@ static LRESULT TwapiClipboardMonitorWinProc(
 }
 
 
-int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP)
+int Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP)
 {
     struct TwapiClipboardMonitorState *clip_stateP;
 
@@ -111,7 +111,7 @@ int Twapi_MonitorClipboardStart(TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
-int Twapi_MonitorClipboardStop(TwapiInterpContext *ticP)
+int Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP)
 {
     if (ticP->clipboard_win) {
         DestroyWindow(ticP->clipboard_win);

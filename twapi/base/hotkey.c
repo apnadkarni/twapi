@@ -46,8 +46,8 @@ int TwapiHotkeyCallbackFn(TwapiCallback *cbP)
     Tcl_Obj *objs[3];
 
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_hotkey_handler", -1);
-    objs[1] = ObjFromDWORD_PTR(cbP->clientdata);
-    objs[2] = ObjFromDWORD_PTR(cbP->clientdata2);
+    objs[1] = ObjFromTwapiId(cbP->receiver_id);
+    objs[2] = ObjFromDWORD_PTR(cbP->clientdata);
     return TwapiEvalAndUpdateCallback(cbP, 3, objs, TRT_EMPTY);
 }
 
@@ -62,8 +62,8 @@ LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, UINT msg, WPARAM id, LPARAM
 
     if (msg == WM_HOTKEY) {
         cbP = TwapiCallbackNew(ticP, TwapiHotkeyCallbackFn, sizeof(*cbP));
-        cbP->clientdata = id;
-        cbP->clientdata2 = key;
+        cbP->receiver_id = id;
+        cbP->clientdata = key;
         TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
     }
 

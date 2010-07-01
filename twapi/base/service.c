@@ -176,6 +176,13 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
     char *ctrl_str = NULL;
     char *event_str = NULL;
 
+    if (cbP->cb.ticP->interp == NULL ||
+        Tcl_InterpDeleted(cbP->cb.ticP->interp)) {
+        cbP->cb.winerr = ERROR_INVALID_STATE; /* Best match we can find */
+        cbP->cb.response.type = TRT_EMPTY;
+        return TCL_ERROR;
+    }
+
     if (cbP->service_index >= gNumServiceContexts) {
         cbP->cb.winerr = ERROR_INVALID_PARAMETER;
         return TCL_ERROR;
