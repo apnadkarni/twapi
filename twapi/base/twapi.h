@@ -787,6 +787,7 @@ int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr);
 void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr);
 
 /* Async handling related */
+void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
 #define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
 void TwapiCallbackUnref(TwapiCallback *pcbP, int);
 void TwapiCallbackDelete(TwapiCallback *pcbP);
@@ -805,7 +806,6 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
 void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
-
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 

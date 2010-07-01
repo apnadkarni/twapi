@@ -50,7 +50,6 @@ static int TwapiOneTimeInit(Tcl_Interp *interp);
 /* Main entry point */
 __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
 {
-    int result;
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
     /* Make sure Winsock is initialized */
