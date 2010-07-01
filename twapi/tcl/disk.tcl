@@ -270,6 +270,7 @@ proc twapi::begin_filesystem_monitor {path script args} {
 
     set id [Twapi_RegisterDirectoryMonitor $path $opts(subtree) $flags $opts(patterns)]
     set _filesystem_monitor_scripts($id) $script
+    return $id
 }
 
 # Stop monitoring of files
@@ -277,7 +278,7 @@ proc twapi::cancel_filesystem_monitor {id} {
     variable _filesystem_monitor_scripts
     if {[info exists _filesystem_monitor_scripts($id)]} {
         Twapi_UnregisterDirectoryMonitor $id
-        unset _filesystem_monitor_scripts(id)
+        unset _filesystem_monitor_scripts($id)
     }
 }
 
