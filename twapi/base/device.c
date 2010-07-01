@@ -25,7 +25,7 @@ ZLINK_CREATE_TYPEDEFS(TwapiDeviceNotificationContext);
  */
 typedef struct _TwapiDeviceNotificationContext {
     TwapiInterpContext *ticP;
-    int   id;
+    TwapiId   id;
     DWORD devtype;
     union {
         GUID  guid;                 /* GUID for notifications */
@@ -81,7 +81,7 @@ static void TwapiReportDeviceNotificationError(
     TwapiDeviceNotificationContext *dncP, char *msg, DWORD winerr);
 static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP);
 static Tcl_Obj *ObjFromDevtype(DWORD devtype);
-static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(int id);
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(TwapiId id);
 static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND);
 
 
@@ -449,7 +449,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
         Tcl_Panic("Internal error: exceeded bounds (%d) of device notification array", nobjs);
 
     objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_device_notification_handler");
-    objs[1] = Tcl_NewLongObj(cbP->cb.receiver_id);
+    objs[1] = ObjFromTwapiId(cbP->cb.receiver_id);
     objs[2] = Tcl_NewStringObj(notification_str, -1);
     if (response_type == TRT_EMPTY) {
         /*
@@ -747,7 +747,7 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
                    being unloaded or process exiting */
                 /* TBD - what do we need to free ? */
                 TwapiDeviceNotificationTid = 0;
-                return msg.wParam;
+                return 0;
             case TWAPI_WM_ADD_DEVICE_NOTIFICATION:
                 dncP = (TwapiDeviceNotificationContext*) msg.wParam;
                 TwapiCreateDeviceNotificationWindow(dncP);
@@ -1037,7 +1037,7 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
 
 
 /* Find the window handle corresponding to a device notification id */
-static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(int id)
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(DWORD_PTR id)
 {
     TwapiDeviceNotificationContext *dncP;
 
