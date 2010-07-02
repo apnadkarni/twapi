@@ -288,12 +288,12 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
         (char *)dmcP;
     for (i=0; i < npatterns; ++i) {
         dmcP->patterns[i] = (WCHAR *) cP;
-        MoveMemory(cP, patterns[i], bytelengths[i]);
+        CopyMemory(cP, patterns[i], bytelengths[i]);
         cP += bytelengths[i];
     }
     /* Align up to WCHAR boundary */
     dmcP->pathP = (WCHAR *)((sizeof(WCHAR)-1 + (DWORD_PTR)cP) & ~ (sizeof(WCHAR)-1));
-    MoveMemory(dmcP->pathP, pathP, sizeof(WCHAR)*path_len);
+    CopyMemory(dmcP->pathP, pathP, sizeof(WCHAR)*path_len);
     dmcP->pathP[path_len] = 0;
     
     ZLINK_INIT(dmcP);

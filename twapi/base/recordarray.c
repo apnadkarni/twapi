@@ -27,7 +27,7 @@ int Twapi_RecordArrayObjCmd(
     char     *cmdstr;
     enum {RA_GET, RA_FIELD, RA_EXISTS, RA_KEYS, RA_FILTER} cmd;
     int   cmptype;
-    int (*cmpfn) (const char *, const char *) = strcmp;
+    int (WINAPI *cmpfn) (const char *, const char *) = lstrcmpA;
     Tcl_Obj *new_ra[2];
 
     /*
@@ -148,13 +148,14 @@ int Twapi_RecordArrayObjCmd(
     /* Parse any options */
     cmptype = 0;
     for (i=2; i < raindex; ++i) {
-        if (!strcmp("-integer", Tcl_GetString(objv[i])))
+        char *s = Tcl_GetString(objv[i]);
+        if (STREQ("-integer", s))
             cmptype = 1;
-        else if (!strcmp("-string", Tcl_GetString(objv[i])))
+        else if (STREQ("-string", s))
             cmptype = 0;
-        else if (!strcmp("-nocase", Tcl_GetString(objv[i])))
+        else if (STREQ("-nocase", s))
             cmptype |= 0x2;
-        else if (!strcmp("-glob", Tcl_GetString(objv[i])))
+        else if (STREQ("-glob", s))
             cmptype |= 0x4;
         else {
             Tcl_SetResult(interp, "Invalid option. Must be -string, -nocase, -glob, -integer.", TCL_STATIC);
@@ -163,9 +164,9 @@ int Twapi_RecordArrayObjCmd(
     }
 
     switch (cmptype) {
-    case 0:  cmpfn = strcmp; break; /* Exact string compare */
+    case 0:  cmpfn = lstrcmpA; break; /* Exact string compare */
     case 1:  break;           /* Int compare, cmpfn does not matter */
-    case 2:  cmpfn = stricmp; break;     /* Case insensitive string compare */
+    case 2:  cmpfn = lstrcmpiA; break;     /* Case insensitive string compare */
     case 4:  cmpfn = TwapiGlobCmp; break; /* Case sensitive glob match */
     case 6:  cmpfn = TwapiGlobCmpCase; break;  /* Case insensitive flob match */
     default:

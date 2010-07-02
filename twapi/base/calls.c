@@ -569,7 +569,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_VerQueryValue_FIXEDFILEINFO, Call, 10107);
     CALL_(Twapi_VerQueryValue_TRANSLATIONS, Call, 10108);
     CALL_(Twapi_FreeFileVersionInfo, Call, 10109);
-    CALL_(malloc, Call, 10110);          /* TBD - document */
+    CALL_(malloc, Call, 10110);          /* TBD - document, change to memalloc */
     CALL_(Twapi_WriteMemoryInt, Call, 10111);
     CALL_(Twapi_WriteMemoryBinary, Call, 10112);
     CALL_(Twapi_WriteMemoryChars, Call, 10113);
@@ -1515,7 +1515,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = daclP ? IsValidAcl(daclP) : 0;
             if (daclP)
-                free(daclP);
+                TwapiFree(daclP);
             break;
         case 1015:
             if (ObjToMIB_TCPROW(interp, objv[2], &u.tcprow) != TCL_OK)
@@ -1559,7 +1559,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             if (pv)
-                free(pv);
+                TwapiFree(pv);
             break;
         }
     } else {
@@ -1849,10 +1849,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_TCL_RESULT;
                 result.value.ival = TCL_ERROR;
             }
-            if (osidP) free(osidP);
-            if (gsidP) free(gsidP);
-            if (daclP) free(daclP);
-            if (saclP) free(saclP);
+            if (osidP) TwapiFree(osidP);
+            if (gsidP) TwapiFree(gsidP);
+            if (daclP) TwapiFree(daclP);
+            if (saclP) TwapiFree(saclP);
             break;
 #endif
         case 10033:
@@ -1947,10 +1947,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_TCL_RESULT;
                 result.value.ival = TCL_ERROR;
             }
-            if (osidP) free(osidP);
-            if (gsidP) free(gsidP);
-            if (daclP) free(daclP);
-            if (saclP) free(saclP);
+            if (osidP) TwapiFree(osidP);
+            if (gsidP) TwapiFree(gsidP);
+            if (daclP) TwapiFree(daclP);
+            if (saclP) TwapiFree(saclP);
             break;
 #endif
         case 10042: // ScrollConsoleScreenBuffer
@@ -2465,7 +2465,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             // cP is currently ignored
-            result.value.pv = malloc(dw);
+            result.value.pv = TwapiAlloc(dw);
             result.type = TRT_NONNULL_LPVOID;
             break;
 
@@ -2647,7 +2647,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             if (u.str) {
                 result.type = TRT_OBJ;
                 result.value.obj = Tcl_NewUnicodeObj(u.str, -1);
-                free(u.str);
+                TwapiFree(u.str);
             } else
                 result.type = TRT_EMPTY;
             break;
@@ -2912,14 +2912,12 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             dw = ExpandEnvironmentStringsW(arg, bufP, ARRAYSIZE(u.buf));
             if (dw > ARRAYSIZE(u.buf)) {
                 // Need a bigger buffer
-                bufP = malloc(dw * sizeof(WCHAR));
-                if (bufP == NULL)
-                    return Twapi_AppendSystemError(interp, ERROR_OUTOFMEMORY);
+                bufP = TwapiAlloc(dw * sizeof(WCHAR));
                 dw2 = dw;
                 dw = ExpandEnvironmentStringsW(arg, bufP, dw2);
                 if (dw > dw2) {
                     // Should not happen since we gave what we were asked
-                    free(bufP);
+                    TwapiFree(bufP);
                     return TCL_ERROR;
                 }
             }
@@ -2930,7 +2928,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.value.obj = Tcl_NewUnicodeObj(bufP, dw-1);
             }
             if (bufP != u.buf)
-                free(bufP);
+                TwapiFree(bufP);
             break;
         case 23: // GlobalAddAtom
             result.value.ival = GlobalAddAtomW(arg);
@@ -2962,7 +2960,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             lsa_ustr.Buffer = Tcl_GetUnicodeFromObj(objv[2], &dw2);
             lsa_ustr.Length = (USHORT) dw2;
             lsa_ustr.MaximumLength = lsa_ustr.Length;
-            memset(&lsa_oattr, 0, sizeof(lsa_oattr));
+            ZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
             dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
             if (dw2 == STATUS_SUCCESS) {
                 result.type = TRT_LSA_HANDLE;
@@ -3460,7 +3458,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                                                     TwapiTokenIntegrityLevel,
                                                     &u.ttml, sizeof(u.ttml));
             if (u.ttml.Label.Sid)
-                free(u.ttml.Label.Sid);
+                TwapiFree(u.ttml.Label.Sid);
             break;
 #endif
         case 10005:
@@ -4267,10 +4265,10 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                      GETVAR(sidP, ObjToPSID),
                      ARGTERM) != TCL_OK) {
         if (sidP)
-            free(sidP);         /* Might be alloc'ed even on fail */
+            TwapiFree(sidP);         /* Might be alloc'ed even on fail */
         return TCL_ERROR;
     }
-    /* sidP may legitimately be NULL, else it points to a malloc'ed block */
+    /* sidP may legitimately be NULL, else it points to a Twapialloc'ed block */
 
     result.type = TRT_EXCEPTION_ON_FALSE; /* Likely result type */
     if (func < 1000) {
@@ -4337,7 +4335,7 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                     result.value.ival = LsaAddAccountRights(h, sidP,
                                                             lsa_strings, lsa_count);
                 }
-                free(lsa_strings);
+                TwapiFree(lsa_strings);
                 break;
 #endif
             }
@@ -4346,7 +4344,7 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 
 
     if (sidP)
-        free(sidP);
+        TwapiFree(sidP);
 
     return TwapiSetResult(interp, &result);
 }

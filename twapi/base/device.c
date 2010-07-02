@@ -179,7 +179,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *interp, int objc, Tcl_Obj
         return TCL_ERROR;
 
     /* We will try to first retrieve using a stack buffer.
-       If that fails, retry with malloc*/
+       If that fails, retry with heap */
     bufP = buf;
     buf_sz = sizeof(buf);
     if (! SetupDiGetDeviceRegistryPropertyW(
@@ -191,8 +191,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *interp, int objc, Tcl_Obj
 
         /* Try again with larger buffer - required size was
            returned in buf_sz */
-        if (Twapi_malloc(interp, NULL, buf_sz, &bufP) != TCL_OK)
-            return TCL_ERROR;
+        bufP = TwapiAlloc(buf_sz);
         /* Retry the call */
         if (! SetupDiGetDeviceRegistryPropertyW(
                 hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
@@ -210,7 +209,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *interp, int objc, Tcl_Obj
 
 vamoose:
     if (bufP != buf)
-        free(buf);
+        TwapiFree(buf);
     return tcl_status;
 }
 
@@ -246,8 +245,8 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *interp, int objc, Tcl_Obj 
             break;
         /* Retry with larger buffer size as returned in call */
         if (sdiddP != &buf.sdidd)
-            free(sdiddP);
-        sdiddP = (SP_DEVICE_INTERFACE_DETAIL_DATA_W *) malloc(buf_sz);
+            TwapiFree(sdiddP);
+        sdiddP = (SP_DEVICE_INTERFACE_DETAIL_DATA_W *) TwapiAlloc(buf_sz);
     }
 
     if (success) {
@@ -258,7 +257,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *interp, int objc, Tcl_Obj 
         Twapi_AppendSystemError(interp, winerr);
 
     if (sdiddP != &buf.sdidd)
-        free(sdiddP);
+        TwapiFree(sdiddP);
 
     return success ? TCL_OK : TCL_ERROR;
 }
@@ -296,9 +295,9 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
         }
         /* Retry with larger buffer size as returned in call */
         if (guidP != guids)
-            free(guidP);
+            TwapiFree(guidP);
         allocated = needed;
-        guidP = (GUID *) malloc(sizeof(GUID*) * allocated);
+        guidP = (GUID *) TwapiAlloc(sizeof(GUID*) * allocated);
     }
 
     if (success) {
@@ -312,7 +311,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
         Twapi_AppendSystemError(interp, GetLastError());
 
     if (guidP != guids)
-        free(guidP);
+        TwapiFree(guidP);
 
     return success ? TCL_OK : TCL_ERROR;
 }
@@ -606,7 +605,7 @@ static LRESULT TwapiDeviceNotificationWinProc(
             TwapiCallbackNew(dncP->ticP,
                                     TwapiDeviceNotificationCallbackFn,
                                     sizeof(*cbP) + dbhP->dbch_size - sizeof(cbP->data.device.dev_bcast_hdr));
-        MoveMemory(&cbP->data.device.dev_bcast_hdr, dbhP, dbhP->dbch_size);
+        CopyMemory(&cbP->data.device.dev_bcast_hdr, dbhP, dbhP->dbch_size);
     } else {
         /* No additional data */
         cbP = (TwapiDeviceNotificationCallback *)

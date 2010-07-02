@@ -20,13 +20,9 @@ TBD - the SID data type handling needs to be cleaned up
  */
 static int TwapiAllocateTOKEN_PRIVILEGES (Tcl_Interp *interp, int num_privs, TOKEN_PRIVILEGES **tpPP)
 {
-    if (Twapi_malloc(interp,
-                     NULL,
-                     (sizeof(TOKEN_PRIVILEGES)
-                      + (num_privs*sizeof((*tpPP)->Privileges[0]))
-                      - sizeof((*tpPP)->Privileges)),
-                     tpPP) != TCL_OK)
-        return TCL_ERROR;
+    *tpPP = TwapiAlloc(sizeof(TOKEN_PRIVILEGES)
+                       + (num_privs*sizeof((*tpPP)->Privileges[0]))
+                       - sizeof((*tpPP)->Privileges));
 
     (*tpPP)->PrivilegeCount = num_privs;
     return TCL_OK;
@@ -36,7 +32,7 @@ static int TwapiAllocateTOKEN_PRIVILEGES (Tcl_Interp *interp, int num_privs, TOK
 void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP)
 {
     if (tokPrivP)
-        free(tokPrivP);
+        TwapiFree(tokPrivP);
 }
 
 
@@ -58,16 +54,15 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
         sz += sizeof(*dstP) * (Tcl_GetCharLength(listobjv[i]) + 1);
     }
 
-    if (Twapi_malloc(interp, NULL, sz, &ustrP) != TCL_OK) {
-        return TCL_ERROR;
-    }
+    ustrP = TwapiAlloc(sz);
+
     /* Figure out where the string area starts and do the construction */
     dstP = (WCHAR *) ((nitems * sizeof(LSA_UNICODE_STRING)) + (char *)(ustrP));
     for (i = 0; i < nitems; ++i) {
         WCHAR *srcP;
         int    slen;
         srcP = Tcl_GetUnicodeFromObj(listobjv[i], &slen);
-        memmove(dstP, srcP, sizeof(WCHAR)*(slen+1));
+        CopyMemory(dstP, srcP, sizeof(WCHAR)*(slen+1));
         ustrP[i].Buffer = dstP;
         ustrP[i].Length = (USHORT) (sizeof(WCHAR) * slen); /* Num *bytes*, not WCHARs */
         ustrP[i].MaximumLength = ustrP[i].Length;
@@ -84,7 +79,7 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
 
 
 /*
- * Returns a pointer to malloc'ed memory containing a SID corresponding
+ * Returns a pointer to dynamic memory containing a SID corresponding
  * to the given string representation. Returns NULL on error, and
  * sets the windows error
  */
@@ -103,17 +98,12 @@ static PSID TwapiGetSidFromStringRep(char *strP)
 
     /*
      * Have a valid SID
-     * Copy it into malloc'ed memory after validating
+     * Copy it into dynamic memory after validating
      */
     len = GetLengthSid(local_sidP);
-    sidP = malloc(len);
-    if (sidP == NULL) {
-        error = ERROR_OUTOFMEMORY;
-        goto errorExit2;
-    } else {
-        if (! CopySid(len, sidP, local_sidP)) {
-            goto errorExit;
-        }
+    sidP = TwapiAlloc(len);
+    if (! CopySid(len, sidP, local_sidP)) {
+        goto errorExit;
     }
 
     /* Free memory allocated by ConvertStringSidToSidA */
@@ -123,14 +113,12 @@ static PSID TwapiGetSidFromStringRep(char *strP)
  errorExit:
     error = GetLastError();
 
- errorExit2: /* Jump here when we have set error to the required code */
-
     if (local_sidP) {
         LocalFree(local_sidP);
     }
 
     if (sidP)
-        free(sidP);
+        TwapiFree(sidP);
 
     SetLastError(error);
     return NULL;
@@ -138,8 +126,8 @@ static PSID TwapiGetSidFromStringRep(char *strP)
 
 /* Tcl_Obj to SID - the object may hold the SID string rep, a binary
    or a list of ints. If the object is an empty string, *sidPP is
-   stored as NULL. Else the SID is malloc'ed and a pointer to it is
-   stored in *sidPP. Caller must release it by calling free
+   stored as NULL. Else the SID is dynamically allocated and a pointer to it is
+   stored in *sidPP. Caller must release it by calling TwapiFree
 */
 int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 {
@@ -165,8 +153,7 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
     if (len >= sizeof(*sidP)) {
         /* Seems big enough, validate revision and size */
         if (IsValidSid(sidP) && GetLengthSid(sidP) == len) {
-            if (Twapi_malloc(interp, NULL, len, sidPP) != TCL_OK)
-                return TCL_ERROR;
+            *sidPP = TwapiAlloc(len);
             /* Note SID is a variable length struct so we cannot do this
                     *(SID *) (*sidPP) = *sidP;
                (from bitter experience!)
@@ -203,7 +190,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
     return Tcl_NewListObj(2, objv);
 }
 
-/* Note sidattrP->Sid is malloc'ed and must be freed by calling free(). */
+/* Note sidattrP->Sid is dynamically allocated and must be freed by calling TwapiFree(). */
 int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP)
 {
     Tcl_Obj **objv;
@@ -329,9 +316,9 @@ void TwapiFreeTOKEN_GROUPS(TOKEN_GROUPS *tgP)
     DWORD i;
     if (tgP) {
         for (i = 0; i < tgP->GroupCount; ++i) {
-            free(tgP->Groups[i].Sid);
+            TwapiFree(tgP->Groups[i].Sid);
         }
-        free(tgP);
+        TwapiFree(tgP);
     }
 }
 
@@ -350,15 +337,9 @@ static int ObjToPTOKEN_GROUPS(Tcl_Interp *interp, Tcl_Obj *obj, TOKEN_GROUPS **t
     if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) != TCL_OK)
         return TCL_OK;
 
-    if (Twapi_malloc(interp,
-                     NULL,
-                     (sizeof(TOKEN_GROUPS)
-                      + (objc*sizeof(tgP->Groups[0]))
-                      - sizeof(tgP->Groups)),
-                     &tgP) != TCL_OK) {
-        return TCL_OK;
-    }
-
+    tgP = TwapiAlloc(sizeof(TOKEN_GROUPS)
+                     + (objc*sizeof(tgP->Groups[0]))
+                     - sizeof(tgP->Groups));
     tgP->GroupCount = 0;
 
     /* Iterate over the SID and attributes. Each is a pair consisting of
@@ -408,7 +389,7 @@ static int ObjToTOKEN_SOURCE(Tcl_Interp *interp, Tcl_Obj *obj, TOKEN_SOURCE *tsP
             Tcl_SetResult(interp, "Invalid", TCL_STATIC);
         return TCL_ERROR;
     }
-    memmove(&tsP->SourceName[0], p, sizeof(tsP->SourceName));
+    CopyMemory(&tsP->SourceName[0], p, sizeof(tsP->SourceName));
 
     return TCL_OK;
 }
@@ -541,10 +522,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
         if (objc != 4)
             goto format_error;
         acesz += sizeof(*aceP);
-        aceP = (ACCESS_ALLOWED_ACE *) malloc(acesz);
-        if (aceP == NULL)
-            goto allocation_error;
-
+        aceP = (ACCESS_ALLOWED_ACE *) TwapiAlloc(acesz);
         aceP->Header.AceType = acetype;
         aceP->Header.AceFlags = aceflags;
         aceP->Header.AceSize  = acesz; /* TBD - this is a upper bound since we
@@ -558,11 +536,11 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
 
         if (! CopySid(aceP->Header.AceSize - sizeof(*aceP) + sizeof(aceP->SidStart),
                       &aceP->SidStart, sidP)) {
-            free(sidP);
+            TwapiFree(sidP);
             goto system_error;
         }
 
-        free(sidP);
+        TwapiFree(sidP);
         sidP = NULL;
 
         break;
@@ -572,20 +550,13 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
             goto format_error;
         bytes = Tcl_GetByteArrayFromObj(objv[2], &bytecount);
         acesz += bytecount;
-        aceP = (ACCESS_ALLOWED_ACE *) malloc(acesz);
-        if (aceP == NULL)
-            goto allocation_error;
-        memmove(aceP, bytes, bytecount);
+        aceP = (ACCESS_ALLOWED_ACE *) TwapiAlloc(acesz);
+        CopyMemory(aceP, bytes, bytecount);
         break;
     }
 
     *acePP = aceP;
     return TCL_OK;
-
- allocation_error:
-    if (interp)
-        Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-    return TCL_ERROR;
 
  format_error:
     if (interp)
@@ -662,7 +633,7 @@ Tcl_Obj *ObjFromACL (
 
 
 /*
- * Returns a pointer to malloc'ed memory containing a ACL corresponding
+ * Returns a pointer to dynamic memory containing a ACL corresponding
  * to the given string representation. The string "null" is treated
  * as no acl and a NULL pointer is returned in *aclPP
  */
@@ -679,7 +650,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     int       aclrev;
 
     *aclPP = NULL;
-    if (!strcmp("null", Tcl_GetString(aclObj)))
+    if (!lstrcmpA("null", Tcl_GetString(aclObj)))
         return TCL_OK;
 
     if (Tcl_ListObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
@@ -703,9 +674,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     aclsz = sizeof(ACL);
     aclrev = ACL_REVISION;      /* Assume only standed ACE types */
     if (aceobjc) {
-        acePP = malloc(aceobjc*sizeof(*acePP));
-        if (acePP == NULL)
-            goto allocation_error_return;
+        acePP = TwapiAlloc(aceobjc*sizeof(*acePP));
         for (i = 0; i < aceobjc; ++i)
             acePP[i] = NULL;        /* Init for error return */
 
@@ -727,9 +696,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     }
 
     /* OK, now allocate the ACL and add the ACE's to it */
-    *aclPP = malloc(aclsz);
-    if (*aclPP == NULL)
-        goto allocation_error_return;
+    *aclPP = TwapiAlloc(aclsz);
     InitializeAcl(*aclPP, aclsz, aclrev);
     for (i = 0; i < aceobjc; ++i) {
         acehdrP = (ACE_HEADER *)acePP[i];
@@ -750,26 +717,21 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     /* Free up temporary ACE storage */
     if (acePP) {
         for (i = 0; i < aceobjc; ++i)
-            free(acePP[i]);
-        free(acePP);
+            TwapiFree(acePP[i]);
+        TwapiFree(acePP);
     }
 
     return TCL_OK;
 
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-    }
-
  error_return:
     if (acePP) {
         for (i = 0; i < aceobjc; ++i)
-            free(acePP[i]);
-        free(acePP);
+            TwapiFree(acePP[i]);
+        TwapiFree(acePP);
     }
 
     if (*aclPP) {
-        free(*aclPP);
+        TwapiFree(*aclPP);
         *aclPP = NULL;
     }
 
@@ -796,17 +758,17 @@ void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP)
 
     /* Owner SID */
     if (GetSecurityDescriptorOwner(secdP, &sidP, &defaulted) && sidP)
-        free(sidP);
+        TwapiFree(sidP);
 
     /* Group SID */
     if (GetSecurityDescriptorGroup(secdP, &sidP, &defaulted) && sidP)
-        free(sidP);
+        TwapiFree(sidP);
 
     /* DACL */
     if (GetSecurityDescriptorDacl(secdP, &aclpresent, &aclP, &defaulted)
         && aclpresent
         && aclP) {
-        free(aclP);
+        TwapiFree(aclP);
     }
 
     /* SACL */
@@ -814,10 +776,10 @@ void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP)
         && aclpresent
         && aclP) {
 
-        free(aclP);
+        TwapiFree(aclP);
     }
 
-    free(secdP);
+    TwapiFree(secdP);
 }
 
 
@@ -901,9 +863,9 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
 
 
 /*
- * Returns a pointer to malloc'ed memory containing a structure corresponding
+ * Returns a pointer to dynamic memory containing a structure corresponding
  * to the given string representation. Note that the owner, group, sacl
- * and dacl fields of the descriptor point to malloc'ed memory as well!
+ * and dacl fields of the descriptor point to dynamic memory as well!
  */
 int ObjToPSECURITY_DESCRIPTOR(
     Tcl_Interp *interp,
@@ -941,10 +903,7 @@ int ObjToPSECURITY_DESCRIPTOR(
     }
 
 
-    *secdPP = malloc (sizeof(SECURITY_DESCRIPTOR));
-    if (*secdPP == NULL)
-        goto allocation_error_return;
-
+    *secdPP = TwapiAlloc (sizeof(SECURITY_DESCRIPTOR));
     if (! InitializeSecurityDescriptor(*secdPP, SECURITY_DESCRIPTOR_REVISION))
         goto system_error;
 
@@ -1027,23 +986,17 @@ int ObjToPSECURITY_DESCRIPTOR(
     TwapiReturnSystemError(interp);
     goto error_return;
 
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-    }
-    goto error_return;
-
  error_return:
     if (owner_sidP)
-        free(owner_sidP);
+        TwapiFree(owner_sidP);
     if (group_sidP)
-        free(group_sidP);
+        TwapiFree(group_sidP);
     if (daclP)
-        free(daclP);
+        TwapiFree(daclP);
     if (saclP)
-        free(saclP);
+        TwapiFree(saclP);
     if (*secdPP) {
-        free(*secdPP);
+        TwapiFree(*secdPP);
         *secdPP = NULL;
     }
     return TCL_ERROR;
@@ -1060,12 +1013,12 @@ void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP)
     if (secattrP->lpSecurityDescriptor)
         TwapiFreeSECURITY_DESCRIPTOR(secattrP->lpSecurityDescriptor);
 
-    free(secattrP);
+    TwapiFree(secattrP);
 }
 
 
 /*
- * Returns a pointer to malloc'ed memory containing a structure corresponding
+ * Returns a pointer to dynamic memory containing a structure corresponding
  * to the given string representation.
  * The SECURITY_DESCRIPTOR field should be freed through
  * TwapiFreeSECURITY_DESCRIPTOR
@@ -1098,10 +1051,7 @@ int ObjToPSECURITY_ATTRIBUTES(
     }
 
 
-    *secattrPP = malloc (sizeof(**secattrPP));
-    if (*secattrPP == NULL)
-        goto allocation_error_return;
-
+    *secattrPP = TwapiAlloc (sizeof(**secattrPP));
     (*secattrPP)->nLength = sizeof(**secattrPP);
 
     if (Tcl_GetIntFromObj(interp, objv[1], &inherit) == TCL_ERROR)
@@ -1116,13 +1066,9 @@ int ObjToPSECURITY_ATTRIBUTES(
 
     return TCL_OK;
 
- allocation_error_return:
-    if (interp)
-        Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-
  error_return:
     if (*secattrPP) {
-        free(*secattrPP);
+        TwapiFree(*secattrPP);
         *secattrPP = NULL;
     }
     return TCL_ERROR;
@@ -1169,10 +1115,8 @@ int Twapi_LookupAccountSid (
     }
 
     /* Allocate required space */
-    if (Twapi_malloc(interp, NULL, (domain_buf_size * sizeof(*domainP)), &domainP) != TCL_OK ||
-        Twapi_malloc(interp, NULL, (name_buf_size * sizeof(*nameP)), &nameP) != TCL_OK) {
-        goto done;
-    }
+    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+    nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
 
     if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
                           domainP, &domain_buf_size, &account_type) == 0) {
@@ -1193,9 +1137,9 @@ int Twapi_LookupAccountSid (
 
  done:
     if (domainP)
-        free(domainP);
+        TwapiFree(domainP);
     if (nameP)
-        free(nameP);
+        TwapiFree(nameP);
 
     return result;
 }
@@ -1236,10 +1180,8 @@ int Twapi_LookupAccountName (
     }
 
     /* Allocate required space */
-    if (Twapi_malloc(interp, NULL, (domain_buf_size * sizeof(*domainP)), &domainP) != TCL_OK ||
-        Twapi_malloc(interp, NULL, sid_buf_size, &sidP) != TCL_OK) {
-        goto done;
-    }
+    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+    sidP = TwapiAlloc(sid_buf_size);
 
     if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
                           domainP, &domain_buf_size, &account_type) == 0) {
@@ -1261,14 +1203,12 @@ int Twapi_LookupAccountName (
         size_t len = 0;
         assert(lpSystemName);
         assert(lpAccountName);
-        len = wcslen(lpSystemName) + 1 + wcslen(lpAccountName) + 1;
-        if (Twapi_malloc(interp, NULL, len * sizeof(*new_accountP), &new_accountP) != TCL_OK) {
-            goto done;
-        }
-        _snwprintf(new_accountP, len, L"%s\\%s", lpSystemName, lpAccountName);
+        len = lstrlenW(lpSystemName) + 1 + lstrlenW(lpAccountName) + 1;
+        new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
+        wsprintfW(new_accountP, L"%s\\%s", lpSystemName, lpAccountName);
         /* Recurse */
         result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
-        free(new_accountP);
+        TwapiFree(new_accountP);
         goto done;
     }
 
@@ -1287,15 +1227,15 @@ int Twapi_LookupAccountName (
 
  done:
     if (domainP)
-        free(domainP);
+        TwapiFree(domainP);
     if (sidP)
-        free(sidP);
+        TwapiFree(sidP);
 
     return result;
 }
 
 
-/* Generic routine to retrieve token information - returns a malloc block */
+/* Generic routine to retrieve token information - returns a dynamic alloc block */
 static void *AllocateAndGetTokenInformation(HANDLE tokenH,
                                             TOKEN_INFORMATION_CLASS class)
 {
@@ -1315,9 +1255,8 @@ static void *AllocateAndGetTokenInformation(HANDLE tokenH,
         }
         /* Need a bigger buffer */
         if (infoP)
-            free(infoP);
-        error = ERROR_OUTOFMEMORY; /* Error in case malloc fails */
-        infoP = malloc(info_buf_sz);
+            TwapiFree(infoP);
+        infoP = TwapiAlloc(info_buf_sz);
     } while (infoP);
 
     /*
@@ -1325,12 +1264,10 @@ static void *AllocateAndGetTokenInformation(HANDLE tokenH,
      * else. Variable error is already set above
      */
     if (infoP)
-        free(infoP);
+        TwapiFree(infoP);
     SetLastError(error);
     return NULL;
 }
-
-
 
 
 DWORD Twapi_PrivilegeCheck(
@@ -1349,8 +1286,7 @@ DWORD Twapi_PrivilegeCheck(
     sz = sizeof(PRIVILEGE_SET)
         + (num_privs*sizeof(privSet->Privilege[0]))
         - sizeof(privSet->Privilege);
-    if (Twapi_malloc(NULL, NULL, sz, &privSet) != TCL_OK)
-        return 0;
+    privSet = TwapiAlloc(sz);
 
     privSet->PrivilegeCount = num_privs;
     privSet->Control = all_required ? PRIVILEGE_SET_ALL_NECESSARY : 0;
@@ -1362,7 +1298,7 @@ DWORD Twapi_PrivilegeCheck(
     if (success)
         *resultP = have_priv;
 
-    free(privSet);
+    TwapiFree(privSet);
 
     return success;
 }
@@ -1593,7 +1529,7 @@ int Twapi_GetTokenInformation(
         Twapi_FreeNewTclObj(resultObj);
 
     if (infoP)
-        free(infoP);
+        TwapiFree(infoP);
 
     return result;
 }

@@ -115,7 +115,7 @@ static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     char buf[80];
     if (interp) {
-        _snprintf(buf, ARRAYSIZE(buf), "Invalid or unsupported VARTYPE (%d)", vt);
+        wsprintfA(buf, "Invalid or unsupported VARTYPE (%d)", vt);
         Tcl_SetResult(interp, buf, TCL_VOLATILE);
     }
 }
@@ -140,8 +140,7 @@ static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
     int i;
     if (tok != NULL) {
         for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
-            if (vt_base_tokens[i].tok[0] == tok[0] &&
-                !strcmp(vt_base_tokens[i].tok, tok)) {
+            if (STREQ(vt_base_tokens[i].tok, tok)) {
                 if (vtP)
                     *vtP = vt_base_tokens[i].vt;
                 return TCL_OK;
@@ -149,9 +148,10 @@ static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
         }
     }
     if (interp) {
-        char buf[80];
-        _snprintf(buf, ARRAYSIZE(buf), "Invalid or unsupported VARTYPE token (%s)", tok? tok : "<null pointer>");
-        Tcl_SetResult(interp, buf, TCL_VOLATILE);
+        Tcl_Obj *objP; 
+        objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
+        Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
+        Tcl_SetObjResult(interp, objP);
     }
 
     return TCL_ERROR;
@@ -886,7 +886,7 @@ static ULONG STDMETHODCALLTYPE Twapi_EventSink_Release(IDispatch *this)
             Tcl_Release(me->interp);
         if (me->cmd)
             Tcl_DecrRefCount(me->cmd);
-        free(this);
+        TwapiFree(this);
         return 0;
     } else
         return ((Twapi_EventSink *)this)->refc;
@@ -953,10 +953,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     }
 
     /* Note we  will tack on 3 additional fixed arguments plus dispparms */
-    cmdobjv = malloc((cmdobjc+4) * sizeof(*cmdobjv));
-    if (cmdobjv == NULL) {
-        return E_OUTOFMEMORY;
-    }
+    cmdobjv = TwapiAlloc((cmdobjc+4) * sizeof(*cmdobjv));
 
     for (i = 0; i < cmdobjc; ++i) {
         cmdobjv[i] = cmdprefixv[i];
@@ -1005,7 +1002,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     hr = Tcl_EvalObjv(me->interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
     if (hr != TCL_OK) {
         if (excepP) {
-            memset(excepP, 0, sizeof(*excepP));
+            ZeroMemory(excepP, sizeof(*excepP));
             excepP->scode = hr;
         }
     } else {
@@ -1058,8 +1055,7 @@ int Twapi_ComEventSinkObjCmd(
         return TCL_ERROR;
     }
 
-    if (Twapi_malloc(interp, NULL, sizeof(*sinkP), (void **)&sinkP) != TCL_OK)
-        return TCL_ERROR;
+    sinkP = TwapiAlloc(sizeof(*sinkP));
 
     /* Fill in the cmdargs slots from the arguments */
     sinkP->idispP.lpVtbl = &Twapi_EventSink_Vtbl;
@@ -1178,12 +1174,9 @@ int Twapi_IDispatch_InvokeObjCmd(
      * where the param is by reference.
      */
     nargalloc = (1+(2*nparams));
-    dispargP = malloc(nargalloc * sizeof(*dispargP));
-    paramflagsP = malloc((nparams+1)*sizeof(*paramflagsP));
-    if (dispargP == NULL || paramflagsP == NULL) {
-        Tcl_SetResult(interp, "Unable to allocate memory", TCL_STATIC);
-        return TCL_ERROR;
-    }
+    dispargP = TwapiAlloc(nargalloc * sizeof(*dispargP));
+    paramflagsP = TwapiAlloc((nparams+1)*sizeof(*paramflagsP));
+
     /* Init all so they're all valid in case we take an early error exit
      *   and have to clear them before return
      */
@@ -1231,7 +1224,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     }
     
     /* Init exception structure for error handling */
-    memset(&einfo, 0, sizeof(einfo));
+    ZeroMemory(&einfo, sizeof(einfo));
     badarg_index = (UINT) -1;
 
     /*
@@ -1331,7 +1324,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                         errorResultObj = Tcl_GetObjResult(interp);
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendUnicodeToObj(errorResultObj, scode_msg, -1);
-                        free(scode_msg);
+                        TwapiFree(scode_msg);
                     }
                 }
             }
@@ -1348,7 +1341,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  * the Tcl perspective, numbered from the end. In that
                  * case, we should probably map badarg_index appropriately
                  */
-                _snprintf(buf, ARRAYSIZE(buf), "%d", badarg_index);
+                wsprintfA(buf, "%d", badarg_index);
                 Tcl_AppendResult(interp, " Offending parameter index ", buf, NULL);
             }
         }
@@ -1370,10 +1363,10 @@ int Twapi_IDispatch_InvokeObjCmd(
         for (i = 1; i < nargalloc; ++i)
             TwapiClearVariantParam(interp, &dispargP[i]);
 
-        free(dispargP);
+        TwapiFree(dispargP);
     }
     if (paramflagsP)
-        free(paramflagsP);
+        TwapiFree(paramflagsP);
 
     return status;
 }
@@ -1422,15 +1415,13 @@ int TwapiGetIDsOfNamesHelper(
     /* Convert the list object into an array of points to strings */
     if (Tcl_ListObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
         return TCL_ERROR;
-    if (Twapi_malloc(interp, NULL, nitems*sizeof(*names), (void **)& names) != TCL_OK)
-        goto vamoose;
+    names = TwapiAlloc(nitems*sizeof(*names));
 
     for (i = 0; i < nitems; i++)
         names[i] = Tcl_GetUnicode(items[i]);
 
     /* Allocate an array to hold returned ids */
-    if (Twapi_malloc(interp, NULL, nitems * sizeof(*ids), &ids) != TCL_OK)
-        goto vamoose;
+    ids = TwapiAlloc(nitems * sizeof(*ids));
 
     /* Map the names to ids */
     switch (ifc_type) {
@@ -1463,9 +1454,9 @@ int TwapiGetIDsOfNamesHelper(
     }
 vamoose:
     if (ids)
-        free(ids);
+        TwapiFree(ids);
     if (names)
-        free(names);
+        TwapiFree(names);
 
     return status;
 }
@@ -1538,7 +1529,7 @@ int Twapi_ITypeInfo_GetNames(
     BSTR    names[32];
     int     name_count;
 
-    memset(names, 0, sizeof(names));
+    ZeroMemory(names, sizeof(names));
 
     hr = tiP->lpVtbl->GetNames(tiP, memid, names, sizeof(names)/sizeof(names[0]), &name_count);
 
@@ -1678,11 +1669,11 @@ int TwapiMakeVariantParam(
             } else {
                 /* Not an int, see if it is a token */
                 char *s = Tcl_GetStringFromObj(paramfields[0], &len);
-                if (len == 0 || !strcmp(s, "in"))
+                if (len == 0 || STREQ(s, "in"))
                     *paramflagsP = PARAMFLAG_FIN;
-                else if (!strcmp(s, "out"))
+                else if (STREQ(s, "out"))
                     *paramflagsP = PARAMFLAG_FOUT;
-                else if (!strcmp(s, "inout"))
+                else if (STREQ(s, "inout"))
                     *paramflagsP = PARAMFLAG_FOUT | PARAMFLAG_FIN;
                 else {
                     Tcl_SetResult(interp, "Unknown parameter modifiers", TCL_STATIC);
@@ -2147,7 +2138,7 @@ int Twapi_IRecordInfo_GetFieldNames(Tcl_Interp *interp, IRecordInfo *riP)
     Tcl_Obj *objv[50];
     HRESULT hr;
 
-    memset(bstrs, 0, sizeof(bstrs));
+    ZeroMemory(bstrs, sizeof(bstrs));
     nbstrs = ARRAYSIZE(bstrs);
     hr = riP->lpVtbl->GetFieldNames(riP, &nbstrs, bstrs);
     if (hr != S_OK)
@@ -2216,8 +2207,7 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
         
     }
 
-    if (Twapi_malloc(interp, NULL, count * elem_size, &u.pv) != TCL_OK)
-        return TCL_ERROR;
+    u.pv = TwapiAlloc(count * elem_size);
 
     switch (enum_type) {
     case 0:
@@ -2241,7 +2231,7 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
      */
     if (hr != S_OK && hr != S_FALSE) {
         if (u.pv)
-            free(u.pv);
+            TwapiFree(u.pv);
         return Twapi_AppendSystemError(interp, hr);
     }
 
@@ -2268,7 +2258,7 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
     }
         
     if (u.pv)
-        free(u.pv);
+        TwapiFree(u.pv);
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
     return TCL_OK;
 }

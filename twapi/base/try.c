@@ -47,13 +47,14 @@ int Twapi_TryObjCmd(
     final = 0;
     i = 2;
     while (i < objc) {
-        if (!strcmp("onerror", Tcl_GetString(objv[i]))) {
+        char *s = Tcl_GetString(objv[i]);
+        if (STREQ("onerror", s)) {
             /* There should be at least two more args */
             if ((i+2) >= objc)
                 goto badargs;
             i += 3;             /* Skip over this onerror element */
         }
-        else if (!strcmp("finally", Tcl_GetString(objv[i]))) {
+        else if (STREQ("finally", s)) {
             /* There should be at least one more args */
             if ((i+1) >= objc)
                 goto badargs;
@@ -119,11 +120,11 @@ int Twapi_TryObjCmd(
 
         if (codeObjc == 0)
             match = 1;        /* Note empty patterns matches any thing */
-        else if (! strcmp(facilityP, Tcl_GetString(codeObjv[0]))) {
+        else if (! lstrcmpA(facilityP, Tcl_GetString(codeObjv[0]))) {
             /* Facility matches. */
             if (codeObjc == 1)
                 match = 1;  /* No code specified so facility need match */
-            else if (! strcmp(codeP, Tcl_GetString(codeObjv[1]))) {
+            else if (! lstrcmpA(codeP, Tcl_GetString(codeObjv[1]))) {
                 /* Code specified and matches */
                 match = 1;
             } else {

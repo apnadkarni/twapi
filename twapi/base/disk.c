@@ -121,8 +121,8 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
             break;
         }
         if (pathP != path)
-            free (pathP);
-        pathP = malloc(sizeof(*pathP) * path_cch);
+            TwapiFree (pathP);
+        pathP = TwapiAlloc(sizeof(*pathP) * path_cch);
     } while (pathP);
 
     if (result) {
@@ -133,7 +133,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
     }
 
     if (pathP && pathP != path)
-        free(pathP);
+        TwapiFree(pathP);
 
     return result;
 }

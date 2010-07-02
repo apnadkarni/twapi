@@ -27,7 +27,7 @@ int Twapi_GetShellVersion(Tcl_Interp *interp)
     char buf[80];
 
     DLLVERSIONINFO *ver = TwapiShellVersion();
-    _snprintf(buf, sizeof(buf), "%u.%u.%u",
+    wsprintfA(buf, "%u.%u.%u",
               ver->dwMajorVersion, ver->dwMinorVersion, ver->dwBuildNumber);
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
@@ -1234,7 +1234,7 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     GetThemeColor_t fn = Twapi_GetProc_GetThemeColor();
     HRESULT status;
     COLORREF color;
-    char buf[20];
+    char buf[40];
 
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
@@ -1249,7 +1249,7 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (status != S_OK)
         return Twapi_AppendSystemError(interp, status);
 
-    _snprintf(buf, sizeof(buf)/sizeof(buf[0]), "#%2.2x%2.2x%2.2x",
+    wsprintfA(buf, "#%2.2x%2.2x%2.2x",
              GetRValue(color), GetGValue(color), GetBValue(color));
     Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
     return TCL_OK;
@@ -1341,9 +1341,9 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
 vamoose:
     if (sfop.pFrom)
-        free((void*)sfop.pFrom);
+        TwapiFree((void*)sfop.pFrom);
     if (sfop.pTo)
-        free((void*)sfop.pTo);
+        TwapiFree((void*)sfop.pTo);
 
     return tcl_status;
 }
@@ -1357,7 +1357,7 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     SHELLEXECUTEINFOW sei;
     
-    memset(&sei, 0, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
+    ZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
                                      Need to track if it needs freeing */
     sei.cbSize = sizeof(sei);
 

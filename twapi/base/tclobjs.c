@@ -363,7 +363,7 @@ LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP)
 {
     if (objP) {
         LPWSTR s = Tcl_GetUnicode(objP);
-        if (wcscmp(s, NULL_TOKEN_L) == 0) {
+        if (lstrcmpW(s, NULL_TOKEN_L) == 0) {
             s = NULL;
         }
         return s;
@@ -409,7 +409,7 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
     if (i < low || i > high) {
         if (interp) {
             char buf[80];
-            _snprintf(buf, sizeof(buf), "Integer '%d' not within range %d-%d", i, low, high);
+            wsprintf(buf, "Integer '%d' not within range %d-%d", i, low, high);
             Tcl_SetResult(interp, buf, TCL_VOLATILE);
         }
         return TCL_ERROR;
@@ -661,7 +661,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
         return TCL_ERROR;
     }
 
-    memmove(*idsPP, idsP, numbytes);
+    CopyMemory(*idsPP, idsP, numbytes);
 
     return TCL_OK;
 }
@@ -761,7 +761,7 @@ int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
 
 /*
  * Convert a Tcl list to a "MULTI_SZ" list of Unicode strings, terminated
- * with two nulls. Returns TCL_OK on success with a malloc'ed multi_sz
+ * with two nulls. Returns TCL_OK on success with a dynamically alloced multi_sz
  * string in *multiszPtrPtr. Returns TCL_ERROR on failure
  */
 int ObjToMultiSz (
@@ -787,12 +787,11 @@ int ObjToMultiSz (
     }
 
     ++len;                      /* One extra null char at the end */
-    if (Twapi_malloc(interp, NULL, len*sizeof(*buf), &buf) != TCL_OK)
-        return TCL_ERROR;
+    buf = TwapiAlloc(len*sizeof(*buf));
 
     for (i=0, dst=buf; ; ++i) {
         if (Tcl_ListObjIndex(interp, listPtr, i, &objPtr) == TCL_ERROR) {
-            free(buf);
+            TwapiFree(buf);
             return TCL_ERROR;
         }
         if (objPtr == NULL)
@@ -800,7 +799,7 @@ int ObjToMultiSz (
         src = Tcl_GetUnicodeFromObj(objPtr, &len);
         if (src) {
             ++len;               /* Include the terminating null */
-            memmove(dst, src, len*sizeof(*src));
+            CopyMemory(dst, src, len*sizeof(*src));
             dst += len;
         }
     }
@@ -1069,10 +1068,8 @@ int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 
 Tcl_Obj *ObjFromLUID (const LUID *luidP)
 {
-    char buf[18];
-    _snprintf(buf, sizeof(buf)/sizeof(buf[0]),
-              "%.8x-%.8x", luidP->HighPart, luidP->LowPart);
-    buf[(sizeof(buf)/sizeof(buf[0]))-1] = 0; /* Ensure null terminated */
+    char buf[20];
+    wsprintf(buf, "%.8x-%.8x", luidP->HighPart, luidP->LowPart);
 
     return Tcl_NewStringObj(buf, -1);
 }
@@ -1243,7 +1240,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
         /* For backward compat with SWIG based script, we accept NULL
            as a valid pointer of any type and for convenience 0 as well */
         if (nobj == 1 &&
-            (strcmp(Tcl_GetString(obj), "NULL") == 0 ||
+            (lstrcmpA(Tcl_GetString(obj), "NULL") == 0 ||
              (Tcl_GetIntFromObj(interp, obj, &val) == TCL_OK && val == 0))) {
             *pvP = 0;
             return TCL_OK;
@@ -1258,7 +1255,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
     /* If a type name is specified, see that it matches. Else any type ok */
     if (name) {
         char *s = Tcl_GetString(objsP[1]);
-        if (strcmp(s, name) != 0) {
+        if (! STREQ(s, name)) {
             Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
                              name, "'.", NULL);
             return TCL_ERROR;

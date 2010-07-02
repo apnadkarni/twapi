@@ -83,7 +83,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
     struct addrinfo *saved_addrP;
     int i;
 
-    memset(&hints, 0, sizeof(hints));
+    ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = PF_INET;
 
     theP->tcl_ev.proc = TwapiHostnameEventProc;
@@ -145,7 +145,7 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     TwapiInterpContextRef(ticP, 1); /* So it does not go away */
     theP->addrs = NULL;
     theP->naddrs = 0;
-    MoveMemory(theP->name, name, len+1);
+    CopyMemory(theP->name, name, len+1);
 
     if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT))
         return TCL_OK;
@@ -269,7 +269,7 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     /* We do not syntactically validate address string here. All failures
        are delivered asynchronously */
-    MoveMemory(theP->name, addrstr, len+1);
+    CopyMemory(theP->name, addrstr, len+1);
 
     if (QueueUserWorkItem(TwapiAddressHandler, theP, WT_EXECUTEDEFAULT))
         return TCL_OK;
