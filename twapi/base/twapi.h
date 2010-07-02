@@ -17,7 +17,7 @@
 #include <assert.h>
 #include <winsock2.h>
 #include <windows.h>
-#define _WSPIAPI_COUNTOF // Needed to use VC++ 6.0 with Platform SDK 2003 SP1
+//#define _WSPIAPI_COUNTOF // Needed to use VC++ 6.0 with Platform SDK 2003 SP1
 #include <ws2tcpip.h>
 #include <winsvc.h>
 #include <psapi.h>
