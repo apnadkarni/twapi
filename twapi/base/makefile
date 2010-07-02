@@ -203,11 +203,19 @@ CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_T
 CFLAGS = $(CFLAGS) /Wp64
 !endif
 
-!ifdef STATICCRT
+# Note CRT=none option does not work. When building with _WINNT_VER=0x5000
+# (ie. Win2K) the winsocket headers define inline functions that make use
+# of the C runtime. So CRT=none needs to be postponed until such a time
+# that we build for XP and later only.
+!IF "$(CRT)x" == "nonex"
 CFLAGS = $(CFLAGS) /MT /Oi /Zl
-!else
+!ELSE
+!IF "$(CRT)x" == "staticx"
+CFLAGS = $(CFLAGS) /MT /Oi
+!ELSE
 CFLAGS = $(CFLAGS) /D_DLL /MD
-!endif
+!ENDIF
+!ENDIF
 
 # Linker options
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF
