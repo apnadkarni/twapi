@@ -99,7 +99,7 @@ static Tcl_Obj *ListObjFromAT_INFO (const AT_INFO *atP)
 static Twapi_freeAT_INFO (AT_INFO *atP) 
 {
     if (atP)
-        free(atP);
+        TwapiFree(atP);
 }
 
 
@@ -128,8 +128,7 @@ static AT_INFO *ListObjToAT_INFO (
         
     cmdP = Tcl_GetUnicodeFromObj(objv[4], &cmd_len);
     
-    if (Twapi_malloc(interp, NULL, sizeof(AT_INFO) + sizeof(WCHAR)*(cmd_len+1), &atP) != TCL_OK)
-        return NULL;
+    atP = TwapiAlloc(sizeof(AT_INFO) + sizeof(WCHAR)*(cmd_len+1));
 
     if (TWAPI_DWORD_PTR_FROM_OBJ(interp, objv[0], &atP->JobTime) != TCL_OK ||
         Tcl_GetLongFromObj(interp, objv[1], &atP->DaysOfMonth) != TCL_OK ||
@@ -357,8 +356,7 @@ int Twapi_WNetGetUniversalName (
     DWORD buf_sz = 2 * MAX_PATH;
     void *buf;
 
-    if (Twapi_malloc(interp, NULL, buf_sz, &buf) != TCL_OK)
-        return TCL_ERROR;
+    buf = TwapiAlloc(buf_sz);
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
                                   buf, &buf_sz);
     if (error == NO_ERROR) {
@@ -372,7 +370,7 @@ int Twapi_WNetGetUniversalName (
         result = TCL_ERROR;
     }
 
-    free(buf);
+    TwapiFree(buf);
 
     return result;
 }
@@ -405,9 +403,7 @@ int Twapi_WNetGetResourceInformation(
             goto error_return;
 
         /* We need a bigger buffer */
-        if (Twapi_malloc(interp, NULL, outsz, &outP) != TCL_OK)
-            return TCL_ERROR;
-
+        outP = TwapiAlloc(outsz);
         /* Retry with larger buffer */
         error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
         if (error != NO_ERROR)
@@ -419,13 +415,13 @@ int Twapi_WNetGetResourceInformation(
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
     if ((char *)outP != buf)
-        free(outP);
+        TwapiFree(outP);
     return TCL_OK;
 
  error_return:
     Twapi_AppendWNetError(interp, error);
     if ((char *)outP != buf)
-        free(outP);
+        TwapiFree(outP);
     return TCL_ERROR;
 }
 

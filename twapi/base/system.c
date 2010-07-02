@@ -147,14 +147,10 @@ int TwapiGetProfileSectionHelper(
     WCHAR *bufP;
     DWORD  bufsz;
     DWORD  numchars;
-    int    result;
 
     bufsz = 8000;
     while (1) {
-        result = Twapi_malloc(interp, NULL, bufsz, &bufP);
-        if (result != TCL_OK)
-            return result;
-
+        bufP = TwapiAlloc(bufsz);
         if (lpAppName) {
             if (lpFileName)
                 numchars = GetPrivateProfileSectionW(lpAppName,
@@ -169,7 +165,7 @@ int TwapiGetProfileSectionHelper(
 
         if (numchars >= (bufsz-2)) {
             /* Buffer not big enough */
-            free(bufP);
+            TwapiFree(bufP);
             bufsz = 2*bufsz;
         } else
             break;
@@ -177,7 +173,7 @@ int TwapiGetProfileSectionHelper(
 
     if (numchars)
         Tcl_SetObjResult(interp, ObjFromMultiSz(bufP, numchars+1));
-    free(bufP);
+    TwapiFree(bufP);
 
     return TCL_OK;
 
@@ -220,12 +216,10 @@ int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
     GetSystemInfo(&sysinfo);
 
     bufsz = sizeof(SYSTEM_PROCESSOR_TIMES) * sysinfo.dwNumberOfProcessors;
-    if (Twapi_malloc(interp, NULL, bufsz, &bufP) != TCL_OK)
-        return TCL_ERROR;
-
+    bufP = TwapiAlloc(bufsz);
     status = (*NtQuerySystemInformationPtr)(8, bufP, bufsz, &dummy);
     if (status) {
-        free(bufP);
+        TwapiFree(bufP);
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
     }
 
@@ -244,7 +238,7 @@ int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
     }
 
     Tcl_SetObjResult(interp, resultObj);
-    free(bufP);
+    TwapiFree(bufP);
     return TCL_OK;
 }
 #endif // TWAPI_LEAN
@@ -273,10 +267,8 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     bufP = NULL;
     do {
         if (bufP)
-            free(bufP);         /* Previous buffer too small */
-        if (Twapi_malloc(interp, NULL, bufsz, &bufP) != TCL_OK)
-            return TCL_ERROR;
-
+            TwapiFree(bufP);         /* Previous buffer too small */
+        bufP = TwapiAlloc(bufsz);
         /* Note for information class 18, the last parameter which
          * corresponds to number of bytes needed is not actually filled
          * in by the system so we ignore it and just double alloc size
@@ -286,7 +278,7 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     } while (status == STATUS_INFO_LENGTH_MISMATCH);
 
     if (status) {
-        free(bufP);
+        TwapiFree(bufP);
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
     }
 
@@ -314,7 +306,7 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     }
 
     Tcl_SetObjResult(interp, resultObj);
-    free(bufP);
+    TwapiFree(bufP);
     return TCL_OK;
 }
 #endif // TWAPI_LEAN
@@ -330,7 +322,7 @@ int Twapi_LoadUserProfile(
 {
     PROFILEINFOW profileinfo;
 
-    memset(&profileinfo, 0, sizeof(profileinfo));
+    ZeroMemory(&profileinfo, sizeof(profileinfo));
     profileinfo.dwSize        = sizeof(profileinfo);
     profileinfo.lpUserName    = username;
     profileinfo.lpProfilePath = profilepath;

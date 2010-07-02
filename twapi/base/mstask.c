@@ -82,7 +82,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
         return TCL_ERROR;
     }
 
-    memset(triggerP, 0, sizeof(*triggerP));
+    ZeroMemory(triggerP, sizeof(*triggerP));
     triggerP->cbTriggerSize = sizeof(*triggerP);
     
     for (i=0; i < (objc-1); i+=2) {

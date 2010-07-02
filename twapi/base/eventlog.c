@@ -30,7 +30,7 @@ int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      GETBIN(data, datalen),
                      ARGEND) != TCL_OK) {
         if (lpUserSid)
-            free(lpUserSid);
+            TwapiFree(lpUserSid);
         return TCL_ERROR;
     }
 
@@ -40,7 +40,7 @@ int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     status = ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
                           (WORD) argc, datalen, argv, data);
     if (lpUserSid)
-        free(lpUserSid);
+        TwapiFree(lpUserSid);
 
     return status ? TCL_OK : TwapiReturnSystemError(interp);
 }
@@ -80,9 +80,7 @@ int Twapi_ReadEventLog(
         if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
             return TwapiReturnSystemError(interp);
         }
-        if (Twapi_malloc(interp, NULL, buf_sz, &bufP) != TCL_OK) {
-            return TCL_ERROR;
-        }
+        bufP = TwapiAlloc(buf_sz);
         /* Retry */
         if (! ReadEventLogW(evlH, flags, offset,
                             bufP, buf_sz, &num_read, &buf_sz)) {
@@ -153,7 +151,7 @@ int Twapi_ReadEventLog(
     }
 
     if (bufP != buf)
-        free(bufP);
+        TwapiFree(bufP);
     return result;
 }
 

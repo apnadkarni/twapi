@@ -133,7 +133,7 @@ int Twapi_BecomeAService(
         /* Allocate a single block for the context and name */
         nameP = Tcl_GetUnicodeFromObj(objs[0], &n);
         gServiceContexts[i] = TwapiAlloc(SIZE_TwapiServiceContext(n));
-        MoveMemory(gServiceContexts[i]->name, nameP, sizeof(WCHAR)*(n+1));
+        CopyMemory(gServiceContexts[i]->name, nameP, sizeof(WCHAR)*(n+1));
         gServiceContexts[i]->controls_accepted = ctrls;
         gServiceContexts[i]->service_status_handle = NULL;
     }

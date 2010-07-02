@@ -81,9 +81,8 @@ int Twapi_GetProcessList(
     bufP = NULL;
     do {
         if (bufP)
-            free(bufP);         /* Previous buffer too small */
-        if (Twapi_malloc(interp, NULL, bufsz, &bufP) != TCL_OK)
-            return TCL_ERROR;
+            TwapiFree(bufP);         /* Previous buffer too small */
+        bufP = TwapiAlloc(bufsz);
 
         /* Note for information class 5, the last parameter which
          * corresponds to number of bytes needed is not actually filled
@@ -94,7 +93,7 @@ int Twapi_GetProcessList(
     } while (status == STATUS_INFO_LENGTH_MISMATCH);
 
     if (status) {
-        free(bufP);
+        TwapiFree(bufP);
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
     }    
 
@@ -303,7 +302,7 @@ int Twapi_GetProcessList(
     } else
         Tcl_SetObjResult(interp, resultObj);
 
-    free(bufP);
+    TwapiFree(bufP);
     return TCL_OK;
 }
 #endif // TWAPI_LEAN
@@ -372,14 +371,8 @@ int Twapi_EnumProcessesModules (Tcl_Interp *interp, int type, HANDLE phandle)
         /* Loop with bigger buffer */
         buf_size *= 2;
         if (bufP != &static_buf)
-            free(bufP);
-        bufP = malloc(buf_size);
-        if (bufP == NULL) {
-            Tcl_SetErrno(errno);
-            Tcl_AppendResult(interp, "error retrieving process/module/driver ids: ", Tcl_PosixError(interp), NULL);
-            break;
-        }
-
+            TwapiFree(bufP);
+        bufP = TwapiAlloc(buf_size);
     }  while (1);
 
 
@@ -415,7 +408,7 @@ int Twapi_EnumProcessesModules (Tcl_Interp *interp, int type, HANDLE phandle)
     }
 
     if (bufP != &static_buf) {
-        free(bufP);
+        TwapiFree(bufP);
     }
 
     return result;
@@ -476,7 +469,7 @@ int ListObjToSTARTUPINFO(Tcl_Interp *interp, Tcl_Obj *siObj, STARTUPINFOW *siP)
     long lval;
     Tcl_Obj **objvP;
 
-    memset(siP, 0, sizeof(*siP));
+    ZeroMemory(siP, sizeof(*siP));
 
     siP->cb = sizeof(*siP);
 
@@ -493,7 +486,7 @@ int ListObjToSTARTUPINFO(Tcl_Interp *interp, Tcl_Obj *siObj, STARTUPINFOW *siP)
     siP->dwFlags = (DWORD) flags;
 
     siP->lpDesktop = Tcl_GetUnicode(objvP[0]);
-    if (!wcscmp(siP->lpDesktop, L"__null__"))
+    if (!lstrcmpW(siP->lpDesktop, NULL_TOKEN_L))
         siP->lpDesktop = NULL;
 
     siP->lpTitle = Tcl_GetUnicode(objvP[1]);
@@ -792,7 +785,7 @@ int TwapiCreateProcessHelper(Tcl_Interp *interp, int asuser, int objc, Tcl_Obj *
         if (Twapi_ConvertTclListToMultiSz(interp, objv[asuser+6], (LPWSTR*) &envP) == TCL_ERROR) {
             goto vamoose;       /* So any allocs can be freed */
         }
-        // Note envP is malloc'ed
+        // Note envP is dynamically allocated
     }
     
     if (ListObjToSTARTUPINFO(interp, objv[asuser+8], &startinfo) != TCL_OK)
@@ -838,7 +831,7 @@ vamoose:
     if (tattrP)
         TwapiFreeSECURITY_ATTRIBUTES(tattrP);
     if (envP)
-        free(envP);
+        TwapiFree(envP);
 
     return status ? TCL_OK : TCL_ERROR;
 }

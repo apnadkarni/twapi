@@ -8,17 +8,18 @@
 #include <twapi.h>
 
 
-/* Define glob matching functions that fit strcmp prototype - return
+/* Define glob matching functions that fit lstrcmp prototype - return
    0 if match, 1 if no match */
-int TwapiGlobCmp (const char *s, const char *pat)
+int WINAPI TwapiGlobCmp (const char *s, const char *pat)
 {
     return ! Tcl_StringCaseMatch(s, pat, 0);
 }
-int TwapiGlobCmpCase (const char *s, const char *pat)
+int WINAPI TwapiGlobCmpCase (const char *s, const char *pat)
 {
     return ! Tcl_StringCaseMatch(s, pat, 1);
 }
 
+#ifdef OBSOLETE
 /*
  * Allocates memory. On failure, sets interp result to out of memory error.
  * ALso sets Windows last error code appropriately
@@ -54,7 +55,7 @@ int Twapi_malloc(
     SetLastError(E_OUTOFMEMORY);
     return TCL_ERROR;
 }
-
+#endif
 
 
 /* Return the DLL version of the given dll. The version is returned as
@@ -180,28 +181,28 @@ int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         cp = Tcl_GetByteArrayFromObj(objv[4], &sz);
         if ((offset + sz) > buf_size)
             goto overrun;
-        memmove(offset + bufP, cp, sz);
+        CopyMemory(offset + bufP, cp, sz);
         break;
     case 10113: // Chars
         cp = Tcl_GetStringFromObj(objv[4], &sz);
         /* Note we also include the terminating null */
         if ((offset + sz + 1) > buf_size)
             goto overrun;
-        memmove(offset + bufP, cp, sz+1);
+        CopyMemory(offset + bufP, cp, sz+1);
         break;
     case 10114: // Unicode
         wp = Tcl_GetUnicodeFromObj(objv[4], &sz);
         /* Note we also include the terminating null */
         if ((offset + (sizeof(WCHAR)*(sz + 1))) > buf_size)
             goto overrun;
-        memmove(offset + bufP, wp, sizeof(WCHAR)*(sz+1));
+        CopyMemory(offset + bufP, wp, sizeof(WCHAR)*(sz+1));
         break;
     case 10115: // Pointer
         if ((offset + sizeof(void*)) > buf_size)
             goto overrun;
         if (ObjToLPVOID(interp, objv[4], &pv) != TCL_OK)
             return TCL_ERROR;
-        memmove(offset + bufP, &pv, sizeof(void*));
+        CopyMemory(offset + bufP, &pv, sizeof(void*));
         break;
     case 10116:
         if ((offset + sizeof(Tcl_WideInt)) > buf_size)
@@ -227,7 +228,7 @@ WCHAR *TwapiAllocWString(WCHAR *src, int len)
         len = lstrlenW(src);
     }
     dst = TwapiAlloc(sizeof(WCHAR) * (len+1));
-    MoveMemory(dst, src, sizeof(WCHAR)*len);
+    CopyMemory(dst, src, sizeof(WCHAR)*len);
     dst[len] = 0; /* Source string may not have been terminated after len chars */
     return dst;
 }
@@ -248,7 +249,7 @@ char *TwapiAllocAString(char *src, int len)
         len = lstrlenA(src);
     }
     dst = TwapiAlloc(len+1);
-    MoveMemory(dst, src, len);
+    CopyMemory(dst, src, len);
     dst[len] = 0; /* Source string may not have been terminated after len chars */
     return dst;
 }
@@ -264,15 +265,20 @@ char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
 
 void *TwapiAlloc(size_t sz)
 {
-    void *p = malloc(sz);
+    void *p = HeapAlloc(GetProcessHeap(), 0, sz); /* TBD */
     if (p == NULL)
         Tcl_Panic("Could not allocate %d bytes.", sz);
     return p;
 }
 
+void *TwapiReallocTry(void *p, size_t sz)
+{
+    return HeapReAlloc(GetProcessHeap(), 0, p, sz);
+}
+
 void *TwapiAllocZero(size_t sz)
 {
-    void *p = calloc(sz, 1);
+    void *p = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz); /* TBD */
     if (p == NULL)
         Tcl_Panic("Could not allocate %d bytes.", sz);
     return p;
@@ -447,3 +453,5 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
     Tcl_ThreadQueueEvent(ticP->thread, evP, TCL_QUEUE_TAIL);
     Tcl_ThreadAlert(ticP->thread); /* Wake up the thread */
 }
+
+

@@ -221,10 +221,7 @@ int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj) {
         return TCL_ERROR;
     }
 
-    if (Twapi_malloc(interp, NULL, num_inputs * sizeof(*input), &input) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
+    input = TwapiAlloc(num_inputs * sizeof(*input));
     /* Loop through each element, parsing it and storing its descriptor */
     for (i = 0; i < num_inputs; ++i) {
         Tcl_Obj *event_obj;
@@ -341,7 +338,7 @@ int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj) {
  done:
 
     if (input)
-        free(input);
+        TwapiFree(input);
 
     return result;
 }
@@ -362,9 +359,7 @@ int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
 
     /* NUmber of events is twice number of chars (keydown + keyup) */
     max_input_records = 2 * num_chars;
-    if (Twapi_malloc(interp, NULL, max_input_records * sizeof(*input), &input) != TCL_OK)
-        return TCL_ERROR;
-
+    input = TwapiAlloc(max_input_records * sizeof(*input));
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
             
@@ -403,7 +398,7 @@ int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
  done:
 
     if (input)
-        free(input);
+        TwapiFree(input);
 
     return result;
 }

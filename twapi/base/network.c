@@ -33,7 +33,7 @@ static int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
     char *p = Tcl_GetString(objP);
     if ((addr = inet_addr(p)) == INADDR_NONE) {
         /* Bad format or 255.255.255.255 */
-        if (strcmp("255.255.255.255", p)) {
+        if (! STREQ("255.255.255.255", p)) {
             if (interp) {
                 Tcl_AppendResult(interp, "Invalid IP address format: ", p, NULL);
             }
@@ -625,9 +625,8 @@ static int TwapiIpConfigTableHelper(Tcl_Interp *interp, DWORD (FAR WINAPI *fn)()
         /* At top of loop, bufsz contains size of buffer we need. */
 
         if (bufP)
-            free(bufP);         /* Free existing buf, if any */
-        if (Twapi_malloc(interp, NULL, bufsz, &bufP) != TCL_OK)
-            return TCL_ERROR;
+            TwapiFree(bufP);         /* Free existing buf, if any */
+        bufP = TwapiAlloc(bufsz);
 
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
@@ -642,7 +641,7 @@ static int TwapiIpConfigTableHelper(Tcl_Interp *interp, DWORD (FAR WINAPI *fn)()
     }
 
     if (bufP)
-        free(bufP);
+        TwapiFree(bufP);
 
     return error == NO_ERROR ? TCL_OK : TCL_ERROR;
 }
@@ -666,17 +665,12 @@ int Twapi_GetNetworkParams(Tcl_Interp *interp)
         return TCL_ERROR;
     case ERROR_BUFFER_OVERFLOW:
         /* Allocate a bigger buffer */
-        netinfoP = malloc(netinfo_size);
-        if (netinfoP) {
-            error = GetNetworkParams(netinfoP, &netinfo_size);
-            if (error == ERROR_SUCCESS)
-                break;
-            free(netinfoP);
-            /* FALLTHRU */
-        } else {
-            error = ERROR_NOT_ENOUGH_MEMORY;
-            /* FALLTHRU */
-        }
+        netinfoP = TwapiAlloc(netinfo_size);
+        error = GetNetworkParams(netinfoP, &netinfo_size);
+        if (error == ERROR_SUCCESS)
+            break;
+        TwapiFree(netinfoP);
+        /* FALLTHRU */
     default:
         return Twapi_AppendSystemError(interp, error);
     }
@@ -692,7 +686,7 @@ int Twapi_GetNetworkParams(Tcl_Interp *interp)
     objv[7] = Tcl_NewIntObj(netinfoP->EnableDns);
 
     if (netinfoP != &netinfo)
-        free(netinfoP);
+        TwapiFree(netinfoP);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(8, objv));
     return TCL_OK;
@@ -730,17 +724,12 @@ int Twapi_GetPerAdapterInfo(Tcl_Interp *interp, int adapter_index)
         return TCL_ERROR;
     case ERROR_BUFFER_OVERFLOW:
         /* Allocate a bigger buffer. ainfo_size now contains required sizea */
-        ainfoP = malloc(ainfo_size);
-        if (ainfoP) {
-            error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
-            if (error == ERROR_SUCCESS)
-                break;
-            free(ainfoP);
-            /* FALLTHRU */
-        } else {
-            error = ERROR_NOT_ENOUGH_MEMORY;
-            /* FALLTHRU */
-        }
+        ainfoP = TwapiAlloc(ainfo_size);
+        error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
+        if (error == ERROR_SUCCESS)
+            break;
+        TwapiFree(ainfoP);
+        /* Fall thru */
     default:
         return Twapi_AppendSystemError(interp, error);
     }
@@ -750,7 +739,7 @@ int Twapi_GetPerAdapterInfo(Tcl_Interp *interp, int adapter_index)
     objv[2] = ObjFromIP_ADDR_STRINGAddress(interp, &ainfoP->DnsServerList);
 
     if ((char *)ainfoP != ainfo)
-        free(ainfoP);
+        TwapiFree(ainfoP);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
     return TCL_OK;
@@ -915,20 +904,16 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
         if (error != ERROR_INSUFFICIENT_BUFFER)
             goto error_return;
 
-        tab = (MIB_TCPTABLE *) malloc(sz);
-        if (tab == NULL) {
-            Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-            return TCL_ERROR;
-        }
+        tab = (MIB_TCPTABLE *) TwapiAlloc(sz);
         error = GetTcpTable(tab, &sz, sorted);
         if (error) {
-            free(tab);
+            TwapiFree(tab);
             goto error_return;
         }
         Tcl_SetObjResult(interp, ObjFromMIB_TCPTABLE(interp, tab));
 
         if (tab)
-            free(tab);
+            TwapiFree(tab);
     }
 
     return TCL_OK;
@@ -969,20 +954,16 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
         if (error != ERROR_INSUFFICIENT_BUFFER)
             goto error_return;
 
-        tab = (MIB_UDPTABLE *) malloc(sz);
-        if (tab == NULL) {
-            Tcl_SetResult(interp, "Could not allocate memory", TCL_STATIC);
-            return TCL_ERROR;
-        }
+        tab = (MIB_UDPTABLE *) TwapiAlloc(sz);
         error = GetUdpTable(tab, &sz, sorted);
         if (error) {
-            free(tab);
+            TwapiFree(tab);
             goto error_return;
         }
         Tcl_SetObjResult(interp, ObjFromMIB_UDPTABLE(interp, tab));
 
         if (tab)
-            free(tab);
+            TwapiFree(tab);
     }
 
     return TCL_OK;
@@ -1029,7 +1010,7 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     struct addrinfo *saved_addrP;
     Tcl_Obj *resultObj;
 
-    memset(&hints, 0, sizeof(hints));
+    ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = PF_INET;
     if (TwapiGetArgs(interp, objc, objv,
                      GETASTR(hostname), GETASTR(svcname),

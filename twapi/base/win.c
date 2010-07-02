@@ -74,7 +74,7 @@ int Twapi_CreateHiddenWindow(
      */
     if (hidden_win_class == 0) {
         WNDCLASSEXW w;
-        memset(&w, 0, sizeof(w));
+        ZeroMemory(&w, sizeof(w));
         w.cbSize = sizeof(w);
         w.hInstance = 0;
         w.cbWndExtra = TWAPI_HIDDEN_WINDOW_DATA_SIZE;

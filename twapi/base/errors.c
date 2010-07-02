@@ -51,7 +51,7 @@ Tcl_Obj *TwapiGetErrorMsg(int error)
     }
 
     if (msg == NULL) {
-        sprintf(buf, "Twapi error %d", error);
+        wsprintfA(buf, "Twapi error %d", error);
         msg = buf;
     }
         
@@ -133,11 +133,10 @@ LPWSTR Twapi_MapWindowsErrorToString(DWORD error)
     
     /* Just print out error code */
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
-        wMsgPtr = _wcsdup(L"function not supported under this Windows version");
+        wMsgPtr = TwapiAllocWString(L"function not supported under this Windows version", -1);
     } else {
-        _snwprintf(wMsgBuf, sizeof(wMsgBuf)/sizeof(wMsgBuf[0]),
-                   L"Windows error: %ld", error);
-        wMsgPtr = _wcsdup(wMsgBuf);
+        wsprintfW(wMsgBuf, L"Windows error: %ld", error);
+        wMsgPtr = TwapiAllocWString(wMsgBuf, -1);
     }
 
     return wMsgPtr;
@@ -156,12 +155,12 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
     if (wmsgP) {
         int len;
 
-        len = (int) wcslen(wmsgP);
+        len = (int) lstrlenW(wmsgP);
 
         objv[2] = Tcl_NewUnicodeObj(wmsgP, len);
-        free(wmsgP);
+        TwapiFree(wmsgP);
     } else {
-        _snprintf(buf, ARRAYSIZE(buf), "Windows error: %ld", error);
+        wsprintf(buf, "Windows error: %ld", error);
         objv[2] = Tcl_NewStringObj(buf, -1);
     }
     objv[3] = extra;
@@ -206,7 +205,7 @@ int Twapi_AppendSystemError2(
 }
 
 /*
- * Returns in *ppMsg, a malloc'ed unicode string corresponding to the given
+ * Returns in *ppMsg, a TwapiAlloc'ed unicode string corresponding to the given
  * error code by looking up the appropriate dll or system if the module
  * handle is NULL.
  */
@@ -229,9 +228,9 @@ LPWSTR Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
                             (WCHAR *) &wMsgPtr,
                             0, NULL);
     if (length > 0) {
-        /* Need a malloc'ed buffer and not a LocalAlloc'ed one */
+        /* Need a TwapiAlloc'ed buffer and not a LocalAlloc'ed one */
         WCHAR *temp = wMsgPtr;
-        wMsgPtr = _wcsdup(wMsgPtr); /* If wcsdup failed, we'll return NULL */
+        wMsgPtr = TwapiAllocWString(wMsgPtr, length);
         LocalFree(temp);
         goto done;
     }
@@ -241,7 +240,7 @@ LPWSTR Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
                             (char *) &msgPtr,
                             0, NULL);
     if (length > 0) {
-        wMsgPtr = (WCHAR *) malloc((length + 1) * sizeof(WCHAR));
+        wMsgPtr = (WCHAR *) TwapiAlloc((length + 1) * sizeof(WCHAR));
         if (wMsgPtr) {
             wMsgPtr[0] = 0;
             MultiByteToWideChar(CP_ACP, 0, msgPtr, length + 1, wMsgPtr,

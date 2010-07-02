@@ -182,7 +182,7 @@ typedef volatile LONG TwapiOneTimeInitState;
     } while (0)
 
 /* String equality test - check first char before calling strcmp */
-#define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! strcmp((x), (y)) )
+#define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpA((x), (y)) )
 #define STREQUN(x, y, n) \
     (((x)[0] == (y)[0]) && (strncmp(x, y, n) == 0))
 #define WSTREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! wcscmp((x), (y)) )
@@ -754,11 +754,12 @@ extern int gTclIsThreaded;
 /* Memory allocation */
 void *TwapiAlloc(size_t sz);
 void *TwapiAllocZero(size_t sz);
-#define TwapiFree(p_) free(p_)
+#define TwapiFree(p_) HeapFree(GetProcessHeap(), 0, (p_))
 WCHAR *TwapiAllocWString(WCHAR *, int len);
 WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
 char *TwapiAllocAString(char *, int len);
 char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
+void *TwapiReallocTry(void *p, size_t sz);
 
 /* C - Tcl result and parameter conversion  */
 int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
@@ -1383,23 +1384,19 @@ TwapiTclObjCmd Twapi_CallCOMObjCmd;
 
 
 /* General utility functions */
-int TwapiGlobCmp (const char *s, const char *pat);
-int TwapiGlobCmpCase (const char *s, const char *pat);
+int WINAPI TwapiGlobCmp (const char *s, const char *pat);
+int WINAPI TwapiGlobCmpCase (const char *s, const char *pat);
 Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 /* TBD - replace all calls to malloc with this */
 int Twapi_malloc(Tcl_Interp *interp, char *msg, size_t size, void **pp);
 void DebugOutput(char *s);
 int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
-
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-
 
 #endif // TWAPI_H

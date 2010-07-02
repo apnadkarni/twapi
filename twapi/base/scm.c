@@ -159,7 +159,7 @@ static Tcl_Obj *ObjFromQUERY_SERVICE_CONFIGW(QUERY_SERVICE_CONFIGW *qP)
 
 /*
  * Helper function to retrieve service config info
- * Returns a single malloc'ed block after figuring out required size
+ * Returns a single TwapiAlloc'ed block after figuring out required size
  */
 int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService)
 {
@@ -175,19 +175,18 @@ int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService)
     }
 
     /* Allocate it */
-    if (Twapi_malloc(interp, NULL, buf_sz, &qbuf) != TCL_OK)
-        return TCL_ERROR;
+    qbuf = TwapiAlloc(buf_sz);
 
     /* Get the configuration information.  */
     if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
         TwapiReturnSystemError(interp); /* Store error before calling free */
-        free(qbuf);
+        TwapiFree(qbuf);
         return TCL_ERROR;
     }
 
     objv[0] = NamesFromQUERY_SERVICE_CONFIGW();
     objv[1] = ObjFromQUERY_SERVICE_CONFIGW(qbuf);
-    free(qbuf);
+    TwapiFree(qbuf);
     Tcl_SetObjResult(interp, Tcl_NewListObj(2,objv));
     return TCL_OK;
 }
@@ -196,7 +195,7 @@ int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService)
 #ifdef NOOP_BEYOND_VISTA
 /*
  * Helper function to retrieve service lock status info
- * Returns a single malloc'ed block after figuring out required size
+ * Returns a single dynamic block block after figuring out required size
  */
 int  Twapi_QueryServiceLockStatus(
     Tcl_Interp *interp,
@@ -217,15 +216,12 @@ int  Twapi_QueryServiceLockStatus(
     }
 
     /* Allocate it */
-    if (Twapi_malloc(interp, NULL, buf_sz, &sbuf) != TCL_OK)
+    sbuf = TwapiAlloc(buf_sz);
+    /* Get the configuration information.  */
+    if (! QueryServiceLockStatusW(hService, sbuf, buf_sz, &buf_sz)) {
+        TwapiReturnSystemError(interp); // Store before call to free
+        TwapiFree(sbuf);
         return TCL_ERROR;
-    if (sbuf) {
-        /* Get the configuration information.  */
-        if (! QueryServiceLockStatusW(hService, sbuf, buf_sz, &buf_sz)) {
-            TwapiReturnSystemError(interp); // Store before call to free
-            free(sbuf);
-            return TCL_ERROR;
-        }
     }
 
     obj = Tcl_NewListObj(0, NULL);
@@ -268,8 +264,7 @@ int Twapi_EnumServicesStatusEx(
 
     buf_sz = 32000; /* Initial estimate based on my system */
     resume_handle = 0;
-    if (Twapi_malloc(interp, NULL, buf_sz, &sbuf) != TCL_OK)
-        return TCL_ERROR;
+    sbuf = TwapiAlloc(buf_sz);
 
     objv[1] = Tcl_NewListObj(0, NULL);
     do {
@@ -291,7 +286,7 @@ int Twapi_EnumServicesStatusEx(
         if ((!success) && ((winerr = GetLastError()) != ERROR_MORE_DATA)) {
             Twapi_FreeNewTclObj(objv[1]);
             Twapi_AppendSystemError(interp, winerr);
-            free(sbuf);
+            TwapiFree(sbuf);
             return TCL_ERROR;
         }
 
@@ -321,7 +316,7 @@ int Twapi_EnumServicesStatusEx(
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
-    free(sbuf);
+    TwapiFree(sbuf);
     return TCL_OK;
 }
 
@@ -340,8 +335,7 @@ int Twapi_EnumDependentServices(
     DWORD i;
 
     buf_sz = 4000;
-    if (Twapi_malloc(interp, NULL, buf_sz, &sbuf) != TCL_OK)
-        return TCL_ERROR;
+    sbuf = TwapiAlloc(buf_sz);
 
     do {
         success = EnumDependentServicesW(hService,
@@ -355,10 +349,9 @@ int Twapi_EnumDependentServices(
         if ((winerr = GetLastError()) != ERROR_MORE_DATA)
             break;
 
-        /* Need a bugger buffer */
-        free(sbuf);
-        if (Twapi_malloc(interp, NULL, buf_sz, &sbuf) != TCL_OK)
-            return TCL_ERROR;
+        /* Need a bigger buffer */
+        TwapiFree(sbuf);
+        sbuf = TwapiAlloc(buf_sz);
     } while (1);
 
     objv[1] = Tcl_NewListObj(0, NULL);
@@ -385,7 +378,7 @@ int Twapi_EnumDependentServices(
     Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpDisplayName"));
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
-    free(sbuf);
+    TwapiFree(sbuf);
     return TCL_OK;
 }
 
@@ -438,7 +431,7 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     }
 
     dependencies = Tcl_GetUnicode(objv[7]);
-    if (wcscmp(dependencies, NULL_TOKEN_L) == 0) {
+    if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
         if (ObjToMultiSz(interp, objv[7], (LPCWSTR*) &dependencies) == TCL_ERROR)
@@ -459,7 +452,7 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
 
 vamoose:    
     if (dependencies)
-        free(dependencies);
+        TwapiFree(dependencies);
 
     return result ? TCL_OK : TCL_ERROR;
 }
@@ -502,7 +495,7 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
     }
 
     dependencies = Tcl_GetUnicode(objv[10]);
-    if (wcscmp(dependencies, NULL_TOKEN_L) == 0) {
+    if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
         if (ObjToMultiSz(interp, objv[10], (LPCWSTR*) &dependencies) == TCL_ERROR)
@@ -522,7 +515,7 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
 
 vamoose:
     if (dependencies)
-        free(dependencies);
+        TwapiFree(dependencies);
 
     return tcl_result;
 }

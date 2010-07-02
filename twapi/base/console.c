@@ -21,10 +21,8 @@ int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
     DWORD  len;
     int status = TCL_ERROR;
 
-    if (numchars > ARRAYSIZE(buf)) {
-        if (Twapi_malloc(interp, NULL, sizeof(WCHAR) * numchars, &bufP) != TCL_OK)
-            return TCL_ERROR;
-    }
+    if (numchars > ARRAYSIZE(buf))
+        bufP = TwapiAlloc(sizeof(WCHAR) * numchars);
 
     if (! ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
         TwapiReturnSystemError(interp);
@@ -36,7 +34,7 @@ int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
 
 vamoose:
     if (bufP != buf)
-        free(bufP);
+        TwapiFree(bufP);
     return status;
 }
 

@@ -67,11 +67,11 @@ void TwapiFreeSecBufferDesc(SecBufferDesc *sbdP)
         return;
     for (i=0; i < sbdP->cBuffers; ++i) {
         if (sbdP->pBuffers[i].pvBuffer) {
-            free(sbdP->pBuffers[i].pvBuffer);
+            TwapiFree(sbdP->pBuffers[i].pvBuffer);
             sbdP->pBuffers[i].pvBuffer = NULL;
         }
     }
-    free(sbdP->pBuffers);
+    TwapiFree(sbdP->pBuffers);
     return;
 }
 
@@ -90,8 +90,7 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
     sbdP->cBuffers = 0;         /* We will incr as we go along so we know
                                    how many to free in case of errors */
 
-    if (Twapi_malloc(interp, NULL, objc*sizeof(SecBuffer), &sbdP->pBuffers) != TCL_OK)
-        return TCL_ERROR;
+    sbdP->pBuffers = TwapiAlloc(objc*sizeof(SecBuffer));
     
     /* Each element of the list is a SecBuffer consisting of a pair
      * containing the integer type and the data itself
@@ -110,14 +109,13 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
             goto handle_error;
         }
         dataP = Tcl_GetByteArrayFromObj(bufobjv[1], &datalen);
-        if (Twapi_malloc(interp, NULL, datalen, &sbdP->pBuffers[i].pvBuffer) != TCL_OK)
-            goto handle_error;
+        sbdP->pBuffers[i].pvBuffer = TwapiAlloc(datalen);
         sbdP->cBuffers++;
         sbdP->pBuffers[i].cbBuffer = datalen;
         if (readonly)
             buftype |= SECBUFFER_READONLY;
         sbdP->pBuffers[i].BufferType = buftype;
-        memmove(sbdP->pBuffers[i].pvBuffer, dataP, datalen);
+        CopyMemory(sbdP->pBuffers[i].pvBuffer, dataP, datalen);
     }
 
     return TCL_OK;
@@ -361,11 +359,7 @@ SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     domainlen  = lstrlenW(domain);
     passwordlen = lstrlenW(password);
 
-    if (Twapi_malloc(NULL,
-                     NULL,
-                     sizeof(*swaiP)+sizeof(WCHAR)*(userlen+domainlen+passwordlen+3),
-                     &swaiP) != TCL_OK)
-        return NULL;
+    swaiP = TwapiAlloc(sizeof(*swaiP)+sizeof(WCHAR)*(userlen+domainlen+passwordlen+3));
 
     swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
     swaiP->User  = (LPWSTR) (sizeof(*swaiP)+(char *)swaiP);
@@ -375,9 +369,9 @@ SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     swaiP->Password = swaiP->DomainLength + 1 + swaiP->Domain;
     swaiP->PasswordLength = (unsigned short) passwordlen;
 
-    memmove(swaiP->User, user, sizeof(WCHAR)*(userlen+1));
-    memmove(swaiP->Domain, domain, sizeof(WCHAR)*(domainlen+1));
-    memmove(swaiP->Password, password, sizeof(WCHAR)*(passwordlen+1));
+    CopyMemory(swaiP->User, user, sizeof(WCHAR)*(userlen+1));
+    CopyMemory(swaiP->Domain, domain, sizeof(WCHAR)*(domainlen+1));
+    CopyMemory(swaiP->Password, password, sizeof(WCHAR)*(passwordlen+1));
 
     return swaiP;
 }
@@ -385,7 +379,7 @@ SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
 void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP)
 {
     if (swaiP)
-        free(swaiP);
+        TwapiFree(swaiP);
 }
 
 int Twapi_QueryContextAttributes(
@@ -508,10 +502,9 @@ int Twapi_MakeSignature(
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(interp, ss);
 
-    if (spc_sizes.cbMaxSignature > sizeof(sigbuf)) {
-        if (Twapi_malloc(interp, NULL, spc_sizes.cbMaxSignature, &sigP) != TCL_OK)
-            return TCL_ERROR;
-    } else
+    if (spc_sizes.cbMaxSignature > sizeof(sigbuf))
+        sigP = TwapiAlloc(spc_sizes.cbMaxSignature);
+    else
         sigP = &sigbuf;
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
@@ -536,7 +529,7 @@ int Twapi_MakeSignature(
     }
 
     if (sigP != sigbuf)
-        free(sigP);
+        TwapiFree(sigP);
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }
@@ -568,24 +561,21 @@ int Twapi_EncryptMessage(
 
     ss = SEC_E_INSUFFICIENT_MEMORY; /* Assumed error */
 
-    if (spc_sizes.cbSecurityTrailer > sizeof(trailerbuf)) {
-        if (Twapi_malloc(interp, NULL, spc_sizes.cbSecurityTrailer, &trailerP) != TCL_OK)
-            goto vamoose;
-    } else
+    if (spc_sizes.cbSecurityTrailer > sizeof(trailerbuf))
+        trailerP = TwapiAlloc(spc_sizes.cbSecurityTrailer);
+    else
         trailerP = &trailerbuf;
 
-    if (spc_sizes.cbBlockSize > sizeof(padbuf)) {
-        if (Twapi_malloc(interp, NULL, spc_sizes.cbBlockSize, &padP) != TCL_OK)
-            goto vamoose;
-    } else
+    if (spc_sizes.cbBlockSize > sizeof(padbuf))
+        padP = TwapiAlloc(spc_sizes.cbBlockSize);
+    else
         padP = &padbuf;
 
-    if (datalen > sizeof(edatabuf)) {
-        if (Twapi_malloc(interp, NULL, datalen, &edataP) != TCL_OK)
-            goto vamoose;
-    } else
+    if (datalen > sizeof(edatabuf))
+        edataP = TwapiAlloc(datalen);
+    else
         edataP = &edatabuf;
-    memmove(edataP, dataP, datalen);
+    CopyMemory(edataP, dataP, datalen);
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
     sbufs[0].cbBuffer   = spc_sizes.cbSecurityTrailer;
@@ -612,13 +602,12 @@ int Twapi_EncryptMessage(
         Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
     }
 
-vamoose:
     if (padP != padbuf)
-        free(padP);
+        TwapiFree(padP);
     if (edataP != edatabuf)
-        free(edataP);
+        TwapiFree(edataP);
     if (trailerP != trailerbuf)
-        free(trailerP);
+        TwapiFree(trailerP);
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }

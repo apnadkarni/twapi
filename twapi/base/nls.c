@@ -54,19 +54,18 @@ int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TwapiReturnSystemError(interp);
     }
 
-    if (Twapi_malloc(interp, NULL, sizeof(WCHAR)*(numchars+1), &buf) != TCL_OK)
-        return TCL_ERROR;
+    buf = TwapiAlloc(sizeof(WCHAR)*(numchars+1));
 
     numchars = GetNumberFormatW(loc, flags, number_string, fmtP, buf, numchars);
     if (numchars == 0) {
         TwapiReturnSystemError(interp); // Store error before free call
-        free(buf);
+        TwapiFree(buf);
         return TCL_ERROR;
     }
     
     Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, numchars-1));
 
-    free(buf);
+    TwapiFree(buf);
     return TCL_OK;
 }
 
@@ -123,18 +122,17 @@ int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TwapiReturnSystemError(interp);
     }
 
-    if (Twapi_malloc(interp, NULL, sizeof(WCHAR)*(numchars+1), &buf) != TCL_OK)
-        return TCL_ERROR;
+    buf = TwapiAlloc(sizeof(WCHAR)*(numchars+1));
 
     numchars = GetCurrencyFormatW(loc, flags, number_string, fmtP, buf, numchars);
     if (numchars == 0) {
         TwapiReturnSystemError(interp); /* Store error before free call */
-        free(buf);
+        TwapiFree(buf);
         return TCL_ERROR;
     }
     
     Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, numchars-1));
 
-    free(buf);
+    TwapiFree(buf);
     return TCL_OK;
 }

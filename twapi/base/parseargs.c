@@ -59,13 +59,14 @@ int Twapi_ParseargsObjCmd(
     }
 
     for (j = 3 ; j < objc ; ++j) {
-        if (!strcmp("-ignoreunknown", Tcl_GetString(objv[j]))) {
+        char *s = Tcl_GetString(objv[j]);
+        if (STREQ("-ignoreunknown", s)) {
             ignoreunknown = 1;
         }
-        else if (!strcmp("-nulldefault", Tcl_GetString(objv[j]))) {
+        else if (STREQ("-nulldefault", s)) {
             nulldefault = 1;
         }
-        else if (!strcmp("-maxleftover", Tcl_GetString(objv[j]))) {
+        else if (STREQ("-maxleftover", s)) {
             ++j;
             if (j == objc) {
                 Tcl_SetResult(interp, "Missing value for -maxleftover", TCL_STATIC);
@@ -284,8 +285,8 @@ int Twapi_ParseargsObjCmd(
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
-                    if (!strcmp(Tcl_GetString(validObjs[ivalid]),
-                                Tcl_GetString(opts[k].value)))
+                    if (!lstrcmpA(Tcl_GetString(validObjs[ivalid]),
+                                  Tcl_GetString(opts[k].value)))
                         break;
                 }
             }
