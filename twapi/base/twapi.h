@@ -58,8 +58,12 @@
 #include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
 #include "zlist.h"
+#include "memlifo.h"
 
 #define TWAPI_TCL_NAMESPACE "twapi"
+
+/* TBD - assert */
+#define TWAPI_ASSERT(bool_) ((void) 0)
 
 /*
  * Macro to create a stub to load and return a pointer to a function
