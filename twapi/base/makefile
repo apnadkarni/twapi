@@ -49,6 +49,7 @@ OBJS  = \
 	$(OBJDIR)\gdi.obj \
 	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \
+	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\network.obj \
