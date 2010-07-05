@@ -10,13 +10,12 @@
 
 #include <windows.h>
 #include <stdlib.h>
-#include "memlifo.h"
 
 #define TWAPI_MEMLIFO_ASSERT(x) ((void) 0) /* TBD */
 
 typedef struct _TwapiMemLifo TwapiMemLifo;
-typedef struct _TwapiMemLifoMarkDesc TwapiMemLifoMarkDesc;
-typedef TwapiMemLifoMarkDesc *TwapiMemLifoMarkHandle;
+typedef struct _TwapiMemLifoMark TwapiMemLifoMark;
+typedef TwapiMemLifoMark *TwapiMemLifoMarkHandle;
 
 typedef void *TwapiMemLifoChunkAllocFn(size_t sz, void *alloc_data, size_t *actual_szP);
 typedef void TwapiMemLifoChunkFreeFn(void *p, void *alloc_data);
@@ -35,8 +34,6 @@ struct _TwapiMemLifo {
 #define TWAPI_MEMLIFO_MAGIC 0xb92c610a
 };
 
-#define LIFODSCSZ (TwapiMem_ALIGNSIZEUP(sizeof(TwapiMemLifoDsc_t)))
-
 
 /*f
 Create a Last-In-First-Out memory pool
@@ -50,7 +47,7 @@ In this case, the caller can obtain the error code through APNgetError().
 See also TwapiMemLifoAlloc, TwapiMemLifoMark, TwapiMemLifoPopMark, 
 TwapiMemLifoReset
 
-Returns a handle for the LIFO memory pool on success, 0 on failure.
+Returns ERROR_SUCCESS or a Win32 error code
 */
 int TwapiMemLifoInit
 (
@@ -143,7 +140,7 @@ TwapiMemLifoPushFrame.
 
 See also TwapiMemLifoAlloc, TwapiMemLifoPushFrame, TwapiMemLifoMark
 
-Returns APNer_SUCCESS or APNer_xxx status code on error
+Returns ERROR_SUCCESS or Win32 status code on error
 */
 int TwapiMemLifoPopFrame(TwapiMemLifo *lifoP);
 

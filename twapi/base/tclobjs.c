@@ -5,7 +5,7 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
 
 
 /*
@@ -83,10 +83,6 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_BINARY:
         resultObj = Tcl_NewByteArrayObj(resultP->value.binary.p,
                                         resultP->value.binary.len);
-        break;
-
-    case TRT_ADDRESS_LITERAL: // TBD - treat as pointer ?
-        resultObj = ObjFromDWORD_PTR(resultP->value.pval);
         break;
 
     case TRT_OBJ:

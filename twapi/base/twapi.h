@@ -382,12 +382,12 @@ typedef enum {
     TRT_EXCEPTION_ON_FALSE = 2,
     TRT_HWND = 3,
     TRT_UNICODE = 4,
-    TRT_OBJV = 5,                    /* Array of Tcl_Obj * */
+    TRT_OBJV = 5,            /* Array of Tcl_Obj * */
     TRT_RECT = 6,
     TRT_HANDLE = 7,
-    TRT_CHARS = 8,                  /* char string */
+    TRT_CHARS = 8,           /* char string */
     TRT_BINARY = 9,
-    TRT_ADDRESS_LITERAL = 10,           /* Pointer or address */
+    TRT_CHARS_DYNAMIC = 10,  /* Char string to be freed through TwapiFree */
     TRT_DWORD = 11,
     TRT_HGLOBAL = 12,
     TRT_NONZERO_RESULT = 13,
@@ -430,7 +430,6 @@ typedef enum {
     TRT_PIDL = 46,              /* Freed using CoTaskMemFree */
     TRT_WIDE = 47,              /* Tcl_WideInt */
     TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
-    TRT_CHARS_DYNAMIC = 49,       /* Char string to be freed through TwapiFree */
 } TwapiResultType;
 
 typedef struct {
@@ -441,7 +440,7 @@ typedef struct {
         BOOL bval;
         DWORD_PTR dwp;
         Tcl_WideInt wide;
-        void *pval;
+        LPVOID pv;
         HANDLE hval;
         HWND hwin;
         struct {
@@ -467,7 +466,6 @@ typedef struct {
         UUID uuid;
         GUID guid;              /* Formatted differently from uuid */
         LUID luid;
-        void *pv;
         struct {
             void *p;
             char *name;
