@@ -615,6 +615,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
     CALL_(VerLanguageName, CallU, 36);
+    CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GetBestInterface, CallU, 38);
     CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
 
@@ -734,10 +735,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSCloseServer, CallH, 51);
     CALL_(GetFileTime, CallH, 52);
     CALL_(Twapi_UnregisterDirectoryMonitor, CallH, 53);
+    CALL_(Twapi_MemLifoClose, CallH, 54);
+    CALL_(Twapi_MemLifoPopFrame, CallH, 55);
     CALL_(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, CallH, 56);
     CALL_(SetupDiDestroyDeviceInfoList, CallH, 57);
     CALL_(GetMonitorInfo, CallH, 58);
     CALL_(GetObject, CallH, 59);
+    CALL_(Twapi_MemLifoPushMark, CallH, 60);
+    CALL_(Twapi_MemLifoPopMark, CallH, 61);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -756,6 +761,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ReadConsole, CallH, 1015);
     CALL_(GetDeviceCaps, CallH, 1016);
     CALL_(WaitForSingleObject, CallH, 1017);
+    CALL_(Twapi_MemLifoAlloc, CallH, 1018);
+    CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
 
     CALL_(WTSDisconnectionSession, CallH, 2001); /* TBD - tcl wrapper */
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
@@ -764,6 +771,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(OpenThreadToken, CallH, 2005);
     CALL_(ReadEventLog, CallH, 2006);
     CALL_(SetHandleInformation, CallH, 2007);
+    CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
+    CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
+    CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
 
     CALL_(SetFileTime, CallH, 10001);
     CALL_(SetThreadToken, CallH, 10002);
@@ -1297,7 +1307,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             GetSystemTimeAsFileTime(&result.value.filetime);
             break;
         case 41:
-            result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pval) ?
+            result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
                 TRT_LPVOID : TRT_GETLASTERROR;
             break;
         case 42:
@@ -2477,7 +2487,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10116: // Wide
             // We are passing the func code as well, hence only skip one arg
             return TwapiWriteMemory(interp, objc-1, objv+1);
-
         }
 
     }
@@ -2497,6 +2506,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         LPWSTR str;
         HANDLE h;
         SECURITY_ATTRIBUTES *secattrP;
+        TwapiMemLifo *lifoP;
     } u;
     int func;
 
@@ -2663,7 +2673,16 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             else
                 result.type = TRT_GETLASTERROR;
             break;
-//      case 37: UNUSED
+        case 37:
+            u.lifoP = TwapiAlloc(sizeof(TwapiMemLifo));
+            result.value.ival = TwapiMemLifoInit(u.lifoP, NULL, NULL, NULL, dw);
+            if (result.value.ival == ERROR_SUCCESS) {
+                result.type = TRT_OPAQUE;
+                result.value.opaque.p = u.lifoP;
+                result.value.opaque.name = "TwapiMemLifo*";
+            } else
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            break;
         case 38:
             result.value.ival = GetBestInterface(dw, &dw2);
             if (result.value.ival)
@@ -3019,6 +3038,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         SECURITY_ATTRIBUTES *secattrP;
         MONITORINFOEXW minfo;
         RECT rect;
+        TwapiMemLifo *lifoP;
     } u;
     int func;
     int i;
@@ -3255,8 +3275,14 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 53: 
             return Twapi_UnregisterDirectoryMonitor(ticP, h);
-//      case 54: UNUSED
-//      case 55: UNUSED
+        case 54:
+            TwapiMemLifoClose(h);
+            result.type = TRT_EMPTY;
+            break;
+        case 55:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = TwapiMemLifoPopFrame(h);
+            break;
         case 56:
             result.type = TRT_EMPTY;
             Twapi_Free_SEC_WINNT_AUTH_IDENTITY(h);
@@ -3289,6 +3315,15 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 Tcl_SetByteArrayLength(result.value.obj, dw);
                 result.type = TRT_OBJ;
             }
+            break;
+        case 60:
+            result.type = TRT_OPAQUE;
+            result.value.opaque.p = TwapiMemLifoPushMark(h);
+            result.value.opaque.name = "TwapiMemLifoMark*";
+            break;
+        case 61:
+            result.type = TRT_DWORD;
+            result.value.ival = TwapiMemLifoPopMark(h);
             break;
         }
     } else if (func < 2000) {
@@ -3373,6 +3408,15 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.type = TRT_DWORD;
             }
             break;
+        case 1018:
+            result.type = TRT_LPVOID;
+            result.value.pv = TwapiMemLifoAlloc(h, dw);
+            break;
+        case 1019:
+            result.type = TRT_LPVOID;
+            result.value.pv = TwapiMemLifoPushFrame(h, dw);
+            break;
+
         }
     } else if (func < 3000) {
 
@@ -3406,6 +3450,18 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 2007:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);
+            break;
+        case 2008: 
+            result.type = TRT_LPVOID;
+            result.value.pv = TwapiMemLifoExpandLast(h, dw, dw2);
+            break;
+        case 2009: 
+            result.type = TRT_LPVOID;
+            result.value.pv = TwapiMemLifoShrinkLast(h, dw, dw2);
+            break;
+        case 2010: 
+            result.type = TRT_LPVOID;
+            result.value.pv = TwapiMemLifoResizeLast(h, dw, dw2);
             break;
         }
     } else {

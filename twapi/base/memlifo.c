@@ -67,12 +67,12 @@ completely restored when popping a mark by simply making the previous
 mark the topmost (current) mark.
 */
 
-typedef struct _TwapiMemLifoMarkDesc {
+typedef struct _TwapiMemLifoMark {
     int			lm_magic;	/* Only used in debug mode */
 #define TWAPI_MEMLIFO_MARK_MAGIC	0xa0193d4f
     int			lm_seq;		/* Only used in debug mode */
     TwapiMemLifo       *lm_lifo; /* TwapiMemLifo for this mark */
-    TwapiMemLifoMarkDesc *lm_prev; /* Previous mark */
+    TwapiMemLifoMark *lm_prev; /* Previous mark */
     void *		lm_last_alloc; /* last allocation from the lifo */
     TwapiMemLifoChunk *lm_big_blocks; /* Pointer to list of large block
                                          allocations. Note marks should
@@ -83,7 +83,7 @@ typedef struct _TwapiMemLifoMarkDesc {
                                         and the head of the chunk list */
     void  *lm_last_addr;/* Aligned addr 1 beyond usable space in lm_chunkList */
     size_t lm_free;     /* Available space */
-} TwapiMemLifoMarkDesc;
+} TwapiMemLifoMark;
 #define MARKDSCSZ (TwapiMem_ALIGNSIZEUP(sizeof(TwapiMemLifoMarkDsc_t)))
 
 static void *TwapiMemLifoDefaultAlloc(size_t sz, HANDLE heap, size_t *actual)
@@ -133,6 +133,7 @@ int TwapiMemLifoInit(
     chunkP->lc_prev = NULL;
     chunkP->lc_size = actual_chunk_sz;
 
+    l->lifo_allocator_data = allocator_data;
     l->lifo_allocFn = allocFunc;
     l->lifo_freeFn = freeFunc;
     l->lifo_chunk_size = chunk_sz;
@@ -281,7 +282,7 @@ void* TwapiMemLifoAlloc(TwapiMemLifo *l,  size_t sz)
 }
 
 
-TwapiMemLifoMarkHandle TwapiMemLifoMark(TwapiMemLifo *l)
+TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
 {
     TwapiMemLifoMarkHandle m;			/* Previous (existing) mark */
     TwapiMemLifoMarkHandle n;			/* New mark */
@@ -297,7 +298,7 @@ TwapiMemLifoMarkHandle TwapiMemLifoMark(TwapiMemLifo *l)
      * Check for common case first - enough space in current chunk to
      * hold the mark.
      */
-    mark_sz = ROUNDUP(sizeof(TwapiMemLifoMarkDesc));
+    mark_sz = ROUNDUP(sizeof(TwapiMemLifoMark));
     if (mark_sz <= m->lm_free) {
 	TWAPI_MEMLIFO_ASSERT(ROUNDED(m->lm_free));
 	TWAPI_MEMLIFO_ASSERT(ALIGNED(m->lm_lastAddr));
@@ -447,7 +448,7 @@ void *TwapiMemLifoPushFrame(TwapiMemLifo *l, size_t sz)
     }
 
     /* Slow path. Allocate mark, them memory. */
-    n = TwapiMemLifoMark(l);
+    n = TwapiMemLifoPushMark(l);
     if (n == 0)
 	return 0;
     p = TwapiMemLifoAlloc(l, sz);
@@ -649,4 +650,5 @@ void *TwapiMemLifoResizeLast(TwapiMemLifo *l, size_t new_sz, int fix)
 	    TwapiMemLifoShrinkLast(l, old_sz-new_sz, fix) :
 	    TwapiMemLifoExpandLast(l, new_sz-old_sz, fix));
 }
+
 

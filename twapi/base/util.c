@@ -132,8 +132,8 @@ int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         break;
         
     case 10105:
-        result.type = TRT_ADDRESS_LITERAL;
-        result.value.pval =  *(void* *) p;
+        result.type = TRT_LPVOID;
+        result.value.pv =  *(void* *) p;
         break;
 
     case 10106:
