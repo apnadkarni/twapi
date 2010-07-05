@@ -743,6 +743,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetObject, CallH, 59);
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
+    CALL_(Twapi_MemLifoValidate, CallH, 62);
+    CALL_(Twapi_MemLifoDump, CallH, 63);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -3325,6 +3327,12 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_DWORD;
             result.value.ival = TwapiMemLifoPopMark(h);
             break;
+        case 62:
+            result.type = TRT_DWORD;
+            result.value.ival = TwapiMemLifoValidate(h);
+            break;
+        case 63:
+            return Twapi_MemLifoDump(ticP, h);
         }
     } else if (func < 2000) {
 
