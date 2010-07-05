@@ -2464,9 +2464,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            // cP is currently ignored
-            result.value.pv = TwapiAlloc(dw);
-            result.type = TRT_NONNULL_LPVOID;
+            result.value.opaque.p = TwapiAlloc(dw);
+            result.value.opaque.name = cP[0] ? cP : "void*";
+            result.type = TRT_OPAQUE;
             break;
 
         case 10111: // DWORD
