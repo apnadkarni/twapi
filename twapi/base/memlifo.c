@@ -365,14 +365,7 @@ int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
     TWAPI_MEMLIFO_ASSERT(n->lm_seq < m->lm_seq || n == m);
 #endif
 
-    /*
-     * Do a quick check to see if any blocks or chunks need to be freed up.
-     * 
-     */
-    if (m->lm_big_blocks == n->lm_big_blocks && m->lm_chunks == n->lm_chunks) {
-        /* Note it is possible that m == n when it is the bottommost mark */
-        n->lm_lifo->lifo_top_mark = n;
-    } else {
+    if (m->lm_big_blocks != n->lm_big_blocks || m->lm_chunks != n->lm_chunks) {
 	TwapiMemLifoChunk *c1, *c2, *end;
 	TwapiMemLifo *l = m->lm_lifo;
 
@@ -401,7 +394,7 @@ int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
 	    c1 = c2;
 	}
     }
-
+    n->lm_lifo->lifo_top_mark = n;
     return ERROR_SUCCESS;
 }
 
@@ -780,4 +773,8 @@ proc unmark m {twapi::Twapi_MemLifoPopMark $m}
 proc alloc {l n} {return [::twapi::Twapi_MemLifoAlloc $l $n]}
 proc lifo n {twapi::Twapi_MemLifoInit $n}
 proc lifodump l {twapi::Twapi_MemLifoDump $l}
+proc validate l {twapi::Twapi_MemLifoValidate $l}
+proc frame {l n} {twapi::Twapi_MemLifoPushFrame $l $n}
+proc unframe l {twapi::Twapi_MemLifoPopFrame $l}
+
 #endif
