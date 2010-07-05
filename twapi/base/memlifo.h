@@ -271,4 +271,6 @@ void * TwapiMemLifoResizeLast
                                    cannot be expanded in place. */
     );
 
+int TwapiMemLifoValidate(TwapiMemLifo *l);
+
 #endif

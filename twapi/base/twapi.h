@@ -1397,6 +1397,8 @@ int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 
+int Twapi_MemLifoDump(TwapiInterpContext *ticP, TwapiMemLifo *l);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

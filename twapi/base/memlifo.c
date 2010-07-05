@@ -5,8 +5,7 @@
  * See the file LICENSE for license
  */
 
-#define WIN32_LEAN_AND_MEAN
-#include "memlifo.h"
+#include "twapi.h"
 
 /*
  * Macros for alignment
@@ -143,7 +142,7 @@ int TwapiMemLifoInit(
     m = ALIGNPTR(chunkP, sizeof(*chunkP), TwapiMemLifoMarkHandle);
 
     m->lm_magic = TWAPI_MEMLIFO_MARK_MAGIC;
-    m->lm_seq = 0;
+    m->lm_seq = 1;
     
     m->lm_free = chunk_sz - ROUNDUP(sizeof(*chunkP)) - ROUNDUP(sizeof(*m));
     m->lm_last_addr = ADDPTR(chunkP, chunk_sz, void*);
@@ -335,7 +334,7 @@ TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
 	n->lm_free = chunk_sz - ROUNDUP(sizeof(*c)) - ROUNDUP(sizeof(*n));
     }
 
-#ifdef TWAPI_MEMLIF_ODEBUG
+#ifdef TWAPI_MEMLIFO_DEBUG
     n->lm_magic = TWAPI_MEMLIFO_MARK_MAGIC;
     n->lm_seq = m->lm_seq + 1;
 #endif
@@ -652,3 +651,133 @@ void *TwapiMemLifoResizeLast(TwapiMemLifo *l, size_t new_sz, int fix)
 }
 
 
+int TwapiMemLifoValidate(TwapiMemLifo *l)
+{
+    TwapiMemLifoMark *m;
+#ifdef TWAPI_MEMLIFO_DEBUG
+    int last_seq;
+#endif
+
+    if (l->lifo_magic != TWAPI_MEMLIFO_MAGIC)
+        return -1;
+
+    /* First validate underlying allocations */
+    if (l->lifo_allocFn == TwapiMemLifoDefaultAlloc)
+        if (! HeapValidate(l->lifo_allocator_data, 0, NULL))
+            return -2;
+
+    /* Some basic validation for marks */
+    if (l->lifo_top_mark == NULL || l->lifo_bot_mark == NULL)
+        return -3;
+
+    m = l->lifo_top_mark;
+#ifdef TWAPI_MEMLIFO_DEBUG
+    last_seq = 0;
+#endif
+    do {
+#ifdef TWAPI_MEMLIFO_DEBUG
+        if (m->lm_magic != TWAPI_MEMLIFO_MARK_MAGIC)
+            return -4;
+        if (m->lm_seq != last_seq+1)
+            return -5;
+        last_seq = m->lm_seq;
+#endif
+        if (m->lm_lifo != l)
+            return -6;
+        
+        if (m->lm_last_addr != ADDPTR(m->lm_chunks, m->lm_chunks->lc_size, void*))
+            return -10;
+
+        /* last_alloc must be 0 or within m->lm_chunks range */
+        if (m->lm_last_alloc) {
+            if ((char*) m->lm_last_alloc < (char *) m->lm_chunks)
+                return -8;
+            if (m->lm_last_alloc >= m->lm_last_addr) {
+                /* last alloc is not in chunk. See if it is a big block */
+                if (m->lm_big_blocks == NULL ||
+                    (m->lm_last_alloc != ADDPTR(m->lm_big_blocks, ROUNDUP(sizeof
+                                                                          (TwapiMemLifoChunk)), void*))) {
+                    /* Not a big block allocation */
+                    return -9;
+                }
+            }
+        }
+
+        if (m->lm_free > (size_t) PTRDIFF(m->lm_last_addr, m->lm_chunks))
+            return -10;
+
+        if (m == m->lm_prev) {
+            /* Last mark */
+            if (m != l->lifo_bot_mark)
+                return -7;
+            break;
+        }
+        m = m->lm_prev;
+    } while (1);
+    
+
+    return 0;
+}
+
+int Twapi_MemLifoDump(TwapiInterpContext *ticP, TwapiMemLifo *l)
+{
+    Tcl_Obj *objs[16];
+    TwapiMemLifoMark *m;
+
+    objs[0] = STRING_LITERAL_OBJ("allocator_data");
+    objs[1] = ObjFromLPVOID(l->lifo_allocator_data);
+    objs[2] = STRING_LITERAL_OBJ("allocFn");
+    objs[3] = ObjFromLPVOID(l->lifo_allocFn);
+    objs[4] = STRING_LITERAL_OBJ("freeFn");
+    objs[5] = ObjFromLPVOID(l->lifo_freeFn);
+    objs[6] = STRING_LITERAL_OBJ("chunk_size");
+    objs[7] = ObjFromDWORD_PTR(l->lifo_chunk_size);
+    objs[8] = STRING_LITERAL_OBJ("magic");
+    objs[9] = Tcl_NewLongObj(l->lifo_magic);
+    objs[10] = STRING_LITERAL_OBJ("top_mark");
+    objs[11] = ObjFromDWORD_PTR(l->lifo_top_mark);
+    objs[12] = STRING_LITERAL_OBJ("bot_mark");
+    objs[13] = ObjFromDWORD_PTR(l->lifo_bot_mark);
+
+    objs[14] = STRING_LITERAL_OBJ("marks");
+    objs[15] = Tcl_NewListObj(0, NULL);
+
+    m = l->lifo_top_mark;
+    do {
+        Tcl_Obj *mobjs[18];
+        mobjs[0] = STRING_LITERAL_OBJ("magic");
+        mobjs[1] = Tcl_NewLongObj(m->lm_magic);
+        mobjs[2] = STRING_LITERAL_OBJ("seq");
+        mobjs[3] = Tcl_NewLongObj(m->lm_seq);
+        mobjs[4] = STRING_LITERAL_OBJ("lifo");
+        mobjs[5] = ObjFromOpaque(m->lm_lifo, "TwapiMemLifo*");
+        mobjs[6] = STRING_LITERAL_OBJ("prev");
+        mobjs[7] = ObjFromOpaque(m->lm_prev, "TwapiMemLifoMark*");
+        mobjs[8] = STRING_LITERAL_OBJ("last_alloc");
+        mobjs[9] = ObjFromLPVOID(m->lm_last_alloc);
+        mobjs[10] = STRING_LITERAL_OBJ("big_blocks");
+        mobjs[11] = ObjFromLPVOID(m->lm_big_blocks);
+        mobjs[12] = STRING_LITERAL_OBJ("chunks");
+        mobjs[13] = ObjFromLPVOID(m->lm_chunks);
+        mobjs[14] = STRING_LITERAL_OBJ("last_addr");
+        mobjs[15] = ObjFromLPVOID(m->lm_last_addr);
+        mobjs[16] = STRING_LITERAL_OBJ("lm_free");
+        mobjs[17] = ObjFromDWORD_PTR(m->lm_free);
+        Tcl_ListObjAppendElement(ticP->interp, objs[15], Tcl_NewListObj(ARRAYSIZE(mobjs), mobjs));
+        
+        if (m == m->lm_prev)
+            break;
+        m = m->lm_prev;
+    } while (1);
+    
+    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(ARRAYSIZE(objs),objs));
+    return TCL_OK;
+}
+
+#if 0
+proc mark {l} {return [twapi::Twapi_MemLifoPushMark $l]}
+proc unmark m {twapi::Twapi_MemLifoPopMark $m}
+proc alloc {l n} {return [::twapi::Twapi_MemLifoAlloc $l $n]}
+proc lifo n {twapi::Twapi_MemLifoInit $n}
+proc lifodump l {twapi::Twapi_MemLifoDump $l}
+#endif
