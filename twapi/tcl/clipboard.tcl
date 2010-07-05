@@ -12,7 +12,7 @@ namespace eval twapi {
 # Open the clipboard
 # TBD - why no mechanism to pass window handle to OpenClipboard?
 proc twapi::open_clipboard {} {
-    OpenClipboard
+    OpenClipboard 0
 }
 
 # Close the clipboard

@@ -18,8 +18,6 @@ static char *apiprocs =
     "# Call - function(void)\n"
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
     "                                                                        \n"
-    "# CallW - function(HWND_LITERAL) \n"
-    "proc twapi::OpenClipboard {{hwin 0}} { return [twapi::CallW 16 $hwin] } \n"
     "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
     "proc twapi::NetUserGetInfo {system account level} {\n"
     "    return [twapi::CallSSSD 10 $system $account {} $level]\n"
@@ -42,18 +40,6 @@ static char *apiprocs =
     "}\n"
     "proc twapi::NetShareGetInfo {server share level} {\n"
     "    return [CallSSSD 27 $server $share {} $level]\n"
-    "}\n"
-    "proc twapi::NetFileClose {server fd} {\n"
-    "    return [CallSSSD 28 $server  {}  {}  $fd]\n"
-    "}\n"
-    "proc twapi::LoadLibraryEx  {filename flags} {\n"
-    "    return [CallSSSD 30 {} $filename {} $flags]\n"
-    "}\n"
-    "proc twapi::AddFontResourceEx  {filename flags} {\n"
-    "    return [CallSSSD 31 {} $filename {} $flags]\n"
-    "}\n"
-    "proc twapi::NetScheduleJobGetInfo {server job} {\n"
-    "    return [CallSSSD 35 $server {} {} $job]\n"
     "}\n"
     "proc twapi::Twapi_WNetGetResourceInformation {remotename provider restype} { \n"
     "    # Note first two args are interchanged\n"
@@ -674,6 +660,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
+    CALL_(NetFileClose, CallS, 503);
+    CALL_(LoadLibraryEx, CallS, 504);
+    CALL_(AddFontResourceEx, CallS, 505);
 
     CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
@@ -808,7 +797,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(HideCaret, CallW, 13);
     CALL_(ShowCaret, CallW, 14);
     CALL_(GetParent, CallW, 15);
-    //OpenClipboard - 16 - defined in win32calls.tcl
+    CALL_(OpenClipboard, CallW, 16);
     CALL_(GetClientRect, CallW, 17);
     CALL_(GetWindowRect, CallW, 18);
     CALL_(GetDC, CallW, 19);
@@ -2991,6 +2980,20 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             }
             break;
 #endif
+        case 503: // NetFileClose
+            NULLIFY_EMPTY(arg);
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = NetFileClose(arg, dw);
+            break;
+        case 504: // LoadLibrary
+            result.type = TRT_HANDLE;
+            result.value.hval = LoadLibraryExW(arg, NULL, dw);
+            break;
+        case 505: // AddFontResourceEx
+            /* TBD - Tcl wrapper for AddFontResourceEx ? */
+            result.type = TRT_DWORD;
+            result.value.ival = AddFontResourceExW(arg, dw, NULL);
+            break;
         }
     } else if (func < 2000) {
 
@@ -3748,24 +3751,14 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         return Twapi_NetShareCheck(interp, s1, s2);
     case 27:
         return Twapi_NetShareGetInfo(interp, s1,s2,dw);
-    case 28:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetFileClose(s1,dw);
-        break;
+//  case 28: UNUSED
     case 29: // NetUserDel
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = NetUserDel(s1, s2);
         break;
 #ifndef TWAPI_LEAN
-    case 30: // LoadLibraryEx
-        result.type = TRT_HANDLE;
-        result.value.hval = LoadLibraryExW(s2, NULL, dw);
-        break;
-    case 31: // AddFontResourceEx
-        /* TBD - Tcl wrapper for AddFontResourceEx ? */
-        result.type = TRT_DWORD;
-        result.value.ival = AddFontResourceExW(s2, dw, NULL);
-        break;
+//  case 30: UNUSED
+//  case 31: UNUSED
 #endif
     case 32:
         return Twapi_NetSessionGetInfo(interp, s1,s2,s3,dw);
