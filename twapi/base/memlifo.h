@@ -11,27 +11,27 @@
 #include <windows.h>
 #include <stdlib.h>
 
-#define TWAPI_MEMLIFO_ASSERT(x) ((void) 0) /* TBD */
+#define MEMLIFO_ASSERT(x) ((void) 0) /* TBD */
 
-typedef struct _TwapiMemLifo TwapiMemLifo;
-typedef struct _TwapiMemLifoMark TwapiMemLifoMark;
-typedef TwapiMemLifoMark *TwapiMemLifoMarkHandle;
+typedef struct _MemLifo MemLifo;
+typedef struct _MemLifoMark MemLifoMark;
+typedef MemLifoMark *MemLifoMarkHandle;
 
-typedef void *TwapiMemLifoChunkAllocFn(size_t sz, void *alloc_data, size_t *actual_szP);
-typedef void TwapiMemLifoChunkFreeFn(void *p, void *alloc_data);
+typedef void *MemLifoChunkAllocFn(size_t sz, void *alloc_data, size_t *actual_szP);
+typedef void MemLifoChunkFreeFn(void *p, void *alloc_data);
 
-struct _TwapiMemLifo {
+struct _MemLifo {
     void *lifo_allocator_data;           /* For use by allocation functions as
                                             they see fit */
-    TwapiMemLifoChunkAllocFn *lifo_allocFn;
-    TwapiMemLifoChunkFreeFn *lifo_freeFn;
-    TwapiMemLifoMarkHandle lifo_top_mark;  /* Topmost mark */
-    TwapiMemLifoMarkHandle lifo_bot_mark; /* Bottommost mark */
+    MemLifoChunkAllocFn *lifo_allocFn;
+    MemLifoChunkFreeFn *lifo_freeFn;
+    MemLifoMarkHandle lifo_top_mark;  /* Topmost mark */
+    MemLifoMarkHandle lifo_bot_mark; /* Bottommost mark */
     size_t	lifo_chunk_size;   /* Size of each chunk to allocate.
                                       Note this size might not be a multiple
                                       of the alignment size */
     LONG		lifo_magic;	/* Only used in debug mode */
-#define TWAPI_MEMLIFO_MAGIC 0xb92c610a
+#define MEMLIFO_MAGIC 0xb92c610a
 };
 
 
@@ -44,28 +44,28 @@ fashion.
 On success, returns a handle for the LIFO memory pool. On failure, returns 0. 
 In this case, the caller can obtain the error code through APNgetError().
 
-See also TwapiMemLifoAlloc, TwapiMemLifoMark, TwapiMemLifoPopMark, 
-TwapiMemLifoReset
+See also MemLifoAlloc, MemLifoMark, MemLifoPopMark, 
+MemLifoReset
 
 Returns ERROR_SUCCESS or a Win32 error code
 */
-int TwapiMemLifoInit
+int MemLifoInit
 (
-    TwapiMemLifo *lifoP,
+    MemLifo *lifoP,
     void *allocator_data,
-    TwapiMemLifoChunkAllocFn *allocFunc,
+    MemLifoChunkAllocFn *allocFunc,
                                 /* Pointer to routine to be used to allocate
 				   memory. Must return aligned memory.
 				   The parameter indicates the amount of
 				   memory to allocate. Note this function
 				   must be callable at ANY time including
-				   during the TwapiMemLifoInit call itself.
+				   during the MemLifoInit call itself.
 				   Naturally, this function must not make a
 				   call to LIFO memory allocation routines
 				   from the same pool. This parameter may be
 				   indicated as 0, in which case allocation
 				   will be done using an internal default. */
-    TwapiMemLifoChunkFreeFn *freeFunc,
+    MemLifoChunkFreeFn *freeFunc,
 				/* Pointer to routine to be used for freeing
 				   memory allocated through allocFunc. The
 				   parameter points to the memory to be
@@ -87,22 +87,24 @@ Free up resources associated with a LIFO memory pool
 Frees up various resources allocated for a LIFO memory pool. The pool must not
 be used after the function is called.
 */
-void TwapiMemLifoClose(TwapiMemLifo  *lifoP);
+void MemLifoClose(MemLifo  *lifoP);
 
 /*f
 Allocate memory from LIFO memory pool
 
 Allocates memory from a LIFO memory pool and returns a pointer to it.
 
-See also TwapiMemLifoInit, TwapiMemLifoMark, TwapiMemLifoPopMark,
-TwapiMemLifoPushFrame
+See also MemLifoInit, MemLifoMark, MemLifoPopMark,
+MemLifoPushFrame
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
-void* TwapiMemLifoAlloc
+void* MemLifoAlloc
     (
-     TwapiMemLifo *lifoP,       /* LIFO pool to allocate from */
-     size_t sz			/* Number of bytes to allocate */
+     MemLifo *lifoP,    /* LIFO pool to allocate from */
+     size_t sz,         /* Number of bytes to allocate */
+     size_t *actual_szP /* If non-NULL, allocates max possible in chunk
+                           and returns the value here*/
     );
 
 /*f
@@ -112,71 +114,73 @@ Allocates space in a LIFO memory pool being used as a software stack.
 This provides a means of maintaining a software stack for temporary structures
 that are too large to be allocated on the hardware stack.
 
-Both TwapiMemLifoMark and TwapiMemLifoPushFrame may be used on the same
-TwapiMemLifo_t. The latter function in effect creates a anonymous mark
+Both MemLifoMark and MemLifoPushFrame may be used on the same
+MemLifo_t. The latter function in effect creates a anonymous mark
 that is maintained internally and which may be released (along with
-the associated user memory) through the function TwapiMemLifoPopFrame
+the associated user memory) through the function MemLifoPopFrame
 which releases the last allocated mark, irrespective of whether it was
-allocated through TwapiMemLifoMark or TwapiMemLifoPushFrame.
+allocated through MemLifoMark or MemLifoPushFrame.
 Alternatively, the mark and associated memory are also freed when a
 previosly allocated mark is released.
 
-See also TwapiMemLifoAlloc, TwapiMemLifoPopFrame
+See also MemLifoAlloc, MemLifoPopFrame
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
-void *TwapiMemLifoPushFrame
+void *MemLifoPushFrame
 (
-    TwapiMemLifo *lifoP,		/* LIFO pool to allocate from */
-    size_t sz			/* Number of bytes to allocate */
+    MemLifo *lifoP,		/* LIFO pool to allocate from */
+    size_t sz,			/* Number of bytes to allocate */
+    size_t *actual_szP          /* If non-NULL, allocates max possible in chunk
+                                   and returns the value here*/
     );
 
 /*
-Release the topmost mark from a TwapiMemLifo_t
+Release the topmost mark from a MemLifo_t
 
-Releases the topmost (last allocated) mark from a TwapiMemLifo_t. The
-mark may have been allocated using either TwapiMemLifoMark or
-TwapiMemLifoPushFrame.
+Releases the topmost (last allocated) mark from a MemLifo_t. The
+mark may have been allocated using either MemLifoMark or
+MemLifoPushFrame.
 
-See also TwapiMemLifoAlloc, TwapiMemLifoPushFrame, TwapiMemLifoMark
+See also MemLifoAlloc, MemLifoPushFrame, MemLifoMark
 
 Returns ERROR_SUCCESS or Win32 status code on error
 */
-int TwapiMemLifoPopFrame(TwapiMemLifo *lifoP);
+#define MemLifoPopFrame(l_) MemLifoPopMark((l_)->lifo_top_mark)
 
 /*
 Mark current state of a LIFO memory pool
 
 Stores the current state of a LIFO memory pool on a stack. The state can be
-restored later by calling TwapiMemLifoPopMark. Any number of marks may be
+restored later by calling MemLifoPopMark. Any number of marks may be
 created but they must be popped in reverse order. However, not all marks
 need be popped since popping a mark automatically pops all marks created
 after it.
 
-See also TwapiMemLifoAlloc, TwapiMemLifoPopMark, TwapiMemLifoMarkedAlloc,
-TwapiMemLifoAllocFrame
+See also MemLifoAlloc, MemLifoPopMark, MemLifoMarkedAlloc,
+MemLifoAllocFrame
 
 Returns a handle for the mark if successful, 0 on failure.
 */
-TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *lifoP);
+MemLifoMarkHandle MemLifoPushMark(MemLifo *lifoP);
 
 
 /*f
 Restore state of a LIFO memory pool
 
 Restores the state of a LIFO memory pool that was previously saved
-using TwapiMemLifoMark or TwapiMemLifoMarkedAlloc.  Memory allocated
+using MemLifoMark or MemLifoMarkedAlloc.  Memory allocated
 from the pool between the push and this pop is freed up. Caller must
 not subsequently call this routine with marks created between the
-TwapiMemLifoMark and this TwapiMemLifoPopMark as they will have been
+MemLifoMark and this MemLifoPopMark as they will have been
 freed as well. The mark being passed to this routine is freed as well
 and hence must not be reused.
 
-See also TwapiMemLifoAlloc, TwapiMemLifoMark, TwapiMemLifoMarkedAlloc
+See also MemLifoAlloc, MemLifoMark, MemLifoMarkedAlloc
 
 Returns 0 on success, 1 on failure
 */
-int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle mark);
+int MemLifoPopMark(MemLifoMarkHandle mark);
 
 
 /*f
@@ -201,9 +205,9 @@ On failure, the function return a NULL pointer.
 
 Returns pointer to new block position on success, else a NULL pointer.
 */
-void * TwapiMemLifoExpandLast
+void * MemLifoExpandLast
     (
-     TwapiMemLifo *lifoP,		/* Lifo pool from which alllocation
+     MemLifo *lifoP,		/* Lifo pool from which alllocation
 					   was made */
      size_t incr,			/* The amount by which the
 					   block is to be expanded. */
@@ -231,9 +235,9 @@ On success, the size of the block is not guaranteed to have been decreased.
 Returns pointer to address of relocated block or a null pointer if a mark
 was allocated after the last allocation.
 */
-void *TwapiMemLifoShrinkLast
+void *MemLifoShrinkLast
     (
-     TwapiMemLifo *lifoP,       /* Lifo pool from which alllocation
+     MemLifo *lifoP,       /* Lifo pool from which alllocation
                                    was made */
      size_t decr,               /* The amount by which the
                                    block is to be shrunk. */
@@ -261,9 +265,9 @@ and dontMove is set, or if there is insufficient memory.
 
 Returns pointer to new block position on success, else a NULL pointer.
 */
-void * TwapiMemLifoResizeLast
+void * MemLifoResizeLast
 (
-    TwapiMemLifo *lifoP,        /* Lifo pool from which allocation was made */
+    MemLifo *lifoP,        /* Lifo pool from which allocation was made */
     size_t newSz,		/* New size of the block */
     int dontMove                /* If 0, block may be moved if
                                    necessary to expand. If non-0, the
@@ -271,6 +275,6 @@ void * TwapiMemLifoResizeLast
                                    cannot be expanded in place. */
     );
 
-int TwapiMemLifoValidate(TwapiMemLifo *l);
+int MemLifoValidate(MemLifo *l);
 
 #endif

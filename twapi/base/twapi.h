@@ -666,6 +666,8 @@ typedef struct _TwapiInterpContext {
 
     Tcl_ThreadId thread;     /* Id of interp thread */
 
+    MemLifo memlifo;
+
     /*
      * A single lock that is shared among multiple lists attached to this
      * structure as contention is expected to be low.
@@ -1397,7 +1399,7 @@ int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 
-int Twapi_MemLifoDump(TwapiInterpContext *ticP, TwapiMemLifo *l);
+int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
 
 #ifdef __cplusplus
 } // extern "C"

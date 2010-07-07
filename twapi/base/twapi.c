@@ -196,9 +196,14 @@ static void Twapi_Cleanup(ClientData clientdata)
 
 static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
 {
+    DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
-    if (ticP == NULL)
+
+    winerr = MemLifoInit(&ticP->memlifo, NULL, NULL, NULL, 8000);
+    if (winerr != ERROR_SUCCESS) {
+        Twapi_AppendSystemError(interp, winerr);
         return NULL;
+    }
 
     ticP->nrefs = 0;
     ticP->interp = interp;
@@ -261,6 +266,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
         ticP->clipboard_win = 0;
     }
 
+    MemLifoClose(&ticP->memlifo);
 }
 
 /* Decrement ref count and free if 0 */

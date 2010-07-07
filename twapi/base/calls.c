@@ -349,6 +349,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     /*
      * NOTE: Some MISSING CALL NUMBERS are defined in win32calls.tcl
+     * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
     CALL_(CloseClipboard, Call, 2);
@@ -2497,7 +2498,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         LPWSTR str;
         HANDLE h;
         SECURITY_ATTRIBUTES *secattrP;
-        TwapiMemLifo *lifoP;
+        MemLifo *lifoP;
     } u;
     int func;
 
@@ -2665,12 +2666,12 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.type = TRT_GETLASTERROR;
             break;
         case 37:
-            u.lifoP = TwapiAlloc(sizeof(TwapiMemLifo));
-            result.value.ival = TwapiMemLifoInit(u.lifoP, NULL, NULL, NULL, dw);
+            u.lifoP = TwapiAlloc(sizeof(MemLifo));
+            result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw);
             if (result.value.ival == ERROR_SUCCESS) {
                 result.type = TRT_OPAQUE;
                 result.value.opaque.p = u.lifoP;
-                result.value.opaque.name = "TwapiMemLifo*";
+                result.value.opaque.name = "MemLifo*";
             } else
                 result.type = TRT_EXCEPTION_ON_ERROR;
             break;
@@ -3043,7 +3044,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         SECURITY_ATTRIBUTES *secattrP;
         MONITORINFOEXW minfo;
         RECT rect;
-        TwapiMemLifo *lifoP;
+        MemLifo *lifoP;
     } u;
     int func;
     int i;
@@ -3281,12 +3282,13 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 53: 
             return Twapi_UnregisterDirectoryMonitor(ticP, h);
         case 54:
-            TwapiMemLifoClose(h);
+            MemLifoClose(h);
+            TwapiFree(h);
             result.type = TRT_EMPTY;
             break;
         case 55:
             result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = TwapiMemLifoPopFrame(h);
+            result.value.ival = MemLifoPopFrame((MemLifo *)h);
             break;
         case 56:
             result.type = TRT_EMPTY;
@@ -3323,16 +3325,16 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 60:
             result.type = TRT_OPAQUE;
-            result.value.opaque.p = TwapiMemLifoPushMark(h);
-            result.value.opaque.name = "TwapiMemLifoMark*";
+            result.value.opaque.p = MemLifoPushMark(h);
+            result.value.opaque.name = "MemLifoMark*";
             break;
         case 61:
             result.type = TRT_DWORD;
-            result.value.ival = TwapiMemLifoPopMark(h);
+            result.value.ival = MemLifoPopMark(h);
             break;
         case 62:
             result.type = TRT_DWORD;
-            result.value.ival = TwapiMemLifoValidate(h);
+            result.value.ival = MemLifoValidate(h);
             break;
         case 63:
             return Twapi_MemLifoDump(ticP, h);
@@ -3421,11 +3423,11 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 1018:
             result.type = TRT_LPVOID;
-            result.value.pv = TwapiMemLifoAlloc(h, dw);
+            result.value.pv = MemLifoAlloc(h, dw, NULL);
             break;
         case 1019:
             result.type = TRT_LPVOID;
-            result.value.pv = TwapiMemLifoPushFrame(h, dw);
+            result.value.pv = MemLifoPushFrame(h, dw, NULL);
             break;
 
         }
@@ -3464,15 +3466,15 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 2008: 
             result.type = TRT_LPVOID;
-            result.value.pv = TwapiMemLifoExpandLast(h, dw, dw2);
+            result.value.pv = MemLifoExpandLast(h, dw, dw2);
             break;
         case 2009: 
             result.type = TRT_LPVOID;
-            result.value.pv = TwapiMemLifoShrinkLast(h, dw, dw2);
+            result.value.pv = MemLifoShrinkLast(h, dw, dw2);
             break;
         case 2010: 
             result.type = TRT_LPVOID;
-            result.value.pv = TwapiMemLifoResizeLast(h, dw, dw2);
+            result.value.pv = MemLifoResizeLast(h, dw, dw2);
             break;
         }
     } else {

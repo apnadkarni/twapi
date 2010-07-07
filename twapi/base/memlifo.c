@@ -17,42 +17,38 @@
 #define ROUNDED(x_) (ROUNDUP(x_) == (x_))
 #define ROUNDDOWN(x_) (ALIGNMASK & (INT_PTR)(x_))
 
+/* Note diff between ALIGNPTR and ADDPTR is that former aligns the pointer */
 #define ALIGNPTR(base_, offset_, type_) \
     (type_) ROUNDUP((offset_) + (DWORD_PTR)(base_))
-#define ALIGNED(p_) (ROUNDED((DWORD_PTR)(p_)))
-
 #define ADDPTR(p_, incr_, type_) \
     ((type_)((incr_) + (char *)(p_)))
 #define SUBPTR(p_, decr_, type_) \
     ((type_)(((char *)(p_)) - (decr_)))
+#define ALIGNED(p_) (ROUNDED((DWORD_PTR)(p_)))
 #define PTRDIFF(p_, q_) ((char*)(p_) - (char *)(q_))
 
 /* MAX alloc is mainly to catch errors */
-#define TWAPI_MEMLIFO_MAX_ALLOC ((size_t) 1000000)
+#define MEMLIFO_MAX_ALLOC ((size_t) 1000000)
 
-typedef struct _TwapiMemLifoChunk TwapiMemLifoChunk;
+typedef struct _MemLifoChunk MemLifoChunk;
 
 /*
 Each region is composed of a linked list of contiguous chunks of memory. Each
 chunk is prefixed by a descriptor which is also used to link the chunks.
 */
-typedef struct _TwapiMemLifoChunk {
-    TwapiMemLifoChunk *lc_prev;	/* Pointer to next chunk */
-    size_t	lc_size;	/* Size of this chunk.
-                                   Do we really need to track this? */
-} TwapiMemLifoChunk;
-#define CHUNKDSCSZ (ROUNDUP(sizeof(TwapiMemLifoChunk)))
-#define TwapiMem_LIFOMAXALLOC	(TwapiMem_MAXALLOC - CHUNKDSCSZ)
-
+typedef struct _MemLifoChunk {
+    MemLifoChunk *lc_prev;	/* Pointer to next chunk */
+    void         *lc_end;	/* One beyond end of chunk */
+} MemLifoChunk;
 
 /*
-A mark keeps current state information about a TwapiMemLifo which can
+A mark keeps current state information about a MemLifo which can
 be used to restore it to a previous state. On initialization, a mark
-is internally created to hold the initial state for TwapiMemLifo.
+is internally created to hold the initial state for MemLifo.
 Later, marks are added and deleted through application calls.
 
 The topmost mark (last one allocated) holds the current state of the
-TwapiMemLifo.
+MemLifo.
 
 When chunks are allocated, they are put a single list shared among all
 the marks which will point to sublists within the list. When a mark is
@@ -61,31 +57,29 @@ pointed to by the previous mark are freed.  "Big block" allocations,
 are handled the same way.
 
 Since marks also keeps track of the free space in the current chunk
-from which allocations are made, the state of the TwapiMemLifo_t can be
+from which allocations are made, the state of the MemLifo_t can be
 completely restored when popping a mark by simply making the previous
 mark the topmost (current) mark.
 */
 
-typedef struct _TwapiMemLifoMark {
+typedef struct _MemLifoMark {
     int			lm_magic;	/* Only used in debug mode */
-#define TWAPI_MEMLIFO_MARK_MAGIC	0xa0193d4f
+#define MEMLIFO_MARK_MAGIC	0xa0193d4f
     int			lm_seq;		/* Only used in debug mode */
-    TwapiMemLifo       *lm_lifo; /* TwapiMemLifo for this mark */
-    TwapiMemLifoMark *lm_prev; /* Previous mark */
+    MemLifo       *lm_lifo; /* MemLifo for this mark */
+    MemLifoMark *lm_prev; /* Previous mark */
     void *		lm_last_alloc; /* last allocation from the lifo */
-    TwapiMemLifoChunk *lm_big_blocks; /* Pointer to list of large block
+    MemLifoChunk *lm_big_blocks; /* Pointer to list of large block
                                          allocations. Note marks should
                                          never be allocated from here since
                                          big blocks may be deleted during
                                          some reallocations */
-    TwapiMemLifoChunk *lm_chunks; /* Current chunk used for allocation
+    MemLifoChunk *lm_chunks; /* Current chunk used for allocation
                                         and the head of the chunk list */
-    void  *lm_last_addr;/* Aligned addr 1 beyond usable space in lm_chunkList */
-    size_t lm_free;     /* Available space */
-} TwapiMemLifoMark;
-#define MARKDSCSZ (TwapiMem_ALIGNSIZEUP(sizeof(TwapiMemLifoMarkDsc_t)))
+    void *lm_freeptr;           /* Ptr to unused space */
+} MemLifoMark;
 
-static void *TwapiMemLifoDefaultAlloc(size_t sz, HANDLE heap, size_t *actual)
+static void *MemLifoDefaultAlloc(size_t sz, HANDLE heap, size_t *actual)
 {
     void *p = HeapAlloc(heap, 0, sz);
     if (actual)
@@ -93,31 +87,31 @@ static void *TwapiMemLifoDefaultAlloc(size_t sz, HANDLE heap, size_t *actual)
     return p;
 }
 
-static void TwapiMemLifoDefaultFree(void *p, HANDLE heap)
+static void MemLifoDefaultFree(void *p, HANDLE heap)
 {
     HeapFree(heap, 0, p);
 }
 
 
-int TwapiMemLifoInit(
-    TwapiMemLifo *l,
+int MemLifoInit(
+    MemLifo *l,
     void *allocator_data,
-    TwapiMemLifoChunkAllocFn *allocFunc,
-    TwapiMemLifoChunkFreeFn *freeFunc,
+    MemLifoChunkAllocFn *allocFunc,
+    MemLifoChunkFreeFn *freeFunc,
     size_t chunk_sz)
 {
-    TwapiMemLifoChunk *chunkP;
-    TwapiMemLifoMarkHandle m;
+    MemLifoChunk *c;
+    MemLifoMarkHandle m;
     size_t actual_chunk_sz;
 
     if (allocFunc == 0) {
         allocator_data = HeapCreate(0, 0, 0);
         if (allocator_data == NULL)
             return GetLastError();
-	allocFunc = TwapiMemLifoDefaultAlloc;
-	freeFunc = TwapiMemLifoDefaultFree;
+	allocFunc = MemLifoDefaultAlloc;
+	freeFunc = MemLifoDefaultFree;
     } else {
-        TWAPI_MEMLIFO_ASSERT(freeFunc);	/* If allocFunc was not 0, freeFunc
+        MEMLIFO_ASSERT(freeFunc);	/* If allocFunc was not 0, freeFunc
 					   should not be either */
     }
 	
@@ -125,34 +119,31 @@ int TwapiMemLifoInit(
         chunk_sz = 1000;
 
     /* Allocate a chunk and allocate space for the lifo descriptor from it */
-    chunkP = allocFunc(chunk_sz, allocator_data, &actual_chunk_sz);
-    if (chunkP == 0)
+    c = allocFunc(chunk_sz, allocator_data, &actual_chunk_sz);
+    if (c == 0)
         return ERROR_OUTOFMEMORY;
 
-    chunkP->lc_prev = NULL;
-    chunkP->lc_size = actual_chunk_sz;
+    c->lc_prev = NULL;
+    c->lc_end = ADDPTR(c, actual_chunk_sz, void*);
 
     l->lifo_allocator_data = allocator_data;
     l->lifo_allocFn = allocFunc;
     l->lifo_freeFn = freeFunc;
-    l->lifo_chunk_size = chunk_sz;
-    l->lifo_magic = TWAPI_MEMLIFO_MAGIC;
+    l->lifo_chunk_size = ROUNDUP(chunk_sz); /* What caller asked, not actual_chunk_sz */
+    l->lifo_magic = MEMLIFO_MAGIC;
 
     /* Allocate mark from chunk itself */
-    m = ALIGNPTR(chunkP, sizeof(*chunkP), TwapiMemLifoMarkHandle);
+    m = ALIGNPTR(c, sizeof(*c), MemLifoMark*);
 
-    m->lm_magic = TWAPI_MEMLIFO_MARK_MAGIC;
+    m->lm_magic = MEMLIFO_MARK_MAGIC;
     m->lm_seq = 1;
     
-    m->lm_free = chunk_sz - ROUNDUP(sizeof(*chunkP)) - ROUNDUP(sizeof(*m));
-    m->lm_last_addr = ADDPTR(chunkP, chunk_sz, void*);
-
-    m->lm_lifo = l;	/* TBD - do we need this ? */
-    m->lm_prev = m;	/* Point back to itself. Effectively will never be
-                           popped */
+    m->lm_freeptr = ALIGNPTR(m, sizeof(*m), void*);
+    m->lm_lifo = l;
+    m->lm_prev = m;/* Point back to itself. Effectively will never be popped */
     m->lm_big_blocks = 0;
     m->lm_last_alloc = 0;
-    m->lm_chunks = chunkP;
+    m->lm_chunks = c;
 
     l->lifo_top_mark = m;
     l->lifo_bot_mark = m;
@@ -160,13 +151,16 @@ int TwapiMemLifoInit(
     return ERROR_SUCCESS;
 }
 
-void TwapiMemLifoClose(TwapiMemLifo *l)
+void MemLifoClose(MemLifo *l)
 {
-    l->lifo_magic = 0;
+    /*
+     * Note as a special case, popping the bottommost mark does not release
+     * the mark itself
+     */
+    MemLifoPopMark(l->lifo_bot_mark);
 
-    TWAPI_MEMLIFO_ASSERT(l->lifo_bot_mark->lm_chunks);
-
-    TwapiMemLifoPopMark(l->lifo_bot_mark);
+    MEMLIFO_ASSERT(l->lifo_bot_mark);
+    MEMLIFO_ASSERT(l->lifo_bot_mark->lm_chunks);
 
     /* Finally free the chunk containing the bottom mark */
     l->lifo_freeFn(l->lifo_bot_mark->lm_chunks,
@@ -175,38 +169,48 @@ void TwapiMemLifoClose(TwapiMemLifo *l)
 }
 
 
-void* TwapiMemLifoAlloc(TwapiMemLifo *l,  size_t sz)
+void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
 {
-    TwapiMemLifoChunk *c;
-    TwapiMemLifoMarkHandle m;
+    MemLifoChunk *c;
+    MemLifoMarkHandle m;
     size_t chunk_sz;
+    void *p;
 
-    if (sz > TWAPI_MEMLIFO_MAX_ALLOC)
+    if (sz > MEMLIFO_MAX_ALLOC)
         return NULL;
 
     /* 
-     * NOTE: note that when called from TwapiMemLifoExpandLast(), the 
+     * NOTE: note that when called from MemLifoExpandLast(), on entry the 
      * lm_last_alloc field may not be set correctly since that function 
      * may remove the last allocation from the big block list under 
-     * some circumstances.
+     * some circumstances. We do not use that field here, only set it.
      */
 
-    TWAPI_MEMLIFO_ASSERT(l->lifo_magic == TWAPI_MEMLIFO_MAGIC);
-    TWAPI_MEMLIFO_ASSERT(l->lifo_bot_mark);
+    MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
+    MEMLIFO_ASSERT(l->lifo_bot_mark);
     
     m = l->lifo_top_mark;
-    TWAPI_MEMLIFO_ASSERT(m);
-    TWAPI_MEMLIFO_ASSERT(ROUNDUP(m->lm_free) == m->lm_free);
-    TWAPI_MEMLIFO_ASSERT(ALIGNPTR(m->lm_last_addr, 0, void *) == m->lm_last_addr);
+    MEMLIFO_ASSERT(m);
+    MEMLIFO_ASSERT(ALIGNED(m->lm_freeptr));
 
     sz = ROUNDUP(sz);
-
-    if (sz <= m->lm_free) {
-	m->lm_last_alloc = SUBPTR(m->lm_last_addr, m->lm_free, void *);
-	m->lm_free -= sz;
+    p = ADDPTR(m->lm_freeptr, sz, void*); /* New end of used space */
+    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+        && p <= m->lm_chunks->lc_end) {
+        /* OK, not beyond the end of the chunk */
+	m->lm_last_alloc = m->lm_freeptr;
+        MEMLIFO_ASSERT(ALIGNED(m->lm_last_alloc));
+        /*
+         * If actual_szP is non-NULL, caller wants to allocate at least sz
+         * but as much as possible without allocating a new chunk
+         */
+        if (actual_szP) {
+            m->lm_freeptr = m->lm_chunks->lc_end;
+            *actual_szP = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+        } else 
+            m->lm_freeptr = p;
 	return 	m->lm_last_alloc;
     }
-
 
     /* 
      * Insufficient space in current chunk.
@@ -223,14 +227,13 @@ void* TwapiMemLifoAlloc(TwapiMemLifo *l,  size_t sz)
      * hand, we do not want to allocate a new chunk aggressively as 
      * this will result in too much wasted space in the current chunk. 
      * On the other hand, allocating a separate block results in wasted 
-     * space due to external fragmentation and possibly waste of 
-     * global memory handles under Windows.
+     * space due to external fragmentation as well slower execution.
      *
      * TBD - if using our default windows based heap, try and HeapReAlloc
      * in place.
      */
     /* TBD - make it /2 instead of /8 ? */
-    if (m->lm_free < l->lifo_chunk_size/8) {
+    if (PTRDIFF(m->lm_chunks->lc_end, m->lm_freeptr) < l->lifo_chunk_size/8) {
         /* Little space in the current chunk
          * Allocate a new chunk and suballocate from it.
          * 
@@ -242,52 +245,56 @@ void* TwapiMemLifoAlloc(TwapiMemLifo *l,  size_t sz)
 	else
 	    chunk_sz = l->lifo_chunk_size;
 
-        chunk_sz += ROUNDUP(sizeof(TwapiMemLifoChunk));
+        MEMLIFO_ASSERT(ROUNDED(chunk_sz));
+        chunk_sz += ROUNDUP(sizeof(MemLifoChunk));
 
 	c = l->lifo_allocFn(chunk_sz, l->lifo_allocator_data, &chunk_sz);
 	if (c == 0)
 	    return 0;
 
-	c->lc_size = chunk_sz;
+	c->lc_end = ADDPTR(c, chunk_sz, void*);
 
 	c->lc_prev = m->lm_chunks;	/* Place on the list of chunks */
 	m->lm_chunks = c;
 	
-	m->lm_free = chunk_sz - ROUNDUP(sizeof(TwapiMemLifoChunk)) - sz;
-        m->lm_last_addr = ADDPTR(c, chunk_sz, void*);
+	m->lm_last_alloc = ALIGNPTR(c, sizeof(*c), void*);
+        m->lm_freeptr = ALIGNPTR(m->lm_last_alloc, sz, void*);
     }
     else {
 	/* Allocate a separate big block. */
         size_t actual_size;
-        chunk_sz = sz + ROUNDUP(sizeof(TwapiMemLifoChunk));
+        chunk_sz = sz + ROUNDUP(sizeof(MemLifoChunk));
 
-	c = (TwapiMemLifoChunk *) l->lifo_allocFn(chunk_sz,
+	c = (MemLifoChunk *) l->lifo_allocFn(chunk_sz,
                                                   l->lifo_allocator_data,
                                                   &actual_size);
 	if (c == 0)
 	    return 0;
 
-	c->lc_size = actual_size;
+	c->lc_end = ADDPTR(c, actual_size, void*);
 
 	c->lc_prev = m->lm_big_blocks;	/* Place on the list of big blocks */
 	m->lm_big_blocks = c;
 	/* 
-	 * Note we do not modify m->m_free since it still refers to 
+	 * Note we do not modify m->m_freeptr since it still refers to 
 	 * the current "mainstream" chunk.
 	 */
+	m->lm_last_alloc = ALIGNPTR(c, sizeof(*c), void*);
     }
-    m->lm_last_alloc = ADDPTR(c, ROUNDUP(sizeof(TwapiMemLifoChunk)), void*);
+    if (actual_szP)
+        *actual_szP = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
     return m->lm_last_alloc;
 }
 
 
-TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
+MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
 {
-    TwapiMemLifoMarkHandle m;			/* Previous (existing) mark */
-    TwapiMemLifoMarkHandle n;			/* New mark */
-    TwapiMemLifoChunk *c;
+    MemLifoMarkHandle m;			/* Previous (existing) mark */
+    MemLifoMarkHandle n;			/* New mark */
+    MemLifoChunk *c;
     size_t chunk_sz;
     size_t mark_sz;
+    void *p;
     
     m = l->lifo_top_mark;
 
@@ -297,19 +304,20 @@ TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
      * Check for common case first - enough space in current chunk to
      * hold the mark.
      */
-    mark_sz = ROUNDUP(sizeof(TwapiMemLifoMark));
-    if (mark_sz <= m->lm_free) {
-	TWAPI_MEMLIFO_ASSERT(ROUNDED(m->lm_free));
-	TWAPI_MEMLIFO_ASSERT(ALIGNED(m->lm_lastAddr));
-	n = SUBPTR(m->lm_last_addr, m->lm_free, TwapiMemLifoMarkHandle);
-	n->lm_free = m->lm_free - mark_sz;
-	n->lm_last_addr = m->lm_last_addr;
+    mark_sz = ROUNDUP(sizeof(MemLifoMark));
+    p = ADDPTR(m->lm_freeptr, mark_sz, void*); /* Potential end of mark */
+    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+        && p <= m->lm_chunks->lc_end) {
+        /* Enough room for the mark in this chunk */
+	MEMLIFO_ASSERT(ALIGNED(m->lm_lastAddr));
+        n = (MemLifoMark *) m->lm_freeptr;
+	n->lm_freeptr = p;
 	n->lm_chunks = m->lm_chunks;
     }
     else {
 	/* 
 	 * No room in current chunk. Have to allocate a new chunk. Note 
-	 * we do not use TwapiMemLifoAlloc to allocate the mark since that 
+	 * we do not use MemLifoAlloc to allocate the mark since that 
 	 * would change the state of the previous mark.
 	 */
 	c = l->lifo_allocFn(l->lifo_chunk_size,
@@ -318,7 +326,7 @@ TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
 	if (c == 0)
 	    return 0;
 	
-	c->lc_size = chunk_sz;
+	c->lc_end = ADDPTR(c, chunk_sz, void*);
 	
 	/* 
 	 * Place on the list of chunks. Note however, that we do NOT 
@@ -327,15 +335,14 @@ TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
 	 */
 	c->lc_prev = m->lm_chunks;	/* Place on the list of chunks */
 
-	n = ADDPTR(c, ROUNDUP(sizeof(*c)), TwapiMemLifoMarkHandle);
+	n = ALIGNPTR(c, sizeof(*c), MemLifoMark*);
 	n->lm_chunks = c;
 	
-	n->lm_last_addr = ADDPTR(c, chunk_sz, void*);
-	n->lm_free = chunk_sz - ROUNDUP(sizeof(*c)) - ROUNDUP(sizeof(*n));
+	n->lm_freeptr = ALIGNPTR(n, sizeof(*n), void*);
     }
 
-#ifdef TWAPI_MEMLIFO_DEBUG
-    n->lm_magic = TWAPI_MEMLIFO_MARK_MAGIC;
+#ifdef MEMLIFO_DEBUG
+    n->lm_magic = MEMLIFO_MARK_MAGIC;
     n->lm_seq = m->lm_seq + 1;
 #endif
     n->lm_big_blocks = m->lm_big_blocks;
@@ -348,26 +355,25 @@ TwapiMemLifoMarkHandle TwapiMemLifoPushMark(TwapiMemLifo *l)
 }
 
 
-int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
+int MemLifoPopMark(MemLifoMarkHandle m)
 {
-    TwapiMemLifoMarkHandle n;
-
+    MemLifoMarkHandle n;
 
 #ifdef TWAPI_MEMLIF_ODEBUG
-    TWAPI_MEMLIFO_ASSERT(m->lm_magic == TWAPI_MEMLIFO_MARK_MAGIC);
+    MEMLIFO_ASSERT(m->lm_magic == MEMLIFO_MARK_MAGIC);
 #endif
 
     n = m->lm_prev;          /* Note n, m may be the same (first mark) */
-    TWAPI_MEMLIFO_ASSERT(n);
-    TWAPI_MEMLIFO_ASSERT(n->lm_lifo == m->lm_lifo);
+    MEMLIFO_ASSERT(n);
+    MEMLIFO_ASSERT(n->lm_lifo == m->lm_lifo);
 
 #ifdef TWAPI_MEMLIF_ODEBUG
-    TWAPI_MEMLIFO_ASSERT(n->lm_seq < m->lm_seq || n == m);
+    MEMLIFO_ASSERT(n->lm_seq < m->lm_seq || n == m);
 #endif
 
     if (m->lm_big_blocks != n->lm_big_blocks || m->lm_chunks != n->lm_chunks) {
-	TwapiMemLifoChunk *c1, *c2, *end;
-	TwapiMemLifo *l = m->lm_lifo;
+	MemLifoChunk *c1, *c2, *end;
+	MemLifo *l = m->lm_lifo;
 
 	/* 
 	 * Free big block lists before freeing chunks since freeing up 
@@ -376,7 +382,7 @@ int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
 	c1 = m->lm_big_blocks;
 	end = n->lm_big_blocks;
 	while (c1 != end) {
-	    TWAPI_MEMLIFO_ASSERT(c1);
+	    MEMLIFO_ASSERT(c1);
 	    c2 = c1->lc_prev;
 	    l->lifo_freeFn(c1, l->lifo_allocator_data);
 	    c1 = c2;
@@ -388,7 +394,7 @@ int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
 	c1 = m->lm_chunks;
 	end = n->lm_chunks;
 	while (c1 != end) {
-	    TWAPI_MEMLIFO_ASSERT(c1);
+	    MEMLIFO_ASSERT(c1);
 	    c2 = c1->lc_prev;
 	    l->lifo_freeFn(c1, l->lifo_allocator_data);
 	    c1 = c2;
@@ -399,17 +405,21 @@ int TwapiMemLifoPopMark(TwapiMemLifoMarkHandle m)
 }
 
 
-void *TwapiMemLifoPushFrame(TwapiMemLifo *l, size_t sz)
+void *MemLifoPushFrame(MemLifo *l, size_t sz, size_t *actual_szP)
 {
     void *p;
-    TwapiMemLifoMarkHandle m, n;
+    MemLifoMarkHandle m, n;
+    size_t total;
        
-    TWAPI_MEMLIFO_ASSERT(l->lifo_magic == TWAPI_MEMLIFO_MAGIC);
+    MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
     
+    if (sz > MEMLIFO_MAX_ALLOC)
+        return NULL;
+
     m = l->lifo_top_mark;
-    TWAPI_MEMLIFO_ASSERT(m);
-    TWAPI_MEMLIFO_ASSERT(ROUNDED(m->lm_free));
-    TWAPI_MEMLIFO_ASSERT(ALIGNED(m->lm_last_addr));
+    MEMLIFO_ASSERT(m);
+    MEMLIFO_ASSERT(ROUNDED(m->lm_free));
+    MEMLIFO_ASSERT(ALIGNED(m->lm_last_addr));
 
     /* 
      * Optimize for the case that the request can be satisfied from 
@@ -417,79 +427,61 @@ void *TwapiMemLifoPushFrame(TwapiMemLifo *l, size_t sz)
      * m->lm_free to guard against possible overflows if we simply do 
      * the add and a single compare.
      */
-    TWAPI_MEMLIFO_ASSERT(ROUNDED(m->lm_free));
+    MEMLIFO_ASSERT(ALIGNED(m->lm_freeptr));
     sz = ROUNDUP(sz);
-    if (sz <= m->lm_free) {
-	size_t total = sz + ROUNDUP(sizeof(*m));
-	if (total <= m->lm_free) {
-	    n = SUBPTR(m->lm_last_addr, m->lm_free, TwapiMemLifoMarkHandle);
-	    n->lm_last_addr = m->lm_last_addr;
-	    n->lm_chunks = m->lm_chunks;
-	    n->lm_big_blocks = m->lm_big_blocks;
-	    n->lm_free = m->lm_free - total;
-#ifdef TWAPI_MEMLIFO_DEBUG
-	    n->lm_magic = TWAPI_MEMLIFO_MARK_MAGIC;
-	    n->lm_seq = m->lm_seq + 1;
+    total = sz + ROUNDUP(sizeof(*m));        /* Note: ROUNDUP separately */
+    p = ADDPTR(m->lm_freeptr, total, void*); /* Potential end of mark */
+    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+        && p <= m->lm_chunks->lc_end) {
+        n = (MemLifoMark*)m->lm_freeptr;
+        n->lm_chunks = m->lm_chunks;
+        n->lm_big_blocks = m->lm_big_blocks;
+#ifdef MEMLIFO_DEBUG
+        n->lm_magic = MEMLIFO_MARK_MAGIC;
+        n->lm_seq = m->lm_seq + 1;
 #endif
-	    n->lm_prev = m;
-	    n->lm_lifo = l;
-	    l->lifo_top_mark = n;
-	    n->lm_last_alloc = ADDPTR(n, sizeof(*n), void*);
-	    return n->lm_last_alloc;
-	}
+        n->lm_prev = m;
+        n->lm_lifo = l;
+        n->lm_last_alloc = ALIGNPTR(n, sizeof(*n), void*);
+        /*
+         * If actual_szP is non-NULL, caller wants to allocate at least sz
+         * but as much as possible without allocating a new chunk
+         */
+        if (actual_szP) {
+            n->lm_freeptr = m->lm_chunks->lc_end;
+            *actual_szP = PTRDIFF(n->lm_freeptr, n->lm_last_alloc);
+        } else
+            n->lm_freeptr = p;
+
+        l->lifo_top_mark = n;
+
+        return n->lm_last_alloc;
     }
 
     /* Slow path. Allocate mark, them memory. */
-    n = TwapiMemLifoPushMark(l);
+    n = MemLifoPushMark(l);
     if (n == 0)
 	return 0;
-    p = TwapiMemLifoAlloc(l, sz);
+    p = MemLifoAlloc(l, sz, actual_szP);
     if (p == 0)
-	TwapiMemLifoPopMark(n);
+	MemLifoPopMark(n);
     return p;
 }
 
-int TwapiMemLifoPopFrame(TwapiMemLifo *l)
+void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
 {
-    TwapiMemLifoMarkHandle m = l->lifo_top_mark;
-    TwapiMemLifoMarkHandle n;
-
-    TWAPI_MEMLIFO_ASSERT(m->lm_magic == TWAPI_MEMLIFO_MARK_MAGIC);
-
-    n = m->lm_prev;             /* m == n => first mark */
-    TWAPI_MEMLIFO_ASSERT(n);
-    TWAPI_MEMLIFO_ASSERT(n->lm_lifo == m->lm_lifo);
-    TWAPI_MEMLIFO_ASSERT((n->lm_seq < m->lm_seq) || (n == m));
-
-    /* Do a fastpath check and if that does not apply, pass on request */
-    /* TBD - use a bitflag that is set at big block or chunk 
-     *       allocation time and check for this bit instead of doing 
-     *       two compares. (Will that be more efficient? Given that we 
-     *       will have to init that field?
-     */
-    if (m->lm_big_blocks == n->lm_big_blocks && m->lm_chunks == n->lm_chunks) {
-        l->lifo_top_mark = n;
-	return ERROR_SUCCESS;
-    }
-    else
-	return TwapiMemLifoPopMark(m);
-}
-
-
-void *TwapiMemLifoExpandLast(TwapiMemLifo *l, size_t incr, int fix)
-{
-    TwapiMemLifoChunk *c;
-    TwapiMemLifoMarkHandle m;
+    MemLifoMarkHandle m;
     size_t old_sz, sz, chunk_sz;
     void *p, *p2;
     char is_big_block;
+    void *end;
 
     m = l->lifo_top_mark;
     p = m->lm_last_alloc;
 
     if (p == 0) {
         /* Last alloc was a mark, Just allocate new */
-        return TwapiMemLifoAlloc(l, incr);
+        return MemLifoAlloc(l, incr, NULL);
     }
 
     incr = ROUNDUP(incr);
@@ -499,9 +491,9 @@ void *TwapiMemLifoExpandLast(TwapiMemLifo *l, size_t incr, int fix)
      * allocation was not a big block and there is enough room in the 
      * current chunk
      */
-    is_big_block = (p == ADDPTR(m->lm_big_blocks, sizeof(TwapiMemLifoChunk), void*));
-    if ((!is_big_block) && (m->lm_free >= incr)) {
-	m->lm_free -= incr;
+    is_big_block = (p == ADDPTR(m->lm_big_blocks, sizeof(MemLifoChunk), void*));
+    if ((!is_big_block) && (PTRDIFF(m->lm_chunks->lc_end, m->lm_freeptr) >= incr)) {
+	m->lm_freeptr = ADDPTR(m->lm_freeptr, incr, void*);
 	return p;
     }
 
@@ -510,42 +502,39 @@ void *TwapiMemLifoExpandLast(TwapiMemLifo *l, size_t incr, int fix)
         return 0;
 
     /* Need to allocate new block and copy to it. */
-    if (is_big_block) {
-        /* TBD - use HeapRealloc if our default allocator */
-	c = m->lm_big_blocks;
-	old_sz = c->lc_size - ROUNDUP(sizeof(*c));
-    }
-    else {
-	old_sz = (size_t) PTRDIFF(m->lm_last_addr, m->lm_last_alloc);
-	TWAPI_MEMLIFO_ASSERT(old_sz >= m->lm_free); /* Actual alloc+free space*/
-	old_sz -= m->lm_free;
-    }
+    /* TBD - use HeapRealloc if our default allocator */
+    if (is_big_block)
+	old_sz = PTRDIFF(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
+    else
+	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
 
+    MEMLIFO_ASSERT(ROUNDED(old_sz));
     sz = old_sz + incr;
-    TWAPI_MEMLIFO_ASSERT(ROUNDED(sz));
 
     /* Note so far state of memlifo has not been modified. */
 
-    if (sz > TWAPI_MEMLIFO_MAX_ALLOC)
+    if (sz > MEMLIFO_MAX_ALLOC)
         return NULL;
  
     if (is_big_block) {
+        MemLifoChunk *c;
         size_t actual_size;
 	/*
 	 * Unlink the big block from the big block list. 
-	 * TBD - when we call TwapiMemLifoAlloc here we have to call it 
+	 * TBD - when we call MemLifoAlloc here we have to call it 
 	 * with an inconsistent state of m.
 	 * Note we do not need to update previous marks since only 
 	 * topmost mark could point to allocations after the top mark.
 	 */
-        chunk_sz = sz + ROUNDUP(sizeof(TwapiMemLifoChunk));
-        c = (TwapiMemLifoChunk *) l->lifo_allocFn(chunk_sz,
+        chunk_sz = sz + ROUNDUP(sizeof(MemLifoChunk));
+        c = (MemLifoChunk *) l->lifo_allocFn(chunk_sz,
                                                   l->lifo_allocator_data,
                                                   &actual_size);
         if (c == NULL)
             return NULL;
+        MEMLIFO_ASSERT(ROUNDED(actual_size));
         
-	c->lc_size = actual_size;
+	c->lc_end = ADDPTR(c, actual_size, void*);
         p2 = ADDPTR(c, sizeof(*c), void*);
 	CopyMemory(p2, p, old_sz);
 
@@ -554,15 +543,18 @@ void *TwapiMemLifoExpandLast(TwapiMemLifo *l, size_t incr, int fix)
         l->lifo_freeFn(m->lm_big_blocks, l->lifo_allocator_data);
 	m->lm_big_blocks = c;
 	/* 
-	 * Note we do not modify m->m_free since it still refers to 
+	 * Note we do not modify m->m_freeptr since it still refers to 
 	 * the current "mainstream" chunk.
 	 */
         m->lm_last_alloc = p2;
 	return p2;
-
     } else {
-        /* Allocation was not from a big block. Note last alloc is not freed */
-        p2 = TwapiMemLifoAlloc(l, sz);
+        /*
+         * Allocation was not from a big block. Just allocate new space.
+         * Note previous space is not freed. TBD - should we just allocate
+         * a big block as above in this case and free up the main chunk space?
+         */
+        p2 = MemLifoAlloc(l, sz, NULL);
         if (p2 == NULL)
             return NULL;
 	CopyMemory(p2, p, old_sz);
@@ -571,55 +563,47 @@ void *TwapiMemLifoExpandLast(TwapiMemLifo *l, size_t incr, int fix)
 }
 
 
-void * TwapiMemLifoShrinkLast(TwapiMemLifo *l, 
+void * MemLifoShrinkLast(MemLifo *l, 
                               size_t decr,
                               int fix)
 {
     size_t old_sz;
-    void *p;
     char is_big_block;
-    TwapiMemLifoMarkHandle m;
+    MemLifoMarkHandle m;
 
     m = l->lifo_top_mark;
-    p = m->lm_last_alloc;
 
-    if (p == 0)
+    if (m->lm_last_alloc == 0)
 	return 0;
 
-    is_big_block = (p == ADDPTR(m->lm_big_blocks, sizeof(TwapiMemLifoChunk), void*));
+    is_big_block = (m->lm_last_alloc == ADDPTR(m->lm_big_blocks, sizeof(MemLifoChunk), void*));
     if (!is_big_block) {
-	old_sz = PTRDIFF(m->lm_last_addr, p);
-	TWAPI_MEMLIFO_ASSERT(old_sz >= m->lm_free);
-
-	old_sz -= m->lm_free;
-
+	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
 	/* do a size check but ignore if invalid */
+        decr = ROUNDDOWN(decr);
 	if (decr <= old_sz)
-	    m->lm_free += ROUNDDOWN(decr);
-	return p;
+	    m->lm_freeptr = SUBPTR(m->lm_freeptr, decr, void*);
     }
     else {
-        /* Big block. Don't bother. TBD - may be use HeapReAlloc in default case
- */
-        return p;
+        /* Big block. Don't bother.
+           TBD - may be use HeapReAlloc in default case */
     }
+    return m->lm_last_alloc;
 }
 
 
-void *TwapiMemLifoResizeLast(TwapiMemLifo *l, size_t new_sz, int fix)
+void *MemLifoResizeLast(MemLifo *l, size_t new_sz, int fix)
 {
     size_t old_sz;
-    void *p;
     char is_big_block;
-    TwapiMemLifoMarkHandle m;
+    MemLifoMarkHandle m;
 
     m = l->lifo_top_mark;
-    p = m->lm_last_alloc;
 
-    if (p == 0)
+    if (m->lm_last_alloc == 0)
 	return 0;
 
-    is_big_block = (p == ADDPTR(m->lm_big_blocks, sizeof(TwapiMemLifoChunk), void*));
+    is_big_block = (m->lm_last_alloc == ADDPTR(m->lm_big_blocks, sizeof(MemLifoChunk), void*));
 
     /* 
      * Special fast path when allocation is not a big block and can be 
@@ -627,35 +611,33 @@ void *TwapiMemLifoResizeLast(TwapiMemLifo *l, size_t new_sz, int fix)
      */
     new_sz = ROUNDUP(new_sz);
     if (is_big_block) {
-	old_sz = m->lm_big_blocks->lc_size - ROUNDUP(sizeof(TwapiMemLifoChunk));
+	old_sz = PTRDIFF(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
     } else {
-	old_sz = PTRDIFF(m->lm_last_addr, p);
-	TWAPI_MEMLIFO_ASSERT(old_sz >= m->lm_free);
-	old_sz -= m->lm_free;
+	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
 	if (new_sz <= old_sz) {
-	    m->lm_free += (old_sz - new_sz);
-	    return p;
+	    m->lm_freeptr = SUBPTR(m->lm_freeptr, old_sz-new_sz, void*);
+	    return m->lm_last_alloc;
 	}
     }
 
-    return (old_sz > new_sz ?
-	    TwapiMemLifoShrinkLast(l, old_sz-new_sz, fix) :
-	    TwapiMemLifoExpandLast(l, new_sz-old_sz, fix));
+    return (old_sz >= new_sz ?
+	    MemLifoShrinkLast(l, old_sz-new_sz, fix) :
+	    MemLifoExpandLast(l, new_sz-old_sz, fix));
 }
 
 
-int TwapiMemLifoValidate(TwapiMemLifo *l)
+int MemLifoValidate(MemLifo *l)
 {
-    TwapiMemLifoMark *m;
-#ifdef TWAPI_MEMLIFO_DEBUG
+    MemLifoMark *m;
+#ifdef MEMLIFO_DEBUG
     int last_seq;
 #endif
 
-    if (l->lifo_magic != TWAPI_MEMLIFO_MAGIC)
+    if (l->lifo_magic != MEMLIFO_MAGIC)
         return -1;
 
     /* First validate underlying allocations */
-    if (l->lifo_allocFn == TwapiMemLifoDefaultAlloc)
+    if (l->lifo_allocFn == MemLifoDefaultAlloc)
         if (! HeapValidate(l->lifo_allocator_data, 0, NULL))
             return -2;
 
@@ -664,12 +646,12 @@ int TwapiMemLifoValidate(TwapiMemLifo *l)
         return -3;
 
     m = l->lifo_top_mark;
-#ifdef TWAPI_MEMLIFO_DEBUG
+#ifdef MEMLIFO_DEBUG
     last_seq = 0;
 #endif
     do {
-#ifdef TWAPI_MEMLIFO_DEBUG
-        if (m->lm_magic != TWAPI_MEMLIFO_MARK_MAGIC)
+#ifdef MEMLIFO_DEBUG
+        if (m->lm_magic != MEMLIFO_MARK_MAGIC)
             return -4;
         if (m->lm_seq != last_seq+1)
             return -5;
@@ -678,25 +660,22 @@ int TwapiMemLifoValidate(TwapiMemLifo *l)
         if (m->lm_lifo != l)
             return -6;
         
-        if (m->lm_last_addr != ADDPTR(m->lm_chunks, m->lm_chunks->lc_size, void*))
-            return -10;
-
         /* last_alloc must be 0 or within m->lm_chunks range */
         if (m->lm_last_alloc) {
             if ((char*) m->lm_last_alloc < (char *) m->lm_chunks)
                 return -8;
-            if (m->lm_last_alloc >= m->lm_last_addr) {
+            if (m->lm_last_alloc >= m->lm_chunks->lc_end) {
                 /* last alloc is not in chunk. See if it is a big block */
                 if (m->lm_big_blocks == NULL ||
                     (m->lm_last_alloc != ADDPTR(m->lm_big_blocks, ROUNDUP(sizeof
-                                                                          (TwapiMemLifoChunk)), void*))) {
+                                                                          (MemLifoChunk)), void*))) {
                     /* Not a big block allocation */
                     return -9;
                 }
             }
         }
 
-        if (m->lm_free > (size_t) PTRDIFF(m->lm_last_addr, m->lm_chunks))
+        if (m->lm_freeptr > m->lm_chunks->lc_end)
             return -10;
 
         if (m == m->lm_prev) {
@@ -712,10 +691,10 @@ int TwapiMemLifoValidate(TwapiMemLifo *l)
     return 0;
 }
 
-int Twapi_MemLifoDump(TwapiInterpContext *ticP, TwapiMemLifo *l)
+int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l)
 {
     Tcl_Obj *objs[16];
-    TwapiMemLifoMark *m;
+    MemLifoMark *m;
 
     objs[0] = STRING_LITERAL_OBJ("allocator_data");
     objs[1] = ObjFromLPVOID(l->lifo_allocator_data);
@@ -737,25 +716,23 @@ int Twapi_MemLifoDump(TwapiInterpContext *ticP, TwapiMemLifo *l)
 
     m = l->lifo_top_mark;
     do {
-        Tcl_Obj *mobjs[18];
+        Tcl_Obj *mobjs[16];
         mobjs[0] = STRING_LITERAL_OBJ("magic");
         mobjs[1] = Tcl_NewLongObj(m->lm_magic);
         mobjs[2] = STRING_LITERAL_OBJ("seq");
         mobjs[3] = Tcl_NewLongObj(m->lm_seq);
         mobjs[4] = STRING_LITERAL_OBJ("lifo");
-        mobjs[5] = ObjFromOpaque(m->lm_lifo, "TwapiMemLifo*");
+        mobjs[5] = ObjFromOpaque(m->lm_lifo, "MemLifo*");
         mobjs[6] = STRING_LITERAL_OBJ("prev");
-        mobjs[7] = ObjFromOpaque(m->lm_prev, "TwapiMemLifoMark*");
+        mobjs[7] = ObjFromOpaque(m->lm_prev, "MemLifoMark*");
         mobjs[8] = STRING_LITERAL_OBJ("last_alloc");
         mobjs[9] = ObjFromLPVOID(m->lm_last_alloc);
         mobjs[10] = STRING_LITERAL_OBJ("big_blocks");
         mobjs[11] = ObjFromLPVOID(m->lm_big_blocks);
         mobjs[12] = STRING_LITERAL_OBJ("chunks");
         mobjs[13] = ObjFromLPVOID(m->lm_chunks);
-        mobjs[14] = STRING_LITERAL_OBJ("last_addr");
-        mobjs[15] = ObjFromLPVOID(m->lm_last_addr);
-        mobjs[16] = STRING_LITERAL_OBJ("lm_free");
-        mobjs[17] = ObjFromDWORD_PTR(m->lm_free);
+        mobjs[14] = STRING_LITERAL_OBJ("lm_freeptr");
+        mobjs[15] = ObjFromDWORD_PTR(m->lm_freeptr);
         Tcl_ListObjAppendElement(ticP->interp, objs[15], Tcl_NewListObj(ARRAYSIZE(mobjs), mobjs));
         
         if (m == m->lm_prev)
