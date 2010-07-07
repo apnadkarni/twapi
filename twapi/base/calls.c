@@ -1928,7 +1928,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETINT(dw3), GETNULLTOKEN(s),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_EnumServicesStatusEx(interp, h, dw, dw2, dw3, s);
+            return Twapi_EnumServicesStatusEx(ticP, h, dw, dw2, dw3, s);
 #ifndef TWAPI_LEAN
         case 10041:
             /* Init to NULL as they may be partially init'ed on error
@@ -2667,7 +2667,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 37:
             u.lifoP = TwapiAlloc(sizeof(MemLifo));
-            result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw);
+            result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
             if (result.value.ival == ERROR_SUCCESS) {
                 result.type = TRT_OPAQUE;
                 result.value.opaque.p = u.lifoP;
@@ -3225,7 +3225,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 40:
             return Twapi_GetFileType(interp, h);
         case 41:
-            return Twapi_QueryServiceConfig(interp, h);
+            return Twapi_QueryServiceConfig(ticP, h);
 #ifndef TWAPI_LEAN
         case 42:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -3360,7 +3360,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ControlService(h, dw, &u.svcstatus);
             break;
         case 1003:
-            return Twapi_EnumDependentServices(interp, h, dw);
+            return Twapi_EnumDependentServices(ticP, h, dw);
         case 1004:
             return Twapi_QueryServiceStatusEx(interp, h, dw);
         case 1005:
@@ -3408,7 +3408,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = SetConsoleTextAttribute(h, (WORD) dw);
             break;
         case 1015:
-            return Twapi_ReadConsole(interp, h, dw);
+            return Twapi_ReadConsole(ticP, h, dw);
         case 1016:
             result.type = TRT_DWORD;
             result.value.ival = GetDeviceCaps(h, dw);
@@ -3459,7 +3459,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 TRT_HANDLE : TRT_GETLASTERROR;
             break;
         case 2006:
-            return Twapi_ReadEventLog(interp, h, dw, dw2);
+            return Twapi_ReadEventLog(ticP, h, dw, dw2);
         case 2007:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);

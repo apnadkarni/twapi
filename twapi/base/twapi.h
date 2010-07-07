@@ -1196,7 +1196,7 @@ int Twapi_PdhEnumObjectItems(Tcl_Interp *, LPCWSTR source, LPCWSTR machine,
 int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
 
 /* Console related */
-int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars);
+int Twapi_ReadConsole(TwapiInterpContext *, HANDLE conh, unsigned int numchars);
 
 /* Clipboard related */
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
@@ -1292,14 +1292,12 @@ int Twapi_CreateService(Tcl_Interp *interp, int objc,
 int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc,
                               Tcl_Obj *CONST objv[]);
-int Twapi_EnumServicesStatusEx(Tcl_Interp *interp, SC_HANDLE hService,
+int Twapi_EnumServicesStatusEx(TwapiInterpContext *, SC_HANDLE hService,
                                int infolevel, DWORD dwServiceType,
                                DWORD dwServiceState,  LPCWSTR groupname);
-int Twapi_EnumDependentServices(Tcl_Interp *interp, SC_HANDLE hService, DWORD state);
+int Twapi_EnumDependentServices(TwapiInterpContext *interp, SC_HANDLE hService, DWORD state);
 int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h, SC_STATUS_TYPE level);
-int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService);
-int Twapi_EnumServicesStatus(Tcl_Interp *interp, SC_HANDLE hService,
-                             DWORD dwServiceType, DWORD dwServiceState);
+int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService);
 int Twapi_BecomeAService(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
 
 int Twapi_SetServiceStatus(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
@@ -1316,7 +1314,7 @@ int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
 /* Event log */
 BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP);
 int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ReadEventLog(Tcl_Interp *, HANDLE evlH, DWORD  flags, DWORD offset);
+int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD offset);
 
 
 /* UI and window related */

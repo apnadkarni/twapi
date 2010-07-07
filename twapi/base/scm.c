@@ -137,10 +137,10 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
         objv[2] = objmaker(dwStartType, Tcl_NewLongObj, structp); \
         objv[3] = objmaker(dwErrorControl, Tcl_NewLongObj, structp); \
         objv[4] = objmaker(dwTagId, Tcl_NewLongObj, structp); \
-        objv[5] =objmaker(lpBinaryPathName,  ObjFromUnicode, structp); \
-        objv[6] =objmaker(lpLoadOrderGroup,  ObjFromUnicode, structp); \
-        objv[7] =objmaker(lpServiceStartName,  ObjFromUnicode, structp); \
-        objv[8] =objmaker(lpDisplayName,  ObjFromUnicode, structp); \
+        objv[5] = objmaker(lpBinaryPathName,  ObjFromUnicode, structp); \
+        objv[6] = objmaker(lpLoadOrderGroup,  ObjFromUnicode, structp); \
+        objv[7] = objmaker(lpServiceStartName,  ObjFromUnicode, structp); \
+        objv[8] = objmaker(lpDisplayName,  ObjFromUnicode, structp); \
         return Tcl_NewListObj(sizeof(objv)/sizeof(objv[0]), objv);   \
     } while (0)
 
@@ -157,38 +157,50 @@ static Tcl_Obj *ObjFromQUERY_SERVICE_CONFIGW(QUERY_SERVICE_CONFIGW *qP)
 }
 #undef RETURN_QSC_FIELDS
 
-/*
- * Helper function to retrieve service config info
- * Returns a single TwapiAlloc'ed block after figuring out required size
- */
-int Twapi_QueryServiceConfig(Tcl_Interp *interp, SC_HANDLE hService)
+int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
 {
     QUERY_SERVICE_CONFIGW *qbuf;
     DWORD buf_sz;
     Tcl_Obj *objv[2];
+    DWORD winerr;
+    int   tcl_result = TCL_ERROR;
 
-    /* First find out how big a buffer we need */
-    if (! QueryServiceConfigW(hService, NULL, 0, &buf_sz)) {
-        /* For any error other than size, return */
-        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
-            return TwapiReturnSystemError(interp);
-    }
+    /* Ask for 1000 bytes alloc, will get more if available */
+    qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(&ticP->memlifo,
+                                                      1000, &buf_sz);
 
-    /* Allocate it */
-    qbuf = TwapiAlloc(buf_sz);
-
-    /* Get the configuration information.  */
     if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
-        TwapiReturnSystemError(interp); /* Store error before calling free */
-        TwapiFree(qbuf);
-        return TCL_ERROR;
+        /* For any error other than size, return */
+        winerr = GetLastError();
+        if (winerr != ERROR_INSUFFICIENT_BUFFER)
+            goto vamoose;
+
+        /* Retry allocating specified size */
+        /*
+         * Don't bother popping the memlifo frame, just alloc new.
+         * We allocated max in current memlifo chunk above anyways. Also,
+         * remember MemLifoResize will do unnecessary copy so we don't use it.
+         */
+        qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+
+        /* Get the configuration information.  */
+        if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
+            winerr = GetLastError();
+            goto vamoose;
+        }
     }
 
     objv[0] = NamesFromQUERY_SERVICE_CONFIGW();
     objv[1] = ObjFromQUERY_SERVICE_CONFIGW(qbuf);
-    TwapiFree(qbuf);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2,objv));
-    return TCL_OK;
+    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2,objv));
+    tcl_result = TCL_OK;
+
+vamoose:
+    MemLifoPopFrame(&ticP->memlifo);
+    if (tcl_result != TCL_OK)
+        Twapi_AppendSystemError(ticP->interp, winerr);
+
+    return tcl_result;
 }
 
 //#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
@@ -238,7 +250,7 @@ int  Twapi_QueryServiceLockStatus(
  * Helper function to retrieve list of services and status
  */
 int Twapi_EnumServicesStatusEx(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     SC_HANDLE hService,
     SC_ENUM_TYPE infolevel,
     DWORD     dwServiceType,
@@ -246,6 +258,7 @@ int Twapi_EnumServicesStatusEx(
     LPCWSTR   groupname
     )
 {
+    Tcl_Interp *interp = ticP->interp;
     ENUM_SERVICE_STATUS_PROCESSW *sbuf;
     DWORD buf_sz;
     DWORD buf_needed;
@@ -261,10 +274,9 @@ int Twapi_EnumServicesStatusEx(
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
 
-
-    buf_sz = 32000; /* Initial estimate based on my system */
+    /* 32000 - Initial estimate based on my system */
+    sbuf = MemLifoPushFrame(&ticP->memlifo, 32000, &buf_sz);
     resume_handle = 0;
-    sbuf = TwapiAlloc(buf_sz);
 
     objv[1] = Tcl_NewListObj(0, NULL);
     do {
@@ -286,7 +298,7 @@ int Twapi_EnumServicesStatusEx(
         if ((!success) && ((winerr = GetLastError()) != ERROR_MORE_DATA)) {
             Twapi_FreeNewTclObj(objv[1]);
             Twapi_AppendSystemError(interp, winerr);
-            TwapiFree(sbuf);
+            MemLifoPopFrame(&ticP->memlifo);
             return TCL_ERROR;
         }
 
@@ -309,6 +321,8 @@ int Twapi_EnumServicesStatusEx(
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
 
+    MemLifoPopFrame(&ticP->memlifo);
+
     /* Note order of names should be same as order of values above */
     objv[0] = NamesFromSERVICE_STATUS_PROCESS();
     Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpServiceName"));
@@ -316,16 +330,16 @@ int Twapi_EnumServicesStatusEx(
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
-    TwapiFree(sbuf);
     return TCL_OK;
 }
 
 int Twapi_EnumDependentServices(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     SC_HANDLE hService,
     DWORD     dwServiceState
     )
 {
+    Tcl_Interp *interp = ticP->interp;
     ENUM_SERVICE_STATUSW *sbuf;
     DWORD buf_sz;
     DWORD services_returned;
@@ -334,9 +348,7 @@ int Twapi_EnumDependentServices(
     DWORD winerr;
     DWORD i;
 
-    buf_sz = 4000;
-    sbuf = TwapiAlloc(buf_sz);
-
+    sbuf = MemLifoPushFrame(&ticP->memlifo, 4000, &buf_sz);
     do {
         success = EnumDependentServicesW(hService,
                                          dwServiceState,
@@ -346,12 +358,13 @@ int Twapi_EnumDependentServices(
                                          &services_returned);
         if (success)
             break;
-        if ((winerr = GetLastError()) != ERROR_MORE_DATA)
-            break;
+        winerr = GetLastError();
+        MemLifoPopFrame(&ticP->memlifo);
+        if (winerr != ERROR_MORE_DATA) 
+            return Twapi_AppendSystemError(interp, winerr);
 
         /* Need a bigger buffer */
-        TwapiFree(sbuf);
-        sbuf = TwapiAlloc(buf_sz);
+        sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
     } while (1);
 
     objv[1] = Tcl_NewListObj(0, NULL);
@@ -378,7 +391,7 @@ int Twapi_EnumDependentServices(
     Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpDisplayName"));
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
-    TwapiFree(sbuf);
+    MemLifoPopFrame(&ticP->memlifo);
     return TCL_OK;
 }
 

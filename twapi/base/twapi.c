@@ -199,7 +199,8 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
 
-    winerr = MemLifoInit(&ticP->memlifo, NULL, NULL, NULL, 8000);
+    winerr = MemLifoInit(&ticP->memlifo, NULL, NULL, NULL, 8000,
+                         MEMLIFO_F_PANIC_ON_FAIL);
     if (winerr != ERROR_SUCCESS) {
         Twapi_AppendSystemError(interp, winerr);
         return NULL;
