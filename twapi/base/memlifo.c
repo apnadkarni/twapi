@@ -13,9 +13,9 @@
 #define ALIGNMENT sizeof(__int64)
 #define ALIGNMASK (~(INT_PTR)(ALIGNMENT-1))
 /* Round up to alignment size */
-#define ROUNDUP(x_) (( ALIGNMENT - 1 + (INT_PTR)(x_)) & ALIGNMASK)
+#define ROUNDUP(x_) (( ALIGNMENT - 1 + (x_)) & ALIGNMASK)
 #define ROUNDED(x_) (ROUNDUP(x_) == (x_))
-#define ROUNDDOWN(x_) (ALIGNMASK & (INT_PTR)(x_))
+#define ROUNDDOWN(x_) (ALIGNMASK & (x_))
 
 /* Note diff between ALIGNPTR and ADDPTR is that former aligns the pointer */
 #define ALIGNPTR(base_, offset_, type_) \
@@ -25,10 +25,15 @@
 #define SUBPTR(p_, decr_, type_) \
     ((type_)(((char *)(p_)) - (decr_)))
 #define ALIGNED(p_) (ROUNDED((DWORD_PTR)(p_)))
-#define PTRDIFF(p_, q_) ((char*)(p_) - (char *)(q_))
+
+/*
+ * Pointer diff assuming difference fits in 32 bits. That should be always
+ * true even on 64-bit systems because of our limits on alloc size
+ */
+#define PTRDIFF32(p_, q_) ((int)((char*)(p_) - (char *)(q_)))
 
 /* MAX alloc is mainly to catch errors */
-#define MEMLIFO_MAX_ALLOC ((size_t) 1000000)
+#define MEMLIFO_MAX_ALLOC 1000000
 
 typedef struct _MemLifoChunk MemLifoChunk;
 
@@ -79,11 +84,11 @@ typedef struct _MemLifoMark {
     void *lm_freeptr;           /* Ptr to unused space */
 } MemLifoMark;
 
-static void *MemLifoDefaultAlloc(size_t sz, HANDLE heap, size_t *actual)
+static void *MemLifoDefaultAlloc(DWORD sz, HANDLE heap, DWORD *actual)
 {
     void *p = HeapAlloc(heap, 0, sz);
     if (actual)
-        *actual = HeapSize(heap, 0, p);
+        *actual = (DWORD) HeapSize(heap, 0, p);
     return p;
 }
 
@@ -98,11 +103,13 @@ int MemLifoInit(
     void *allocator_data,
     MemLifoChunkAllocFn *allocFunc,
     MemLifoChunkFreeFn *freeFunc,
-    size_t chunk_sz)
+    DWORD chunk_sz,
+    int flags
+    )
 {
     MemLifoChunk *c;
     MemLifoMarkHandle m;
-    size_t actual_chunk_sz;
+    DWORD actual_chunk_sz;
 
     if (allocFunc == 0) {
         allocator_data = HeapCreate(0, 0, 0);
@@ -120,8 +127,11 @@ int MemLifoInit(
 
     /* Allocate a chunk and allocate space for the lifo descriptor from it */
     c = allocFunc(chunk_sz, allocator_data, &actual_chunk_sz);
-    if (c == 0)
+    if (c == 0) {
+        if (flags & MEMLIFO_F_PANIC_ON_FAIL)
+            Tcl_Panic("Could not initialize memlifo");
         return ERROR_OUTOFMEMORY;
+    }
 
     c->lc_prev = NULL;
     c->lc_end = ADDPTR(c, actual_chunk_sz, void*);
@@ -130,6 +140,7 @@ int MemLifoInit(
     l->lifo_allocFn = allocFunc;
     l->lifo_freeFn = freeFunc;
     l->lifo_chunk_size = ROUNDUP(chunk_sz); /* What caller asked, not actual_chunk_sz */
+    l->lifo_flags = flags;
     l->lifo_magic = MEMLIFO_MAGIC;
 
     /* Allocate mark from chunk itself */
@@ -169,15 +180,18 @@ void MemLifoClose(MemLifo *l)
 }
 
 
-void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
+void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
 {
     MemLifoChunk *c;
     MemLifoMarkHandle m;
-    size_t chunk_sz;
+    DWORD chunk_sz;
     void *p;
 
-    if (sz > MEMLIFO_MAX_ALLOC)
+    if (sz > MEMLIFO_MAX_ALLOC) {
+        if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+            Tcl_Panic("Attempt to allocate %d bytes for memlifo", sz);
         return NULL;
+    }
 
     /* 
      * NOTE: note that when called from MemLifoExpandLast(), on entry the 
@@ -195,7 +209,7 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
 
     sz = ROUNDUP(sz);
     p = ADDPTR(m->lm_freeptr, sz, void*); /* New end of used space */
-    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+    if (p > (void*) m->lm_chunks                  /* Ensure no wrap-around! */
         && p <= m->lm_chunks->lc_end) {
         /* OK, not beyond the end of the chunk */
 	m->lm_last_alloc = m->lm_freeptr;
@@ -206,7 +220,7 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
          */
         if (actual_szP) {
             m->lm_freeptr = m->lm_chunks->lc_end;
-            *actual_szP = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+            *actual_szP = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
         } else 
             m->lm_freeptr = p;
 	return 	m->lm_last_alloc;
@@ -233,7 +247,7 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
      * in place.
      */
     /* TBD - make it /2 instead of /8 ? */
-    if (PTRDIFF(m->lm_chunks->lc_end, m->lm_freeptr) < l->lifo_chunk_size/8) {
+    if (PTRDIFF32(m->lm_chunks->lc_end, m->lm_freeptr) < (int) l->lifo_chunk_size/8) {
         /* Little space in the current chunk
          * Allocate a new chunk and suballocate from it.
          * 
@@ -249,8 +263,11 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
         chunk_sz += ROUNDUP(sizeof(MemLifoChunk));
 
 	c = l->lifo_allocFn(chunk_sz, l->lifo_allocator_data, &chunk_sz);
-	if (c == 0)
+	if (c == 0) {
+            if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+                Tcl_Panic("Attempt to allocate %d bytes for memlifo", chunk_sz);
 	    return 0;
+        }
 
 	c->lc_end = ADDPTR(c, chunk_sz, void*);
 
@@ -262,15 +279,17 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
     }
     else {
 	/* Allocate a separate big block. */
-        size_t actual_size;
+        DWORD actual_size;
         chunk_sz = sz + ROUNDUP(sizeof(MemLifoChunk));
 
 	c = (MemLifoChunk *) l->lifo_allocFn(chunk_sz,
                                                   l->lifo_allocator_data,
                                                   &actual_size);
-	if (c == 0)
+	if (c == 0) {
+            if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+                Tcl_Panic("Attempt to allocate %d bytes for memlifo", chunk_sz);
 	    return 0;
-
+        }
 	c->lc_end = ADDPTR(c, actual_size, void*);
 
 	c->lc_prev = m->lm_big_blocks;	/* Place on the list of big blocks */
@@ -282,18 +301,17 @@ void* MemLifoAlloc(MemLifo *l,  size_t sz, size_t *actual_szP)
 	m->lm_last_alloc = ALIGNPTR(c, sizeof(*c), void*);
     }
     if (actual_szP)
-        *actual_szP = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+        *actual_szP = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
     return m->lm_last_alloc;
 }
-
 
 MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
 {
     MemLifoMarkHandle m;			/* Previous (existing) mark */
     MemLifoMarkHandle n;			/* New mark */
     MemLifoChunk *c;
-    size_t chunk_sz;
-    size_t mark_sz;
+    DWORD chunk_sz;
+    DWORD mark_sz;
     void *p;
     
     m = l->lifo_top_mark;
@@ -306,7 +324,7 @@ MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
      */
     mark_sz = ROUNDUP(sizeof(MemLifoMark));
     p = ADDPTR(m->lm_freeptr, mark_sz, void*); /* Potential end of mark */
-    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+    if (p > (void*) m->lm_chunks                  /* Ensure no wrap-around! */
         && p <= m->lm_chunks->lc_end) {
         /* Enough room for the mark in this chunk */
 	MEMLIFO_ASSERT(ALIGNED(m->lm_lastAddr));
@@ -323,11 +341,13 @@ MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
 	c = l->lifo_allocFn(l->lifo_chunk_size,
                             l->lifo_allocator_data,
                             &chunk_sz);
-	if (c == 0)
+	if (c == 0) {
+            if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+                Tcl_Panic("Attempt to allocate %d bytes for memlifo", l->lifo_chunk_size);
 	    return 0;
-	
-	c->lc_end = ADDPTR(c, chunk_sz, void*);
-	
+        }	
+	c->lc_end = ADDPTR(c, chunk_sz, void*);	
+
 	/* 
 	 * Place on the list of chunks. Note however, that we do NOT 
 	 * modify m->lm_chunkList since that should hold the original lifo 
@@ -405,16 +425,19 @@ int MemLifoPopMark(MemLifoMarkHandle m)
 }
 
 
-void *MemLifoPushFrame(MemLifo *l, size_t sz, size_t *actual_szP)
+void *MemLifoPushFrame(MemLifo *l, DWORD sz, DWORD *actual_szP)
 {
     void *p;
     MemLifoMarkHandle m, n;
-    size_t total;
+    DWORD total;
        
     MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
     
-    if (sz > MEMLIFO_MAX_ALLOC)
+    if (sz > MEMLIFO_MAX_ALLOC) {
+        if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+            Tcl_Panic("Attempt to allocate %d bytes for memlifo", sz);
         return NULL;
+    }
 
     m = l->lifo_top_mark;
     MEMLIFO_ASSERT(m);
@@ -431,7 +454,7 @@ void *MemLifoPushFrame(MemLifo *l, size_t sz, size_t *actual_szP)
     sz = ROUNDUP(sz);
     total = sz + ROUNDUP(sizeof(*m));        /* Note: ROUNDUP separately */
     p = ADDPTR(m->lm_freeptr, total, void*); /* Potential end of mark */
-    if (p > m->lm_chunks                  /* Ensure no wrap-around! */
+    if (p > (void*) m->lm_chunks                  /* Ensure no wrap-around! */
         && p <= m->lm_chunks->lc_end) {
         n = (MemLifoMark*)m->lm_freeptr;
         n->lm_chunks = m->lm_chunks;
@@ -449,7 +472,7 @@ void *MemLifoPushFrame(MemLifo *l, size_t sz, size_t *actual_szP)
          */
         if (actual_szP) {
             n->lm_freeptr = m->lm_chunks->lc_end;
-            *actual_szP = PTRDIFF(n->lm_freeptr, n->lm_last_alloc);
+            *actual_szP = PTRDIFF32(n->lm_freeptr, n->lm_last_alloc);
         } else
             n->lm_freeptr = p;
 
@@ -460,21 +483,23 @@ void *MemLifoPushFrame(MemLifo *l, size_t sz, size_t *actual_szP)
 
     /* Slow path. Allocate mark, them memory. */
     n = MemLifoPushMark(l);
-    if (n == 0)
-	return 0;
-    p = MemLifoAlloc(l, sz, actual_szP);
-    if (p == 0)
-	MemLifoPopMark(n);
-    return p;
+    if (n) {
+        p = MemLifoAlloc(l, sz, actual_szP);
+        if (p)
+            return p;
+        MemLifoPopMark(n);
+    }
+    if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
+        Tcl_Panic("Attempt to allocate %d bytes for memlifo", sz);
+    return NULL;
 }
 
-void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
+void *MemLifoExpandLast(MemLifo *l, DWORD incr, int fix)
 {
     MemLifoMarkHandle m;
-    size_t old_sz, sz, chunk_sz;
+    DWORD old_sz, sz, chunk_sz;
     void *p, *p2;
     char is_big_block;
-    void *end;
 
     m = l->lifo_top_mark;
     p = m->lm_last_alloc;
@@ -492,7 +517,7 @@ void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
      * current chunk
      */
     is_big_block = (p == ADDPTR(m->lm_big_blocks, sizeof(MemLifoChunk), void*));
-    if ((!is_big_block) && (PTRDIFF(m->lm_chunks->lc_end, m->lm_freeptr) >= incr)) {
+    if ((!is_big_block) && (PTRDIFF32(m->lm_chunks->lc_end, m->lm_freeptr) >= (int) incr)) {
 	m->lm_freeptr = ADDPTR(m->lm_freeptr, incr, void*);
 	return p;
     }
@@ -504,9 +529,9 @@ void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
     /* Need to allocate new block and copy to it. */
     /* TBD - use HeapRealloc if our default allocator */
     if (is_big_block)
-	old_sz = PTRDIFF(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
+	old_sz = PTRDIFF32(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
     else
-	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+	old_sz = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
 
     MEMLIFO_ASSERT(ROUNDED(old_sz));
     sz = old_sz + incr;
@@ -515,10 +540,10 @@ void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
 
     if (sz > MEMLIFO_MAX_ALLOC)
         return NULL;
- 
+
     if (is_big_block) {
         MemLifoChunk *c;
-        size_t actual_size;
+        DWORD actual_size;
 	/*
 	 * Unlink the big block from the big block list. 
 	 * TBD - when we call MemLifoAlloc here we have to call it 
@@ -530,8 +555,9 @@ void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
         c = (MemLifoChunk *) l->lifo_allocFn(chunk_sz,
                                                   l->lifo_allocator_data,
                                                   &actual_size);
-        if (c == NULL)
+        if (c == NULL) {
             return NULL;
+        }
         MEMLIFO_ASSERT(ROUNDED(actual_size));
         
 	c->lc_end = ADDPTR(c, actual_size, void*);
@@ -564,10 +590,10 @@ void *MemLifoExpandLast(MemLifo *l, size_t incr, int fix)
 
 
 void * MemLifoShrinkLast(MemLifo *l, 
-                              size_t decr,
+                              DWORD decr,
                               int fix)
 {
-    size_t old_sz;
+    DWORD old_sz;
     char is_big_block;
     MemLifoMarkHandle m;
 
@@ -578,7 +604,7 @@ void * MemLifoShrinkLast(MemLifo *l,
 
     is_big_block = (m->lm_last_alloc == ADDPTR(m->lm_big_blocks, sizeof(MemLifoChunk), void*));
     if (!is_big_block) {
-	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+	old_sz = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
 	/* do a size check but ignore if invalid */
         decr = ROUNDDOWN(decr);
 	if (decr <= old_sz)
@@ -592,9 +618,9 @@ void * MemLifoShrinkLast(MemLifo *l,
 }
 
 
-void *MemLifoResizeLast(MemLifo *l, size_t new_sz, int fix)
+void *MemLifoResizeLast(MemLifo *l, DWORD new_sz, int fix)
 {
-    size_t old_sz;
+    DWORD old_sz;
     char is_big_block;
     MemLifoMarkHandle m;
 
@@ -611,9 +637,9 @@ void *MemLifoResizeLast(MemLifo *l, size_t new_sz, int fix)
      */
     new_sz = ROUNDUP(new_sz);
     if (is_big_block) {
-	old_sz = PTRDIFF(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
+	old_sz = PTRDIFF32(m->lm_big_blocks->lc_end, m->lm_big_blocks) - ROUNDUP(sizeof(MemLifoChunk));
     } else {
-	old_sz = PTRDIFF(m->lm_freeptr, m->lm_last_alloc);
+	old_sz = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
 	if (new_sz <= old_sz) {
 	    m->lm_freeptr = SUBPTR(m->lm_freeptr, old_sz-new_sz, void*);
 	    return m->lm_last_alloc;
@@ -690,6 +716,7 @@ int MemLifoValidate(MemLifo *l)
 
     return 0;
 }
+
 
 int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l)
 {

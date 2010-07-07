@@ -17,7 +17,7 @@ typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;
 typedef MemLifoMark *MemLifoMarkHandle;
 
-typedef void *MemLifoChunkAllocFn(size_t sz, void *alloc_data, size_t *actual_szP);
+typedef void *MemLifoChunkAllocFn(DWORD sz, void *alloc_data, DWORD *actual_szP);
 typedef void MemLifoChunkFreeFn(void *p, void *alloc_data);
 
 struct _MemLifo {
@@ -27,9 +27,11 @@ struct _MemLifo {
     MemLifoChunkFreeFn *lifo_freeFn;
     MemLifoMarkHandle lifo_top_mark;  /* Topmost mark */
     MemLifoMarkHandle lifo_bot_mark; /* Bottommost mark */
-    size_t	lifo_chunk_size;   /* Size of each chunk to allocate.
+    DWORD	lifo_chunk_size;   /* Size of each chunk to allocate.
                                       Note this size might not be a multiple
                                       of the alignment size */
+    int                 lifo_flags;
+#define MEMLIFO_F_PANIC_ON_FAIL 0x1    
     LONG		lifo_magic;	/* Only used in debug mode */
 #define MEMLIFO_MAGIC 0xb92c610a
 };
@@ -72,12 +74,13 @@ int MemLifoInit
 				   freed. This routine must be specified
 				   unless allocFunc is 0. If allocFunc is 0,
 				   the value of this parameter is ignored. */
-     size_t chunkSz             /* Default unit size for allocating memory
+    DWORD chunkSz,             /* Default unit size for allocating memory
 				   from (*allocFunc) as needed. This does
 				   not include space for descriptor at start
 				   of each allocation. The implementation
 				   has a minimum default which will be used
 				   if chunkSz is too small. */
+    int    flags                /* See MEMLIFO_F_* definitions */
      );
 
 
@@ -93,17 +96,16 @@ void MemLifoClose(MemLifo  *lifoP);
 Allocate memory from LIFO memory pool
 
 Allocates memory from a LIFO memory pool and returns a pointer to it.
-
-See also MemLifoInit, MemLifoMark, MemLifoPopMark,
-MemLifoPushFrame
+If memory cannot be allocated, returns NULL unless MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool, in which case it panics.
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
 void* MemLifoAlloc
     (
      MemLifo *lifoP,    /* LIFO pool to allocate from */
-     size_t sz,         /* Number of bytes to allocate */
-     size_t *actual_szP /* If non-NULL, allocates max possible in chunk
+     DWORD sz,         /* Number of bytes to allocate */
+     DWORD *actual_szP /* If non-NULL, allocates max possible in chunk
                            and returns the value here*/
     );
 
@@ -123,15 +125,16 @@ allocated through MemLifoMark or MemLifoPushFrame.
 Alternatively, the mark and associated memory are also freed when a
 previosly allocated mark is released.
 
-See also MemLifoAlloc, MemLifoPopFrame
+If memory cannot be allocated, returns NULL unless MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool, in which case it panics.
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
 void *MemLifoPushFrame
 (
     MemLifo *lifoP,		/* LIFO pool to allocate from */
-    size_t sz,			/* Number of bytes to allocate */
-    size_t *actual_szP          /* If non-NULL, allocates max possible in chunk
+    DWORD sz,			/* Number of bytes to allocate */
+    DWORD *actual_szP          /* If non-NULL, allocates max possible in chunk
                                    and returns the value here*/
     );
 
@@ -141,8 +144,6 @@ Release the topmost mark from a MemLifo_t
 Releases the topmost (last allocated) mark from a MemLifo_t. The
 mark may have been allocated using either MemLifoMark or
 MemLifoPushFrame.
-
-See also MemLifoAlloc, MemLifoPushFrame, MemLifoMark
 
 Returns ERROR_SUCCESS or Win32 status code on error
 */
@@ -157,8 +158,8 @@ created but they must be popped in reverse order. However, not all marks
 need be popped since popping a mark automatically pops all marks created
 after it.
 
-See also MemLifoAlloc, MemLifoPopMark, MemLifoMarkedAlloc,
-MemLifoAllocFrame
+If memory cannot be allocated, returns NULL unless MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool, in which case it panics.
 
 Returns a handle for the mark if successful, 0 on failure.
 */
@@ -175,8 +176,6 @@ not subsequently call this routine with marks created between the
 MemLifoMark and this MemLifoPopMark as they will have been
 freed as well. The mark being passed to this routine is freed as well
 and hence must not be reused.
-
-See also MemLifoAlloc, MemLifoMark, MemLifoMarkedAlloc
 
 Returns 0 on success, 1 on failure
 */
@@ -201,7 +200,9 @@ allocated block cannot be expanded without moving and dontMove is set,
 if it is not the last allocation from the LIFO memory pool, or if a mark
 has been allocated after this block, or if there is insufficient memory.
 
-On failure, the function return a NULL pointer.
+On failure, the function return a NULL pointer. 
+Note the function does not panic even if MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool.
 
 Returns pointer to new block position on success, else a NULL pointer.
 */
@@ -209,7 +210,7 @@ void * MemLifoExpandLast
     (
      MemLifo *lifoP,		/* Lifo pool from which alllocation
 					   was made */
-     size_t incr,			/* The amount by which the
+     DWORD incr,			/* The amount by which the
 					   block is to be expanded. */
      int dontMove			/* If 0, block may be moved if
 					   necessary to expand. If non-0, the
@@ -234,12 +235,14 @@ On success, the size of the block is not guaranteed to have been decreased.
 
 Returns pointer to address of relocated block or a null pointer if a mark
 was allocated after the last allocation.
+Note the function does not panic even if MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool.
 */
 void *MemLifoShrinkLast
     (
      MemLifo *lifoP,       /* Lifo pool from which alllocation
                                    was made */
-     size_t decr,               /* The amount by which the
+     DWORD decr,               /* The amount by which the
                                    block is to be shrunk. */
      int dontMove              /* If 0, block may be moved in order
                                    to reduce memory fragmentation.
@@ -264,11 +267,13 @@ size. The function may fail if the block cannot be resized without moving
 and dontMove is set, or if there is insufficient memory.
 
 Returns pointer to new block position on success, else a NULL pointer.
+Note the function does not panic even if MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool.
 */
 void * MemLifoResizeLast
 (
     MemLifo *lifoP,        /* Lifo pool from which allocation was made */
-    size_t newSz,		/* New size of the block */
+    DWORD newSz,		/* New size of the block */
     int dontMove                /* If 0, block may be moved if
                                    necessary to expand. If non-0, the
                                    function will fail if the block

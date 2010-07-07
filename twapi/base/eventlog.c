@@ -59,39 +59,46 @@ BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP)
 }
 
 int Twapi_ReadEventLog(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     HANDLE evlH,
     DWORD  flags,
     DWORD  offset
     )
 {
-    char   buf[2048];
-    DWORD  buf_sz = sizeof(buf);
+    DWORD  buf_sz;
     char  *bufP;
     DWORD  num_read;
     EVENTLOGRECORD *evlP;
-    int result = TCL_ERROR;
     Tcl_Obj *resultObj;
+    DWORD winerr = ERROR_SUCCESS;
+    Tcl_Interp *interp = ticP->interp;
     
-    bufP = buf;
+    /* Ask for 1000 bytes alloc, will get more if available */
+    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
+
     if (! ReadEventLogW(evlH, flags, offset,
                         bufP, buf_sz, &num_read, &buf_sz)) {
         /* If buffer too small, dynamically allocate, else return error */
-        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-            return TwapiReturnSystemError(interp);
-        }
-        bufP = TwapiAlloc(buf_sz);
+        winerr = GetLastError();
+        if (winerr != ERROR_INSUFFICIENT_BUFFER)
+            goto vamoose;
+        /*
+         * Don't bother popping the memlifo frame, just alloc new.
+         * We allocated max in current memlifo chunk above anyways. Also,
+         * remember MemLifoResize will do unnecessary copy so we don't use it.
+         */
+        bufP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
         /* Retry */
         if (! ReadEventLogW(evlH, flags, offset,
                             bufP, buf_sz, &num_read, &buf_sz)) {
-            return TwapiReturnSystemError(interp);
+            winerr = GetLastError();
+            goto vamoose;
         }
     }
 
     /* Loop through all records, adding them to the record list */
     evlP = (EVENTLOGRECORD *) bufP;
     resultObj = Tcl_NewListObj(0, NULL);
-    result = TCL_OK;
     while (num_read > 0) {
         Tcl_Obj *objv[14];
         PSID     sidP;
@@ -137,7 +144,6 @@ int Twapi_ReadEventLog(
             Tcl_NewByteArrayObj(evlP->DataOffset + (unsigned char *) evlP,
                                 evlP->DataLength);
 
-
         /* Now attach this record to event record list */
         Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewListObj(14, objv));
 
@@ -146,13 +152,15 @@ int Twapi_ReadEventLog(
         evlP = (EVENTLOGRECORD *) (evlP->Length + (char *)evlP);
     }
 
-    if (result == TCL_OK) {
+vamoose:
+    MemLifoPopFrame(&ticP->memlifo);
+    if (winerr == ERROR_SUCCESS) {
         Tcl_SetObjResult(interp, resultObj);
+        return TCL_OK;
+    } else {
+        Twapi_AppendSystemError(interp, winerr);
+        return TCL_ERROR;
     }
-
-    if (bufP != buf)
-        TwapiFree(bufP);
-    return result;
 }
 
 

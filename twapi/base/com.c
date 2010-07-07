@@ -1078,10 +1078,10 @@ int Twapi_ComEventSinkObjCmd(
 
 
 int Twapi_IDispatch_InvokeObjCmd(
-    ClientData dummy,		/* Not used. */
-    Tcl_Interp *interp,		/* Current interpreter. */
-    int objc,			/* Number of arguments. */
-    Tcl_Obj *CONST objv[])	/* Argument objects. */
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
 {
     IDispatch *idispP;
     LCID       lcid;
@@ -1176,8 +1176,12 @@ int Twapi_IDispatch_InvokeObjCmd(
      * where the param is by reference.
      */
     nargalloc = (1+(2*nparams));
-    dispargP = TwapiAlloc(nargalloc * sizeof(*dispargP));
-    paramflagsP = TwapiAlloc((nparams+1)*sizeof(*paramflagsP));
+    dispargP = MemLifoPushFrame(&ticP->memlifo,
+                                nargalloc * sizeof(*dispargP),
+                                NULL);
+    paramflagsP = MemLifoAlloc(&ticP->memlifo,
+                               (nparams+1)*sizeof(*paramflagsP),
+                               NULL);
 
     /* Init all so they're all valid in case we take an early error exit
      *   and have to clear them before return
@@ -1364,11 +1368,9 @@ int Twapi_IDispatch_InvokeObjCmd(
         /* Release anything allocated for each param */
         for (i = 1; i < nargalloc; ++i)
             TwapiClearVariantParam(interp, &dispargP[i]);
-
-        TwapiFree(dispargP);
     }
-    if (paramflagsP)
-        TwapiFree(paramflagsP);
+    if (dispargP || paramflagsP)
+        MemLifoPopFrame(&ticP->memlifo);
 
     return status;
 }
@@ -1399,14 +1401,15 @@ int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei,
     return TCL_ERROR;
 }
 
-int TwapiGetIDsOfNamesHelper(
-    Tcl_Interp *interp,
+static int TwapiGetIDsOfNamesHelper(
+    TwapiInterpContext *ticP,
     void *ifcP,
     Tcl_Obj *namesObj,
     LCID lcid,
     int ifc_type /* 0 -> IDispatch, 1 -> ITypeInfo */
     )
 {
+    Tcl_Interp *interp = ticP->interp;
     DISPID *ids = NULL;
     HRESULT hr;
     int     status = TCL_ERROR;
@@ -1417,13 +1420,14 @@ int TwapiGetIDsOfNamesHelper(
     /* Convert the list object into an array of points to strings */
     if (Tcl_ListObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
         return TCL_ERROR;
-    names = TwapiAlloc(nitems*sizeof(*names));
+
+    names = MemLifoPushFrame(&ticP->memlifo, nitems*sizeof(*names), NULL);
 
     for (i = 0; i < nitems; i++)
         names[i] = Tcl_GetUnicode(items[i]);
 
     /* Allocate an array to hold returned ids */
-    ids = TwapiAlloc(nitems * sizeof(*ids));
+    ids = MemLifoAlloc(&ticP->memlifo, nitems * sizeof(*ids), NULL);
 
     /* Map the names to ids */
     switch (ifc_type) {
@@ -1455,10 +1459,7 @@ int TwapiGetIDsOfNamesHelper(
         status = TCL_ERROR;
     }
 vamoose:
-    if (ids)
-        TwapiFree(ids);
-    if (names)
-        TwapiFree(names);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return status;
 }
@@ -2158,13 +2159,14 @@ int Twapi_IRecordInfo_GetFieldNames(Tcl_Interp *interp, IRecordInfo *riP)
 }
 
 
-int TwapiIEnumNextHelper(Tcl_Interp *interp,
+int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
                          void *com_interface,
                          unsigned long count,
                          int enum_type,
                          int flags
     )
 {
+    Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *objv[2];           // {More, List_of_elements}
     union {
         void        *pv;
@@ -2209,7 +2211,7 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
         
     }
 
-    u.pv = TwapiAlloc(count * elem_size);
+    u.pv = MemLifoPushFrame(&ticP->memlifo, (DWORD) (count * elem_size), NULL);
 
     switch (enum_type) {
     case 0:
@@ -2232,8 +2234,7 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
      *      else error
      */
     if (hr != S_OK && hr != S_FALSE) {
-        if (u.pv)
-            TwapiFree(u.pv);
+        MemLifoPopFrame(&ticP->memlifo);
         return Twapi_AppendSystemError(interp, hr);
     }
 
@@ -2259,15 +2260,14 @@ int TwapiIEnumNextHelper(Tcl_Interp *interp,
         }
     }
         
-    if (u.pv)
-        TwapiFree(u.pv);
+    MemLifoPopFrame(&ticP->memlifo);
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
     return TCL_OK;
 }
 
 
 /* Dispatcher for calling COM object methods */
-int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     union {
         IUnknown *unknown;
@@ -2401,7 +2401,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
             return TwapiGetIDsOfNamesHelper(
-                interp, ifc.dispatch, objv[3],
+                ticP, ifc.dispatch, objv[3],
                 dw1,              /* LCID */
                 0);             /* 0->IDispatch interface */
         }
@@ -2465,7 +2465,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             if (objc != 4)
                 goto badargs;
             return TwapiGetIDsOfNamesHelper(
-                interp, ifc.typeinfo, objv[3],
+                ticP, ifc.typeinfo, objv[3],
                 0,              /* Unused */
                 1);             /* 1->ITypeInfo interface */
         }
@@ -2800,7 +2800,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             dw2 = 0;            /* By default tagged value */
             if (objc > 4)
                 CHECK_INTEGER_OBJ(interp, dw2, objv[4]);
-            return TwapiIEnumNextHelper(interp,ifc.enumvariant,dw1,1,dw2);
+            return TwapiIEnumNextHelper(ticP,ifc.enumvariant,dw1,1,dw2);
         }        
     } else if (func < 900) {
         /* IConnectionPoint */
@@ -2916,7 +2916,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            return TwapiIEnumNextHelper(interp,ifc.enumconnectionpoints,
+            return TwapiIEnumNextHelper(ticP,ifc.enumconnectionpoints,
                                         dw1, 2, 0);
         }        
     } else if (func < 1200) {
@@ -2951,7 +2951,7 @@ int Twapi_CallCOMObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            return TwapiIEnumNextHelper(interp,ifc.enumconnections,dw1,0,0);
+            return TwapiIEnumNextHelper(ticP, ifc.enumconnections,dw1,0,0);
         }        
     } else if (func == 1201) {
         /* IProvideClassInfo */

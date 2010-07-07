@@ -14,27 +14,23 @@ static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl_event);
 static int TwapiConsoleCtrlCallbackFn(TwapiCallback *cbP);
 
 
-int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
+int Twapi_ReadConsole(TwapiInterpContext *ticP, HANDLE conh, unsigned int numchars)
 {
-    WCHAR  buf[256];
-    WCHAR *bufP = buf;
+    WCHAR *bufP;
     DWORD  len;
-    int status = TCL_ERROR;
+    int status;
 
-    if (numchars > ARRAYSIZE(buf))
-        bufP = TwapiAlloc(sizeof(WCHAR) * numchars);
+    bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR) * numchars, NULL);
 
-    if (! ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
-        TwapiReturnSystemError(interp);
-        goto vamoose;
+    if (ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
+        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(bufP, len));
+        status = TCL_OK;
+    } else {
+        TwapiReturnSystemError(ticP->interp);
+        status = TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, len));
-    status = TCL_OK;
-
-vamoose:
-    if (bufP != buf)
-        TwapiFree(bufP);
+    MemLifoPopFrame(&ticP->memlifo);
     return status;
 }
 
