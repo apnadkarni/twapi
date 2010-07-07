@@ -953,8 +953,9 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     }
 
     /* Note we  will tack on 3 additional fixed arguments plus dispparms */
+    /* TBD - where is this freed ? */
     cmdobjv = TwapiAlloc((cmdobjc+4) * sizeof(*cmdobjv));
-
+    
     for (i = 0; i < cmdobjc; ++i) {
         cmdobjv[i] = cmdprefixv[i];
     }
@@ -1055,6 +1056,7 @@ int Twapi_ComEventSinkObjCmd(
         return TCL_ERROR;
     }
 
+    /* This is freed when the sink object is released */
     sinkP = TwapiAlloc(sizeof(*sinkP));
 
     /* Fill in the cmdargs slots from the arguments */
