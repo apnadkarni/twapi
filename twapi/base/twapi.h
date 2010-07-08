@@ -1050,9 +1050,9 @@ void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
 
 /* Processes and threads */
 int Twapi_GetProcessList(Tcl_Interp *interp, DWORD pid, int flags);
-int Twapi_EnumProcesses (Tcl_Interp *interp);
-int Twapi_EnumDeviceDrivers(Tcl_Interp *interp);
-int Twapi_EnumProcessModules(Tcl_Interp *interp, HANDLE phandle);
+int Twapi_EnumProcesses (TwapiInterpContext *ticP);
+int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP);
+int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle);
 int TwapiCreateProcessHelper(Tcl_Interp *interp, int func, int objc, Tcl_Obj * CONST objv[]);
 int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
                                                     HANDLE processH);
@@ -1214,19 +1214,19 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR sitenameP, ULONG flags);
 
 /* Network related */
-int Twapi_GetNetworkParams(Tcl_Interp *interp);
-int Twapi_GetAdaptersInfo(Tcl_Interp *interp);
-int Twapi_GetInterfaceInfo(Tcl_Interp *interp);
-int Twapi_GetPerAdapterInfo(Tcl_Interp *interp, int adapter_index);
+int Twapi_GetNetworkParams(TwapiInterpContext *ticP);
+int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP);
+int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP);
+int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index);
 int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index);
-int Twapi_GetIfTable(Tcl_Interp *interp, int sort);
-int Twapi_GetIpAddrTable(Tcl_Interp *interp, int sort);
-int Twapi_GetIpNetTable(Tcl_Interp *interp, int sort);
-int Twapi_GetIpForwardTable(Tcl_Interp *interp, int sort);
+int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort);
+int Twapi_GetIpAddrTable(TwapiInterpContext *ticP, int sort);
+int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort);
+int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort);
 
 int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD addr, DWORD addr2);
-int Twapi_AllocateAndGetTcpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
-int Twapi_AllocateAndGetUdpExTableFromStack(Tcl_Interp *,BOOL sort,DWORD flags);
+int Twapi_AllocateAndGetTcpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
+int Twapi_AllocateAndGetUdpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
 int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_FormatExtendedUdpTable(Tcl_Interp *, void *buf, int family, int table_class);
 int Twapi_GetExtendedTcpTable(Tcl_Interp *interp, void *buf, DWORD buf_sz,
@@ -1243,8 +1243,8 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
 
 /* NLS */
 
-int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 
 

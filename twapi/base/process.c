@@ -76,6 +76,7 @@ int Twapi_GetProcessList(
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
     }
 
+    /* We do not bother with MemLifo* because these are large allocations */
     /* TBD - should we use a separate heap for this to avoid fragmentation ? */
     bufsz = 50000;              /* Initial guess based on my system */
     bufP = NULL;
@@ -313,13 +314,9 @@ int Twapi_GetProcessList(
  * process with a given pid
  * type = 0 for process, 1 for modules, 2 for drivers
  */
-int Twapi_EnumProcessesModules (Tcl_Interp *interp, int type, HANDLE phandle)
+static int Twapi_EnumProcessesModules (TwapiInterpContext *ticP, int type, HANDLE phandle)
 {
-    union {
-        LPVOID hdevices[100];
-        HMODULE hmodules[100];
-        DWORD  pids[100];
-    } static_buf, *bufP;
+    void  *bufP;
     DWORD  buf_filled;
     DWORD  buf_size;
     int    result;
@@ -332,31 +329,29 @@ int Twapi_EnumProcessesModules (Tcl_Interp *interp, int type, HANDLE phandle)
      * is less than what
      * we supplied at which point we know the buffer was large enough
      */
-    bufP = &static_buf;
-    buf_size = sizeof(static_buf);
+    
+    bufP = MemLifoPushFrame(&ticP->memlifo, 2000, &buf_size);
     result = TCL_ERROR;
     do {
-
         switch (type) {
         case 0:
             /* Looking for processes */
-            status = EnumProcesses(bufP->pids, buf_size, &buf_filled);
+            status = EnumProcesses(bufP, buf_size, &buf_filled);
             break;
 
         case 1:
             /* Looking for modules for a process */
-            status = EnumProcessModules(phandle, bufP->hmodules,
-                                        buf_size, &buf_filled);
+            status = EnumProcessModules(phandle, bufP, buf_size, &buf_filled);
             break;
 
         case 2:
             /* Looking for drivers */
-            status = EnumDeviceDrivers(bufP->hdevices, buf_size, &buf_filled);
+            status = EnumDeviceDrivers(bufP, buf_size, &buf_filled);
             break;
         }
 
         if (! status) {
-            TwapiReturnSystemError(interp);
+            TwapiReturnSystemError(ticP->interp);
             break;
         }
 
@@ -370,70 +365,67 @@ int Twapi_EnumProcessesModules (Tcl_Interp *interp, int type, HANDLE phandle)
 
         /* Loop with bigger buffer */
         buf_size *= 2;
-        if (bufP != &static_buf)
-            TwapiFree(bufP);
-        bufP = TwapiAlloc(buf_size);
+        MemLifoPopFrame(&ticP->memlifo);
+        bufP = MemLifoPushFrame(&ticP->memlifo, buf_size, NULL);
     }  while (1);
 
 
     if (result == TCL_OK) {
-        Tcl_Obj *list_obj;
+        Tcl_Obj **objvP;
         int i, num;
 
-        list_obj = Tcl_NewListObj(0, NULL);
         if (type == 0) {
             /* PID's - DWORDS */
-            num = buf_filled/sizeof(bufP->pids[0]);
+            num = buf_filled/sizeof(DWORD);
+            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
-                Tcl_ListObjAppendElement(interp, list_obj,
-                                         Tcl_NewLongObj(bufP->pids[i]));
+                objvP[i] = Tcl_NewLongObj(((DWORD *)bufP)[i]);
             }
         } else if (type == 1) {
-            /* Module handles - pointers */
-            num = buf_filled/sizeof(bufP->hmodules[0]);
+            /* Module handles - pointers but returned as integer as they are
+               not really valid typed handles */
+            num = buf_filled/sizeof(HMODULE);
+            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
-                Tcl_ListObjAppendElement(interp, list_obj,
-                                         ObjFromDWORD_PTR(bufP->hmodules[i]));
+                objvP[i] = ObjFromDWORD_PTR(((HMODULE *)bufP)[i]);
             }
         } else {
-            /* device handles - pointers */
-            num = buf_filled/sizeof(bufP->hdevices[0]);
+            /* device handles - pointers, again not real handles */
+            num = buf_filled/sizeof(LPVOID);
+            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
-                Tcl_ListObjAppendElement(interp, list_obj,
-                                         ObjFromDWORD_PTR(bufP->hdevices[i]));
+                objvP[i] = ObjFromDWORD_PTR(((LPVOID *)bufP)[i]);
             }
         }
 
-        Tcl_SetObjResult(interp, list_obj);
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(num, objvP));
     }
 
-    if (bufP != &static_buf) {
-        TwapiFree(bufP);
-    }
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 }
 #endif // TWAPI_LEAN
 
 #ifndef TWAPI_LEAN
-int Twapi_EnumProcesses (Tcl_Interp *interp) 
+int Twapi_EnumProcesses (TwapiInterpContext *ticP) 
 {
-    return Twapi_EnumProcessesModules(interp, 0, NULL);
+    return Twapi_EnumProcessesModules(ticP, 0, NULL);
 }
 #endif // TWAPI_LEAN
 
 
 #ifndef TWAPI_LEAN
-int Twapi_EnumProcessModules(Tcl_Interp *interp, HANDLE phandle) 
+int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle) 
 {
-    return Twapi_EnumProcessesModules(interp, 1, phandle);
+    return Twapi_EnumProcessesModules(ticP, 1, phandle);
 }
 #endif // TWAPI_LEAN
 
 #ifndef TWAPI_LEAN
-int Twapi_EnumDeviceDrivers(Tcl_Interp *interp)
+int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP)
 {
-    return Twapi_EnumProcessesModules(interp, 2, NULL);
+    return Twapi_EnumProcessesModules(ticP, 2, NULL);
 }
 #endif // TWAPI_LEAN
 
