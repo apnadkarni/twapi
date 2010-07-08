@@ -12,7 +12,7 @@
 typedef struct _TwapiHostnameEvent {
     Tcl_Event tcl_ev;           /* Must be first field */
     TwapiInterpContext *ticP;
-    int    id;             /* Passed from script as a request id */
+    TwapiId    id;             /* Passed from script as a request id */
     DWORD  status;         /* 0 -> success, else Win32 error code */
     union {
         struct in_addr *addrs;      /* Dynamically allocated using TwapiAlloc */
@@ -41,7 +41,7 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
 
         Tcl_ListObjAppendElement(
             interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_hostname_resolve_handler"));
-        Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(theP->id));
+        Tcl_ListObjAppendElement(interp, objP, ObjFromTwapiId(theP->id));
         if (theP->status == ERROR_SUCCESS) {
             /* Success */
             Tcl_Obj *addrsObj = Tcl_NewListObj(0, NULL);
@@ -173,7 +173,7 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
 
         Tcl_ListObjAppendElement(
             interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_address_resolve_handler"));
-        Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(theP->id));
+        Tcl_ListObjAppendElement(interp, objP, ObjFromTwapiId(theP->id));
         if (theP->status == ERROR_SUCCESS) {
             /* Success. Note theP->hostname may still be NULL */
             Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("success"));
