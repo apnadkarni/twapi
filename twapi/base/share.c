@@ -347,30 +347,36 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 }
 
 int Twapi_WNetGetUniversalName (
-    Tcl_Interp *interp, 
+    TwapiInterpContext *ticP, 
     LPCWSTR      localpathP
 )
 {
     int result;
     DWORD error;
-    DWORD buf_sz = 2 * MAX_PATH;
+    DWORD buf_sz;
     void *buf;
 
-    buf = TwapiAlloc(buf_sz);
+    buf = MemLifoPushFrame(&ticP->memlifo, MAX_PATH+1, &buf_sz);
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
                                   buf, &buf_sz);
+    if (error = ERROR_MORE_DATA) {
+        /* Retry with larger buffer */
+        buf = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
+                                      buf, &buf_sz);
+    }
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(interp,
-                         ListObjFromREMOTE_NAME_INFOW(interp,
+        Tcl_SetObjResult(ticP->interp,
+                         ListObjFromREMOTE_NAME_INFOW(ticP->interp,
                                                       (REMOTE_NAME_INFOW *) buf));
         result = TCL_OK;
     } 
     else {
-        Twapi_AppendWNetError(interp, error);
+        Twapi_AppendWNetError(ticP->interp, error);
         result = TCL_ERROR;
     }
 
-    TwapiFree(buf);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 }
@@ -378,16 +384,15 @@ int Twapi_WNetGetUniversalName (
 
 
 int Twapi_WNetGetResourceInformation(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     LPWSTR remoteName,
     LPWSTR provider,
     DWORD   resourcetype
     )
 {
     NETRESOURCEW in;
-    char        buf[4096];
-    NETRESOURCEW *outP = (NETRESOURCEW *)buf;
-    DWORD       outsz = sizeof(buf);
+    NETRESOURCEW *outP;
+    DWORD       outsz;
     int         error;
     LPWSTR      systempart;
     Tcl_Obj    *objv[2];
@@ -397,32 +402,23 @@ int Twapi_WNetGetResourceInformation(
     in.lpProvider = provider;
     in.dwType = resourcetype;
 
+    outP = MemLifoPushFrame(&ticP->memlifo, 4000, &outsz);
     error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
-    if (error != NO_ERROR) {
-        if (error != ERROR_MORE_DATA)
-            goto error_return;
-
-        /* We need a bigger buffer */
-        outP = TwapiAlloc(outsz);
+    if (error == ERROR_MORE_DATA) {
         /* Retry with larger buffer */
+        outP = MemLifoAlloc(&ticP->memlifo, outsz, NULL);
         error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
-        if (error != NO_ERROR)
-            goto error_return;
     }
+    if (error == ERROR_SUCCESS) {
+        objv[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
+        objv[1] = Tcl_NewUnicodeObj(systempart, -1);
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objv));
+    } else
+        Twapi_AppendWNetError(ticP->interp, error);
 
-    objv[0] = ListObjFromNETRESOURCEW(interp, outP);
-    objv[1] = Tcl_NewUnicodeObj(systempart, -1);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    MemLifoPopFrame(&ticP->memlifo);
 
-    if ((char *)outP != buf)
-        TwapiFree(outP);
-    return TCL_OK;
-
- error_return:
-    Twapi_AppendWNetError(interp, error);
-    if ((char *)outP != buf)
-        TwapiFree(outP);
-    return TCL_ERROR;
+    return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
 

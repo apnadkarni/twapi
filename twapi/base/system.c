@@ -138,8 +138,8 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
 #endif // TWAPI_LEAN
 
 
-int TwapiGetProfileSectionHelper(
-    Tcl_Interp *interp,
+static int TwapiGetProfileSectionHelper(
+    TwapiInterpContext *ticP,
     LPCWSTR lpAppName, /* If NULL, section names are retrieved */
     LPCWSTR lpFileName /* If NULL, win.ini is used */
     )
@@ -148,9 +148,8 @@ int TwapiGetProfileSectionHelper(
     DWORD  bufsz;
     DWORD  numchars;
 
-    bufsz = 8000;
+    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &bufsz);
     while (1) {
-        bufP = TwapiAlloc(bufsz);
         if (lpAppName) {
             if (lpFileName)
                 numchars = GetPrivateProfileSectionW(lpAppName,
@@ -165,39 +164,40 @@ int TwapiGetProfileSectionHelper(
 
         if (numchars >= (bufsz-2)) {
             /* Buffer not big enough */
-            TwapiFree(bufP);
+            MemLifoPopFrame(&ticP->memlifo);
             bufsz = 2*bufsz;
+            bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
         } else
             break;
     }
 
     if (numchars)
-        Tcl_SetObjResult(interp, ObjFromMultiSz(bufP, numchars+1));
-    TwapiFree(bufP);
+        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(bufP, numchars+1));
+
+    MemLifoPopFrame(&ticP->memlifo);
 
     return TCL_OK;
-
 }
 
 int Twapi_GetPrivateProfileSection(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     LPCWSTR lpAppName,
     LPCWSTR lpFileName
     )
 {
-    return TwapiGetProfileSectionHelper(interp, lpAppName, lpFileName);
+    return TwapiGetProfileSectionHelper(ticP, lpAppName, lpFileName);
 }
 
 int Twapi_GetPrivateProfileSectionNames(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     LPCWSTR lpFileName
     )
 {
-    return TwapiGetProfileSectionHelper(interp, NULL, lpFileName);
+    return TwapiGetProfileSectionHelper(ticP, NULL, lpFileName);
 }
 
 #ifndef TWAPI_LEAN
-int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
+int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
 {
     SYSTEM_INFO sysinfo;
     void  *bufP;
@@ -207,6 +207,7 @@ int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
     DWORD    i;
     NtQuerySystemInformation_t NtQuerySystemInformationPtr = Twapi_GetProc_NtQuerySystemInformation();
     Tcl_Obj *resultObj;
+    Tcl_Interp *interp = ticP->interp;
 
     if (NtQuerySystemInformationPtr == NULL) {
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
@@ -216,30 +217,31 @@ int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
     GetSystemInfo(&sysinfo);
 
     bufsz = sizeof(SYSTEM_PROCESSOR_TIMES) * sysinfo.dwNumberOfProcessors;
-    bufP = TwapiAlloc(bufsz);
+    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
     status = (*NtQuerySystemInformationPtr)(8, bufP, bufsz, &dummy);
-    if (status) {
-        TwapiFree(bufP);
-        return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
+
+    if (status == 0) {
+        resultObj = Tcl_NewListObj(0, NULL);
+        for (i = 0; i < sysinfo.dwNumberOfProcessors; ++i) {
+            Tcl_Obj *obj = Tcl_NewListObj(0, NULL);
+            SYSTEM_PROCESSOR_TIMES *timesP = i+((SYSTEM_PROCESSOR_TIMES *)bufP);
+
+            Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, IdleTime);
+            Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, KernelTime);
+            Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, UserTime);
+            Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, DpcTime);
+            Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, InterruptTime);
+            Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, timesP, InterruptCount);
+            Tcl_ListObjAppendElement(interp, resultObj, obj);
+        }
+
+        Tcl_SetObjResult(interp, resultObj);
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
-    for (i = 0; i < sysinfo.dwNumberOfProcessors; ++i) {
-        Tcl_Obj *obj = Tcl_NewListObj(0, NULL);
-        SYSTEM_PROCESSOR_TIMES *timesP = i+((SYSTEM_PROCESSOR_TIMES *)bufP);
-
-        Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, IdleTime);
-        Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, KernelTime);
-        Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, UserTime);
-        Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, DpcTime);
-        Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, InterruptTime);
-        Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, timesP, InterruptCount);
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
-    }
-
-    Tcl_SetObjResult(interp, resultObj);
-    TwapiFree(bufP);
-    return TCL_OK;
+    MemLifoPopFrame(&ticP->memlifo);
+    return status ?
+        Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status))
+        : TCL_OK;
 }
 #endif // TWAPI_LEAN
 
@@ -249,7 +251,7 @@ int Twapi_SystemProcessorTimes(Tcl_Interp *interp)
  *  Wrapper around NtQuerySystemInformation to get swapfile information
  *
  */
-int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
+int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP)
 {
     struct _SYSTEM_PAGEFILE_INFORMATION *pagefileP;
     void  *bufP;
@@ -258,28 +260,32 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     NTSTATUS status;
     NtQuerySystemInformation_t NtQuerySystemInformationPtr = Twapi_GetProc_NtQuerySystemInformation();
     Tcl_Obj *resultObj;
+    Tcl_Interp *interp = ticP->interp;
 
     if (NtQuerySystemInformationPtr == NULL) {
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
     }
 
-    bufsz = 4000;
-    bufP = NULL;
+    bufsz = 2000;
+    bufP = MemLifoPushFrame(&ticP->memlifo, 2000, &bufsz);
     do {
-        if (bufP)
-            TwapiFree(bufP);         /* Previous buffer too small */
-        bufP = TwapiAlloc(bufsz);
-        /* Note for information class 18, the last parameter which
+        /*
+         * Note for information class 18, the last parameter which
          * corresponds to number of bytes needed is not actually filled
          * in by the system so we ignore it and just double alloc size
          */
         status = (*NtQuerySystemInformationPtr)(18, bufP, bufsz, &dummy);
+        if (status != STATUS_INFO_LENGTH_MISMATCH || bufsz >= 32000)
+            break;
         bufsz = 2* bufsz;       /* For next iteration if needed */
-    } while (status == STATUS_INFO_LENGTH_MISMATCH);
+        MemLifoPopFrame(&ticP->memlifo);
+        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
+    } while (1);
 
     if (status) {
-        TwapiFree(bufP);
-        return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
+        MemLifoPopFrame(&ticP->memlifo);
+        return Twapi_AppendSystemError(interp,
+                                       TwapiNTSTATUSToError(status));
     }
 
     /* OK, now we got the info. Loop through to extract information
@@ -306,7 +312,9 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     }
 
     Tcl_SetObjResult(interp, resultObj);
-    TwapiFree(bufP);
+
+    MemLifoPopFrame(&ticP->memlifo);
+
     return TCL_OK;
 }
 #endif // TWAPI_LEAN

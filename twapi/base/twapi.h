@@ -666,7 +666,7 @@ typedef struct _TwapiInterpContext {
 
     Tcl_ThreadId thread;     /* Id of interp thread */
 
-    MemLifo memlifo;
+    MemLifo memlifo;            /* Must ONLY be used in interp thread */
 
     /*
      * A single lock that is shared among multiple lists attached to this
@@ -1009,11 +1009,12 @@ BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
 int Twapi_GetSystemWow64Directory(Tcl_Interp *interp);
 int Twapi_GetSystemInfo(Tcl_Interp *interp);
 int Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
-int Twapi_SystemProcessorTimes(Tcl_Interp *interp);
-int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
+int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
+int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP);
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetPrivateProfileSection(Tcl_Interp *interp, LPCWSTR app, LPCWSTR fn);
-int Twapi_GetPrivateProfileSectionNames(Tcl_Interp *interp,LPCWSTR lpFileName);
+int Twapi_GetPrivateProfileSection(TwapiInterpContext *ticP,
+                                   LPCWSTR app, LPCWSTR fn);
+int Twapi_GetPrivateProfileSectionNames(TwapiInterpContext *,LPCWSTR filename);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
 void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
 
@@ -1061,7 +1062,7 @@ int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp,
 int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
 
 /* Shares and LANMAN */
-int Twapi_WNetGetUniversalName(Tcl_Interp *interp, LPCWSTR localpathP);
+int Twapi_WNetGetUniversalName(TwapiInterpContext *ticP, LPCWSTR localpathP);
 int Twapi_WNetGetUser(Tcl_Interp *interp, LPCWSTR  lpName);
 int Twapi_NetScheduleJobEnum(Tcl_Interp *interp, LPCWSTR servername);
 int Twapi_NetShareEnum(Tcl_Interp *interp, LPWSTR server_name);
@@ -1083,8 +1084,9 @@ int Twapi_NetSessionEnum(Tcl_Interp    *interp, LPWSTR server, LPWSTR client,
 int Twapi_NetSessionGetInfo(Tcl_Interp *interp, LPWSTR server,
                             LPWSTR client, LPWSTR user, DWORD level);
 int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR server, LPCWSTR domain);
-int Twapi_WNetGetResourceInformation(Tcl_Interp *interp, LPWSTR remoteName,
-                                     LPWSTR provider, DWORD   resourcetype);
+int Twapi_WNetGetResourceInformation(TwapiInterpContext *ticP,
+                                     LPWSTR remoteName, LPWSTR provider,
+                                     DWORD  resourcetype);
 int Twapi_WNetUseConnection(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_NetShareAdd(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 
@@ -1320,8 +1322,8 @@ int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD of
 
 
 /* UI and window related */
-int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj);
-int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj);
+int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
+int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
 Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP);
 int Twapi_EnumWindowStations(Tcl_Interp *interp);
 int Twapi_EnumWindows(Tcl_Interp *interp);

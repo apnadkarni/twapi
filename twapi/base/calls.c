@@ -1284,9 +1284,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 35:
             return Twapi_GlobalMemoryStatus(interp);
         case 36:
-            return Twapi_SystemProcessorTimes(interp);
+            return Twapi_SystemProcessorTimes(ticP);
         case 37:
-            return Twapi_SystemPagefileInformation(interp);
+            return Twapi_SystemPagefileInformation(ticP);
         case 38:
             result.type = GetProfileType(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
             break;
@@ -2878,7 +2878,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 8:
             return Twapi_CommandLineToArgv(interp, arg);
         case 9:
-            return Twapi_WNetGetUniversalName(interp, arg);
+            return Twapi_WNetGetUniversalName(ticP, arg);
         case 10:
             return Twapi_WNetGetUser(interp, arg);
 #ifdef OBSOLETE // Use MSTASK
@@ -2905,11 +2905,11 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = AbortSystemShutdownW(arg);
         case 18:
             NULLIFY_EMPTY(arg);
-            return Twapi_GetPrivateProfileSectionNames(interp, arg);
+            return Twapi_GetPrivateProfileSectionNames(ticP, arg);
         case 19:
-            return Twapi_SendInput(interp, objv[2]);
+            return Twapi_SendInput(ticP, objv[2]);
         case 20:
-            return Twapi_SendUnicode(interp, objv[2]);
+            return Twapi_SendUnicode(ticP, objv[2]);
         case 21:
             result.value.opaque.p = Twapi_GetFileVersionInfo(arg);
             if (result.value.opaque.p) {
@@ -3669,7 +3669,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         break;
     case 9:
         // Note s2,s1, not s1,s2
-        return Twapi_GetPrivateProfileSection(interp, s2, s1);
+        return Twapi_GetPrivateProfileSection(ticP, s2, s1);
 
 #ifndef TWAPI_LEAN
 
@@ -3780,7 +3780,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 #endif
     case 36:
         /* Note first param is s2, second is s1 */
-        return Twapi_WNetGetResourceInformation(interp, s2,s1,dw);
+        return Twapi_WNetGetResourceInformation(ticP, s2,s1,dw);
     case 37:
         if (s1 == NULL) s1 = L"";
         return Twapi_WriteUrlShortcut(interp, s1, s2, dw);
