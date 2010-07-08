@@ -62,8 +62,11 @@
 
 #define TWAPI_TCL_NAMESPACE "twapi"
 
-/* TBD - assert */
+#ifdef TWAPI_ENABLE_ASSERT
+#define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#else
 #define TWAPI_ASSERT(bool_) ((void) 0)
+#endif
 
 /*
  * Macro to create a stub to load and return a pointer to a function
