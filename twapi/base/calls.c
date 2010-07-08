@@ -1752,7 +1752,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return (func == 10024 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
-                interp, &sech, dw, dw2, cP, dw3);
+                ticP, &sech, dw, dw2, cP, dw3);
 
         case 10026: // VerifySignature
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -4662,7 +4662,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return TCL_ERROR;
         switch (func) {
         case 201: 
-            return Twapi_PdhParseCounterPath(interp, s, dw);
+            return Twapi_PdhParseCounterPath(ticP, s, dw);
         case 202: 
             return Twapi_PdhLookupPerfNameByIndex(interp, s, dw);
         case 203:
@@ -4719,21 +4719,21 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         case 1003:
-            return Twapi_PdhMakeCounterPath(interp, objc-2, objv+2);
+            return Twapi_PdhMakeCounterPath(ticP, objc-2, objv+2);
         case 1004:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
                              GETWSTR(s3), GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_PdhEnumObjectItems(interp, s, s2, s3, dw, dw2);
+            return Twapi_PdhEnumObjectItems(ticP, s, s2, s3, dw, dw2);
         case 1005:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
                              GETINT(dw), GETBOOL(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_PdhEnumObjects(interp, s, s2, dw, dw2);
+            return Twapi_PdhEnumObjects(ticP, s, s2, dw, dw2);
         }
     }
 

@@ -51,7 +51,7 @@ int Twapi_PdhLookupPerfNameByIndex(
 }
 
 int Twapi_PdhEnumObjects(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     LPCWSTR szDataSource,
     LPCWSTR szMachineName,
     DWORD   dwDetailLevel,
@@ -62,56 +62,41 @@ int Twapi_PdhEnumObjects(
     LPWSTR     buf = NULL;
     DWORD      buf_sz;
 
+    /*
+     * NOTE : The first call MUST pass 0 as buffer size else call
+     * the function does not correctly return required size if buffer
+     * is not big enough.
+     */
     buf_sz = 0;
     status = PdhEnumObjectsW(szDataSource, szMachineName, NULL, &buf_sz,
                             dwDetailLevel, bRefresh);
 
-    if ((status != ERROR_SUCCESS) && status != PDH_MORE_DATA) {
-        goto fail;
-    }
+    if ((status != ERROR_SUCCESS) && status != PDH_MORE_DATA)
+        return Twapi_AppendSystemError(ticP->interp, status);
 
-#if 0
-    Irrespective of the example source in the SDK, ERROR_SUCCESS
-        with a null buffer is the same as PDH_MORE_DATA
-    if (status == ERROR_SUCCESS) {
-        /* No objects. Return empty multisz list */
-        buf = TwapiAlloc(2*sizeof(*buf));
-        if (buf == NULL)
-            goto fail;
-        buf[0] = 0;
-        buf[1] = 0;
-        return buf;
-    }
-#endif
-
-    /* Call again with a buffer. Note this time bRefresh is passed
-       as 0, as we want to get the data we already asked about else
-       the buffer size may be invalid
+    /*
+     * Call again with a buffer. Note this time bRefresh is passed
+     * as 0, as we want to get the data we already asked about else
+     * the buffer size may be invalid
     */
-    buf = TwapiAlloc(buf_sz*sizeof(*buf));
-
+    buf = MemLifoPushFrame(&ticP->memlifo, (1+buf_sz)*sizeof(WCHAR), NULL);
     status = PdhEnumObjectsW(szDataSource, szMachineName, buf, &buf_sz,
                             dwDetailLevel, 0);
-    if (status != ERROR_SUCCESS) {
-        goto fail;
-    }
+    if (status == ERROR_SUCCESS)
+        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(buf, buf_sz));
+    else
+        Twapi_AppendSystemError(ticP->interp, status);
 
-    Tcl_SetObjResult(interp, ObjFromMultiSz(buf, buf_sz));
-    TwapiFree(buf);
+    MemLifoPopFrame(&ticP->memlifo);
 
- fail:
-    TwapiReturnSystemError(interp);
-    if (buf)
-        TwapiFree(buf);
-
-    return TCL_ERROR;
+    return status == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
 
-int Twapi_PdhEnumObjectItems(Tcl_Interp *interp,
-                              LPCWSTR szDataSource, LPCWSTR szMachineName,
-                              LPCWSTR szObjectName, DWORD dwDetailLevel,
-                              DWORD dwFlags)
+int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
+                             LPCWSTR szDataSource, LPCWSTR szMachineName,
+                             LPCWSTR szObjectName, DWORD dwDetailLevel,
+                             DWORD dwFlags)
 {
     PDH_STATUS pdh_status;
     WCHAR *counter_buf;
@@ -125,7 +110,11 @@ int Twapi_PdhEnumObjectItems(Tcl_Interp *interp,
     objs[0] = NULL;
     objs[1] = NULL;
 
-    /* First make a call to figure out how much space is required */
+    /*
+     * First make a call to figure out how much space is required.
+     * Note: do not preallocate as then the call does not correctly return
+     * the required size
+     */
     counter_buf_size  = 0;
     instance_buf_size = 0;
     pdh_status = PdhEnumObjectItemsW(
@@ -133,14 +122,15 @@ int Twapi_PdhEnumObjectItems(Tcl_Interp *interp,
         NULL, &instance_buf_size, dwDetailLevel, dwFlags);
 
     if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
-        Twapi_AppendSystemError(interp, pdh_status);
-        goto fail;
+        return Twapi_AppendSystemError(ticP->interp, pdh_status);
     }
 
-    counter_buf = TwapiAlloc(counter_buf_size*sizeof(*counter_buf));
+    counter_buf = MemLifoPushFrame(&ticP->memlifo, counter_buf_size*sizeof(*counter_buf), NULL);
     /* Note instance_buf_size may be 0 if no instances - see SDK */
     if (instance_buf_size)
-        instance_buf = TwapiAlloc(instance_buf_size*sizeof(*instance_buf));
+        instance_buf = MemLifoAlloc(&ticP->memlifo,
+                                    instance_buf_size*sizeof(*instance_buf),
+                                    NULL);
 
     pdh_status = PdhEnumObjectItemsW(
         szDataSource ,szMachineName, szObjectName,
@@ -148,43 +138,27 @@ int Twapi_PdhEnumObjectItems(Tcl_Interp *interp,
         instance_buf, &instance_buf_size,
         dwDetailLevel, dwFlags);
         
-    if (pdh_status != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(interp, pdh_status);
-        goto fail;
-    }        
-
-    /* Format and return as a list of two lists if both counters and
-       instances are present, else a list of one list in only counters
-       are present. */ 
-    objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
-    if (instance_buf_size) {
-        objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
-        TwapiFree(instance_buf);
+    if (pdh_status == ERROR_SUCCESS) {
+        /*
+         * Format and return as a list of two lists if both counters and
+         * instances are present, else a list of one list in only counters
+         * are present.
+         */ 
+        objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
+        if (instance_buf_size)
+            objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
+        Tcl_SetObjResult(ticP->interp,
+                         Tcl_NewListObj((instance_buf_size ? 2 : 1), objs));
     }
-    TwapiFree(counter_buf);
-    Tcl_SetObjResult(interp,
-                     Tcl_NewListObj((instance_buf_size ? 2 : 1), objs));
 
-
-    return TCL_OK;
-
- fail:
-
-    if (objs[0])
-        TwapiFree(objs[0]);
-    if (objs[1])
-        TwapiFree(objs[1]);
-    if (counter_buf)
-        TwapiFree(counter_buf);
-    if (instance_buf)
-        TwapiFree(instance_buf);
-
-    return TCL_ERROR;
+    MemLifoPopFrame(&ticP->memlifo);
+    return pdh_status == ERROR_SUCCESS ?
+        TCL_OK : Twapi_AppendSystemError(ticP->interp, pdh_status);
 }
 
 
 
-int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR szMachineName;
     LPWSTR szObjectName;
@@ -200,7 +174,7 @@ int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     DWORD       path_buf_size;
     int         result;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETNULLIFEMPTY(szMachineName), GETWSTR(szObjectName),
                      GETNULLIFEMPTY(szInstanceName),
                      GETNULLIFEMPTY(szParentInstance),
@@ -221,21 +195,22 @@ int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     pdh_status = PdhMakeCounterPathW(&pdh_elements, NULL,
                                      &path_buf_size, dwFlags);
     if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
-        return Twapi_AppendSystemError(interp, pdh_status);
+        return Twapi_AppendSystemError(ticP->interp, pdh_status);
     }
     
-    path_buf = TwapiAlloc(path_buf_size*sizeof(*path_buf));
+    path_buf = MemLifoPushFrame(&ticP->memlifo,
+                                path_buf_size*sizeof(*path_buf), NULL);
     pdh_status = PdhMakeCounterPathW(&pdh_elements, path_buf,
                                      &path_buf_size, dwFlags);
     if (pdh_status != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(interp, pdh_status);
+        Twapi_AppendSystemError(ticP->interp, pdh_status);
         result = TCL_ERROR;
     }
     else {
-        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(path_buf, -1));
+        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(path_buf, -1));
         result = TCL_OK;
     }
-    TwapiFree(path_buf);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 
@@ -243,7 +218,7 @@ int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
 
 
 int Twapi_PdhParseCounterPath(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     LPCWSTR szFullPathBuffer,
     DWORD   dwFlags
 )
@@ -257,34 +232,37 @@ int Twapi_PdhParseCounterPath(
     pdh_status = PdhParseCounterPathW(szFullPathBuffer, NULL,
                                      &buf_size, dwFlags);
     if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
-        Twapi_AppendSystemError(interp, pdh_status);
+        Twapi_AppendSystemError(ticP->interp, pdh_status);
         result = TCL_ERROR;
     }
     else {
-        pdh_elems = TwapiAlloc(buf_size);
+        pdh_elems = MemLifoPushFrame(&ticP->memlifo, buf_size, NULL);
         pdh_status = PdhParseCounterPathW(szFullPathBuffer, pdh_elems,
                                           &buf_size, dwFlags);
     
-        result = TCL_ERROR;
         if (pdh_status != ERROR_SUCCESS) {
-            Twapi_AppendSystemError(interp, pdh_status);
+            Twapi_AppendSystemError(ticP->interp, pdh_status);
+            result = TCL_ERROR;
         } else {
-            Tcl_Obj *list_obj = Tcl_NewListObj(0, NULL);
-            if (list_obj) {
-                Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, list_obj, pdh_elems, szMachineName);
-                Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, list_obj, pdh_elems, szObjectName);
-                Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, list_obj, pdh_elems, szInstanceName);
-                Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, list_obj, pdh_elems, szParentInstance);
-                Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, list_obj, pdh_elems, dwInstanceIndex);
-                Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, list_obj, pdh_elems, szCounterName);
-                Tcl_SetObjResult(interp, list_obj);
-                result = TCL_OK;
-            }
+            Tcl_Obj *objs[12];
+            objs[0] = STRING_LITERAL_OBJ("szMachineName");
+            objs[1] = Tcl_NewUnicodeObj(pdh_elems->szMachineName, -1);
+            objs[2] = STRING_LITERAL_OBJ("szObjectName");
+            objs[3] = Tcl_NewUnicodeObj(pdh_elems->szObjectName, -1);
+            objs[4] = STRING_LITERAL_OBJ("szInstanceName");
+            objs[5] = Tcl_NewUnicodeObj(pdh_elems->szInstanceName, -1);
+            objs[6] = STRING_LITERAL_OBJ("szParentInstance");
+            objs[7] = Tcl_NewUnicodeObj(pdh_elems->szParentInstance, -1);
+            objs[8] = STRING_LITERAL_OBJ("dwInstanceIndex");
+            objs[9] = Tcl_NewLongObj(pdh_elems->dwInstanceIndex);
+            objs[10] = STRING_LITERAL_OBJ("szCounterName");
+            objs[11] = Tcl_NewUnicodeObj(pdh_elems->szCounterName, -1);
+            Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(12, objs));
+            result = TCL_OK;
         }
+        MemLifoPopFrame(&ticP->memlifo);
     }
 
-    if (pdh_elems)
-        TwapiFree(pdh_elems);
     return result;
 }
 
@@ -399,6 +377,7 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
     browse_dlg.bIncludeInstanceIndex = 1;
     browse_dlg.bSingleCounterPerDialog = 1;
     browse_dlg.cchReturnPathLength = 1000;
+    /* Note we cannot use memlifo here as a callback is involved */
     browse_dlg.szReturnPathBuffer =
         TwapiAlloc(browse_dlg.cchReturnPathLength * sizeof(WCHAR));
     browse_dlg.pCallBack = Twapi_CounterPathCallback;
