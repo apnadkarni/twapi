@@ -2156,7 +2156,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
 
         case 10063: // Twapi_SetupDiGetDeviceRegistryProperty
-            return Twapi_SetupDiGetDeviceRegistryProperty(interp, objc-2, objv+2);
+            return Twapi_SetupDiGetDeviceRegistryProperty(ticP, objc-2, objv+2);
         case 10064: // SetupDiEnumDeviceInterfaces
             u.dev.sp_devinfo_dataP = & u.dev.sp_devinfo_data;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2177,7 +2177,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
 
         case 10065:
-            return Twapi_SetupDiGetDeviceInterfaceDetail(interp, objc-2, objv+2);
+            return Twapi_SetupDiGetDeviceInterfaceDetail(ticP, objc-2, objv+2);
 #endif
         case 10066:
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2210,7 +2210,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             break;
         case 10068:
-            return Twapi_SetupDiClassGuidsFromNameEx(interp, objc-2, objv+2);
+            return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
         case 10069:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h),   GETINT(dw),
@@ -3800,7 +3800,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         result.value.ival = SetVolumeLabelW(s1,s2);
         break;
     case 41:
-        return Twapi_QueryDosDevice(interp, s1);
+        return Twapi_QueryDosDevice(ticP, s1);
     case 42:
         result.type = TRT_EXCEPTION_ON_FALSE;
         // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics

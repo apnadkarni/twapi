@@ -1163,10 +1163,12 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 /* Device related */
 int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
-int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName);
-int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_QueryDosDevice(TwapiInterpContext *, LPCWSTR lpDeviceName);
+int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *, int objc,
+                                          Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *, int objc,
+                                      Tcl_Obj *CONST objv[]);
 int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id);
 

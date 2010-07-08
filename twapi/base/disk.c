@@ -85,17 +85,16 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
     return TCL_OK;
 }
 
-int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
+int Twapi_QueryDosDevice(TwapiInterpContext *ticP, LPCWSTR lpDeviceName)
 {
-    WCHAR path[8192];
     WCHAR *pathP;
     DWORD  path_cch;
     DWORD result;
-    
-    pathP = path;
-    path_cch = sizeof(path)/sizeof(path[0]);
+    DWORD buf_sz;
 
-    do {
+    pathP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
+    path_cch = buf_sz/sizeof(*pathP);
+    while (1) {
         result = QueryDosDeviceW(lpDeviceName, pathP, path_cch);
         if (result > 0) {
             /* On Win2K and NT 4, result is truncated without a terminating
@@ -106,9 +105,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
             /* Else we will allocate more memory and retry */
         } else if (result > path_cch) {
             /* Should never happen, but ... */
-            result = 0;
-            SetLastError(ERROR_INSUFFICIENT_BUFFER);
-            break;
+            Tcl_Panic("QueryDosDeviceW overran buffer.");
         } else if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
             break;
         }
@@ -120,20 +117,18 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
             SetLastError(ERROR_INSUFFICIENT_BUFFER);
             break;
         }
-        if (pathP != path)
-            TwapiFree (pathP);
-        pathP = TwapiAlloc(sizeof(*pathP) * path_cch);
-    } while (pathP);
-
-    if (result) {
-        Tcl_SetObjResult(interp, ObjFromMultiSz(pathP, INT_MAX));
-        result = TCL_OK;
-    } else {
-        result = TwapiReturnSystemError(interp);
+        MemLifoPopFrame(&ticP->memlifo);
+        pathP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*path_cch, NULL);
     }
 
-    if (pathP && pathP != path)
-        TwapiFree(pathP);
+    if (result) {
+        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(pathP, result));
+        result = TCL_OK;
+    } else {
+        result = TwapiReturnSystemError(ticP->interp);
+    }
+
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 }
