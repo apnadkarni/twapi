@@ -11,7 +11,7 @@
 #include <windows.h>
 #include <stdlib.h>
 
-#define MEMLIFO_ASSERT(x) ((void) 0) /* TBD */
+#define MEMLIFO_ASSERT(x) TWAPI_ASSERT(x)
 
 typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;

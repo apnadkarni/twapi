@@ -327,7 +327,6 @@ MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
     if (p > (void*) m->lm_chunks                  /* Ensure no wrap-around! */
         && p <= m->lm_chunks->lc_end) {
         /* Enough room for the mark in this chunk */
-	MEMLIFO_ASSERT(ALIGNED(m->lm_lastAddr));
         n = (MemLifoMark *) m->lm_freeptr;
 	n->lm_freeptr = p;
 	n->lm_chunks = m->lm_chunks;
@@ -441,8 +440,8 @@ void *MemLifoPushFrame(MemLifo *l, DWORD sz, DWORD *actual_szP)
 
     m = l->lifo_top_mark;
     MEMLIFO_ASSERT(m);
-    MEMLIFO_ASSERT(ROUNDED(m->lm_free));
-    MEMLIFO_ASSERT(ALIGNED(m->lm_last_addr));
+    MEMLIFO_ASSERT(ALIGNED(m->lm_freeptr));
+    MEMLIFO_ASSERT(ALIGNED(m->lm_chunks->lc_end));
 
     /* 
      * Optimize for the case that the request can be satisfied from 
