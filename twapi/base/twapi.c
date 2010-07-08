@@ -31,6 +31,8 @@ int gTclIsThreaded;
 CRITICAL_SECTION gTwapiInterpContextsCS; /* To protect the same */
 ZLIST_DECL(TwapiInterpContext) gTwapiInterpContexts;
 
+/* Used to generate unique id's */
+TwapiId volatile gIdGenerator;
 
 /*
  * Whether the callback dll/libray has been initialized.
@@ -230,8 +232,6 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
      * or should it be per process ? Or per thread ? Do we need this at all?
      */
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
-
-    ticP->idgen = 1;            /* Id/handle generator */
 
     ticP->notification_win = NULL; /* Created only on demand */
     ticP->clipboard_win = NULL;    /* Created only on demand */
