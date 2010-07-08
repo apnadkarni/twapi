@@ -756,10 +756,9 @@ proc twapi::address_to_hostname {addr args} {
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
-        variable _name_ctr
         variable _address_handler_scripts
-        set _address_handler_scripts([incr _name_ctr]) [list $addr $opts(async)]
-        Twapi_ResolveAddressAsync $_name_ctr $addr
+        set id [Twapi_ResolveAddressAsync $addr]
+        set _address_handler_scripts($id) [list $addr $opts(async)]
         return ""
     }
 
@@ -803,10 +802,9 @@ proc twapi::hostname_to_address {name args} {
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
-        variable _name_ctr
         variable _hostname_handler_scripts
-        set _hostname_handler_scripts([incr _name_ctr]) [list $name $opts(async)]
-        Twapi_ResolveHostnameAsync $_name_ctr $name
+        set id [Twapi_ResolveHostnameAsync $name]
+        set _hostname_handler_scripts($id) [list $name $opts(async)]
         return ""
     }
 

@@ -120,7 +120,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
 
 int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
-    int   id;
+    TwapiId id;
     char *name;
     int   len;
     TwapiHostnameEvent *theP;
@@ -129,11 +129,10 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(id), ARGSKIP, ARGEND) != TCL_OK)
+                     GETASTRN(name, len), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    name = Tcl_GetStringFromObj(objv[1], &len);
-
+    id =  TWAPI_NEWID(ticP);
     /* Allocate the callback context, must be allocated via Tcl_Alloc
      * as it will be passed to Tcl_QueueEvent.
      */
@@ -148,8 +147,10 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     theP->naddrs = 0;
     CopyMemory(theP->name, name, len+1);
 
-    if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT))
+    if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT)) {
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
+    }
 
     winerr = GetLastError();    /* Remember the error */
 
@@ -240,7 +241,7 @@ static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
 
 int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
-    int   id;
+    TwapiId id;
     char *addrstr;
     int   len;
     TwapiHostnameEvent *theP;
@@ -249,11 +250,10 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(id), ARGSKIP, ARGEND) != TCL_OK)
+                     GETASTRN(addrstr, len), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    addrstr = Tcl_GetStringFromObj(objv[1], &len);
-
+    id =  TWAPI_NEWID(ticP);
 
     /* Allocate the callback context, must be allocated via Tcl_Alloc
      * as it will be passed to Tcl_QueueEvent.
@@ -272,9 +272,10 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
        are delivered asynchronously */
     CopyMemory(theP->name, addrstr, len+1);
 
-    if (QueueUserWorkItem(TwapiAddressHandler, theP, WT_EXECUTEDEFAULT))
+    if (QueueUserWorkItem(TwapiAddressHandler, theP, WT_EXECUTEDEFAULT)) {
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
-
+    }
     winerr = GetLastError();    /* Remember the error */
 
     TwapiInterpContextUnref(ticP, 1); /* Undo above ref */

@@ -43,7 +43,6 @@ proc twapi::_device_notification_handler {id args} {
 }
 
 proc twapi::start_device_notifier {script args} {
-    variable _name_ctr
     variable _device_notifiers
 
     set script [lrange $script 0 end]; # Verify syntactically a list
