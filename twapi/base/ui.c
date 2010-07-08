@@ -211,17 +211,18 @@ DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *r
 
 static void init_keyboard_input(INPUT *pin, WORD vkey, DWORD flags);
 
-int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj) {
+int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     int num_inputs;
     struct tagINPUT   *input;
     int i, j;
     int result = TCL_ERROR;
+    Tcl_Interp *interp = ticP->interp;
     
     if (Tcl_ListObjLength(interp, input_obj, &num_inputs) != TCL_OK) {
         return TCL_ERROR;
     }
 
-    input = TwapiAlloc(num_inputs * sizeof(*input));
+    input = MemLifoPushFrame(&ticP->memlifo, num_inputs * sizeof(*input), NULL);
     /* Loop through each element, parsing it and storing its descriptor */
     for (i = 0; i < num_inputs; ++i) {
         Tcl_Obj *event_obj;
@@ -337,14 +338,13 @@ int Twapi_SendInput(Tcl_Interp *interp, Tcl_Obj *input_obj) {
 
  done:
 
-    if (input)
-        TwapiFree(input);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 }
 
 
-int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
+int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     int num_chars;
     struct tagINPUT   *input = NULL;
     int i, j;
@@ -359,7 +359,7 @@ int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
 
     /* NUmber of events is twice number of chars (keydown + keyup) */
     max_input_records = 2 * num_chars;
-    input = TwapiAlloc(max_input_records * sizeof(*input));
+    input = MemLifoAlloc(&ticP->memlifo, max_input_records * sizeof(*input), NULL);
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
             
@@ -383,8 +383,8 @@ int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
         sent_inputs = SendInput(j, input, sizeof(input[0]));
         if (sent_inputs == 0) {
             i = GetLastError();
-            Tcl_SetResult(interp, "Error sending input events: ", TCL_STATIC);
-            Twapi_AppendSystemError(interp, i);
+            Tcl_SetResult(ticP->interp, "Error sending input events: ", TCL_STATIC);
+            Twapi_AppendSystemError(ticP->interp, i);
             goto done;
         }
         /* TBD - what if we send fewer than expected, should we retry ? */
@@ -392,13 +392,11 @@ int Twapi_SendUnicode(Tcl_Interp *interp, Tcl_Obj *input_obj) {
         sent_inputs = 0;
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(sent_inputs));
+    Tcl_SetObjResult(ticP->interp, Tcl_NewIntObj(sent_inputs));
     result = TCL_OK;
 
  done:
-
-    if (input)
-        TwapiFree(input);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return result;
 }

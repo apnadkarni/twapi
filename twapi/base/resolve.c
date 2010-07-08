@@ -94,6 +94,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
     }
 
     /* Loop and collect addresses. Assume at most 50 entries */
+    /* Note - not in Tcl interp thread. DO NOT USE theP->ticP->memlifo ! */
     theP->addrs = TwapiAlloc(50*sizeof(*(theP->addrs)));
     saved_addrP = addrP;
     for (i = 0; i < 50 && addrP; addrP = addrP->ai_next) {

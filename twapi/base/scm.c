@@ -210,7 +210,7 @@ vamoose:
  * Returns a single dynamic block block after figuring out required size
  */
 int  Twapi_QueryServiceLockStatus(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     SC_HANDLE hService
     )
 {
@@ -224,15 +224,15 @@ int  Twapi_QueryServiceLockStatus(
     if (! QueryServiceLockStatusW(hService, NULL, 0, &buf_sz)) {
         /* For any error other than size, return */
         if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
-            return TwapiReturnSystemError(interp);
+            return TwapiReturnSystemError(ticP->interp);
     }
 
     /* Allocate it */
-    sbuf = TwapiAlloc(buf_sz);
+    sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
     /* Get the configuration information.  */
     if (! QueryServiceLockStatusW(hService, sbuf, buf_sz, &buf_sz)) {
         TwapiReturnSystemError(interp); // Store before call to free
-        TwapiFree(sbuf);
+        MemLifoPopFrame(&ticP->memlifo);
         return TCL_ERROR;
     }
 
@@ -241,7 +241,10 @@ int  Twapi_QueryServiceLockStatus(
     Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, obj, sbuf, lpLockOwner);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, sbuf, dwLockDuration);
 
+    MemLifoPopFrame(&ticP->memlifo);
+
     Tcl_SetObjResult(interp, obj);
+
     return TCL_OK;
 }
 #endif
