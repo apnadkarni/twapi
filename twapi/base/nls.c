@@ -5,14 +5,14 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
 
-int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD opts;
     DWORD loc;
-    DWORD flags;              // options
-    LPCWSTR number_string;            // input number string
+    DWORD flags;
+    LPCWSTR number_string;
     UINT      ndigits; 
     UINT      leading_zero; 
     UINT      grouping; 
@@ -25,7 +25,7 @@ int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int        numchars;
     WCHAR     *buf;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETINT(opts), GETINT(loc), GETINT(flags),
                      GETWSTR(number_string), GETINT(ndigits),
                      GETINT(leading_zero),
@@ -51,26 +51,24 @@ int Twapi_GetNumberFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     numchars = GetNumberFormatW(loc, flags, number_string, fmtP, NULL, 0);
     if (numchars == 0) {
-        return TwapiReturnSystemError(interp);
+        return TwapiReturnSystemError(ticP->interp);
     }
 
-    buf = TwapiAlloc(sizeof(WCHAR)*(numchars+1));
+    buf = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*(numchars+1), NULL);
 
     numchars = GetNumberFormatW(loc, flags, number_string, fmtP, buf, numchars);
-    if (numchars == 0) {
-        TwapiReturnSystemError(interp); // Store error before free call
-        TwapiFree(buf);
-        return TCL_ERROR;
-    }
-    
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, numchars-1));
+    if (numchars == 0)
+        TwapiReturnSystemError(ticP->interp);
+    else
+        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(buf, numchars-1));
 
-    TwapiFree(buf);
-    return TCL_OK;
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return numchars ? TCL_OK : TCL_ERROR;
 }
 
 
-int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD opts;
     DWORD loc;
@@ -90,7 +88,7 @@ int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int        numchars;
     WCHAR     *buf;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETINT(opts), GETINT(loc), GETINT(flags),
                      GETWSTR(number_string), GETINT(ndigits),
                      GETINT(leading_zero),
@@ -119,20 +117,17 @@ int Twapi_GetCurrencyFormat(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     numchars = GetCurrencyFormatW(loc, flags, number_string, fmtP, NULL, 0);
     if (numchars == 0) {
-        return TwapiReturnSystemError(interp);
+        return TwapiReturnSystemError(ticP->interp);
     }
-
-    buf = TwapiAlloc(sizeof(WCHAR)*(numchars+1));
+    buf = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*(numchars+1), NULL);
 
     numchars = GetCurrencyFormatW(loc, flags, number_string, fmtP, buf, numchars);
-    if (numchars == 0) {
-        TwapiReturnSystemError(interp); /* Store error before free call */
-        TwapiFree(buf);
-        return TCL_ERROR;
-    }
-    
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, numchars-1));
+    if (numchars == 0)
+        TwapiReturnSystemError(ticP->interp);
+    else
+        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(buf, numchars-1));
 
-    TwapiFree(buf);
-    return TCL_OK;
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return numchars ? TCL_OK : TCL_ERROR;
 }

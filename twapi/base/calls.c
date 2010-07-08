@@ -1225,11 +1225,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_DWORD;
             break;
         case 19:
-            return Twapi_GetNetworkParams(interp);
+            return Twapi_GetNetworkParams(ticP);
         case 20:
-            return Twapi_GetAdaptersInfo(interp);
+            return Twapi_GetAdaptersInfo(ticP);
         case 21:
-            return Twapi_GetInterfaceInfo(interp);
+            return Twapi_GetInterfaceInfo(ticP);
         case 22:
             result.type = GetNumberOfInterfaces(&result.value.ival) ? TRT_GETLASTERROR : TRT_DWORD;
             break;
@@ -1306,9 +1306,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_GetSystemWow64Directory(interp);
 #ifndef TWAPI_LEAN
         case 43:
-            return Twapi_EnumProcesses(interp);
+            return Twapi_EnumProcesses(ticP);
         case 44:
-            return Twapi_EnumDeviceDrivers(interp);
+            return Twapi_EnumDeviceDrivers(ticP);
         case 45:
             result.type = TRT_DWORD;
             result.value.ival = GetCurrentThreadId();
@@ -2227,9 +2227,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             break;
         case 10070:
-            return Twapi_GetNumberFormat(interp, objc-2, objv+2);
+            return Twapi_GetNumberFormat(ticP, objc-2, objv+2);
         case 10071:
-            return Twapi_GetCurrencyFormat(interp, objc-2, objv+2);
+            return Twapi_GetCurrencyFormat(ticP, objc-2, objv+2);
         case 10072:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
@@ -2548,17 +2548,17 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
             break;
         case 8:
-            return Twapi_GetPerAdapterInfo(interp, dw);
+            return Twapi_GetPerAdapterInfo(ticP, dw);
         case 9:
             return Twapi_GetIfEntry(interp, dw);
         case 10:
-            return Twapi_GetIfTable(interp, dw);
+            return Twapi_GetIfTable(ticP, dw);
         case 11:
-            return Twapi_GetIpAddrTable(interp, dw);
+            return Twapi_GetIpAddrTable(ticP, dw);
         case 12:
-            return Twapi_GetIpNetTable(interp, dw);
+            return Twapi_GetIpNetTable(ticP, dw);
         case 13:
-            return Twapi_GetIpForwardTable(interp, dw);
+            return Twapi_GetIpForwardTable(ticP, dw);
         case 14:
             result.value.ival = FlushIpNetTable(dw);
             result.type = TRT_EXCEPTION_ON_ERROR;
@@ -2743,9 +2743,9 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 1009:
             return Twapi_GetBestRoute(interp, dw, dw2);
         case 1010:
-            return Twapi_AllocateAndGetTcpExTableFromStack(interp, dw, dw2);
+            return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
         case 1011:
-            return Twapi_AllocateAndGetUdpExTableFromStack(interp, dw, dw2);
+            return Twapi_AllocateAndGetUdpExTableFromStack(ticP, dw, dw2);
         }
     } else if (func < 3000) {
         /* Check we have exactly two more integer arguments */
@@ -3141,7 +3141,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
 #ifndef TWAPI_LEAN
         case 17:
-            return Twapi_EnumProcessModules(interp, h);
+            return Twapi_EnumProcessModules(ticP, h);
         case 18:
             result.type = Twapi_IsWow64Process(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;

@@ -600,7 +600,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_INFO_table(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfo
 
 
 /* Helper function - common to all table retrieval functions */
-static int TwapiIpConfigTableHelper(Tcl_Interp *interp, DWORD (FAR WINAPI *fn)(), Tcl_Obj *(*objbuilder)(Tcl_Interp *, ...), BOOL sortable, BOOL sort)
+static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI *fn)(), Tcl_Obj *(*objbuilder)(Tcl_Interp *, ...), BOOL sortable, BOOL sort)
 {
     int error;
     void *bufP;
@@ -608,95 +608,84 @@ static int TwapiIpConfigTableHelper(Tcl_Interp *interp, DWORD (FAR WINAPI *fn)()
     int  tries;
 
     if (fn == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+        return Twapi_AppendSystemError(ticP->interp, ERROR_PROC_NOT_FOUND);
     }
 
-    bufsz = 4000;
-    bufP  = NULL;
     /*
      * Keep looping as long as we are told we need a bigger buffer.
-     * For robustness, we set a limit on number of tries. Note requried
+     * For robustness, we set a limit on number of tries. Note required
      * size can keep changing so we try multiple times.
      */
-    for (tries=0, error=ERROR_INSUFFICIENT_BUFFER;
-         tries < 10 && (error == ERROR_INSUFFICIENT_BUFFER || error == ERROR_BUFFER_OVERFLOW);
-         ++tries) {
-
-        /* At top of loop, bufsz contains size of buffer we need. */
-
-        if (bufP)
-            TwapiFree(bufP);         /* Free existing buf, if any */
-        bufP = TwapiAlloc(bufsz);
-
+    for (bufsz = 4000, tries=0; tries < 10 ; ++tries) {
+        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
         else
             error = (*fn)(bufP, &bufsz);
+        if (error != ERROR_INSUFFICIENT_BUFFER &&
+            error != ERROR_BUFFER_OVERFLOW) {
+            /* Either success or error unrelated to buffer size */
+            break;
+        }
+        
+        /* bufsz contains requried size as returned by the functions */
+
+        MemLifoPopFrame(&ticP->memlifo);
     }
 
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(interp, (*objbuilder)(interp, bufP));
+        Tcl_SetObjResult(ticP->interp, (*objbuilder)(ticP->interp, bufP));
     } else {
-        Twapi_AppendSystemError(interp, error);
+        Twapi_AppendSystemError(ticP->interp, error);
     }
 
-    if (bufP)
-        TwapiFree(bufP);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return error == NO_ERROR ? TCL_OK : TCL_ERROR;
 }
 
 
-int Twapi_GetNetworkParams(Tcl_Interp *interp)
+int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
 {
-    FIXED_INFO netinfo, *netinfoP;
+    FIXED_INFO *netinfoP;
     ULONG netinfo_size;
     DWORD error;
     Tcl_Obj *objv[8];
 
-    netinfo_size = sizeof(netinfo);
-    netinfoP = &netinfo;
-    switch (error = GetNetworkParams(netinfoP, &netinfo_size)) {
-    case ERROR_SUCCESS:
-        break;
-    case ERROR_NO_DATA:
-        /* System error message "Pipe is closed" is misleading */
-        Tcl_SetResult(interp, "No adapter information exists for the local computer", TCL_STATIC);
-        return TCL_ERROR;
-    case ERROR_BUFFER_OVERFLOW:
-        /* Allocate a bigger buffer */
-        netinfoP = TwapiAlloc(netinfo_size);
+    netinfoP = MemLifoPushFrame(&ticP->memlifo, sizeof(*netinfoP), &netinfo_size);
+    error = GetNetworkParams(netinfoP, &netinfo_size);
+    if (error == ERROR_BUFFER_OVERFLOW) {
+        /* Allocate a bigger buffer of the required size. */
+        MemLifoPopFrame(&ticP->memlifo);
+        netinfoP = MemLifoPushFrame(&ticP->memlifo, netinfo_size, NULL);
         error = GetNetworkParams(netinfoP, &netinfo_size);
-        if (error == ERROR_SUCCESS)
-            break;
-        TwapiFree(netinfoP);
-        /* FALLTHRU */
-    default:
-        return Twapi_AppendSystemError(interp, error);
     }
 
-    objv[0] = Tcl_NewStringObj(netinfoP->HostName, -1);
-    objv[1] = Tcl_NewStringObj(netinfoP->DomainName, -1);
-    objv[2] = ObjFromIP_ADDR_STRINGAddress(interp,
-                                           &netinfoP->DnsServerList);
-    objv[3] = Tcl_NewIntObj(netinfoP->NodeType);
-    objv[4] = Tcl_NewStringObj(netinfoP->ScopeId, -1);
-    objv[5] = Tcl_NewIntObj(netinfoP->EnableRouting);
-    objv[6] = Tcl_NewIntObj(netinfoP->EnableProxy);
-    objv[7] = Tcl_NewIntObj(netinfoP->EnableDns);
+    if (error == ERROR_SUCCESS) {
+        objv[0] = Tcl_NewStringObj(netinfoP->HostName, -1);
+        objv[1] = Tcl_NewStringObj(netinfoP->DomainName, -1);
+        objv[2] = ObjFromIP_ADDR_STRINGAddress(ticP->interp,
+                                               &netinfoP->DnsServerList);
+        objv[3] = Tcl_NewIntObj(netinfoP->NodeType);
+        objv[4] = Tcl_NewStringObj(netinfoP->ScopeId, -1);
+        objv[5] = Tcl_NewIntObj(netinfoP->EnableRouting);
+        objv[6] = Tcl_NewIntObj(netinfoP->EnableProxy);
+        objv[7] = Tcl_NewIntObj(netinfoP->EnableDns);
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(8, objv));
+    } else {
+        Twapi_AppendSystemError(ticP->interp, error);
+    }
 
-    if (netinfoP != &netinfo)
-        TwapiFree(netinfoP);
+    MemLifoPopFrame(&ticP->memlifo);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(8, objv));
-    return TCL_OK;
+    return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
 
-int Twapi_GetAdaptersInfo(Tcl_Interp *interp)
+int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetAdaptersInfo,
         ObjFromIP_ADAPTER_INFO_table,
         0,
@@ -705,53 +694,45 @@ int Twapi_GetAdaptersInfo(Tcl_Interp *interp)
 }
 
 
-int Twapi_GetPerAdapterInfo(Tcl_Interp *interp, int adapter_index)
+int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
 {
-    char             ainfo[sizeof(IP_PER_ADAPTER_INFO)+2*sizeof(IP_ADDR_STRING)]; /* Assumed max */
     IP_PER_ADAPTER_INFO *ainfoP;
     ULONG                ainfo_size;
     DWORD                error;
     Tcl_Obj             *objv[3];
 
-    ainfo_size = sizeof(ainfo);
-    ainfoP = (IP_PER_ADAPTER_INFO *) &ainfo;
-    switch (error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size)) {
-    case ERROR_SUCCESS:
-        break;
-    case ERROR_NO_DATA:
-        /* System error message "Pipe is closed" is not misleading */
-        Tcl_SetResult(interp, "No adapter information exists for the specified adapter", TCL_STATIC);
-        return TCL_ERROR;
-    case ERROR_BUFFER_OVERFLOW:
-        /* Allocate a bigger buffer. ainfo_size now contains required sizea */
-        ainfoP = TwapiAlloc(ainfo_size);
+    /* Make first allocation assuming two ip addresses */
+    ainfoP = MemLifoPushFrame(&ticP->memlifo,
+                              sizeof(*ainfoP)+2*sizeof(IP_ADDR_STRING),
+                              &ainfo_size);
+    error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
+    if (error == ERROR_BUFFER_OVERFLOW) {
+        /* Retry with indicated size */
+        MemLifoPopFrame(&ticP->memlifo);
+        ainfoP = MemLifoPushFrame(&ticP->memlifo, ainfo_size, NULL);
         error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
-        if (error == ERROR_SUCCESS)
-            break;
-        TwapiFree(ainfoP);
-        /* Fall thru */
-    default:
-        return Twapi_AppendSystemError(interp, error);
     }
 
-    objv[0] = Tcl_NewIntObj(ainfoP->AutoconfigEnabled);
-    objv[1] = Tcl_NewIntObj(ainfoP->AutoconfigActive);
-    objv[2] = ObjFromIP_ADDR_STRINGAddress(interp, &ainfoP->DnsServerList);
+    if (error == ERROR_SUCCESS) {
+        objv[0] = Tcl_NewIntObj(ainfoP->AutoconfigEnabled);
+        objv[1] = Tcl_NewIntObj(ainfoP->AutoconfigActive);
+        objv[2] = ObjFromIP_ADDR_STRINGAddress(ticP->interp, &ainfoP->DnsServerList);
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(3, objv));
+    } else
+        Twapi_AppendSystemError(ticP->interp, error);
 
-    if ((char *)ainfoP != ainfo)
-        TwapiFree(ainfoP);
+    MemLifoPopFrame(&ticP->memlifo);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
-    return TCL_OK;
+    return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
 
 
 
-int Twapi_GetInterfaceInfo(Tcl_Interp *interp)
+int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetInterfaceInfo,
         ObjFromIP_INTERFACE_INFO,
         0,
@@ -773,10 +754,10 @@ int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index)
     return TCL_OK;
 }
 
-int Twapi_GetIfTable(Tcl_Interp *interp, int sort)
+int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetIfTable,
         ObjFromMIB_IFTABLE,
         1,
@@ -784,10 +765,10 @@ int Twapi_GetIfTable(Tcl_Interp *interp, int sort)
         );
 }
 
-int Twapi_GetIpAddrTable(Tcl_Interp *interp, int sort)
+int Twapi_GetIpAddrTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetIpAddrTable,
         ObjFromMIB_IPADDRTABLE,
         1,
@@ -796,10 +777,10 @@ int Twapi_GetIpAddrTable(Tcl_Interp *interp, int sort)
 }
 
 
-int Twapi_GetIpNetTable(Tcl_Interp *interp, int sort)
+int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetIpNetTable,
         ObjFromMIB_IPNETTABLE,
         1,
@@ -807,10 +788,10 @@ int Twapi_GetIpNetTable(Tcl_Interp *interp, int sort)
         );
 }
 
-int Twapi_GetIpForwardTable(Tcl_Interp *interp, int sort)
+int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
-        interp,
+        ticP,
         GetIpForwardTable,
         ObjFromMIB_IPFORWARDTABLE,
         1,
@@ -875,7 +856,7 @@ int Twapi_GetExtendedUdpTable(
 typedef DWORD (WINAPI *AllocateAndGetTcpExTableFromStack_t)(PVOID *,BOOL,HANDLE,DWORD, DWORD);
 MAKE_DYNLOAD_FUNC(AllocateAndGetTcpExTableFromStack, iphlpapi, AllocateAndGetTcpExTableFromStack_t)
 int Twapi_AllocateAndGetTcpExTableFromStack(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     BOOL sorted,
     DWORD flags
 )
@@ -889,45 +870,49 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
         /* 2 -> AF_INET (IP v4) */
         error = (*fn)(&buf, sorted, GetProcessHeap(), flags, 2);
         if (error)
-            goto error_return;
+            return Twapi_AppendSystemError(ticP->interp, error);
 
-        Tcl_SetObjResult(interp, ObjFromTcpExTable(interp, buf));
+        Tcl_SetObjResult(ticP->interp, ObjFromTcpExTable(ticP->interp, buf));
         HeapFree(GetProcessHeap(), 0, buf);
+        return TCL_OK;
     } else {
         DWORD sz;
         MIB_TCPTABLE *tab = NULL;
+        int i;
 
-        /* First get the required  buffer size */
-        /* TBD - do this in a loop since size might change? */
-        sz = 0;
-        error = GetTcpTable(NULL, &sz, sorted);
-        if (error != ERROR_INSUFFICIENT_BUFFER)
-            goto error_return;
-
-        tab = (MIB_TCPTABLE *) TwapiAlloc(sz);
-        error = GetTcpTable(tab, &sz, sorted);
-        if (error) {
-            TwapiFree(tab);
-            goto error_return;
+        /*
+         * First get the required  buffer size.
+         * Do this in a loop since size might change with an upper limit
+         * on number of iterations.
+         * We do not use MemLifo because allocations are likely quite large
+         * so little benefit.
+         */
+        for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
+            error = GetTcpTable(tab, &sz, sorted);
+            if (error != ERROR_INSUFFICIENT_BUFFER &&
+                error != ERROR_SUCCESS)
+                break;
+            /* Retry with larger buffer */
+            if (tab)
+                TwapiFree(tab);
+            tab = (MIB_TCPTABLE *) TwapiAlloc(sz);
         }
-        Tcl_SetObjResult(interp, ObjFromMIB_TCPTABLE(interp, tab));
-
+        
+        if (error == ERROR_SUCCESS)
+            Tcl_SetObjResult(ticP->interp, ObjFromMIB_TCPTABLE(ticP->interp, tab));
+        else
+            Twapi_AppendSystemError(ticP->interp, error);
         if (tab)
             TwapiFree(tab);
+        return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
     }
-
-    return TCL_OK;
-
- error_return:
-    Twapi_AppendSystemError(interp, error);
-    return TCL_ERROR;
 }
 
 
 typedef DWORD (WINAPI *AllocateAndGetUdpExTableFromStack_t)(PVOID *,BOOL,HANDLE,DWORD, DWORD);
 MAKE_DYNLOAD_FUNC(AllocateAndGetUdpExTableFromStack, iphlpapi, AllocateAndGetUdpExTableFromStack_t)
 int Twapi_AllocateAndGetUdpExTableFromStack(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     BOOL sorted,
     DWORD flags
 )
@@ -941,36 +926,42 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
         /* 2 -> AF_INET (IP v4) */
         error = (*fn)(&buf, sorted, GetProcessHeap(), flags, 2);
         if (error)
-            goto error_return;
+            return Twapi_AppendSystemError(ticP->interp, error);
 
-        Tcl_SetObjResult(interp, ObjFromUdpExTable(interp, buf));
+        Tcl_SetObjResult(ticP->interp, ObjFromUdpExTable(ticP->interp, buf));
         HeapFree(GetProcessHeap(), 0, buf);
+        return TCL_OK;
     } else {
         DWORD sz;
         MIB_UDPTABLE *tab = NULL;
+        int i;
 
-        sz = 0;
-        error = GetUdpTable(NULL, &sz, sorted);
-        if (error != ERROR_INSUFFICIENT_BUFFER)
-            goto error_return;
-
-        tab = (MIB_UDPTABLE *) TwapiAlloc(sz);
-        error = GetUdpTable(tab, &sz, sorted);
-        if (error) {
-            TwapiFree(tab);
-            goto error_return;
+        /*
+         * First get the required  buffer size.
+         * Do this in a loop since size might change with an upper limit
+         * on number of iterations.
+         * We do not use MemLifo because allocations are likely quite large
+         * so little benefit.
+         */
+        for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
+            error = GetUdpTable(tab, &sz, sorted);
+            if (error != ERROR_INSUFFICIENT_BUFFER &&
+                error != ERROR_SUCCESS)
+                break;
+            /* Retry with larger buffer */
+            if (tab)
+                TwapiFree(tab);
+            tab = (MIB_UDPTABLE *) TwapiAlloc(sz);
         }
-        Tcl_SetObjResult(interp, ObjFromMIB_UDPTABLE(interp, tab));
-
+        
+        if (error == ERROR_SUCCESS)
+            Tcl_SetObjResult(ticP->interp, ObjFromMIB_UDPTABLE(ticP->interp, tab));
+        else
+            Twapi_AppendSystemError(ticP->interp, error);
         if (tab)
             TwapiFree(tab);
+        return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
     }
-
-    return TCL_OK;
-
- error_return:
-    Twapi_AppendSystemError(interp, error);
-    return TCL_ERROR;
 }
 
 
