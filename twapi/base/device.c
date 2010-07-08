@@ -159,113 +159,103 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
     return TCL_OK;
 }
 
-int Twapi_SetupDiGetDeviceRegistryProperty(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     HDEVINFO hdi;
     SP_DEVINFO_DATA sdd;
     DWORD regprop;
     DWORD regtype;
-    BYTE  buf[MAX_PATH+1];
     BYTE *bufP;
     DWORD buf_sz;
     int tcl_status = TCL_ERROR;
     Tcl_Obj *objP;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
                      GETVAR(sdd, ObjToSP_DEVINFO_DATA),
                      GETINT(regprop),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    /* We will try to first retrieve using a stack buffer.
-       If that fails, retry with heap */
-    bufP = buf;
-    buf_sz = sizeof(buf);
+    bufP = MemLifoPushFrame(&ticP->memlifo, 256, &buf_sz);
     if (! SetupDiGetDeviceRegistryPropertyW(
             hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
         /* Unsuccessful call. See if we need a larger buffer */
         DWORD winerr = GetLastError();
-        if (winerr != ERROR_INSUFFICIENT_BUFFER)
-            return Twapi_AppendSystemError(interp, winerr);
+        if (winerr != ERROR_INSUFFICIENT_BUFFER) {
+            Twapi_AppendSystemError(ticP->interp, winerr);
+            goto vamoose;
+        }
 
-        /* Try again with larger buffer - required size was
-           returned in buf_sz */
-        bufP = TwapiAlloc(buf_sz);
+        /* Try again with larger buffer, don't realloc as that will
+           unnecessarily copy */
+        bufP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
         /* Retry the call */
         if (! SetupDiGetDeviceRegistryPropertyW(
                 hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
-            TwapiReturnSystemError(interp); /* Still failed */
+            TwapiReturnSystemError(ticP->interp); /* Still failed */
             goto vamoose;
         }
     }
 
     /* Success. regprop contains the registry property type */
-    objP = ObjFromRegValue(interp, regtype, bufP, buf_sz);
+    objP = ObjFromRegValue(ticP->interp, regtype, bufP, buf_sz);
     if (objP) {
-        Tcl_SetObjResult(interp, objP);
+        Tcl_SetObjResult(ticP->interp, objP);
         tcl_status = TCL_OK;
     }
 
 vamoose:
-    if (bufP != buf)
-        TwapiFree(buf);
+    MemLifoPopFrame(&ticP->memlifo);
     return tcl_status;
 }
 
-int Twapi_SetupDiGetDeviceInterfaceDetail(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     HDEVINFO hdi;
     SP_DEVICE_INTERFACE_DATA  sdid;
     SP_DEVINFO_DATA sdd;
-    struct {
-        SP_DEVICE_INTERFACE_DETAIL_DATA_W  sdidd;
-        WCHAR extra[MAX_PATH+1];
-    } buf;
     SP_DEVICE_INTERFACE_DETAIL_DATA_W *sdiddP;
     DWORD buf_sz;
     Tcl_Obj *objs[2];
     int success;
     DWORD winerr;
+    int   i;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
                      GETVAR(sdid, ObjToSP_DEVICE_INTERFACE_DATA),
                      GETVAR(sdd, ObjToSP_DEVINFO_DATA),
                      ARGEND) != TCL_OK)
             return TCL_ERROR;
 
-    buf_sz = sizeof(buf);
-    sdiddP = &buf.sdidd;
-    while (sdiddP) {
+    sdiddP = MemLifoPushFrame(&ticP->memlifo, sizeof(*sdiddP)+MAX_PATH, &buf_sz);
+    /* To be safe against bugs, ours or the driver's limit to 5 attempts */
+    for (i = 0; i < 5; ++i) {
         sdiddP->cbSize = sizeof(*sdiddP); /* NOT size of entire buffer */
         success = SetupDiGetDeviceInterfaceDetailW(
             hdi, &sdid, sdiddP, buf_sz, &buf_sz, &sdd);
         if (success || (winerr = GetLastError()) != ERROR_INSUFFICIENT_BUFFER)
             break;
         /* Retry with larger buffer size as returned in call */
-        if (sdiddP != &buf.sdidd)
-            TwapiFree(sdiddP);
-        sdiddP = (SP_DEVICE_INTERFACE_DETAIL_DATA_W *) TwapiAlloc(buf_sz);
+        sdiddP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
     }
 
     if (success) {
         objs[0] = Tcl_NewUnicodeObj(sdiddP->DevicePath, -1);
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objs));
     } else
-        Twapi_AppendSystemError(interp, winerr);
+        Twapi_AppendSystemError(ticP->interp, winerr);
 
-    if (sdiddP != &buf.sdidd)
-        TwapiFree(sdiddP);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return success ? TCL_OK : TCL_ERROR;
 }
 
-int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR class_name;
-    GUID guids[32];
     LPWSTR system_name;
     GUID *guidP;
     DWORD allocated;
@@ -273,8 +263,9 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
     int success;
     void  *reserved;
     DWORD  i;
+    DWORD buf_sz;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETWSTR(class_name),
                      ARGUSEDEFAULT,
                      GETNULLIFEMPTY(system_name),
@@ -282,36 +273,37 @@ int Twapi_SetupDiClassGuidsFromNameEx(Tcl_Interp *interp, int objc, Tcl_Obj *CON
                      ARGEND) != TCL_OK)
             return TCL_ERROR;
 
-    allocated = ARRAYSIZE(guids);
-    guidP = guids;
+    guidP = MemLifoPushFrame(&ticP->memlifo, 10 * sizeof(*guidP), &buf_sz);
+    allocated = buf_sz / sizeof(*guidP);
+
+    /*
+     * We keep looping on success returns because a success return does
+     * not mean all entries were retrieved.
+     */
     success = 0;
-    while (guidP) {
-        if (! SetupDiClassGuidsFromNameExW(class_name, guidP, allocated,
-                                           &needed, system_name, reserved))
-            break;
+    while (SetupDiClassGuidsFromNameExW(class_name, guidP, allocated,
+                                        &needed, system_name, reserved)) {
         if (needed <= allocated) {
+            /* All retrieved */
             success = 1;
             break;
         }
         /* Retry with larger buffer size as returned in call */
-        if (guidP != guids)
-            TwapiFree(guidP);
         allocated = needed;
-        guidP = (GUID *) TwapiAlloc(sizeof(GUID*) * allocated);
+        MemLifoAlloc(&ticP->memlifo, allocated * sizeof(*guidP), NULL);
     }
 
     if (success) {
         Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
         /* Note - use 'needed', not 'allocated' in loop! */
         for (i = 0; i < needed; ++i) {
-            Tcl_ListObjAppendElement(interp, objP, ObjFromGUID(&guidP[i]));
+            Tcl_ListObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
         }
-        Tcl_SetObjResult(interp, objP);
+        Tcl_SetObjResult(ticP->interp, objP);
     } else
-        Twapi_AppendSystemError(interp, GetLastError());
+        Twapi_AppendSystemError(ticP->interp, GetLastError());
 
-    if (guidP != guids)
-        TwapiFree(guidP);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return success ? TCL_OK : TCL_ERROR;
 }
