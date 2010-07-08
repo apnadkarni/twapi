@@ -483,29 +483,24 @@ int Twapi_QueryContextAttributes(
 }
 
 int Twapi_MakeSignature(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     SecHandle *ctxP,
     ULONG qop,
-    int   datalen,
+    int datalen,
     void *dataP,
-    ULONG seqnum
-    )
+    ULONG seqnum)
 {
     SECURITY_STATUS ss;
     SecPkgContext_Sizes spc_sizes;
-    char sigbuf[32];
     void *sigP;
     SecBuffer sbufs[2];
     SecBufferDesc sbd;
 
     ss = QueryContextAttributesW(ctxP, SECPKG_ATTR_SIZES, &spc_sizes);
     if (ss != SEC_E_OK)
-        return Twapi_AppendSystemError(interp, ss);
+        return Twapi_AppendSystemError(ticP->interp, ss);
 
-    if (spc_sizes.cbMaxSignature > sizeof(sigbuf))
-        sigP = TwapiAlloc(spc_sizes.cbMaxSignature);
-    else
-        sigP = &sigbuf;
+    sigP = MemLifoPushFrame(&ticP->memlifo, spc_sizes.cbMaxSignature, NULL);
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
     sbufs[0].cbBuffer   = spc_sizes.cbMaxSignature;
@@ -520,23 +515,22 @@ int Twapi_MakeSignature(
 
     ss = MakeSignature(ctxP, qop, &sbd, seqnum);
     if (ss != SEC_E_OK) {
-        Twapi_AppendSystemError(interp, ss);
+        Twapi_AppendSystemError(ticP->interp, ss);
     } else {
         Tcl_Obj *objv[2];
         objv[0] = Tcl_NewByteArrayObj(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
         objv[1] = Tcl_NewByteArrayObj(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objv));
     }
 
-    if (sigP != sigbuf)
-        TwapiFree(sigP);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }
 
 
 int Twapi_EncryptMessage(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     SecHandle *ctxP,
     ULONG qop,
     int   datalen,
@@ -546,9 +540,6 @@ int Twapi_EncryptMessage(
 {
     SECURITY_STATUS ss;
     SecPkgContext_Sizes spc_sizes;
-    char edatabuf[128];
-    char padbuf[32];
-    char trailerbuf[32];
     void *padP;
     void *trailerP;
     void *edataP;
@@ -557,24 +548,14 @@ int Twapi_EncryptMessage(
 
     ss = QueryContextAttributesW(ctxP, SECPKG_ATTR_SIZES, &spc_sizes);
     if (ss != SEC_E_OK)
-        return Twapi_AppendSystemError(interp, ss);
+        return Twapi_AppendSystemError(ticP->interp, ss);
 
     ss = SEC_E_INSUFFICIENT_MEMORY; /* Assumed error */
 
-    if (spc_sizes.cbSecurityTrailer > sizeof(trailerbuf))
-        trailerP = TwapiAlloc(spc_sizes.cbSecurityTrailer);
-    else
-        trailerP = &trailerbuf;
-
-    if (spc_sizes.cbBlockSize > sizeof(padbuf))
-        padP = TwapiAlloc(spc_sizes.cbBlockSize);
-    else
-        padP = &padbuf;
-
-    if (datalen > sizeof(edatabuf))
-        edataP = TwapiAlloc(datalen);
-    else
-        edataP = &edatabuf;
+    trailerP = MemLifoPushFrame(&ticP->memlifo,
+                                spc_sizes.cbSecurityTrailer, NULL);
+    padP = MemLifoAlloc(&ticP->memlifo, spc_sizes.cbBlockSize, NULL);
+    edataP = MemLifoAlloc(&ticP->memlifo, datalen, NULL);
     CopyMemory(edataP, dataP, datalen);
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
@@ -593,21 +574,16 @@ int Twapi_EncryptMessage(
 
     ss = EncryptMessage(ctxP, qop, &sbd, seqnum);
     if (ss != SEC_E_OK) {
-        Twapi_AppendSystemError(interp, ss);
+        Twapi_AppendSystemError(ticP->interp, ss);
     } else {
         Tcl_Obj *objv[3];
         objv[0] = Tcl_NewByteArrayObj(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
         objv[1] = Tcl_NewByteArrayObj(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
         objv[2] = Tcl_NewByteArrayObj(sbufs[2].pvBuffer, sbufs[2].cbBuffer);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
+        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(3, objv));
     }
 
-    if (padP != padbuf)
-        TwapiFree(padP);
-    if (edataP != edatabuf)
-        TwapiFree(edataP);
-    if (trailerP != trailerbuf)
-        TwapiFree(trailerP);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }

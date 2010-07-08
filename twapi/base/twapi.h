@@ -1157,9 +1157,9 @@ int Twapi_QueryContextAttributes(Tcl_Interp *interp, SecHandle *INPUT,
 SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     LPCWSTR user, LPCWSTR domain, LPCWSTR password);
 void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP);
-int Twapi_MakeSignature(Tcl_Interp *interp, SecHandle *INPUT,
+int Twapi_MakeSignature(TwapiInterpContext *ticP, SecHandle *INPUT,
                         ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
-int Twapi_EncryptMessage(Tcl_Interp *interp, SecHandle *INPUT,
+int Twapi_EncryptMessage(TwapiInterpContext *ticP, SecHandle *INPUT,
                         ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
@@ -1185,14 +1185,16 @@ int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
 
 /* PDH */
 void TwapiPdhRestoreLocale(void);
-int Twapi_PdhParseCounterPath(Tcl_Interp *interp, LPCWSTR buf, DWORD dwFlags);
+int Twapi_PdhParseCounterPath(TwapiInterpContext *, LPCWSTR buf, DWORD dwFlags);
 int Twapi_PdhGetFormattedCounterValue(Tcl_Interp *, HANDLE hCtr, DWORD fmt);
 int Twapi_PdhLookupPerfNameByIndex(Tcl_Interp *,  LPCWSTR machine, DWORD ctr);
-int Twapi_PdhMakeCounterPath (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_PdhBrowseCounters(Tcl_Interp *interp);
-int Twapi_PdhEnumObjects(Tcl_Interp *interp, LPCWSTR source, LPCWSTR machine,
+int Twapi_PdhEnumObjects(TwapiInterpContext *ticP,
+                         LPCWSTR source, LPCWSTR machine,
                          DWORD  dwDetailLevel, BOOL bRefresh);
-int Twapi_PdhEnumObjectItems(Tcl_Interp *, LPCWSTR source, LPCWSTR machine,
+int Twapi_PdhEnumObjectItems(TwapiInterpContext *,
+                             LPCWSTR source, LPCWSTR machine,
                               LPCWSTR objname, DWORD detail, DWORD dwFlags);
 
 
