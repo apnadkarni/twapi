@@ -23,7 +23,7 @@ if {![info exists twapi::version]} {
     source [file join $twapi::scriptdir twapi_version.tcl]
 }
 
-# log for tracing / debug messages. TBD - document
+# log for tracing / debug messages.
 proc twapi::log {args} {
     variable log_messages
     if {[llength $args] == 0} {
