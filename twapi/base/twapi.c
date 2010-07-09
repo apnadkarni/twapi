@@ -77,8 +77,11 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
      * Per interp initialization
      */
 
-    /* Create the name space. Needed for some scripts bound into the dll */
-    Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { }");
+    /*
+     * Create the name space and some variables. 
+     * Needed for some scripts bound into the dll
+     */
+    Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { variable settings ; set settings(log_limit) 100}");
 
     /* Allocate a context that will be passed around in all interpreters */
     ticP = TwapiInterpContextNew(interp);
