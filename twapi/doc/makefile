@@ -79,18 +79,25 @@ all: twapi.chm
 
 twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_mshelp_hhp.tcl generate_mshelp_index.tcl generate_mshelp_contents.tcl
 	@echo =========Building CHM file...
+	@echo Making directories...
+	-$(SILENT)if not exist chm-build mkdir chm-build
+	@echo Copying man files
+	$(SILENT)xcopy /q /y *.man chm-build
 	@echo Processing man files...
-	$(SILENT)$(TCLSH) $(DTP) map -ext html $(MANFILES) > iomap.tmp
-	$(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
-	$(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
-	$(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) -varfile meta html_head.inc $(FMT) iomap.tmp
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) map -ext html $(MANFILES) > iomap.tmp
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) -varfile meta ../html_head.inc $(FMT) iomap.tmp
 	@echo Generating MSHELP input files...
-	$(SILENT)$(TCLSH) generate_mshelp_hhp.tcl $(HTMLOUTPUTFILES) styleschm.css > twapi.hhp
-	$(SILENT)$(TCLSH) generate_mshelp_index.tcl idx.tmp > twapi.hhk
-	$(SILENT)$(TCLSH) generate_mshelp_contents.tcl meta.tmp > twapi.hhc
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_hhp.tcl $(HTMLOUTPUTFILES) styleschm.css > twapi.hhp
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_index.tcl idx.tmp > twapi.hhk
+	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_contents.tcl meta.tmp > twapi.hhc
+	$(SILENT)xcopy /q /y styleschm.css chm-build
+	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f chm-build
+	$(SILENT)xcopy /q /y *.example chm-build
 # HHC always seems to return exit code 1!!
 	@echo Generating CHM file...
-	-$(SILENT)$(HHC) twapi.hhp
+	-$(SILENT)cd chm-build && $(SILENT)$(HHC) twapi.hhp
 
 standard-header.html: google-ads.js navbar.html
 	copy /B navbar.html+$(ADFILE) standard-header.html
