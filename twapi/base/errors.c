@@ -3,8 +3,6 @@
  * All rights reserved.
  *
  * See the file LICENSE for license
- *
- * Utility functions used by the COM module
  */
 
 /* Mapping between TWAPI errors and messages */
