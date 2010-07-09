@@ -2319,7 +2319,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), ARGSKIP,
-                     ARGEND) != TCL_OK)
+                     ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
     // ARGSKIP makes sure at least one more argument
@@ -2461,7 +2461,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             != TCL_OK)
             return TCL_ERROR;
 
-        if (func = 399) {
+        if (func == 399) {
             if (objc != 4)
                 goto badargs;
             return TwapiGetIDsOfNamesHelper(
@@ -3591,7 +3591,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
         case 10008: // CoGetObject
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), ARGSKIP, GETGUID(guid), GETWSTR(cP),
+                             GETWSTR(s), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (Tcl_ListObjLength(interp, objv[3], &dw1) == TCL_ERROR ||
