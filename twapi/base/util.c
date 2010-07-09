@@ -417,8 +417,7 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
 }
 
 
-/* TBD - document log command */
-int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg)
+int Twapi_AppendLog(TwapiInterpContext *ticP, WCHAR *msg)
 {
     Tcl_Obj *var;
     int limit, len;
@@ -426,7 +425,7 @@ int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg)
     Tcl_Obj *msgObj;
 
     /* Check if the log variable exists. If not logging is disabled */
-    var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log_limit", TCL_NAMESPACE_ONLY);
+    var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log_limit", 0);
     if (var == NULL)
         return TCL_OK;          /* Logging not enabled */
 
@@ -438,17 +437,17 @@ int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg)
     }
 
     msgObj = Tcl_NewUnicodeObj(msg, -1);
-    var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", TCL_NAMESPACE_ONLY);
+    var = Tcl_GetVar2Ex(interp, TWAPI_LOG_VAR, NULL, 0);
     if (var) {
         if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {
             /* Not a list. Some error, blow it all away. */
             var = Tcl_NewObj();
-            Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", var, TCL_NAMESPACE_ONLY);
+            Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, var, 0);
             len = 0;
         } else {
             if (Tcl_IsShared(var)) {
                 var = Tcl_DuplicateObj(var);
-                Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", var, TCL_NAMESPACE_ONLY);
+                Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, var, 0);
             }
         }
         TWAPI_ASSERT(! Tcl_IsShared(var));
@@ -459,7 +458,7 @@ int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg)
         Tcl_ListObjAppendElement(interp, var, msgObj);
     } else {
         /* log variable is currently not set */
-        Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", Tcl_NewListObj(1, &msgObj), TCL_NAMESPACE_ONLY);
+        Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, Tcl_NewListObj(1, &msgObj), 0);
     }
     return TCL_OK;
 }
