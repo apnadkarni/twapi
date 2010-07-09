@@ -95,6 +95,8 @@ int Twapi_QueryDosDevice(TwapiInterpContext *ticP, LPCWSTR lpDeviceName)
     pathP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
     path_cch = buf_sz/sizeof(*pathP);
     while (1) {
+    // TBD - Tcl interface for when lpDeviceName is NULL ?
+
         result = QueryDosDeviceW(lpDeviceName, pathP, path_cch);
         if (result > 0) {
             /* On Win2K and NT 4, result is truncated without a terminating

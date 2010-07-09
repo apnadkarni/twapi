@@ -641,9 +641,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(CommandLineToArgv, CallS, 8);
     CALL_(WNetGetUniversalName, CallS, 9);
     CALL_(WNetGetUser, CallS, 10);
-#ifdef OBSOLETE // Use MSTASK
-    CALL_(NetScheduleJobEnum, CallS, 11);
-#endif
     CALL_(WTSOpenServer, CallS, 12);
     CALL_(Twapi_ReadUrlShortcut, CallS, 13);
     CALL_(GetVolumeInformation, CallS, 14);
@@ -2881,11 +2878,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return Twapi_WNetGetUniversalName(ticP, arg);
         case 10:
             return Twapi_WNetGetUser(interp, arg);
-#ifdef OBSOLETE // Use MSTASK
-        case 11:
-            NULLIFY_EMPTY(arg);
-            return Twapi_NetScheduleJobEnum(interp, arg);
-#endif
+//      case 11: UNUSED
         case 12:
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
@@ -3774,10 +3767,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 34:
         NULLIFY_EMPTY(s2);
         return Twapi_NetGetDCName(interp, s1,s2);
-#ifdef OBSOLETE // Use MSTASK instead
-    case 35:
-        return Twapi_NetScheduleJobGetInfo(interp, s1, dw);
-#endif
+//  case 35: UNUSED
     case 36:
         /* Note first param is s2, second is s1 */
         return Twapi_WNetGetResourceInformation(ticP, s2,s1,dw);
@@ -4281,13 +4271,6 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.type = TRT_SC_HANDLE;
         result.value.hval = OpenServiceW(h, s, dw);
         break;
-
-#ifdef OBSOLETE
-//  case 9: UNUSED
-        /* Get second arg as integer */
-        CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
-        return Twapi_EnumServicesStatus(interp, h, dw2, dw);
-#endif
 
     default:
         return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);

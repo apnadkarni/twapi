@@ -1056,7 +1056,7 @@ int Twapi_ComEventSinkObjCmd(
         return TCL_ERROR;
     }
 
-    /* This is freed when the sink object is released */
+    /* This is the sink object. Memory is freed when the object is released */
     sinkP = TwapiAlloc(sizeof(*sinkP));
 
     /* Fill in the cmdargs slots from the arguments */
