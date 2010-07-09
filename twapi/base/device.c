@@ -817,6 +817,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 {
     TwapiDeviceNotificationContext *dncP;
     GUID *guidP;
+    TwapiId id;
 
     ERROR_IF_UNTHREADED(ticP->interp);
     
@@ -837,7 +838,11 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
         return TCL_ERROR;
     }
 
-    dncP->id = TWAPI_NEWID(ticP);
+     /* We need separate variable id because we do not want to access
+      * dncP->id after queueing
+      */
+    id = TWAPI_NEWID(ticP);
+    dncP->id = id;
 
     /* guidP == NULL -> empty string - use a NULL guid */
     if (guidP == NULL)
@@ -845,7 +850,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0)) {
-        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(dncP->id));
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();

@@ -1142,6 +1142,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
 
     result.type = TRT_BADFUNCTIONCODE;
+
     if (func < 1000) {
         /* Functions taking no arguments */
         if (objc != 2)

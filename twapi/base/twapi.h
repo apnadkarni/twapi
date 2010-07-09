@@ -62,8 +62,11 @@
 
 #define TWAPI_TCL_NAMESPACE "twapi"
 
-/* TBD - assert */
+#ifdef TWAPI_ENABLE_ASSERT
+#define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#else
 #define TWAPI_ASSERT(bool_) ((void) 0)
+#endif
 
 /*
  * Macro to create a stub to load and return a pointer to a function
@@ -336,7 +339,11 @@ struct TwapiTcl85Stubs {
  */
 typedef DWORD_PTR TwapiId;
 #define ObjFromTwapiId ObjFromDWORD_PTR
-
+#ifdef _WIN64
+#define TWAPI_NEWID(ticP_) InterlockedIncrement64(&gIdGenerator);
+#else
+#define TWAPI_NEWID(ticP_) InterlockedIncrement(&gIdGenerator);
+#endif
 
 /* Used to maintain context for common NetEnum* interfaces */
 struct Twapi_EnumCtx {
@@ -688,10 +695,6 @@ typedef struct _TwapiInterpContext {
      * Note this CANNOT be left to be done when the event actually occurs.
      */
     Tcl_AsyncHandler async_handler;
-
-    TwapiId       idgen;        /* Used for generating interp-specific ids.
-                                   Only modified in interp thread */
-#define TWAPI_NEWID(ticP_) ((ticP_)->idgen++)
     HWND          notification_win; /* Window used for various notifications */
     HWND          clipboard_win;    /* Window used for clipboard notifications */
     int           power_events_on; /* True-> send through power notifications */
@@ -746,6 +749,8 @@ extern OSVERSIONINFO gTwapiOSVersionInfo;
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 extern int gTclIsThreaded;
+extern TwapiId volatile gIdGenerator;
+
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \
         if (! gTclIsThreaded) {                                          \
