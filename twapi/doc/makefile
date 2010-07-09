@@ -99,9 +99,6 @@ twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_mshelp_hhp
 	@echo Generating CHM file...
 	-$(SILENT)cd chm-build && $(SILENT)$(HHC) twapi.hhp
 
-standard-header.html: google-ads.js navbar.html
-	copy /B navbar.html+$(ADFILE) standard-header.html
-
 htmdistribution: readme.txt twapi.chm
 	-if not exist "$(PACKAGEDIR)\doc" mkdir "$(PACKAGEDIR)\doc"
 	!copy /y $? "$(PACKAGEDIR)\doc"
