@@ -23,6 +23,20 @@ if {![info exists twapi::version]} {
     source [file join $twapi::scriptdir twapi_version.tcl]
 }
 
+# log for tracing / debug messages. TBD - document
+proc twapi::log {args} {
+    variable log_messages
+    if {[llength $args] == 0} {
+        if {[info exists log_messages]} {
+            return $log_messages
+        }
+        return [list ]
+    }
+    foreach msg $args {
+        Twapi_AppendLog $msg
+    }
+}
+
 # Given a proc, wraps some initialization code around it
 proc twapi::init_wrapper {procname initcode} {
     set procname [uplevel 1 [list namespace which -command $procname]]

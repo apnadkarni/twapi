@@ -62,6 +62,7 @@
 
 #define TWAPI_TCL_NAMESPACE "twapi"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
+#define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
 
 #ifdef TWAPI_ENABLE_ASSERT
 #define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
@@ -1407,7 +1408,7 @@ int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
-int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg);
+int Twapi_AppendLog(TwapiInterpContext *ticP, WCHAR *msg);
 
 int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
 
