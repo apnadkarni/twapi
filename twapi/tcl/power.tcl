@@ -112,7 +112,6 @@ proc twapi::_power_handler {power_event lparam} {
 }
 
 proc twapi::start_power_monitor {script} {
-    variable _name_ctr
     variable _power_monitors
 
     set script [lrange $script 0 end]; # Verify syntactically a list
