@@ -324,9 +324,6 @@ static TwapiMakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *cod
 
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    Tcl_LinkVar(interp, "::twapi::netenum_bufsize",
-                (char *)&twapi_netenum_bufsize, TCL_LINK_INT);
-
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::Call", Twapi_CallObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, ticP, NULL);

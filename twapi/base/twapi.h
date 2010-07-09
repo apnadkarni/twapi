@@ -554,7 +554,6 @@ typedef struct {
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
-
 /*
  * Forward decls
  */
