@@ -19,44 +19,6 @@ int WINAPI TwapiGlobCmpCase (const char *s, const char *pat)
     return ! Tcl_StringCaseMatch(s, pat, 1);
 }
 
-#ifdef OBSOLETE
-/*
- * Allocates memory. On failure, sets interp result to out of memory error.
- * ALso sets Windows last error code appropriately
- * Returns TCL_OK/TCL_ERROR
- */
-int Twapi_malloc(
-    Tcl_Interp *interp,
-    char *msg,                  /* Addition error msg. May be NULL */
-    size_t size,
-    void **pp)
-{
-    char buf[80];
-
-    /* This *must* use malloc, nothing else like Tcl_Alloc because caller
-       expects to free()
-    */
-    *pp = malloc(size);
-    if (*pp)
-        return TCL_OK;
-
-    /* Failed to allocate memory */
-    if (interp) {
-        _snprintf(buf, ARRAYSIZE(buf), "Failed to allocate %d bytes. ", size);
-        /* Note it's OK if msg is NULL */
-        Tcl_AppendResult(interp, buf, msg, NULL);
-        /*
-         * Set the error code. This might be overkill if we are already in
-         * low memory conditions but the assumption is the failure is because
-         * size is too big, not because memory is really finished
-         */
-        Twapi_AppendSystemError(interp, ERROR_OUTOFMEMORY);
-    }
-    SetLastError(E_OUTOFMEMORY);
-    return TCL_ERROR;
-}
-#endif
-
 
 /* Return the DLL version of the given dll. The version is returned as
  * 0 if the DLL does not support the given version
@@ -455,3 +417,49 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
 }
 
 
+/* TBD - document log command */
+int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg)
+{
+    Tcl_Obj *var;
+    int limit, len;
+    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj *msgObj;
+
+    /* Check if the log variable exists. If not logging is disabled */
+    var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log_limit", TCL_NAMESPACE_ONLY);
+    if (var == NULL)
+        return TCL_OK;          /* Logging not enabled */
+
+
+    if (Tcl_GetIntFromObj(interp, var, &limit) != TCL_OK ||
+        limit == 0) {
+        Tcl_ResetResult(interp); /* GetInt might have stuck error message */
+        return TCL_OK;          /* Logging not enabled */
+    }
+
+    msgObj = Tcl_NewUnicodeObj(msg, -1);
+    var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", TCL_NAMESPACE_ONLY);
+    if (var) {
+        if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {
+            /* Not a list. Some error, blow it all away. */
+            var = Tcl_NewObj();
+            Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", var, TCL_NAMESPACE_ONLY);
+            len = 0;
+        } else {
+            if (Tcl_IsShared(var)) {
+                var = Tcl_DuplicateObj(var);
+                Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", var, TCL_NAMESPACE_ONLY);
+            }
+        }
+        TWAPI_ASSERT(! Tcl_IsShared(var));
+        if (len >= limit) {
+            /* Remove elements from front of list */
+            Tcl_ListObjReplace(interp, var, 0, len-limit+1, 0, NULL);
+        }
+        Tcl_ListObjAppendElement(interp, var, msgObj);
+    } else {
+        /* log variable is currently not set */
+        Tcl_SetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log", Tcl_NewListObj(1, &msgObj), TCL_NAMESPACE_ONLY);
+    }
+    return TCL_OK;
+}

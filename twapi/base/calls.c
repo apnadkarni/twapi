@@ -641,6 +641,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(CommandLineToArgv, CallS, 8);
     CALL_(WNetGetUniversalName, CallS, 9);
     CALL_(WNetGetUser, CallS, 10);
+    CALL_(log, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
     CALL_(Twapi_ReadUrlShortcut, CallS, 13);
     CALL_(GetVolumeInformation, CallS, 14);
@@ -2879,7 +2880,8 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return Twapi_WNetGetUniversalName(ticP, arg);
         case 10:
             return Twapi_WNetGetUser(interp, arg);
-//      case 11: UNUSED
+        case 11:
+            return Twapi_Log(ticP, arg);
         case 12:
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);

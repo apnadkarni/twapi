@@ -61,6 +61,7 @@
 #include "memlifo.h"
 
 #define TWAPI_TCL_NAMESPACE "twapi"
+#define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 
 #ifdef TWAPI_ENABLE_ASSERT
 #define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
@@ -1401,12 +1402,12 @@ int WINAPI TwapiGlobCmp (const char *s, const char *pat);
 int WINAPI TwapiGlobCmpCase (const char *s, const char *pat);
 Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 /* TBD - replace all calls to malloc with this */
-int Twapi_malloc(Tcl_Interp *interp, char *msg, size_t size, void **pp);
 void DebugOutput(char *s);
 int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
+int Twapi_Log(TwapiInterpContext *ticP, WCHAR *msg);
 
 int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
 
