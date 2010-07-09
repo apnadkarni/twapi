@@ -1563,7 +1563,6 @@ proc twapi::_comobj_wrapper {comobj clsid args} {
                 return [uplevel [list $next] [lrange $args 2 end]]
             } finally {
                 foreach next $releaselist {
-                    puts "Destroying $next"
                     $next -destroy
                 }
             }
