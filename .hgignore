@@ -9,7 +9,10 @@ syntax: glob
 *.orig
 *.pdb
 temp
-build
+base/build
+doc/chm-build
+doc/website-build
+doc/website
 TAGS
 twapi/tcl/twapi_version.tcl
 \#*#
