@@ -59,51 +59,6 @@ static Tcl_Obj *ObjFromSERVICE_STATUS_PROCESS(SERVICE_STATUS_PROCESS *ssP)
 #undef RETURN_SSP_FIELDS
 
 
-#ifdef OBSOLETE
-static Tcl_Obj *NamesFromENUM_SERVICE_STATUSW(void)
-{
-    Tcl_Obj *objP;
-    // Order MUST BE same as in ObjFromENUM_SERVICE_STATUSW
-    objP = NamesFromSERVICE_STATUS();
-    Tcl_ListObjAppendElement(NULL, objP, STRING_LITERAL_OBJ("lpServiceName"));
-    Tcl_ListObjAppendElement(NULL, objP, STRING_LITERAL_OBJ("lpDisplayName"));
-    return objP;
-}
-
-static Tcl_Obj *ObjFromENUM_SERVICE_STATUSW(ENUM_SERVICE_STATUSW *essP)
-{
-    Tcl_Obj *objP;
-    // Order MUST BE same as in NamesFromENUM_SERVICE_STATUSW
-    objP = ObjFromSERVICE_STATUS(&essP->ServiceStatus);
-    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpServiceName));
-    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpDisplayName));
-    return objP;
-}
-
-static Tcl_Obj *NamesFromENUM_SERVICE_STATUS_PROCESSW(void)
-{
-    Tcl_Obj *objP;
-    // Order MUST BE same as in ObjFromENUM_SERVICE_STATUS_PROCESSW
-    objP = NamesFromSERVICE_STATUS_PROCESS();
-    Tcl_ListObjAppendElement(NULL, objP, STRING_LITERAL_OBJ("lpServiceName"));
-    Tcl_ListObjAppendElement(NULL, objP, STRING_LITERAL_OBJ("lpDisplayName"));
-    return objP;
-    
-}
-#endif
-
-#if 0
-static Tcl_Obj *ObjFromENUM_SERVICE_STATUS_PROCESSW(ENUM_SERVICE_STATUS_PROCESSW *essP)
-{
-    Tcl_Obj *objP;
-
-    // Order MUST BE same as in NamesFromENUM_SERVICE_STATUS_PROCESSW
-    objP = ObjFromSERVICE_STATUS_PROCESS(&essP->ServiceStatusProcess);
-    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpServiceName));
-    Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(essP->lpDisplayName));
-    return objP;
-}
-#endif
 
 int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
         SC_STATUS_TYPE infolevel)
@@ -398,24 +353,6 @@ int Twapi_EnumDependentServices(
     return TCL_OK;
 }
 
-#ifdef OBSOLETE
-int Twapi_ControlService(
-    Tcl_Interp *interp,
-    SC_HANDLE           hService,
-    DWORD               dwControl
-    )
-{
-    SERVICE_STATUS ss;
-
-    /* TBD - we currently throw away contents of ss. Not clear it is useful */
-
-    if (ControlService(hService, dwControl, &ss) == 0) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    return TCL_OK;
-}
-#endif
 
 int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
     SC_HANDLE h;
