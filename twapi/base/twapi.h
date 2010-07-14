@@ -560,13 +560,20 @@ typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 typedef struct _TwapiInterpContext TwapiInterpContext;
 ZLINK_CREATE_TYPEDEFS(TwapiInterpContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiInterpContext);
+
 typedef struct _TwapiCallback TwapiCallback;
 ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
 ZLIST_CREATE_TYPEDEFS(TwapiCallback);
+
 typedef struct _TwapiThreadPoolRegisteredHandle TwapiThreadPoolRegisteredHandle;
+
 typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
+
+typedef struct _TwapiPipeContext TwapiPipeContext;
+ZLINK_CREATE_TYPEDEFS(TwapiPipeContext); 
+ZLIST_CREATE_TYPEDEFS(TwapiPipeContext);
 
 #if 0
 /*
@@ -667,7 +674,7 @@ typedef struct _TwapiInterpContext {
 
     /* Back pointer to the associated interp. This must only be modified or
      * accessed in the Tcl thread. THIS IS IMPORTANT AS THERE IS NO
-     * SYNCHORNIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
+     * SYNCHRONIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
      * ACCESSED FROM OTHER THREADS
      */
     Tcl_Interp *interp;
@@ -691,6 +698,12 @@ typedef struct _TwapiInterpContext {
      * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
      */
     ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
+
+    /*
+     * List of named pipe contexts. ONLY ACCESSED FROM Tcl THREAD SO ACCESSED
+     * WITHOUT A LOCK
+     */
+    ZLIST_DECL(TwapiPipeContext) pipes;
 
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.

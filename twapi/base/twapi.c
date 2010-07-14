@@ -223,12 +223,10 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
      */
     InitializeCriticalSectionAndSpinCount(&ticP->lock, 4000);
 
-    /* Init queue of callbacks that are pending */
-    ZLIST_INIT(&ticP->pending);
     ticP->pending_suspended = 0;
-
-    /* Init queue of registered thread pool handles pending */
+    ZLIST_INIT(&ticP->pending);
     ZLIST_INIT(&ticP->directory_monitors);
+    ZLIST_INIT(&ticP->pipes);
 
     /* Register a async callback with Tcl. */
     /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
@@ -269,6 +267,8 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *inter
         DestroyWindow(ticP->clipboard_win);
         ticP->clipboard_win = 0;
     }
+
+    // TBD - what about pipes and directory_monitors ?
 
     MemLifoClose(&ticP->memlifo);
 }
