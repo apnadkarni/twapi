@@ -128,7 +128,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     dmcP = TwapiDirectoryMonitorContextNew(ticP, pathP, path_len, include_subtree, filter, patterns, npatterns);
     
     /* 
-     * Should we add FILE_SHARE_DELETE to allow deleting of
+     * TBD - Should we add FILE_SHARE_DELETE to allow deleting of
      * the directory? For now, no because it causes confusing behaviour.
      * The directory being monitored can be deleted successfully but
      * an attempt to create a directory of that same name will then
@@ -146,6 +146,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         OPEN_EXISTING,
         FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED,
         NULL);
+
     if (dmcP->directory_handle == INVALID_HANDLE_VALUE) {
         winerr = GetLastError();
         goto system_error;
@@ -302,11 +303,10 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
 
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *dmcP)
 {
-    // TBD - assert nrefs <= 0
-    // TBD - assert thread_pool_registry_handle == NULL
-    // TBD - assert (dmcP->directory_handle == INVALID_HANDLE_VALUE)
-    //       else overlapped i/o may be pending
-    // dmcP->completion_event == NULL)
+    TWAPI_ASSERT(dmcP->nrefs <= 0);
+    TWAPI_ASSERT(dmcP->thread_pool_registry_handle == NULL);
+    TWAPI_ASSERT(dmcP->directory_handle == INVALID_HANDLE_VALUE);
+    TWAPI_ASSERT(dmcP->completion_event == NULL);
 
     if (dmcP->iobP)
         TwapiFree(dmcP->iobP);
@@ -657,20 +657,12 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
 /*
  * Initiates shut down of a directory monitor. It unregisters the dmc from
- * the thread pool which means the dmc may be deallocated before returning
+ * the ticP and the thread pool. Hence dmcP may be deallocated before returning
  * unless caller holds some other ref to the dmc.
  */
 static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 {
     int unrefs = 0;             /* How many times we need to unref  */
-    HANDLE directory_handle;
-    HANDLE completion_event;
-
-    /* Save these in case dmcP gets deallocated in the middle */
-    directory_handle = dmcP->directory_handle;
-    dmcP->directory_handle = INVALID_HANDLE_VALUE;
-    completion_event = dmcP->completion_event;
-    dmcP->completion_event = NULL;
 
     /*
      * We need to do things in a specific order.
@@ -678,7 +670,7 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
      * First, unlink the dmc and the tic, so no callbacks will access
      * the interp/tic.
      *
-     * Note all unrefs are for the dmc are done at the end.
+     * Note all unrefs for the dmc are done at the end.
      */
     if (dmcP->ticP) {
         ZLIST_REMOVE(&dmcP->ticP->directory_monitors, dmcP);
@@ -703,11 +695,11 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
     }
 
     /* Third, now that handles are unregistered, close them. */
-    if (directory_handle != INVALID_HANDLE_VALUE)
-        CloseHandle(directory_handle);
+    if (dmcP->directory_handle != INVALID_HANDLE_VALUE)
+        CloseHandle(dmcP->directory_handle);
 
-    if (completion_event != NULL)
-        CloseHandle(completion_event);
+    if (dmcP->completion_event != NULL)
+        CloseHandle(dmcP->completion_event);
 
     if (unrefs)
         TwapiDirectoryMonitorContextUnref(dmcP, unrefs); /* May be GONE! */
