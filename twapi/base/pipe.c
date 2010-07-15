@@ -39,6 +39,8 @@ static void TwapiPipeContextDelete(TwapiPipeContext *ctxP);
 #define TwapiPipeContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void TwapiPipeContextUnref(TwapiPipeContext *ctxP, int decr);
 static int TwapiPipeShutdown(TwapiPipeContext *ctxP);
+static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP);
+static DWORD TwapiQueuePipeCallback(TwapiPipeContext *ctxP, const char *s);
 
 int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
@@ -80,20 +82,25 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                 ctxP->ticP = ticP;
                 TwapiInterpContextRef(ticP, 1);
                 
-                Tcl_SetObjResult(ticP->interp, ObjFromHANDLE(ctxP->hpipe));
-                return TCL_OK;
-            }
-            winerr = GetLastError(); /* Get error before calling CloseHandle */
-            CloseHandle(ctxP->io[READER].hevent);
+                winerr = TwapiPipeConnectClient(ctxP);
+                if (winerr == ERROR_SUCCESS || winerr == ERROR_IO_PENDING) {
+                    Tcl_Obj *objs[2];
+                    if (winerr == ERROR_SUCCESS)
+                        objs[0] = STRING_LITERAL_OBJ("connected");
+                    else
+                        objs[0] = STRING_LITERAL_OBJ("pending");
+                    objs[1] = ObjFromHANDLE(ctxP->hpipe);
+                    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objs));
+                    return TCL_OK;
+                }
+            } else
+                winerr = GetLastError();
         } else
             winerr = GetLastError();
-
-        CloseHandle(ctxP->hpipe);
     }
 
-    Twapi_AppendSystemError(ticP->interp, winerr);
-    TwapiPipeContextDelete(ctxP);
-    return TCL_ERROR;
+    TwapiPipeShutdown(ctxP);
+    return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
 
@@ -114,18 +121,9 @@ int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
     return TCL_OK;
 }
 
-int Twapi_PipeConnectClient(TwapiInterpContext *ticP, HANDLE hpipe)
+static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
 {
-    TwapiPipeContext *ctxP;
     DWORD winerr;
-
-    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
-    
-    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
-    if (ctxP == NULL)
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
-
-    TWAPI_ASSERT(ticP == ctxP->ticP);
 
     /* The reader side i/o structures are is also used for connecting */
     TWAPI_ASSERT(ctxP->io[READER].iobP == NULL);
@@ -138,11 +136,10 @@ int Twapi_PipeConnectClient(TwapiInterpContext *ticP, HANDLE hpipe)
      * to connect, we will get success right away. Else we wait on the
      * event and queue a callback later
      */
-    if (ConnectNamedPipe(hpipe, &ctxP->io[READER].iobP->ovl) ||
+    if (ConnectNamedPipe(ctxP->hpipe, &ctxP->io[READER].iobP->ovl) ||
         (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {
         /* Already a client in waiting, queue the callback */
-        TwapiFree(ctxP->io[READER].iobP);
-        return TwapiQueuePipeCallback(ctxP, READER, "connected");
+        return ERROR_SUCCESS;
     } else if (winerr == ERROR_IO_PENDING) {
         /* Wait asynchronously for a connection */
         TwapiPipeContextRef(ctxP, 1); /* Since we are passing to thread pool */
@@ -154,16 +151,21 @@ int Twapi_PipeConnectClient(TwapiInterpContext *ticP, HANDLE hpipe)
                 INFINITE,           /* No timeout */
                 WT_EXECUTEDEFAULT
                 )) {
-            return TCL_OK;
+            return ERROR_IO_PENDING;
         } else {
             winerr = GetLastError();
             TwapiPipeContextUnref(ctxP, 1); /* Undo above Ref */
         }
     }
 
-    /* The error indicated in winerr occurred. */
-    TwapiFree(ctxP->io[READER].iobP);
-    return Twapi_AppendSystemError(ticP->interp, winerr);
+    /* Either synchronous completion or error */
+
+    if (ctxP->io[READER].iobP) {
+        TwapiFree(ctxP->io[READER].iobP);
+        ctxP->io[READER].iobP = NULL;
+    }
+
+    return winerr;
 }
 
 
@@ -273,3 +275,4 @@ static int TwapiPipeShutdown(TwapiPipeContext *ctxP)
 
     return TCL_OK;
 }
+
