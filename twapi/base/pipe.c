@@ -10,8 +10,9 @@
 
 typedef struct _TwapiPipeBuffer {
     OVERLAPPED ovl;
-    int        buf_sz;          /* Actual size of buf[] */
-    char       buf[1];          /* Variable sized */
+    size_t     buf_sz;          /* Actual size of buf[] */
+    __int64    buf[1];          /* Start of variable sized area. __int64 to
+                                   to force 8 byte alignment */
 } TwapiPipeBuffer;
 
 typedef struct _TwapiPipeContext {
@@ -33,7 +34,7 @@ typedef struct _TwapiPipeContext {
 /*
  * Prototypes
  */
-static TwapiPipeContext *TwapiPipeContextNew(TwapiInterpContext *ticP);
+static TwapiPipeContext *TwapiPipeContextNew(void);
 static void TwapiPipeContextDelete(TwapiPipeContext *ctxP);
 #define TwapiPipeContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void TwapiPipeContextUnref(TwapiPipeContext *ctxP, int decr);
@@ -56,7 +57,7 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
         != TCL_OK)
         return TCL_ERROR;
 
-    ctxP = TwapiPipeContextNew(ticP);
+    ctxP = TwapiPipeContextNew();
 
     ctxP->hpipe = CreateNamedPipeW(name, open_mode, pipe_mode, max_instances,
                                    outbuf_sz, inbuf_sz, timeout, secattrP);
@@ -76,6 +77,8 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                 /* Add to list of pipes */
                 TwapiPipeContextRef(ctxP, 1);
                 ZLIST_PREPEND(&ticP->pipes, ctxP);
+                ctxP->ticP = ticP;
+                TwapiInterpContextRef(ticP, 1);
                 
                 Tcl_SetObjResult(ticP->interp, ObjFromHANDLE(ctxP->hpipe));
                 return TCL_OK;
@@ -111,18 +114,68 @@ int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
     return TCL_OK;
 }
 
+int Twapi_PipeConnectClient(TwapiInterpContext *ticP, HANDLE hpipe)
+{
+    TwapiPipeContext *ctxP;
+    DWORD winerr;
+
+    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
+    
+    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
+    if (ctxP == NULL)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+
+    TWAPI_ASSERT(ticP == ctxP->ticP);
+
+    /* The reader side i/o structures are is also used for connecting */
+    TWAPI_ASSERT(ctxP->io[READER].iobP == NULL);
+
+    ctxP->io[READER].iobP = TwapiAllocZero(sizeof(TwapiPipeBuffer));
+    ctxP->io[READER].iobP->ovl.hEvent = ctxP->io[READER].hevent;
+
+    /*
+     * Wait for client connection. If there is already a client waiting,
+     * to connect, we will get success right away. Else we wait on the
+     * event and queue a callback later
+     */
+    if (ConnectNamedPipe(hpipe, &ctxP->io[READER].iobP->ovl) ||
+        (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {
+        /* Already a client in waiting, queue the callback */
+        TwapiFree(ctxP->io[READER].iobP);
+        return TwapiQueuePipeCallback(ctxP, READER, "connected");
+    } else if (winerr == ERROR_IO_PENDING) {
+        /* Wait asynchronously for a connection */
+        TwapiPipeContextRef(ctxP, 1); /* Since we are passing to thread pool */
+        if (RegisterWaitForSingleObject(
+                &ctxP->io[READER].hwait,
+                ctxP->io[READER].hevent,
+                TwapiPipeConnectThreadPoolFn,
+                ctxP,
+                INFINITE,           /* No timeout */
+                WT_EXECUTEDEFAULT
+                )) {
+            return TCL_OK;
+        } else {
+            winerr = GetLastError();
+            TwapiPipeContextUnref(ctxP, 1); /* Undo above Ref */
+        }
+    }
+
+    /* The error indicated in winerr occurred. */
+    TwapiFree(ctxP->io[READER].iobP);
+    return Twapi_AppendSystemError(ticP->interp, winerr);
+}
+
 
 
 /* Always returns non-NULL, or panics */
-static TwapiPipeContext *TwapiPipeContextNew(TwapiInterpContext *ticP)
+static TwapiPipeContext *TwapiPipeContextNew(void)
 {
     int i;
     TwapiPipeContext *ctxP;
 
     ctxP = (TwapiPipeContext *) TwapiAlloc(sizeof(*ctxP));
-    ctxP->ticP = ticP;
-    if (ticP)
-        TwapiInterpContextRef(ticP, 1);
+    ctxP->ticP = NULL;
     ctxP->hpipe = INVALID_HANDLE_VALUE;
 
     for (i = 0; i < ARRAYSIZE(ctxP->io); ++i) {
@@ -140,9 +193,9 @@ static void TwapiPipeContextDelete(TwapiPipeContext *ctxP)
     int i;
 
     TWAPI_ASSERT(ctxP->nrefs <= 0);
-    TWAPI_ASSERT(ctxP->io[READER].hpool == NULL);
+    TWAPI_ASSERT(ctxP->io[READER].hwait == NULL);
     TWAPI_ASSERT(ctxP->io[READER].hevent == NULL);
-    TWAPI_ASSERT(ctxP->io[WRITER].hpool == NULL);
+    TWAPI_ASSERT(ctxP->io[WRITER].hwait == NULL);
     TWAPI_ASSERT(ctxP->io[WRITER].hevent == NULL);
     TWAPI_ASSERT(ctxP->hpipe == INVALID_HANDLE_VALUE);
 

@@ -560,6 +560,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryUnicode, Call, 10114);
     CALL_(Twapi_WriteMemoryPointer, Call, 10115);
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
+    CALL_(Twapi_PipeServer, Call, 10117);
 
 
     // CallU API
@@ -730,6 +731,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
+    CALL_(Twapi_PipeClose, CallH, 64);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -2475,6 +2477,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10116: // Wide
             // We are passing the func code as well, hence only skip one arg
             return TwapiWriteMemory(interp, objc-1, objv+1);
+
+        case 10117:
+            return Twapi_PipeServer(ticP, objc-2, objv+2);
         }
 
     }
@@ -3331,6 +3336,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 63:
             return Twapi_MemLifoDump(ticP, h);
+        case 64:
+            return Twapi_PipeClose(ticP, h);
         }
     } else if (func < 2000) {
 

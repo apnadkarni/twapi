@@ -148,6 +148,30 @@
 /* 64 bittedness needs a BOOL version of the FARPROC def */
 typedef BOOL (WINAPI *FARPROC_BOOL)();
 
+/*
+ * Macros for alignment
+ */
+#define ALIGNMENT sizeof(__int64)
+#define ALIGNMASK (~(INT_PTR)(ALIGNMENT-1))
+/* Round up to alignment size */
+#define ROUNDUP(x_) (( ALIGNMENT - 1 + (x_)) & ALIGNMASK)
+#define ROUNDED(x_) (ROUNDUP(x_) == (x_))
+#define ROUNDDOWN(x_) (ALIGNMASK & (x_))
+
+/* Note diff between ALIGNPTR and ADDPTR is that former aligns the pointer */
+#define ALIGNPTR(base_, offset_, type_) \
+    (type_) ROUNDUP((offset_) + (DWORD_PTR)(base_))
+#define ADDPTR(p_, incr_, type_) \
+    ((type_)((incr_) + (char *)(p_)))
+#define SUBPTR(p_, decr_, type_) \
+    ((type_)(((char *)(p_)) - (decr_)))
+#define ALIGNED(p_) (ROUNDED((DWORD_PTR)(p_)))
+
+/*
+ * Pointer diff assuming difference fits in 32 bits. That should be always
+ * true even on 64-bit systems because of our limits on alloc size
+ */
+#define PTRDIFF32(p_, q_) ((int)((char*)(p_) - (char *)(q_)))
 
 /*
  * Support for one-time initialization 
@@ -178,6 +202,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_INVALID_OPTION 6
 #define TWAPI_INVALID_FUNCTION_CODE 7
 #define TWAPI_BUG            8
+#define TWAPI_UNKNOWN_OBJECT 9
 
 /**********************
  * Misc utility macros

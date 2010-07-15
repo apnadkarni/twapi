@@ -16,7 +16,8 @@ typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 typedef struct _TwapiDirectoryMonitorBuffer {
     OVERLAPPED ovl;
     int        buf_sz;          /* Actual size of buf[] */
-    char       buf[1];          /* Variable sized */
+    __int64    buf[1];       /* Variable sized area. __int64 to force align
+                                   to 8 bytes */
 } TwapiDirectoryMonitorBuffer;
 
 /*
@@ -91,7 +92,7 @@ typedef struct _TwapiDirectoryMonitorContext {
  * Static prototypes
  */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
-    TwapiInterpContext *ticP, LPWSTR pathP, int path_len, int include_subtree,
+    LPWSTR pathP, int path_len, int include_subtree,
     DWORD  filter, WCHAR **patterns, int npatterns);
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *);
 static DWORD TwapiDirectoryMonitorInitiateRead(TwapiDirectoryMonitorContext *);
@@ -125,7 +126,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         != TCL_OK)
         return TCL_ERROR;
         
-    dmcP = TwapiDirectoryMonitorContextNew(ticP, pathP, path_len, include_subtree, filter, patterns, npatterns);
+    dmcP = TwapiDirectoryMonitorContextNew(pathP, path_len, include_subtree, filter, patterns, npatterns);
     
     /* 
      * TBD - Should we add FILE_SHARE_DELETE to allow deleting of
@@ -182,6 +183,8 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
      */
     TwapiDirectoryMonitorContextRef(dmcP, 2);
     ZLIST_PREPEND(&ticP->directory_monitors, dmcP);
+    dmcP->ticP = ticP;
+    TwapiInterpContextRef(ticP, 1);
 
     /* Finally, ask thread pool to wait on the event */
     if (RegisterWaitForSingleObject(
@@ -203,13 +206,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
 
 system_error:
     /* winerr should contain system error, waits should not registered */
-    /* Need to close handles before deleting */
-    if (dmcP->directory_handle != INVALID_HANDLE_VALUE)
-        CloseHandle(dmcP->directory_handle);
-    if (dmcP->completion_event != NULL)
-        CloseHandle(dmcP->completion_event);
-
-    TwapiDirectoryMonitorContextDelete(dmcP);
+    TwapiShutdownDirectoryMonitor(dmcP);
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
@@ -227,7 +224,7 @@ int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
     
     ZLIST_LOCATE(dmcP, &ticP->directory_monitors, directory_handle, dirhandle);
     if (dmcP == NULL)
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_INVALID_ARGS);
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
 
     // ASSERT ticP == dmcP->ticP
 
@@ -240,7 +237,6 @@ int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
 
 /* Always returns non-NULL, or panics */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
-    TwapiInterpContext *ticP,
     LPWSTR pathP,                /* May NOT be null terminated if path_len==-1 */
     int    path_len,            /* -1 -> null terminated */
     int    include_subtree,
@@ -274,9 +270,7 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     sz += sizeof(WCHAR) * (path_len+1); /* Space for path to be monitored */
 
     dmcP = (TwapiDirectoryMonitorContext *) TwapiAlloc(sz);
-    dmcP->ticP = ticP;
-    if (ticP)
-        TwapiInterpContextRef(ticP, 1);
+    dmcP->ticP = NULL;
     dmcP->directory_handle = INVALID_HANDLE_VALUE;
     dmcP->completion_event = NULL;
     dmcP->thread_pool_registry_handle = INVALID_HANDLE_VALUE;
@@ -301,8 +295,13 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     return dmcP;
 }
 
+/*
+ * Deletes a context. Only does deallocation. Does not do any unlinking,
+ * caller must do that before calling.
+ */
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *dmcP)
 {
+    TWAPI_ASSERT(dmcP->ticP == NULL);
     TWAPI_ASSERT(dmcP->nrefs <= 0);
     TWAPI_ASSERT(dmcP->thread_pool_registry_handle == NULL);
     TWAPI_ASSERT(dmcP->directory_handle == INVALID_HANDLE_VALUE);
@@ -310,9 +309,6 @@ static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *dmc
 
     if (dmcP->iobP)
         TwapiFree(dmcP->iobP);
-
-    if (dmcP->ticP)
-        TwapiInterpContextUnref(dmcP->ticP, 1);
 
     TwapiFree(dmcP);
 }
@@ -510,7 +506,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         // TBD - assert iobP
         fniP = (FILE_NOTIFY_INFORMATION *) iobP->buf;
         /* InternalHigh is byte count */
-        endP = iobP->ovl.InternalHigh + iobP->buf;
+        endP = ADDPTR(iobP->buf, iobP->ovl.InternalHigh, char*);
         notify = 0;
         fnObj[1] = NULL;        /* When looping this can contain a reusable object */
         for (i=0; i < ARRAYSIZE(actionObj); ++i) {
@@ -706,3 +702,4 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 
     return TCL_OK;
 }
+
