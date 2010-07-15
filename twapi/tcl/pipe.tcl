@@ -35,7 +35,7 @@ namespace eval twapi::pipe {
         proc [namespace current]::_initialize_module {} {}
     }
 
-    proc server {name args} {
+    proc server {name script args} {
 
         _initialize_module
 
@@ -90,13 +90,16 @@ namespace eval twapi::pipe {
                              secattr $opts(secattr)]
         }
 
-        set hpipe [twapi::Twapi_PipeServer $name \
-                       [dict get $options open_mode] \
-                       [dict get $options pipe_mode] \
-                       [dict get $options max_instances] \
-                       4096 4096 \
-                       [dict get $options timeout] \
-                       [dict get $options(secattr)]]
+        foreach {state hpipe} [twapi::Twapi_PipeServer $name \
+                                   [dict get $options open_mode] \
+                                   [dict get $options pipe_mode] \
+                                   [dict get $options max_instances] \
+                                   4096 4096 \
+                                   [dict get $options timeout] \
+                                   [dict get $options(secattr)]] {
+            break
+        }
+        # state == connected, or state == pending
         
         # Now create a Tcl channel based on the OS handle
         if {[catch {
@@ -116,7 +119,15 @@ namespace eval twapi::pipe {
         dict set channels $chan pipe_name $name
         dict set channels $chan handle $hpipe
         dict set handles $hpipe channel $chan
+
+        # Register the callback script for server connection notification
+        dict set channels $chan connect_notification_script $script
         
+        # Now if we are already connected, invoke the callback.
+        if {$state eq connected} {
+            after 0 $script $chan
+        }
+
         return $chan
     }
 
@@ -126,10 +137,10 @@ namespace eval twapi::pipe {
         # some channel state.
         variable channels
 
-        dict set channels $chan watch_read 0
-        dict set channels $chan watch_write 0
+        dict set channels $chan watch 0
+        dict set channels $chan watch 0
 
-        return [list initialize finalize watch read write configure cget cgetall blocking]
+        set commands [list initialize finalize watch read write configure cget cgetall blocking]
     }
 
     proc finalize {chan} {
@@ -164,16 +175,23 @@ namespace eval twapi::pipe {
     proc watch {chan events} {
         variable channels
 
-        dict set channels $chan watch_read  0
-        dict set channels $chan watch_write 0
-        foreach event $events {
-            dict set channels $chan watch_$event 1
+        set flags 0
+        if {"read" in $events} {
+            incr flags 1
         }
+        if {"write" in $events} {
+            incr flags 2
+        }
+        
+        dict set channels $chan watch $flags
+        TBD - twapi::Twapi_PipeWatch [dict get $channels $chan handle] $flags
     }
 
-    proc read {chanid count} {
-        variable chan
-        puts [info level 0]
+    proc read {chan count} {
+        variable channels
+TBD
+        if {[dict exists $channels $chan handle]
+
         if {[string length $chan($chanid)] < $count} {
             set result $chan($chanid); set chan($chanid) ""
         } else {
