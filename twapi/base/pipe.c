@@ -55,6 +55,11 @@ static DWORD TwapiQueuePipeCallback(TwapiPipeContext *ctxP, const char *s);
 static DWORD TwapiSetupPipeRead(TwapiPipeContext *ctxP);
 
 
+/*
+ * Sets up overlapped reads on a pipe. The read state must be IDLE so
+ * that the data buffer is not in use and no reads are pending. If the
+ * pipe is not configured to generate read events, does nothing.
+ */
 static WIN32_ERROR TwapiPipeWatchReads(TwapiPipeContext *ctxP)
 {
     DWORD winerr;
@@ -95,8 +100,9 @@ static WIN32_ERROR TwapiPipeWatchReads(TwapiPipeContext *ctxP)
                 WT_EXECUTEDEFAULT
                 )) {
             TwapiPipeContextUnref(ctxP, 1);
+            ctxP->io[READER].hwait = INVALID_HANDLE_VALUE; /* Just in case... */
             /* Note the call does not set GetLastError. Make up our own */
-            return 
+            return TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
         }
 
     }
@@ -105,6 +111,80 @@ static WIN32_ERROR TwapiPipeWatchReads(TwapiPipeContext *ctxP)
     return ERROR_SUCCESS;
 }
 
+/*
+ * Return the current number of available bytes for reading including the
+ * read-ahead byte.
+ */
+WIN32_ERROR TwapiPipeReadCount(TwapiPipeContext *ctxP, DWORD *countP)
+{
+    DWORD count;
+
+    if (ctxP->io[READER].state == IOBUF_IO_PENDING) {
+        *countP = 0;               /* I/O pending so obviously no data */
+        return ERROR_SUCCESS;
+    }
+
+    /*
+     * Note in COMPLETED or IDLE state, the thread pool will not
+     * run so we do not have to worry about consistency between the read
+     * ahead and what's in the pipe
+     */
+       
+    if (!PeekNamedPipe(ctxP->hpipe, NULL, 0, NULL, &count, NULL))
+        return GetLastError();
+
+    if (ctxP->io[READER].state == IOBUF_IO_COMPLETED)
+        ++count;              /* The read-ahead byte */
+
+    *countP = count;
+
+    return ERROR_SUCCESS;
+}
+
+
+/*
+ * Read count bytes and return a Tcl_Obj. Caller must have ensured there
+ * are that many bytes available else function will block waiting for data.
+ */
+static WIN32_ERROR TwapiPipeReadData(TwapiPipeContext *ctxP, DWORD count, Tcl_Obj **objPP)
+{
+    struct _TwapiPipeIO *ioP = &ctxP->io[READER];
+    Tcl_Obj *objP = Tcl_NewByteArrayObj(NULL, count);
+    char *p = Tcl_GetByteArrayFromObj(objP, NULL);
+    DWORD winerr;
+
+    TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
+    TWAPI_ASSERT(count);
+
+    if (ioP->state == IOBUF_IO_COMPLETED) {
+        --count;
+        *p++ = ioP->data.read_ahead[0];
+        ioP->state = IOBUF_IDLE;
+    }
+
+    if (count > 0) {
+        DWORD read_count;
+        ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+        ioP->hEvent = ctxP->hsync; /* Event used for "synchronous" reads */
+        if (! ReadFile(ctxP->hpipe, p, count, NULL, &ioP->ovl)) {
+            winerr = GetLastError();
+            if (winerr != ERROR_IO_PENDING) {
+                Tcl_DecrRefCount(objP);
+                return winerr;
+            }
+            /* Pending I/O. Should not happen, but no matter, fall thru */
+        }
+        if (!GetOverlappedResult(ctxP->hpipe, &ioP->ovl, &read_count, TRUE)) {
+            winerr = GetLastError();
+            Tcl_DecrRefCount(objP);
+            return winerr;
+        }
+        TWAPI_ASSERT(read_count == count);
+    }
+
+    *objPP = objP;
+    return ERROR_SUCCESS;
+}
 
 
 int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
@@ -130,16 +210,17 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                                    outbuf_sz, inbuf_sz, timeout, secattrP);
 
     if (ctxP->hpipe != INVALID_HANDLE_VALUE) {
-        /* Create event used for sync i/o */
+        /* Create event used for sync i/o. Note this is manual reset event */
         ctxP->hsync = CreateEvent(NULL, TRUE, FALSE, NULL);
 
         if (ctxP->hsync) {
-            /*
-             * Create events to use for notification of completion. The events
-             * must be auto-reset to prevent multiple callback queueing on a single 
-             * input notification. See MSDN docs for RegisterWaitForSingleObject.
-             * As a consequence, we must make sure we never call GetOverlappedResult
-             * in blocking mode.
+            /* 
+             * Create events to use for notification of completion. The
+             * events must be auto-reset to prevent multiple callback
+             * queueing on a single input notification. See MSDN docs for
+             * RegisterWaitForSingleObject.  As a consequence, we must
+             * make sure we never call GetOverlappedResult in blocking
+             * mode.
              */
             ctxP->io[READER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
             if (ctxP->io[READER].hevent) {
@@ -197,6 +278,7 @@ int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
     DWORD winerr;
     DWORD nread, avail;
     struct _TwapiPipeIO *ioP;
+    Tcl_Obj *objP;
 
     TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
     
@@ -207,16 +289,27 @@ int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
     TWAPI_ASSERT(ticP == ctxP->ticP);
 
     ioP = &ctxP->io[READER];
-    if (ioP->state == IOBUF_IO_PENDING) {
-        TWAPI_ASSERT(ioP->hwait != INVALID_HANDLE_VALUE);
-        /*
-         * If in non-blocking mode, throw EAGAIN as expected by the Tcl 
-         * channel implementation.
-         */
-        if (ctxP->flags & PIPE_F_NONBLOCKING) {
+    if (ctxP->winerr != ERROR_SUCCESS)
+        goto error_return;
+
+    if (count == 0)
+        return TCL_OK; // TBD ? Will get treated as EOF
+
+    if ((ctxP->winerr = TwapiPipeReadCount(ctxP, &avail)) != ERROR_SUCCESS) {
+        goto error_return;
+    }
+
+    if (ctxP->flags & PIPE_F_NONBLOCKING) {
+        /* Non-blocking channel */
+        if (avail == 0) {
             Tcl_SetResult(interp, "EAGAIN", TCL_STATIC);
-            return TCL_ERROR;
+            return TCL_ERROR;   /* As expected by Tcl channel implementation */
         }
+        count = avail;      /* Non-blocking case - return what we have */
+
+        TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING); /* When avail > 0 */
+    } else {
+        /* Blocking channel. */
 
         /*
          * Loop waiting for I/O to complete. Note this combination of
@@ -227,39 +320,32 @@ int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
         while (ioP->state == IOBUF_IO_PENDING) {
             SleepEx(1, FALSE);
         }
+        /* Error might have occured while we waited */
+        if (ctxP->winerr != ERROR_SUCCESS)
+            goto error_return;
+
+        /* Now that the async thread pool is out of the way, we can go
+           ahead and do the blocking read */
     }
 
-    TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
-    
-    nread = 0;
-    if (ioP->state == IOBUF_IO_COMPLETE) {
-        TWAPI_ASSERT(HasOverlappedIoCompleted(&ioP->ovl));
-        if (! SUCCEEDED(ioP->ovl.Internal)) {
-            return Twapi_AppendSystemError(ticP->interp, ioP->ovl.Internal);
-        }
-        TWAPI_ASSERT(ioP->ovl.InternalHigh == 1); /* One-byte read ahead */
-        nread = 1;
+    ctxP->winerr = TwapiPipeReadData(ctxP, count, &objP);
+
+    if (ctxP->winerr == ERROR_SUCCESS) {
+        Tcl_SetObjResult(ticP->interp, objP);
+        Remember to fire another read event if more data is available or ;
+        is that automatically taken care of thru the thread pool wait? I think so;
+
+        TwapiPipeWatchReads(TBD);
+        return TCL_OK;
     }
+    /* Fall thru for errors */
 
-    /*
-     * We are either in state IDLE or IO_COMPLETED successfully. In either
-     * case, see how much additional data is available in the pipe itself.
-     * TBD - with overlapped i/o can we just do a read or will that only
-     * complete when specified number of bytes is available ?
-     */
-    avail = 0;
-    if (count != nread) {
-        if (! PeekNamedPipe(ctxP->hpipe, NULL, 0, NULL, &avail, NULL)) {
-            TBD - error;
-        }
+error_return:
+    if (ctxP->winerr == ERROR_HANDLE_EOF) {
+        Tcl_ResetResult(ticP->interp);
+        return TCL_OK;      /* EOF -> empty return result. TBD what about EPIPE? */
     }
-    
-    if ((count <= (avail+nread)) {
-        
-    }
-
-
-
+    return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
 }
 
 int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, DWORD flags) 
