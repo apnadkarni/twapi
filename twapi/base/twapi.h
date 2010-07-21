@@ -207,7 +207,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_BUG            8
 #define TWAPI_UNKNOWN_OBJECT 9
 #define TWAPI_SYSTEM_ERROR  10
-
+#define TWAPI_REGISTER_WAIT_FAILED 11
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -831,10 +831,9 @@ int TwapiReturnSystemError(Tcl_Interp *interp);
 int TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code);
 DWORD TwapiNTSTATUSToError(NTSTATUS status);
 Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
-LPWSTR Twapi_MapWindowsErrorToString(DWORD err);
+Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD err);
 Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD err, Tcl_Obj *);
 int Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long err);
-LPWSTR Twapi_FormatMsgFromModule(DWORD err, HANDLE hModule);
 int Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 #define Twapi_AppendSystemError(interp_, error_) \
     Twapi_AppendSystemError2(interp_, error_, NULL)

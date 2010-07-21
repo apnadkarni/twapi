@@ -30,6 +30,62 @@ static struct TWAPI_ERROR_MAP error_map[] = {
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 
+static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
+{
+    int   length;
+    DWORD flags;
+    WCHAR *wMsgPtr = NULL;
+    char  *msgPtr;
+    Tcl_Obj *objP;
+
+    if (hModule) {
+        flags = FORMAT_MESSAGE_FROM_HMODULE;
+    } else {
+        flags = FORMAT_MESSAGE_FROM_SYSTEM;
+    }
+    flags |= FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_IGNORE_INSERTS;
+
+    length = FormatMessageW(flags, hModule, error,
+                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                            (WCHAR *) &wMsgPtr,
+                            0, NULL);
+    if (length > 0) {
+        /* Strip trailing CR LF if any */
+        if (wMsgPtr[length-1] == L'\n')
+            --length;
+        if (length > 0) {
+            if (wMsgPtr[length-1] == L'\r')
+                --length;
+        }
+        objP = Tcl_NewUnicodeObj(wMsgPtr, length);
+        LocalFree(wMsgPtr);
+        return objP;
+    }
+
+    /* Try the ascii version. TBD - is this really meaningful if above failed ? */
+
+    length = FormatMessageA(flags, hModule, error,
+                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                            (char *) &msgPtr,
+                            0, NULL);
+
+    if (length > 0) {
+        /* Strip trailing CR LF if any */
+        if (msgPtr[length-1] == '\n')
+            --length;
+        if (length > 0) {
+            if (msgPtr[length-1] == L'\r')
+                --length;
+        }
+        objP = Tcl_NewStringObj(msgPtr, length);
+        LocalFree(msgPtr);
+        return objP;
+    }
+
+    return NULL;
+}
+
+
 Tcl_Obj *TwapiGetErrorMsg(int error)
 {
     char *msg = NULL;
@@ -95,19 +151,20 @@ int TwapiReturnSystemError(Tcl_Interp *interp)
 }
 
 /*
- * Return a Unicode string corresponding to a WIndows error
+ * Return a Tcl_Obj string corresponding to a Windows error
+ * NEVER RETURNS NULL.
  */
-LPWSTR Twapi_MapWindowsErrorToString(DWORD error)
+Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
 {
-    WCHAR *wMsgPtr;
     static HMODULE hNetmsg;
     static HMODULE hPdh;
-    WCHAR wMsgBuf[24 + TCL_INTEGER_SPACE];
+    char msgbuf[24 + TCL_INTEGER_SPACE];
+    Tcl_Obj *objP;
 
     /* First try mapping as a system error */
-    wMsgPtr = Twapi_FormatMsgFromModule(error, NULL);
-    if (wMsgPtr)
-        return wMsgPtr;
+    objP  = Twapi_FormatMsgFromModule(error, NULL);
+    if (objP)
+        return objP;
 
     /* TBD - do we need to FreeLibrary after a LoadLibraryExW ? */
     /* Next try as a netmsg error - it's not clear this is really
@@ -118,9 +175,9 @@ LPWSTR Twapi_MapWindowsErrorToString(DWORD error)
             hNetmsg = LoadLibraryExW(L"netmsg.dll", NULL,
                                      LOAD_LIBRARY_AS_DATAFILE);
         if (hNetmsg)
-            wMsgPtr = Twapi_FormatMsgFromModule(error, hNetmsg);
-        if (wMsgPtr)
-            return wMsgPtr;
+            objP = Twapi_FormatMsgFromModule(error, hNetmsg);
+        if (objP)
+            return objP;
     }
 
     /* Still no joy, try the PDH */
@@ -128,19 +185,17 @@ LPWSTR Twapi_MapWindowsErrorToString(DWORD error)
         hPdh = LoadLibraryExW(L"pdh.dll", NULL,
                               LOAD_LIBRARY_AS_DATAFILE);
     if (hPdh)
-        wMsgPtr = Twapi_FormatMsgFromModule(error, hPdh);
-    if (wMsgPtr)
-        return wMsgPtr;
+        objP = Twapi_FormatMsgFromModule(error, hPdh);
+    if (objP)
+        return objP;
     
     /* Just print out error code */
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
-        wMsgPtr = TwapiAllocWString(L"function not supported under this Windows version", -1);
+        return STRING_LITERAL_OBJ("Function not supported under this Windows version");
     } else {
-        wsprintfW(wMsgBuf, L"Windows error: %ld", error);
-        wMsgPtr = TwapiAllocWString(wMsgBuf, -1);
+        wsprintfA(msgbuf, "Windows error: %ld", error);
+        return Tcl_NewStringObj(msgbuf, -1);
     }
-
-    return wMsgPtr;
 }
 
 /* Returns a Tcl errorCode object */
@@ -152,18 +207,7 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
 
     objv[0] = STRING_LITERAL_OBJ(TWAPI_WIN32_ERRORCODE_TOKEN);
     objv[1] = Tcl_NewLongObj(error);
-    wmsgP = Twapi_MapWindowsErrorToString(error);
-    if (wmsgP) {
-        int len;
-
-        len = (int) lstrlenW(wmsgP);
-
-        objv[2] = Tcl_NewUnicodeObj(wmsgP, len);
-        TwapiFree(wmsgP);
-    } else {
-        wsprintf(buf, "Windows error: %ld", error);
-        objv[2] = Tcl_NewStringObj(buf, -1);
-    }
+    objv[2] = Twapi_MapWindowsErrorToString(error);
     objv[3] = extra;
     return Tcl_NewListObj(objv[3] ? 4 : 3, objv);
 }
@@ -203,69 +247,6 @@ int Twapi_AppendSystemError2(
     Tcl_SetObjErrorCode(interp, errorCodeObj);
 
     return TCL_ERROR;           /* Always return TCL_ERROR */
-}
-
-/*
- * Returns in *ppMsg, a TwapiAlloc'ed unicode string corresponding to the given
- * error code by looking up the appropriate dll or system if the module
- * handle is NULL.
- */
-LPWSTR Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
-{
-    int   length;
-    DWORD flags;
-    WCHAR *wMsgPtr = NULL;
-    char  *msgPtr;
-
-    if (hModule) {
-        flags = FORMAT_MESSAGE_FROM_HMODULE;
-    } else {
-        flags = FORMAT_MESSAGE_FROM_SYSTEM;
-    }
-    flags |= FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_IGNORE_INSERTS;
-
-    length = FormatMessageW(flags, hModule, error,
-                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                            (WCHAR *) &wMsgPtr,
-                            0, NULL);
-    if (length > 0) {
-        /* Need a TwapiAlloc'ed buffer and not a LocalAlloc'ed one */
-        WCHAR *temp = wMsgPtr;
-        wMsgPtr = TwapiAllocWString(wMsgPtr, length);
-        LocalFree(temp);
-        goto done;
-    }
-
-    length = FormatMessageA(flags, hModule, error,
-                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                            (char *) &msgPtr,
-                            0, NULL);
-    if (length > 0) {
-        wMsgPtr = (WCHAR *) TwapiAlloc((length + 1) * sizeof(WCHAR));
-        if (wMsgPtr) {
-            wMsgPtr[0] = 0;
-            MultiByteToWideChar(CP_ACP, 0, msgPtr, length + 1, wMsgPtr,
-                                length + 1);
-            LocalFree(msgPtr);
-        }
-    }
-
-done:
-    if (wMsgPtr) {
-        /* length does not include terminating \0 */
-	/* Trim the trailing CR/LF from the system message. */
-        if (length > 0) {
-            if (wMsgPtr[length-1] == L'\n')
-                --length;
-        }
-        if (length > 0) {
-            if (wMsgPtr[length-1] == L'\r')
-                --length;
-        }
-        wMsgPtr[length] = 0;
-    }
-
-    return wMsgPtr;
 }
 
 
