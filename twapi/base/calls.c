@@ -2644,15 +2644,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EMPTY;
             break;
         case 34:
-            u.str = Twapi_MapWindowsErrorToString(dw);
-            /* Note we cannot use standard result/TwapiSetResult TRT_UNICODE
-               as the buffer has to be freed */
-            if (u.str) {
-                result.type = TRT_OBJ;
-                result.value.obj = Tcl_NewUnicodeObj(u.str, -1);
-                TwapiFree(u.str);
-            } else
-                result.type = TRT_EMPTY;
+            result.value.obj = Twapi_MapWindowsErrorToString(dw);
+            result.type = TRT_OBJ;
             break;
         case 35:
             result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 

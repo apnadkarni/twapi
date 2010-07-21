@@ -1325,12 +1325,13 @@ int Twapi_IDispatch_InvokeObjCmd(
                      FACILITY_WINDOWS == HRESULT_FACILITY(einfo.scode) ||
                      FACILITY_DISPATCH == HRESULT_FACILITY(einfo.scode) ||
                      FACILITY_RPC == HRESULT_FACILITY(einfo.scode))) {
-                    WCHAR *scode_msg = Twapi_MapWindowsErrorToString(einfo.scode);
-                    if (scode_msg) {
+                    Tcl_Obj *scodeObj = Twapi_MapWindowsErrorToString(einfo.scode);
+                    if (scodeObj) {
+                        Tcl_IncrRefCount(scodeObj);
                         errorResultObj = Tcl_GetObjResult(interp);
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
-                        Tcl_AppendUnicodeToObj(errorResultObj, scode_msg, -1);
-                        TwapiFree(scode_msg);
+                        Tcl_AppendObjToObj(errorResultObj, scodeObj);
+                        Tcl_DecrRefCount(scodeObj);
                     }
                 }
             }
