@@ -214,6 +214,7 @@ typedef volatile LONG TwapiOneTimeInitState;
  */
 #define TWAPI_WIN32_ERROR_FAC 0xABC /* 12-bit facility to distinguish from app */
 #define TWAPI_ERROR_TO_WIN32(code) (0xE0000000 | (TWAPI_WIN32_ERROR_FAC < 16) | (code))
+#define IS_TWAPI_WIN32_ERROR(code) (((code) >> 16) == (0xe000 | TWAPI_WIN32_ERROR_FAC))
 
 /**********************
  * Misc utility macros
