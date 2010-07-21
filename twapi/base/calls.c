@@ -559,6 +559,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryUnicode, Call, 10114);
     CALL_(Twapi_WriteMemoryPointer, Call, 10115);
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
+    CALL_(Twapi_PipeServer, Call, 10117);
 
 
     // CallU API
@@ -729,6 +730,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
+    CALL_(Twapi_PipeClose, CallH, 64);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -2471,6 +2473,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10116: // Wide
             // We are passing the func code as well, hence only skip one arg
             return TwapiWriteMemory(interp, objc-1, objv+1);
+
+        case 10117:
+            return Twapi_PipeServer(ticP, objc-2, objv+2);
         }
 
     }
@@ -2635,15 +2640,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EMPTY;
             break;
         case 34:
-            u.str = Twapi_MapWindowsErrorToString(dw);
-            /* Note we cannot use standard result/TwapiSetResult TRT_UNICODE
-               as the buffer has to be freed */
-            if (u.str) {
-                result.type = TRT_OBJ;
-                result.value.obj = Tcl_NewUnicodeObj(u.str, -1);
-                TwapiFree(u.str);
-            } else
-                result.type = TRT_EMPTY;
+            result.value.obj = Twapi_MapWindowsErrorToString(dw);
+            result.type = TRT_OBJ;
             break;
         case 35:
             result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
@@ -3327,6 +3325,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 63:
             return Twapi_MemLifoDump(ticP, h);
+        case 64:
+            return Twapi_PipeClose(ticP, h);
         }
     } else if (func < 2000) {
 

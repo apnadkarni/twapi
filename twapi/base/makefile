@@ -55,6 +55,7 @@ OBJS  = \
 	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
+	$(OBJDIR)\pipe.obj \
 	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
@@ -189,7 +190,7 @@ LIBS          = $(TCLLIB) $(DLLIBC) $(WINLIB)
 CDEBUG = -Z7 -Od -D_DEBUG
 !ELSE
 !IFDEF NOOPTIMIZE
-CDEBUG = -Z7 -Od
+CDEBUG = -Zi -Od
 !ELSE
 CDEBUG = -O1 -Zi -DNDEBUG -W3
 !ENDIF

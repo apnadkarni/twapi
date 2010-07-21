@@ -1303,15 +1303,28 @@ proc twapi::_print_interface_helper {ti {names_already_done ""}} {
         return $names_already_done
     }
     lappend names_already_done $name
-    array set attrs [itypeinfo_get_info $ti -all]
-    for {set j 0} {$j < $attrs(-fncount)} {incr j} {
-        array set funcdata [itypeinfo_get_func_info $ti $j -all] 
-        if {$funcdata(-funckind) eq "dispatch"} {
-            set funckind "(dispid $funcdata(-memid))"
-        } else {
-            set funckind "(vtable $funcdata(-vtbloffset))"
+
+    # Check for dual interfaces - we want to print both vtable and disp versions
+    set tilist [list $ti]
+    if {![catch {set ti2 [itypeinfo_get_referenced_itypeinfo $ti -1]}]} {
+        lappend tilist $ti2
+    }
+
+    foreach tifc $tilist {
+        array set attrs [itypeinfo_get_info $tifc -all]
+        for {set j 0} {$j < $attrs(-fncount)} {incr j} {
+            array set funcdata [itypeinfo_get_func_info $tifc $j -all] 
+            if {$funcdata(-funckind) eq "dispatch"} {
+                set funckind "(dispid $funcdata(-memid))"
+            } else {
+                set funckind "(vtable $funcdata(-vtbloffset))"
+            }
+            lappend desc "\t$funckind [_resolve_com_type $tifc $funcdata(-datatype)] $funcdata(-name) [_resolve_com_params $tifc $funcdata(-params) $funcdata(-paramnames)]"
         }
-        lappend desc "\t$funckind [_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) [_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]"
+    }
+
+    if {[info exists ti2]} {
+        iunknown_release $ti2
     }
 
     puts $name
@@ -1323,6 +1336,7 @@ proc twapi::_print_interface_helper {ti {names_already_done ""}} {
         set names_already_done [_print_interface_helper $ti2 $names_already_done]
         iunknown_release $ti2
     }
+
     return $names_already_done
 }
 

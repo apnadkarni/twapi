@@ -60,6 +60,9 @@
 #include "zlist.h"
 #include "memlifo.h"
 
+typedef DWORD WIN32_ERROR;
+typedef int TCL_RESULT;
+
 #define TWAPI_TCL_NAMESPACE "twapi"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
@@ -148,6 +151,30 @@
 /* 64 bittedness needs a BOOL version of the FARPROC def */
 typedef BOOL (WINAPI *FARPROC_BOOL)();
 
+/*
+ * Macros for alignment
+ */
+#define ALIGNMENT sizeof(__int64)
+#define ALIGNMASK (~(INT_PTR)(ALIGNMENT-1))
+/* Round up to alignment size */
+#define ROUNDUP(x_) (( ALIGNMENT - 1 + (x_)) & ALIGNMASK)
+#define ROUNDED(x_) (ROUNDUP(x_) == (x_))
+#define ROUNDDOWN(x_) (ALIGNMASK & (x_))
+
+/* Note diff between ALIGNPTR and ADDPTR is that former aligns the pointer */
+#define ALIGNPTR(base_, offset_, type_) \
+    (type_) ROUNDUP((offset_) + (DWORD_PTR)(base_))
+#define ADDPTR(p_, incr_, type_) \
+    ((type_)((incr_) + (char *)(p_)))
+#define SUBPTR(p_, decr_, type_) \
+    ((type_)(((char *)(p_)) - (decr_)))
+#define ALIGNED(p_) (ROUNDED((DWORD_PTR)(p_)))
+
+/*
+ * Pointer diff assuming difference fits in 32 bits. That should be always
+ * true even on 64-bit systems because of our limits on alloc size
+ */
+#define PTRDIFF32(p_, q_) ((int)((char*)(p_) - (char *)(q_)))
 
 /*
  * Support for one-time initialization 
@@ -178,6 +205,15 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_INVALID_OPTION 6
 #define TWAPI_INVALID_FUNCTION_CODE 7
 #define TWAPI_BUG            8
+#define TWAPI_UNKNOWN_OBJECT 9
+#define TWAPI_SYSTEM_ERROR  10
+#define TWAPI_REGISTER_WAIT_FAILED 11
+
+/*
+ * Map TWAPI error codes into Win32 error code format.
+ */
+#define TWAPI_WIN32_ERROR_FAC 0xABC /* 12-bit facility to distinguish from app */
+#define TWAPI_ERROR_TO_WIN32(code) (0xE0000000 | (TWAPI_WIN32_ERROR_FAC < 16) | (code))
 
 /**********************
  * Misc utility macros
@@ -560,13 +596,20 @@ typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 typedef struct _TwapiInterpContext TwapiInterpContext;
 ZLINK_CREATE_TYPEDEFS(TwapiInterpContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiInterpContext);
+
 typedef struct _TwapiCallback TwapiCallback;
 ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
 ZLIST_CREATE_TYPEDEFS(TwapiCallback);
+
 typedef struct _TwapiThreadPoolRegisteredHandle TwapiThreadPoolRegisteredHandle;
+
 typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
+
+typedef struct _TwapiPipeContext TwapiPipeContext;
+ZLINK_CREATE_TYPEDEFS(TwapiPipeContext); 
+ZLIST_CREATE_TYPEDEFS(TwapiPipeContext);
 
 #if 0
 /*
@@ -667,7 +710,7 @@ typedef struct _TwapiInterpContext {
 
     /* Back pointer to the associated interp. This must only be modified or
      * accessed in the Tcl thread. THIS IS IMPORTANT AS THERE IS NO
-     * SYNCHORNIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
+     * SYNCHRONIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
      * ACCESSED FROM OTHER THREADS
      */
     Tcl_Interp *interp;
@@ -691,6 +734,12 @@ typedef struct _TwapiInterpContext {
      * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
      */
     ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
+
+    /*
+     * List of named pipe contexts. ONLY ACCESSED FROM Tcl THREAD SO ACCESSED
+     * WITHOUT A LOCK
+     */
+    ZLIST_DECL(TwapiPipeContext) pipes;
 
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
@@ -782,10 +831,9 @@ int TwapiReturnSystemError(Tcl_Interp *interp);
 int TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code);
 DWORD TwapiNTSTATUSToError(NTSTATUS status);
 Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
-LPWSTR Twapi_MapWindowsErrorToString(DWORD err);
+Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD err);
 Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD err, Tcl_Obj *);
 int Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long err);
-LPWSTR Twapi_FormatMsgFromModule(DWORD err, HANDLE hModule);
 int Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 #define Twapi_AppendSystemError(interp_, error_) \
     Twapi_AppendSystemError2(interp_, error_, NULL)
@@ -1351,6 +1399,11 @@ HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
 int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
 int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
+
+/* Named pipes */
+int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe);
+
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
