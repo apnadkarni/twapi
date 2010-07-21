@@ -7,21 +7,22 @@
 
 #include "twapi.h"
 
-
-typedef struct _TwapiPipeBuffer {
-    OVERLAPPED ovl;
-    size_t     buf_sz;          /* Actual size of buf[] */
-    __int64    buf[1];          /* Start of variable sized area. __int64 to
-                                   to force 8 byte alignment */
-} TwapiPipeBuffer;
-
 typedef struct _TwapiPipeContext {
     TwapiInterpContext *ticP;
     HANDLE  hpipe;   /* Handle to the pipe */
     struct {
+        OVERLAPPED ovl;         /* Used in async i/o. Note the hEvent field
+                                   is always set at init time */
         HANDLE hwait;       /* Handle returned by thread pool wait functions */
-        HANDLE hevent;      /* Used for read i/o signaling */
-        TwapiPipeBuffer *iobP; /* Used for overlapped i/o */
+        HANDLE hevent;      /* Event to wait on */
+        union {
+            char read_ahead[1];     /* Used to read-ahead a single byte */
+            Tcl_Obj *objP;      /* Data to write out */
+        } data;
+        int    state;
+#define IOBUF_IDLE         0
+#define IOBUF_IO_PENDING   1
+#define IOBUF_IO_COMPLETED 2
     } io[2];                   /* 0 -> read, 1 -> write */
 #define READER 0
 #define WRITER 1
@@ -41,6 +42,7 @@ void TwapiPipeContextUnref(TwapiPipeContext *ctxP, int decr);
 static int TwapiPipeShutdown(TwapiPipeContext *ctxP);
 static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP);
 static DWORD TwapiQueuePipeCallback(TwapiPipeContext *ctxP, const char *s);
+static DWORD TwapiSetupPipeRead(TwapiPipeContext *ctxP);
 
 int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
@@ -103,7 +105,6 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
-
 int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
 {
     TwapiPipeContext *ctxP;
@@ -112,7 +113,7 @@ int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
     
     ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
     if (ctxP == NULL)
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_INVALID_ARGS);
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
 
     TWAPI_ASSERT(ticP == ctxP->ticP);
 
@@ -121,22 +122,165 @@ int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
     return TCL_OK;
 }
 
+static int Twapi_PipeSetupNotifications(TwapiInterpContext *ticP, HANDLE hpipe, DWORD flags) {
+    TwapiPipeContext *ctxP;
+    DWORD winerr;
+    int data_availability = 0;
+
+    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
+    TWAPI_ASSERT(direction == READER || direction == WRITER);
+    
+    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
+    if (ctxP == NULL)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+
+    TWAPI_ASSERT(ticP == ctxP->ticP);
+
+    /* First do the read side stuff (bit 0) */
+    if ((flags & 1) == 0) {
+        /* Do not want read notifications. Unregister from thread pool */
+        if (ctxP->io[READER].hwait != INVALID_HANDLE_VALUE) {
+            UnregisterWaitEx(ctxP->io[READER].hwait, INVALID_HANDLE_VALUE);
+            ctxP->io[READER].hwait = INVALID_HANDLE_VALUE;
+            TwapiPipeContextUnref(ctxP, 1);
+        }
+    } else {
+        /* Want to be notified when data is available */
+        if (ctxP->io[READER].hwait == INVALID_HANDLE_VALUE) {
+            /*
+             * Notifications are not set up so do so.
+             * If there is already data available, in our input buffer,
+             * we will return "data available" so script level code
+             * will queue a notification. In this case, we do not
+             * enqueue an OS I/O since we are only using a single
+             * data buffer and that already has data. The kernel
+             * level async I/O will be set up when the existing data
+             * is read.
+             */
+            switch (ctxP->io[READER].state) {
+            case IOBUF_IO_COMPLETED:
+                /* We have data in the buffer. */
+                data_availability |= 1;
+                break;
+            case IOBUF_IDLE:
+                /* Setup a read. Note it may complete asynchronously */
+                ZeroMemory(&ctxP->io[READER].ovl, sizeof(ctxP->io[READER].ovl));
+                ctxP->io[READER].ovl.hEvent = ctxP->io[READER].hevent;
+                if (ReadFile(ctxP->hpipe,
+                             &ctxP->io[READER].data.read_ahead,
+                             1,
+                             NULL,
+                             &ctxP->io[READER].ovl)) {
+                    /* Have data already. */
+                    data_availability |= 1;
+                    break;
+                }
+                if ((winerr = GetLastError()) != ERROR_IO_PENDING) {
+                    /* Genuine error */
+                    return TwapiPipeMapError(ticP->interp, winerr);
+                }
+                             
+                /* ERROR_IO_PENDING - FALLTHRU */
+            case IOBUF_IO_PENDING:
+                /* The thread pool will hold a ref to the context */
+                TwapiPipeContextRef(ctxP, 1);
+                if (! RegisterWaitForSingleObject(
+                        &ctxP->io[READER].hwait,
+                        ctxP->io[READER].hevent,
+                        TwapiPipeReadThreadPoolFn,
+                        ctxP,
+                        INFINITE,           /* No timeout */
+                        WT_EXECUTEDEFAULT
+                        )) {
+                    TwapiPipeContextUnref(ctxP, 1);
+                    /* Note the call does not set GetLastError */
+                    return TwapiReturnTwapiError(ticP->interp, "Could not register wait on pipe.", TWAPI_SYSTEM_ERROR);
+                }
+            }
+        } else {
+            /*
+             * Wait is already registered. Nothing to do. If there
+             * was data available, the callback would have, or will,
+             * queue the notification.
+             */
+        }
+    }
+
+
+    /* Now ditto for the write side. */
+    if (flags & 2) {
+        /* Register notification if not already done so */
+        if (ctxP->io[WRITER].hwait == INVALID_HANDLE_VALUE) {
+            /*
+             * Notifications are not set up so do so.
+             */
+            if (ctxP->io[WRITER].state == IOBUF_IO_PENDING) {
+                TWAPI_ASSERT(ctxP->io[WRITER].data.objP);
+                /* Ongoing operation, set up notification when it is complete */
+                /* The thread pool will hold a ref to the context */
+                TwapiPipeContextRef(ctxP, 1);
+                if (! RegisterWaitForSingleObject(
+                        &ctxP->io[WRITER].hwait,
+                        ctxP->io[WRITER].hevent,
+                        TwapiPipeWriteThreadPoolFn,
+                        ctxP,
+                        INFINITE,           /* No timeout */
+                        WT_EXECUTEDEFAULT
+                        )) {
+                    TwapiPipeContextUnref(ctxP, 1);
+                    /* Note the call does not set GetLastError */
+                    return TwapiReturnTwapiError(ticP->interp, "Could not register wait on pipe.", TWAPI_SYSTEM_ERROR);
+
+                }
+            } else {
+                if (ctxP->io[WRITER].data.objP) {
+                    Tcl_DecrRefCount(ctxP->io[WRITER].data.objP);
+                    ctxP->io[WRITER].data.objP = NULL;
+                    ctxP->io[WRITER].state = IOBUF_IDLE;
+                }
+                data_availability |= 2; /* Writable */
+            }
+        } else {
+            /*
+             * Wait is already registered. Nothing to do. If there
+             * was data available, the callback would have, or will,
+             * queue the notification.
+             */
+        }
+    } else {
+        /* Do not want notifications. Unregister from thread pool */
+        if (ctxP->io[WRITER].hwait != INVALID_HANDLE_VALUE) {
+            UnregisterWaitEx(ctxP->io[WRITER].hwait, INVALID_HANDLE_VALUE);
+            ctxP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
+            TwapiPipeContextUnref(ctxP, 1);
+        }
+    }
+
+    if (data_availability) {
+        Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+        if (data_availability & (1 << READER))
+            Tcl_ListObjAppendElement(ticP->interp, resultObj, STRING_LITERAL_OBJ("readable"));
+        if (data_availability & (1 << WRITER))
+            Tcl_ListObjAppendElement(ticP->interp, resultObj, STRING_LITERAL_OBJ("writable"));
+
+        Tcl_SetObjResult(ticP->interp, resultObj);
+    }
+    return TCL_OK;
+}
+
+
 static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
 {
     DWORD winerr;
 
     /* The reader side i/o structures are is also used for connecting */
-    TWAPI_ASSERT(ctxP->io[READER].iobP == NULL);
-
-    ctxP->io[READER].iobP = TwapiAllocZero(sizeof(TwapiPipeBuffer));
-    ctxP->io[READER].iobP->ovl.hEvent = ctxP->io[READER].hevent;
 
     /*
      * Wait for client connection. If there is already a client waiting,
      * to connect, we will get success right away. Else we wait on the
      * event and queue a callback later
      */
-    if (ConnectNamedPipe(ctxP->hpipe, &ctxP->io[READER].iobP->ovl) ||
+    if (ConnectNamedPipe(ctxP->hpipe, &ctxP->io[READER].ovl) ||
         (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {
         /* Already a client in waiting, queue the callback */
         return ERROR_SUCCESS;
@@ -159,12 +303,6 @@ static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
     }
 
     /* Either synchronous completion or error */
-
-    if (ctxP->io[READER].iobP) {
-        TwapiFree(ctxP->io[READER].iobP);
-        ctxP->io[READER].iobP = NULL;
-    }
-
     return winerr;
 }
 
@@ -180,11 +318,16 @@ static TwapiPipeContext *TwapiPipeContextNew(void)
     ctxP->ticP = NULL;
     ctxP->hpipe = INVALID_HANDLE_VALUE;
 
-    for (i = 0; i < ARRAYSIZE(ctxP->io); ++i) {
-        ctxP->io[i].hwait = INVALID_HANDLE_VALUE;
-        ctxP->io[i].hevent = NULL;
-        ctxP->io[i].iobP = NULL;
-    }
+    ctxP->io[READER].hwait = INVALID_HANDLE_VALUE;
+    ctxP->io[READER].hevent = NULL;
+    ctxP->io[READER].state = IOBUF_IDLE;
+
+    ctxP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
+    ctxP->io[WRITER].hevent = NULL;
+    ctxP->io[WRITER].state = IOBUF_IDLE;
+    ctxP->io[WRITER].data.objP = NULL;
+
+
     ctxP->nrefs = 0;
     ZLINK_INIT(ctxP);
     return ctxP;
@@ -201,10 +344,8 @@ static void TwapiPipeContextDelete(TwapiPipeContext *ctxP)
     TWAPI_ASSERT(ctxP->io[WRITER].hevent == NULL);
     TWAPI_ASSERT(ctxP->hpipe == INVALID_HANDLE_VALUE);
 
-    for (i = 0; i < ARRAYSIZE(ctxP->io); ++i) {
-        if (ctxP->io[i].iobP)
-            TwapiFree(ctxP->io[i].iobP);
-    }
+    if (ctxP->io[WRITER].data.objP)
+        Tcl_DecrRefCount(ctxP->io[WRITER].data.objP);
 
     if (ctxP->ticP)
         TwapiInterpContextUnref(ctxP->ticP, 1);
@@ -249,21 +390,29 @@ static int TwapiPipeShutdown(TwapiPipeContext *ctxP)
      * Second, stop the thread pool for this pipe. We need to do that before
      * closing handles. Note the UnregisterWaitEx can result in thread pool
      * callbacks running while it is blocked. The callbacks might queue
-     * additional events to the interp thread. That's ok because we unlinked
+     * additional events to the interp thread. That's ok because we 
      * ctxP->ticP above.
      */
-    for (i = 0; i < ARRAYSIZE(ctxP->io); ++i) {
-        if (ctxP->io[i].hwait != INVALID_HANDLE_VALUE) {
-            UnregisterWaitEx(ctxP->io[i].hwait,
-                             INVALID_HANDLE_VALUE);
-            ctxP->io[i].hwait = INVALID_HANDLE_VALUE;
-            ++unrefs;   /* Remove the ref coming from the thread pool */
-        }
-        if (ctxP->io[i].hevent != NULL) {
-            CloseHandle(ctxP->io[i].hevent);
-            ctxP->io[i].hevent = NULL;
-        }
+    if (ctxP->io[READER].hwait != INVALID_HANDLE_VALUE) {
+        UnregisterWaitEx(ctxP->io[READER].hwait,
+                         INVALID_HANDLE_VALUE);
+        ctxP->io[READER].hwait = INVALID_HANDLE_VALUE;
+        ++unrefs;   /* Remove the ref coming from the thread pool */
+    }
+    if (ctxP->io[READER].hevent != NULL) {
+        CloseHandle(ctxP->io[READER].hevent);
+        ctxP->io[READER].hevent = NULL;
+    }
 
+    if (ctxP->io[WRITER].hwait != INVALID_HANDLE_VALUE) {
+        UnregisterWaitEx(ctxP->io[WRITER].hwait,
+                         INVALID_HANDLE_VALUE);
+        ctxP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
+        ++unrefs;   /* Remove the ref coming from the thread pool */
+    }
+    if (ctxP->io[WRITER].hevent != NULL) {
+        CloseHandle(ctxP->io[WRITER].hevent);
+        ctxP->io[WRITER].hevent = NULL;
     }
 
     /* Third, now that handles are unregistered, close them. */
@@ -276,3 +425,17 @@ static int TwapiPipeShutdown(TwapiPipeContext *ctxP)
     return TCL_OK;
 }
 
+static int TwapiPipeMapError(TwapiInterpContext *ticP, DWORD winerr)
+{
+    switch (winerr) {
+    case ERROR_HANDLE_EOF:
+        Tcl_SetResult(ticP->interp, "eof", TCL_STATIC);
+        break;
+    case ERROR_BROKEN_PIPE:
+        Tcl_SetResult(ticP->interp, "epipe", TCL_STATIC);
+        break;
+    default:
+        return Twapi_AppendSystemError(ticP->interp, winerr);
+    }
+    return TCL_OK;
+}
