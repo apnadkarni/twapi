@@ -25,6 +25,8 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_INVALID_FUNCTION_CODE, "Invalid or unknown function code passed to Win32 API dispatcher."},
     {TWAPI_BUG, "An internal error has been detected."},
     {TWAPI_UNKNOWN_OBJECT, "Specified resource or object not found."},
+    {TWAPI_SYSTEM_ERROR, "System error."},
+    {TWAPI_REGISTER_WAIT_FAILED, "Could not register thread pool wait."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 
