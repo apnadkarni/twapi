@@ -189,6 +189,10 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     if (objP)
         return objP;
     
+    /* Perhaps a TWAPI error ? */
+    if (IS_TWAPI_WIN32_ERROR(error))
+        return TwapiGetErrorMsg(error);
+
     /* Just print out error code */
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
         return STRING_LITERAL_OBJ("Function not supported under this Windows version");
