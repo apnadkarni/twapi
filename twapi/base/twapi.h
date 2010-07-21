@@ -60,6 +60,9 @@
 #include "zlist.h"
 #include "memlifo.h"
 
+typedef DWORD WIN32_ERROR;
+typedef int TCL_RESULT;
+
 #define TWAPI_TCL_NAMESPACE "twapi"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
@@ -203,6 +206,14 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_INVALID_FUNCTION_CODE 7
 #define TWAPI_BUG            8
 #define TWAPI_UNKNOWN_OBJECT 9
+#define TWAPI_SYSTEM_ERROR  10
+
+
+/*
+ * Map TWAPI error codes into Win32 error code format.
+ */
+#define TWAPI_WIN32_ERROR_FAC 0xABC /* 12-bit facility to distinguish from app */
+#define TWAPI_ERROR_TO_WIN32(code) (0xE0000000 | (TWAPI_WIN32_ERROR_FAC < 16) | (code))
 
 /**********************
  * Misc utility macros
@@ -1389,6 +1400,11 @@ HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
 int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
 int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
+
+/* Named pipes */
+int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe);
+
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
