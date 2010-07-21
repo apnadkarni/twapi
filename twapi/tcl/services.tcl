@@ -902,10 +902,6 @@ proc twapi::update_service_status {name seq state args} {
     _report_service_status $name
 
     if {$state eq "stopped"} {
-        # We reported stopped status first (above)
-        # then stop the service thread. Is this the right sequence? TBD
-        Twapi_StopServiceThread $name
-
         # If all services have stopped, tell the app
         set all_stopped true
         foreach {entry val} [array get service_state *,state] {
