@@ -23,10 +23,11 @@ typedef struct _TwapiPipeContext {
             char read_ahead[1];     /* Used to read-ahead a single byte */
             Tcl_Obj *objP;      /* Data to write out */
         } data;
-        int    state;
+        ULONG volatile state;
 #define IOBUF_IDLE         0
 #define IOBUF_IO_PENDING   1
 #define IOBUF_IO_COMPLETED 2
+#define IOBUF_IO_COMPLETED_WITH_ERROR 3
     } io[2];                   /* 0 -> read, 1 -> write */
 #define READER 0
 #define WRITER 1
@@ -52,23 +53,21 @@ void TwapiPipeContextUnref(TwapiPipeContext *ctxP, int decr);
 static int TwapiPipeShutdown(TwapiPipeContext *ctxP);
 static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP);
 static DWORD TwapiQueuePipeCallback(TwapiPipeContext *ctxP, const char *s);
-static DWORD TwapiSetupPipeRead(TwapiPipeContext *ctxP);
 
 
 /*
  * Sets up overlapped reads on a pipe. The read state must be IDLE so
- * that the data buffer is not in use and no reads are pending. If the
- * pipe is not configured to generate read events, does nothing.
+ * that the data buffer is not in use and no reads are pending.
  */
-static WIN32_ERROR TwapiPipeWatchReads(TwapiPipeContext *ctxP)
+static WIN32_ERROR TwapiPipeEnableReadWatch(TwapiPipeContext *ctxP)
 {
     DWORD winerr;
 
-    TWAPI_ASSERT(ctxP->winerr == ERROR_SUCCESS);
-    TWAPI_ASSERT(ctxP->io[READER].state == IOBUF_IDLE);
-
-    if (! (ctxP->flags & PIPE_F_WATCHREAD))
-        return ERROR_SUCCESS;
+    if (ctxP->winerr != ERROR_SUCCESS ||
+        ctxP->io[READER].state != IOBUF_IDLE ||
+        ! (ctxP->flags & PIPE_F_WATCHREAD)) {
+        return TWAPI_ERROR_TO_WIN32(TWAPI_INVALID_STATE_FOR_OP);
+    }
 
     /*
      * We set up a single byte read so we're told when data is available.
@@ -111,6 +110,149 @@ static WIN32_ERROR TwapiPipeWatchReads(TwapiPipeContext *ctxP)
     return ERROR_SUCCESS;
 }
 
+static WIN32_ERROR TwapiPipeDisableReadWatch(TwapiPipeContext *ctxP)
+{
+    DWORD winerr;
+
+    /*
+     * If state is PENDING we do not want to unregister the read since
+     * then there will be an overlapping read outstanding with no one
+     * waiting on the event. Caller is supposed to have checked for that
+     */
+    if (ctxP->io[READER].state == IOBUF_IO_PENDING ||
+        (ctxP->flags & PIPE_F_WATCHREAD)) {
+        return TWAPI_ERROR_TO_WIN32(TWAPI_INVALID_STATE_FOR_OP);
+    }
+
+    TBD
+
+}
+
+/* Called from Tcl event loop with a pipe event notification */
+DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
+{
+    Tcl_Obj *objs[4];
+    int nobjs;
+    TwapiPipeContext *ctxP = (TwapiPipeContext *) cbP->clientdata;
+    int flags;
+    char *eventstr;
+
+    /* If the interp is gone, close down the pipe */
+    if (ctxP->ticP == NULL ||
+        ctxP->ticP->interp == NULL ||
+        Tcl_InterpDeleted(ctxP->ticP->interp)) {
+        cbP->clientdata = NULL;
+        TwapiPipeShutdown(ctxP);
+        TwapiPipeContextUnref(ctxP);
+        ctxP = NULL;            /* Ensure we do not access it */
+        cbP->winerr = ERROR_INVALID_FUNCTION; // TBD
+        cbP->response.type = TRT_EMPTY;
+        return TCL_ERROR;
+    }
+
+    if (cbP->clientdata2 == READABLE) {
+        flags = PIPE_F_WATCHREAD;
+        eventstr = "read";
+    } else {
+        flags = PIPE_F_WATCHWRITE;
+        eventstr = "write";
+    }
+
+    /*
+     * Check if pipe is still being watched. We only queue a notification
+     * if that is the case. Moreover, if it is not being watched, we need to
+     * turn off notifications.
+     */
+    if (ctxP->flags & flags) {
+        /* Still being watched */
+        objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_pipe_handler");
+        objs[1] = ObjFromHANDLE(ctxP->hpipe);
+        if (cbP->winerr == ERROR_SUCCESS || cbP->winerr == ERROR_HANDLE_EOF) {
+            objs[2] = Tcl_NewStringObj(eventstr, -1);
+            nobjs = 3;
+        } else {
+            /* TBD - what do sockets pass to fileevent when there is an error ? */
+            objs[2] = STRING_LITERAL_OBJ("error");
+            objs[3] = Tcl_NewLongObj((long)cbP->winerr);
+            nobjs = 4;
+        }
+        return TwapiEvalAndUpdateCallback(cbP, nobjs, objs, TRT_EMPTY);
+    } else {
+        /* Pipe not being watched. Turn off notification if not already done */
+        if (cbP->clientdata2 == READABLE)
+            TwapiPipeDisableReadWatch(ctxP);
+        else
+            TwapiPipeDisableWriteWatch(ctxP);
+
+        cbP->winerr = ERROR_SUCCESS;
+        cbP->response.type = TRT_EMPTY;
+        return TCL_OK;
+    }
+}
+
+
+static void TwapiPipeEnqueueCallback(
+    TwapiPipeContext *ctxP,
+    int  direction              /* READER or WRITER */
+)
+{
+
+    struct _TwapiPipeIO *ioP = &ctxP->io[direction];
+    TwapiCallback *cbP;
+    LONG new_state;
+
+    TWAPI_ASSERT(HasOverlappedIoCompleted(&ioP->ovl));
+    TWAPI_ASSERT(direction == READER || direction == WRITER);
+
+    new_state = (ioP->ovl.Internal == ERROR_SUCCESS) ?
+        IOBUF_IO_COMPLETED : IOBUF_IO_COMPLETED_WITH_ERROR;
+
+    /*
+     * If current state is not PENDING, ignore. Note state has to be changed
+     * here, and not in the Tcl thread callback since that thread may be
+     * blocked waiting for state to change from pending to completed.
+     */
+    if (InterlockedCompareExchange(&ioP->state, new_state, IOBUF_IO_PENDING)
+        != IOBUF_IO_PENDING)
+        return;
+
+    cbP = TwapiCallbackNew(ctxP->ticP, TwapiPipeCallbackFn, sizeof(*cbP));
+    cbP->winerr = ioP->ovl.Internal;
+    TwapiPipeContextRef(ctxP);
+    cbP->clientdata = ctxP;
+    cbP->clientdata2 = direction;
+    TwapiEnqueueCallback(ctxP->ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+
+    return;
+}
+
+/*
+ * Called from thread pool when a overlapped read completes.
+ * Note this has the typedef for WaitOrTimerCallback 
+ */
+static VOID CALLBACK TwapiPipeReadThreadPoolFn(
+    PVOID lpParameter,
+    BOOLEAN TimerOrWaitFired
+)
+{
+    TWAPI_ASSERT(TimerOrWaitFired == FALSE);
+    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, READER);
+}
+
+/*
+ * Called from thread pool when a overlapped write completes.
+ * Note this has the typedef for WaitOrTimerCallback 
+ */
+static VOID CALLBACK TwapiPipeWriteThreadPoolFn(
+    PVOID lpParameter,
+    BOOLEAN TimerOrWaitFired
+)
+{
+    TWAPI_ASSERT(TimerOrWaitFired == FALSE);
+    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, WRITER);
+}
+
+
 /*
  * Return the current number of available bytes for reading including the
  * read-ahead byte.
@@ -125,9 +267,10 @@ WIN32_ERROR TwapiPipeReadCount(TwapiPipeContext *ctxP, DWORD *countP)
     }
 
     /*
-     * Note in COMPLETED or IDLE state, the thread pool will not
-     * run so we do not have to worry about consistency between the read
-     * ahead and what's in the pipe
+     * Note in COMPLETED, COMPLETED_WITH_ERROR or IDLE state, the thread
+     * pool will not run so we do not have to worry about consistency 
+     * between the read ahead and what's in the pipe. Also, even if
+     * the state is COMPLETED_WITH_ERROR, we still allow the reads.
      */
        
     if (!PeekNamedPipe(ctxP->hpipe, NULL, 0, NULL, &count, NULL))
@@ -332,10 +475,15 @@ int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
 
     if (ctxP->winerr == ERROR_SUCCESS) {
         Tcl_SetObjResult(ticP->interp, objP);
-        Remember to fire another read event if more data is available or ;
-        is that automatically taken care of thru the thread pool wait? I think so;
 
-        TwapiPipeWatchReads(TBD);
+        /*
+         * Need to fire another read event if more data is available.
+         * PipeWatch may return an error but we do not report that right away.
+         * It will be picked up on the next opeation.
+         * TBD - for non-blocking, should we queue a callback for errors?
+         */
+        if (ctxP->flags & PIPE_F_WATCHREAD)
+            ctxP->winerr = TwapiPipeEnableReadWatch(ctxP);
         return TCL_OK;
     }
     /* Fall thru for errors */
@@ -348,7 +496,7 @@ error_return:
     return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
 }
 
-int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, DWORD flags) 
+int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write) 
 {
     TwapiPipeContext *ctxP;
     DWORD winerr;
@@ -363,9 +511,15 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, DWORD flags)
 
     TWAPI_ASSERT(ticP == ctxP->ticP);
 
-    /* First do the read side stuff (bit 0) */
+    CHeck winerr;
+
+    /* First do the read side stuff */
+    if (watch_read) {
+TBD        
+    }
     if ((flags & 1) == 0) {
         /* Do not want read notifications. Unregister from thread pool */
+        TBD - do not unregister if state is IO_PENDING - let callback do that
         if (ctxP->io[READER].hwait != INVALID_HANDLE_VALUE) {
             UnregisterWaitEx(ctxP->io[READER].hwait, INVALID_HANDLE_VALUE);
             ctxP->io[READER].hwait = INVALID_HANDLE_VALUE;
