@@ -208,6 +208,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_UNKNOWN_OBJECT 9
 #define TWAPI_SYSTEM_ERROR  10
 #define TWAPI_REGISTER_WAIT_FAILED 11
+#define TWAPI_BUG_INVALID_STATE_FOR_OP 12
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -639,9 +640,9 @@ typedef struct _TwapiThreadPoolRegisteredHandle {
  *  - the cbP->ticP->interp is the Tcl interp if non-NULL. This may be NULL
  *    if the original associated interp has been logically or physically 
  *    deleted.
- *  - the cbP->clientdata field may contain any callback-specific data
+ *  - the cbP->clientdata* fields may contain any callback-specific data
  *    set by the enqueueing module.
- *  - the cbP->status field is set by the enqueuing module to ERROR_SUCCESS
+ *  - the cbP->winerr field is set by the enqueuing module to ERROR_SUCCESS
  *    or a Win32 error code. It is up to the callback and enqueuing module
  *    to figure out what to do with it.
  *  - the cbP pointer may actually point to a "derived" structure where
