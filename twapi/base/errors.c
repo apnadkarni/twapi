@@ -27,6 +27,7 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_UNKNOWN_OBJECT, "Specified resource or object not found."},
     {TWAPI_SYSTEM_ERROR, "System error."},
     {TWAPI_REGISTER_WAIT_FAILED, "Could not register thread pool wait."},
+    {TWAPI_BUG_INVALID_STATE_FOR_OP, "Internal error: requested operation is not valid for current state."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 
@@ -206,8 +207,6 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
 Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra) 
 {
     Tcl_Obj *objv[4];
-    LPWSTR   wmsgP;
-    char     buf[40];
 
     objv[0] = STRING_LITERAL_OBJ(TWAPI_WIN32_ERRORCODE_TOKEN);
     objv[1] = Tcl_NewLongObj(error);

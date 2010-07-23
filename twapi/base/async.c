@@ -32,9 +32,9 @@ int TwapiEnqueueCallback(
                                   IF CALLING FROM A TCL THREAD ELSE
                                   DEADLOCK MAY OCCUR */
     TwapiCallback **responseP /* May or may not be same as cbP.
-                                      If non-NULL, caller must call
-                                      TwapiCallbackUnref on it.
-                                     */
+                                 If non-NULL, caller must call
+                                 TwapiCallbackUnref on it.
+                                 TBD - what if it is a derived type ? */
     )
 {
     DWORD winerr = ERROR_SUCCESS;
