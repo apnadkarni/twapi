@@ -788,7 +788,6 @@ int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
 int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write) 
 {
     TwapiPipeContext *ctxP;
-    int data_availability = 0;
 
     TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
     TWAPI_ASSERT(direction == READER || direction == WRITER);
@@ -854,6 +853,30 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int 
 
     return TCL_OK;
 }
+
+int Twapi_PipeBlockMode(TwapiInterpContext *ticP, HANDLE hpipe, int block)
+{
+    TwapiPipeContext *ctxP;
+
+    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
+    
+    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
+    if (ctxP == NULL)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+
+    TWAPI_ASSERT(ticP == ctxP->ticP);
+
+    if (ctxP->winerr != ERROR_SUCCESS)
+        return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
+
+    if (block)
+        ctxP->flags &= ~ PIPE_F_NONBLOCKING;
+    else
+        ctxP->flags |= PIPE_F_NONBLOCKING;
+
+    return TCL_OK;
+}
+
 
 static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
 {
