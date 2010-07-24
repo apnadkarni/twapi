@@ -751,6 +751,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
+    CALL_(Twapi_PipeRead, CallH, 1020);
+    CALL_(Twapi_PipeSetBlockMode, CallH, 1021);
 
     CALL_(WTSDisconnectionSession, CallH, 2001); /* TBD - tcl wrapper */
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
@@ -762,12 +764,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
     CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
+    CALL_(Twapi_PipeWatch, CallH, 2011);
 
     CALL_(SetFileTime, CallH, 10001);
     CALL_(SetThreadToken, CallH, 10002);
     CALL_(Twapi_LsaEnumerateAccountsWithUserRight, CallH, 10003);
     CALL_(Twapi_SetTokenIntegrityLevel, CallH, 10004);
     CALL_(EnumDisplayMonitors, CallH, 10005);
+    CALL_(Twapi_PipeWrite, CallH, 10006);
 
     // CallHSU - function(HANDLE, LPCWSTR, DWORD)
     CALL_(BackupEventLog, CallHSU, 1);
@@ -3418,7 +3422,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoPushFrame(h, dw, NULL);
             break;
-
+        case 1020:
+            return Twapi_PipeRead(ticP, h, dw);
+        case 1021:
+            return Twapi_PipeSetBlockMode(ticP, h, dw);
         }
     } else if (func < 3000) {
 
@@ -3465,6 +3472,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoResizeLast(h, dw, dw2);
             break;
+        case 2011:
+            return Twapi_PipeWatch(ticP, h, dw, dw2);
         }
     } else {
         /* Arbitrary additional arguments */
@@ -3526,6 +3535,11 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             if (ObjToRECT_NULL(interp, objv[3], &rectP) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_EnumDisplayMonitors(interp, h, rectP);
+
+        case 10006:
+            if (objc != 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return Twapi_PipeWrite(ticP, h, objv[3]);
         }
     }
     return TwapiSetResult(interp, &result);

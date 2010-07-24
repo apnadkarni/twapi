@@ -785,7 +785,7 @@ int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
 }
 
 
-int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write) 
+int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write)
 {
     TwapiPipeContext *ctxP;
 
@@ -854,7 +854,7 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int 
     return TCL_OK;
 }
 
-int Twapi_PipeBlockMode(TwapiInterpContext *ticP, HANDLE hpipe, int block)
+int Twapi_PipeSetBlockMode(TwapiInterpContext *ticP, HANDLE hpipe, int block)
 {
     TwapiPipeContext *ctxP;
 

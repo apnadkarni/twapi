@@ -1405,7 +1405,10 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 /* Named pipes */
 int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe);
-
+int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count);
+int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP);
+int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write);
+int Twapi_PipeSetBlockMode(TwapiInterpContext *ticP, HANDLE hpipe, int block);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
