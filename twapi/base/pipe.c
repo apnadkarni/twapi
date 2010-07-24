@@ -259,6 +259,13 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
         flags = PIPE_F_WATCHWRITE;
         eventstr = "write";
         direction = WRITER;
+        /* Note we check state before modifying the context */
+        if (ctxP->io[WRITER].state == IOBUF_IO_PENDING &&
+            ctxP->io[WRITER].data.objP) {
+            Tcl_DecrRefCount(ctxP->io[WRITER].data.objP);
+            ctxP->io[WRITER].data.objP = NULL;
+        }
+        
         break;
     case PIPE_CONNECT_COMPLETE:
         flags = 0;
@@ -325,29 +332,30 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
  */
 WIN32_ERROR TwapiPipeReadCount(TwapiPipeContext *ctxP, DWORD *countP)
 {
+    struct _TwapiPipeIO *ioP = &ctxP->io[READER];
     DWORD readahead_count;
     DWORD pipe_count;
 
     TWAPI_ASSERT(ctxP->winerr == ERROR_SUCCESS);
 
-    if (ctxP->io[READER].state == IOBUF_IO_PENDING) {
+    if (ioP->state == IOBUF_IO_PENDING) {
         /*
          * Even when pending, the I/O could have completed. Checking for
          * this is important, not just for better latency but also because
          * the thread pool might have been unregistered if script is
          * not interested in file events any more
          */
-        if (! HasOverlappedIoCompleted(&ctxP->io[READER].ovl)) {
+        if (! HasOverlappedIoCompleted(&ioP->ovl)) {
             *countP = 0;               /* I/O pending so obviously no data */
             return ERROR_SUCCESS;
         }
 
-        if (ctxP->io[READER].ovl.Internal != ERROR_SUCCESS) {
-            ctxP->io[READER].state = IOBUF_IO_COMPLETED_WITH_ERROR;
-            ctxP->winerr = ctxP->io[READER].ovl.Internal;
+        if (ioP->ovl.Internal != ERROR_SUCCESS) {
+            ioP->state = IOBUF_IO_COMPLETED_WITH_ERROR;
+            ctxP->winerr = ioP->ovl.Internal;
             return ctxP->winerr;
         }
-        ctxP->io[READER].state = IOBUF_IO_COMPLETED;
+        ioP->state = IOBUF_IO_COMPLETED;
     }
 
     /*
@@ -357,7 +365,7 @@ WIN32_ERROR TwapiPipeReadCount(TwapiPipeContext *ctxP, DWORD *countP)
      * the state is COMPLETED_WITH_ERROR, we still allow the reads.
      */
        
-    if (ctxP->io[READER].state == IOBUF_IO_COMPLETED)
+    if (ioP->state == IOBUF_IO_COMPLETED)
         readahead_count = 1;              /* The read-ahead byte */
     else
         readahead_count = 0;
@@ -423,6 +431,133 @@ static WIN32_ERROR TwapiPipeReadData(TwapiPipeContext *ctxP, DWORD count, Tcl_Ob
     }
 
     *objPP = objP;
+    return ERROR_SUCCESS;
+}
+
+
+static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP, Tcl_Obj *objP)
+{
+    struct _TwapiPipeIO *ioP = &ctxP->io[WRITER];
+    DWORD count;
+    unsigned char *p;
+
+    p = Tcl_GetByteArrayFromObj(objP, &count);
+    if (count == 0)
+        return ERROR_SUCCESS; // TBD - this is only correct for byte-mode pipes
+
+    /* If I/O is pending, we have to wait for it to complete. */
+    
+    if (ioP->state == IOBUF_IO_PENDING) {
+        /*
+         * Even when pending, the I/O could have completed. Checking for
+         * this is important, not just for better latency but also because
+         * the thread pool might have been unregistered if script is
+         * not interested in file events any more
+         */
+        if (HasOverlappedIoCompleted(&ioP->ovl)) {
+            /* I/O has completed, either successfully or with errors */
+            if (ioP->data.objP) {
+                Tcl_DecrRefCount(ioP->data.objP);
+                ioP->data.objP = NULL;
+            }
+
+            if (ioP->ovl.Internal != ERROR_SUCCESS) {
+                ioP->state = IOBUF_IO_COMPLETED_WITH_ERROR;
+                ctxP->winerr = ioP->ovl.Internal;
+                return ctxP->winerr;
+            }
+            ioP->state = IOBUF_IDLE;
+        } else {
+            /*
+             * Previous write not completed. If blocking write, we can
+             * go ahead since we will use the current object. For non-blocking
+             * case, we cannot do that since we can only hold on to one Tcl_Obj
+             */
+            if (ctxP->flags & PIPE_F_NONBLOCKING)
+                return ERROR_IO_PENDING;
+        }
+    }
+
+    if (ctxP->flags & PIPE_F_NONBLOCKING) {
+        /*
+         * If non-blocking, we better have place to hold on to the buffer.
+         * We should not even reach this point otherwise.
+         */
+        TWAPI_ASSERT(ioP->data.objP == NULL);
+        TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
+        Tcl_IncrRefCount(objP); /* While we do the I/O */
+        ioP->data.objP = objP;
+        ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+        ioP->ovl.hEvent = ioP->hevent;
+        if (! WriteFile(ctxP->hpipe, p, count, NULL, &ioP->ovl)) {
+            WIN32_ERROR winerr = GetLastError();
+            if (winerr != ERROR_IO_PENDING) {
+                /* Genuine error */
+                Tcl_DecrRefCount(ioP->data.objP);
+                ioP->data.objP = NULL;
+                ctxP->winerr = winerr;
+                return winerr;
+            }
+            /* Have the thread pool wait on it if not already doing so */
+            if (ioP->hwait == INVALID_HANDLE_VALUE) {
+                /* The thread pool will hold a ref to the context */
+                TwapiPipeContextRef(ctxP, 1);
+                if (! RegisterWaitForSingleObject(
+                        &ioP->hwait,
+                        ioP->hevent,
+                        TwapiPipeWriteThreadPoolFn,
+                        ctxP,
+                        INFINITE,           /* No timeout */
+                        WT_EXECUTEDEFAULT
+                        )) {
+                    TwapiPipeContextUnref(ctxP, 1);
+                    Tcl_DecrRefCount(ioP->data.objP);
+                    ioP->data.objP = NULL;
+
+                    ioP->hwait = INVALID_HANDLE_VALUE; /* Just in case... */
+                    /* Note the call does not set GetLastError. Make up our own */
+                    ctxP->winerr = TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
+                    return ctxP->winerr;
+                }
+                ioP->state = IOBUF_IO_PENDING;
+                return ERROR_SUCCESS;
+            }
+        }
+        /* Overlapped write completed synchronously. */
+        Tcl_DecrRefCount(ioP->data.objP);
+        ioP->data.objP = NULL;
+    } else {
+        /*
+         * Blocking I/O. Note we do NOT store objP in ioP->data.objP
+         * because there might be a pending obj from a previous, unfinished
+         * non-blocking write still there and because we do not really need
+         * to keep the obj for a blocking write
+         */
+        ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+        ioP->ovl.hEvent = ctxP->hsync;
+        if (! WriteFile(ctxP->hpipe, p, count, NULL, &ioP->ovl)) {
+            WIN32_ERROR winerr = GetLastError();
+            if (winerr != ERROR_IO_PENDING) {
+                /* Genuine error */
+                ctxP->winerr = winerr;
+                return winerr;
+            }
+            /* Wait for I/O to complete */
+            if (!GetOverlappedResult(ctxP->hpipe, &ioP->ovl, &count, TRUE)) {
+                ctxP->winerr = GetLastError();
+                return ctxP->winerr;
+            }
+        }
+    }
+
+    /* I/O completed synchronously (even for a non-blocking case) */
+    ioP->state = IOBUF_IDLE;
+    if (ctxP->flags & PIPE_F_WATCHWRITE) {
+        /* Notify we are ready for the next write */
+        TwapiPipeChannelNotify(ctxP, "write");
+        Tcl_ResetResult(ctxP->ticP->interp);
+    }
+
     return ERROR_SUCCESS;
 }
 
@@ -530,12 +665,13 @@ int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
     if ((ctxP->flags & PIPE_F_CONNECTED) == 0)
         return Twapi_AppendSystemError(ticP->interp, ERROR_PIPE_NOT_CONNECTED);
 
-    ioP = &ctxP->io[READER];
     if (ctxP->winerr != ERROR_SUCCESS)
         goto error_return;
 
     if (count == 0)
         return TCL_OK; // TBD ? Will get treated as EOF
+
+    ioP = &ctxP->io[READER];
 
     if ((ctxP->flags & PIPE_F_NONBLOCKING) == 0 &&
         ioP->state == IOBUF_IO_PENDING) {
@@ -621,6 +757,34 @@ error_return:
 }
 
 
+int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
+{
+    TwapiPipeContext *ctxP;
+    struct _TwapiPipeIO *ioP;
+
+    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
+    
+    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
+    if (ctxP == NULL)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+
+    TWAPI_ASSERT(ticP == ctxP->ticP);
+
+    if ((ctxP->flags & PIPE_F_CONNECTED) == 0)
+        return Twapi_AppendSystemError(ticP->interp, ERROR_PIPE_NOT_CONNECTED);
+
+    if (ctxP->winerr != ERROR_SUCCESS)
+        return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
+
+    ctxP->winerr = TwapiPipeWriteData(ctxP, objP);
+    
+    if (ctxP->winerr == ERROR_SUCCESS)
+        return TCL_OK;
+    else
+        return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
+}
+
+
 int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int watch_write) 
 {
     TwapiPipeContext *ctxP;
@@ -639,11 +803,7 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int 
         return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
 
     /* First do the read side stuff */
-    if (! watch_read) {
-        ctxP->flags &= ~PIPE_F_WATCHREAD;
-        TwapiPipeDisableWatch(ctxP, READER);
-    }
-    else {
+    if (watch_read) {
         ctxP->flags |= PIPE_F_WATCHREAD;
 
         /*
@@ -652,66 +812,45 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int 
          * watch will be actually set up. We do this because we cannot
          * set up the watch when the context io buffer is not empty.
          */
+        /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
         if (ctxP->io[READER].state == IOBUF_IO_COMPLETED) {
-            if (TwapiPipeChannelNotify(ctxP, "read") == TCL_OK)
+            if (TwapiPipeChannelNotify(ctxP, "read") != TCL_OK)
                 return TCL_ERROR;
             Tcl_ResetResult(ticP->interp);
         } else {
             if (TwapiPipeEnableReadWatch(ctxP) != ERROR_SUCCESS)
                 return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
         }
-    }
-
-#ifdef TBD
-    /* Now ditto for the write side. */
-    if (flags & 2) {
-        /* Register notification if not already done so */
-        if (ctxP->io[WRITER].hwait == INVALID_HANDLE_VALUE) {
-            /*
-             * Notifications are not set up so do so.
-             */
-            if (ctxP->io[WRITER].state == IOBUF_IO_PENDING) {
-                TWAPI_ASSERT(ctxP->io[WRITER].data.objP);
-                /* Ongoing operation, set up notification when it is complete */
-                /* The thread pool will hold a ref to the context */
-                TwapiPipeContextRef(ctxP, 1);
-                if (! RegisterWaitForSingleObject(
-                        &ctxP->io[WRITER].hwait,
-                        ctxP->io[WRITER].hevent,
-                        TwapiPipeWriteThreadPoolFn,
-                        ctxP,
-                        INFINITE,           /* No timeout */
-                        WT_EXECUTEDEFAULT
-                        )) {
-                    TwapiPipeContextUnref(ctxP, 1);
-                    /* Note the call does not set GetLastError */
-                    return TwapiReturnTwapiError(ticP->interp, "Could not register wait on pipe.", TWAPI_SYSTEM_ERROR);
-
-                }
-            } else {
-                if (ctxP->io[WRITER].data.objP) {
-                    Tcl_DecrRefCount(ctxP->io[WRITER].data.objP);
-                    ctxP->io[WRITER].data.objP = NULL;
-                    ctxP->io[WRITER].state = IOBUF_IDLE;
-                }
-                data_availability |= 2; /* Writable */
-            }
-        } else {
-            /*
-             * Wait is already registered. Nothing to do. If there
-             * was data available, the callback would have, or will,
-             * queue the notification.
-             */
-        }
     } else {
-        /* Do not want notifications. Unregister from thread pool */
-        if (ctxP->io[WRITER].hwait != INVALID_HANDLE_VALUE) {
-            UnregisterWaitEx(ctxP->io[WRITER].hwait, INVALID_HANDLE_VALUE);
-            ctxP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
-            TwapiPipeContextUnref(ctxP, 1);
-        }
+        /* Not interested in watching reads */
+        ctxP->flags &= ~PIPE_F_WATCHREAD;
+        TwapiPipeDisableWatch(ctxP, READER);
     }
-#endif
+
+    if (watch_write) {
+        ctxP->flags |= PIPE_F_WATCHWRITE;
+
+        /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
+        if (ctxP->io[WRITER].state != IOBUF_IO_PENDING) {
+            if (TwapiPipeChannelNotify(ctxP, "write") != TCL_OK)
+                return TCL_ERROR;
+            Tcl_ResetResult(ticP->interp);
+        }
+
+        /*
+         * Note we do not need to set up the thread pool callback here.
+         * Non-blocking pipes, it will already be set up. For blocking pipes,
+         * write notifications will be generated after every write anyways.
+         */
+    } else {
+        ctxP->flags &= ~PIPE_F_WATCHWRITE;
+        /*
+         * Note we disable watching only on blocking sockets since non-blocking
+         * sockets require the thread pool to be running
+         */
+        if ((ctxP->flags & PIPE_F_NONBLOCKING) == 0)
+            TwapiPipeDisableWatch(ctxP, WRITER);
+    }
 
     return TCL_OK;
 }
