@@ -20,7 +20,7 @@ namespace eval twapi::pipe {
         variable pipes
         set pipes [dict create]
         variable handles
-        array set handles {}
+        set handles [dict create]
         variable channels
         set channels [dict create]
 
@@ -43,42 +43,52 @@ namespace eval twapi::pipe {
         variable channels
         variable handles
         
-        if {[dict exists $names $name]} {
+        set name [file nativename $name]
+
+        if {[dict exists $pipes $name]} {
             if {[llength $args]} {
                 # TBD - should we allow caller to respecify -secattr
                 error "Options may only be specified for the first creation of a named pipe."
             }
             set options [dict get $pipes options]
         } else {
-            array set opts [parseargs args {
+            # Only byte mode currently supported. Message mode does
+            # not mesh well with Tcl channel infrastructure.
+            # readmode.arg
+            # writemode.arg
+
+            array set opts [twapi::parseargs args {
                 {mode.arg {read write}}
                 writedacl
                 writeowner
                 writesacl
                 writethrough
-                {readmode.arg byte {byte message}}
-                {writemode.arg byte {byte message}}
+                denyremote
                 {timeout.int 50}
                 {maxinstances.int 255}
                 {secattr.arg {}}
             } -maxleftover 0]
 
             set open_mode [twapi::_parse_symbolic_bitmask $opts(mode) {read 1 write 2}]
-            set open_mode [twapi::_switches_to_bitmask opts {
+            foreach {opt mask} {
                 writedacl  0x00040000
                 writeowner 0x00080000
                 writesacl  0x01000000
                 writethrough 0x80000000
-            } $open_mode]
+            } {
+                if {$opts($opt)} {
+                    set open_mode [expr {$open_mode | $mask}]
+                }
+            }
         
             set open_mode [expr {$open_mode | 0x40000000}]; # OVERLAPPPED I/O
         
             set pipe_mode 0
-            if {$opts(readmode) eq "message"} {
-                setbits pipe_mode 2
-            }
-            if {$opts(writemode) eq "message"} {
-                setbits pipe_mode 4
+            if {$opts(denyremote)} {
+                if {! [twapi::min_os_version 6]} {
+                    error "Option -denyremote not supported on this operating system."
+                }
+                set pipe_mode [expr {$pipe_mode | 8}]
             }
 
             set options [dict create \
@@ -88,24 +98,23 @@ namespace eval twapi::pipe {
                              max_instances $opts(maxinstances) \
                              timeout $opts(timeout) \
                              secattr $opts(secattr)]
+
+            dict set pipes $name options $options
         }
 
-        foreach {state hpipe} [twapi::Twapi_PipeServer $name \
-                                   [dict get $options open_mode] \
-                                   [dict get $options pipe_mode] \
-                                   [dict get $options max_instances] \
-                                   4096 4096 \
-                                   [dict get $options timeout] \
-                                   [dict get $options(secattr)]] {
-            break
-        }
-        # state == connected, or state == pending
+        set hpipe [twapi::Twapi_PipeServer $name \
+                       [dict get $options open_mode] \
+                       [dict get $options pipe_mode] \
+                       [dict get $options max_instances] \
+                       4096 4096 \
+                       [dict get $options timeout] \
+                       [dict get $options secattr]]
         
         # Now create a Tcl channel based on the OS handle
         if {[catch {
             chan create [dict get $pipes $name options chan_mode] [list [namespace current]]} chan]} {
             set einfo $::errorInfo
-            set ecode $::errorcode
+            set ecode $::errorCode
             catch {twapi::Twapi_PipeClose $hpipe}
             error $chan $einfo $ecode
         }
@@ -118,14 +127,20 @@ namespace eval twapi::pipe {
         dict set pipes $name channels $chan {}
         dict set channels $chan pipe_name $name
         dict set channels $chan handle $hpipe
+        dict set channels $chan direction server
         dict set handles $hpipe channel $chan
 
         # Register the callback script for server connection notification
         dict set channels $chan connect_notification_script $script
         
-        # Now if we are already connected, invoke the callback.
-        if {$state eq connected} {
-            after 0 $script $chan
+        # Now indicate readiness for a client connection.
+        if {[catch {
+            twapi::Twapi_PipeAccept $hpipe
+        } msg]} {
+            set erinfo $::errorInfo
+            set ercode $::errorCode
+            chan close $chan
+            error $msg $erinfo $ercode
         }
 
         return $chan
@@ -135,12 +150,15 @@ namespace eval twapi::pipe {
         # Whatever initialization is to be done is already done in the
         # server command. Nothing much more to be done here except init
         # some channel state.
+
         variable channels
 
-        dict set channels $chan watch 0
-        dict set channels $chan watch 0
+        dict set channels $chan watch_read 0
+        dict set channels $chan watch_write 0
 
-        set commands [list initialize finalize watch read write configure cget cgetall blocking]
+        # Note commands cget, cgetall and configure are not currently
+        # supported.
+        set commands [list initialize finalize watch read write blocking]
     }
 
     proc finalize {chan} {
@@ -152,20 +170,20 @@ namespace eval twapi::pipe {
         # has no more instances, delete it as well
         if {[dict exists $channels $chan pipe_name]} {
             set name [dict get $channels $chan pipe_name]
-            dict unset $pipes $name channels $chan
+            dict unset pipes $name channels $chan
             if {[dict size [dict get $pipes $name channels]] == 0} {
                 # No more instances, get rid of the whole named pipe
-                dict unset $pipes $name
+                dict unset pipes $name
             }
         }
-
+        
         set handle [dict get $channels $chan handle]
         dict unset handles $handle
-            
+
         dict unset channels $chan
 
         # Close the OS handle at the end
-        if {[catch {twapi::Twapi_ClosePipe $handle} msg]} {
+        if {[catch {twapi::Twapi_PipeClose $handle} msg]} {
             twapi::log "Error closing named pipe: $msg"
         }
 
@@ -175,95 +193,66 @@ namespace eval twapi::pipe {
     proc watch {chan events} {
         variable channels
 
-        set flags 0
-        if {"read" in $events} {
-            incr flags 1
-        }
-        if {"write" in $events} {
-            incr flags 2
-        }
+        set read [expr {"read" in $events}]
+        dict set channels $chan watch_read $read
+
+        set write [expr {"write" in $events}]
+        dict set channels $chan watch_write $write
         
-        dict set channels $chan watch $flags
-        TBD - twapi::Twapi_PipeWatch [dict get $channels $chan handle] $flags
+        twapi::Twapi_PipeWatch [chan2handle $chan] $read $write
     }
 
     proc read {chan count} {
+puts "$chan $count"
+        return [twapi::Twapi_PipeRead [chan2handle $chan] $count]
+    }
+
+    proc write {chan data} {
+        return [twapi::Twapi_PipeWrite [chan2handle $chan] $data]
+    }
+
+    proc blocking {chan blocking} {
+        return [twapi::Twapi_PipeSetBlockMode [chan2handle $chan] $blocking]
+    }
+
+    # Callback from C level event handler in the background
+    proc _pipe_handler {hpipe event} {
+        variable handles
         variable channels
-TBD
-        if {[dict exists $channels $chan handle]
 
-        if {[string length $chan($chanid)] < $count} {
-            set result $chan($chanid); set chan($chanid) ""
-        } else {
-            set result [string range $chan($chanid) 0 $count-1]
-            set chan($chanid) [string range $chan($chanid) $count end]
+        if {![dict exists handles $hpipe channel]} {
+            return;             # Assume async channel close
         }
-
-        # implement max buffering
-        variable watching
-        variable max
-        if {$watching(write) && ([string length $chan($chanid)] < $max)} {
-            chan postevent $chanid write
-        }
-
-        return $result
-    }
-
-    variable max 1048576        ;# maximum size of the reflected channel
-
-    proc write {chanid data} {
-        variable chan
-        variable max
-        variable watching
-
-        puts [info level 0]
-
-        set left [expr {$max - [string length $chan($chanid)]}]        ;# bytes left in buffer
-        set dsize [string length $data]
-        if {$left >= $dsize} {
-            append chan($chanid) $data
-            if {$watching(write) && ([string length $chan($chanid)] < $max)} {
-                # inform the app that it may still write
-                chan postevent $chanid write
+        set chan [dict get handles $hpipe channel]
+        switch -exact -- $event {
+            connect {
+                eval [dict get $channels $chan connect_notification_script] [list $chan connect]
             }
-        } else {
-            set dsize $left
-            append chan($chanid) [string range $data $left]
+            read {
+                if {[dict get channels $chan watch_read]} {
+                    chan postevent $chan read
+                }
+            }
+            write {
+                if {[dict get channels $chan watch_write]} {
+                    chan postevent $chan write
+                }
+            }
         }
+    }
 
-        # inform the app that there's something to read
-        if {$watching(read) && ($chan($chanid) ne "")} {
-            puts "post event read"
-            chan postevent $chanid read
+    proc chan2handle {chan} {
+        variable channels
+
+        if {! [dict exists $channels $chan handle]} {
+            twapi::win32_error ERROR_BAD_PIPE "Channel does not exist."
+
         }
-
-        return $dsize        ;# number of bytes actually written
-    }
-
-    proc blocking { chanid args } {
-        variable chan
-
-        puts [info level 0]
-    }
-
-    proc cget { chanid args } {
-        variable chan
-
-        puts [info level 0]
-    }
-
-    proc cgetall { chanid args } {
-        variable chan
-
-        puts [info level 0]
-    }
-
-    proc configure { chanid args } {
-        variable chan
-
-        puts [info level 0]
+        return [dict get $channels $chan handle]
     }
 
     namespace export -clear *
-    namespace ensemble create -subcommands {}
+    if {[package vsatisfies [info tclversion] 8.5]} {
+        namespace ensemble create -subcommands {}
+    }
 }

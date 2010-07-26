@@ -1687,6 +1687,9 @@ if {[file extension [info script]] ne ".tm"} {
         } {
             source [file join [file dirname [info script]] $::twapi::_field_]
         }
+        if {[package vsatisfies [info tclversion] 8.5]} {
+            source pipe.tcl
+        }
     }
 
 
