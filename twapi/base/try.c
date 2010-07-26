@@ -13,32 +13,32 @@
 static int GlobalImport (Tcl_Interp *interp);
 
 int Twapi_TryObjCmd(
-    ClientData dummy,
+    TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
     Tcl_Obj **objv_copy;
-    int       i, result, final;
+    int       i, final;
     Tcl_Obj *errorCodeVar;
     Tcl_Obj **errorCodeObjv;
     int      errorCodeObjc;
     char    *facilityP;
     char    *codeP;
-
-    if (objc < 2)
-        goto badargs;
+    TCL_RESULT result = TCL_ERROR;
 
     /*
-     * To quote from implementation of Tcl_CatchObjCmd -
+     * To quote from implementation of Tcl_CatchObjCmd in Tcl 8.4.1 -
      * "Save a pointer to the variable name object, if any, in case the
      * Tcl_EvalObj reallocates the bytecode interpreter's evaluation
      * stack rendering objv invalid."
      * - we do the same. I dunno if this is really necessary - TBD
      */
-    if (objc > 128)
-        goto badargs;           /* Just to prevent malicious stack overflow */
-    objv_copy = _alloca(objc*sizeof(Tcl_Obj *));
+    objv_copy = MemLifoPushFrame(&ticP->memlifo, objc*sizeof(Tcl_Obj*), NULL);
+
+    if (objc < 2)
+        goto badargs;
+
     for (i = 0; i < objc; ++i)
         objv_copy[i] = objv[i];
     objv = objv_copy;
@@ -115,7 +115,7 @@ int Twapi_TryObjCmd(
         /* Get the error code patterns and see if they matche */
         match = 0;
         if (Tcl_ListObjGetElements(interp, objv[i+1], &codeObjc, &codeObjv) != TCL_OK) {
-            return TCL_ERROR;
+            goto pop_and_return;
         }
 
         if (codeObjc == 0)
@@ -190,8 +190,7 @@ finalize:
             result = Twapi_RestoreResultErrorInfo (interp, savedResultsP);
     }
 
-    return result;
-
+    goto pop_and_return;
 
 badsyntax:
     Tcl_ResetResult(interp);
@@ -199,12 +198,16 @@ badsyntax:
                      Tcl_GetString(objv[0]),
                      " SCRIPT ?onerror ERROR ERRORSCRIPT? ...?finally FINALSCRIPT?",
         NULL);
-    return TCL_ERROR;
+    goto pop_and_return;
 
     badargs:
     Tcl_ResetResult(interp);
     Tcl_WrongNumArgs(interp, 1, objv, "script ?onerror ERROR errorscript? ...?finally FINALSCRIPT?");
-    return TCL_ERROR;
+    /* Fall thru */
+
+pop_and_return:
+    MemLifoPopFrame(&ticP->memlifo);
+    return result;
 }
 
 /*-----------------------------------------------------------------------------
