@@ -233,6 +233,7 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
     char *eventstr;
     int pipe_event;
     int direction;
+    int new_state;
 
     /* If the interp is gone, close down the pipe */
     if (ctxP->ticP == NULL ||
@@ -259,11 +260,13 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
         flags = PIPE_F_WATCHREAD;
         eventstr = "read";
         direction = READER;
+        new_state = IOBUF_IO_COMPLETED;
         break;
     case PIPE_WRITE_COMPLETE:
         flags = PIPE_F_WATCHWRITE;
         eventstr = "write";
         direction = WRITER;
+        new_state = IOBUF_IDLE;
         /* Note we check state before modifying the context */
         if (ctxP->io[WRITER].state == IOBUF_IO_PENDING &&
             ctxP->io[WRITER].data.objP) {
@@ -278,16 +281,18 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
             ctxP->flags |= PIPE_F_CONNECTED;
         eventstr = "connect";
         direction = READER;     /* CONNECT also uses READER iobuf */
+        new_state = IOBUF_IDLE;
         break;
     }
 
-    /*
-     * We need to check for the state because while the callback was queued,
-     * the application might have turned off file events, and made synchronous
-     * reads/write which would unregister the thread pool and also potentially
-     * transition the state. In this case we do not want to overwrite the
-     * state. Note we do not go on to queue the notification either.
-     */                                                  
+    /* 
+     * We need to check for the state because while the callback was
+     * queued, the application might have turned off file events,
+     * and made synchronous reads/write which would unregister the
+     * thread pool and also potentially transition the state. In
+     * this case we do not want to overwrite the state. Note we do
+     * not go on to queue the notification either.
+     */
     if (ctxP->io[direction].state != IOBUF_IO_PENDING) {
         cbP->winerr = ERROR_SUCCESS;
         cbP->response.type = TRT_EMPTY;
@@ -295,7 +300,7 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
     }
 
     if (cbP->winerr == ERROR_SUCCESS)
-        ctxP->io[direction].state = IOBUF_IO_COMPLETED;
+        ctxP->io[direction].state = new_state;
     else {
         ctxP->io[direction].state = IOBUF_IO_COMPLETED_WITH_ERROR;
         SET_CONTEXT_WINERR(ctxP, cbP->winerr);
@@ -313,6 +318,23 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
             eventstr = "error";
         }
         TwapiPipeChannelNotify(ctxP, eventstr);
+        /*
+         * On a connect complete, we also need to set up watches that
+         * might have been already registered. For other events, it would
+         * already have been set up else the event would not have been
+         * delivered.
+         */
+        if (pipe_event == PIPE_CONNECT_COMPLETE) {
+            if (ctxP->flags & PIPE_F_WATCHREAD)
+                TwapiPipeEnableReadWatch(ctxP);
+            /* Note write-side watches do not need to be set up here.
+               They will be taken care of on the first write
+               TBD - do sockets also generate a write fileevent on
+               a connect accept ? If so, we should generate one here.
+            */
+        }
+
+        /* Several calls above might have set up interp result */
         Tcl_ResetResult(ctxP->ticP->interp);
     } else {
         /* Pipe not being watched. Turn off notification if not already done */
@@ -327,8 +349,6 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
     cbP->response.type = TRT_EMPTY;
     return TCL_OK;
 }
-
-
 
 
 /*
@@ -841,52 +861,69 @@ int Twapi_PipeWatch(TwapiInterpContext *ticP, HANDLE hpipe, int watch_read, int 
 
     /* First do the read side stuff */
     if (watch_read) {
-        ctxP->flags |= PIPE_F_WATCHREAD;
+        /* Only take action if we are not already watching reads */
+        if (! (ctxP->flags & PIPE_F_WATCHREAD)) {
+            ctxP->flags |= PIPE_F_WATCHREAD;
+            /*
+             * If not yet connected, we will not do anything here.
+             * The connection completion code will set up the read events
+             */
+            if (ctxP->flags & PIPE_F_CONNECTED) {
+                /*
+                 * If there is data aleady available, just queue up the read
+                 * notification. When the application calls back to read, the
+                 * watch will be actually set up. We do this because we cannot
+                 * set up the watch when the context io buffer is not empty.
+                 */
+                /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
 
-        /*
-         * If there is data aleady available, just queue up the read
-         * notification. When the application calls back to read, the
-         * watch will be actually set up. We do this because we cannot
-         * set up the watch when the context io buffer is not empty.
-         */
-        /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
-        if (ctxP->io[READER].state == IOBUF_IO_COMPLETED) {
-            if (TwapiPipeChannelNotify(ctxP, "read") != TCL_OK)
-                return TCL_ERROR;
-            Tcl_ResetResult(ticP->interp);
-        } else {
-            if (TwapiPipeEnableReadWatch(ctxP) != ERROR_SUCCESS)
-                return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
+                if (ctxP->io[READER].state == IOBUF_IO_COMPLETED) {
+                    if (TwapiPipeChannelNotify(ctxP, "read") != TCL_OK)
+                        return TCL_ERROR;
+                    Tcl_ResetResult(ticP->interp);
+                } else {
+                    if (TwapiPipeEnableReadWatch(ctxP) != ERROR_SUCCESS)
+                        return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
+                }
+            }
         }
     } else {
-        /* Not interested in watching reads */
-        ctxP->flags &= ~PIPE_F_WATCHREAD;
-        TwapiPipeDisableWatch(ctxP, READER);
+        /* Not interested in watching. Configure for ignore if necessary */
+        if (ctxP->flags & PIPE_F_WATCHREAD) {
+            ctxP->flags &= ~PIPE_F_WATCHREAD;
+            TwapiPipeDisableWatch(ctxP, READER);
+        }
     }
 
     if (watch_write) {
-        ctxP->flags |= PIPE_F_WATCHWRITE;
+        if (! (ctxP->flags & PIPE_F_WATCHWRITE)) {
+            ctxP->flags |= PIPE_F_WATCHWRITE;
 
-        /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
-        if (ctxP->io[WRITER].state != IOBUF_IO_PENDING) {
-            if (TwapiPipeChannelNotify(ctxP, "write") != TCL_OK)
-                return TCL_ERROR;
-            Tcl_ResetResult(ticP->interp);
+            /* TBD - should we also notify if ctxP->winerr not ERROR_SUCCESS ? */
+            if (ctxP->flags & PIPE_F_CONNECTED) {
+                if (ctxP->io[WRITER].state != IOBUF_IO_PENDING) {
+                    if (TwapiPipeChannelNotify(ctxP, "write") != TCL_OK)
+                        return TCL_ERROR;
+                    Tcl_ResetResult(ticP->interp);
+                }
+            }
+
+            /*
+             * Note we do not need to set up the thread pool callback here.
+             * Non-blocking pipes, it will already be set up. For blocking case,
+             * write notifications will be generated after every write anyways.
+             */
         }
-
-        /*
-         * Note we do not need to set up the thread pool callback here.
-         * Non-blocking pipes, it will already be set up. For blocking pipes,
-         * write notifications will be generated after every write anyways.
-         */
     } else {
-        ctxP->flags &= ~PIPE_F_WATCHWRITE;
-        /*
-         * Note we disable watching only on blocking sockets since non-blocking
-         * sockets require the thread pool to be running
-         */
-        if ((ctxP->flags & PIPE_F_NONBLOCKING) == 0)
-            TwapiPipeDisableWatch(ctxP, WRITER);
+        if (ctxP->flags & PIPE_F_WATCHWRITE) {
+            ctxP->flags &= ~PIPE_F_WATCHWRITE;
+            /*
+             * Note we disable watching only on blocking pipes since
+             * non-blocking pipes require the thread pool to be running
+             */
+            if ((ctxP->flags & PIPE_F_NONBLOCKING) == 0)
+                TwapiPipeDisableWatch(ctxP, WRITER);
+        }
     }
 
     return TCL_OK;
@@ -945,6 +982,7 @@ static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
                 INFINITE,           /* No timeout */
                 WT_EXECUTEDEFAULT
                 )) {
+            ctxP->io[READER].state = IOBUF_IO_PENDING;
             return ERROR_IO_PENDING;
         } else {
             winerr = GetLastError();
@@ -1066,11 +1104,15 @@ static int TwapiPipeShutdown(TwapiPipeContext *ctxP)
     }
 
     /* Third, now that handles are unregistered, close them. */
-    if (ctxP->hpipe != INVALID_HANDLE_VALUE)
+    if (ctxP->hpipe != INVALID_HANDLE_VALUE) {
         CloseHandle(ctxP->hpipe);
+        ctxP->hpipe = INVALID_HANDLE_VALUE;
+    }
 
-    if (ctxP->hsync != NULL)
+    if (ctxP->hsync != NULL) {
         CloseHandle(ctxP->hsync);
+        ctxP->hsync = NULL;
+    }
 
     if (unrefs)
         TwapiPipeContextUnref(ctxP, unrefs); /* May be GONE! */

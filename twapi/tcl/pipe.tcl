@@ -203,7 +203,6 @@ namespace eval twapi::pipe {
     }
 
     proc read {chan count} {
-puts "$chan $count"
         return [twapi::Twapi_PipeRead [chan2handle $chan] $count]
     }
 
@@ -219,22 +218,22 @@ puts "$chan $count"
     proc _pipe_handler {hpipe event} {
         variable handles
         variable channels
-
-        if {![dict exists handles $hpipe channel]} {
+twapi::log "_pipe_handler: $hpipe $event"
+        if {![dict exists $handles $hpipe channel]} {
             return;             # Assume async channel close
         }
-        set chan [dict get handles $hpipe channel]
+        set chan [dict get $handles $hpipe channel]
         switch -exact -- $event {
             connect {
                 eval [dict get $channels $chan connect_notification_script] [list $chan connect]
             }
             read {
-                if {[dict get channels $chan watch_read]} {
+                if {[dict get $channels $chan watch_read]} {
                     chan postevent $chan read
                 }
             }
             write {
-                if {[dict get channels $chan watch_write]} {
+                if {[dict get $channels $chan watch_write]} {
                     chan postevent $chan write
                 }
             }
