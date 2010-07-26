@@ -51,6 +51,10 @@ typedef struct _TwapiPipeContext {
 #define PIPE_WRITE_COMPLETE   1
 #define PIPE_CONNECT_COMPLETE 2
 
+/* Script command to use as callback */
+#define TWAPI_PIPE_CALLBACK_SCRIPT TWAPI_TCL_NAMESPACE "::pipe::_pipe_handler"
+
+
 /*
  * Prototypes
  */
@@ -62,7 +66,6 @@ static int TwapiPipeShutdown(TwapiPipeContext *ctxP);
 static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP);
 static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP);
 
-
 /*
  * Queues a notification to the script level.
  * Note - may modify interp result. Caller should reset as appropriate 
@@ -70,16 +73,18 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP);
 static TCL_RESULT TwapiPipeChannelNotify(TwapiPipeContext *ctxP,
                                          char *eventstr)
 {
-    Tcl_Obj *objs[5];
+    Tcl_Obj *objs[3];
 
     /* eval "after 0 ::twapi::_pipe_handler EVENT" */
+    objs[0] = STRING_LITERAL_OBJ(TWAPI_PIPE_CALLBACK_SCRIPT);
+    objs[1] = ObjFromHANDLE(ctxP->hpipe);
+    objs[2] = Tcl_NewStringObj(eventstr, -1);
+
+    objs[2] = Tcl_NewListObj(3, objs); /* Do BEFORE overwriting elems 0,1 ! */
     objs[0] = STRING_LITERAL_OBJ("after");
     objs[1] = Tcl_NewIntObj(0);
-    objs[2] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_pipe_handler");
-    objs[3] = ObjFromHANDLE(ctxP->hpipe);
-    objs[4] = Tcl_NewStringObj(eventstr, -1);
     
-    return Tcl_EvalObjv(ctxP->ticP->interp, 5, objs, 
+    return Tcl_EvalObjv(ctxP->ticP->interp, 3, objs, 
                         TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
 }
 
@@ -395,6 +400,7 @@ static WIN32_ERROR TwapiPipeReadData(TwapiPipeContext *ctxP, DWORD count, Tcl_Ob
     struct _TwapiPipeIO *ioP = &ctxP->io[READER];
     Tcl_Obj *objP = Tcl_NewByteArrayObj(NULL, count);
     char *p = Tcl_GetByteArrayFromObj(objP, NULL);
+    DWORD read_count = 0;
 
     TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
     TWAPI_ASSERT(count);
@@ -407,7 +413,6 @@ static WIN32_ERROR TwapiPipeReadData(TwapiPipeContext *ctxP, DWORD count, Tcl_Ob
     }
 
     if (count > 0) {
-        DWORD read_count;
         ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
         ioP->hevent = ctxP->hsync; /* Event used for "synchronous" reads */
         if (! ReadFile(ctxP->hpipe, p, count, NULL, &ioP->ovl)) {
@@ -430,20 +435,25 @@ static WIN32_ERROR TwapiPipeReadData(TwapiPipeContext *ctxP, DWORD count, Tcl_Ob
         TWAPI_ASSERT(read_count == count);
     }
 
+    Tcl_SetByteArrayLength(objP, read_count);
     *objPP = objP;
     return ERROR_SUCCESS;
 }
 
 
-static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP, Tcl_Obj *objP)
+static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP,
+                                      Tcl_Obj *objP,
+                                      DWORD *writtenP)
 {
     struct _TwapiPipeIO *ioP = &ctxP->io[WRITER];
     DWORD count;
     unsigned char *p;
 
     p = Tcl_GetByteArrayFromObj(objP, &count);
-    if (count == 0)
+    if (count == 0) {
+        *writtenP = 0;
         return ERROR_SUCCESS; // TBD - this is only correct for byte-mode pipes
+    }
 
     /* If I/O is pending, we have to wait for it to complete. */
     
@@ -485,6 +495,7 @@ static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP, Tcl_Obj *objP)
          */
         TWAPI_ASSERT(ioP->data.objP == NULL);
         TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
+
         Tcl_IncrRefCount(objP); /* While we do the I/O */
         ioP->data.objP = objP;
         ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
@@ -519,9 +530,10 @@ static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP, Tcl_Obj *objP)
                     ctxP->winerr = TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
                     return ctxP->winerr;
                 }
-                ioP->state = IOBUF_IO_PENDING;
-                return ERROR_SUCCESS;
             }
+            ioP->state = IOBUF_IO_PENDING;
+            *writtenP = count;
+            return ERROR_SUCCESS;
         }
         /* Overlapped write completed synchronously. */
         Tcl_DecrRefCount(ioP->data.objP);
@@ -558,6 +570,7 @@ static WIN32_ERROR TwapiPipeWriteData(TwapiPipeContext *ctxP, Tcl_Obj *objP)
         Tcl_ResetResult(ctxP->ticP->interp);
     }
 
+    *writtenP = count;
     return ERROR_SUCCESS;
 }
 
@@ -579,8 +592,15 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
         != TCL_OK)
         return TCL_ERROR;
 
+    if (pipe_mode & 0x7) {
+        /* Currently, must be byte mode pipe and must not have NOWAIT flag */
+        Tcl_SetResult(ticP->interp,  "Pipe mode must be byte mode and not specify the PIPE_NOWAIT flag.", TCL_STATIC);
+        return Twapi_AppendSystemError(ticP->interp, TWAPI_INVALID_ARGS);
+    }
+
     ctxP = TwapiPipeContextNew();
 
+    open_mode |= FILE_FLAG_OVERLAPPED;
     ctxP->hpipe = CreateNamedPipeW(name, open_mode, pipe_mode, max_instances,
                                    outbuf_sz, inbuf_sz, timeout, secattrP);
 
@@ -595,7 +615,7 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
              * queueing on a single input notification. See MSDN docs for
              * RegisterWaitForSingleObject.  As a consequence, we must
              * make sure we never call GetOverlappedResult in blocking
-             * mode.
+             * mode when using one of these events (unlike hsync)
              */
             ctxP->io[READER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
             if (ctxP->io[READER].hevent) {
@@ -606,18 +626,8 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                     ZLIST_PREPEND(&ticP->pipes, ctxP);
                     ctxP->ticP = ticP;
                     TwapiInterpContextRef(ticP, 1);
-                
-                    winerr = TwapiPipeConnectClient(ctxP);
-                    if (winerr == ERROR_SUCCESS || winerr == ERROR_IO_PENDING) {
-                        Tcl_Obj *objs[2];
-                        if (winerr == ERROR_SUCCESS)
-                            objs[0] = STRING_LITERAL_OBJ("connected");
-                        else
-                            objs[0] = STRING_LITERAL_OBJ("pending");
-                        objs[1] = ObjFromHANDLE(ctxP->hpipe);
-                        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objs));
-                        return TCL_OK;
-                    }
+                    Tcl_SetObjResult(ticP->interp, ObjFromHANDLE(ctxP->hpipe));
+                    return TCL_OK;
                 } else
                     winerr = GetLastError();
             } else
@@ -630,7 +640,29 @@ int Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
-int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
+TCL_RESULT Twapi_PipeAccept(TwapiInterpContext *ticP, HANDLE hpipe)
+{
+    TwapiPipeContext *ctxP;
+    WIN32_ERROR winerr;
+
+    TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
+    
+    ZLIST_LOCATE(ctxP, &ticP->pipes, hpipe, hpipe);
+    if (ctxP == NULL)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+
+    TWAPI_ASSERT(ticP == ctxP->ticP);
+
+    winerr = TwapiPipeConnectClient(ctxP);
+    if (winerr == ERROR_SUCCESS) {
+        return TwapiPipeChannelNotify(ctxP, "connect");
+    } else if (winerr == ERROR_IO_PENDING)
+        return TCL_OK;
+    else
+        return Twapi_AppendSystemError(ticP->interp, winerr);
+}
+
+TCL_RESULT Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
 {
     TwapiPipeContext *ctxP;
 
@@ -647,7 +679,7 @@ int Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe)
     return TCL_OK;
 }
 
-int Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
+TCL_RESULT Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count)
 {
     TwapiPipeContext *ctxP;
     DWORD avail;
@@ -761,6 +793,7 @@ int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
 {
     TwapiPipeContext *ctxP;
     struct _TwapiPipeIO *ioP;
+    DWORD count;
 
     TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
     
@@ -776,11 +809,16 @@ int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
     if (ctxP->winerr != ERROR_SUCCESS)
         return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
 
-    ctxP->winerr = TwapiPipeWriteData(ctxP, objP);
+    ctxP->winerr = TwapiPipeWriteData(ctxP, objP, &count);
     
-    if (ctxP->winerr == ERROR_SUCCESS)
+    if (ctxP->winerr == ERROR_SUCCESS) {
+        Tcl_SetObjResult(ticP->interp, Tcl_NewLongObj(count));
         return TCL_OK;
-    else
+    } else if (ctxP->winerr == ERROR_IO_PENDING) {
+        /* Previous write not completed yet. Nothing from this write written */
+        Tcl_SetResult(ticP->interp, "EAGAIN", TCL_STATIC);
+        return TCL_ERROR;   /* As expected by Tcl channel implementation */
+    } else
         return Twapi_AppendSystemError(ticP->interp, ctxP->winerr);
 }
 
@@ -889,6 +927,8 @@ static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
      * to connect, we will get success right away. Else we wait on the
      * event and queue a callback later
      */
+    ZeroMemory(&ctxP->io[READER].ovl, sizeof(ctxP->io[READER].ovl));
+    ctxP->io[READER].ovl.hEvent = ctxP->io[READER].hevent;
     if (ConnectNamedPipe(ctxP->hpipe, &ctxP->io[READER].ovl) ||
         (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {
         /* Already a client in waiting, queue the callback */

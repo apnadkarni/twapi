@@ -731,6 +731,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(Twapi_PipeClose, CallH, 64);
+    CALL_(Twapi_PipeAccept, CallH, 65);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -3331,6 +3332,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return Twapi_MemLifoDump(ticP, h);
         case 64:
             return Twapi_PipeClose(ticP, h);
+        case 65:
+            return Twapi_PipeAccept(ticP, h);
         }
     } else if (func < 2000) {
 
