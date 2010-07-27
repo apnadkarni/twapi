@@ -47,9 +47,6 @@ typedef struct _TwapiPipeContext {
     ((ctxP_)->winerr == ERROR_SUCCESS ? ((ctxP_)->winerr = (err_)) : (ctxP_)->winerr)
 } TwapiPipeContext;
 
-#define PIPE_READ_COMPLETE    0
-#define PIPE_WRITE_COMPLETE   1
-#define PIPE_CONNECT_COMPLETE 2
 
 /* Script command to use as callback */
 #define TWAPI_PIPE_CALLBACK_SCRIPT TWAPI_TCL_NAMESPACE "::pipe::_pipe_handler"
@@ -91,10 +88,10 @@ static TCL_RESULT TwapiPipeChannelNotify(TwapiPipeContext *ctxP,
 
 static void TwapiPipeEnqueueCallback(
     TwapiPipeContext *ctxP,
-    int pipe_event)
+    int direction)
 {
 
-    struct _TwapiPipeIO *ioP = &ctxP->io[pipe_event == PIPE_WRITE_COMPLETE ? WRITER : READER];
+    struct _TwapiPipeIO *ioP = &ctxP->io[direction];
     TwapiCallback *cbP;
 
     TWAPI_ASSERT(HasOverlappedIoCompleted(&ioP->ovl));
@@ -103,7 +100,7 @@ static void TwapiPipeEnqueueCallback(
     cbP->winerr = ioP->ovl.Internal;
     TwapiPipeContextRef(ctxP, 1);
     cbP->clientdata = (DWORD_PTR) ctxP;
-    cbP->clientdata2 = pipe_event;
+    cbP->clientdata2 = direction;
     TwapiEnqueueCallback(ctxP->ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
 
     return;
@@ -119,7 +116,7 @@ static VOID CALLBACK TwapiPipeReadThreadPoolFn(
 )
 {
     TWAPI_ASSERT(TimerOrWaitFired == FALSE);
-    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, PIPE_READ_COMPLETE);
+    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, READER);
 }
 
 /*
@@ -132,20 +129,7 @@ static VOID CALLBACK TwapiPipeWriteThreadPoolFn(
 )
 {
     TWAPI_ASSERT(TimerOrWaitFired == FALSE);
-    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, PIPE_WRITE_COMPLETE);
-}
-
-/*
- * Called from thread pool when a connect completes.
- * Note this has the typedef for WaitOrTimerCallback 
- */
-static VOID CALLBACK TwapiPipeConnectThreadPoolFn(
-    PVOID lpParameter,
-    BOOLEAN TimerOrWaitFired
-)
-{
-    TWAPI_ASSERT(TimerOrWaitFired == FALSE);
-    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, PIPE_CONNECT_COMPLETE);
+    TwapiPipeEnqueueCallback((TwapiPipeContext*) lpParameter, WRITER);
 }
 
 /*
@@ -231,7 +215,6 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
     TwapiPipeContext *ctxP = (TwapiPipeContext *) cbP->clientdata;
     int flags;
     char *eventstr;
-    int pipe_event;
     int direction;
     int new_state;
 
@@ -254,18 +237,23 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
      */
     TwapiPipeContextUnref(ctxP, 1);
 
-    pipe_event = cbP->clientdata2;
-    switch (pipe_event) {
-    case PIPE_READ_COMPLETE:
-        flags = PIPE_F_WATCHREAD;
-        eventstr = "read";
-        direction = READER;
-        new_state = IOBUF_IO_COMPLETED;
-        break;
-    case PIPE_WRITE_COMPLETE:
+    direction = (int) cbP->clientdata2;
+    if (direction == READER) {
+        if (ctxP->flags & PIPE_F_CONNECTED) {
+            flags = PIPE_F_WATCHREAD;
+            eventstr = "read";
+            new_state = IOBUF_IO_COMPLETED;
+        } else {
+            /* New connect */
+            flags = PIPE_F_CONNECTED; /* So we will notify below */
+            if (cbP->winerr == ERROR_SUCCESS)
+                ctxP->flags |= PIPE_F_CONNECTED;
+            eventstr = "connect";
+            new_state = IOBUF_IDLE;
+        }
+    } else {
         flags = PIPE_F_WATCHWRITE;
         eventstr = "write";
-        direction = WRITER;
         new_state = IOBUF_IDLE;
         /* Note we check state before modifying the context */
         if (ctxP->io[WRITER].state == IOBUF_IO_PENDING &&
@@ -273,16 +261,6 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
             Tcl_DecrRefCount(ctxP->io[WRITER].data.objP);
             ctxP->io[WRITER].data.objP = NULL;
         }
-        
-        break;
-    case PIPE_CONNECT_COMPLETE:
-        flags = 0;
-        if (cbP->winerr == ERROR_SUCCESS)
-            ctxP->flags |= PIPE_F_CONNECTED;
-        eventstr = "connect";
-        direction = READER;     /* CONNECT also uses READER iobuf */
-        new_state = IOBUF_IDLE;
-        break;
     }
 
     /* 
@@ -311,7 +289,7 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
      * if that is the case. Moreover, if it is not being watched, we need to
      * turn off notifications. Connects are also notified.
      */
-    if (pipe_event == PIPE_CONNECT_COMPLETE || (ctxP->flags & flags)) {
+    if (ctxP->flags & flags) {
         /* Still being watched */
         if (cbP->winerr != ERROR_SUCCESS && cbP->winerr != ERROR_HANDLE_EOF) {
             /* TBD - what do sockets pass to fileevent when there is an error ? */
@@ -324,7 +302,7 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
          * already have been set up else the event would not have been
          * delivered.
          */
-        if (pipe_event == PIPE_CONNECT_COMPLETE) {
+        if (flags == PIPE_F_CONNECTED) {
             if (ctxP->flags & PIPE_F_WATCHREAD)
                 TwapiPipeEnableReadWatch(ctxP);
             /* Note write-side watches do not need to be set up here.
@@ -338,7 +316,7 @@ static DWORD TwapiPipeCallbackFn(TwapiCallback *cbP)
         Tcl_ResetResult(ctxP->ticP->interp);
     } else {
         /* Pipe not being watched. Turn off notification if not already done */
-        if (cbP->clientdata2 == PIPE_READ_COMPLETE)
+        if ((int) cbP->clientdata2 == READER)
             TwapiPipeDisableWatch(ctxP, READER);
         else
             TwapiPipeDisableWatch(ctxP, WRITER);
@@ -977,7 +955,7 @@ static DWORD TwapiPipeConnectClient(TwapiPipeContext *ctxP)
         if (RegisterWaitForSingleObject(
                 &ctxP->io[READER].hwait,
                 ctxP->io[READER].hevent,
-                TwapiPipeConnectThreadPoolFn,
+                TwapiPipeReadThreadPoolFn,
                 ctxP,
                 INFINITE,           /* No timeout */
                 WT_EXECUTEDEFAULT
