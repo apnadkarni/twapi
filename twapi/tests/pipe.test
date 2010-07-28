@@ -1,0 +1,93 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the services.tcl
+
+package require tcltest
+
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::pipe::test {
+    namespace import ::tcltest::test
+
+    # Name to use for test service
+    variable pipe_name "twapitest"
+
+    ::tcltest::testConstraint tcl85plus [package vsatisfies [package require Tcl] 8.5]
+
+    variable scripts
+    set scripts(preamble) [::tcltest::makeFile "set test_script_dir {[file dirname [info script]]} \nsource \[file join \$test_script_dir testutil.tcl\]\nload_twapi\nvariable pipe_name $pipe_name" preamble.tcl]
+                           
+    set scripts(syncserver) [::tcltest::makeFile {
+        source [file join [file dirname [info script]] preamble.tcl]
+       	set timer [after 10000 "set x timed_out"]
+	set f [::twapi::pipe "\\\\.\\pipe\\$pipe_name" -server accept]
+	proc accept {chan event} {
+	    global x
+            puts $event
+	    set x done
+	}
+	puts ready
+	vwait x
+	after cancel $timer
+	close $f
+	puts $x
+    } pipetest]
+
+    # Opens a client side pipe using Tcl's open command
+    proc open_tcl_pipe {pipe {mode w+}} {
+        # Wait up to 1 second since remote process might not have started
+        set elapsed 0
+        while {$elapsed < 1000} {
+            if {[catch {
+                open $pipe $mode
+            } fd]} {
+                after 100;      # Wait 100ms
+                incr elapsed 100
+            } else {
+                return $fd
+            }
+        }
+        error "Could not open pipe to $pipe"
+    }
+    proc close_tcl_pipe chan {
+        # Need to catch closing of the client side pipe since Tcl
+        # closes the handle twice in the pipe channel handler, probably
+        # because it is not written for named pipes.
+        catch {close $chan}
+    }
+
+
+    ################################################################
+
+    test pipe-server-1.0 {
+        Open a named pipe as server
+    } -setup {
+        set control_channel [open "|[list [::tcltest::interpreter] $scripts(syncserver)]" r]
+    } -constraints {
+        nt tcl85plus
+    } -body {
+        set pipe [open_tcl_pipe "\\\\.\\pipe\\$pipe_name"]
+        set line1 [gets $control_channel]
+        set line2 [gets $control_channel]
+        set line3 [gets $control_channel]
+        list $line1 $line2 $line3
+    } -cleanup {
+        close_tcl_pipe $pipe
+        close $control_channel
+    } -result {ready connect done}
+
+
+    ################################################################
+
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::pipe::test

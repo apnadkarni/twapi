@@ -1,5 +1,7 @@
 # Various utility routines used in the TWAPI tests
 
+package require tcltest
+
 global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
@@ -394,6 +396,50 @@ proc verify_priv_list {privs} {
         set match [expr {$match && [string match Se* $priv]}]
     }
     return $match
+}
+
+
+# Read commands from standard input and execute them.
+# From Welch.
+proc start_commandline {prompt} {
+    set ::command_line ""
+    puts -nonewline $prompt
+    flush stdout
+    fileevent stdin readable [list eval_commandline $prompt]
+}
+proc eval_commandline {prompt} {
+    if {[eof stdin]} {
+        exit
+    }
+    
+    append ::command_line [gets stdin]
+    if {[info complete $::command_line]} {
+        catch {uplevel \#0 $::command_line} result
+        set ::command_line ""
+        puts $result
+        puts -nonewline $prompt
+        flush stdout
+    } else {
+        # Command not complete
+        append ::command_line "\n"
+    }
+}
+
+# Stops the command line loop
+proc stop_commandline {} {
+    set ::command_line ""
+    fileevent stdin readable {}
+}
+
+# Starts a Tcl shell that will read commands and execute them
+proc start_tclsh_slave {} {
+    set fd [open "| [list [::tcltest::interpreter]]" r+]
+    fconfigure $fd -buffering line
+    foreach procname {start_commandline eval_commandline stop_commandline} {
+        puts $fd "[list proc $procname [info args $procname] [info body $procname]]"
+    }
+    puts $fd {start_commandline ""}
+    return $fd
 }
 
 
