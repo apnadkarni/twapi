@@ -49,7 +49,7 @@ typedef struct _TwapiPipeContext {
 
 
 /* Script command to use as callback */
-#define TWAPI_PIPE_CALLBACK_SCRIPT TWAPI_TCL_NAMESPACE "::pipe::_pipe_handler"
+#define TWAPI_PIPE_CALLBACK_SCRIPT TWAPI_TCL_NAMESPACE "::pipechan::_pipe_handler"
 
 
 /*
@@ -790,7 +790,6 @@ error_return:
 int Twapi_PipeWrite(TwapiInterpContext *ticP, HANDLE hpipe, Tcl_Obj *objP)
 {
     TwapiPipeContext *ctxP;
-    struct _TwapiPipeIO *ioP;
     DWORD count;
 
     TWAPI_ASSERT(ticP->thread == Tcl_GetCurrentThread());
