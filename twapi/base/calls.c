@@ -2030,7 +2030,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             result.type = TRT_TCL_RESULT;
             result.value.ival = Twapi_AdjustTokenPrivileges(
-                interp, h, dw, u.tokprivsP);
+                ticP, h, dw, u.tokprivsP);
             TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
             break;
         case 10048: // PrivilegeCheck
