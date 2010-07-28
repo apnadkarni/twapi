@@ -6,9 +6,25 @@
 
 # Implementation of named pipes
 
+if {! [package vsatisfies [package require Tcl] 8.5]} {
+    proc twapi::pipe args {
+        error "This command requires V8.5 or later of Tcl."
+    }
+} else {
+    proc twapi::pipe {name args} {
+        array set opts [parseargs args {
+            server.arg
+        }]
+        if {[info exists opts(server)]} {
+            return [twapi::pipechan server $name $opts(server) {*}$args]
+        } else {
+            return [twapi::pipechan client $name {*}$args]
+        }
+    }
+}
 
-namespace eval twapi::pipe {
 
+namespace eval twapi::pipechan {
 
     # Initializes the pipe module
     proc _initialize_module {} {
