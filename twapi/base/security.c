@@ -1451,22 +1451,39 @@ int Twapi_GetTokenInformation(
 }
 
 int Twapi_AdjustTokenPrivileges(
-    Tcl_Interp *interp,
+    TwapiInterpContext *ticP,
     HANDLE tokenH,
     BOOL   disableAll,
     TOKEN_PRIVILEGES *tokprivP
 )
 {
     BOOL ret;
-    char buf[8192];
-    DWORD changed_size;
     Tcl_Obj *objP;
+    Tcl_Interp *interp = ticP->interp;
+    DWORD buf_size = 128;
+    void *bufP;
+    WIN32_ERROR winerr;
+    TCL_RESULT tcl_result = TCL_ERROR;
 
+    bufP = MemLifoPushFrame(&ticP->memlifo, buf_size, &buf_size);
     ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
-                                sizeof(buf),
-                                (PTOKEN_PRIVILEGES) buf, &changed_size);
+                                buf_size,
+                                (PTOKEN_PRIVILEGES) bufP, &buf_size);
     if (!ret) {
-        return TwapiReturnSystemError(interp);
+        winerr = GetLastError();
+        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+            /* Retry with larger buffer */
+            bufP = MemLifoAlloc(&ticP->memlifo, buf_size, NULL);
+            ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
+                                        buf_size,
+                                        (PTOKEN_PRIVILEGES) bufP, &buf_size);
+        }
+        if (!ret) {
+            /* No joy.*/
+            winerr = GetLastError();
+            MemLifoPopFrame(&ticP->memlifo);
+            return Twapi_AppendSystemError(interp, winerr);
+        }
     }
 
     /*
@@ -1476,21 +1493,22 @@ int Twapi_AdjustTokenPrivileges(
     if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
         /* Revert to previous privs. */
         AdjustTokenPrivileges(tokenH, disableAll,
-                              (PTOKEN_PRIVILEGES) buf,
+                              (PTOKEN_PRIVILEGES) bufP,
                               0, NULL, NULL);
-        return Twapi_AppendSystemError(interp, ERROR_NOT_ALL_ASSIGNED);
+        MemLifoPopFrame(&ticP->memlifo);
+        Twapi_AppendSystemError(interp, ERROR_NOT_ALL_ASSIGNED);
+    } else {
+        objP = ObjFromTOKEN_PRIVILEGES(interp, (PTOKEN_PRIVILEGES) bufP);
+        if (objP) {
+            Tcl_SetObjResult(interp, objP);
+            tcl_result = TCL_OK;
+        }
+        else {
+            /* interp->result should already contain the error */
+        }
     }
-
-    objP = ObjFromTOKEN_PRIVILEGES(interp, (PTOKEN_PRIVILEGES) buf);
-    if (objP) {
-        Tcl_SetObjResult(interp, objP);
-        return TCL_OK;
-    }
-    else {
-        /* interp->result should already contain the error */
-        return TCL_ERROR;
-    }
-
+    MemLifoPopFrame(&ticP->memlifo);
+    return tcl_result;
 }
 
 Tcl_Obj *ObjFromCONNECTION_INFO(

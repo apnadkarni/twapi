@@ -1182,7 +1182,7 @@ int Twapi_NetUserAdd(Tcl_Interp *interp, LPCWSTR servername, LPWSTR name,
 int Twapi_GetTokenInformation(Tcl_Interp *interp, HANDLE tokenH, int tclass);
 int Twapi_SetTokenPrimaryGroup(HANDLE tokenH, PSID sidP);
 int Twapi_SetTokenVirtualizationEnabled(HANDLE tokenH, DWORD enabled);
-int Twapi_AdjustTokenPrivileges(Tcl_Interp *interp, HANDLE tokenH,
+int Twapi_AdjustTokenPrivileges(TwapiInterpContext *ticP, HANDLE tokenH,
                                 BOOL disableAll, TOKEN_PRIVILEGES *tokprivP);
 DWORD Twapi_PrivilegeCheck(HANDLE tokenH, const TOKEN_PRIVILEGES *tokprivP,
                            int all_required, int *resultP);
