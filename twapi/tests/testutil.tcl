@@ -6,6 +6,9 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
+global twapi_test_dir
+set twapi_test_script_dir [file dirname [info script]]
+
 proc load_twapi {} {
 
     # Tne environment variable TWAPI_PACKAGE determines if twapi_server
@@ -401,46 +404,134 @@ proc verify_priv_list {privs} {
 
 # Read commands from standard input and execute them.
 # From Welch.
-proc start_commandline {prompt} {
+proc start_commandline {} {
+    testlog "start_commandline enter"
     set ::command_line ""
-    puts -nonewline $prompt
-    flush stdout
-    fileevent stdin readable [list eval_commandline $prompt]
+    fileevent stdin readable [list eval_commandline]
+    # We need a vwait for events to fire!
+    testlog "vwait on ::exit_command_loop"
+    vwait ::exit_command_loop
 }
-proc eval_commandline {prompt} {
+
+proc eval_commandline {} {
+    testlog "eval_commandline enter"
     if {[eof stdin]} {
+        testlog "eval_commandline: exiting"
         exit
     }
     
     append ::command_line [gets stdin]
+    testlog "eval_commandline: command: $::command_line"
     if {[info complete $::command_line]} {
-        catch {uplevel \#0 $::command_line} result
-        set ::command_line ""
-        puts $result
-        puts -nonewline $prompt
-        flush stdout
+        testlog "eval_commandline: evaluating command"
+        catch {uplevel \#0 $::command_line[set ::command_line ""]} result
+        testlog "eval_commandline: command returned \"$result\""
     } else {
         # Command not complete
+        testlog "eval_commandline: appending newline to command"
         append ::command_line "\n"
     }
+    testlog "Exiting eval_commandline:"
 }
 
 # Stops the command line loop
 proc stop_commandline {} {
+    testlog "stop_commandline: enter"
+    set ::exit_command_loop 1
     set ::command_line ""
     fileevent stdin readable {}
 }
 
 # Starts a Tcl shell that will read commands and execute them
-proc start_tclsh_slave {} {
+proc tclsh_slave_start {} {
     set fd [open "| [list [::tcltest::interpreter]]" r+]
-    fconfigure $fd -buffering line
-    foreach procname {start_commandline eval_commandline stop_commandline} {
-        puts $fd "[list proc $procname [info args $procname] [info body $procname]]"
-    }
-    puts $fd {start_commandline ""}
+    fconfigure $fd -buffering line -blocking 0 -eofchar {}
+    tclsh_slave_verify_started $fd
+    puts $fd {fconfigure stdin -buffering line -eofchar {}}
+    puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
+    puts $fd start_commandline
     return $fd
 }
+proc tclsh_slave_verify_started {fd} {
+    # Verify started. Note we need the puts because tclsh does
+    # not output result unless it is a tty.
+    puts $fd {puts [info tclversion]}
+    if {[catch {
+        set ver [tclsh_slave_gets $fd 5000]
+    } msg]} {
+        #close $fd
+        error $msg $::errorInfo $::errorCode
+    }
+    if {$ver ne [info tclversion]} {
+        error "Slave Tcl version $ver does not match."
+    }
+    return $fd
+}
+
+proc tclsh_slave_stop {fd} {
+    close $fd
+}
+
+# Read a line from the specified slave process
+# Note the fd is assumed to be non-blocking
+# Raises error after timeout
+proc tclsh_slave_gets {fd {ms 1000}} {
+    set elapsed 0
+    while {$elapsed < $ms} {
+        if {[gets $fd line] == -1} {
+            if {[eof $fd]} {
+                error "Unexpected EOF reading from slave."
+            }
+            after 50;           # Wait a bit and then retry
+            incr elapsed 50
+        } else {
+            return $line
+        }
+    }
+    error "Time out reading from slave."
+}
+
+# Wait for the slave to get ready. Discards any intermediate input.
+# ms is not total timeout, rather it's max time to wait for single read.
+# As long as slave keeps writing, we will keep reading.
+proc tclsh_slave_wait {fd {ms 1000}} {
+    set marker "Ready: [clock clicks]"
+    puts $fd "puts {$marker}"
+    set elapsed 0
+    while {$elapsed < $ms} {
+        set data [tclsh_slave_gets $fd $ms]
+        if {$data eq $marker} {
+            return
+        }
+        # Keep going
+    }
+}
+
+# Wait until slave returns specified output. Discards any intermediate input.
+# ms is not total timeout, rather it's max time to wait for single read.
+# As long as slave keeps writing, we will keep reading.
+proc tclsh_slave_expect {fd expected {ms 1000}} {
+    set elapsed 0
+    while {true} {
+        set data [tclsh_slave_gets $fd $ms]
+        if {$data eq $expected} {
+            return
+        }
+        # Keep going
+    }
+}
+
+
+# Log a test debug message
+proc testlog {msg} {
+    if {![info exists ::testlog_fd]} {
+        set ::testlog_fd [open testlog-[pid].log w+]
+        set ::testlog_time [clock seconds]
+    }
+    puts $::testlog_fd "[expr {[clock seconds]-$::testlog_time}]: $msg"
+    flush $::testlog_fd
+}
+
 
 
 #####
