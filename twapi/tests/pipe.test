@@ -29,24 +29,17 @@ namespace eval twapi::pipe::test {
     variable scripts
     set scripts(simple) {
         load_twapi
-        testlog "[clock seconds] simple start"
         proc accept {chan event} {
-            testlog "accept: $chan $event"
             puts $event
             set ::outcome accept
-            testlog "accept done"
         }
-        puts ready
-        set timer [after 20000 "testlog timeout ; set ::outcome timeout"]
-        testlog "creating pipe"
+        puts READY
+        set timer [after 20000 "set ::outcome timeout"]
 	set pipe_fd [::twapi::pipe "\\\\.\\pipe\\twapitest" -server accept]
-        testlog "created pipe, starting vwait ::outcome"
         vwait ::outcome
-        testlog "vwait ::outcome done"
         after cancel $timer
         close $pipe_fd
         puts $::outcome
-        testlog "simple end"
     }
 
     proc start_server {server_type} {
@@ -56,19 +49,14 @@ namespace eval twapi::pipe::test {
             return $servers($server_type)
         }
 
-        testlog "Starting slave"
         set fd [tclsh_slave_start]
-        testlog "Waiting for slave"
         tclsh_slave_wait $fd
         # We create a temp file and have the slave tclsh read it.
         # We do NOT write the commands to $fd as then the slave reads
         # from there a line at a time in async mode, causing sequential
         # code to become non-sequential in the presence of vwaits etc.
-        testlog "Loading server script into slave"
         puts $fd [list source [tcltest::makeFile $scripts($server_type) twapi_test_simple]]
-        testlog "Waiting for slave"
-        tclsh_slave_expect $fd ready 5000
-        testlog "Finished waiting for slave"
+        tclsh_slave_expect $fd READY 5000
         set servers($server_type) $fd
         return $fd
     }
@@ -84,22 +72,17 @@ namespace eval twapi::pipe::test {
     # Opens a client side pipe using Tcl's open command
     proc open_tcl_pipe {pipe {mode w+}} {
         # Wait up to 5 second since remote process might not have started
-        testlog "open_tcl_pipe: enter"
         set elapsed 0
         while {$elapsed < 5000} {
-            testlog "open_tcl_pipe: trying open ($elapsed)"
             if {[catch {
                 open $pipe $mode
             } fd]} {
-                testlog "open_tcl_pipe: pipe open fail: $fd"
                 after 100;      # Wait 100ms
                 incr elapsed 100
             } else {
-                testlog "open_tcl_pipe: pipe opened"
                 return $fd
             }
         }
-        testlog "Pipe open failed"
         error "Could not open pipe to $pipe"
     }
     proc close_tcl_pipe chan {
@@ -120,11 +103,8 @@ namespace eval twapi::pipe::test {
         nt tcl85plus
     } -body {
         set pipe [open_tcl_pipe "\\\\.\\pipe\\twapitest"]
-        testlog "Reading first line"
         set line1 [tclsh_slave_gets $servers(simple)]
-        testlog "Read line1: $line1"
         set line2 [tclsh_slave_gets $servers(simple)]
-        testlog "Read line2: $line2"
         list $line1 $line2
     } -cleanup {
         if {[info exists pipe]} {close_tcl_pipe $pipe}
