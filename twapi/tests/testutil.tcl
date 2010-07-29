@@ -449,7 +449,7 @@ proc tclsh_slave_start {} {
     tclsh_slave_verify_started $fd
     puts $fd {fconfigure stdin -buffering line -eofchar {}}
     puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
-    puts $fd start_commandline
+    #puts $fd start_commandline
     return $fd
 }
 proc tclsh_slave_verify_started {fd} {
@@ -469,6 +469,7 @@ proc tclsh_slave_verify_started {fd} {
 }
 
 proc tclsh_slave_stop {fd} {
+    puts $fd "exit"
     close $fd
 }
 
