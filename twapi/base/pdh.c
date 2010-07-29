@@ -286,7 +286,7 @@ int Twapi_PdhGetFormattedCounterValue(
 
     if ((pdh_status != ERROR_SUCCESS)
         || (counter_value.CStatus != ERROR_SUCCESS)) {
-        wsprintfA(buf, "Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus);
+        StringCbPrintfA(buf, sizeof(buf), "Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus);
         Tcl_SetResult(interp, buf, TCL_VOLATILE);
         return Twapi_AppendSystemError(interp,
                                        (counter_value.CStatus != ERROR_SUCCESS ?
@@ -312,7 +312,7 @@ int Twapi_PdhGetFormattedCounterValue(
         break;
 
     default:
-        wsprintfA(buf, "0x%x", dwFormat);
+        StringCbPrintfA(buf, sizeof(buf), "0x%x", dwFormat);
         Tcl_ResetResult(interp);
         Tcl_AppendResult(interp, "Invalid PDH counter format value ", buf, NULL);
         return  TCL_ERROR;
@@ -321,7 +321,7 @@ int Twapi_PdhGetFormattedCounterValue(
     if (objs[0] == NULL)
         goto fail;
 
-    wsprintfA(buf, "0x%x", counter_type);
+    StringCbPrintfA(buf, sizeof(buf), "0x%x", counter_type);
     objs[1] = Tcl_NewStringObj(buf, -1);
     if (objs[1] == NULL)
         goto fail;

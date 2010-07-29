@@ -405,7 +405,8 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
     if (i < low || i > high) {
         if (interp) {
             char buf[80];
-            wsprintf(buf, "Integer '%d' not within range %d-%d", i, low, high);
+            StringCbPrintfA(buf, sizeof(buf),
+                            "Integer '%d' not within range %d-%d", i, low, high);
             Tcl_SetResult(interp, buf, TCL_VOLATILE);
         }
         return TCL_ERROR;
@@ -1065,7 +1066,8 @@ int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 Tcl_Obj *ObjFromLUID (const LUID *luidP)
 {
     char buf[20];
-    wsprintf(buf, "%.8x-%.8x", luidP->HighPart, luidP->LowPart);
+    StringCbPrintfA(buf, sizeof(buf),
+                    "%.8x-%.8x", luidP->HighPart, luidP->LowPart);
 
     return Tcl_NewStringObj(buf, -1);
 }

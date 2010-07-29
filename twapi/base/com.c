@@ -115,7 +115,9 @@ static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     char buf[80];
     if (interp) {
-        wsprintfA(buf, "Invalid or unsupported VARTYPE (%d)", vt);
+        StringCbPrintfA(buf, sizeof(buf),
+                       "Invalid or unsupported VARTYPE (%d)",
+                       vt);
         Tcl_SetResult(interp, buf, TCL_VOLATILE);
     }
 }
@@ -1348,7 +1350,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  * the Tcl perspective, numbered from the end. In that
                  * case, we should probably map badarg_index appropriately
                  */
-                wsprintfA(buf, "%d", badarg_index);
+                StringCbPrintfA(buf, sizeof(buf), "%d", badarg_index);
                 Tcl_AppendResult(interp, " Offending parameter index ", buf, NULL);
             }
         }

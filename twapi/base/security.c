@@ -1121,7 +1121,7 @@ int Twapi_LookupAccountName (
         assert(lpAccountName);
         len = lstrlenW(lpSystemName) + 1 + lstrlenW(lpAccountName) + 1;
         new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
-        wsprintfW(new_accountP, L"%s\\%s", lpSystemName, lpAccountName);
+        StringCchPrintfW(new_accountP, len, L"%s\\%s", lpSystemName, lpAccountName);
         /* Recurse */
         result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
         TwapiFree(new_accountP);

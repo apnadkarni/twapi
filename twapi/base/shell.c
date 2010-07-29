@@ -27,7 +27,7 @@ int Twapi_GetShellVersion(Tcl_Interp *interp)
     char buf[80];
 
     DLLVERSIONINFO *ver = TwapiShellVersion();
-    wsprintfA(buf, "%u.%u.%u",
+    StringCbPrintfA(buf, sizeof(buf), "%u.%u.%u",
               ver->dwMajorVersion, ver->dwMinorVersion, ver->dwBuildNumber);
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
@@ -1249,7 +1249,7 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (status != S_OK)
         return Twapi_AppendSystemError(interp, status);
 
-    wsprintfA(buf, "#%2.2x%2.2x%2.2x",
+    StringCbPrintfA(buf, sizeof(buf), "#%2.2x%2.2x%2.2x",
              GetRValue(color), GetGValue(color), GetBValue(color));
     Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
     return TCL_OK;
