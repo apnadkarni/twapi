@@ -21,39 +21,85 @@ namespace eval twapi::pipe::test {
 
     ::tcltest::testConstraint tcl85plus [package vsatisfies [package require Tcl] 8.5]
 
+    # Contains channels for the test servers
+    variable servers
+    array set servers {}
+
+    # Contains scripts for various test scenarios
     variable scripts
-    set scripts(preamble) [::tcltest::makeFile "set test_script_dir {[file dirname [info script]]} \nsource \[file join \$test_script_dir testutil.tcl\]\nload_twapi\nvariable pipe_name $pipe_name" preamble.tcl]
-                           
-    set scripts(syncserver) [::tcltest::makeFile {
-        source [file join [file dirname [info script]] preamble.tcl]
-       	set timer [after 10000 "set x timed_out"]
-	set f [::twapi::pipe "\\\\.\\pipe\\$pipe_name" -server accept]
-	proc accept {chan event} {
-	    global x
+    set scripts(simple) {
+        load_twapi
+        testlog "[clock seconds] simple start"
+        proc accept {chan event} {
+            testlog "accept: $chan $event"
             puts $event
-	    set x done
-	}
-	puts ready
-	vwait x
-	after cancel $timer
-	close $f
-	puts $x
-    } pipetest]
+            set ::outcome accept
+            testlog "accept done"
+        }
+        puts ready
+        set timer [after 20000 "testlog timeout ; set ::outcome timeout"]
+        testlog "creating pipe"
+	set pipe_fd [::twapi::pipe "\\\\.\\pipe\\twapitest" -server accept]
+        testlog "created pipe, starting vwait ::outcome"
+        vwait ::outcome
+        testlog "vwait ::outcome done"
+        after cancel $timer
+        close $pipe_fd
+        puts $::outcome
+        testlog "simple end"
+    }
+
+    proc start_server {server_type} {
+        variable servers
+        variable scripts
+        if {[info exists servers($server_type)]} {
+            return $servers($server_type)
+        }
+
+        testlog "Starting slave"
+        set fd [tclsh_slave_start]
+        testlog "Waiting for slave"
+        tclsh_slave_wait $fd
+        # We create a temp file and have the slave tclsh read it.
+        # We do NOT write the commands to $fd as then the slave reads
+        # from there a line at a time in async mode, causing sequential
+        # code to become non-sequential in the presence of vwaits etc.
+        testlog "Loading server script into slave"
+        puts $fd [list source [tcltest::makeFile $scripts($server_type) twapi_test_simple]]
+        testlog "Waiting for slave"
+        tclsh_slave_expect $fd ready 5000
+        testlog "Finished waiting for slave"
+        set servers($server_type) $fd
+        return $fd
+    }
+
+    proc stop_server {server_type} {
+        variable servers
+        if {[info exists servers($server_type)]} {
+            tclsh_slave_stop $servers($server_type)
+            unset servers($server_type)
+        }
+    }
 
     # Opens a client side pipe using Tcl's open command
     proc open_tcl_pipe {pipe {mode w+}} {
-        # Wait up to 1 second since remote process might not have started
+        # Wait up to 5 second since remote process might not have started
+        testlog "open_tcl_pipe: enter"
         set elapsed 0
-        while {$elapsed < 1000} {
+        while {$elapsed < 5000} {
+            testlog "open_tcl_pipe: trying open ($elapsed)"
             if {[catch {
                 open $pipe $mode
             } fd]} {
+                testlog "open_tcl_pipe: pipe open fail: $fd"
                 after 100;      # Wait 100ms
                 incr elapsed 100
             } else {
+                testlog "open_tcl_pipe: pipe opened"
                 return $fd
             }
         }
+        testlog "Pipe open failed"
         error "Could not open pipe to $pipe"
     }
     proc close_tcl_pipe chan {
@@ -69,19 +115,21 @@ namespace eval twapi::pipe::test {
     test pipe-server-1.0 {
         Open a named pipe as server
     } -setup {
-        set control_channel [open "|[list [::tcltest::interpreter] $scripts(syncserver)]" r]
+        set control_channel [start_server simple]
     } -constraints {
         nt tcl85plus
     } -body {
-        set pipe [open_tcl_pipe "\\\\.\\pipe\\$pipe_name"]
-        set line1 [gets $control_channel]
-        set line2 [gets $control_channel]
-        set line3 [gets $control_channel]
-        list $line1 $line2 $line3
+        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapitest"]
+        testlog "Reading first line"
+        set line1 [tclsh_slave_gets $servers(simple)]
+        testlog "Read line1: $line1"
+        set line2 [tclsh_slave_gets $servers(simple)]
+        testlog "Read line2: $line2"
+        list $line1 $line2
     } -cleanup {
-        close_tcl_pipe $pipe
-        close $control_channel
-    } -result {ready connect done}
+        if {[info exists pipe]} {close_tcl_pipe $pipe}
+        stop_server simple
+    } -result {connect accept}
 
 
     ################################################################
