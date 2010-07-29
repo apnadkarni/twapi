@@ -177,7 +177,8 @@ WINLIB        = \
 	$(SDKLIB)secur32.lib \
 	$(SDKLIB)userenv.lib \
 	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)setupapi.lib
+	$(SDKLIB)setupapi.lib \
+	$(SDKLIB)strsafe.lib
 
 !if $(VCVER) > 6
 WINLIB = $(WINLIB) bufferoverflowU.lib

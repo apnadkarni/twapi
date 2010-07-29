@@ -48,7 +48,8 @@ int TwapiFormatMessageHelper(
             Tcl_SetResult(interp, "Access violation in FormatMessage. Most likely, number of supplied arguments do not match those in format string", TCL_STATIC);
             break;
         default:
-            wsprintfA(buf, "Exception %x raised by FormatMessage", code);
+            StringCbPrintfA(buf, sizeof(buf),
+                            "Exception %x raised by FormatMessage", code);
             Tcl_SetResult(interp, buf, TCL_VOLATILE);
             break;
         }

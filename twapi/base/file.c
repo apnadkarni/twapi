@@ -83,7 +83,7 @@ int Twapi_VerQueryValue_STRING(
     if ((lstrlenW(lang_and_cp) + lstrlenW(name)) > (ARRAYSIZE(namepath)+30)) {
         return TwapiReturnTwapiError(interp, NULL, TWAPI_INTERNAL_LIMIT);
     }
-    wsprintfW(namepath, L"\\StringFileInfo\\%s\\%s", lang_and_cp, name);
+    StringCbPrintfW(namepath, sizeof(namepath), L"\\StringFileInfo\\%s\\%s", lang_and_cp, name);
 
     if ((! VerQueryValueW(verP, namepath, (LPVOID) &valueP, &len)) ||
         len == 0) {
@@ -117,7 +117,7 @@ int Twapi_VerQueryValue_TRANSLATIONS(
         char hex[10];
         WORD *wP = (WORD *) dwP;
         /* Print as langid,codepage */
-        wsprintfA(hex, "%04x%04x", wP[0], wP[1]);
+        StringCbPrintfA(hex, sizeof(hex), "%04x%04x", wP[0], wP[1]);
         Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewStringObj(hex, 8));
     }
 

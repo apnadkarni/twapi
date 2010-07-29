@@ -53,6 +53,8 @@
 #include <security.h>
 #include <userenv.h>
 #include <setupapi.h>
+//#define STRSAFE_LIB             /* Use lib, not inline strsafe functions */
+#include <strsafe.h>
 
 #include "tcl.h"
 #include "twapi_sdkdefs.h"
