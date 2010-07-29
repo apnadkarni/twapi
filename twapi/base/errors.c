@@ -109,7 +109,7 @@ Tcl_Obj *TwapiGetErrorMsg(int error)
     }
 
     if (msg == NULL) {
-        wsprintfA(buf, "Twapi error %d", error);
+        StringCbPrintfA(buf, sizeof(buf), "Twapi error %d", error);
         msg = buf;
     }
         
@@ -198,7 +198,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
         return STRING_LITERAL_OBJ("Function not supported under this Windows version");
     } else {
-        wsprintfA(msgbuf, "Windows error: %ld", error);
+        StringCbPrintfA(msgbuf, sizeof(msgbuf), "Windows error: %ld", error);
         return Tcl_NewStringObj(msgbuf, -1);
     }
 }
