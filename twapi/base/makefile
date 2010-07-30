@@ -51,6 +51,7 @@ OBJS  = \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mstask.obj \
+	$(OBJDIR)\mycrt.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
@@ -215,10 +216,10 @@ CFLAGS = $(CFLAGS) /Wp64
 # of the C runtime. So CRT=none needs to be postponed until such a time
 # that we build for XP and later only.
 !IF "$(CRT)x" == "nonex"
-CFLAGS = $(CFLAGS) /MT /Oi /Zl
+CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
 !ELSE
 !IF "$(CRT)x" == "staticx"
-CFLAGS = $(CFLAGS) /MT /Oi
+CFLAGS = $(CFLAGS) /MT /Oi /DTWAPI_MINIMIZE_CRT
 !ELSE
 CFLAGS = $(CFLAGS) /D_DLL /MD
 !ENDIF
