@@ -23,12 +23,23 @@ int TwapiFormatMessageHelper(
 )
 {
     int result;
-    DWORD code;
-    char  buf[80];
     WCHAR *msgP;
 
     result = TCL_ERROR;
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER;
+#ifdef OBSOLETE
+    /* For security reasons, MSDN recommends not to use FormatMessageW
+       with arbitrary codes unless IGNORE_INSERTS is also used, in which
+       case arguments are ignored and we do not need the __try. Note __try
+       does not protect against malicious buffer overflows.
+
+       There is also another problem in that we are passing all strings
+       but the format specifiers in the message may expect (for example)
+       integer values. We have not way of doing the right thing without
+       building a FormatMessage parser ourselves.
+
+       As a side-benefit, not using __try reduces CRT dependency.
+    */
     __try {
         if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
             Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
@@ -38,13 +49,12 @@ int TwapiFormatMessageHelper(
             TwapiReturnSystemError(interp);
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
+        DWORD code;
+        char  buf[80];
         switch (code = GetExceptionCode()) {
         case EXCEPTION_ACCESS_VIOLATION:
             Tcl_SetErrno(EFAULT);
             Tcl_PosixError(interp);
-#if 0
-            Tcl_SetObjErrorCode(interp, Twapi_MakeErrorCodeObj(5));
-#endif
             Tcl_SetResult(interp, "Access violation in FormatMessage. Most likely, number of supplied arguments do not match those in format string", TCL_STATIC);
             break;
         default:
@@ -54,6 +64,20 @@ int TwapiFormatMessageHelper(
             break;
         }
     }
+#else
+    dwFlags |= FORMAT_MESSAGE_IGNORE_INSERTS;
+    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId,
+                       (LPWSTR) &msgP,
+                       argc,
+                       (va_list *)argv /* Actually ignored (IGNORE_INSERTS) */
+            )) {
+        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
+        LocalFree(msgP);
+        result = TCL_OK;
+    } else {
+        TwapiReturnSystemError(interp);
+    }
+#endif /* OBSOLETE */
 
     return result;
 }
