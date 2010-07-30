@@ -489,6 +489,7 @@ proc twapi::get_system_info {args} {
     }
 
     # If we don't need any PDH based values, return
+    # TBD - many of these are available without PDH ? Check and replace
     if {! ($opts(all) || $opts(handlecount) || $opts(processcount) || $opts(threadcount) || $opts(eventcount) || $opts(mutexcount) || $opts(sectioncount) || $opts(semaphorecount))} {
         return $result
     }

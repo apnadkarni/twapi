@@ -454,6 +454,7 @@ proc twapi::get_multiple_process_info {pids args} {
         }
     }
 
+    # TBD - get rid of PDH where possible
     # Note the PDH options match those of twapi::get_process_perf_counter_paths
     set pdh_opts {
         privatebytes
@@ -1189,6 +1190,7 @@ proc twapi::get_process_parent {pid args} {
     # TBD - if above fails, try through Twapi_GetProcessList
 
     if {![info exists parent]} {
+        # TBD - get rid of pdh library
         # Try getting through pdh library
         set counters [get_perf_process_counter_paths $pid -parent]
         if {[llength counters]} {
@@ -1387,7 +1389,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
                 return [recordarray field $precords $pid pProcessName]
             }
 
-            # That failed as well, try PDH
+            # That failed as well, try PDH. TBD - get rid of PDH
             set pdh_path [lindex [lindex [twapi::get_perf_process_counter_paths [list $pid] -pid] 0] 3]
             array set pdhinfo [parse_perf_counter_path $pdh_path]
             return $pdhinfo(instance)
