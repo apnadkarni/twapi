@@ -26,6 +26,8 @@ OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 int gTclIsThreaded;
+static DWORD gTlsIndex;         /* As returned by TlsAlloc */
+static ULONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
 
 /* List of allocated interpreter - used primarily for unnotified cleanup */
 CRITICAL_SECTION gTwapiInterpContextsCS; /* To protect the same */
@@ -226,7 +228,6 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->pending_suspended = 0;
     ZLIST_INIT(&ticP->pending);
     ZLIST_INIT(&ticP->directory_monitors);
-    ZLIST_INIT(&ticP->pipes);
 
     /* Register a async callback with Tcl. */
     /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
@@ -322,6 +323,11 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
 
+    gTlsIndex = TlsAlloc();
+    if (gTlsIndex == TLS_OUT_OF_INDEXES)
+        return TCL_ERROR;       /* No point storing error message.
+                                   Discarded anyways by Tcl */
+
     InitializeCriticalSection(&gTwapiInterpContextsCS);
     ZLIST_INIT(&gTwapiInterpContexts);
 
@@ -329,11 +335,6 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
         gTclIsThreaded = 1;
     else
         gTclIsThreaded = 0;
-
-    /*
-     * Deeply nested if's because it is easier to track what to undo
-     * in case of errors
-     */
 
     Tcl_GetVersion(&gTclVersion.major,
                    &gTclVersion.minor,
@@ -363,3 +364,28 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     return TCL_ERROR;
 }
 
+int TwapiAssignTlsSlot()
+{
+    DWORD slot;
+    slot = InterlockedIncrement(&gTlsNextSlot);
+    if (slot > TWAPI_TLS_SLOTS) {
+        InterlockedDecrement(&gTlsNextSlot); /* So it does not grow unbounded */
+        return -1;
+    }
+    return slot-1;
+}
+
+TwapiTls *TwapiGetTls()
+{
+    TwapiTls *tlsP;
+
+    tlsP = (TwapiTls *) TlsGetValue(gTlsIndex);
+    if (tlsP)
+        return tlsP;
+
+    /* TLS for this thread not initialized yet */
+    tlsP = (TwapiTls *) TwapiAllocZero(sizeof(*tlsP));
+    tlsP->thread = Tcl_GetCurrentThread();
+    TlsSetValue(gTlsIndex, tlsP);
+    return tlsP;
+}
