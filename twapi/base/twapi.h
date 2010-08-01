@@ -611,10 +611,6 @@ typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
 
-typedef struct _TwapiPipeContext TwapiPipeContext;
-ZLINK_CREATE_TYPEDEFS(TwapiPipeContext); 
-ZLIST_CREATE_TYPEDEFS(TwapiPipeContext);
-
 #if 0
 /*
  * We need to keep track of handles that are being tracked by the 
@@ -699,6 +695,17 @@ typedef struct _TwapiCallback {
     TwapiResult response;
 } TwapiCallback;
 
+
+/*
+ * Thread local storage area
+ */
+typedef struct _TwapiTls {
+    Tcl_ThreadId thread;
+#define TWAPI_TLS_SLOTS 8
+    DWORD_PTR slots[TWAPI_TLS_SLOTS];
+#define TWAPI_TLS_SLOT(slot_) (TwapiGetTls()->slots[slot_])
+} TwapiTls;
+
 /*
  * TwapiInterpContext keeps track of a per-interpreter context.
  * This is allocated when twapi is loaded into an interpreter and
@@ -738,12 +745,6 @@ typedef struct _TwapiInterpContext {
      * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
      */
     ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
-
-    /*
-     * List of named pipe contexts. ONLY ACCESSED FROM Tcl THREAD SO ACCESSED
-     * WITHOUT A LOCK
-     */
-    ZLIST_DECL(TwapiPipeContext) pipes;
 
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
@@ -813,6 +814,9 @@ extern TwapiId volatile gIdGenerator;
         }                                                               \
     } while (0)
 
+
+TwapiTls *TwapiGetTls();
+int TwapiAssignTlsSlot();
 
 /* Memory allocation */
 void *TwapiAlloc(size_t sz);
