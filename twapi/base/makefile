@@ -56,7 +56,7 @@ OBJS  = \
 	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
-	$(OBJDIR)\pipe.obj \
+	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
