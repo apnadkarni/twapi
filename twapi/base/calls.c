@@ -559,7 +559,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryUnicode, Call, 10114);
     CALL_(Twapi_WriteMemoryPointer, Call, 10115);
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
-    CALL_(Twapi_PipeServer, Call, 10117);
+    CALL_(Twapi_NPipeServer, Call, 10117);
 
 
     // CallU API
@@ -2480,7 +2480,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return TwapiWriteMemory(interp, objc-1, objv+1);
 
         case 10117:
-            return Twapi_PipeServer(ticP, objc-2, objv+2);
+            return Twapi_NPipeServer(ticP, objc-2, objv+2);
         }
 
     }

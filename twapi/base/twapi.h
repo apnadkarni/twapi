@@ -382,9 +382,9 @@ struct TwapiTcl85Stubs {
 typedef DWORD_PTR TwapiId;
 #define ObjFromTwapiId ObjFromDWORD_PTR
 #ifdef _WIN64
-#define TWAPI_NEWID(ticP_) InterlockedIncrement64(&gIdGenerator);
+#define TWAPI_NEWID(ticP_) InterlockedIncrement64(&gIdGenerator)
 #else
-#define TWAPI_NEWID(ticP_) InterlockedIncrement(&gIdGenerator);
+#define TWAPI_NEWID(ticP_) InterlockedIncrement(&gIdGenerator)
 #endif
 
 /* Used to maintain context for common NetEnum* interfaces */
@@ -1409,7 +1409,7 @@ int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
 int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 
 /* Named pipes */
-TCL_RESULT Twapi_PipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_PipeAccept(TwapiInterpContext *ticP, HANDLE hpipe);
 TCL_RESULT Twapi_PipeClose(TwapiInterpContext *ticP, HANDLE hpipe);
 TCL_RESULT Twapi_PipeRead(TwapiInterpContext *ticP, HANDLE hpipe, DWORD count);
