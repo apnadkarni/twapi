@@ -34,7 +34,12 @@ typedef struct _NPipeChannel {
                 DWORD len;  /* Amount of data in buffer */
             } write_buf;
         } data;
-        LONG volatile state;    /* State values IOBUF_* */
+        LONG volatile state;    /* State values IOBUF_*. Writing PENDING to
+                                   this location or writing to this location
+                                   while it contains PENDING must be done
+                                   using Interlocked* Win32 API since in
+                                   that state the worker threads also access
+                                   the location. */
 #define IOBUF_IDLE         0    /* I/O buffer not in use, no pending ops */
 #define IOBUF_IO_PENDING   1    /* Overlapped I/O has been queued. Does
                                    not mean thread pool is waiting on it. */
@@ -54,7 +59,7 @@ typedef struct _NPipeChannel {
     ULONG volatile nrefs;              /* Ref count */
     WIN32_ERROR winerr;
 
-#define SET_CONTEXT_WINERR(ctxP_, err_) \
+#define SET_NPIPE_ERROR(ctxP_, err_) \
     ((ctxP_)->winerr == ERROR_SUCCESS ? ((ctxP_)->winerr = (err_)) : (ctxP_)->winerr)
 };
 
@@ -150,6 +155,18 @@ static void NPipeChannelDelete(NPipeChannel *pcP);
 #define NPipeChannelRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void NPipeChannelUnref(NPipeChannel *pcP, int decr);
 static NPipeTls *GetNPipeTls();
+static void NPipeShutdown(NPipeChannel *pcP, int unrefs);
+
+/*
+ * Map Win32 errors to Tcl errno. Note it is important to use the same
+ * mapping as Tcl does so we have to call into Tcl to set errno and then
+ * retrieve the value.
+ */
+static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
+{
+    TWAPI_TCL85_INT_PLAT_STUB(tclWinConvertError) (winerr);
+    return Tcl_GetErrno();
+}
 
 static int NPipeModuleInit(TwapiInterpContext *ticP)
 {
@@ -415,10 +432,10 @@ static int NPipeEventProc(
 
     /* Update channel state error if necessary */
     if (pcP->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
-        SET_CONTEXT_WINERR(pcP, pcP->io[READER].ovl.Internal);
+        SET_NPIPE_ERROR(pcP, pcP->io[READER].ovl.Internal);
     }
     if (pcP->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
-        SET_CONTEXT_WINERR(pcP, pcP->io[WRITER].ovl.Internal);
+        SET_NPIPE_ERROR(pcP, pcP->io[WRITER].ovl.Internal);
     }
 
     /* Now set the direction bits that are notifiable */
@@ -595,6 +612,20 @@ static void NPipeWatchProc(ClientData clientdata, int mask)
     }
 }
 
+static TCL_RESULT NPipeCloseProc(ClientData clientdata, Tcl_Interp *interp)
+{
+    NPipeChannel *pcP = (NPipeChannel *) clientdata;
+
+    /*
+     * We need to unref pcP corresponding to the ref when we called
+     * Tcl_CreateChannel. So we pass 1 to NPipeShutdown to do it for us.
+     */
+    NPipeShutdown(pcP, 1);
+
+    return TCL_OK;
+}
+
+
 static int NPipeGetHandleProc(
     ClientData clientdata,
     int direction,		/* Not used. */
@@ -621,34 +652,192 @@ static int NPipeBlockProc(ClientData clientdata, int mode)
 
 
 /*
- * Initiates shut down of a pipe. It unregisters the channel from the interp.
- * Must be called from the thread that "owns" the channel.
+ * Read up to buf_sz bytes. Caller must have ensured there is at least one
+ * byte else function will block waiting for data
+ * (which is ok for blocking reads but not for nonblocking reads).
+ * Returns number of bytes read on success, (at least one byte). Returns
+ * 0 on error and sets pcP->winerr to error.
  */
-static void NPipeShutdown(NPipeChannel *pcP, TwapiInterpContext *ticP)
+static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
 {
-    int unrefs = 0;             /* How many times we need to unref  */
+    struct _NPipeIO *ioP = &pcP->io[READER];
+    DWORD read_ahead_count = 0;
+    DWORD avail;
+
+    /* Must not be a pending read or error*/
+    TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING && ioP->state != IOBUF_IO_COMPLETED_WITH_ERROR);
+    /* Nonblocking pipes must have at least one byte data in read ahead */
+    TWAPI_ASSERT((pcP->flags & NPIPE_F_NONBLOCKING) == 0 || ioP->state == IOBUF_IO_COMPLETED);
+    TWAPI_ASSERT(ctxP->winerr == ERROR_SUCCESS);
+    TWAPI_ASSERT(buf_sz > 0);
+
+    if (ioP->state == IOBUF_IO_COMPLETED) {
+        --buf_sz;
+        ++read_ahead_count;
+        *bufP++ = ioP->data.read_ahead[0];
+        ioP->state = IOBUF_IDLE;
+    }
+
+    if (buf_sz == 0)
+        return read_ahead_count;      /* Only asked for a single byte */
+
+    if (!PeekNamedPipe(pcP->hpipe, NULL, 0, NULL, &avail, NULL)) {
+        pcP->winerr = GetLastError();
+        return 0;
+    }
+
+    if (avail == 0)
+        avail = 1;              /* Wait for at least one byte */
+
+    if (avail < buf_sz)
+        buf_sz = avail;         /* Read what's there */
+    
+    ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+    ioP->hevent = pcP->hsync; /* Event used for "synchronous" reads */
+    if (! ReadFile(pcP->hpipe, bufP, buf_sz, NULL, &ioP->ovl)) {
+        WIN32_ERROR winerr = GetLastError();
+        if (winerr != ERROR_IO_PENDING) {
+            ioP->hevent = NULL;
+            pcP->winerr = winerr;
+            return 0;
+        }
+        /*
+         * Pending I/O - when we have blocking reads and not enough data
+         * in pipe. Fall thru, will block in GetOverlappedResult
+         */
+    }
+    if (!GetOverlappedResult(ctxP->hpipe, &ioP->ovl, &avail, TRUE)) {
+        ioP->hevent = NULL;
+        pcP->winerr = GetLastError();
+        return 0;
+    }
+
+    ioP->hevent = NULL;
+
+    return avail + read_ahead_count;
+}
+
+/* Called from Tcl I/O channel layer to read bytes from the pipe */
+static int NPipeInputProc(
+    ClientData clientdata,
+    char *bufP,
+    int buf_sz,
+    int *errnoP)
+{
+    NPipeChannel *pcP = (NPipeChannel *)clientdata;
+    struct _NPipeIO *ioP;
+    Tcl_Obj *objP;
+    int read_count;
+
+    TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
+
+    if (! NPIPE_CONNECTED(pcP)) {
+        /* Note we do not set pcP->winerr here */
+        *errnoP = NPipeSetTclErrnoFromWin32Error(ERROR_PIPE_NOT_CONNECTED);
+        return -1;
+    }
+
+    ioP = &pcP->io[READER];
+
+    /* If thread pool thread has set an error, we need to copy it. */
+    if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR)
+        SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+    
+    if (pcP->winerr != ERROR_SUCCESS)
+        goto error_return;
+
+    if (pcP->flags & PIPE_F_NONBLOCKING) {
+        /* Non-blocking, we should always be either COMPLETED or PENDING */
+        TWAPI_ASSERT(ioP->state == IOBUF_IO_COMPLETED || ioP->state == IOBUF_IO_PENDING);
+
+        if (ioP->state == IOBUF_IO_PENDING) {
+            /*
+             * Non-blocking channel and we are awaiting data. We need to
+             * return an EAGAIN or EWOULDBLOCK to Tcl. ERROR_PIPE_BUSY
+             * maps to EAGAIN in the Tcl code.
+             */
+            *errnoP = NPipeSetTclErrnoFromWin32Error(ERROR_PIPE_BUSY);
+            return -1;
+        }
+
+    } else {
+
+        /* Blocking I/O */
+        if (ioP->state == IOBUF_IO_PENDING) {
+            /*
+             * Blocking channel. Need to block waiting for data.
+             * but there is an outstanding I/O pending. May be a thread pool
+             * thread waiting on it via an overlapped read. Unregister it.
+             * Might not be the most efficient mechanism but the combination
+             * of fileevent with blocking channels is unlikely anyways.
+             */
+            if (ioP->hwait != INVALID_HANDLE_VALUE) {
+                UnregisterWaitEx(pcP->io[READER].hwait, INVALID_HANDLE_VALUE);
+                NPipeChannelUnref(pcP, 1);
+                ioP->hwait = INVALID_HANDLE_VALUE;
+            }
+            /* Note ioP->state might have changed while we unregistered */
+            /* If state is still pending, wait for outstanding read */
+            if (ioP->state == IOBUF_IO_PENDING) {
+                if (GetOverlappedResult(pcP->hpipe, &ioP->ovl, &read_count, TRUE))
+                    ioP->state = IOBUF_IO_COMPLETED;
+                else
+                    ioP->state = IOBUF_IO_COMPLETED_WITH_ERROR;
+            }
+            if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR) {
+                SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+                goto error_return;
+            }
+        }
+    }
+
+    TWAPI_ASSERT(pcP->state != IOBUF_IO_PENDING);
+
+    read_count = NPipeReadData(pcP, bufP, buf_sz);
+    if (read_count == 0)
+        goto error_return;
+
+    /*
+     * Need to fire another read event if more data is available. This
+     * is also required in case we unregistered the thread pool wait
+     * in the blocking I/O case above.
+     */
+    if (pcP->flags & PIPE_F_WATCHREAD)
+        NPipeWatchReads(pcP);
+    /*
+     * Note error, if any, from TwapiPipeEnableReadWatch ignored,
+     * will be picked up on next call
+     */
+    
+    return read_count;
+
+error_return:
+    if (pcP->winerr == ERROR_HANDLE_EOF) {
+        return 0;               /* EOF */
+    } else {
+        *errnoP = NPipeSetTclErrnoFromWin32Error(pcP->winerr);
+        return -1;
+    }        
+}
+
+/*
+ * Initiates shut down of a pipe. 
+ * It does NOT unregister the channel from the interp.
+ * It does NOT remove the channel from the thread's pipe list.
+ * Must be called from the thread that "owns" the channel to prevent races.
+ * Note it does do an unref if unregistering from the thread pools so
+ * to be sure that pcP is not deallocated on return, the caller must
+ * ensure there is some other ref outstanding on it..
+ * Caller can pass unrefs parameter as additional unrefs to do on pcP.
+ */
+static void NPipeShutdown(NPipeChannel *pcP, int unrefs)
+{
     NPipeTls *tlsP = GET_NPIPE_TLS();
 
     TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
-    TWAPI_ASSERT(ticP == NULL || ticP->thread == pcP->thread);
 
     /*
-     * We need to do things in a specific order.
-     *
-     * Unlink the channel from the interp, so no callbacks will access
-     * the interp/tic.
-     *
-     * Note all unrefs are done at the end.
-     */
-    if (ticP && ticP->interp && pcP->channel &&
-        Tcl_IsChannelRegistered(ticP->interp, pcP->channel)) {
-        Tcl_UnregisterChannel(ticP->interp, pcP->channel);
-        pcP->channel = NULL;
-        ++unrefs;
-    }
-
-    /*
-     * Second, stop the thread pool for this pipe. We need to do that before
+     * stop the thread pool for this pipe. We need to do that before
      * closing handles. Note the UnregisterWaitEx can result in thread pool
      * callbacks running while it is blocked. That's ok because the thread
      * pool only changes the io state.
@@ -807,7 +996,10 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                      */
                     tlsP = GetNPipeTls();
 
-                    /* Add to list of pipes */
+                    /*
+                     * Add to list of pipes. It will be removed from the
+                     * list when the thread action is called.
+                     */
                     NPipeChannelRef(pcP, 1);
                     ZLIST_PREPEND(&tlsP->pipes, pcP);
 
@@ -828,6 +1020,13 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                         Tcl_SetObjResult(ticP->interp,
                                          Tcl_NewStringObj(instance_name, -1));
                         return TCL_OK;
+                    } else {
+                        /* Genuine error. */
+                        Tcl_UnregisterChannel(interp, pcP->channel);
+                        /* We do not NPipeChannelUnref here. That will
+                         * happen when the Unregister calls our NPipeCloseProc
+                         */
+                        pcP->channel = NULL;
                     }
                 } else
                     winerr = GetLastError();
@@ -838,29 +1037,9 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     }
 
     pcP->winerr = winerr;
-    NPipeShutdown(pcP, ticP);    /* pcP might be gone */
+    NPipeShutdown(pcP, 0);    /* pcP might be gone */
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
-#ifdef NOTYET
-TCL_RESULT NPipeChannelClose(ClientData clientdata, Tcl_Interp *interp)
-{
-    NPipeChannel *pcP = (NPipeChannel *) clientdata;
-    Tcl_Channel channel = pcP->channel;
 
-    EnterCriticalSection(&gNPipeChannelLock);
-    ZLIST_LOCATE(&gNPipeChannels, pcP, channel, channel);
-    if (pcP == NULL || clientdata != (ClientData) pcP) {
-        /* TBD - log not found or mismatch */
-        LeaveCriticalSection(&gNPipeChannelLock);
-        return TCL_OK;
-    }
-    pcP->channel = NULL;
-    ZLIST_REMOVE(&gNPipeChannels, pcP);
-    LeaveCriticalSection(&gNPipeChannelLock);
 
-    NPipeShutdown(pcP);
-
-    return TCL_OK;
-}
-#endif // NOTYET
