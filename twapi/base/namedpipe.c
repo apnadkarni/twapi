@@ -126,14 +126,9 @@ static Tcl_DriverGetHandleProc NPipeGetHandleProc;
 static Tcl_DriverBlockModeProc NPipeBlockProc;
 static Tcl_DriverThreadActionProc NPipeThreadActionProc;
 
-#define NPIPE_TCL_CHANNEL_VERSION 2
 static Tcl_ChannelType gNPipeChannelDispatch = {
     "namedpipe",
-#if NPIPE_TCL_CHANNEL_VERSION == 5
-    (Tcl_ChannelTypeVersion)TCL_CHANNEL_VERSION_5,
-#else
-    (Tcl_ChannelTypeVersion)TCL_CHANNEL_VERSION_2,
-#endif
+    (Tcl_ChannelTypeVersion)TCL_CHANNEL_VERSION_4,
     NPipeCloseProc,
     NPipeInputProc,
     NPipeOutputProc,
@@ -147,10 +142,7 @@ static Tcl_ChannelType gNPipeChannelDispatch = {
     NULL /* ChannelFlush */,
     NULL /* ChannelHandler */,
     NULL /* ChannelWideSeek if VERSION_2, Truncate if VERSION_5 */,
-#if NPIPE_TCL_CHANNEL_VERSION == 5
     NPipeThreadActionProc,       /* Unused for VERSION_2 */
-    NULL,               /* TruncateProc for VERSION_5, unused for VERSION_2 */
-#endif
 };
 
 static NPipeChannel *NPipeChannelNew(void);
@@ -200,11 +192,7 @@ void NPipeSetupProc(
 	return;
     }
 
-    /*
-     * Note cannot use GET_NPIPE_TLS because no guarantee this is not the
-     * first call to get the tls for this thread. TBD - check this
-     */
-    tlsP = GetNPipeTls();
+    tlsP = GET_NPIPE_TLS();
 
     /*
      * Loop and check if there are any ready pipes.
@@ -296,6 +284,97 @@ static NPipeTls *GetNPipeTls()
     Tcl_CreateEventSource(NPipeSetupProc, NPipeCheckProc, NULL);
 
     return tlsP;
+}
+
+/* Always returns non-NULL, or panics */
+static NPipeChannel *NPipeChannelNew(void)
+{
+    NPipeChannel *pcP;
+
+    pcP = (NPipeChannel *) TwapiAlloc(sizeof(*pcP));
+    pcP->thread = Tcl_GetCurrentThread();
+    pcP->channel = NULL;
+    pcP->hpipe = INVALID_HANDLE_VALUE;
+    pcP->hsync = NULL;
+
+    pcP->io[READER].hwait = INVALID_HANDLE_VALUE;
+    pcP->io[READER].hevent = NULL;
+    pcP->io[READER].state = IOBUF_IDLE;
+
+    pcP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
+    pcP->io[WRITER].hevent = NULL;
+    pcP->io[WRITER].state = IOBUF_IDLE;
+    pcP->io[WRITER].data.write_buf.p = NULL;
+    pcP->io[WRITER].data.write_buf.sz = 0;
+    pcP->io[WRITER].data.write_buf.len = 0;
+
+    pcP->flags = 0;
+
+    pcP->winerr = ERROR_SUCCESS;
+    pcP->nrefs = 0;
+    ZLINK_INIT(pcP);
+    return pcP;
+}
+
+void NPipeChannelUnref(NPipeChannel *pcP, int decr)
+{
+    /* Note the ref count may be < 0 if this function is called
+       on newly initialized struct */
+    if (InterlockedExchangeAdd(&pcP->nrefs, -decr) <= decr)
+        NPipeChannelDelete(pcP);
+}
+
+/*
+ * Called from thread pool when a overlapped read or write completes.
+ * Note this must match the prototype typedef for WaitOrTimerCallback 
+ */
+static void NPipeThreadPoolHandler(
+    NPipeChannel *pcP,
+    int direction               /* READER or WRITER */
+)
+{
+    LONG state;
+
+    TWAPI_ASSERT(TimerOrWaitFired == FALSE);
+    TWAPI_ASSERT(HasOverlappedIoCompleted(&pcP->io[direction].ovl));
+
+    state = pcP->io[direction].ovl.Internal == ERROR_SUCCESS
+        ? IOBUF_IO_COMPLETED : IOBUF_IO_COMPLETED_WITH_ERROR;
+
+    /*
+     * We only change state if it was IO_PENDING else someone has already
+     * taken over the buffer
+     */
+    state = InterlockedCompareExchange(&pcP->io[direction].state,
+                                       state, IOBUF_IO_PENDING);
+    if (state == IOBUF_IO_PENDING) {
+        /* Since we changed state, wake up the thread */
+        Tcl_ThreadAlert(pcP->thread);
+    }
+}
+
+/*
+ * Called from thread pool when a overlapped read completes.
+ * Note this must match the prototype typedef for WaitOrTimerCallback 
+ */
+static VOID CALLBACK NPipeReadThreadPoolFn(
+    PVOID lpParameter,
+    BOOLEAN TimerOrWaitFired
+)
+{
+    NPipeThreadPoolHandler((NPipeChannel *) lpParameter, READER);
+}
+
+/*
+ * Called from thread pool when a overlapped write completes.
+ * Note this must match the prototype typedef for WaitOrTimerCallback 
+ */
+static VOID CALLBACK NPipeWriteThreadPoolFn(
+    PVOID lpParameter,
+    BOOLEAN TimerOrWaitFired
+)
+{
+    NPipeThreadPoolHandler((NPipeChannel *) lpParameter, WRITER);
 }
 
 /*
@@ -419,7 +498,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
     /* Have the thread pool wait on it if not already doing so */
     if (pcP->io[READER].hwait == INVALID_HANDLE_VALUE) {
         /* The thread pool will hold a ref to the context */
-        TwapiPipeContextRef(pcP, 1);
+        NPipeChannelRef(pcP, 1);
         if (! RegisterWaitForSingleObject(
                 &pcP->io[READER].hwait,
                 pcP->io[READER].hevent,
@@ -428,7 +507,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
                 INFINITE,           /* No timeout */
                 WT_EXECUTEDEFAULT
                 )) {
-            TwapiPipeContextUnref(pcP, 1);
+            NPipeChannelUnref(pcP, 1);
             pcP->io[READER].hwait = INVALID_HANDLE_VALUE; /* Just in case... */
             /* Note the call does not set GetLastError. Make up our own */
             pcP->winerr = TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
@@ -445,7 +524,7 @@ static void NPipeDisableWatch(NPipeChannel *pcP, int direction)
     if (pcP->io[direction].hwait != INVALID_HANDLE_VALUE) {
         UnregisterWaitEx(pcP->io[direction].hwait, INVALID_HANDLE_VALUE);
         pcP->io[direction].hwait = INVALID_HANDLE_VALUE;
-        TwapiPipeContextUnref(pcP, 1);
+        NPipeChannelUnref(pcP, 1);
     }
 
     /*
@@ -469,7 +548,7 @@ static void NPipeWatchProc(ClientData clientdata, int mask)
              * If not connected, the connection complete code
              * will set up the read events.
              */
-            if (ctxP->flags & PIPE_F_CONNECTED) {
+            if (NPIPE_CONNECTED(pcP)) {
                 /*
                  * May set pcP errors. Those are automatically handled when
                  * we check for watchable events at function exit.
@@ -501,8 +580,8 @@ static void NPipeWatchProc(ClientData clientdata, int mask)
              * Note we disable watching only on blocking pipes since
              * non-blocking pipes require the thread pool to be running
              */
-            if ((pcP->flags & PIPE_F_NONBLOCKING) == 0)
-                NPipeDisableWatch(ctxP, WRITER);
+            if ((pcP->flags & NPIPE_F_NONBLOCKING) == 0)
+                NPipeDisableWatch(pcP, WRITER);
         }
     }
 
@@ -527,37 +606,132 @@ static int NPipeGetHandleProc(
     return TCL_OK;
 }
 
-/* Always returns non-NULL, or panics */
-static NPipeChannel *NPipeChannelNew(void)
+/* Called from Tcl I/O to indicate an interest in TCL_READABLE/TCL_WRITABLE */
+static int NPipeBlockProc(ClientData clientdata, int mode)
 {
-    NPipeChannel *pcP;
+    NPipeChannel *pcP = (NPipeChannel *)clientdata;
 
-    pcP = (NPipeChannel *) TwapiAlloc(sizeof(*pcP));
-    pcP->thread = Tcl_GetCurrentThread();
-    pcP->channel = NULL;
-    pcP->hpipe = INVALID_HANDLE_VALUE;
-    pcP->hsync = NULL;
+    if (mode == TCL_MODE_NONBLOCKING)
+        pcP->flags |= NPIPE_F_NONBLOCKING;
+    else
+        pcP->flags &= ~ NPIPE_F_NONBLOCKING;
 
-    pcP->io[READER].hwait = INVALID_HANDLE_VALUE;
-    pcP->io[READER].hevent = NULL;
-    pcP->io[READER].state = IOBUF_IDLE;
-
-    pcP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
-    pcP->io[WRITER].hevent = NULL;
-    pcP->io[WRITER].state = IOBUF_IDLE;
-    pcP->io[WRITER].data.write_buf.p = NULL;
-    pcP->io[WRITER].data.write_buf.sz = 0;
-    pcP->io[WRITER].data.write_buf.len = 0;
-
-    pcP->flags = 0;
-
-    pcP->winerr = ERROR_SUCCESS;
-    pcP->nrefs = 0;
-    ZLINK_INIT(pcP);
-    return pcP;
+    return 0;                   /* POSIX error, 0 -> success */
 }
 
-#ifdef NOTYET
+
+/*
+ * Initiates shut down of a pipe. It unregisters the channel from the interp.
+ * Must be called from the thread that "owns" the channel.
+ */
+static void NPipeShutdown(NPipeChannel *pcP, TwapiInterpContext *ticP)
+{
+    int unrefs = 0;             /* How many times we need to unref  */
+    NPipeTls *tlsP = GET_NPIPE_TLS();
+
+    TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
+    TWAPI_ASSERT(ticP == NULL || ticP->thread == pcP->thread);
+
+    /*
+     * We need to do things in a specific order.
+     *
+     * Unlink the channel from the interp, so no callbacks will access
+     * the interp/tic.
+     *
+     * Note all unrefs are done at the end.
+     */
+    if (ticP && ticP->interp && pcP->channel &&
+        Tcl_IsChannelRegistered(ticP->interp, pcP->channel)) {
+        Tcl_UnregisterChannel(ticP->interp, pcP->channel);
+        pcP->channel = NULL;
+        ++unrefs;
+    }
+
+    /*
+     * Second, stop the thread pool for this pipe. We need to do that before
+     * closing handles. Note the UnregisterWaitEx can result in thread pool
+     * callbacks running while it is blocked. That's ok because the thread
+     * pool only changes the io state.
+     */
+    if (pcP->io[READER].hwait != INVALID_HANDLE_VALUE) {
+        UnregisterWaitEx(pcP->io[READER].hwait,
+                         INVALID_HANDLE_VALUE);
+        pcP->io[READER].hwait = INVALID_HANDLE_VALUE;
+        ++unrefs;   /* Remove the ref coming from the thread pool */
+    }
+    if (pcP->io[READER].hevent != NULL) {
+        CloseHandle(pcP->io[READER].hevent);
+        pcP->io[READER].hevent = NULL;
+    }
+
+    if (pcP->io[WRITER].hwait != INVALID_HANDLE_VALUE) {
+        UnregisterWaitEx(pcP->io[WRITER].hwait,
+                         INVALID_HANDLE_VALUE);
+        pcP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
+        ++unrefs;   /* Remove the ref coming from the thread pool */
+    }
+    if (pcP->io[WRITER].hevent != NULL) {
+        CloseHandle(pcP->io[WRITER].hevent);
+        pcP->io[WRITER].hevent = NULL;
+    }
+
+    /* Third, now that handles are unregistered, close them. */
+    if (pcP->hpipe != INVALID_HANDLE_VALUE) {
+        CloseHandle(pcP->hpipe);
+        pcP->hpipe = INVALID_HANDLE_VALUE;
+    }
+
+    if (pcP->hsync != NULL) {
+        CloseHandle(pcP->hsync);
+        pcP->hsync = NULL;
+    }
+
+    if (unrefs)
+        NPipeChannelUnref(pcP, unrefs); /* May be GONE! */
+}
+
+
+static WIN32_ERROR NPipeAccept(NPipeChannel *pcP)
+{
+    WIN32_ERROR winerr;
+
+    /* The writer side i/o structure are is also used for connecting */
+
+    /*
+     * Wait for client connection. If there is already a client waiting,
+     * to connect, we will get success right away. Else we wait on the
+     * event and queue a callback later
+     */
+    ZeroMemory(&pcP->io[WRITER].ovl, sizeof(pcP->io[WRITER].ovl));
+    pcP->io[WRITER].ovl.hEvent = pcP->io[WRITER].hevent;
+    if (ConnectNamedPipe(pcP->hpipe, &pcP->io[WRITER].ovl) ||
+        (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {
+        /* Already a client in waiting, queue the callback */
+        pcP->flags |= NPIPE_F_CONNECTED;
+        return ERROR_SUCCESS;
+    } else if (winerr == ERROR_IO_PENDING) {
+        /* Wait asynchronously for a connection */
+        NPipeChannelRef(pcP, 1); /* Since we are passing to thread pool */
+        if (RegisterWaitForSingleObject(
+                &pcP->io[WRITER].hwait,
+                pcP->io[WRITER].hevent,
+                NPipeReadThreadPoolFn,
+                pcP,
+                INFINITE,           /* No timeout */
+                WT_EXECUTEDEFAULT
+                )) {
+            pcP->io[WRITER].state = IOBUF_IO_PENDING;
+            return ERROR_IO_PENDING;
+        } else {
+            winerr = GetLastError();
+            NPipeChannelUnref(pcP, 1); /* Undo above Ref */
+        }
+    }
+
+    /* Either synchronous completion or error */
+    return winerr;
+}
+
 int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     LPCWSTR name;
@@ -568,10 +742,8 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     DWORD winerr;
     Tcl_Interp *interp = ticP->interp;
 
-    if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeChannelModuleInit, ticP))
+    if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, ticP))
         return TCL_ERROR;
-
-    
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETWSTR(name), GETINT(open_mode), GETINT(pipe_mode),
@@ -612,24 +784,51 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                 if (pcP->io[WRITER].hevent) {
                     int channel_mask = 0;
                     char instance_name[30];
+                    NPipeTls *tlsP;
+
                     StringCbPrintfA(instance_name, sizeof(instance_name),
-                                    "np#%u", InterlockedIncrement(&gNPipeChannelId));
+                                    "np%u", TWAPI_NEWID(ticP));
                     if (open_mode & PIPE_ACCESS_INBOUND)
                         channel_mask |= TCL_READABLE;
                     if (open_mode & PIPE_ACCESS_OUTBOUND)
                         channel_mask |= TCL_WRITABLE;
+                    NPipeChannelRef(pcP, 1); /* Adding to Tcl channels */
                     pcP->channel = Tcl_CreateChannel(&gNPipeChannelDispatch,
                                                      instance_name, pcP,
                                                      channel_mask);
                     Tcl_SetChannelOption(interp, pcP->channel, "-encoding", "binary");
-                    Tcl_SetChannelOption(interp, pcP->channel, "-translation", "binary");
+                    Tcl_SetChannelOption(interp, pcP->channel, "-translation", "auto crlf");
+                    Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
                     Tcl_RegisterChannel(interp, pcP->channel);
 
+                    /*
+                     * Note: Use GetNPipeTls, not GET_NPIPE_TLS here as tls
+                     * might not have been initialized
+                     */
+                    tlsP = GetNPipeTls();
+
                     /* Add to list of pipes */
-                    NPipeChannelRegister(pcP);
-                    Tcl_SetObjResult(ticP->interp,
-                                     Tcl_NewStringObj(instance_name, -1));
-                    return TCL_OK;
+                    NPipeChannelRef(pcP, 1);
+                    ZLIST_PREPEND(&tlsP->pipes, pcP);
+
+                    /* Set up the accept */
+                    winerr = NPipeAccept(pcP);
+                    if (winerr == ERROR_SUCCESS || winerr == ERROR_IO_PENDING) {
+                        /*
+                         * On success (ie. immediate conn complete),
+                         * we ask the event loop to call us back right away
+                         * so we can generate the appropriate event.
+                         */
+                        if (winerr == ERROR_SUCCESS) {
+                            Tcl_Time block_time = { 0, 0 };
+                            Tcl_SetMaxBlockTime(&block_time);
+                        }
+
+                        /* Return channel name */
+                        Tcl_SetObjResult(ticP->interp,
+                                         Tcl_NewStringObj(instance_name, -1));
+                        return TCL_OK;
+                    }
                 } else
                     winerr = GetLastError();
             } else
@@ -638,20 +837,12 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
             winerr = GetLastError();
     }
 
-    NPipeShutdown(pcP);    /* pcP might be gone */
+    pcP->winerr = winerr;
+    NPipeShutdown(pcP, ticP);    /* pcP might be gone */
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
-
-void NPipeChannelUnref(NPipeChannel *pcP, int decr)
-{
-    /* Note the ref count may be < 0 if this function is called
-       on newly initialized struct */
-    if (InterlockedExchangeAdd(&pcP->nrefs, -decr) <= decr)
-        NPipeChannelDelete(pcP);
-}
-
-
+#ifdef NOTYET
 TCL_RESULT NPipeChannelClose(ClientData clientdata, Tcl_Interp *interp)
 {
     NPipeChannel *pcP = (NPipeChannel *) clientdata;
