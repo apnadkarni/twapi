@@ -52,11 +52,11 @@ OBJS  = \
 	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\mycrt.obj \
+	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\network.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
-	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
