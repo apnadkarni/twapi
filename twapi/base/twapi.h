@@ -348,7 +348,6 @@ struct TwapiTclVersion {
     int reltype;
 };
 
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION == 4)
 /*
  * We may want to sometimes use 8.5 functions when running against 8.5
  * even though we built against 8.4. This structure emulates the 8.5
@@ -367,7 +366,21 @@ struct TwapiTcl85Stubs {
 };
 #define TWAPI_TCL85_STUB(fn_) (((struct TwapiTcl85Stubs *)tclStubsPtr)->fn_)
 
-#endif
+/*
+ * Similarly, we need to access platform-dependent internal stubs. For
+ * example, the Tcl channel system relies on specific values to be used
+ * for EAGAIN, EWOULDBLOCK etc. These are actually compiler-dependent.
+ * so the only way to make sure we are using a consistent Win32->Posix
+ * mapping is to use the internal Tcl mapping function.
+ */
+struct TwapiTcl85IntPlatStubs {
+    int   magic;
+    void *hooks;
+    void (*tclWinConvertError) (DWORD errCode); /* 0 */
+    int (*fn2[29])(); /* Totally 30 fns, (index 0-29) */
+};
+extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
+#define TWAPI_TCL85_INT_PLAT_STUB(fn_) (((struct TwapiTcl85IntPlatStubs *)tclIntPlatStubsPtr)->fn_)
 
 
 /*******************
