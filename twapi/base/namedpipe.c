@@ -65,8 +65,16 @@ typedef struct _NPipeChannel {
 };
 
 #define NPIPE_CONNECTED(pcP_) ((pcP_)->flags & NPIPE_F_CONNECTED)
+
+/*
+ * EOF errors - note 0xc000014b is defined as STATUS_PIPE_BROKEN in
+ * ntstatus.h. However that duplicates some defs from winnt.h and
+ * hence cannot be included without generating compiler warnings.
+ */
 #define NPIPE_EOF(pcP_) \
-    ((pcP_)->winerr == ERROR_HANDLE_EOF || ((pcP)->winerr == ERROR_BROKEN_PIPE))
+    ((pcP_)->winerr == ERROR_HANDLE_EOF ||      \
+     (pcP)->winerr == ERROR_BROKEN_PIPE ||      \
+     (pcP)->winerr == 0xc000014b)
 
 /*
  * When should we notify for a read - data available in buffer or error/eof.
