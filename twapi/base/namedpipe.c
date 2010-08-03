@@ -281,7 +281,7 @@ static void NPipeCheckProc(
 static NPipeTls *GetNPipeTls()
 {
     NPipeTls *tlsP = GET_NPIPE_TLS();
-    if (tlsP == NULL)
+    if (tlsP != NULL)
         return tlsP;
 
     tlsP = TwapiAlloc(sizeof(*tlsP));
@@ -293,7 +293,7 @@ static NPipeTls *GetNPipeTls()
     InitializeCriticalSectionAndSpinCount(&tlsP->lock, 4000);
     ZLIST_INIT(&tlsP->pipes);
 
-    //TBD - init tlsP;
+    //TBD - any other init tlsP?
 
     /* Store allocated TLS back into TLS slot */
     SET_NPIPE_TLS(tlsP);
@@ -1126,6 +1126,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     NPipeChannel *pcP;
     DWORD winerr;
     Tcl_Interp *interp = ticP->interp;
+    NPipeTls *tlsP;
 
     if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, ticP))
         return TCL_ERROR;
@@ -1137,6 +1138,14 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                      GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES), ARGEND)
         != TCL_OK)
         return TCL_ERROR;
+
+    /*
+     * Note: Use GetNPipeTls, not GET_NPIPE_TLS here as tls
+     * might not have been initialized. Also do this as the first thing
+     * as various callbacks when registering channels will call functions
+     * which expect the tls to have been initialized.
+     */
+    tlsP = GetNPipeTls();
 
     if (pipe_mode & 0x7) {
         /* Currently, must be byte mode pipe and must not have NOWAIT flag */
@@ -1169,7 +1178,6 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                 if (pcP->io[WRITER].hevent) {
                     int channel_mask = 0;
                     char instance_name[30];
-                    NPipeTls *tlsP;
 
                     StringCbPrintfA(instance_name, sizeof(instance_name),
                                     "np%u", TWAPI_NEWID(ticP));
@@ -1181,24 +1189,16 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                     pcP->channel = Tcl_CreateChannel(&gNPipeChannelDispatch,
                                                      instance_name, pcP,
                                                      channel_mask);
+                    /*
+                     * Note the CreateChannel will call back into our
+                     * ThreadActionProc which would have added pcP to
+                     * the thread tls
+                     */
+
                     Tcl_SetChannelOption(interp, pcP->channel, "-encoding", "binary");
                     Tcl_SetChannelOption(interp, pcP->channel, "-translation", "auto crlf");
                     Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
                     Tcl_RegisterChannel(interp, pcP->channel);
-
-                    /*
-                     * Note: Use GetNPipeTls, not GET_NPIPE_TLS here as tls
-                     * might not have been initialized
-                     */
-                    tlsP = GetNPipeTls();
-
-                    /*
-                     * Add to list of pipes. It will be removed from the
-                     * list when the thread action is called.
-                     */
-                    NPipeChannelRef(pcP, 1);
-                    ZLIST_PREPEND(&tlsP->pipes, pcP);
-                    pcP->thread = Tcl_GetCurrentThread();
 
                     /* Set up the accept */
                     winerr = NPipeAccept(pcP);
