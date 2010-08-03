@@ -159,11 +159,20 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
 {
     static HMODULE hNetmsg;
     static HMODULE hPdh;
+    static HMODULE hNtdll;
     char msgbuf[24 + TCL_INTEGER_SPACE];
     Tcl_Obj *objP;
 
     /* First try mapping as a system error */
     objP  = Twapi_FormatMsgFromModule(error, NULL);
+    if (objP)
+        return objP;
+
+    /* Try as NTSTATUS code */
+    if (hNtdll == NULL)
+        hNtdll = GetModuleHandle("ntdll.dll");
+    if (hNtdll)
+        objP = Twapi_FormatMsgFromModule(error, hNtdll);
     if (objP)
         return objP;
 
@@ -180,6 +189,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
         if (objP)
             return objP;
     }
+
 
     /* Still no joy, try the PDH */
     if (hPdh == NULL)
