@@ -233,6 +233,14 @@ void *TwapiAlloc(size_t sz)
     return p;
 }
 
+void *TwapiAllocSize(size_t sz, size_t *actual_sizeP)
+{
+    void *p = TwapiAlloc(sz);
+    if (actual_sizeP)
+        *actual_sizeP = HeapSize(GetProcessHeap(), 0, p);
+    return p;
+}
+
 void *TwapiReallocTry(void *p, size_t sz)
 {
     return HeapReAlloc(GetProcessHeap(), 0, p, sz);

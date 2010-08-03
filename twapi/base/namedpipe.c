@@ -29,9 +29,8 @@ typedef struct _NPipeChannel {
         union {
             char read_ahead[1];     /* Used to read-ahead a single byte */
             struct {
-                char *p;      /* Data to write out */
-                DWORD sz;   /* Size of buffer */
-                DWORD len;  /* Amount of data in buffer */
+                char *p;     /* Data to write out */
+                DWORD sz;    /* Size of buffer (not length of data) */
             } write_buf;
         } data;
         LONG volatile state;    /* State values IOBUF_*. Writing PENDING to
@@ -323,7 +322,6 @@ static NPipeChannel *NPipeChannelNew(void)
     pcP->io[WRITER].state = IOBUF_IDLE;
     pcP->io[WRITER].data.write_buf.p = NULL;
     pcP->io[WRITER].data.write_buf.sz = 0;
-    pcP->io[WRITER].data.write_buf.len = 0;
 
     pcP->flags = 0;
 
@@ -706,7 +704,7 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
          * in pipe. Fall thru, will block in GetOverlappedResult
          */
     }
-    if (!GetOverlappedResult(ctxP->hpipe, &ioP->ovl, &avail, TRUE)) {
+    if (!GetOverlappedResult(pcP->hpipe, &ioP->ovl, &avail, TRUE)) {
         ioP->hevent = NULL;
         pcP->winerr = GetLastError();
         return 0;
@@ -726,8 +724,7 @@ static int NPipeInputProc(
 {
     NPipeChannel *pcP = (NPipeChannel *)clientdata;
     struct _NPipeIO *ioP;
-    Tcl_Obj *objP;
-    int read_count;
+    int nread;
 
     TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
 
@@ -746,7 +743,7 @@ static int NPipeInputProc(
     if (pcP->winerr != ERROR_SUCCESS)
         goto error_return;
 
-    if (pcP->flags & PIPE_F_NONBLOCKING) {
+    if (pcP->flags & NPIPE_F_NONBLOCKING) {
         /* Non-blocking, we should always be either COMPLETED or PENDING */
         TWAPI_ASSERT(ioP->state == IOBUF_IO_COMPLETED || ioP->state == IOBUF_IO_PENDING);
 
@@ -779,7 +776,7 @@ static int NPipeInputProc(
             /* Note ioP->state might have changed while we unregistered */
             /* If state is still pending, wait for outstanding read */
             if (ioP->state == IOBUF_IO_PENDING) {
-                if (GetOverlappedResult(pcP->hpipe, &ioP->ovl, &read_count, TRUE))
+                if (GetOverlappedResult(pcP->hpipe, &ioP->ovl, &nread, TRUE))
                     ioP->state = IOBUF_IO_COMPLETED;
                 else
                     ioP->state = IOBUF_IO_COMPLETED_WITH_ERROR;
@@ -793,8 +790,8 @@ static int NPipeInputProc(
 
     TWAPI_ASSERT(pcP->state != IOBUF_IO_PENDING);
 
-    read_count = NPipeReadData(pcP, bufP, buf_sz);
-    if (read_count == 0)
+    nread = NPipeReadData(pcP, bufP, buf_sz);
+    if (nread == 0)
         goto error_return;
 
     /*
@@ -802,14 +799,14 @@ static int NPipeInputProc(
      * is also required in case we unregistered the thread pool wait
      * in the blocking I/O case above.
      */
-    if (pcP->flags & PIPE_F_WATCHREAD)
+    if (pcP->flags & NPIPE_F_WATCHREAD)
         NPipeWatchReads(pcP);
     /*
      * Note error, if any, from TwapiPipeEnableReadWatch ignored,
      * will be picked up on next call
      */
     
-    return read_count;
+    return nread;
 
 error_return:
     if (pcP->winerr == ERROR_HANDLE_EOF) {
@@ -818,6 +815,152 @@ error_return:
         *errnoP = NPipeSetTclErrnoFromWin32Error(pcP->winerr);
         return -1;
     }        
+}
+
+
+/* Called from Tcl I/O channel layer to write bytes from the pipe */
+static int NPipeOutputProc(
+    ClientData clientdata,
+    const char *bufP,
+    int count,
+    int *errnoP)
+{
+    NPipeChannel *pcP = (NPipeChannel *)clientdata;
+    struct _NPipeIO *ioP;
+    Tcl_Obj *objP;
+    int nwritten;
+
+    TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
+
+    if (! NPIPE_CONNECTED(pcP)) {
+        /* Note we do not set pcP->winerr here */
+        *errnoP = NPipeSetTclErrnoFromWin32Error(ERROR_PIPE_NOT_CONNECTED);
+        return -1;
+    }
+
+    ioP = &pcP->io[WRITER];
+
+    /* If thread pool thread has set an error, we need to copy it. */
+    if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR)
+        SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+    
+    if (pcP->winerr != ERROR_SUCCESS)
+        goto error_return;
+    
+    if (pcP->flags & NPIPE_F_NONBLOCKING) {
+        /* Non-blocking */
+        if (ioP->state == IOBUF_IO_PENDING) {
+            /*
+             * Non-blocking channel and we are awaiting data. We need to
+             * return an EAGAIN or EWOULDBLOCK to Tcl. ERROR_PIPE_BUSY
+             * maps to EAGAIN in the Tcl code.
+             */
+            *errnoP = NPipeSetTclErrnoFromWin32Error(ERROR_PIPE_BUSY);
+            return -1;
+        }
+
+        ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+        ioP->ovl.hEvent = ioP->hevent;
+
+        /*
+         * Reallocate buffer if necessary. Note as as aside, that once
+         * allocated, we do not deallocate except to grow the buffer.
+         */
+        if (ioP->data.write_buf.sz < count) {
+            size_t actual_sz;
+            if (ioP->data.write_buf.p != NULL)
+                TwapiFree(ioP->data.write_buf.p);
+            ioP->data.write_buf.p = TwapiAllocSize(count, &actual_sz);
+            ioP->data.write_buf.sz = (DWORD) actual_sz;
+        }
+        CopyMemory(ioP->data.write_buf.p, bufP, count);
+        ioP->state = IOBUF_IO_PENDING;
+        if (WriteFile(pcP->hpipe, ioP->data.write_buf.p, count, NULL, &ioP->ovl)) {
+            /*
+             * Operation completed right away. Double check to make
+             * sure, and if so change state. The thread pool callback
+             * will run any way but will basically be a no-op since
+             * we change state here. Note the thread pool might have
+             * run BEFORE us as well (immediately after the WriteFile above)
+             * hence the interlocked check that state is still PENDING.
+             * We do this so caller will not needlessly get EAGAIN if he tries
+             * writing right away. This is striclty for efficiency.
+             */
+            InterlockedCompareExchange(&ioP->state,
+                                       IOBUF_IO_COMPLETED, IOBUF_IO_PENDING);
+            /* Note state is changed to COMPLETED, not IDLE, so that
+               file event notification will be generated if necessary */
+        } else {
+            /* WriteFile did not complete successfully right away */
+            WIN32_ERROR winerr = GetLastError();
+            if (winerr != ERROR_IO_PENDING) {
+                /* Genuine error */
+                pcP->winerr = winerr;
+                goto error_return;
+            }
+
+            /* Have the thread pool wait on it if not already doing so */
+            if (ioP->hwait == INVALID_HANDLE_VALUE) {
+                /* The thread pool will hold a ref to the context */
+                NPipeChannelRef(pcP, 1);
+                if (! RegisterWaitForSingleObject(
+                        &ioP->hwait,
+                        ioP->hevent,
+                        NPipeWriteThreadPoolFn,
+                        pcP,
+                        INFINITE,           /* No timeout */
+                        WT_EXECUTEDEFAULT
+                        )) {
+                    NPipeChannelUnref(pcP, 1);
+                    ioP->hwait = INVALID_HANDLE_VALUE; /* Just in case... */
+                    /* Note the call does not set GetLastError. Make up our own */
+                    pcP->winerr = TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
+                    goto error_return;
+                }
+            }
+        }
+    } else {
+        /*
+         * Blocking I/O
+         * We do not use the buffer in ioP since we will block for completion
+         * anyway and might as well save the copy. In addition, we do not
+         * need to check for IO_PENDING state. It's OK if there was
+         * a previous async write on this pipe that has not yet completed.
+         * The kernel will queue this sync write behind it. We just
+         * make sure we use a different OVERLAPPED struct and event.
+         */
+        OVERLAPPED ovl;
+        ZeroMemory(&ovl, sizeof(ovl));
+        ovl.hEvent = pcP->hsync;
+        if (! WriteFile(pcP->hpipe, bufP, count, NULL, &ovl)) {
+            WIN32_ERROR winerr = GetLastError();
+            if (winerr != ERROR_IO_PENDING) {
+                /* Genuine error */
+                pcP->winerr = winerr;
+                goto error_return;
+            }
+            /* Wait for I/O to complete */
+            if (!GetOverlappedResult(pcP->hpipe, &ovl, &count, TRUE)) {
+                pcP->winerr = GetLastError();
+                goto error_return;
+            }
+        }
+        /*
+         * Sync I/O completed. Change state only if previous state was
+         * IDLE. If previous state was PENDING from a previous non-blocking
+         * call, the async callback will change state. If it was
+         * COMPLETED_WITH_ERROR we do not want to change state.
+         */
+        InterlockedCompareExchange(&ioP->state,
+                                   IOBUF_IO_COMPLETED, IOBUF_IDLE);
+    }
+
+    /* As far as caller concerned, all bytes written in all non-error cases */
+    return count;
+
+error_return:
+    *errnoP = NPipeSetTclErrnoFromWin32Error(pcP->winerr);
+    return -1;
 }
 
 /*
