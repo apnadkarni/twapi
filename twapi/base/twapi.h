@@ -833,6 +833,7 @@ int TwapiAssignTlsSlot();
 
 /* Memory allocation */
 void *TwapiAlloc(size_t sz);
+void *TwapiAllocSize(size_t sz, size_t *);
 void *TwapiAllocZero(size_t sz);
 #define TwapiFree(p_) HeapFree(GetProcessHeap(), 0, (p_))
 WCHAR *TwapiAllocWString(WCHAR *, int len);
