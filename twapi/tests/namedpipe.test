@@ -29,13 +29,14 @@ namespace eval twapi::pipe::test {
     variable scripts
     set scripts(simple) {
         load_twapi
-        proc accept {chan event} {
-            puts $event
+        proc accept {chan} {
+            puts connect
             set ::outcome accept
         }
         puts READY
         set timer [after 20000 "set ::outcome timeout"]
-	set pipe_fd [::twapi::pipe "\\\\.\\pipe\\twapitest" -server accept]
+	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapitest" -type server]
+        fileevent $pipe_fd writable [list accept $pipe_fd]
         vwait ::outcome
         after cancel $timer
         close $pipe_fd
