@@ -14,7 +14,9 @@ ZLIST_CREATE_TYPEDEFS(NPipeChannel);
 typedef struct _NPipeChannel {
     ZLINK_DECL(NPipeChannel); /* List of registered pipes. Access sync
                                    through global pipe channel lock */
-    Tcl_ThreadId thread;    /* The thread owning the channel */
+    Tcl_ThreadId thread;    /* The thread owning the channel. If non-NULL,
+                               this structure MUST be linked on the PipeTls
+                               of the corresponding thread. */
     Tcl_Channel channel;           /* The corresponding Tcl_Channel handle */
     HANDLE  hpipe;   /* Handle to the pipe */
     HANDLE  hsync;   /* Event used for synchronous I/O, both read and write.
@@ -308,7 +310,7 @@ static NPipeChannel *NPipeChannelNew(void)
     NPipeChannel *pcP;
 
     pcP = (NPipeChannel *) TwapiAlloc(sizeof(*pcP));
-    pcP->thread = Tcl_GetCurrentThread();
+    pcP->thread = NULL;
     pcP->channel = NULL;
     pcP->hpipe = INVALID_HANDLE_VALUE;
     pcP->hsync = NULL;
@@ -330,6 +332,24 @@ static NPipeChannel *NPipeChannelNew(void)
     ZLINK_INIT(pcP);
     return pcP;
 }
+
+static void NPipeChannelDelete(NPipeChannel *pcP)
+{
+    TWAPI_ASSERT(pcP->thread == NULL);
+    TWAPI_ASSERT(pcP->nrefs <= 0);
+    TWAPI_ASSERT(pcP->io[READER].hwait == INVALID_HANDLE_VALUE);
+    TWAPI_ASSERT(pcP->io[READER].hevent == NULL);
+    TWAPI_ASSERT(pcP->io[WRITER].hwait == INVALID_HANDLE_VALUE);
+    TWAPI_ASSERT(pcP->io[WRITER].hevent == NULL);
+    TWAPI_ASSERT(pcP->hsync == NULL);
+    TWAPI_ASSERT(pcP->hpipe == INVALID_HANDLE_VALUE);
+
+    if (pcP->io[WRITER].data.write_buf.p)
+        TwapiFree(pcP->io[WRITER].data.write_buf.p);
+
+    TwapiFree(pcP);
+}
+
 
 void NPipeChannelUnref(NPipeChannel *pcP, int decr)
 {
@@ -613,6 +633,8 @@ static void NPipeWatchProc(ClientData clientdata, int mask)
 static TCL_RESULT NPipeCloseProc(ClientData clientdata, Tcl_Interp *interp)
 {
     NPipeChannel *pcP = (NPipeChannel *) clientdata;
+
+    TWAPI_ASSERT(pcP->thread == NULL);
 
     /*
      * We need to unref pcP corresponding to the ref when we called
@@ -963,6 +985,37 @@ error_return:
     return -1;
 }
 
+/* Called from Tcl I/O layer to add/remove a channel from a thread */
+static void NPipeThreadActionProc(
+    ClientData clientdata,
+    int action)
+{
+    NPipeChannel *pcP = (NPipeChannel *) clientdata;
+    NPipeTls *tlsP = GET_NPIPE_TLS();
+    Tcl_ThreadId tid;
+    
+    tid = Tcl_GetCurrentThread();
+    if (action == TCL_CHANNEL_THREAD_INSERT) {
+        /* TBD - if this gets called on creation, remove the
+           assign to pcP->thread in Tcl_PipeServer */
+        TWAPI_ASSERT(pcP->thread == NULL || pcP->thread == tid);
+        if (pcP->thread != tid) {
+            pcP->thread = tid;
+            NPipeChannelRef(pcP, 1);
+            ZLIST_PREPEND(&tlsP->pipes, pcP);
+        }
+    } else {
+        TWAPI_ASSERT(pcP->thread == tid);
+        pcP->thread = NULL;
+        ZLIST_REMOVE(&tlsP->pipes, pcP);
+        /* The Tcl_CreateChannel ref is expected to remain else Tcl channel
+         * will be holding an invalid pointer if the unref deallocates
+         */
+        TWAPI_ASSERT(pcP->nrefs > 1);
+        NPipeChannelUnref(pcP, 1);
+    }
+}
+
 /*
  * Initiates shut down of a pipe. 
  * It does NOT unregister the channel from the interp.
@@ -977,7 +1030,7 @@ static void NPipeShutdown(NPipeChannel *pcP, int unrefs)
 {
     NPipeTls *tlsP = GET_NPIPE_TLS();
 
-    TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
+    TWAPI_ASSERT(pcP->thread == NULL || pcP->thread == Tcl_GetCurrentThread());
 
     /*
      * stop the thread pool for this pipe. We need to do that before
@@ -1145,6 +1198,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                      */
                     NPipeChannelRef(pcP, 1);
                     ZLIST_PREPEND(&tlsP->pipes, pcP);
+                    pcP->thread = Tcl_GetCurrentThread();
 
                     /* Set up the accept */
                     winerr = NPipeAccept(pcP);
