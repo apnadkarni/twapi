@@ -723,11 +723,11 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
         buf_sz = avail;         /* Read what's there */
     
     ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
-    ioP->hevent = pcP->hsync; /* Event used for "synchronous" reads */
+    ioP->ovl.hEvent = pcP->hsync; /* Event used for "synchronous" reads */
     if (! ReadFile(pcP->hpipe, bufP, buf_sz, NULL, &ioP->ovl)) {
         WIN32_ERROR winerr = GetLastError();
         if (winerr != ERROR_IO_PENDING) {
-            ioP->hevent = NULL;
+            ioP->ovl.hEvent = NULL;
             pcP->winerr = winerr;
             return 0;
         }
@@ -737,12 +737,12 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
          */
     }
     if (!GetOverlappedResult(pcP->hpipe, &ioP->ovl, &avail, TRUE)) {
-        ioP->hevent = NULL;
+        ioP->ovl.hEvent = NULL;
         pcP->winerr = GetLastError();
         return 0;
     }
 
-    ioP->hevent = NULL;
+    ioP->ovl.hEvent = NULL;
 
     return avail + read_ahead_count;
 }
