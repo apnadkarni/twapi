@@ -260,7 +260,8 @@ static void NPipeCheckProc(
 
     for (pcP = ZLIST_HEAD(&tlsP->pipes) ; pcP ; pcP = ZLIST_NEXT(pcP)) {
         if ((((pcP->flags & NPIPE_F_WATCHREAD) && NPIPE_READ_NOTIFIABLE(pcP)) ||
-             ((pcP->flags & NPIPE_F_WATCHWRITE) && NPIPE_WRITE_NOTIFIABLE(pcP))) &&
+             (((pcP->flags & NPIPE_F_WATCHWRITE) || ! NPIPE_CONNECTED(pcP) ) &&
+              NPIPE_WRITE_NOTIFIABLE(pcP))) &&
             !(pcP->flags & NPIPE_F_EVENT_QUEUED)) {
             /* Move pcP to front so event receiver will find it quicker */
             ZLIST_MOVETOHEAD(&tlsP->pipes, pcP);
@@ -444,7 +445,12 @@ static int NPipeEventProc(
     /* Indicate no events on queue so new events will be enqueued */
     pcP->flags &= ~ NPIPE_F_EVENT_QUEUED;
 
-    if (! (pcP->flags & (NPIPE_F_WATCHWRITE | NPIPE_F_WATCHREAD)))
+    /*
+     * If we are connected but not watching any reads or writes, 
+     * nothing to do
+     */
+    if (NPIPE_CONNECTED(pcP) &&
+        ! (pcP->flags & (NPIPE_F_WATCHWRITE | NPIPE_F_WATCHREAD)))
         return 1;               /* Not watching any reads or writes */
 
 
@@ -459,18 +465,19 @@ static int NPipeEventProc(
     /* Now set the direction bits that are notifiable */
     if ((pcP->flags & NPIPE_F_WATCHREAD) && NPIPE_READ_NOTIFIABLE(pcP))
         event_mask |= TCL_READABLE;
-    if ((pcP->flags & NPIPE_F_WATCHWRITE) && NPIPE_WRITE_NOTIFIABLE(pcP)) {
-        event_mask |= TCL_WRITABLE;
-        /* A write complete may actually be a connect complete */
+
+    if (NPIPE_WRITE_NOTIFIABLE(pcP)) {
+        /* This might be a connect complete */
         if (! NPIPE_CONNECTED(pcP)) {
-            if (pcP->winerr == ERROR_SUCCESS) {
-                pcP->flags |= NPIPE_F_CONNECTED;
-                /* Also mark as readable on connect complete */
-                if (pcP->flags & NPIPE_F_WATCHREAD)
-                    event_mask |= TCL_READABLE;
-            }
+            pcP->flags |= NPIPE_F_CONNECTED;
+            /* Also mark as readable on connect complete */
+            if (pcP->flags & NPIPE_F_WATCHREAD)
+                event_mask |= TCL_READABLE;
         }
+        if (pcP->flags & NPIPE_F_WATCHWRITE)
+            event_mask |= TCL_WRITABLE;
     }
+
     /*
      * Mark write direction as idle if write completed successfully.
      * Note this includes a connection completion which also uses the WRITER
@@ -1100,7 +1107,7 @@ static WIN32_ERROR NPipeAccept(NPipeChannel *pcP)
         if (RegisterWaitForSingleObject(
                 &pcP->io[WRITER].hwait,
                 pcP->io[WRITER].hevent,
-                NPipeReadThreadPoolFn,
+                NPipeWriteThreadPoolFn,
                 pcP,
                 INFINITE,           /* No timeout */
                 WT_EXECUTEDEFAULT
