@@ -4,7 +4,11 @@
 #
 # See the file LICENSE for license
 
+# THIS REFCHAN BASED NAMED PIPE IMPLEMENTATION IS OBSOLETE - REPLACED
+# BY THE C channel based namedpipe.tcl 
+
 # Implementation of named pipes
+
 
 if {! [package vsatisfies [package require Tcl] 8.5]} {
     proc twapi::pipe args {
