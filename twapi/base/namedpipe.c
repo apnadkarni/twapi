@@ -65,6 +65,9 @@ typedef struct _NPipeChannel {
 };
 
 #define NPIPE_CONNECTED(pcP_) ((pcP_)->flags & NPIPE_F_CONNECTED)
+#define NPIPE_EOF(pcP_) \
+    ((pcP_)->winerr == ERROR_HANDLE_EOF || ((pcP)->winerr == ERROR_BROKEN_PIPE))
+
 /*
  * When should we notify for a read - data available in buffer or error/eof.
  * Errors other than eof are only notified in connecting stage.
@@ -72,7 +75,7 @@ typedef struct _NPipeChannel {
 #define NPIPE_READ_NOTIFIABLE(pcP_) \
     (((pcP_)->io[READER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     ((pcP_)->winerr == ERROR_HANDLE_EOF) ||                            \
+     NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
 /*
@@ -84,7 +87,7 @@ typedef struct _NPipeChannel {
 #define NPIPE_WRITE_NOTIFIABLE(pcP_) \
     (((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     ((pcP_)->winerr == ERROR_HANDLE_EOF) ||                            \
+     NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
 /* Combination of above */
@@ -93,7 +96,7 @@ typedef struct _NPipeChannel {
      ((pcP_)->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     ((pcP_)->winerr == ERROR_HANDLE_EOF) ||                            \
+     NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
 /*
@@ -838,7 +841,7 @@ static int NPipeInputProc(
     return nread;
 
 error_return:
-    if (pcP->winerr == ERROR_HANDLE_EOF) {
+    if (NPIPE_EOF(pcP)) {
         return 0;               /* EOF */
     } else {
         *errnoP = NPipeSetTclErrnoFromWin32Error(pcP->winerr);
