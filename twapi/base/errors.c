@@ -46,8 +46,13 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
     }
     flags |= FORMAT_MESSAGE_ALLOCATE_BUFFER|FORMAT_MESSAGE_IGNORE_INSERTS;
 
+// TBD - value of 0 -> specific lang search path else only specified user
+// default language. Try both on French system and see what happens
+//#define TWAPI_ERROR_LANGID MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+#define TWAPI_ERROR_LANGID 0
+
     length = FormatMessageW(flags, hModule, error,
-                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                            TWAPI_ERROR_LANGID,
                             (WCHAR *) &wMsgPtr,
                             0, NULL);
     if (length > 0) {
@@ -66,7 +71,7 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
     /* Try the ascii version. TBD - is this really meaningful if above failed ? */
 
     length = FormatMessageA(flags, hModule, error,
-                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                            TWAPI_ERROR_LANGID,
                             (char *) &msgPtr,
                             0, NULL);
 
@@ -168,14 +173,6 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     if (objP)
         return objP;
 
-    /* Try as NTSTATUS code */
-    if (hNtdll == NULL)
-        hNtdll = GetModuleHandle("ntdll.dll");
-    if (hNtdll)
-        objP = Twapi_FormatMsgFromModule(error, hNtdll);
-    if (objP)
-        return objP;
-
     /* TBD - do we need to FreeLibrary after a LoadLibraryExW ? */
     /* Next try as a netmsg error - it's not clear this is really
        required or whether the system formatting call also looks
@@ -190,6 +187,13 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
             return objP;
     }
 
+    /* Try as NTSTATUS code */
+    if (hNtdll == NULL)
+        hNtdll = GetModuleHandle("ntdll.dll");
+    if (hNtdll)
+        objP = Twapi_FormatMsgFromModule(error, hNtdll);
+    if (objP)
+        return objP;
 
     /* Still no joy, try the PDH */
     if (hPdh == NULL)
