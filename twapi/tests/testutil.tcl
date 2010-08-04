@@ -447,7 +447,8 @@ proc tclsh_slave_start {} {
     set fd [open "| [list [::tcltest::interpreter]]" r+]
     fconfigure $fd -buffering line -blocking 0 -eofchar {}
     tclsh_slave_verify_started $fd
-    puts $fd {fconfigure stdin -buffering line -eofchar {}}
+    puts $fd {fconfigure stdin -buffering line -eofchar {} -encoding utf-8}
+    puts $fd {fconfigure stdout -buffering line -eofchar {} -encoding utf-8}
     puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
     #puts $fd start_commandline
     return $fd
@@ -457,7 +458,7 @@ proc tclsh_slave_verify_started {fd} {
     # not output result unless it is a tty.
     puts $fd {puts [info tclversion]}
     if {[catch {
-        set ver [tclsh_slave_gets $fd 5000]
+        set ver [gets_timeout $fd 5000]
     } msg]} {
         #close $fd
         error $msg $::errorInfo $::errorCode
@@ -473,15 +474,15 @@ proc tclsh_slave_stop {fd} {
     close $fd
 }
 
-# Read a line from the specified slave process
-# Note the fd is assumed to be non-blocking
+# Read a line from the specified fd
+# fd expected to be non-blocking and line buffered
 # Raises error after timeout
-proc tclsh_slave_gets {fd {ms 1000}} {
+proc gets_timeout {fd {ms 1000}} {
     set elapsed 0
     while {$elapsed < $ms} {
         if {[gets $fd line] == -1} {
             if {[eof $fd]} {
-                error "Unexpected EOF reading from slave."
+                error "Unexpected EOF reading from $fd."
             }
             after 50;           # Wait a bit and then retry
             incr elapsed 50
@@ -489,7 +490,22 @@ proc tclsh_slave_gets {fd {ms 1000}} {
             return $line
         }
     }
-    error "Time out reading from slave."
+    error "Time out reading from $fd."
+}
+
+# Wait until $fd returns specified output. Discards any intermediate input.
+# ms is not total timeout, rather it's max time to wait for single read.
+# As long as remote keeps writing, we will keep reading.
+# fd expected to be non-blocking and line buffered
+proc expect {fd expected {ms 1000}} {
+    set elapsed 0
+    while {true} {
+        set data [gets_timeout $fd $ms]
+        if {$data eq $expected} {
+            return
+        }
+        # Keep going
+    }
 }
 
 # Wait for the slave to get ready. Discards any intermediate input.
@@ -500,7 +516,7 @@ proc tclsh_slave_wait {fd {ms 1000}} {
     puts $fd "puts {$marker}"
     set elapsed 0
     while {$elapsed < $ms} {
-        set data [tclsh_slave_gets $fd $ms]
+        set data [gets_timeout $fd $ms]
         if {$data eq $marker} {
             return
         }
@@ -508,19 +524,6 @@ proc tclsh_slave_wait {fd {ms 1000}} {
     }
 }
 
-# Wait until slave returns specified output. Discards any intermediate input.
-# ms is not total timeout, rather it's max time to wait for single read.
-# As long as slave keeps writing, we will keep reading.
-proc tclsh_slave_expect {fd expected {ms 1000}} {
-    set elapsed 0
-    while {true} {
-        set data [tclsh_slave_gets $fd $ms]
-        if {$data eq $expected} {
-            return
-        }
-        # Keep going
-    }
-}
 
 
 # Log a test debug message
