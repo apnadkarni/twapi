@@ -32,7 +32,7 @@ typedef struct _NPipeChannel {
             char read_ahead[1];     /* Used to read-ahead a single byte */
             struct {
                 char *p;     /* Data to write out */
-                DWORD sz;    /* Size of buffer (not length of data) */
+                int   sz;    /* Size of buffer (not length of data) */
             } write_buf;
         } data;
         LONG volatile state;    /* State values IOBUF_*. Writing PENDING to
@@ -266,7 +266,9 @@ static void NPipeCheckProc(
     /*
      * Loop and check if there are any ready pipes and queue events for
      * them. Note we do not queue events if we have already queued
-     * one that has not been processed yet (NPIPE_F_EVENT_QUEUED)
+     * one that has not been processed yet (NPIPE_F_EVENT_QUEUED).
+     * TBD - can we not move the EVENT_QUEUED check to NPipeSetupProc
+     * and save an unnecessary callback into here ?
      */
 
     for (pcP = ZLIST_HEAD(&tlsP->pipes) ; pcP ; pcP = ZLIST_NEXT(pcP)) {
@@ -495,8 +497,8 @@ static int NPipeEventProc(
      * io struct.
      */
     InterlockedCompareExchange(&pcP->io[WRITER].state,
-                               IOBUF_IO_COMPLETED,
-                               IOBUF_IDLE);
+                               IOBUF_IDLE,
+                               IOBUF_IO_COMPLETED);
 
     if (event_mask)
         Tcl_NotifyChannel(pcP->channel, event_mask);
@@ -690,11 +692,11 @@ static int NPipeBlockProc(ClientData clientdata, int mode)
 
 
 /*
- * Read up to buf_sz bytes. Caller must have ensured there is at least one
- * byte else function will block waiting for data
- * (which is ok for blocking reads but not for nonblocking reads).
- * Returns number of bytes read on success, (at least one byte). Returns
- * 0 on error and sets pcP->winerr to error.
+ * Read up to buf_sz bytes. Returns number of bytes read. For non-blocking
+ * channels, if no data available, returns 0. For blocking channels, will
+ * block until at least one byte is available. In case of errors, returns
+ * 0. Caller can distinguish between "no data" for non-blocking channels
+ * and error by checking pcP->winerr.
  */
 static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
 {
@@ -705,7 +707,6 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
     /* Must not be a pending read or error*/
     TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING && ioP->state != IOBUF_IO_COMPLETED_WITH_ERROR);
     /* Nonblocking pipes must have at least one byte data in read ahead */
-    TWAPI_ASSERT((pcP->flags & NPIPE_F_NONBLOCKING) == 0 || ioP->state == IOBUF_IO_COMPLETED);
     TWAPI_ASSERT(ctxP->winerr == ERROR_SUCCESS);
     TWAPI_ASSERT(buf_sz > 0);
 
@@ -724,8 +725,14 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
         return 0;
     }
 
-    if (avail == 0)
-        avail = 1;              /* Wait for at least one byte */
+
+    if (avail == 0) {
+        if (pcP->flags & NPIPE_F_NONBLOCKING) {
+            /* Non-blocking. Return what we have, if anything */
+            return read_ahead_count; /* May be 0 */
+        }
+        avail = 1;        /* Blocking chan - Wait for at least one byte */
+    }
 
     if (avail < buf_sz)
         buf_sz = avail;         /* Read what's there */
@@ -744,11 +751,14 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
          * in pipe. Fall thru, will block in GetOverlappedResult
          */
     }
+
     if (!GetOverlappedResult(pcP->hpipe, &ioP->ovl, &avail, TRUE)) {
         ioP->ovl.hEvent = NULL;
         pcP->winerr = GetLastError();
         return 0;
     }
+
+    /* TBD - if more data is available in pipe, get it as well if there is room */
 
     ioP->ovl.hEvent = NULL;
 
@@ -831,7 +841,8 @@ static int NPipeInputProc(
     TWAPI_ASSERT(pcP->state != IOBUF_IO_PENDING);
 
     nread = NPipeReadData(pcP, bufP, buf_sz);
-    if (nread == 0)
+    /* Note nread may be 0 for non-blocking pipes and no data */
+    if (pcP->winerr != ERROR_SUCCESS)
         goto error_return;
 
     /*
@@ -867,8 +878,6 @@ static int NPipeOutputProc(
 {
     NPipeChannel *pcP = (NPipeChannel *)clientdata;
     struct _NPipeIO *ioP;
-    Tcl_Obj *objP;
-    int nwritten;
 
     TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
 
