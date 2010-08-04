@@ -27,19 +27,42 @@ namespace eval twapi::pipe::test {
 
     # Contains scripts for various test scenarios
     variable scripts
-    set scripts(simple) {
+    set scripts(accept) {
         load_twapi
         proc accept {chan} {
-            puts connect
-            set ::outcome accept
+            set ::outcome connected
         }
         puts READY
         set timer [after 20000 "set ::outcome timeout"]
-	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapitest" -type server]
+	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapiaccept" -type server]
         fileevent $pipe_fd writable [list accept $pipe_fd]
         vwait ::outcome
         after cancel $timer
         close $pipe_fd
+        puts $::outcome
+    }
+
+    set scripts(blocking_server) {
+        load_twapi
+        proc accept {chan} {
+            set ::outcome connected
+            fileevent $chan writable {}
+        }
+        proc echoline {} {
+            if {[catch {
+                set line [gets $::pipe_fd]
+                puts $::pipe_fd $line
+            } msg]} {
+                testlog "echoline: error $msg\n$::errorInfo"
+            }
+        }
+        puts READY
+        set timer [after 20000 "set ::outcome timeout"]
+	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapiblockingserver" -type server]
+        fconfigure $pipe_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
+        fileevent $pipe_fd writable [list accept $pipe_fd]
+        vwait ::outcome
+        after cancel $timer
         puts $::outcome
     }
 
@@ -56,8 +79,8 @@ namespace eval twapi::pipe::test {
         # We do NOT write the commands to $fd as then the slave reads
         # from there a line at a time in async mode, causing sequential
         # code to become non-sequential in the presence of vwaits etc.
-        puts $fd [list source [tcltest::makeFile $scripts($server_type) twapi_test_simple]]
-        tclsh_slave_expect $fd READY 5000
+        puts $fd [list source [tcltest::makeFile $scripts($server_type) twapi_test_accept]]
+        expect $fd READY 5000
         set servers($server_type) $fd
         return $fd
     }
@@ -99,18 +122,45 @@ namespace eval twapi::pipe::test {
     test pipe-server-1.0 {
         Open a named pipe as server
     } -setup {
-        set control_channel [start_server simple]
+        set control_channel [start_server accept]
     } -constraints {
-        nt tcl85plus
+        nt
     } -body {
-        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapitest"]
-        set line1 [tclsh_slave_gets $servers(simple)]
-        set line2 [tclsh_slave_gets $servers(simple)]
-        list $line1 $line2
+        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapiaccept"]
+        tclsh_slave_gets $control_channel
     } -cleanup {
         if {[info exists pipe]} {close_tcl_pipe $pipe}
-        stop_server simple
-    } -result {connect accept}
+        stop_server accept
+    } -result connected
+
+    ################################################################
+
+    test pipe-server-2.0 {
+        Test server using blocking I/O
+    } -setup {
+        set control_channel [start_server blocking_server]
+    } -constraints {
+        nt
+    } -body {
+        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapiblockingserver"]
+        fconfigure $pipe -blocking 0 -buffering line -translation crlf -eofchar {} -encoding utf-8
+        expect $control_channel "connected"
+        set result ""
+        for {set i 1} {$i < 2000} {set i [expr {$i + ($i+1)/2}]} {
+            puts $control_channel {echoline}
+            set request [string repeat "a" $i] 
+            puts $pipe $request
+            set response [gets_timeout $pipe 60000]
+            if {[string compare $request $response]} {
+                set result "Mismatch with string length $i"
+                break
+            }
+        }
+        set result
+    } -cleanup {
+        if {[info exists pipe]} {close_tcl_pipe $pipe}
+        stop_server blocking_server
+    } -result ""
 
 
     ################################################################
