@@ -698,11 +698,13 @@ static int NPipeBlockProc(ClientData clientdata, int mode)
  * 0. Caller can distinguish between "no data" for non-blocking channels
  * and error by checking pcP->winerr.
  */
-static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
+static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD bufsz)
 {
     struct _NPipeIO *ioP = &pcP->io[READER];
-    DWORD read_ahead_count = 0;
-    DWORD avail;
+    DWORD overlap_count;      /* Count returned in async completion */
+    DWORD sync_count;         /* Count returned in sync completion */
+    DWORD num_to_read;        /* How much to try and read */
+    DWORD nread = 0;          /* Actually read */
 
     /* Must not be a pending read or error*/
     TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING && ioP->state != IOBUF_IO_COMPLETED_WITH_ERROR);
@@ -711,35 +713,40 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
     TWAPI_ASSERT(buf_sz > 0);
 
     if (ioP->state == IOBUF_IO_COMPLETED) {
-        --buf_sz;
-        ++read_ahead_count;
+        --bufsz;
+        ++nread;
         *bufP++ = ioP->data.read_ahead[0];
         ioP->state = IOBUF_IDLE;
     }
 
-    if (buf_sz == 0)
-        return read_ahead_count;      /* Only asked for a single byte */
+    if (bufsz == 0)
+        return nread;      /* Only asked for a single byte */
 
-    if (!PeekNamedPipe(pcP->hpipe, NULL, 0, NULL, &avail, NULL)) {
+    if (!PeekNamedPipe(pcP->hpipe, NULL, 0, NULL, &num_to_read, NULL)) {
         pcP->winerr = GetLastError();
         return 0;
     }
 
-
-    if (avail == 0) {
+    if (num_to_read == 0) {
         if (pcP->flags & NPIPE_F_NONBLOCKING) {
             /* Non-blocking. Return what we have, if anything */
-            return read_ahead_count; /* May be 0 */
+            return nread; /* May be 0 */
         }
-        avail = 1;        /* Blocking chan - Wait for at least one byte */
+        num_to_read = 1;        /* Blocking chan - Wait for at least one byte */
     }
 
-    if (avail < buf_sz)
-        buf_sz = avail;         /* Read what's there */
+    if (num_to_read > bufsz)
+        num_to_read = bufsz;
     
     ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
     ioP->ovl.hEvent = pcP->hsync; /* Event used for "synchronous" reads */
-    if (! ReadFile(pcP->hpipe, bufP, buf_sz, NULL, &ioP->ovl)) {
+    if (ReadFile(pcP->hpipe, bufP, num_to_read, &sync_count, &ioP->ovl)) {
+        /*
+         * Synchronous completion. Note must not use GetOverlappedResult
+         * (see http://support.microsoft.com/kb/156932)
+         */
+        nread += sync_count;
+    } else {
         WIN32_ERROR winerr = GetLastError();
         if (winerr != ERROR_IO_PENDING) {
             ioP->ovl.hEvent = NULL;
@@ -750,19 +757,19 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD buf_sz)
          * Pending I/O - when we have blocking reads and not enough data
          * in pipe. Fall thru, will block in GetOverlappedResult
          */
-    }
-
-    if (!GetOverlappedResult(pcP->hpipe, &ioP->ovl, &avail, TRUE)) {
-        ioP->ovl.hEvent = NULL;
-        pcP->winerr = GetLastError();
-        return 0;
+        if (!GetOverlappedResult(pcP->hpipe, &ioP->ovl, &overlap_count, TRUE)) {
+            ioP->ovl.hEvent = NULL;
+            pcP->winerr = GetLastError();
+            return 0;
+        }
+        nread += overlap_count;
     }
 
     /* TBD - if more data is available in pipe, get it as well if there is room */
 
     ioP->ovl.hEvent = NULL;
 
-    return avail + read_ahead_count;
+    return nread;
 }
 
 /* Called from Tcl I/O channel layer to read bytes from the pipe */

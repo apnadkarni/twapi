@@ -127,7 +127,7 @@ namespace eval twapi::pipe::test {
         nt
     } -body {
         set pipe [open_tcl_pipe "\\\\.\\pipe\\twapiaccept"]
-        tclsh_slave_gets $control_channel
+        gets_timeout $control_channel
     } -cleanup {
         if {[info exists pipe]} {close_tcl_pipe $pipe}
         stop_server accept
@@ -150,7 +150,7 @@ namespace eval twapi::pipe::test {
             puts $control_channel {echoline}
             set request [string repeat "a" $i] 
             puts $pipe $request
-            set response [gets_timeout $pipe 60000]
+            set response [gets_timeout $pipe 5000]
             if {[string compare $request $response]} {
                 set result "Mismatch with string length $i"
                 break
