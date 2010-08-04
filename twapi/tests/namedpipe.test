@@ -93,13 +93,13 @@ namespace eval twapi::pipe::test {
         }
     }
 
-    # Opens a client side pipe using Tcl's open command
-    proc open_tcl_pipe {pipe {mode w+}} {
+    # Opens a client side pipe
+    proc open_client_pipe {pipe} {
         # Wait up to 5 second since remote process might not have started
         set elapsed 0
         while {$elapsed < 5000} {
             if {[catch {
-                open $pipe $mode
+                twapi::namedpipe_client $pipe
             } fd]} {
                 after 100;      # Wait 100ms
                 incr elapsed 100
@@ -107,13 +107,7 @@ namespace eval twapi::pipe::test {
                 return $fd
             }
         }
-        error "Could not open pipe to $pipe"
-    }
-    proc close_tcl_pipe chan {
-        # Need to catch closing of the client side pipe since Tcl
-        # closes the handle twice in the pipe channel handler, probably
-        # because it is not written for named pipes.
-        catch {close $chan}
+        error "Could not open pipe to $pipe: $fd"
     }
 
 
@@ -126,10 +120,10 @@ namespace eval twapi::pipe::test {
     } -constraints {
         nt
     } -body {
-        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapiaccept"]
+        set pipe [open_client_pipe "\\\\.\\pipe\\twapiaccept"]
         gets_timeout $control_channel
     } -cleanup {
-        if {[info exists pipe]} {close_tcl_pipe $pipe}
+        if {[info exists pipe]} {close $pipe}
         stop_server accept
     } -result connected
 
@@ -142,11 +136,12 @@ namespace eval twapi::pipe::test {
     } -constraints {
         nt
     } -body {
-        set pipe [open_tcl_pipe "\\\\.\\pipe\\twapiblockingserver"]
+        set pipe [open_client_pipe "\\\\.\\pipe\\twapiblockingserver"]
         fconfigure $pipe -blocking 0 -buffering line -translation crlf -eofchar {} -encoding utf-8
         expect $control_channel "connected"
         set result ""
-        for {set i 1} {$i < 2000} {set i [expr {$i + ($i+1)/2}]} {
+        for {set i 2} {$i < 1000} {set i [expr {$i + (($i+1)/2)}]} {
+puts $i
             puts $control_channel {echoline}
             set request [string repeat "a" $i] 
             puts $pipe $request
@@ -158,7 +153,7 @@ namespace eval twapi::pipe::test {
         }
         set result
     } -cleanup {
-        if {[info exists pipe]} {close_tcl_pipe $pipe}
+        if {[info exists pipe]} {close $pipe}
         stop_server blocking_server
     } -result ""
 
