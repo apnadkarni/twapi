@@ -552,7 +552,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_VerQueryValue_FIXEDFILEINFO, Call, 10107);
     CALL_(Twapi_VerQueryValue_TRANSLATIONS, Call, 10108);
     CALL_(Twapi_FreeFileVersionInfo, Call, 10109);
-    CALL_(malloc, Call, 10110);          /* TBD - document, change to memalloc */
+    CALL_(malloc, Call, 10110);        /* TBD - document, change to memalloc */
     CALL_(Twapi_WriteMemoryInt, Call, 10111);
     CALL_(Twapi_WriteMemoryBinary, Call, 10112);
     CALL_(Twapi_WriteMemoryChars, Call, 10113);
@@ -560,6 +560,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryPointer, Call, 10115);
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
     CALL_(Twapi_NPipeServer, Call, 10117);
+    CALL_(Twapi_NPipeClient, Call, 10118);
 
 
     // CallU API
@@ -2475,6 +2476,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10117:
             return Twapi_NPipeServer(ticP, objc-2, objv+2);
+        case 10118:
+            return Twapi_NPipeClient(ticP, objc-2, objv+2);
         }
 
     }

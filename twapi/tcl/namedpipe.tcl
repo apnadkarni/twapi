@@ -11,13 +11,13 @@ proc twapi::namedpipe {name args} {
         {type.arg client {server client}}
     }]
     if {$opts(type) eq "server"} {
-        return [twapi::_namedpipe_server $name {*}$args]
+        return [twapi::namedpipe_server $name {*}$args]
     } else {
-        return [twapi::_namedpipe_client $name {*}$args]
+        return [twapi::namedpipe_client $name {*}$args]
     }
 }
 
-proc twapi::_namedpipe_server {name args} {
+proc twapi::namedpipe_server {name args} {
     set name [file nativename $name]
 
     # Only byte mode currently supported. Message mode does
@@ -59,14 +59,32 @@ proc twapi::_namedpipe_server {name args} {
         set pipe_mode [expr {$pipe_mode | 8}]
     }
 
-    set options [dict create \
-                     open_mode $open_mode \
-                     pipe_mode $pipe_mode \
-                     max_instances $opts(maxinstances) \
-                     timeout $opts(timeout) \
-                     secattr $opts(secattr)]
-
     return [twapi::Twapi_NPipeServer $name $open_mode $pipe_mode \
                 $opts(maxinstances) 4000 4000 $opts(timeout) \
                 $opts(secattr)]
+}
+
+proc twapi::namedpipe_client {name args} {
+    set name [file nativename $name]
+
+    # Only byte mode currently supported. Message mode does
+    # not mesh well with Tcl channel infrastructure.
+    # readmode.arg
+    # writemode.arg
+
+    array set opts [twapi::parseargs args {
+        {mode.arg {read write}}
+        {secattr.arg {}}
+    } -maxleftover 0]
+
+    set desired_access [twapi::_parse_symbolic_bitmask $opts(mode) {
+        read 0x80000000 write 0x40000000
+    }]
+        
+    set share_mode 0;           # Share none
+    set flags 0
+    set create_disposition 3;   # OPEN_EXISTING
+    puts d:$desired_access
+    return [twapi::Twapi_NPipeClient $name $desired_access $share_mode \
+                $opts(secattr) $create_disposition $flags]
 }
