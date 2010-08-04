@@ -1424,6 +1424,7 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 
 /* Named pipes */
 TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
