@@ -84,7 +84,66 @@ proc twapi::namedpipe_client {name args} {
     set share_mode 0;           # Share none
     set flags 0
     set create_disposition 3;   # OPEN_EXISTING
-    puts d:$desired_access
     return [twapi::Twapi_NPipeClient $name $desired_access $share_mode \
                 $opts(secattr) $create_disposition $flags]
+}
+
+
+proc twapi::echo_server_accept {chan} {
+    set ::twapi::echo_server_status connected
+    fileevent $chan writable {}
+}
+
+proc twapi::echo_server {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
+    set timer [after $timeout "set ::twapi::echo_server_status timeout"]
+    set echo_fd [::twapi::namedpipe_server $name]
+    fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
+    fileevent $echo_fd writable [list ::twapi::echo_server_accept $echo_fd]
+    vwait ::twapi::echo_server_status
+    after cancel $timer
+    set size 0
+    if {$::twapi::echo_server_status eq "connected"} {
+        while {1} {
+            if {[gets $echo_fd line] >= 0} {
+                puts $echo_fd $line
+                if {$line eq "exit"} {
+                    break
+                }
+                set size [string length $line]
+            } else {
+                puts stderr "Unexpected eof from echo client"
+                break
+            }
+        }
+    } else {
+        puts stderr "echo_server: $::twapi::echo_server_status"
+    }
+    close $echo_fd
+    return $size
+}
+
+proc twapi::echo_client {args} {
+    array set opts [parseargs args {
+        {name.arg {\\.\pipe\twapiecho}}
+        {density.int 2}
+        {limit.int 10000}
+    }]
+
+    set msgs 0
+    set last 0
+    set fd [twapi::namedpipe_client $opts(name)]
+    fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
+    for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
+        set request [string repeat X $i]
+        puts $fd $request
+        set response [gets $fd]
+        if {$request ne $response} {
+            puts "Mismatch in message of size $i"
+        }
+        incr msgs
+        set last $i
+    }
+    puts $fd "exit"
+    close $fd
+    puts "Messages: $msgs, Last: $last"
 }
