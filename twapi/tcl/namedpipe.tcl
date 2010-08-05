@@ -34,7 +34,8 @@ proc twapi::namedpipe_server {name args} {
         denyremote
         {timeout.int 50}
         {maxinstances.int 255}
-        {secattr.arg {}}
+        {secd.arg {}}
+        {inherit.bool 0}
     } -maxleftover 0]
 
     set open_mode [twapi::_parse_symbolic_bitmask $opts(mode) {read 1 write 2}]
@@ -61,7 +62,7 @@ proc twapi::namedpipe_server {name args} {
 
     return [twapi::Twapi_NPipeServer $name $open_mode $pipe_mode \
                 $opts(maxinstances) 4000 4000 $opts(timeout) \
-                $opts(secattr)]
+                [_make_secattr $opts(secd) $opts(inherit)]]
 }
 
 proc twapi::namedpipe_client {name args} {

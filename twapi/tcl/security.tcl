@@ -1821,7 +1821,7 @@ proc twapi::_make_secattr {secd inherit} {
     if {$inherit} {
         set sec_attr [list $secd 1]
     } else {
-        if {$secd == ""} {
+        if {[llength $secd] == 0} {
             # If a security descriptor not specified, keep
             # all security attributes as an empty list (ie. NULL)
             set sec_attr [list ]
