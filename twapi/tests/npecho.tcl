@@ -25,6 +25,8 @@ proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
     set echo_fd [::twapi::namedpipe_server $name]
     fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
     fileevent $echo_fd writable [list ::np_echo_server_sync_accept $echo_fd]
+    # Following line is important as it is used by automated test scripts
+    puts "READY"
     vwait ::np_echo_server_status
     after cancel $timer
     set msgs 0
@@ -107,6 +109,7 @@ proc np_echo_client {args} {
 
     set msgs 0
     set last 0
+    set total 0
     set fd [twapi::namedpipe_client $opts(name)]
     fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
     for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
@@ -121,11 +124,12 @@ proc np_echo_client {args} {
             }
         }
         incr msgs
+        incr total $i
         set last $i
     }
     puts $fd "exit"
     close $fd
-    puts "Messages: $msgs, Last: $last"
+    return [list $msgs $total $last]
 }
 
 
