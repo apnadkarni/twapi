@@ -10,8 +10,8 @@ package require tcltest
 
 eval tcltest::configure $argv
 
-source [file join [file dirname [info script]] testutil.tcl]
-load_twapi
+# Note npecho loads testutil and twapi
+source [file join [file dirname [info script]] npecho.tcl]
 
 namespace eval twapi::pipe::test {
     namespace import ::tcltest::test
@@ -27,44 +27,11 @@ namespace eval twapi::pipe::test {
 
     # Contains scripts for various test scenarios
     variable scripts
-    set scripts(accept) {
-        load_twapi
-        proc accept {chan} {
-            set ::outcome connected
-        }
-        puts READY
-        set timer [after 20000 "set ::outcome timeout"]
-	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapiaccept" -type server]
-        fileevent $pipe_fd writable [list accept $pipe_fd]
-        vwait ::outcome
-        after cancel $timer
-        close $pipe_fd
-        puts $::outcome
+    set scripts(blocking_server) {
+        source npecho.tcl
+        puts [np_echo_server_sync {\\.\pipe\twapitest}]
     }
 
-    set scripts(blocking_server) {
-        load_twapi
-        proc accept {chan} {
-            set ::outcome connected
-            fileevent $chan writable {}
-        }
-        proc echoline {} {
-            if {[catch {
-                set line [gets $::pipe_fd]
-                puts $::pipe_fd $line
-            } msg]} {
-                testlog "echoline: error $msg\n$::errorInfo"
-            }
-        }
-        puts READY
-        set timer [after 20000 "set ::outcome timeout"]
-	set pipe_fd [::twapi::namedpipe "\\\\.\\pipe\\twapiblockingserver" -type server]
-        fconfigure $pipe_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
-        fileevent $pipe_fd writable [list accept $pipe_fd]
-        vwait ::outcome
-        after cancel $timer
-        puts $::outcome
-    }
 
     proc start_server {server_type} {
         variable servers
@@ -80,7 +47,6 @@ namespace eval twapi::pipe::test {
         # from there a line at a time in async mode, causing sequential
         # code to become non-sequential in the presence of vwaits etc.
         puts $fd [list source [tcltest::makeFile $scripts($server_type) twapi_test_accept]]
-        expect $fd READY 5000
         set servers($server_type) $fd
         return $fd
     }
@@ -93,67 +59,30 @@ namespace eval twapi::pipe::test {
         }
     }
 
-    # Opens a client side pipe
-    proc open_client_pipe {pipe} {
-        # Wait up to 5 second since remote process might not have started
-        set elapsed 0
-        while {$elapsed < 5000} {
-            if {[catch {
-                twapi::namedpipe_client $pipe
-            } fd]} {
-                after 100;      # Wait 100ms
-                incr elapsed 100
-            } else {
-                return $fd
-            }
-        }
-        error "Could not open pipe to $pipe: $fd"
-    }
-
-
     ################################################################
 
     test pipe-server-1.0 {
-        Open a named pipe as server
-    } -setup {
-        set control_channel [start_server accept]
-    } -constraints {
-        nt
-    } -body {
-        set pipe [open_client_pipe "\\\\.\\pipe\\twapiaccept"]
-        gets_timeout $control_channel
-    } -cleanup {
-        if {[info exists pipe]} {close $pipe}
-        stop_server accept
-    } -result connected
-
-    ################################################################
-
-    test pipe-server-2.0 {
         Test server using blocking I/O
     } -setup {
         set control_channel [start_server blocking_server]
+        expect $control_channel READY 5000
     } -constraints {
         nt
     } -body {
-        set pipe [open_client_pipe "\\\\.\\pipe\\twapiblockingserver"]
-        fconfigure $pipe -blocking 0 -buffering line -translation crlf -eofchar {} -encoding utf-8
-        expect $control_channel "connected"
+        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitest}] break
+        foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
         set result ""
-        for {set i 2} {$i < 1000} {set i [expr {$i + (($i+1)/2)}]} {
-puts $i
-            puts $control_channel {echoline}
-            set request [string repeat "a" $i] 
-            puts $pipe $request
-            set response [gets_timeout $pipe 5000]
-            if {[string compare $request $response]} {
-                set result "Mismatch with string length $i"
-                break
-            }
+        if {$msgs != $msgs2} {
+            append result "Mismatch in number of messages: $msgs != $msgs2"
+        }
+        if {$total != $total2} {
+            append result "Mismatch in total chars: $total != $total2"
+        }
+        if {$last != $last2} {
+            append result "Mismatch in total chars: $last != $last2"
         }
         set result
     } -cleanup {
-        if {[info exists pipe]} {close $pipe}
         stop_server blocking_server
     } -result ""
 
