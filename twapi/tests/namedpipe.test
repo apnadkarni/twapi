@@ -16,9 +16,6 @@ source [file join [file dirname [info script]] npecho.tcl]
 namespace eval twapi::pipe::test {
     namespace import ::tcltest::test
 
-    # Name to use for test service
-    variable pipe_name "twapitest"
-
     ::tcltest::testConstraint tcl85plus [package vsatisfies [package require Tcl] 8.5]
 
     proc start_server {fn script} {
@@ -68,6 +65,36 @@ namespace eval twapi::pipe::test {
     } -result ""
 
 
+    ###
+
+    test pipe-server-2.0 {
+        Test server using non-blocking I/O
+    } -setup {
+        set control_channel [start_server test_nonblocking_server {
+            source npecho.tcl
+            puts [np_echo_server_async {\\.\pipe\twapitest}]
+        }]
+
+        expect $control_channel READY 5000
+    } -constraints {
+        nt
+    } -body {
+        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitest}] break
+        foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+        set result ""
+        if {$msgs != $msgs2} {
+            lappend result "Mismatch in number of messages: $msgs != $msgs2"
+        }
+        if {$total != $total2} {
+            lappend result "Mismatch in total chars: $total != $total2"
+        }
+        if {$last != $last2} {
+            lappend result "Mismatch in last message size: $last != $last2"
+        }
+        join $result \n
+    } -cleanup {
+        stop_server $control_channel
+    } -result ""
     ################################################################
 
 
