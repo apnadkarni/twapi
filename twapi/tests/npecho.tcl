@@ -79,16 +79,19 @@ proc np_echo_server_async_echoline {chan} {
 }
 
 proc np_echo_server_async {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
+    set ::np_msgs 0
+    set ::np_last_size 0
+    set ::np_total 0
+
     set ::np_timer [after $timeout "set ::np_echo_server_status timeout"]
     set echo_fd [::twapi::namedpipe_server $name]
     fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8 -blocking 0
     fileevent $echo_fd readable [list ::np_echo_server_async_echoline $echo_fd]
+    # Following line is important as it is used by automated test scripts
+    puts "READY"
     vwait ::np_echo_server_status
     after cancel $::np_timer
 
-    set ::np_msgs 0
-    set ::np_last_size 0
-    set ::np_total 0
     if {$::np_echo_server_status eq "connected"} {
         vwait ::np_async_end
         if {$::np_async_end ne "exit"} {
@@ -107,13 +110,16 @@ proc np_echo_client {args} {
         {limit.int 10000}
     }]
 
+    set alphabet "0123456789abcdefghijklmnopqrstuvwxyz"
+    set alphalen [string length $alphabet]
     set msgs 0
     set last 0
     set total 0
     set fd [twapi::namedpipe_client $opts(name)]
     fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
     for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
-        set request [string repeat X $i]
+        set c [string index $alphabet [expr {$i % $alphalen}]]
+        set request [string repeat $c $i]
         puts $fd $request
         set response [gets $fd]
         if {$request ne $response} {
