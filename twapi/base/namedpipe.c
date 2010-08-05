@@ -1284,6 +1284,7 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     DWORD winerr;
     Tcl_Interp *interp = ticP->interp;
     NPipeTls *tlsP;
+    HANDLE hpipe;
 
     if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, ticP))
         return TCL_ERROR;
@@ -1306,6 +1307,21 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
      * which expect the tls to have been initialized.
      */
     tlsP = GetNPipeTls();
+
+    flags_attr |= FILE_FLAG_OVERLAPPED;
+    hpipe = CreateFileW(name, desired_access,
+                        share_mode, secattrP,
+                        creation_disposition,
+                        flags_attr, NULL);
+    if (hpipe == INVALID_HANDLE_VALUE)
+        return TwapiReturnSystemError(interp);
+
+    if (GetFileType(hpipe) != FILE_TYPE_PIPE) {
+        CloseHandle(hpipe);
+        return Twapi_GenerateWin32Error(interp, ERROR_INVALID_NAME,
+                                        "Specified path is not a pipe.");
+    }
+
 
     pcP = NPipeChannelNew();
 

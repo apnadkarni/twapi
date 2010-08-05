@@ -233,7 +233,7 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
  * Format system error codes as the interpreter results. Also sets
  * the global errorCode Tcl variable.
  * Always returns TCL_ERROR so caller can just do a
- *  return Twapi_AppendSystemError(interp, error)
+ *  return Twapi_AppendSystemError2(interp, error)
  * to return after an error.
  */
 int Twapi_AppendSystemError2(

@@ -26,7 +26,7 @@ DTP="$(TOOLDIR)\twapi-dtp.kit"
 HHC="$(PROGRAMFILES)\HTML Help Workshop\hhc.exe"
 !endif
 
-# Documentation input files
+# Documentation input files. Note this also specifies the order in the ToC
 !ifndef MANFILES
 MANFILES= \
 	overview.man \
@@ -34,7 +34,6 @@ MANFILES= \
 	installation.man \
 	raw.man \
 	ui.man \
-	desktop.man \
 	com.man \
 	shell.man \
 	input.man \
@@ -44,15 +43,17 @@ MANFILES= \
 	process.man \
 	handles.man \
 	services.man \
-	network.man \
 	disk.man \
 	share.man \
 	users.man \
+	network.man \
+	namedpipe.man \
 	security.man \
 	crypto.man \
 	eventlog.man \
 	inifile.man \
 	console.man \
+	desktop.man \
 	schedule.man \
 	msi.man \
 	nls.man \
