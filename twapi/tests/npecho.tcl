@@ -52,6 +52,52 @@ proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
     return [list $msgs $total $last_size]
 }
 
+proc np_echo_server_async_echoline {chan} {
+    set ::np_echo_server_status connected
+
+    # Check end of file or abnormal connection drop,
+    # then echo data back to the client.
+
+    set error [catch {gets $chan line} count]
+    if {$error || $count < 0} {
+        if {$error || [eof $chan]} {
+            set ::np_async_end eof
+            close $chan
+        }
+    } else {
+        if {$line eq "exit"} {
+            set ::np_async_end exit
+        } else {
+            incr ::np_msgs
+            set ::np_last_size [string length $line]
+            incr ::np_total $::np_last_size
+            puts $chan $line
+        }
+    }
+}
+
+proc np_echo_server_async {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
+    set ::np_timer [after $timeout "set ::np_echo_server_status timeout"]
+    set echo_fd [::twapi::namedpipe_server $name]
+    fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8 -blocking 0
+    fileevent $echo_fd readable [list ::np_echo_server_async_echoline $echo_fd]
+    vwait ::np_echo_server_status
+    after cancel $::np_timer
+
+    set ::np_msgs 0
+    set ::np_last_size 0
+    set ::np_total 0
+    if {$::np_echo_server_status eq "connected"} {
+        vwait ::np_async_end
+        if {$::np_async_end ne "exit"} {
+            puts stderr "Unexpected status $::np_async_end"
+        }
+    } else {
+        puts stderr "echo_server: $::np_echo_server_status"
+    }
+    return [list $::np_msgs $::np_total $::np_last_size]
+}
+
 proc np_echo_client {args} {
     array set opts [twapi::parseargs args {
         {name.arg {\\.\pipe\twapiecho}}
@@ -69,6 +115,10 @@ proc np_echo_client {args} {
         set response [gets $fd]
         if {$request ne $response} {
             puts "Mismatch in message of size $i"
+            set n [string length $response]
+            if {$i != $n} {
+                puts "Sent $i chars, received $n chars"
+            }
         }
         incr msgs
         set last $i
