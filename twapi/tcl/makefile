@@ -23,7 +23,7 @@ EXTRA_TCLFILES= \
 	pdh.tcl process2.tcl accounts.tcl share.tcl \
         network.tcl console.tcl synch.tcl desktop.tcl \
         printer.tcl mstask.tcl msi.tcl crypto.tcl \
-        device.tcl power.tcl
+        device.tcl power.tcl namedpipe.tcl
 
 TCLFILES = $(BASE_TCLFILES)
 

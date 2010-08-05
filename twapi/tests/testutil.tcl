@@ -650,6 +650,3 @@ proc ::setops::Intersect {A B} {
 }
 
 
-# EOF
-
-
