@@ -1,0 +1,162 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Named pipes" n ""]
+[copyright "2010, Ashok P. Nadkarni"]
+[moddesc "Named pipe channels"]
+[titledesc "Commands related to named pipes"]
+[require twapi]
+[description]
+
+[para]
+This module provides a Tcl channel based interface to Windows named pipes.
+
+[section Overview]
+
+This module provides commands to perform I/O over Windows 
+[uri {http://msdn.microsoft.com/en-us/library/aa365780%28v=VS.85%29.aspx} {named pipes}]
+using standard Tcl commands like [cmd puts], [cmd gets], [cmd read] and
+the Tcl 8.5 [cmd chan] command. Named pipe channels support blocking and
+non-blocking operations in the same manner as the standard Tcl channel
+types. The Tcl commands [cmd fileevent] and [cmd fconfigure],
+or its newer version [cmd "chan configure"], can be used with named
+pipe channels.
+
+[para]
+Windows named pipes support two data transmission modes - byte stream and 
+message. TWAPI supports only the byte stream mode of operation as message 
+mode is not supported by the Tcl channel based script commands. In byte
+stream mode, data is sent and received as a stream of bytes with no
+boundaries between consecutive writes or reads. This is similar to the
+TCP socket based operation of the Tcl [cmd socket] command.
+
+[para]
+Named pipes are an alternative to sockets for communicating between processes
+on either the same or different systems. Named pipes are very efficient
+when both processes are on the same system but lag TCP socket
+based protocols when communicating between systems, particularly across
+a slow link. Named pipes are also not as scalable as sockets when servicing
+a very large number of clients. The primary advantage of named pipes
+over sockets is that they provide a very easy way of authenticating
+clients using the Windows security authentication infrastructure. An
+example might be a Windows service running in the LocalSystem account
+that needs to communicate with an application running on the user desktop.
+For local system communication, named pipes also have an advantage over
+Windows sockets in certain limited configurations in that they do not
+require a configured network adapter to be present (on some Windows versions,
+event the loopback interface, 127.0.0.1, will not work without a enabled
+network adapter).
+
+
+[section "Named Pipe Servers"]
+
+A named pipe server creates a named pipe channel through the
+[uri #namedpipe_server [cmd namedpipe_server]] command. This creates a single
+instance of the specified named pipe. To allow multiple clients to connect,
+the server must open multiple instances of the pipe using this command.
+[emph "Note the difference in behaviour compared to sockets"]. In the 
+case of a socket-based server, a single listening socket is created and
+as clients connect, a new socket is created automatically for each new
+connection. This is not the case with named pipes where the incoming
+connection uses the existing named pipe instance. The server application
+must create a new instance to accept the next connection. 
+Because incoming connect requests will be denied until the new instance
+is created, the application may open multiple instance of the named pipe
+to reduce the likelihood of missed connections.
+
+[section "Named Pipe Clients"]
+
+A client application can connect to a named pipe using the
+[uri #namedpipe_server [cmd namedpipe_client]] command. When the command
+returns the named pipe is connected and the channel can be used
+to send and receive data.
+
+
+[section "Named Pipe Access Control"]
+
+Client access to a named pipes can be controlled through standard
+Windows security mechanisms. When a server creates a named pipe instance,
+it can specify a 
+[uri security.html#securitydescriptors "security descriptor"]
+to be attached to the pipe. When
+a client attempts a connect, its credentials are checked against the
+descriptor and access is granted accordingly.
+
+[section Commands]
+[list_begin definitions]
+
+[call [cmd namedpipe_client] [arg PIPENAME] [opt "[cmd -access] [arg ACCESS]"]]
+
+Connects to the named pipe specified by [arg PIPENAME] and returns
+a Tcl channel identifier that can be used with the Tcl channel commands.
+
+[nl]
+The command raises a Tcl exception on error. One possible error is caused
+by all instances of the server pipe being busy. In this case, the
+Tcl [cmd errorCode] global is set to the value
+[emph {TWAPI_WIN32 231 LANGUAGE_DEPENDENT_ERROR_MESSAGE}]. The application
+may check for this and retry after some interval.
+
+[nl]
+Unlike sockets, named pipes may be opened in read-only or write-only mode.
+This is configured through the [cmd -access] option. [arg ACCESS] is
+a list consisting one or both of [const read] and [const write] depending
+on the access desired. By default, the pipe is opened for both read
+and write access.
+
+[nl]
+For consistency with the Tcl [cmd socket] command, the channel is configured
+with the default system encoding with line ending translation enabled. Use
+the [cmd fconfigure] command to change this. Note the encoding and line
+ending options must match those the server side else data might appear
+to be corrupted.
+
+[call [cmd namedpipe_server] [arg PIPENAME] [opt [arg options]]]
+
+Creates an instance of the named pipe specified by [arg PIPENAME] and returns
+a Tcl channel identifier that can be used with the Tcl channel commands.
+The command returns immediately. However, no input or output can be
+done on the pipe until a client establishes a connection on the pipe instance.
+To determine when the completion is completed, the application can
+register callbacks on the channel using the Tcl [cmd fileevent] command.
+Alternatively, the application can poll the channel by attempting to
+read or write from it. This is not however recommended.
+
+[nl]
+For consistency with the Tcl [cmd socket] command, the channel is configured
+with the default system encoding with line ending translation enabled. Use
+the [cmd fconfigure] command to change this. Note the encoding and line
+ending options must match those the server side else data might appear
+to be corrupted.
+
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -access] [arg ACCESS]]
+Unlike sockets, named pipes may be opened in read-only or write-only mode.
+This is configured through the [cmd -access] option. [arg ACCESS] is
+a list consisting one or both of [const read] and [const write] depending
+on the access desired. By default, the pipe is opened for both read
+and write access.
+[opt_def [cmd -denyremote]]
+If specified, connections from remote clients are not accepted. This option
+requires Windows Vista or newer Windows versions. The command will raise
+an error if this option is specified on older versions of Windows.
+[opt_def [cmd -maxinstances] [arg MAXINSTANCES]]
+Specifies the maximum number of instances of the named pipe that can exist.
+This only has effect for the call that creates the first instance of
+the pipe in the system. For subsequent calls, Windows ignores the option
+and only checks that the pipe creation call will not cause the
+number of pipe instances to exceed the
+[arg MAXINSTANCES] value specified in the first call.
+
+[opt_def [cmd -secd] [arg BOOLEAN]]
+Allows specifying a 
+[uri security.html#securitydescriptors "security descriptor"]
+that restricts access to the named pipe to specific Windows accounts.
+
+[list_end]
+
+[list_end]
+
+[keywords "network information" addresses "Internet addresses" "IP addresses" "network statistics" "ARP table" "Address resolution protocol" "TCP" "UDP" "IP" "ICMP" "DHCP information" "network interface configuration" "network adapters" "DNS server addresses" "WINS servers addresses" "network address" "physical address" "netstat" "connections" "terminate connections" "FQDN" "name resolution" "DNS lookup" "address resolution" routing "network routes"]
+
+[manpage_end]
