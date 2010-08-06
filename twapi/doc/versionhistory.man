@@ -18,6 +18,8 @@ Added support for 64-bit versions of Windows.
 of Windows and version 8.5 or later of Tcl. It should also run on Windows 2000
 and Tcl 8.4 but any bugs specific to these platforms will not be fixed.
 
+[bullet] Added support for [uri namedpipe.html "named pipe"] channels.
+
 [bullet]
 Added [uri shell.html#shell_execute [cmd shell_execute]].
 

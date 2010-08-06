@@ -395,7 +395,7 @@ returns a textual description of a security descriptor. Commands
 [uri #sddl_to_security_descriptor [cmd sddl_to_security_descriptor]] can
 be used to convert security descriptors to SDDL format.
 
-[section "Logon sessions"]
+[section "Logon Sessions"]
 
 A logon session is identified by an [uri \#uniqueidentifiers "LUID"] and
 provides the context for a particular instance of an authenticated security
