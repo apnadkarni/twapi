@@ -26,7 +26,7 @@ proc twapi::namedpipe_server {name args} {
     # writemode.arg
 
     array set opts [twapi::parseargs args {
-        {mode.arg {read write}}
+        {access.arg {read write}}
         writedacl
         writeowner
         writesacl
@@ -38,7 +38,7 @@ proc twapi::namedpipe_server {name args} {
         {inherit.bool 0}
     } -maxleftover 0]
 
-    set open_mode [twapi::_parse_symbolic_bitmask $opts(mode) {read 1 write 2}]
+    set open_mode [twapi::_parse_symbolic_bitmask $opts(access) {read 1 write 2}]
     foreach {opt mask} {
         writedacl  0x00040000
         writeowner 0x00080000
@@ -74,11 +74,11 @@ proc twapi::namedpipe_client {name args} {
     # writemode.arg
 
     array set opts [twapi::parseargs args {
-        {mode.arg {read write}}
+        {access.arg {read write}}
         {secattr.arg {}}
     } -maxleftover 0]
 
-    set desired_access [twapi::_parse_symbolic_bitmask $opts(mode) {
+    set desired_access [twapi::_parse_symbolic_bitmask $opts(access) {
         read 0x80000000 write 0x40000000
     }]
         
@@ -89,62 +89,3 @@ proc twapi::namedpipe_client {name args} {
                 $opts(secattr) $create_disposition $flags]
 }
 
-
-proc twapi::echo_server_accept {chan} {
-    set ::twapi::echo_server_status connected
-    fileevent $chan writable {}
-}
-
-proc twapi::echo_server {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
-    set timer [after $timeout "set ::twapi::echo_server_status timeout"]
-    set echo_fd [::twapi::namedpipe_server $name]
-    fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
-    fileevent $echo_fd writable [list ::twapi::echo_server_accept $echo_fd]
-    vwait ::twapi::echo_server_status
-    after cancel $timer
-    set size 0
-    if {$::twapi::echo_server_status eq "connected"} {
-        while {1} {
-            if {[gets $echo_fd line] >= 0} {
-                puts $echo_fd $line
-                if {$line eq "exit"} {
-                    break
-                }
-                set size [string length $line]
-            } else {
-                puts stderr "Unexpected eof from echo client"
-                break
-            }
-        }
-    } else {
-        puts stderr "echo_server: $::twapi::echo_server_status"
-    }
-    close $echo_fd
-    return $size
-}
-
-proc twapi::echo_client {args} {
-    array set opts [parseargs args {
-        {name.arg {\\.\pipe\twapiecho}}
-        {density.int 2}
-        {limit.int 10000}
-    }]
-
-    set msgs 0
-    set last 0
-    set fd [twapi::namedpipe_client $opts(name)]
-    fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
-    for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
-        set request [string repeat X $i]
-        puts $fd $request
-        set response [gets $fd]
-        if {$request ne $response} {
-            puts "Mismatch in message of size $i"
-        }
-        incr msgs
-        set last $i
-    }
-    puts $fd "exit"
-    close $fd
-    puts "Messages: $msgs, Last: $last"
-}

@@ -1151,6 +1151,16 @@ static WIN32_ERROR NPipeAccept(NPipeChannel *pcP)
     return winerr;
 }
 
+/*
+ * For consistency with sockets, we configure the same options
+ * as channel defaults.
+ */
+static void NPipeConfigureChannelDefaults(Tcl_Interp *interp, NPipeChannel *pcP)
+{
+    Tcl_SetChannelOption(interp, pcP->channel, "-translation", "auto crlf");
+    Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
+}
+
 int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     LPCWSTR name;
@@ -1229,9 +1239,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                      * the thread tls
                      */
 
-                    Tcl_SetChannelOption(interp, pcP->channel, "-encoding", "binary");
-                    Tcl_SetChannelOption(interp, pcP->channel, "-translation", "auto crlf");
-                    Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
+                    NPipeConfigureChannelDefaults(interp, pcP);
                     Tcl_RegisterChannel(interp, pcP->channel);
 
                     /* Set up the accept */
@@ -1325,59 +1333,51 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 
     pcP = NPipeChannelNew();
 
-    flags_attr |= FILE_FLAG_OVERLAPPED;
-    pcP->hpipe = CreateFileW(name, desired_access,
-                             share_mode, secattrP,
-                             creation_disposition,
-                             flags_attr, NULL);
+    pcP->hpipe = hpipe;
 
-    if (pcP->hpipe != INVALID_HANDLE_VALUE) {
-        /* Create event used for sync i/o. Note this is manual reset event */
-        pcP->hsync = CreateEvent(NULL, TRUE, FALSE, NULL);
+    /* Create event used for sync i/o. Note this is manual reset event */
+    pcP->hsync = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (pcP->hsync) {
+        /* 
+         * Create events to use for notification of completion. The
+         * events must be auto-reset to prevent multiple callback
+         * queueing on a single input notification. See MSDN docs for
+         * RegisterWaitForSingleObject.  As a consequence, we must
+         * make sure we never call GetOverlappedResult in blocking
+         * mode when using one of these events (unlike hsync)
+         */
+        pcP->io[READER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+        if (pcP->io[READER].hevent) {
+            pcP->io[WRITER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+            if (pcP->io[WRITER].hevent) {
+                int channel_mask = 0;
+                char instance_name[30];
 
-        if (pcP->hsync) {
-            /* 
-             * Create events to use for notification of completion. The
-             * events must be auto-reset to prevent multiple callback
-             * queueing on a single input notification. See MSDN docs for
-             * RegisterWaitForSingleObject.  As a consequence, we must
-             * make sure we never call GetOverlappedResult in blocking
-             * mode when using one of these events (unlike hsync)
-             */
-            pcP->io[READER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-            if (pcP->io[READER].hevent) {
-                pcP->io[WRITER].hevent = CreateEvent(NULL, FALSE, FALSE, NULL);
-                if (pcP->io[WRITER].hevent) {
-                    int channel_mask = 0;
-                    char instance_name[30];
+                StringCbPrintfA(instance_name, sizeof(instance_name),
+                                "np%u", TWAPI_NEWID(ticP));
+                if (desired_access & (GENERIC_READ |FILE_READ_DATA))
+                    channel_mask |= TCL_READABLE;
+                if (desired_access & (GENERIC_WRITE|FILE_WRITE_DATA))
+                    channel_mask |= TCL_WRITABLE;
+                NPipeChannelRef(pcP, 1); /* Adding to Tcl channels */
+                pcP->channel = Tcl_CreateChannel(&gNPipeChannelDispatch,
+                                                 instance_name, pcP,
+                                                 channel_mask);
+                /*
+                 * Note the CreateChannel will call back into our
+                 * ThreadActionProc which would have added pcP to
+                 * the thread tls
+                 */
 
-                    StringCbPrintfA(instance_name, sizeof(instance_name),
-                                    "np%u", TWAPI_NEWID(ticP));
-                    if (desired_access & (GENERIC_READ |FILE_READ_DATA))
-                        channel_mask |= TCL_READABLE;
-                    if (desired_access & (GENERIC_WRITE|FILE_WRITE_DATA))
-                        channel_mask |= TCL_WRITABLE;
-                    NPipeChannelRef(pcP, 1); /* Adding to Tcl channels */
-                    pcP->channel = Tcl_CreateChannel(&gNPipeChannelDispatch,
-                                                     instance_name, pcP,
-                                                     channel_mask);
-                    /*
-                     * Note the CreateChannel will call back into our
-                     * ThreadActionProc which would have added pcP to
-                     * the thread tls
-                     */
+                NPipeConfigureChannelDefaults(interp, pcP);
 
-                    Tcl_SetChannelOption(interp, pcP->channel, "-encoding", "binary");
-                    Tcl_SetChannelOption(interp, pcP->channel, "-translation", "auto crlf");
-                    Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
-                    Tcl_RegisterChannel(interp, pcP->channel);
-
-                    pcP->flags |= NPIPE_F_CONNECTED;
-                    /* Return channel name */
-                    Tcl_SetObjResult(ticP->interp,
-                                     Tcl_NewStringObj(instance_name, -1));
-                    return TCL_OK;
-                }
+                Tcl_RegisterChannel(interp, pcP->channel);
+                
+                pcP->flags |= NPIPE_F_CONNECTED;
+                /* Return channel name */
+                Tcl_SetObjResult(ticP->interp,
+                                 Tcl_NewStringObj(instance_name, -1));
+                return TCL_OK;
             }
         }
     }
