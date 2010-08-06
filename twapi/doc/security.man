@@ -698,7 +698,7 @@ not specified, must be one of [const file],
 If option [cmd -handle] is specified, then [arg RESTYPE] may also
 be one of [const windowstation], [const directoryservice],
 [const directoryserviceall], [const providerdefined], [const wmiguid]
-or [const registrywow6432key].
+or [const registrywow6432key] but not [const share].
 [nl]
 [arg NAME] specifies the name of the resource, for example, the path of
 a file unless option [cmd -handle] is specified in which case it is the
@@ -1220,7 +1220,7 @@ not specified, must be one of [const file],
 If option [cmd -handle] is specified, then [arg RESTYPE] may also
 be one of [const windowstation], [const directoryservice],
 [const directoryserviceall], [const providerdefined], [const wmiguid]
-or [const registrywow6432key].
+or [const registrywow6432key] but must not be [const share].
 [nl]
 [arg NAME] specifies the name of the resource, for example, the path of
 a file unless option [cmd -handle] is specified in which case it is the
