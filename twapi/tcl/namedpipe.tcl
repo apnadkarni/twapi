@@ -78,8 +78,13 @@ proc twapi::namedpipe_client {name args} {
         {secattr.arg {}}
     } -maxleftover 0]
 
+    # FILE_READ_DATA              0x00000001
+    # FILE_WRITE_DATA             0x00000002
+    # Note - use _parse_symbolic_bitmask because we allow user to specify
+    # numeric masks as well
     set desired_access [twapi::_parse_symbolic_bitmask $opts(access) {
-        read 0x80000000 write 0x40000000
+        read  1
+        write 2
     }]
         
     set share_mode 0;           # Share none

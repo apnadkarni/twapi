@@ -135,7 +135,8 @@ Unlike sockets, named pipes may be opened in read-only or write-only mode.
 This is configured through the [cmd -access] option. [arg ACCESS] is
 a list consisting one or both of [const read] and [const write] depending
 on the access desired. By default, the pipe is opened for both read
-and write access.
+and write access. Subsequent calls to create new instances of the pipe
+must also specify the same access mode else the call will fail.
 [opt_def [cmd -denyremote]]
 If specified, connections from remote clients are not accepted. This option
 requires Windows Vista or newer Windows versions. The command will raise
@@ -143,7 +144,8 @@ an error if this option is specified on older versions of Windows.
 [opt_def [cmd -maxinstances] [arg MAXINSTANCES]]
 Specifies the maximum number of instances of the named pipe that can exist.
 This only has effect for the call that creates the first instance of
-the pipe in the system. For subsequent calls, Windows ignores the option
+the pipe in the system. Subsequent calls must also specify the same
+value for [arg MAXINSTANCES] else the call will fail.
 and only checks that the pipe creation call will not cause the
 number of pipe instances to exceed the
 [arg MAXINSTANCES] value specified in the first call.
