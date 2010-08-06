@@ -152,6 +152,9 @@ number of pipe instances to exceed the
 Allows specifying a 
 [uri security.html#securitydescriptors "security descriptor"]
 that restricts access to the named pipe to specific Windows accounts.
+If unspecified, the security descriptor defaults to on that allows
+access to the [const LocalSystem] account, the [const Administrators]
+group and to the creator owner.
 
 [list_end]
 
