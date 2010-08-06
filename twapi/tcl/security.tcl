@@ -1232,9 +1232,16 @@ proc twapi::get_resource_security_descriptor {restype name args} {
     }
 
     if {$opts(handle)} {
+        set restype [_map_resource_symbol_to_type $restype false]
+        if {$restype == 5} {
+            # GetSecurityInfo crashes if a handles is passed in for
+            # SE_LMSHARE (even erroneously). It expects a string name
+            # even though the prototype says HANDLE. Protect against this.
+            error "Share resource type (share or 5) cannot be used with -handle option"
+        }
         set secd [GetSecurityInfo \
                       [CastToHANDLE $name] \
-                      [_map_resource_symbol_to_type $restype false] \
+                      $restype \
                       $wanted]
     } else {
         # GetNamedSecurityInfo seems to fail with a overlapped i/o
