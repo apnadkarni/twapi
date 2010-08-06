@@ -1077,9 +1077,18 @@ int Twapi_LookupAccountName (
     Tcl_Obj     *objs[3];
     int          i;
 
+    /*
+     * Special case check for empty string - else LookupAccountName
+     * returns the same error as for insufficient buffer .
+     */
+    if (*lpAccountName == 0) {
+        return Twapi_GenerateWin32Error(interp, ERROR_INVALID_PARAMETER, "Empty string passed for account name.");
+    }
+
     for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
         objs[i] = NULL;
     result = TCL_ERROR;
+
 
     domain_buf_size = 0;
     sid_buf_size    = 0;
@@ -1117,8 +1126,8 @@ int Twapi_LookupAccountName (
         /* Redo the operation */
         WCHAR *new_accountP;
         size_t len = 0;
-        assert(lpSystemName);
-        assert(lpAccountName);
+        TWAPI_ASSERT(lpSystemName);
+        TWAPI_ASSERT(lpAccountName);
         len = lstrlenW(lpSystemName) + 1 + lstrlenW(lpAccountName) + 1;
         new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
         StringCchPrintfW(new_accountP, len, L"%s\\%s", lpSystemName, lpAccountName);
