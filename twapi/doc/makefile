@@ -75,32 +75,33 @@ FMT=htm
 
 HTMLOUTPUTFILES=$(MANFILES:.man=.html)
 HTFOUTPUTFILES=$(MANFILES:.man=.htf)
+CHMDIR=chm-build
 
-all: twapi.chm
+all: $(CHMDIR)\twapi.chm makefile
 
-twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_mshelp_hhp.tcl generate_mshelp_index.tcl generate_mshelp_contents.tcl
+$(CHMDIR)\twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_mshelp_hhp.tcl generate_mshelp_index.tcl generate_mshelp_contents.tcl
 	@echo =========Building CHM file...
 	@echo Making directories...
-	-$(SILENT)if not exist chm-build mkdir chm-build
+	-$(SILENT)if not exist $(CHMDIR) mkdir chm-build
 	@echo Copying man files
-	$(SILENT)xcopy /q /y *.man chm-build
+	$(SILENT)xcopy /q /y *.man $(CHMDIR)
 	@echo Processing man files...
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) map -ext html $(MANFILES) > iomap.tmp
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) -varfile meta ../html_head.inc $(FMT) iomap.tmp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) map -ext html $(MANFILES) > iomap.tmp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) -varfile meta ../html_head.inc $(FMT) iomap.tmp
 	@echo Generating MSHELP input files...
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_hhp.tcl $(HTMLOUTPUTFILES) styleschm.css > twapi.hhp
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_index.tcl idx.tmp > twapi.hhk
-	$(SILENT)cd chm-build && $(SILENT)$(TCLSH) ../generate_mshelp_contents.tcl meta.tmp > twapi.hhc
-	$(SILENT)xcopy /q /y styleschm.css chm-build
-	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f chm-build
-	$(SILENT)xcopy /q /y *.example chm-build
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_hhp.tcl $(HTMLOUTPUTFILES) styleschm.css > twapi.hhp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_index.tcl idx.tmp > twapi.hhk
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_contents.tcl meta.tmp > twapi.hhc
+	$(SILENT)xcopy /q /y styleschm.css $(CHMDIR)
+	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f $(CHMDIR)
+	$(SILENT)xcopy /q /y *.example $(CHMDIR)
 # HHC always seems to return exit code 1!!
 	@echo Generating CHM file...
-	-$(SILENT)cd chm-build && $(SILENT)$(HHC) twapi.hhp
+	-$(SILENT)cd $(CHMDIR) && $(SILENT)$(HHC) twapi.hhp
 
-htmdistribution: readme.txt twapi.chm
+htmdistribution: readme.txt $(CHMDIR)\twapi.chm
 	-if not exist "$(PACKAGEDIR)\doc" mkdir "$(PACKAGEDIR)\doc"
 	!copy /y $? "$(PACKAGEDIR)\doc"
 
