@@ -428,12 +428,12 @@ proc twapi::set_window_style {hwin style exstyle} {
 
 # Return the class of the window
 proc twapi::get_window_class {hwin} {
-    return [_return_window [GetClassName $hwin]]
+    return [GetClassName $hwin]
 }
 
 # Return the real class of the window
 proc twapi::get_window_real_class {hwin} {
-    return [_return_window [RealGetWindowClass $hwin]]
+    return [RealGetWindowClass $hwin]
 }
 
 # Return the long value at the given index
@@ -1539,7 +1539,7 @@ proc twapi::_get_gui_thread_info {tid args} {
 
 # if $hwin corresponds to a null window handle, returns an empty string
 proc twapi::_return_window {hwin} {
-    if {$hwin == 0} {
+    if {[Twapi_IsNullPtr $hwin HWND]} {
         return $twapi::null_hwin
     }
     return $hwin
@@ -1547,16 +1547,16 @@ proc twapi::_return_window {hwin} {
 
 # Return 1 if same window
 proc twapi::_same_window {hwin1 hwin2} {
-    # If either is a null handle, no match
+    # If either is a empty/null handle, no match, even if both empty/null
     if {[string length $hwin1] == 0 || [string length $hwin2] == 0} {
         return 0
     }
-    if {$hwin1 == 0 || $hwin2 == 0} {
+    if {[Twapi_IsNullPtr $hwin1] || [Twapi_IsNullPtr $hwin2]} {
         return 0
     }
 
     # Need integer compare
-    return [expr {$hwin1==$hwin2}]
+    return [Twapi_IsEqualPtr $hwin1 $hwin2]
 }
 
 # Helper function for showing/hiding windows
@@ -2125,8 +2125,8 @@ proc twapi::_get_message_only_windows {args} {
     # -3 -> HWND_MESSAGE windows
 
     while true {
-        set win [FindWindowEx -3 $prev "" ""]
-        if {$win == 0} break
+        set win [FindWindowEx [list -3 HWND] $prev "" ""]
+        if {[Twapi_IsNullPtr $win]} break
         lappend wins $win
         if {$opts(single)} break
         set prev $win
