@@ -75,7 +75,9 @@ int Twapi_SetServiceStatus(
                      GETINT(ss.dwWin32ExitCode),
                      GETINT(ss.dwServiceSpecificExitCode),
                      GETINT(ss.dwCheckPoint),
-                     GETINT(ss.dwWaitHint), GETINT(ss.dwControlsAccepted))
+                     GETINT(ss.dwWaitHint), GETINT(ss.dwControlsAccepted),
+                     ARGEND
+            )
         != TCL_OK)
         return TCL_ERROR;
 
@@ -124,7 +126,7 @@ int Twapi_BecomeAService(
         int       n;
         int       ctrls;
         WCHAR    *nameP;
-        if (Tcl_ListObjGetElements(interp, objv[i+1], &n, &objs) != TCL_ERROR ||
+        if (Tcl_ListObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||
             n != 2 ||
             Tcl_GetIntFromObj(interp, objs[1], &ctrls) != TCL_OK) {
             Tcl_SetResult(interp, "Invalid service specification format.", TCL_STATIC);
@@ -188,6 +190,9 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
         return TCL_ERROR;
     }
     switch (cbP->ctrl) {
+    case 0:
+        ctrl_str = "start";
+        break;
     case SERVICE_CONTROL_STOP:
         ctrl_str = "stop";
         break;
@@ -505,9 +510,28 @@ static void WINAPI TwapiServiceThread(DWORD argc, WCHAR **argv)
         ss.dwCheckPoint = 1;    // Must not be 0 for START_PENDING! See Richter
         ss.dwWaitHint = 5000;
 
-        // TBD - how to report error returns?
-        SetServiceStatus(gServiceContexts[service_index]->service_status_handle,
-                         &ss);
+        if (!SetServiceStatus(gServiceContexts[service_index]->service_status_handle,
+                              &ss)) {
+            // TBD - how to report error returns?
+        } else {
+            TwapiServiceControlCallback *cbP;
+
+            cbP = (TwapiServiceControlCallback *)
+                TwapiCallbackNew(gServiceInterpContextP,
+                                 TwapiServiceControlCallbackFn,
+                                 sizeof(*cbP));
+
+            cbP->service_index = service_index;
+            cbP->ctrl = 0;      /* 0 -> Start signal */
+            cbP->event = 0;
+            cbP->additional_info = 0;
+
+            /* TBD - in call below, on error, do we send an error notification ? */
+            TwapiEnqueueCallback(gServiceInterpContextP, &cbP->cb,
+                                 TWAPI_ENQUEUE_DIRECT,
+                                 0, /* No response wanted */
+                                 NULL);
+        }
     }
 
     /*
