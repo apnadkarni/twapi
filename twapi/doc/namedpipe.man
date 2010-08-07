@@ -80,6 +80,12 @@ to be attached to the pipe. When
 a client attempts a connect, its credentials are checked against the
 descriptor and access is granted accordingly.
 
+[para]
+Servers can also retrieve and impersonate the client's credentials
+through [uri security.html#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]]. Conversely, the client can specify options to
+[uri #namedpipe_server [cmd namedpipe_client]]
+to control the degree to which the server can impersonate its security context.
+
 [section Commands]
 [list_begin definitions]
 
@@ -108,6 +114,35 @@ with the default system encoding with line ending translation enabled. Use
 the [cmd fconfigure] command to change this. Note the encoding and line
 ending options must match those the server side else data might appear
 to be corrupted.
+
+[list_begin opt]
+
+[opt_def [cmd -access] [arg ACCESS]]
+Unlike sockets, named pipes may be opened in read-only or write-only mode.
+This is configured through the [cmd -access] option. [arg ACCESS] is
+a list consisting one or both of [const read] and [const write] depending
+on the access desired. By default, the pipe is opened for both read
+and write access. Subsequent calls to create new instances of the pipe
+must also specify the same access mode else the call will fail.
+
+[opt_def [cmd -impersonatecontexttracking] [arg BOOLEAN]]
+If specified as [const TRUE], the client security context is dynamically
+tracked by the server. Default is [const FALSE].
+This option is ignored unless [cmd -impersonationlevel] is also specified.
+
+[opt_def [cmd -impersonateeffectiveonly] [arg BOOLEAN]]
+If specified as [const FALSE] (default), all aspects of the client
+security context are visible to the server. If [const TRUE], only
+the enabled aspects (groups and privileges) are visible to the server.
+This option is ignored unless [cmd -impersonationlevel] is also specified.
+
+[opt_def [cmd -impersonationlevel] [arg IMPERSONATIONLEVEL]]
+Sets the impersonation level at which the server
+is allowed to impersonate the client. Must be one of
+[const anonymous], [const identification], [const impersonation] or
+[const delegation]. See 
+[uri security.html#impersonation "Impersonation"] for details.
+[list_end]
 
 [call [cmd namedpipe_server] [arg PIPENAME] [opt [arg options]]]
 
@@ -155,8 +190,9 @@ Allows specifying a
 [uri security.html#securitydescriptors "security descriptor"]
 that restricts access to the named pipe to specific Windows accounts.
 If unspecified, the security descriptor defaults to on that allows
-access to the [const LocalSystem] account, the [const Administrators]
-group and to the creator owner.
+full access to the [const LocalSystem] account, the [const Administrators]
+group and to the creator owner, and read access to the [const Everyone]
+group and anonymous account.
 
 [list_end]
 

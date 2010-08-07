@@ -587,6 +587,11 @@ proc twapi::impersonate_user {args} {
     }
 }
 
+# Impersonate a named pipe client
+proc twapi::impersonate_namedpipe_client {chan} {
+    set h [get_tcl_channel_handle $chan read]
+    ImpersonateNamedPipeClient $h
+}
 
 # Revert to process token
 proc twapi::revert_to_self {{opt ""}} {

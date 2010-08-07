@@ -97,6 +97,7 @@ functions for impersonation and reverting back are
 [uri \#impersonate_token [cmd impersonate_token]],
 [uri \#impersonate_user [cmd impersonate_user]],
 [uri \#impersonate_self [cmd impersonate_self]],
+[uri \#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]],
 [uri \#set_thread_token [cmd set_thread_token]]
 and [uri \#revert_to_self [cmd revert_to_self]].
 [para]
@@ -924,6 +925,13 @@ use the
 or the [cmd -virtualized] option of the
 [uri process.html#get_process_info [cmd get_process_info]] command.
 
+[call [cmd impersonate_namedpipe_client] [arg CHANNEL]]
+Changes the security context of the calling thread to that of the client
+of a named pipe. [arg CHANNEL] is a Tcl channel identifier for the server
+end of a named pipe. This call will fail unless some data is first read
+from the channel.
+[nl]
+[emph "The caller must be careful that exceptions raised by this command are handled correctly. It should not continue with normal processing as though the security context was changed to that of the named pipe client."]
 
 [call [cmd impersonate_self] [arg IMPERSONATIONLEVEL]]
 Assigns an impersonation token to the current thread based on the security
@@ -940,9 +948,8 @@ account associated with the specified token. [arg TOKEN] is a token
 returned from a command such as [cmd open_user_token], [cmd open_process_token]
 or [cmd open_thread_token].
 [nl]
-The caller must be careful that exceptions raised by this command are handled
-correctly. It should not continue with normal processing as though
-the security context was changed to that of the token.
+[emph "The caller must be careful that exceptions raised by this command are handled correctly. It should not continue with normal processing as though the security context was changed to that of the token."]
+
 
 [call [cmd impersonate_user] [arg USERNAME] [arg PASSWORD] [opt [arg options]]]
 Changes the security context of the calling thread to that of the specified
@@ -950,9 +957,8 @@ user account. This is essentially a wrapper around [cmd open_user_token]
 and [cmd impersonate_token]. Refer to the documentation of
 [cmd open_user_token] for a description of the arguments.
 [nl]
-The caller must be careful that exceptions raised by this command are handled
-correctly. It should not continue with normal processing as though
-the security context was changed to that of the user account.
+[emph "The caller must be careful that exceptions raised by this command are handled correctly. It should not continue with normal processing as though the security context was changed to that of the user."]
+
 
 [call [cmd is_valid_luid_syntax] [arg LUID]]
 

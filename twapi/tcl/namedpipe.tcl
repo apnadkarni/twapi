@@ -6,17 +6,6 @@
 
 # Implementation of named pipes
 
-proc twapi::namedpipe {name args} {
-    array set opts [parseargs args {
-        {type.arg client {server client}}
-    }]
-    if {$opts(type) eq "server"} {
-        return [twapi::namedpipe_server $name {*}$args]
-    } else {
-        return [twapi::namedpipe_client $name {*}$args]
-    }
-}
-
 proc twapi::namedpipe_server {name args} {
     set name [file nativename $name]
 
@@ -75,7 +64,9 @@ proc twapi::namedpipe_client {name args} {
 
     array set opts [twapi::parseargs args {
         {access.arg {read write}}
-        {secattr.arg {}}
+        impersonationlevel.arg
+        {impersonateeffectiveonly.bool false}
+        {impersonatecontexttracking.bool false}
     } -maxleftover 0]
 
     # FILE_READ_DATA              0x00000001
@@ -87,10 +78,30 @@ proc twapi::namedpipe_client {name args} {
         write 2
     }]
         
-    set share_mode 0;           # Share none
     set flags 0
+    if {[info exists opts(impersonationlevel)]} {
+        switch -exact -- $opts(impersonationlevel) {
+            anonymous      { set flags 0x00100000 }
+            identification { set flags 0x00110000 }
+            impersonation  { set flags 0x00120000 }
+            delegation     { set flags 0x00130000 }
+            default {
+                # ERROR_BAD_IMPERSONATION_LEVEL
+                win32_error 1346 "Invalid impersonation level '$opts(impersonationlevel)'."
+            }
+        }
+        if {$opts(impersonateeffectiveonly)} {
+            set flags [expr {$flags | 0x00080000}]
+        }
+        if {$opts(impersonatecontexttracking)} {
+            set flags [expr {$flags | 0x00040000}]
+        }
+    }
+
+    set share_mode 0;           # Share none
+    set secattr {};             # At some point use this for "inherit" flag
     set create_disposition 3;   # OPEN_EXISTING
     return [twapi::Twapi_NPipeClient $name $desired_access $share_mode \
-                $opts(secattr) $create_disposition $flags]
+                $secattr $create_disposition $flags]
 }
 

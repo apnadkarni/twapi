@@ -1029,6 +1029,19 @@ proc twapi::new_acl {{aces ""}} {
     return [list $acl_rev $aces]
 }
 
+# Creates an ACL that gives the specified rights to specified trustees
+proc twapi::new_restricted_dacl {accounts rights} {
+    set access_mask [_access_rights_to_mask $rights]
+
+    set aces {}
+    foreach account $accounts {
+        lappend aces [new_ace allow $account $access_mask]
+    }
+
+    return [new_acl $aces]
+
+}
+
 # Return the list of ACE's in an ACL
 proc twapi::get_acl_aces {acl} {
     return [lindex $acl 1]
@@ -1082,6 +1095,7 @@ proc twapi::new_security_descriptor {args} {
 }
 
 # Return the control bits in a security descriptor
+# TBD - update for new Windows versions
 proc twapi::get_security_descriptor_control {secd} {
     if {[_null_secd $secd]} {
         error "Attempt to get control field from NULL security descriptor."
@@ -1393,8 +1407,20 @@ proc twapi::get_security_descriptor_text {secd args} {
     } -maxleftover 0]
 
     append result "Flags:\t[get_security_descriptor_control $secd]\n"
-    append result "Owner:\t[map_account_to_name [get_security_descriptor_owner $secd]]\n"
-    append result "Group:\t[map_account_to_name [get_security_descriptor_group $secd]]\n"
+    set name [get_security_descriptor_owner $secd]
+    if {$name eq ""} {
+        set name Undefined
+    } else {
+        set name [map_account_to_name $name]
+    }
+    append result "Owner:\t$name\n"
+    set name [get_security_descriptor_group $secd]
+    if {$name eq ""} {
+        set name Undefined
+    } else {
+        set name [map_account_to_name $name]
+    }
+    append result "Group:\t$name\n"
 
     set acl [get_security_descriptor_dacl $secd]
     append result "DACL Rev: [get_acl_rev $acl]\n"
@@ -1864,7 +1890,7 @@ proc twapi::_map_resource_symbol_to_type {sym {named true}} {
         kernelobj { return 6 }
     }
     if {$named} {
-        error "Resource type '$restype' not valid for named resources."
+        error "Resource type '$sym' not valid for named resources."
     }
 
     switch -exact -- $sym {
