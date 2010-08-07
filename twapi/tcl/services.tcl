@@ -942,6 +942,7 @@ proc twapi::_report_service_status {name} {
         Twapi_SetServiceStatus $name $::twapi::service_state_values($current_state) $service_state($name,exitcode) $service_state($name,servicecode) $service_state($name,checkpoint) $waithint $service_state(controls)
     } msg]} {
         # TBD - report error - but how ? bgerror?
+        catch {twapi::eventlog_log "Error setting service status: $msg"}
     }
 
     # If we had supplied a wait hint, we are telling the SCM, we will call
