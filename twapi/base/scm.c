@@ -433,12 +433,13 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
                      GETINT(start_type), GETINT(error_control),
                      GETWSTR(path), GETWSTR(logrp),
                      ARGSKIP, ARGSKIP,
-                     GETWSTR(service_start_name), GETWSTR(password),
+                     GETNULLIFEMPTY(service_start_name),
+                     GETNULLIFEMPTY(password),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
 
-    if (Tcl_GetLongFromObj(interp, objv[9], &tag_id) == TCL_OK)
+    if (Tcl_GetLongFromObj(NULL, objv[9], &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
@@ -464,6 +465,8 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
     if (svcH) {
         Tcl_SetObjResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
         tcl_result = TCL_OK;
+    } else {
+        TwapiReturnSystemError(interp);
     }
 
 vamoose:
