@@ -73,6 +73,10 @@ Added [uri ui.html#flash_window [cmd flash_window]].
 [uri security.html#security_descriptor_to_sddl [cmd security_descriptor_to_sddl]] and
 [uri security.html#sddl_to_security_descriptor [cmd sddl_to_security_descriptor]].
 
+[bullet]
+Added
+[uri security.html#new_restricted_dacl [cmd new_restricted_dacl]].
+
 [bullet] Added
 [uri process.html#process_in_administrators [cmd process_in_administrators]].
 

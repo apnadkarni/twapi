@@ -1245,7 +1245,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
         }
 
         Tcl_ResetResult(interp);
-        Tcl_AppendResult(interp, "Invalid opaque value representation: '",
+        Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
                          Tcl_GetString(obj), "'.", NULL);
         return TCL_ERROR;
     }
@@ -1260,8 +1260,8 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
         }
     }
     
-    if (ObjToDWORD_PTR(interp, objsP[0], &dwp) != TCL_OK) {
-        Tcl_AppendResult(interp, "Invalid opaque value '",
+    if (ObjToDWORD_PTR(NULL, objsP[0], &dwp) != TCL_OK) {
+        Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
                          Tcl_GetString(objsP[0]), "'.", NULL);
         return TCL_ERROR;
     }

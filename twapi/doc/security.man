@@ -308,7 +308,10 @@ An access control list (ACL) is an ordered list of
 that is applied to a resource.
 The command [uri \#new_acl [cmd new_acl]]
 creates a new ACL with an optional set of ACE
-elements.
+elements. For the common case of granting access only specific accounts,
+[uri #new_restricted_dacl  [cmd new_restricted_dacl]] provides a
+simpler and more convenient interface.
+
 
 [para]
 The commands [uri \#get_acl_aces [cmd get_acl_aces]]
@@ -1039,6 +1042,15 @@ to prepopulate the ACL with a list of ACE elements.
 
 [call [cmd new_luid]]
 Returns a [uri \#uniqueidentifiers LUID].
+
+[call [cmd new_restricted_dacl] [arg ACCOUNTS] [arg RIGHTS]]
+Returns a new DACL where the access rights specified by [arg RIGHTS]
+are granted to the accounts included in [arg ACCOUNTS]. Other accounts
+are implicitly denied. Accounts
+may be specified using either the account names or SID's. [arg RIGHTS]
+is a list of symbolic constants and bit masks as described
+in [sectref "Access Rights"].
+
 
 [call [cmd new_security_descriptor] [opt [arg options]]]
 Returns a new [uri \#securitydescriptors "security descriptor"].

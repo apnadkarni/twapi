@@ -91,7 +91,7 @@ proc notepad_exec {args} {
 # Start notepad, make it store something in the clipboard and exit
 proc notepad_copy {text} {
     set pid [notepad_exec]
-    set hwin [twapi::find_windows -pids [list $pid] -class Notepad]
+    set hwin [lindex [twapi::find_windows -pids [list $pid] -class Notepad] 0]
     twapi::set_foreground_window $hwin
     after 100;                          # Wait for it to become foreground
     twapi::send_keys $text

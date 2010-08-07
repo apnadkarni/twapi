@@ -561,7 +561,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
     CALL_(Twapi_NPipeServer, Call, 10117);
     CALL_(Twapi_NPipeClient, Call, 10118);
-
+    CALL_(Twapi_IsNullPtr, Call, 10119);
+    CALL_(Twapi_IsEqualPtr, Call, 10120);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2479,8 +2480,32 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_NPipeServer(ticP, objc-2, objv+2);
         case 10118:
             return Twapi_NPipeClient(ticP, objc-2, objv+2);
+        case 10119: // IsNullPtr
+            if (objc < 3 || objc > 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            cP = NULL;
+            if (objc == 4) {
+                cP = Tcl_GetString(objv[3]);
+                NULLIFY_EMPTY(cP);
+            }
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = ObjToOpaque(interp, objv[2], &pv, cP);
+            if (result.value.ival == TCL_OK) {
+                result.type = TRT_BOOL;
+                result.value.bval = (pv == NULL);
+            }
+            break;
+        case 10120: // IsEqualPtr
+            if (objc != 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            if (ObjToOpaque(interp, objv[2], &pv, NULL) != TCL_OK ||
+                ObjToOpaque(interp, objv[3], &pv2, NULL) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            result.type = TRT_BOOL;
+            result.value.bval = (pv == pv2);
+            break;
         }
-
     }
 
     return TwapiSetResult(interp, &result);
@@ -4045,7 +4070,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         break;
     case 1006: // FindWindowEx
         if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETHANDLET(hwnd2, "HWND"),
+                         GETHANDLET(hwnd2, HWND),
                          GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -4079,7 +4104,7 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
     LPWSTR s, s2;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETHANDLET(hwnd, "HWND"), GETINT(dw),
+                     GETINT(func), GETHANDLET(hwnd, HWND), GETINT(dw),
                      ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
