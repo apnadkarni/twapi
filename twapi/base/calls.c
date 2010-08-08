@@ -561,8 +561,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
     CALL_(Twapi_NPipeServer, Call, 10117);
     CALL_(Twapi_NPipeClient, Call, 10118);
-    CALL_(Twapi_IsNullPtr, Call, 10119);
-    CALL_(Twapi_IsEqualPtr, Call, 10120);
+    CALL_(Twapi_IsEqualPtr, Call, 10119);
+    CALL_(Twapi_IsNullPtr, Call, 10120);
+    CALL_(Twapi_IsPtr, Call, 10121);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2237,7 +2238,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10073: // Twapi_FormatMessageFromModule
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETINT(dw), GETHANDLET(h, HMODULE), GETINT(dw2),
+                             GETINT(dw), GETHANDLE(h), GETINT(dw2),
                              GETINT(dw3),
                              GETWARGV(u.wargv, ARRAYSIZE(u.wargv), dw4),
                              ARGEND) != TCL_OK)
@@ -2480,22 +2481,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_NPipeServer(ticP, objc-2, objv+2);
         case 10118:
             return Twapi_NPipeClient(ticP, objc-2, objv+2);
-        case 10119: // IsNullPtr
-            if (objc < 3 || objc > 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
-            cP = NULL;
-            if (objc == 4) {
-                cP = Tcl_GetString(objv[3]);
-                NULLIFY_EMPTY(cP);
-            }
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = ObjToOpaque(interp, objv[2], &pv, cP);
-            if (result.value.ival == TCL_OK) {
-                result.type = TRT_BOOL;
-                result.value.bval = (pv == NULL);
-            }
-            break;
-        case 10120: // IsEqualPtr
+        case 10119: // IsEqualPtr
             if (objc != 4)
                 return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
             if (ObjToOpaque(interp, objv[2], &pv, NULL) != TCL_OK ||
@@ -2504,6 +2490,30 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             result.type = TRT_BOOL;
             result.value.bval = (pv == pv2);
+            break;
+        case 10120: // IsNullPtr
+            if (objc < 3 || objc > 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            cP = NULL;
+            if (objc == 4) {
+                cP = Tcl_GetString(objv[3]);
+                NULLIFY_EMPTY(cP);
+            }
+            if (ObjToOpaque(interp, objv[2], &pv, cP) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_BOOL;
+            result.value.bval = (pv == NULL);
+            break;
+        case 10121: // IsPtr
+            if (objc < 3 || objc > 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            cP = NULL;
+            if (objc == 4) {
+                cP = Tcl_GetString(objv[3]);
+                NULLIFY_EMPTY(cP);
+            }
+            result.type = TRT_BOOL;
+            result.value.bval = (ObjToOpaque(interp, objv[2], &pv, cP) == TCL_OK);
             break;
         }
     }
