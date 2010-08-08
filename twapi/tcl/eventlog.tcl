@@ -236,20 +236,65 @@ proc twapi::eventlog_format_message {event_record args} {
             }
         }
     }
-    if {$found} {
-        # Now fill in the message parameters if any
-        # TBD
-    } else {
+
+    if {! $found} {
         set fmt "The message file or event definition for event id $rec(-eventid) from source $rec(-source) was not found. The following information was part of the event: "
         set flds [list ]
         for {set i 1} {$i <= [llength $rec(-params)]} {incr i} {
             lappend flds %$i
         }
         append fmt [join $flds ", "]
-        set msg [format_message -fmtstring $fmt  \
+        return [format_message -fmtstring $fmt  \
                      -params $rec(-params) -width $opts(width)]
     }
-    
+
+    # We'd found a message from the message file and replaced the string
+    # parameters. Now fill in the parameter file values if any. Note these are
+    # separate from the string parameters passed in through rec(-params)
+
+    # First check if the formatted string itself still has placeholders
+    # Place holder for the parameters file are supposed to start
+    # with two % chars. Unfortunately, not all apps, even Microsoft's own
+    # DCOM obey this. So check for both % and %%
+    set placeholder_indices [regexp -indices -all -inline {%?%\d+} $msg]
+    if {[llength $placeholder_indices] == 0} {
+        # No placeholders.
+        return $msg
+    }
+
+    # Need to get strings from the parameter file
+    if {! [catch {registry get $regkey "ParameterMessageFile"} path]} {
+        # Loop through every placeholder, look for the entry in the
+        # parameters file and replace it if found
+
+        set msgfiles {}
+        foreach msgfile [split $path \;] {
+            lappend msgfiles [expand_environment_strings $msgfile]
+        }
+        set msg2 ""
+        set prev_end 0
+        foreach placeholder $placeholder_indices {
+            foreach {start end} $placeholder break
+            # Append the stuff between previous placeholder and this one
+            append msg2 [string range $msg $prev_end $start-1]
+            set repl [string range $msg $start $end]; # Default if not found
+            set msgid [string trimleft $repl %];     # Skip "%"
+            # Try each file listed in turn
+            foreach msgfile $msgfiles {
+                if {! [catch {
+                    set repl [string trimright [format_message -module $msgfile -messageid $msgid -params $rec(-params) -langid $opts(langid)] \r\n]
+                } ]} {
+                    # Found the replacement
+                    break
+                }
+            }
+            append msg2 $repl
+            set prev_end [incr end]
+        }
+        append msg2 [string range $msg $prev_end end]
+        set msg $msg2
+    }
+
     return $msg
 }
 
