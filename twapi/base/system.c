@@ -27,7 +27,7 @@ int TwapiFormatMessageHelper(
 
     result = TCL_ERROR;
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER;
-#ifdef OBSOLETE
+#if 1
     /* For security reasons, MSDN recommends not to use FormatMessageW
        with arbitrary codes unless IGNORE_INSERTS is also used, in which
        case arguments are ignored and we do not need the __try. Note __try
@@ -39,6 +39,12 @@ int TwapiFormatMessageHelper(
        building a FormatMessage parser ourselves.
 
        As a side-benefit, not using __try reduces CRT dependency.
+
+       Despite all the above, we still allow inserts with the expectation
+       that the application will not call this function without proper
+       care. In other words, we are no better, no worse than FormatMessage
+       itself. Disabling inserts disables too much functionality, eg.
+       parsing event log messages.
     */
     __try {
         if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
