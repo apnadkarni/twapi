@@ -1301,13 +1301,7 @@ proc twapi::get_array_as_options {v_arr} {
 if {[info exists ::tcl_platform(pointerSize)] &&
     $::tcl_platform(pointerSize) == 8} {
     # TBD - need more robust way
-    proc twapi::_is_swig_ptr {p} {
-        return [regexp {^_[[:xdigit:]]{16}_p_} $p]
-    }
-    proc twapi::_is_win32_handle {h} {
-        return [regexp {^_[[:xdigit:]]{16}_(VALID_)?HANDLE} $h]
-    }
-    proc twapi::_cast_swig_ptr {p newtype} {
+    proc twapi::OBSOLETE_cast_swig_ptr {p newtype} {
         # *** Does NO ERROR CHECKING ***
         if {$p eq "NULL"} {
             return $p
@@ -1315,13 +1309,7 @@ if {[info exists ::tcl_platform(pointerSize)] &&
         return "[string range $p 0 19]$newtype"
     }
 } else {
-    proc twapi::_is_swig_ptr {p} {
-        return [regexp {^_[[:xdigit:]]{8}_p_} $p]
-    }
-    proc twapi::_is_win32_handle {h} {
-        return [regexp {^_[[:xdigit:]]{8}_(VALID_)?HANDLE} $h]
-    }
-    proc twapi::_cast_swig_ptr {p newtype} {
+    proc twapi::OBSOLETE_cast_swig_ptr {p newtype} {
         # *** Does NO ERROR CHECKING ***
         if {$p eq "NULL"} {
             return $p
@@ -1462,7 +1450,7 @@ proc twapi::_timestring_to_timelist {timestring} {
 
 # Malloc and cast. If init_size_field is non-0 first 4 bytes are set
 # to it (useful for many Windows data strucures)
-proc twapi::malloc_and_cast {size type {size_field 0}} {
+proc twapi::OBSOLETEmalloc_and_cast {size type {size_field 0}} {
     set mem [malloc $size]
     if {$size_field} {
         # As an aside note that the value $size_field may not be
@@ -1473,7 +1461,7 @@ proc twapi::malloc_and_cast {size type {size_field 0}} {
 }
 
 # Malloc and initialize with a binary
-proc twapi::malloc_binary {args} {
+proc twapi::OBSOLETEmalloc_binary {args} {
     array set opts [parseargs args {
         size.int
         type.arg
