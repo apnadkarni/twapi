@@ -160,12 +160,11 @@ proc twapi::eventlog_read {hevl args} {
         set recs [list ]
     }
     foreach rec $recs {
-        foreach {fld index} {
-            -source 0 -system 1 -recordnum 3 -timegenerated 4 -timewritten 5
-            -eventid 6 -type 7 -category 8 -params 11 -sid 12 -data 13
-        } {
-            set event($fld) [lindex $rec $index]
-        }
+        array set event [twine {
+            -source -system -reserved -recordnum -timegenerated
+            -timewritten -eventid -type -category -reservedflags
+            -recnum -params -sid -data 
+        } $rec]
         set event(-type) [string map {0 success 1 error 2 warning 4 information 8 auditsuccess 16 auditfailure} $event(-type)]
         lappend results [array get event]
     }
