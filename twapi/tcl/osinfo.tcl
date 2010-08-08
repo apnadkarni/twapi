@@ -1325,8 +1325,8 @@ proc twapi::_unsafe_format_message {args} {
             error "Unspecfied or invalid value for -langid option. Must be an integer value"
         }
 
-        # Check if $opts(module) is a file
-        if {[_is_swig_ptr $opts(module)]} {
+        # Check if $opts(module) is a file or module handle (pointer)
+        if {[Twapi_IsPtr $opts(module)]} {
             return  [FormatMessageFromModule $flags $opts(module) \
                          $opts(messageid) $opts(langid) $opts(params)]
         } else {
