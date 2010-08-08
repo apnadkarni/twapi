@@ -3,13 +3,13 @@
 
 package require twapi
 
-if {$argc > 2} {
+if {$argc > 1} {
     puts stderr "Usage: [info nameofexecutable] $argv0 EVENTLOGNAME"
     exit
 }
 
-if {$argc == 2} {
-    set source [lindex $argv 1]
+if {$argc == 1} {
+    set source [lindex $argv 0]
 } else {
     set source "Application"
 }
@@ -17,6 +17,9 @@ if {$argc == 2} {
 # Open the specified event log
 set hevl [twapi::eventlog_open -source $source]
 
+# Make translation binary (lf), since records have embedded CR-LF,
+# we will have to explicitly output CR-LF pairs
+fconfigure stdout -translation lf
 # Keep reading record until no more
 while {[llength [set events [twapi::eventlog_read $hevl]]]} {
     # print out each record
@@ -26,6 +29,6 @@ while {[llength [set events [twapi::eventlog_read $hevl]]]} {
         set source   $event(-source)
         set category [twapi::eventlog_format_category $eventrec -width -1]
         set message  [twapi::eventlog_format_message $eventrec -width -1]
-        puts "Time: $timestamp\nSource: $source\nCategory: $category\n$message\n"
+        puts -nonewline "Time: $timestamp\r\nSource: $source\r\nCategory: $category\r\n$message\r\n\r\n"
     }
 }
