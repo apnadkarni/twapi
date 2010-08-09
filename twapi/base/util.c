@@ -400,7 +400,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
     if (tcl_status == TCL_OK)
         cbP->response.type = response_type;
     else
-        cbP->response.type = TRT_EMPTY;
+        TwapiClearResult(&cbP->response);
 
     Tcl_ResetResult(cbP->ticP->interp);/* Don't leave crud from eval */
     Tcl_Release(cbP->ticP->interp);

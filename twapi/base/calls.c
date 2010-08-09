@@ -734,6 +734,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
+    CALL_(Twapi_UnregisterWaitOnHandle, CallH, 65);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -765,6 +766,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
     CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
+    CALL_(Twapi_RegisterWaitOnHandle, CallH, 2011);
 
     CALL_(SetFileTime, CallH, 10001);
     CALL_(SetThreadToken, CallH, 10002);
@@ -3367,6 +3369,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ImpersonateNamedPipeClient(h);
             break;
+        case 65:
+            result.type = TRT_EMPTY;
+            TwapiThreadPoolUnregister(ticP, h);
+            break;
         }
     } else if (func < 2000) {
 
@@ -3503,6 +3509,11 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 2010: 
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoResizeLast(h, dw, dw2);
+            break;
+        case 2011:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = TwapiThreadPoolRegister(
+                ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
             break;
         }
     } else {
