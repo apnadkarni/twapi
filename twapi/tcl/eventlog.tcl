@@ -330,6 +330,40 @@ proc twapi::eventlog_format_category {event_record args} {
     return "Category $rec(-category)"
 }
 
+proc twapi::eventlog_monitor_start {hevl script} {
+    variable _eventlog_notification_scripts
+
+    set hevent [create_event]
+    if {[catch {NotifyChangeEventLog $hevl $hevent} msg]} {
+        CloseHandle $hevent
+        error $msg $::errorInfo $::errorCode
+    }
+
+    wait_on_handle $hevent -async twapi::_eventlog_notification_handler
+    set _eventlog_notification_scripts($hevent) $script
+
+    return $hevent
+}
+
+# Stop any notifications. Note these will stop even if the event log
+# handle is closed but leave the event dangling.
+proc twapi::eventlog_monitor_stop {hevent} {
+    variable _eventlog_notification_scripts
+    if {[info exists _eventlog_notification_scripts($hevent)]} {
+        unset _eventlog_notification_scripts($hevent)
+        cancel_wait_on_handle $hevent
+        CloseHandle $hevent
+    }
+}
+
+proc twapi::_eventlog_notification_handler {hevent event} {
+    variable _eventlog_notification_scripts
+    if {[info exists _eventlog_notification_scripts($hevent)] &&
+        $event eq "signalled"} {
+        eval $_eventlog_notification_scripts($hevent)
+    }
+}
+
 # Utility procs
 
 # Validate a handle for a mode. Always raises error if handle is invalid
