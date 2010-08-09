@@ -564,6 +564,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsEqualPtr, Call, 10119);
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
+    CALL_(CreateEvent, Call, 10122);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -735,6 +736,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
     CALL_(Twapi_UnregisterWaitOnHandle, CallH, 65);
+    CALL_(SetEvent, CallH, 66);
+    CALL_(ResetEvent, CallH, 67);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -2400,7 +2403,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             secattrP = NULL;        /* Even on error, it might be filled */
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             GETBOOL(dw), GETWSTR(s),
+                             GETBOOL(dw), GETNULLIFEMPTY(s),
                              ARGEND) == TCL_OK) {
                 result.type = TRT_HANDLE;
                 result.value.hval = CreateMutexW(secattrP, dw, s);
@@ -2424,7 +2427,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             secattrP = NULL;        /* Even on error, it might be filled */
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             GETINT(dw), GETINT(dw2), GETWSTR(s),
+                             GETINT(dw), GETINT(dw2), GETNULLIFEMPTY(s),
                              ARGEND) == TCL_OK) {
                 result.type = TRT_HANDLE;
                 result.value.hval = CreateSemaphoreW(secattrP, dw, dw2, s);
@@ -2517,6 +2520,22 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = (ObjToOpaque(interp, objv[2], &pv, cP) == TCL_OK);
             break;
+        case 10122:
+            secattrP = NULL;        /* Even on error, it might be filled */
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                             GETBOOL(dw), GETBOOL(dw2),
+                             GETNULLIFEMPTY(s),
+                             ARGEND) == TCL_OK) {
+                result.type = TRT_HANDLE;
+                result.value.hval = CreateEventW(secattrP, dw, dw2, s);
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+            break;
+
         }
     }
 
@@ -3372,6 +3391,14 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 65:
             result.type = TRT_EMPTY;
             TwapiThreadPoolUnregister(ticP, h);
+            break;
+        case 66:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetEvent(h);
+            break;
+        case 67:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = ResetEvent(h);
             break;
         }
     } else if (func < 2000) {
