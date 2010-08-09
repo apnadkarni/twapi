@@ -618,26 +618,39 @@ typedef struct _TwapiCallback TwapiCallback;
 ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
 ZLIST_CREATE_TYPEDEFS(TwapiCallback);
 
-typedef struct _TwapiThreadPoolRegisteredHandle TwapiThreadPoolRegisteredHandle;
-
 typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
 ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
 
-#if 0
+
 /*
  * We need to keep track of handles that are being tracked by the 
  * thread pool so they can be released on interp deletion even if
  * the application code does not explicitly release them.
+ * NOTE: currently not all modules make use of this but probably should - TBD.
  */
-ZLINK_CREATE_TYPEDEFS(TwapiThreadPoolRegisteredHandle); 
-ZLIST_CREATE_TYPEDEFS(TwapiThreadPoolRegisteredHandle); 
-typedef struct _TwapiThreadPoolRegisteredHandle {
+typedef struct _TwapiThreadPoolRegistration TwapiThreadPoolRegistration;
+ZLINK_CREATE_TYPEDEFS(TwapiThreadPoolRegistration); 
+ZLIST_CREATE_TYPEDEFS(TwapiThreadPoolRegistration); 
+typedef struct _TwapiThreadPoolRegistration {
     HANDLE handle;              /* Handle being waited on by thread pool */
     HANDLE tp_handle;           /* Corresponding handle returned by pool */
-    ZLINK_DECL(TwapiThreadPoolRegisteredHandle); /* Link for tracking list */
-} TwapiThreadPoolRegisteredHandle;
-#endif
+    TwapiInterpContext *ticP;
+    ZLINK_DECL(TwapiThreadPoolRegistration); /* Link for tracking list */
+
+    /* To be called when a HANDLE is signalled */
+    void (*signal_handler) (TwapiInterpContext *ticP, HANDLE h, DWORD);
+
+    /*
+     * To be called when handle wait is being unregistered. Routine should
+     * take care to handle the case where ticP and/or h is NULL.
+     */
+    void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE h);
+
+    /* Only accessed from Interp thread so no locking */
+    ULONG nrefs;
+} TwapiThreadPoolRegistration;
+
 
 
 /*
@@ -754,6 +767,12 @@ typedef struct _TwapiInterpContext {
     int              pending_suspended;       /* If true, do not pend events */
     
     /*
+     * List of handles registered with the Windows thread pool. To be accessed
+     * only from the interp thread.
+     */
+    ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
+
+    /*
      * List of directory change monitor contexts. ONLY ACCESSED
      * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
      */
@@ -847,6 +866,22 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 void TwapiClearResult(TwapiResult *resultP);
 int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmt, ...);
+
+/* Thread pool handle registration */
+WIN32_ERROR TwapiThreadPoolRegister(
+    TwapiInterpContext *ticP,
+    HANDLE h,
+    ULONG timeout,
+    DWORD flags,
+    void (*signal_handler)(TwapiInterpContext *ticP, HANDLE, DWORD),
+    void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE)
+    );
+void TwapiThreadPoolUnregister(
+    TwapiInterpContext *ticP,
+    HANDLE h
+    );
+void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, HANDLE h, DWORD timeout);
+
 
 /* errors.c */
 int TwapiReturnSystemError(Tcl_Interp *interp);
