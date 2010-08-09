@@ -133,6 +133,7 @@ proc twapi::cancel_wait_on_handle {h} {
     variable _wait_handles
     if {[info exists _wait_handles($h)]} {
         Twapi_UnregisterWaitOnHandle $h
+        unset _wait_handles($h)
     }
 }
 
