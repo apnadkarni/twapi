@@ -445,7 +445,7 @@ static VOID CALLBACK TwapiThreadPoolRegistrationProc(
 
     cbP = TwapiCallbackNew(tprP->ticP,
                            TwapiThreadPoolRegistrationCallback,
-                           sizeof(&cbP));
+                           sizeof(*cbP));
 
     /* Note we do not directly pass tprP. If we did would need to Ref it */
     cbP->clientdata = (DWORD_PTR) tprP->handle;
