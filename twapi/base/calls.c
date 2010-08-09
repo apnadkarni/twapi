@@ -565,6 +565,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
+    CALL_(NotifyChangeEventLog, Call, 10123);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2535,7 +2536,17 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-
+        case 10123:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETHANDLE(h2),
+                             ARGEND) == TCL_OK) {
+                result.type = TRT_EXCEPTION_ON_FALSE;
+                result.value.ival = NotifyChangeEventLog(h, h2);
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            break;
         }
     }
 
