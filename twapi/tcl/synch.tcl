@@ -5,6 +5,7 @@
 # See the file LICENSE for license
 #
 # TBD - document
+# TBD - tcl wrappers for semaphores
 
 namespace eval twapi {
 }
@@ -13,17 +14,23 @@ namespace eval twapi {
 # Create and return a handle to a mutex
 proc twapi::create_mutex {args} {
     array set opts [parseargs args {
-        {name.arg ""}
-        {secd.arg ""}
-        {inherit.bool 0}
-        lock
-    }]
+        name.arg
+        secd.arg
+        inherit.bool
+        lock.bool
+    } -nulldefault -maxleftover 0]
+
+    if {$opts(name) ne "" && $opts(lock)} {
+        # This is not a Win32 limitation but ours. Would need to change the C
+        # implementation and our return format
+        error "Option -lock must not be specified as true if mutex is named"
+    }
 
     return [CreateMutex [_make_secattr $opts(secd) $opts(inherit)] $opts(lock) $opts(name)]
 }
 
 # Get handle to an existing mutex
-proc twapi::get_mutex_handle {name args} {
+proc twapi::open_mutex {name args} {
     array set opts [parseargs args {
         {inherit.bool 0}
         {access.arg {mutex_all_access}}
@@ -46,6 +53,29 @@ proc twapi::lock_mutex {h args} {
 proc twapi::unlock_mutex {h} {
     ReleaseMutex $h
 }
+
+#
+# Create and return a handle to a event
+proc twapi::create_event {args} {
+    array set opts [parseargs args {
+        name.arg
+        secd.arg
+        inherit.bool
+        signalled.bool
+        manualreset.bool
+    } -nulldefault -maxleftover 0]
+
+    if {$opts(name) ne "" && $opts(signalled)} {
+        # Note clear whether event will be signalled state if it already
+        # existed but was not signalled
+        error "Option -signalled must not be specified as true if event is named."
+    }
+
+    return [CreateEvent [_make_secattr $opts(secd) $opts(inherit)] $opts(manualreset) $opts(signalled) $opts(name)]
+}
+
+interp alias {} twapi::set_event {} twapi::SetEvent
+interp alias {} twapi::reset_event {} twapi::ResetEvent
 
 #
 # Wait on a handle
