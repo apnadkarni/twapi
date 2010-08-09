@@ -56,6 +56,7 @@ int TwapiEnqueueCallback(
                                              NULL);
         if (cbP->completion_event == NULL) {
             winerr = GetLastError();
+            /* TBD - what if some callback resources have to be freed ? */
             TwapiCallbackDelete(cbP);
             return winerr;
         }
@@ -207,12 +208,6 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
 
     cbP = tteP->pending_callback;
 
-    // TBD - review this comment
-    // Check if the interpreter has been deleted
-    // We know the interp structure is still valid because of the
-    // Tcl_Preserve(interp) in the PendingCallback constructor. However
-    // it might have been logically deleted
-
     /*
      * The interpreter may have been deleted, either logically or physically.
      * The callbacks can can check for this without locking because both 
@@ -220,6 +215,10 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
      * happen in the interp's Tcl thread which is where this function runs.
      *
      * cbP and cbP->ticP themselves are protected through their ref counts
+     *
+     * Note we expect the actual callback to check for interp deletion
+     * because we do not know here what the appropriate response should
+     * be in such a case.
      */
 
     if (cbP->callback(cbP) != TCL_OK) {
