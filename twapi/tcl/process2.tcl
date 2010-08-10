@@ -382,7 +382,7 @@ proc twapi::get_thread_parent_process_id {tid} {
         try {
             set pid [lindex [lindex [Twapi_NtQueryInformationThreadBasicInformation $th] 2] 0]
         } finally {
-            close_handles [list $th]
+            CloseHandle $th
         }
     }]
 
@@ -1147,7 +1147,7 @@ proc twapi::get_process_commandline {pid args} {
         set cmdline $opts(noaccess)
     } finally {
         if {[info exists hpid]} {
-            close_handles $hpid
+            CloseHandle $hpid
         }
         if {[info exists hgbl]} {
             if {[info exists pgbl]} {
@@ -1183,7 +1183,7 @@ proc twapi::get_process_parent {pid args} {
         set error noexist
     } finally {
         if {[info exists hpid]} {
-            close_handles $hpid
+            CloseHandle $hpid
         }
     }
 
