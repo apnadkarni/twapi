@@ -539,7 +539,7 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach svc [twapi::get_multiple_service_status -active] {
+        foreach {name svc} [twapi::get_multiple_service_status -active] {
             array set svcinfo $svc
             # Verify that the service is running
             if {$svcinfo(state) != "running"} {
@@ -561,7 +561,7 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach svc [twapi::get_multiple_service_status -inactive] {
+        foreach {name svc} [twapi::get_multiple_service_status -inactive] {
             array set svcinfo $svc
             # Verify that the service is running
             if {$svcinfo(state) != "stopped"} {
@@ -583,7 +583,7 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach svc [twapi::get_multiple_service_status -win32_own_process] {
+        foreach {name svc} [twapi::get_multiple_service_status -win32_own_process] {
             array set svcinfo $svc
             # Verify that the service is running
             if {$svcinfo(servicetype) != "win32_own_process"
@@ -603,7 +603,7 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach svc [twapi::get_multiple_service_status -win32_share_process] {
+        foreach {name svc} [twapi::get_multiple_service_status -win32_share_process] {
             array set svcinfo $svc
             # Verify that the service is running
             if {$svcinfo(servicetype) != "win32_share_process"
@@ -623,7 +623,7 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach svc [twapi::get_multiple_service_status -kernel_driver] {
+        foreach {name svc} [twapi::get_multiple_service_status -kernel_driver] {
             array set svcinfo $svc
             # Verify that the service is running
             if {$svcinfo(servicetype) != "kernel_driver"} {

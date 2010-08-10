@@ -1627,6 +1627,18 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
     return [list $type $val]
 }
 
+proc twapi::Twapi_PtrToAddress {p} {
+    if {[Twapi_IsPtr $p]} {
+        return [lindex $p 0]
+    } else {
+        error "'$p' is not a valid pointer value."
+    }
+}
+
+proc twapi::Twapi_AddressToPtr {addr type} {
+    return [list $addr $type]
+}
+
 
 # TBD - debug_puts
 proc twapi::debug_puts {msg {fd stderr}} {

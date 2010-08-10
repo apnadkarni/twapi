@@ -500,16 +500,30 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        # Get all modules and do some minimal checks on first module
-        eval set [lindex [twapi::get_process_modules \
-                              [get_explorer_pid] -imagedata] 0]
-        
-        # Check existence of each field
-        expr {
-              [llength ${-imagedata}] == 3 &&
-              [lsearch {0x400000 0x1000000} [lindex ${-imagedata} 0]] >= 0
-          }
-    } -result 1
+        # Get all modules and do some minimal checks
+        set result ok
+        foreach mod [twapi::get_process_modules [get_explorer_pid] -imagedata] {
+            if {[llength $mod] != 2} {
+                set result "Wrong number of fields in module element"
+                break
+            }
+            if {[lindex $mod 0] ne "-imagedata"} {
+                set result "Missing file name '-imagedata'"
+                break
+            }
+            set imagedata [lindex $mod 1]
+            if {[llength $imagedata] != 3} {
+                set result "Wrong number of elements in -imagedata field"
+                break
+            }
+            if {!([string is integer -strict [lindex $imagedata 0]] ||
+                  [string is integer -strict [lindex $imagedata 0]] ||
+                  [string is integer -strict [lindex $imagedata 0]])} {
+                set result "Non-integer image data field"
+            }
+        }
+        set result
+    } -result ok
     
     
     ###
@@ -1483,6 +1497,10 @@ namespace eval ::twapi::process::test {
         after 50;
         set pid [lindex $result 0]
         set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        if {[llength $hwin] == 0} {
+            after 100
+            set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        }
         foreach {topx topy botx boty} [twapi::get_window_coordinates $hwin] break
         twapi::end_process $pid
 

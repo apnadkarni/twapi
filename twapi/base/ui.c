@@ -52,7 +52,7 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP)
 {
     Tcl_Obj **objv;
     int       objc;
-    DWORD_PTR hwnd;
+    HWND      hwnd;
 
     if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
         return TCL_ERROR;
@@ -60,7 +60,7 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP)
 
     fwP->cbSize = sizeof(*fwP);
     if (objc == 4 &&
-        (ObjToDWORD_PTR(interp, objv[0], &hwnd) == TCL_OK) &&
+        (ObjToHWND(interp, objv[0], &hwnd) == TCL_OK) &&
         (Tcl_GetLongFromObj(interp, objv[1], &fwP->dwFlags) == TCL_OK) &&
         (Tcl_GetLongFromObj(interp, objv[2], &fwP->uCount) == TCL_OK) &&
         (Tcl_GetLongFromObj(interp, objv[3], &fwP->dwTimeout) == TCL_OK)) {

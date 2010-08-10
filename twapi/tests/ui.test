@@ -109,7 +109,7 @@ namespace eval twapi::clipboard::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::find_windows -single]
+        twapi::Twapi_IsPtr [twapi::find_windows -single]
     } -result 1
 
 
@@ -122,7 +122,7 @@ namespace eval twapi::clipboard::test {
     } -setup {
         set np_pid [notepad_exec]
     } -body {
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
         expr {[llength [twapi::find_windows -ancestor $np_top]] > 0}
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -136,7 +136,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
     } -body {
         expr {[llength [twapi::find_windows -ancestor $np_top]] > 0}
     } -cleanup {
@@ -151,7 +151,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
         set np_child [lindex [twapi::find_windows -ancestor $np_top] 0]
     } -body {
         twapi::find_windows -ancestor $np_child
@@ -229,10 +229,10 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
     } -body {
         expr {
-              [lsearch -exact -integer [twapi::find_windows -child false -pids [list $np_pid]] $np_top] >= 0
+              [lsearch -exact [twapi::find_windows -child false -pids [list $np_pid]] $np_top] >= 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -246,10 +246,10 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
     } -body {
         expr {
-              [lsearch -exact -integer [twapi::find_windows -child true -pids [list $np_pid]] $np_top] < 0
+              [lsearch -exact [twapi::find_windows -child true -pids [list $np_pid]] $np_top] < 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -263,11 +263,11 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
         set np_child [lindex [twapi::find_windows -ancestor $np_top] 0]
     } -body {
         expr {
-              [lsearch -exact -integer [twapi::find_windows -child true -pids [list $np_pid]] $np_child] >= 0
+              [lsearch -exact [twapi::find_windows -child true -pids [list $np_pid]] $np_child] >= 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -281,11 +281,11 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_top [twapi::find_windows -class Notepad -pids [list $np_pid]]
+        set np_top [notepad_top $np_pid]
         set np_child [lindex [twapi::find_windows -ancestor $np_top] 0]
     } -body {
         expr {
-              [lsearch -exact -integer [twapi::find_windows -child false -pids [list $np_pid]] $np_child] < 0
+              [lsearch -exact [twapi::find_windows -child false -pids [list $np_pid]] $np_child] < 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -466,7 +466,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::maximize_window $np_win -sync
     } -body {
         # Note case should be ignored
@@ -487,7 +487,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::maximize_window $np_win -sync
     } -body {
         # Note case should be ignored
@@ -504,7 +504,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         # Note case should be ignored
@@ -525,7 +525,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         # Note case should be ignored
@@ -543,7 +543,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set wins [twapi::find_windows -match glob -text *Notepad -pids [list $np_pid] -maximizebox 1]
         # Popup dialog has no maximize button so we should find exactly one
@@ -564,7 +564,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         # Popup dialog has no maximize button so we should find exactly one
         # window (the popup0
@@ -585,7 +585,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set wins [twapi::find_windows -match glob -text *Notepad -pids [list $np_pid] -minimizebox 1]
         # Popup dialog has no minimize button so we should find exactly one
@@ -606,7 +606,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         # Popup dialog has no minimize button so we should find exactly one
         # window (the popup0
@@ -627,7 +627,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set wins [twapi::find_windows -match glob -text *Notepad -pids [list $np_pid] -popup false]
         expr {
@@ -646,7 +646,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         # Popup dialog has no maximize button so we should find exactly one
         # window (the popup0
@@ -667,7 +667,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set wins [twapi::find_windows -match glob -text *Notepad -pids [list $np_pid] -overlapped true]
         expr {
@@ -686,15 +686,15 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         # Popup dialog has no maximize button so we should find exactly one
         # window (the popup0
         set wins [twapi::find_windows -match glob -text *Notepad -pids [list $np_pid] -overlapped false]
         expr {
-              [lsearch -exact -integer $wins $np_win] < 0 &&
-              [lsearch -exact -integer $wins $popup_win] >= 0
+              [lsearch -exact $wins $np_win] < 0 &&
+              [lsearch -exact $wins $popup_win] >= 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -708,7 +708,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set wins [twapi::find_windows -pids [list $np_pid]  -style {0x1ccf0000 0x110}]
         expr {
@@ -727,7 +727,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # Note style is mismatched
         set wins [twapi::find_windows -pids [list $np_pid]  -style {0x14cf0000 0x110}]
@@ -744,8 +744,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         # Note extended style is mismatched
         set wins [twapi::find_windows -pids [list $np_pid]  -style {0x1ccf0000 0x100}]
@@ -779,13 +779,13 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         set wins [twapi::find_windows -pids [list $np_pid] -toplevel true]
         expr {
-              [lsearch -exact -integer $wins $np_win] >= 0 &&
-              [lsearch -exact -integer $wins $popup_win] >= 0
+              [lsearch -exact $wins $np_win] >= 0 &&
+              [lsearch -exact $wins $popup_win] >= 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -799,13 +799,13 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         set wins [twapi::find_windows -pids [list $np_pid] -toplevel false]
         expr {
-              [lsearch -exact -integer $wins $np_win] < 0 &&
-              [lsearch -exact -integer $wins $popup_win] < 0
+              [lsearch -exact $wins $np_win] < 0 &&
+              [lsearch -exact $wins $popup_win] < 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -836,13 +836,13 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         set wins [twapi::find_windows -pids [list $np_pid] -visible true]
         expr {
-              [lsearch -exact -integer $wins $np_win] >= 0 &&
-              [lsearch -exact -integer $wins $popup_win] >= 0
+              [lsearch -exact  $wins $np_win] >= 0 &&
+              [lsearch -exact  $wins $popup_win] >= 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -856,13 +856,13 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         set wins [twapi::find_windows -pids [list $np_pid] -visible false]
         expr {
-              [lsearch -exact -integer $wins $np_win] < 0 &&
-              [lsearch -exact -integer $wins $popup_win] < 0
+              [lsearch -exact  $wins $np_win] < 0 &&
+              [lsearch -exact  $wins $popup_win] < 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -895,14 +895,14 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set edit_win [twapi::find_windows -class Edit -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set edit_win [twapi::find_windows -class Edit -pids [list $np_pid] -single]
     } -body {
         set wins [twapi::get_descendent_windows [twapi::get_desktop_window]]
         # Both the toplevel and edit windows should be included
         expr {
-              [lsearch -exact -integer $wins $np_win] >= 0 &&
-              [lsearch -exact -integer $wins $edit_win] >=  0
+              [lsearch -exact  $wins $np_win] >= 0 &&
+              [lsearch -exact  $wins $edit_win] >=  0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -916,8 +916,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set edit_win [twapi::find_windows -class Edit -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set edit_win [twapi::find_windows -class Edit -pids [list $np_pid] -single]
     } -body {
         set win [twapi::get_parent_window $edit_win]
         expr {$win == $np_win}
@@ -933,8 +933,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         twapi::get_owner_window $np_win
     } -cleanup {
@@ -949,8 +949,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         set win [twapi::get_owner_window $popup_win]
         expr {$win == $np_win}
@@ -966,14 +966,14 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         set edit_win [twapi::find_windows -class Edit -pids [list $np_pid]]
     } -body {
         set wins [twapi::get_child_windows [twapi::get_desktop_window]]
         # The edit window should not be included as it is not a direct child
         expr {
-              [lsearch -exact -integer $wins $np_win] >= 0 &&
-              [lsearch -exact -integer $wins $edit_win] < 0
+              [lsearch -exact  $wins $np_win] >= 0 &&
+              [lsearch -exact  $wins $edit_win] < 0
           }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
@@ -1097,7 +1097,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         expr {$np_pid == [twapi::get_window_process $np_win]}
     } -cleanup {
@@ -1112,7 +1112,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         expr {$np_pid == [twapi::get_thread_parent_process_id [twapi::get_window_thread $np_win]]}
     } -cleanup {
@@ -1127,7 +1127,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set styles [twapi::get_window_style $np_win]
         expr {
@@ -1153,7 +1153,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {oldstyle oldexstyle} [twapi::get_window_style $np_win] break
     } -body {
         # Turn off sysmenu
@@ -1178,7 +1178,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::get_window_class $np_win
     } -cleanup {
@@ -1193,7 +1193,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::get_window_class $np_win
     } -cleanup {
@@ -1208,7 +1208,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set longval [twapi::get_window_long $np_win -16]
         expr {$longval == [lindex [twapi::get_window_style $np_win] 0]}
@@ -1224,7 +1224,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {oldstyle oldexstyle} [twapi::get_window_style $np_win] break
     } -body {
         # Turn off sysmenu
@@ -1247,7 +1247,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer [twapi::get_window_application $np_win]
     } -cleanup {
@@ -1262,7 +1262,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer [twapi::get_window_id $np_win]
     } -cleanup {
@@ -1277,7 +1277,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # Assumes notepad userdata is always 0
         twapi::get_window_userdata $np_win
@@ -1293,7 +1293,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # Assumes notepad userdata is always 0
         set old_data [twapi::get_window_userdata $np_win]
@@ -1315,7 +1315,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         expr {[twapi::get_foreground_window] == $np_win}
     } -cleanup {
@@ -1330,9 +1330,9 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         set np_pid2 [notepad_exec]
-        set np_win2 [twapi::find_windows -class Notepad -pids [list $np_pid2] -single]
+        set np_win2 [notepad_top $np_pid2]
     } -body {
         expr {
               [twapi::get_foreground_window] == $np_win2 &&
@@ -1392,7 +1392,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::redraw_window_frame $np_win
     } -cleanup {
@@ -1407,7 +1407,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::redraw_window $np_win
     } -cleanup {
@@ -1422,7 +1422,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::move_window $np_win 20 30
         after 100;                      # Give it time to finish
@@ -1440,7 +1440,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::move_window $np_win 20 30 -sync
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
@@ -1457,7 +1457,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::resize_window $np_win 200 300
         after 100;                      # Give it time to finish
@@ -1475,7 +1475,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::resize_window $np_win 200 300 -sync
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
@@ -1492,9 +1492,9 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         set np_pid2 [notepad_exec]
-        set np_win2 [twapi::find_windows -class Notepad -pids [list $np_pid2] -single]
+        set np_win2 [notepad_top $np_pid2]
     } -body {
         twapi::set_window_zorder $np_win2 $np_win
     } -cleanup {
@@ -1510,7 +1510,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::set_window_zorder $np_win top
     } -cleanup {
@@ -1525,7 +1525,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::set_window_zorder $np_win bottom
     } -cleanup {
@@ -1540,7 +1540,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::set_window_zorder $np_win toplayer
     } -cleanup {
@@ -1555,7 +1555,7 @@ namespace eval twapi::clipboard::test {
         nt TBD
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::set_window_zorder $np_win bottomlayer
     } -cleanup {
@@ -1570,7 +1570,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::show_window $np_win
     } -cleanup {
@@ -1585,7 +1585,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how to verify it was actually activated?
         twapi::show_window $np_win -activate
@@ -1601,7 +1601,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         twapi::show_window $np_win -normal
@@ -1619,7 +1619,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::maximize_window $np_win -sync
     } -body {
         twapi::show_window $np_win -normal -sync
@@ -1637,7 +1637,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::maximize_window $np_win -sync
     } -body {
         twapi::show_window $np_win -startup
@@ -1655,7 +1655,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::hide_window $np_win
         after 50;                       # Wait for it to take effect
@@ -1672,7 +1672,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::hide_window $np_win  -sync
         # Note we -sync means we don't need to wait
@@ -1689,7 +1689,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         twapi::restore_window $np_win
@@ -1706,7 +1706,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         twapi::restore_window $np_win -sync
@@ -1723,7 +1723,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         twapi::restore_window $np_win -activate -sync
@@ -1740,7 +1740,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set was_visible [twapi::maximize_window $np_win]
         after 50;                       # Give it a chance to take effect
@@ -1757,7 +1757,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::hide_window $np_win -sync
     } -body {
         set was_visible [twapi::maximize_window $np_win -sync]
@@ -1774,7 +1774,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set was_visible [twapi::minimize_window $np_win]
         after 50;                       # Give it a chance to take effect
@@ -1791,7 +1791,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::hide_window $np_win -sync
     } -body {
         set was_visible [twapi::minimize_window $np_win -sync]
@@ -1808,7 +1808,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set was_visible [twapi::minimize_window $np_win -sync -activate]
         expr {$was_visible && [twapi::window_minimized $np_win]}
@@ -1824,7 +1824,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         set was_visible [twapi::minimize_window $np_win -sync -shownext]
         expr {$was_visible && [twapi::window_minimized $np_win]}
@@ -1840,8 +1840,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         expr {
               [twapi::hide_owned_popups $np_win] == "" &&
@@ -1859,8 +1859,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         expr {
               [twapi::hide_owned_popups $np_win] == "" &&
@@ -1880,7 +1880,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how do we test this
         twapi::enable_window_input $np_win
@@ -1896,7 +1896,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how do we test this
         twapi::disable_window_input $np_win
@@ -1912,7 +1912,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::close_window $np_win
         after 50;                       # Give it a chance
@@ -1927,7 +1927,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::close_window $np_win -block
         after 50
@@ -1942,7 +1942,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::close_window $np_win  -wait 100
         after 50
@@ -1957,7 +1957,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_minimized $np_win
     } -cleanup {
@@ -1972,7 +1972,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::minimize_window $np_win -sync
     } -body {
         twapi::window_minimized $np_win
@@ -1988,7 +1988,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_maximized $np_win
     } -cleanup {
@@ -2003,7 +2003,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::maximize_window $np_win -sync
     } -body {
         twapi::window_maximized $np_win
@@ -2019,7 +2019,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::hide_window $np_win  -sync
         # Note we -sync means we don't need to wait
@@ -2036,7 +2036,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_visible $np_win
     } -cleanup {
@@ -2051,7 +2051,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::end_process $np_pid -wait $end_process_timeout
     } -body {
         twapi::window_exists $np_win
@@ -2066,7 +2066,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_exists $np_win
     } -cleanup {
@@ -2081,7 +2081,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_unicode_enabled $np_win
     } -cleanup {
@@ -2096,7 +2096,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::window_input_enabled $np_win
     } -cleanup {
@@ -2111,7 +2111,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::disable_window_input $np_win
     } -body {
         twapi::window_input_enabled $np_win
@@ -2127,7 +2127,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         set edit_win [twapi::find_windows -class Edit -pids [list $np_pid] -single]
     } -body {
         twapi::window_is_child $np_win $edit_win
@@ -2143,8 +2143,8 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec nosuchfile.txt]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
-        set popup_win [twapi::find_windows -text Notepad -pids [list $np_pid]]
+        set np_win [notepad_top $np_pid]
+        set popup_win [notepad_popup $np_pid]
     } -body {
         twapi::window_is_child $np_win $popup_win
     } -cleanup {
@@ -2159,7 +2159,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         set edit_win [twapi::find_windows -class Edit -pids [list $np_pid] -single]
     } -body {
         # TBD - need a better test to test that it does have focus
@@ -2176,7 +2176,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer [twapi::flash_window_caption $np_win]
     } -cleanup {
@@ -2191,7 +2191,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer [twapi::flash_window_caption $np_win -toggle]
     } -cleanup {
@@ -2206,7 +2206,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer -strict [twapi::flash_window $np_win]
     } -cleanup {
@@ -2221,7 +2221,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer -strict [twapi::flash_window $np_win -count 5]
     } -cleanup {
@@ -2236,7 +2236,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer -strict [twapi::flash_window $np_win -notaskbar]
     } -cleanup {
@@ -2251,7 +2251,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         string is integer -strict [twapi::flash_window $np_win -nocaption]
     } -cleanup {
@@ -2266,7 +2266,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::flash_window $np_win -start
         after 5000
@@ -2391,7 +2391,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::get_window_text $np_win
     } -cleanup {
@@ -2406,7 +2406,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         twapi::set_window_text $np_win "New Title"
         twapi::get_window_text $np_win
@@ -2422,7 +2422,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         foreach {w h} [twapi::get_window_client_area_size $np_win] break
         twapi::minimize_window $np_win -sync
@@ -2445,7 +2445,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { $right > $left && $bottom > $top }
@@ -2461,7 +2461,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         twapi::set_window_zorder $np_win toplayer
     } -body {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
@@ -2526,7 +2526,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how to check results?
         twapi::invalidate_screen_region $np_win
@@ -2542,7 +2542,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how to check results?
         twapi::invalidate_screen_region $np_win -bgerase
@@ -2639,7 +2639,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         foreach {display_width display_height} [twapi::get_display_size] break
     } -body {
@@ -2729,7 +2729,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - include a unicode character in this
         twapi::set_focus $np_win
@@ -2754,7 +2754,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
     } -body {
         # TBD - need to try more combinations
 
@@ -2825,7 +2825,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
     } -body {
         # Move the mouse to the X at top right and close the window
@@ -2849,7 +2849,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
     } -body {
         # Move the mouse to the X at top right and close the window
@@ -2873,7 +2873,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
     } -body {
         # TBD Need some better test
@@ -2893,7 +2893,7 @@ namespace eval twapi::clipboard::test {
         nt
     } -setup {
         set np_pid [notepad_exec]
-        set np_win [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+        set np_win [notepad_top $np_pid]
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
     } -body {
         # Move the mouse to the X at top right and close the window
@@ -3212,7 +3212,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_window [twapi::get_desktop_window]
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3224,7 +3224,7 @@ namespace eval twapi::clipboard::test {
         package require Tk
     } -body {
         twapi::get_display_monitor_from_window .
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3238,7 +3238,7 @@ namespace eval twapi::clipboard::test {
         wm iconify .
         update
         twapi::get_display_monitor_from_window . -default nearest
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3253,7 +3253,7 @@ namespace eval twapi::clipboard::test {
         wm geometry . +20000+20000
         update
         twapi::get_display_monitor_from_window . -default primary
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
 
     ################################################################
@@ -3264,7 +3264,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_point 10 10
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3274,7 +3274,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_point 10000 10000 -default nearest
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3284,7 +3284,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_point 10000 10000 -default primary
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ################################################################
 
@@ -3294,7 +3294,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_rect {10 10 100 100}
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3304,7 +3304,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_rect {-10 -10 -20 -20} -default nearest
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ###
 
@@ -3314,7 +3314,7 @@ namespace eval twapi::clipboard::test {
         win2k
     } -body {
         twapi::get_display_monitor_from_rect {-10 -10 -20 -20} -default primary
-    } -result *_HMONITOR -match glob
+    } -result {\d+\s+HMONITOR} -match regexp
 
     ################################################################
 

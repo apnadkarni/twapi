@@ -103,12 +103,22 @@ proc notepad_copy {text} {
 # Start notepad, make it add text and return its pid
 proc notepad_exec_and_insert {{text "Some junk"}} {
     set pid [notepad_exec]
-    set hwin [twapi::find_windows -pids [list $pid] -class Notepad]
-    twapi::set_foreground_window $hwin
+    set hwins [twapi::find_windows -pids [list $pid] -class Notepad]
+    twapi::set_foreground_window [lindex $hwins 0]
     after 100;                          # Wait for it to become foreground
     twapi::send_keys $text
     after 100
     return $pid
+}
+
+# Find the notepad window for a notepad process
+proc notepad_top {np_pid} {
+    return [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
+}
+
+# Find the popup window for a notepad process
+proc notepad_popup {np_pid} {
+    return [twapi::find_windows -text Notepad -pids [list $np_pid] -single]
 }
 
 

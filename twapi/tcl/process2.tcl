@@ -273,10 +273,6 @@ proc twapi::get_process_path {pid args} {
 
 # Get the path of a process
 proc twapi::get_process_name {pid args} {
-    if {![catch {
-        twapi::recordarray field [twapi::Twapi_GetProcessList $pid 2] $pid ProcessName} name]} {
-        return $name
-    }
     return [eval [list twapi::_get_process_name_path_helper $pid name] $args]
 }
 
@@ -1066,7 +1062,7 @@ proc twapi::get_process_commandline {pid args} {
             set pointer_size 4
         }
         ReadProcessMemory $hpid [expr {$peb_addr+(4*$pointer_size)}] $pgbl $pointer_size
-        set proc_param_addr [Twapi_ReadMemoryPointer $pgbl 0]
+        set proc_param_addr [Twapi_PtrToAddress [Twapi_ReadMemoryPointer $pgbl 0]]
 
         # Now proc_param_addr contains the address of the Process parameter
         # structure which looks like:
@@ -1373,6 +1369,16 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
     }
     if {[is_idle_pid $pid]} {
         return "System Idle Process"
+    }
+
+    # Try the quicker way if looking for a name
+    if {$type eq "name" &&
+        ![catch {
+            twapi::recordarray field [twapi::Twapi_GetProcessList $pid 2] $pid ProcessName} name]} {
+        # recordarray returns empty, not error if key/field not found - TBD
+        if {$name ne ""} {
+            return $name
+        }
     }
 
     try {
