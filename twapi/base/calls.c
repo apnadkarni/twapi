@@ -603,7 +603,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
-    CALL_(VerLanguageName, CallU, 36);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GetBestInterface, CallU, 38);
     CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
@@ -2717,14 +2716,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
                 : TRT_GETLASTERROR;
             break;
-        case 36:
-            result.value.unicode.len = VerLanguageNameW(dw, u.buf,
-                                                        ARRAYSIZE(u.buf));
-            if (result.value.unicode.len)
-                result.type = TRT_EXCEPTION_ON_FALSE;
-            else
-                result.type = TRT_GETLASTERROR;
-            break;
+//        case 36: // UNUSED
         case 37:
             u.lifoP = TwapiAlloc(sizeof(MemLifo));
             result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
@@ -2782,13 +2774,18 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 1006: //GetLocaleInfo
             result.value.unicode.len = GetLocaleInfoW(dw, dw2, u.buf,
                                                       ARRAYSIZE(u.buf));
-            if (dw2 & LOCALE_RETURN_NUMBER) {
-                // u.buf actually contains a number
-                result.value.ival = *(int *)u.buf;
-                result.type = TRT_DWORD;
+            if (result.value.unicode.len == 0) {
+                result.type = TRT_GETLASTERROR;
             } else {
-                result.value.unicode.str = u.buf;
-                result.type = TRT_UNICODE;
+                if (dw2 & LOCALE_RETURN_NUMBER) {
+                    // u.buf actually contains a number
+                    result.value.ival = *(int *)u.buf;
+                    result.type = TRT_DWORD;
+                } else {
+                    result.value.unicode.len -= 1;
+                    result.value.unicode.str = u.buf;
+                    result.type = TRT_UNICODE;
+                }
             }
             break;
 
