@@ -342,13 +342,17 @@ proc twapi::eventlog_monitor_start {hevl script} {
     wait_on_handle $hevent -async twapi::_eventlog_notification_handler
     set _eventlog_notification_scripts($hevent) $script
 
-    return $hevent
+    # We do not want the application mistakenly closing the event
+    # while being waited on by the thread pool. That would be a big NO-NO
+    # so change the handle type so it cannot be passed to close_handle.
+    return [list evl $hevent]
 }
 
 # Stop any notifications. Note these will stop even if the event log
 # handle is closed but leave the event dangling.
 proc twapi::eventlog_monitor_stop {hevent} {
     variable _eventlog_notification_scripts
+    set hevent [lrange $hevent 1 end]
     if {[info exists _eventlog_notification_scripts($hevent)]} {
         unset _eventlog_notification_scripts($hevent)
         cancel_wait_on_handle $hevent

@@ -24,6 +24,23 @@ command. The returned event record can be
 formatted using [uri \#eventlog_format_message [cmd eventlog_format_message]] and
 [uri \#eventlog_format_category [cmd eventlog_format_category]].
 [para]
+The command [uri \#eventlog_count [cmd eventlog_count]]
+returns the number of records in the event
+log. [uri \#eventlog_oldest [cmd eventlog_oldest]]
+returns the record number of the oldest record.
+The command [uri \#eventlog_is_full [cmd eventlog_is_full]]
+indicates whether the event log is full.
+
+[para]
+To monitor the event log in real time, an application can poll at
+regular intervals. However, a more efficient way is to receive asynchronous
+notifications through
+[uri #eventlog_monitor_start [cmd eventlog_monitor_start]]
+when new events are logged. These notifications can be turned off
+using [uri #eventlog_monitor_stop [cmd eventlog_monitor_stop]].
+
+
+[para]
 Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
 or as
 a side effect of clearing the log through
@@ -31,13 +48,6 @@ a side effect of clearing the log through
 backup file can be read using the standard
 [uri \#eventlog_open [cmd eventlog_open]] and
 [uri \#eventlog_read [cmd eventlog_read]] commands.
-[para]
-The command [uri \#eventlog_count [cmd eventlog_count]]
-returns the number of records in the event
-log. [uri \#eventlog_oldest [cmd eventlog_oldest]]
-returns the record number of the oldest record.
-The command [uri \#eventlog_is_full [cmd eventlog_is_full]]
-indicates whether the event log is full.
 
 [section Commands]
 [list_begin definitions]
@@ -121,6 +131,24 @@ to a category id in the event source's category or message file. This value
 defaults to 1.
 [list_end]
 
+[call [cmd eventlog_monitor_start] [arg EVENTLOGHANDLE] [arg SCRIPT]]
+Registers [arg SCRIPT] to be invoked whenever the event log specified 
+by [arg EVENTLOGHANDLE] receives a new event. [arg EVENTLOGHANDLE] must
+be a read handle. Windows will invoke [arg SCRIPT] only when new events
+are written to the event log but no more than once every 5 seconds.
+Note that [arg EVENTLOGHANDLE] must not be closed in order for
+the notifications to be sent.
+[nl]
+The command returns an id for the notification. When the
+application is no longer interested in receiving notifications, it should
+release the associated resources by passing the id to
+[uri #eventlog_monitor_stop [cmd eventlog_monitor_stop]]. This is required
+even if [arg EVENTLOGHANDLE] is closed.
+
+[call [cmd eventlog_monitor_stop] [arg EVENTNOTIFICATIONID]]
+Stops notifications from the event log. [arg EVENTNOTIFICATIONID] is
+the id returned from a previous call to
+[uri #eventlog_monitor_start [cmd eventlog_monitor_start]].
 
 [call [cmd eventlog_oldest] [arg EVENTLOGHANDLE]]
 Returns the record number of the oldest record in the specified event log.
