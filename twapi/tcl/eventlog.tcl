@@ -352,7 +352,7 @@ proc twapi::eventlog_monitor_start {hevl script} {
 # handle is closed but leave the event dangling.
 proc twapi::eventlog_monitor_stop {hevent} {
     variable _eventlog_notification_scripts
-    set hevent [lrange $hevent 1 end]
+    set hevent [lindex $hevent 1]
     if {[info exists _eventlog_notification_scripts($hevent)]} {
         unset _eventlog_notification_scripts($hevent)
         cancel_wait_on_handle $hevent
@@ -362,9 +362,10 @@ proc twapi::eventlog_monitor_stop {hevent} {
 
 proc twapi::_eventlog_notification_handler {hevent event} {
     variable _eventlog_notification_scripts
+    incr ::yy
     if {[info exists _eventlog_notification_scripts($hevent)] &&
         $event eq "signalled"} {
-        eval $_eventlog_notification_scripts($hevent)
+        uplevel #0 $_eventlog_notification_scripts($hevent) [list [list evl $hevent]]
     }
 }
 
