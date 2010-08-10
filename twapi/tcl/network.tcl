@@ -810,9 +810,13 @@ proc twapi::hostname_to_address {name args} {
 
     # Resolve address synchronously
     set addrs [list ]
-    foreach endpt [twapi::getaddrinfo $name 0 0] {
-        foreach {addr port} $endpt break
-        lappend addrs $addr
+    try {
+        foreach endpt [twapi::getaddrinfo $name 0 0] {
+            foreach {addr port} $endpt break
+            lappend addrs $addr
+        }
+    } onerror {TWAPI_WIN32 11001} {
+        # Ignore - 11001 -> no such host, so just return empty list
     }
 
     set name2addr($name) $addrs
