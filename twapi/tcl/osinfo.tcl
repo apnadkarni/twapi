@@ -482,7 +482,7 @@ proc twapi::get_system_info {args} {
     if {$opts(all) || $opts(sid)} {
         set lsah [get_lsa_policy_handle -access policy_view_local_information]
         try {
-            lappend result -sid [lindex [Twapi_LsaQueryInformationPolicy $lsah 5] 1]
+            lappend result -sid [lindex [LsaQueryInformationPolicy $lsah 5] 1]
         } finally {
             close_lsa_policy_handle $lsah
         }
@@ -891,7 +891,7 @@ proc twapi::get_primary_domain_info {args} {
     set result [list ]
     set lsah [get_lsa_policy_handle -access policy_view_local_information]
     try {
-        foreach {name dnsdomainname dnsforestname domainguid sid} [Twapi_LsaQueryInformationPolicy $lsah 12] break
+        foreach {name dnsdomainname dnsforestname domainguid sid} [LsaQueryInformationPolicy $lsah 12] break
         if {[string length $sid] == 0} {
             set type workgroup
             set domainguid ""
