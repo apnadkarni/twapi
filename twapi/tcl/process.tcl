@@ -236,7 +236,7 @@ proc twapi::create_process {path args} {
         # into opts(stdhandles) ourselves so free them
         if {[llength $opts(stdchannels)]} {
             # Free corresponding handles in opts(stdhandles)
-            eval close_handles $opts(stdhandles)
+            close_handles $opts(stdhandles)
         }
     }
 

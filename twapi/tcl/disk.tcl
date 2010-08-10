@@ -71,7 +71,7 @@ proc twapi::get_volume_info {drive args} {
             } onerror {TWAPI_WIN32 1} {
                 # Do nothing, device does not support extents
             } finally {
-                close_handles $device_handle
+                CloseHandle $device_handle
             }
         }
 
@@ -606,7 +606,7 @@ proc twapi::get_file_times {fd args} {
     }
 
     if {$close_handle} {
-        close_handles $h
+        CloseHandle $h
     }
 
     return $result
@@ -651,7 +651,7 @@ proc twapi::set_file_times {fd args} {
     SetFileTime $h $opts(ctime) $opts(atime) $opts(mtime)
 
     if {$close_handle} {
-        close_handles $h
+        CloseHandle $h
     }
 
     return
@@ -744,7 +744,7 @@ proc twapi::get_physical_disk_info {disk args} {
 
     } finally {
         if {[info exists h]} {
-            close_handles $h
+            CloseHandle $h
         }
     }
 

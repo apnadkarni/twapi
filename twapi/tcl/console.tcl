@@ -603,7 +603,7 @@ proc twapi::_do_console_proc {proc default args} {
                 lset args 0 $real_handle
                 return [eval [list $proc] $args]
             } finally {
-                close_handles $real_handle
+                CloseHandle $real_handle
             }
         }
     }
