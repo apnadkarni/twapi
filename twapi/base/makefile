@@ -69,6 +69,7 @@ OBJS  = \
 	$(OBJDIR)\shell.obj \
 	$(OBJDIR)\system.obj \
 	$(OBJDIR)\tclobjs.obj \
+	$(OBJDIR)\threadpool.obj \
 	$(OBJDIR)\try.obj \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
