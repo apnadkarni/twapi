@@ -238,7 +238,8 @@ window was previously disabled, else 0.
 [call [cmd find_windows] [opt [arg options]]]
 
 Returns a list of handles corresponding to all windows that match the
-specified criteria.
+specified criteria. If the [cmd -single] option is specified, the return
+value is a window handle, not a list containing the window handle.
 
 [nl]
 The options below control the matching
@@ -290,7 +291,8 @@ whose id is in [arg PIDLIST].
 The window must or must not be an popup window
 depending on whether [arg BOOLEAN] is true or false.
 [opt_def [cmd -single]] Returns the first window found without looking
-for additional windows.
+for additional windows. The return value from the command is the window itself,
+not a list containing the window.
 [opt_def [cmd -style] [arg STYLE]] The window must have the specified style.
 [arg STYLE] must be specified as a list of two integer values corresponding
 to the style and extended style for the window. See [cmd get_window_style].

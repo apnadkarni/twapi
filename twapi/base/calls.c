@@ -1926,7 +1926,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10040:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETPTR(h, "SC_HANDLE"), GETINT(dw), GETINT(dw2),
+                             GETPTR(h, SC_HANDLE), GETINT(dw), GETINT(dw2),
                              GETINT(dw3), GETNULLTOKEN(s),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
