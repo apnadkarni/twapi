@@ -643,7 +643,7 @@ typedef struct _TwapiThreadPoolRegistration {
 
     /*
      * To be called when handle wait is being unregistered. Routine should
-     * take care to handle the case where ticP and/or h is NULL.
+     * take care to handle the case where ticP, ticP->interp and/or h is NULL.
      */
     void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE h);
 
@@ -881,6 +881,7 @@ void TwapiThreadPoolUnregister(
     HANDLE h
     );
 void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, HANDLE h, DWORD timeout);
+void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP);
 
 
 /* errors.c */
