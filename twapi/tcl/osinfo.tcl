@@ -971,10 +971,10 @@ proc twapi::duplicate_handle {h args} {
         }
     } finally {
         if {$source_ph != $my_process_handle} {
-            close_handles $source_ph
+            CloseHandle $source_ph
         }
         if {$target_ph != $my_process_handle} {
-            close_handles $source_ph
+            CloseHandle $source_ph
         }
     }
 

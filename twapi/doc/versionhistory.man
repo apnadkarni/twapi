@@ -66,6 +66,12 @@ Added [uri process.html#get_pid_from_handle [cmd get_pid_from_handle]].
 [uri osinfo.html#get_os_info [cmd get_os_info]] enhanced to support
 newer operating systems and configurations.
 
+[bullet] Added 
+[uri eventlog.html#eventlog_monitor_start [cmd eventlog_monitor_start]] for
+asynchronous notification of event log modifications. 
+Enhanced formatting of event log messages to automatically retrieve
+parameter message file references.
+
 [bullet]
 Added [uri ui.html#flash_window [cmd flash_window]].
 
@@ -94,9 +100,6 @@ to allow multiple scripts to register for the same hotkey.
 
 [bullet] Added [uri misc.html#log [cmd log]] command to log debug
 and trace messages.
-
-[bullet] Enhanced formatting of event log messages to automatically retrieve
-parameter message file items.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
 [cmd lock_scm_db], [cmd unlock_scm_db] and [cmd query_scm_db_lock_status]
