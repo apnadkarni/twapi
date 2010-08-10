@@ -251,6 +251,11 @@ void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
 	
 	m->lm_last_alloc = ALIGNPTR(c, sizeof(*c), void*);
         m->lm_freeptr = ALIGNPTR(m->lm_last_alloc, sz, void*);
+        /* Notice that when we have to allocate a new chunk, we do not
+         * give more than caller asked (modulo some rounding)
+         */
+        if (actual_szP)
+            *actual_szP = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
     }
     else {
 	/* Allocate a separate big block. */
@@ -274,9 +279,14 @@ void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
 	 * the current "mainstream" chunk.
 	 */
 	m->lm_last_alloc = ALIGNPTR(c, sizeof(*c), void*);
+        if (actual_szP) {
+            *actual_szP = PTRDIFF32(c->lc_end, m->lm_last_alloc);
+#ifdef TWAPI_MEMLIFO_DEBUG
+            MEMLIFO_ASSERT(*actual_szP >= sz);
+#endif
+        }
     }
-    if (actual_szP)
-        *actual_szP = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
+
     return m->lm_last_alloc;
 }
 
@@ -353,7 +363,7 @@ int MemLifoPopMark(MemLifoMarkHandle m)
 {
     MemLifoMarkHandle n;
 
-#ifdef TWAPI_MEMLIF_ODEBUG
+#ifdef TWAPI_MEMLIFO_DEBUG
     MEMLIFO_ASSERT(m->lm_magic == MEMLIFO_MARK_MAGIC);
 #endif
 
@@ -361,7 +371,7 @@ int MemLifoPopMark(MemLifoMarkHandle m)
     MEMLIFO_ASSERT(n);
     MEMLIFO_ASSERT(n->lm_lifo == m->lm_lifo);
 
-#ifdef TWAPI_MEMLIF_ODEBUG
+#ifdef TWAPI_MEMLIFO_DEBUG
     MEMLIFO_ASSERT(n->lm_seq < m->lm_seq || n == m);
 #endif
 
