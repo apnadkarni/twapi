@@ -95,7 +95,7 @@ proc twapi::find_windows {args} {
     # TBD - would incorporating FindWindowEx be faster
 
     array set opts [parseargs args {
-        ancestor.int
+        ancestor.arg
         caption.bool
         child.bool
         class.arg
@@ -215,7 +215,7 @@ proc twapi::find_windows {args} {
             # -toplevel TRuE not specified.
             # If ancestor is not specified, we start from the desktop window
             # Note ancestor, if specified, is never included in the search
-            if {[info exists opts(ancestor)] && $opts(ancestor)} {
+            if {[info exists opts(ancestor)] && ![Twapi_IsNullPtr $opts(ancestor)]} {
                 set ordinary_candidates [get_descendent_windows $opts(ancestor)]
             } else {
                 set desktop [get_desktop_window]
@@ -233,7 +233,7 @@ proc twapi::find_windows {args} {
         set status [catch {
             if {[info exists toplevels]} {
                 # We do NOT want toplevels
-                if {[lsearch -exact -integer $toplevels $win] >= 0} {
+                if {[lsearch -exact $toplevels $win] >= 0} {
                     # This is toplevel, which we don't want
                     continue
                 }
@@ -286,7 +286,7 @@ proc twapi::find_windows {args} {
             # Matches all criteria. If we only want one, return it, else
             # add to match list
             if {$opts(single)} {
-                return [list $win]
+                return $win
             }
             lappend matches $win
         } result ]
@@ -568,16 +568,16 @@ proc twapi::resize_window {hwin w h args} {
 proc twapi::set_window_zorder {hwin pos} {
     switch -exact -- $pos {
         top       {
-            set pos 0;          #HWND_TOP
+            set pos [Twapi_AddressToPtr 0 HWND];          #HWND_TOP
         }
         bottom    {
-            set pos 1;          #HWND_BOTTOM
+            set pos [Twapi_AddressToPtr 1 HWND];          #HWND_BOTTOM
         }   
         toplayer   {
-            set pos -1;         #HWND_TOPMOST
+            set pos [Twapi_AddressToPtr -1 HWND];         #HWND_TOPMOST
         }
         bottomlayer {
-            set pos -2;         #HWND_NOTOPMOST
+            set pos [Twapi_AddressToPtr -2 HWND];         #HWND_NOTOPMOST
         }
     }
 
