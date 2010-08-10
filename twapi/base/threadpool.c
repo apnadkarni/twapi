@@ -5,6 +5,7 @@
  * See the file LICENSE for license
  */
 
+#include "twapi.h"
 
 /* Note no locking necessary as only accessed from interp thread */
 #define TwapiThreadPoolRegistrationRef(p_, incr_)    \
