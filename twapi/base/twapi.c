@@ -287,10 +287,10 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
     TwapiInterpContext *tic2P;
+    TwapiThreadPoolRegistration *tprP;
 
     if (ticP->interp == NULL)
         return;
-
 
     EnterCriticalSection(&gTwapiInterpContextsCS);
     ZLIST_LOCATE(tic2P, &gTwapiInterpContexts, interp, ticP->interp);
@@ -310,6 +310,15 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 
     if (ticP->console_ctrl_hooked)
         Twapi_StopConsoleEventNotifier(ticP);
+
+    /*
+     * Clean up the thread pool registrations. No need to lock but do
+     */
+    while ((tprP = ZLIST_HEAD(&ticP->threadpool_registrations)) != NULL) {
+        /* Note this also unlinks from threadpool_registrations */
+        TwapiThreadPoolRegistrationShutdown(tprP);
+    }
+
 
     /* TBD - call other callback module clean up procedures */
     /* TBD - terminate device notification thread; */
