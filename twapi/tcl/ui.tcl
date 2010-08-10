@@ -1392,7 +1392,9 @@ proc twapi::get_display_monitor_from_window {hwin args} {
 
     # hwin may be a window id or a Tk window. On error we assume it is
     # a window id
-    catch {set hwin [winfo id $hwin]}
+    catch {
+        set hwin [Twapi_AddressToPtr [winfo id $hwin] HWND]
+    }
 
     set flags 0
     if {[info exists opts(default)]} {

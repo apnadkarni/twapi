@@ -415,7 +415,7 @@ namespace eval twapi::eventlog::test {
         # restricts frequency of notifications to 5 sec intervals
         # For this reason, we also test start and stop in a single test
         set hevm [twapi::eventlog_monitor_start $hevl {append ::_vwait_result}]
-        after 100;             # Let monitoring take effect
+        after 1000;             # Let monitoring take effect
         twapi::eventlog_log "eventlog_monitor test message"
         set after_id [after 2000 {set ::_vwait_result timeout}]
         vwait ::_vwait_result
