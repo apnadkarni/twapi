@@ -54,7 +54,8 @@ int Twapi_RecordArrayObjCmd(
      *   recordarray field ?OPTIONS? RECORDARRAY ?KEY? FIELD
      *     Returns the corresponding field in a record as a scalar value
      *     if KEY is specified. Otherwise returns a list containing
-     *     key and value for FIELD for all records.
+     *     key and value for FIELD for all records. Note if ?OPTIONS?
+     *     specified, ?KEY? must also be specified.
      *
      *   recordarray filter ?OPTIONS? RECORDARRAY FIELD FIELDVALUE
      *     Returns a record array containing only those records
@@ -98,9 +99,19 @@ int Twapi_RecordArrayObjCmd(
     } else if (STREQ("field", cmdstr)) {
         cmd = RA_FIELD;
         if (objc == 4) {
+            /* recordarray field RECORDARRAY FIELDNAME */
             /* No key specified, get all fields */
             raindex = objc-2;
         } else if (objc == 5) {
+            /* recordarray field RECORDARRAY KEY FIELDNAME
+             * Note this is not ambiguous because
+             * "recordarray field OPTION RECORDARRAY FIELDNAME"
+             * having OPTION without KEY would not make sense.
+             */
+            raindex = objc-3;
+            keyindex = objc-2;
+        } else if (objc == 6) {
+            /* recordarray field OPTION RECORDARRAY KEY FIELDNAME */
             raindex = objc-3;
             keyindex = objc-2;
         } else
