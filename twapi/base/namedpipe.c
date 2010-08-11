@@ -469,10 +469,10 @@ static int NPipeEventProc(
 
     /* Update channel state error if necessary */
     if (pcP->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
-        SET_NPIPE_ERROR(pcP, pcP->io[READER].ovl.Internal);
+        SET_NPIPE_ERROR(pcP, (WIN32_ERROR) pcP->io[READER].ovl.Internal);
     }
     if (pcP->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
-        SET_NPIPE_ERROR(pcP, pcP->io[WRITER].ovl.Internal);
+        SET_NPIPE_ERROR(pcP, (WIN32_ERROR) pcP->io[WRITER].ovl.Internal);
     }
 
     /* Now set the direction bits that are notifiable */
@@ -795,7 +795,7 @@ static int NPipeInputProc(
 
     /* If thread pool thread has set an error, we need to copy it. */
     if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR)
-        SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+        SET_NPIPE_ERROR(pcP, (WIN32_ERROR) ioP->ovl.Internal);
     
     if (pcP->winerr != ERROR_SUCCESS)
         goto error_return;
@@ -839,7 +839,7 @@ static int NPipeInputProc(
                     ioP->state = IOBUF_IO_COMPLETED_WITH_ERROR;
             }
             if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR) {
-                SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+                SET_NPIPE_ERROR(pcP, (WIN32_ERROR) ioP->ovl.Internal);
                 goto error_return;
             }
         }
@@ -898,7 +898,7 @@ static int NPipeOutputProc(
 
     /* If thread pool thread has set an error, we need to copy it. */
     if (ioP->state == IOBUF_IO_COMPLETED_WITH_ERROR)
-        SET_NPIPE_ERROR(pcP, ioP->ovl.Internal);
+        SET_NPIPE_ERROR(pcP, (WIN32_ERROR) ioP->ovl.Internal);
     
     if (pcP->winerr != ERROR_SUCCESS)
         goto error_return;
