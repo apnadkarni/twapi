@@ -22,6 +22,8 @@
 /*
  * Globals
  */
+HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
+
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
@@ -50,6 +52,14 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp);
 static void TwapiInterpContextDelete(ticP, interp);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
+static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
+
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gTwapiModuleHandle = hmod;
+    return TRUE;
+}
 
 /* Main entry point */
 __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
@@ -111,6 +121,7 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
+    /* TBD - move these commands into the calls.c infrastructure */
     Tcl_CreateObjCommand(interp, "twapi::parseargs", Twapi_ParseargsObjCmd,
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::try", Twapi_TryObjCmd,
@@ -132,8 +143,43 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
                          ticP, NULL);
 #endif
 
+    
+    if (TwapiLoadInitScript(ticP) != TCL_OK) {
+        /* We keep going as scripts might be external, not bound into DLL */
+        /* return TCL_ERROR; */
+    }
+
     return TCL_OK;
 }
+
+/*
+ * Loads the initialization script from image file resource
+ */
+static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
+{
+    HRSRC hres = NULL;
+
+    /* Locate the twapi resource and load it if found */
+    hres = FindResource(gTwapiModuleHandle,
+                        TWAPI_SCRIPT_RESOURCE_NAME,
+                        TWAPI_SCRIPT_RESOURCE_TYPE
+        );
+    if (hres) {
+        DWORD sz = SizeofResource(gTwapiModuleHandle, hres);
+        HGLOBAL hglob = LoadResource(gTwapiModuleHandle, hres);
+        if (sz && hglob) {
+            void *dataP = LockResource(hglob);
+            if (dataP) {
+                /* The resource is expected to be UTF-8 (actually strict ASCII) */
+                /* TBD - double check use of GLOBAL and DIRECT */
+                return Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
+            }
+        }
+    }
+
+    return Twapi_AppendSystemError(ticP->interp, GetLastError());
+}
+
 
 
 int

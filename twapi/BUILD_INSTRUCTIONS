@@ -2,12 +2,13 @@ NOTE: Build instructions for TWAPI 2.3 have changed significantly from
 previous versions.
 
 What you need (or the official build environment):
+--------------------------------------------------
 
 - To compile the 32-bit version of TWAPI, you need Visual C++ 6.0. The 64-bit
 version is built with the compiler that ships with the SDK. The primary
 reason for not moving to later versions of Visual Studio is that these
 compilers use C runtime libraries that are present on every version
-of Windows. Later version would require to ship the Microsoft runtime
+of Windows. Later versions would require to ship the Microsoft runtime
 redistributable package.
 
 - Microsoft Platform SDK for Windows Server 2003 SP1. Earlier versions

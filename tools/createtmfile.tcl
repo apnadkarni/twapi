@@ -43,24 +43,46 @@ proc foreachLine {var filename cmd} {
 }
 
 set usage {
-    usage: createtmfile ?-compress? package version ?tclfile...? ?dllfile?
+    usage: createtmfile ?-compact? ?-outfile OUTPUTFILE? package version ?tclfile...? ?dllfile?
     Creates a Tcl module file from the specified tclfiles
     and/or maximally one DLL. Arguments are globbed. If a file appears
     multiple times, it is only included once (this helps with controlling
     order of files by explicitly listing them before globbed args)
 }
 
-if {[lindex $argv 0] eq "-compress"} {
-    set compress true
+array set opts {
+    -compact 0
+    -force 0
+}
+while {[string index [lindex $argv 0] 0] eq "-"} {
+    set opt [lindex $argv 0]
     set argv [lrange $argv 1 end]
-} else {
-    set compress false
+    switch -exact -- $opt {
+        -compact { set opts(-compact) 1 }
+        -outfile {
+            set opts(-outfile) [lindex $argv 0]
+            set argv [lrange $argv 1 end]
+        }
+        -force { set opts(-force) 1 }
+        default {
+            error "Unknown option '$opt'."
+        }
+    }
 }
 
 if {[llength $argv] == 0} {puts stderr $usage; exit 1}
 
 proc main {package version header files} {
-    set outf [open ${package}-${version}.tm w]
+    global opts
+
+    if {[info exists opts(-outfile)] && $opts(-outfile) ne ""} {
+        if {[file exists $opts(-outfile)] && ! $opts(-force)} {
+            error "Output file $opts(-outfile) exists. Use -force to overwrite."
+        }
+        set outf [open $opts(-outfile) w]
+    } else {
+        set outf [open ${package}-${version}.tm w]
+    }
     fconfigure $outf -translation lf
 
     if {$header ne ""} {
@@ -104,14 +126,14 @@ proc main {package version header files} {
             .tcl {
                 puts $outf "\#-- from [file tail $a]"
                 set f [open $a]
-                if {$::compress} {
+                if {$opts(-compact)} {
                     set outdata ""
                     foreachLine line $a {
                         # Skip pure comments
                         if {[regexp {^\s*#} $line]} continue
                         # SKip blank lines
                         if {[regexp {^\s*$} $line]} continue
-                        # Compress leading spaces
+                        # Compact leading spaces
                         regsub {^(\s+)} $line "" line
                         append outdata "${line}\n"
                     }

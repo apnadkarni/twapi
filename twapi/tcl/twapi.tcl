@@ -125,6 +125,11 @@ proc load_twapi_dll {fallback_dirs} {
 }
 
 proc ::twapi::load_twapi {} {
+    return
+    if {[llength [info commands get_build_config]]} {
+        return;                 # Already loaded or script embedded in dll
+    }
+
     if {[catch {
         if {$::tcl_platform(machine) eq "amd64"} {
             set subdir AMD64
@@ -145,6 +150,8 @@ proc ::twapi::load_twapi {} {
             error $msg $erinfo $ercode
         }
         set dir [file join $dir SYSTEM32]
+        # TBD - check which of these we really need. e.g. MSVCP60 
+        # no longer needed ?
         foreach dll {
             KERNEL32.dll ADVAPI32.dll USER32.dll RPCRT4.dll
             GDI32.dll PSAPI.DLL NETAPI32.dll pdh.dll WINMM.dll
@@ -166,8 +173,9 @@ proc ::twapi::load_twapi {} {
 twapi::load_twapi
 
 # win32calls.tcl must be sourced early to make WIN32 APIs available right away
-# If this is a built .tm module, no need to source any files.
-if {[file extension [info script]] ne ".tm"} {
+# If this is a built .tm module or embedded, no need to source any files.
+if {([file extension [info script]] ne ".tm") &&
+    [llength [info commands twapi::get_build_info]]} {
     source [file join [file dirname [info script]] win32calls.tcl]
 }
 
@@ -1649,10 +1657,11 @@ proc twapi::_log_timestamp {} {
     return [clock format [clock seconds] -format "%a %T"]
 }
 
-# If we have a .tm extension, we are a 8.5 Tcl module and expect
-# all source files to have been appended to this file. So do not
+# If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
+# we expect all source files to have been appended to this file. So do not
 # source them.
-if {[file extension [info script]] ne ".tm"} {
+if {([file extension [info script]] ne ".tm") &&
+    [llength [info commands twapi::get_build_info]]} {
     # Source files based on build configuration
     # First, all the base files
     foreach ::twapi::_field_ {
