@@ -227,6 +227,7 @@ CFLAGS = $(CFLAGS) /D_DLL /MD
 !ENDIF
 
 # Linker options
+# /OPT:NOWIN98 reduces code size by using 512k byte section alignment
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF
 
 !if $(VCVER) == 6
