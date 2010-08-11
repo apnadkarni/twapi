@@ -12,7 +12,6 @@ DISTBASENAME=$(PACKAGE)-x86-$(MODULEVERSION)
 
 PACKAGEDIR="$(DISTDIR)\$(PACKAGE)"
 DISTFILE=$(DISTBASENAME).zip
-TOOLDIR="$(MAKEDIR)\..\tools"
 STARKITDIR="$(DISTDIR)\$(PACKAGE).vfs"
 
 all: base doc
@@ -50,9 +49,10 @@ tmdistribution:
         -mkdir $(PACKAGEDIR)
         cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) distribution
         cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) PACKAGESTYLE=tm distribution
-	$(TCLSH) $(TOOLDIR)\commentify.tcl LICENSE $(PACKAGEDIR)\LICENSE
-        $(TCLSH) $(TOOLDIR)\createtmfile.tcl -compress $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_version.tcl $(PACKAGEDIR)\twapi_buildinfo.tcl $(PACKAGEDIR)\win32calls.tcl $(PACKAGEDIR)\twapi.tcl $(PACKAGEDIR)\*.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+	$(TCLSH) "$(TOOLDIR)\commentify.tcl" LICENSE $(PACKAGEDIR)\LICENSE
+        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -compact $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_version.tcl $(PACKAGEDIR)\twapi_buildinfo.tcl $(PACKAGEDIR)\win32calls.tcl $(PACKAGEDIR)\twapi.tcl $(PACKAGEDIR)\*.tcl $(PACKAGEDIR)\$(PACKAGE).dll
         move $(PACKAGE)-$(MODULEVERSION).tm "$(DISTDIR)"
+
 
 install:
 	$(TCLSH_TARGET) <<

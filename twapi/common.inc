@@ -4,6 +4,10 @@
 TWAPI_SRCROOT=$(MAKEDIR)
 !endif
 
+!ifndef TOOLDIR
+TOOLDIR=$(TWAPI_SRCROOT)\..\tools
+!endif
+
 ################################################################
 # Compiler and target environment
 

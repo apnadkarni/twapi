@@ -9,7 +9,8 @@ TWAPI_SRCROOT = $(MAKEDIR)\..
 PACKAGEDIR=$(TWAPI_SRCROOT)\dist
 !endif
 
-# Must have files
+# Mandatory files. win32calls.tcl and twapi.tcl must come first since this
+# is the order in which files are combined as well.
 BASE_TCLFILES=win32calls.tcl twapi.tcl osinfo.tcl security.tcl process.tcl disk.tcl
 
 # Desktop files
@@ -40,7 +41,7 @@ TCLFILES = $(TCLFILES) $(EXTRA_TCLFILES)
 !ENDIF
 
 !if "x$(PACKAGESTYLE)" == "xtm"
-# Note tm package style has no pkgIndex.tcl file
+# Note tm package style has no pkgIndex.tcl file.
 distribution: twapi_version.tcl twapi_buildinfo.tcl $(TCLFILES)
         -@mkdir "$(PACKAGEDIR)"
         !@copy $** "$(PACKAGEDIR)"
@@ -52,6 +53,15 @@ distribution: pkgIndex.tcl twapi_version.tcl twapi_buildinfo.tcl $(TCLFILES)
 	del twapi_buildinfo.tcl
 !endif
 
+!ifdef COMBINEOUTPUT
+COMBINEFLAGS = -force -outfile $(COMBINEOUTPUT)
+!endif
+# Combines all Tcl scripts into one. Note pkgIndex.tcl is not included
+combine: twapi_version.tcl twapi_buildinfo.tcl $(TCLFILES)
+        -@mkdir "$(PACKAGEDIR)"
+        !@copy $** "$(PACKAGEDIR)"
+	del twapi_buildinfo.tcl
+	cd $(PACKAGEDIR) && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" $(COMBINEFLAGS) -compact $(PACKAGE) $(MODULEVERSION) $**
 
 twapi_version.tcl : ../common.inc
         echo <<$@
