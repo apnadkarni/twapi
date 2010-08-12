@@ -1,5 +1,6 @@
-NOTE: Build instructions for TWAPI 2.3 have changed significantly from
-previous versions.
+NOTE: Build instructions for TWAPI 3.0 have changed significantly from
+previous versions. The source code management system has also moved from CVS 
+to Mercurial.
 
 What you need (or the official build environment):
 --------------------------------------------------
@@ -19,7 +20,7 @@ you include the AMD64 build environment if you want to do 64-bit
 builds. Also ensure you include the Web Workshop component as some
 Windows Shell headers are included there.
 
-- Some version of CVS to check code from the SourceForge repository.
+- Some version of Mercurial to check code from the SourceForge repository.
 
 - Note a Tcl installation is no longer required. Appropriate headers and
 libraries are contained within the TWAPI directories.
@@ -29,21 +30,29 @@ Here is the step-by-step procedure for compiling twapi on a PC:
 Source code checkout
 --------------------
 
-Check out the source code by following the Sourceforge instructions at
-NEED URL
+Clone the twapi repository from SourceForge.
 
-This would be something along the lines of the standard anonymous
-remote-CVS command:
+If you are using the command line Mercurial client, the command would be
 
-    cvs -z3 -d:pserver:anonymous@cvs.sourceforge.net:/cvsroot/twapi co twapi
+    hg clone http://twapi.hg.sourceforge.net:8000/hgroot/twapi/twapi my_twapi
 
-But if you are behind a firewall which doesn't let traffic through
-on port 2401, you will need to use the following command instead:
-
-     cvs -d:pserver:anonymous@cvs-pserver.sf.net:443/cvsroot/twapi co twapi
-
-This will create a twapi/ subdirectory in your current working
+This will create a my_twapi/ subdirectory in your current working
 directory.
+
+For more detail about using Mercurial, you might want to
+start with the SourceForge Mercurial instructions at
+http://sourceforge.net/apps/trac/sourceforge/wiki/Mercurial.
+
+
+Customize for your environment
+------------------------------
+
+Edit the files twapi/common.inc and twapi/makefile to fix up paths
+specific to your environment. This is generally not required. If you
+are building full distributions, the zip and unzip commands are expected
+to be in your path. Otherwise, edit twapi/makefile to point them to
+the right place.
+
 
 Set up 32-bit environment (only for 32-bit builds)
 -------------------------
@@ -55,6 +64,7 @@ In a DOS command window, set up the build environment by typing the commands
 
 Note the locations of the Visual Studio and SDK directories may be different
 on your system.
+
 
 Set up 64-bit environment (only for 64-bit builds)
 -------------------------
@@ -71,14 +81,37 @@ on your system.
 Building the extension
 ----------------------
 
-In either the 32- or 64-bit command windows above, cd to the twapi directory
-and type
+There are several different variations of the extensions. These are
+described in the documentation in detail. Briefly, in the first
+variation, the Tcl script components in TWAPI are stored as separate
+files. The script files then load the DLL. This is "traditional" way
+mixed binary/script Tcl packages are distributed. In the second case,
+the scripts are embedded in the DLL itself as a resource so a single
+DLL is all the application needs. The third case is similar except
+that the scripts are stored in compressed form in the resource resulting
+in a smaller footprint.
+
+To build each of these, in either the 32- or 64-bit command windows above,
+cd to the twapi directory and type
 
     nmake
 
-This will build the binary extension within base\X86\release or 
-base\AMD64\release subdirectories respectively. The documentation will
-be built under the doc subdirectory.
+to build the first variation. Type
+
+   nmake EMBED_SCRIPT=plain
+
+to build the second, and type
+
+   nmake EMBED_SCRIPT=lzma
+
+to build the third. Note any other value of EMBED_SCRIPT will have the
+same effect as not defining it at all.
+
+The DLL will be built in the base\X86\release, base\x86\release_embed
+and base\x86\release_embed_lzma respectively. The 64-bit builds will
+use the AMD64 subdirectories instead of x86.
+
+In all cases, the documentation will be built under the doc subdirectory.
 
 Packaging the distribution
 --------------------------
