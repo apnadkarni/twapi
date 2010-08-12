@@ -92,7 +92,7 @@ proc load_twapi_dll {fallback_dirs} {
         set tmpdir $twapi::temp_dll_dir
     }
 
-    if {[info commands copy_dll_from_tm] == "copy_dll_from_tm"} {
+    if {[llength [info commands copy_dll_from_tm]]} {
         set dest [file join $tmpdir "${::twapi::dll_base_name}-${::twapi::build_id}.dll"]
         # We are a running as a tcl 8.5 style Tcl module
         # built using the twapi tools createtmfile.tcl script
@@ -126,7 +126,7 @@ proc load_twapi_dll {fallback_dirs} {
 
 proc ::twapi::load_twapi {} {
     if {[llength [info commands get_build_config]]} {
-        return;                 # Already loaded or script embedded in dll
+        return;                 # DLL already loaded or script embedded in dll
     }
 
     if {[catch {

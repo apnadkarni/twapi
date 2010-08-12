@@ -14,6 +14,10 @@ PACKAGEDIR="$(DISTDIR)\$(PACKAGE)"
 DISTFILE=$(DISTBASENAME).zip
 STARKITDIR="$(DISTDIR)\$(PACKAGE).vfs"
 
+!ifndef EMBED_SCRIPT
+EMBED_SCRIPT=no
+!endif
+
 all: base doc
 
 base: dummy
@@ -26,14 +30,18 @@ distribution:
         -rmdir/s/q $(PACKAGEDIR)
         -mkdir $(PACKAGEDIR)
         copy LICENSE $(PACKAGEDIR)
-        cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) distribution
+	cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
+!IF "x$(EMBED_SCRIPT)" != "xlzma" && "x$(EMBED_SCRIPT)" != "xplain"
         cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+!ENDIF
 !IFNDEF LEAN
         cd tests && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
         cd doc && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
 !ENDIF
         cd $(DISTDIR) && zip -r "$(DISTDIR)/$(DISTFILE)" $(PACKAGE)
 	if exist "%HOME%\My Documents\Downloads" $(COPY) "$(DISTDIR)\$(DISTFILE)" "%HOME%\My Documents\Downloads"
+
+starkit: distribution
         -rmdir/s/q $(STARKITDIR)
         -mkdir $(STARKITDIR)\lib
         -rmdir/s/q $(PACKAGEDIR)\doc
@@ -41,16 +49,22 @@ distribution:
         move $(PACKAGEDIR) $(STARKITDIR)\lib
         echo package require starkit > $(STARKITDIR)\main.tcl
         echo starkit::startup >> $(STARKITDIR)\main.tcl
-        cd $(DISTDIR) && $(TOOLDIR)\tclkitsh.exe $(TOOLDIR)\sdx.kit wrap $(PACKAGE).kit
+        cd $(DISTDIR) && "$(TOOLDIR)\tclkitsh.exe" "$(TOOLDIR)\sdx.kit" wrap $(PACKAGE).kit
 	move "$(DISTDIR)\$(PACKAGE).kit" "$(DISTDIR)\$(DISTBASENAME).kit"
 
 tmdistribution:
         -rmdir/s/q $(PACKAGEDIR)
         -mkdir $(PACKAGEDIR)
-        cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) distribution
+        cd base && $(MAKE) $(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR)  EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
+!IF "x$(EMBED_SCRIPT)" != "xlzma" && "x$(EMBED_SCRIPT)" != "xplain"
         cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) PACKAGESTYLE=tm distribution
 	$(TCLSH) "$(TOOLDIR)\commentify.tcl" LICENSE $(PACKAGEDIR)\LICENSE
-        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -compact $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_version.tcl $(PACKAGEDIR)\twapi_buildinfo.tcl $(PACKAGEDIR)\win32calls.tcl $(PACKAGEDIR)\twapi.tcl $(PACKAGEDIR)\*.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -compact $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_version.tcl $(PACKAGEDIR)\twapi_buildid.tcl $(PACKAGEDIR)\win32calls.tcl $(PACKAGEDIR)\twapi.tcl $(PACKAGEDIR)\*.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+!ELSE
+        cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) PACKAGESTYLE=tm twapi_buildid.tcl
+	$(TCLSH) "$(TOOLDIR)\commentify.tcl" LICENSE $(PACKAGEDIR)\LICENSE
+        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_buildid.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+!ENDIF
         move $(PACKAGE)-$(MODULEVERSION).tm "$(DISTDIR)"
 
 
