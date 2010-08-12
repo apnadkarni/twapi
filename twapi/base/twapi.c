@@ -158,32 +158,54 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
 {
     HRSRC hres = NULL;
+    int compressed = 0;
+    unsigned char *dataP;
+    DWORD sz;
+    HGLOBAL hglob;
+    int result;
 
-    /* Locate the twapi resource and load it if found */
+    /*
+     * Locate the twapi resource and load it if found. First check for
+     * uncompressed type. Then compressed.
+     */
     hres = FindResource(gTwapiModuleHandle,
                         TWAPI_SCRIPT_RESOURCE_NAME,
-                        TWAPI_SCRIPT_RESOURCE_TYPE
-        );
-    if (hres) {
-        DWORD sz = SizeofResource(gTwapiModuleHandle, hres);
-        HGLOBAL hglob = LoadResource(gTwapiModuleHandle, hres);
-        if (sz && hglob) {
-            void *dataP = LockResource(hglob);
-            if (dataP) {
-                /* The resource is expected to be UTF-8 (actually strict ASCII) */
-                /* TBD - double check use of GLOBAL and DIRECT */
-                return Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
+                        TWAPI_SCRIPT_RESOURCE_TYPE);
+    if (!hres) {
+        hres = FindResource(gTwapiModuleHandle,
+                            TWAPI_SCRIPT_RESOURCE_NAME,
+                            TWAPI_SCRIPT_RESOURCE_TYPE_LZMA);
+        compressed = 1;
+    }
+
+    if (!hres)
+        return Twapi_AppendSystemError(ticP->interp, GetLastError());
+
+    sz = SizeofResource(gTwapiModuleHandle, hres);
+    hglob = LoadResource(gTwapiModuleHandle, hres);
+    if (sz && hglob) {
+        dataP = LockResource(hglob);
+        if (dataP) {
+            /* If compressed, we need to uncompress it first */
+            if (compressed) {
+                dataP = TwapiLzmaUncompressBuffer(ticP, dataP, sz, &sz);
+                if (dataP == NULL)
+                    return TCL_ERROR; /* ticP->interp already has error */
             }
+
+            /* The resource is expected to be UTF-8 (actually strict ASCII) */
+            /* TBD - double check use of GLOBAL and DIRECT */
+            result = Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
+            if (compressed)
+                TwapiLzmaFreeBuffer(dataP);
+            return result;
         }
     }
 
     return Twapi_AppendSystemError(ticP->interp, GetLastError());
 }
 
-
-
-int
-Twapi_GetTwapiBuildInfo(
+int Twapi_GetTwapiBuildInfo(
     ClientData dummy,
     Tcl_Interp *interp,
     int objc,

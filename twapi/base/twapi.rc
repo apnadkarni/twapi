@@ -26,3 +26,7 @@ FILETYPE VFT_DLL
 #ifdef TWAPI_SCRIPT_RESOURCE
 twapiscript tclscript TWAPI_SCRIPT_RESOURCE
 #endif
+
+#ifdef TWAPI_SCRIPT_RESOURCE_LZMA
+twapiscript tclscriptlzma TWAPI_SCRIPT_RESOURCE_LZMA
+#endif
