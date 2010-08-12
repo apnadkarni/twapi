@@ -125,7 +125,6 @@ proc load_twapi_dll {fallback_dirs} {
 }
 
 proc ::twapi::load_twapi {} {
-    return
     if {[llength [info commands get_build_config]]} {
         return;                 # Already loaded or script embedded in dll
     }
