@@ -70,6 +70,26 @@ while {[string index [lindex $argv 0] 0] eq "-"} {
     }
 }
 
+# This proc is not actually used here. Rather we "clone" it into
+# the tm file. That's easier than trying to write it to the tm file
+# using puts etc.
+proc copy_dll_from_tm {path} {
+    if {$path eq {}} {
+        catch {set dir [pwd]}
+        catch {set dir $::env(TMP)}
+        catch {set dir $::env(TEMP)}
+        set path [file join $dir "[file tail [info script]].dll"
+    }
+    set tmp [open $path w]
+    set f [open [info script]]
+    fconfigure $f -translation binary
+    set data [read $f][close $f]
+    set ctrlz [string first \u001A $data]
+    fconfigure $tmp -translation binary
+    puts -nonewline $tmp [string range $data [incr ctrlz] end]
+    close $tmp
+}
+
 if {[llength $argv] == 0} {puts stderr $usage; exit 1}
 
 proc main {package version header files} {
@@ -93,23 +113,10 @@ proc main {package version header files} {
 
     # This proc has to be at the beginning of the file since the app
     # Tcl code may call it at any time
-    puts $outf "proc copy_dll_from_tm {{path {}}} {"
-    puts $outf "if {\$path eq {}} {set path \[file join \$env(TMP) ${package}-${version}.dll \]}"
-    puts $outf "set tmp \[open \$path w\]"
-    puts $outf {
-        set f [open [info script]]
-        fconfigure $f -translation binary
-        set data [read $f][close $f]
-        set ctrlz [string first \u001A $data]
-        fconfigure $tmp -translation binary
-        puts -nonewline $tmp [string range $data [incr ctrlz] end]
-        close $tmp
-    }
-    puts $outf "}"
+    puts $outf [list proc copy_dll_from_tm [info args copy_dll_from_tm] [info body copy_dll_from_tm]]
 
     # Commented out package provide - let package itself do this
     #puts $outf "package provide [lindex $argv 0] [lindex $argv 1]"
-
 
     foreach a $files {
         switch -- [file extension $a] {
