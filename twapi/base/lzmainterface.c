@@ -67,7 +67,7 @@ unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
 
     }
     
-    *outszP = outlen;
+    *outszP = (DWORD) outlen;
     return outdata;
 
 error_return:
