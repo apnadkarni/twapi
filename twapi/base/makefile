@@ -70,6 +70,7 @@ OBJS  = \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\resolve.obj \
+	$(OBJDIR)\resource.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\scm.obj \
 	$(OBJDIR)\service.obj \

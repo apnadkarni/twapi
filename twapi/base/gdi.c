@@ -51,14 +51,14 @@ BOOL CALLBACK Twapi_EnumDisplayMonitorsCallback(
 )
 {
     Tcl_Obj *objv[3];
-    struct Twapi_EnumCtx *p_enum_ctx =
-        (struct Twapi_EnumCtx *) p_ctx;
+    TwapiEnumCtx *p_enum_ctx =
+        (TwapiEnumCtx *) p_ctx;
 
     objv[0] = ObjFromOpaque(hmon, "HMONITOR");
     objv[1] = ObjFromOpaque(hdc, "HDC");
     objv[2] = ObjFromRECT(rectP);
     Tcl_ListObjAppendElement(p_enum_ctx->interp,
-                             p_enum_ctx->win_listobj,
+                             p_enum_ctx->objP,
                              Tcl_NewListObj(3, objv));
     return 1;
 }
@@ -72,17 +72,17 @@ int Twapi_EnumDisplayMonitors(
     const RECT *rectP
 )
 {
-    struct Twapi_EnumCtx enum_ctx;
+    TwapiEnumCtx enum_ctx;
 
     enum_ctx.interp = interp;
-    enum_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_ctx.objP = Tcl_NewListObj(0, NULL);
     
     if (EnumDisplayMonitors(hdc, rectP, Twapi_EnumDisplayMonitorsCallback, (LPARAM)&enum_ctx) == 0) {
         TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_ctx.win_listobj);
+        Twapi_FreeNewTclObj(enum_ctx.objP);
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
