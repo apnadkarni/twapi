@@ -228,9 +228,6 @@ int Twapi_GetTwapiBuildInfo(
 #ifdef TWAPI_LEAN
     objs[i++] = STRING_LITERAL_OBJ("lean");
 #endif
-#ifdef TWAPI_NOCALLBACKS
-    objs[i++] = STRING_LITERAL_OBJ("nocallbacks");
-#endif
 
     /* Tcl 8.4 has no indication of 32/64 builds at Tcl level so we have to. */
 #ifdef _WIN64
