@@ -566,6 +566,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
     CALL_(NotifyChangeEventLog, Call, 10123);
+    CALL_(UpdateResource, Call, 10124);
+    CALL_(FindResourceEx, Call, 10125);
+    CALL_(Twapi_LoadResource, Call, 10126);
+    CALL_(Twapi_EnumResourceNames, Call, 10127);
+    CALL_(Twapi_EnumResourceLanguages, Call, 10128);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -663,6 +668,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(NetFileClose, CallS, 503);
     CALL_(LoadLibraryEx, CallS, 504);
     CALL_(AddFontResourceEx, CallS, 505);
+    CALL_(BeginUpdateResource, CallS, 506);
 
     CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
@@ -738,6 +744,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterWaitOnHandle, CallH, 65);
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
+    CALL_(Twapi_EnumResourceTypes, CallH, 68);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -758,6 +765,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
+    CALL_(EndUpdateResource, CallH, 1020);
 
     CALL_(WTSDisconnectionSession, CallH, 2001); /* TBD - tcl wrapper */
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
@@ -2546,6 +2554,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.value.ival = TCL_ERROR;
             }
             break;
+        case 10124:
+            return Twapi_UpdateResource(ticP, objc-2, objv+2);
+        case 10125:
+            return Twapi_FindResourceEx(ticP, objc-2, objv+2);
+        case 10126:
+            return Twapi_LoadResource(ticP, objc-2, objv+2);
+        case 10127:
+            return Twapi_EnumResourceNames(ticP, objc-2, objv+2);
+        case 10128:
+            return Twapi_EnumResourceLanguages(ticP, objc-2, objv+2);
         }
     }
 
@@ -3049,6 +3067,10 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_DWORD;
             result.value.ival = AddFontResourceExW(arg, dw, NULL);
             break;
+        case 506: // BeginUpdateResource
+            result.type = TRT_HANDLE;
+            result.value.hval = BeginUpdateResourceW(arg, dw);
+            break;
         }
     } else if (func < 2000) {
 
@@ -3408,6 +3430,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ResetEvent(h);
             break;
+        case 68:
+            return Twapi_EnumResourceTypes(ticP, h);
         }
     } else if (func < 2000) {
 
@@ -3498,6 +3522,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 1019:
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoPushFrame(h, dw, NULL);
+            break;
+        case 1020: // EndUpdateResource
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = EndUpdateResourceW(h, dw);
             break;
         }
     } else if (func < 3000) {
@@ -3611,7 +3639,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             if (ObjToRECT_NULL(interp, objv[3], &rectP) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_EnumDisplayMonitors(interp, h, rectP);
-
         }
     }
     return TwapiSetResult(interp, &result);
