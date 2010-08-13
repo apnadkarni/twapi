@@ -404,10 +404,10 @@ typedef DWORD_PTR TwapiId;
 #endif
 
 /* Used to maintain context for common NetEnum* interfaces */
-struct Twapi_EnumCtx {
+typedef struct _TwapiEnumCtx {
     Tcl_Interp *interp;
-    Tcl_Obj    *win_listobj;
-};
+    Tcl_Obj    *objP;
+} TwapiEnumCtx;
 
 typedef struct {
     int    tag;  /* Type of entries in netbufP[] */
@@ -1464,6 +1464,15 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 /* Named pipes */
 TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+
+/* Resource manipulation */
+int Twapi_UpdateResource(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_FindResourceEx(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_LoadResource(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceNames(TwapiInterpContext *,int objc,Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceLanguages(TwapiInterpContext *,int objc,Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceTypes(TwapiInterpContext *, HMODULE hmodule);
+
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which

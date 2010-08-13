@@ -137,11 +137,11 @@ int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 
 /* Window enumeration callback */
 BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
-    struct Twapi_EnumCtx *p_enum_win_ctx =
-        (struct Twapi_EnumCtx *) p_ctx;
+    TwapiEnumCtx *p_enum_win_ctx =
+        (TwapiEnumCtx *) p_ctx;
 
     Tcl_ListObjAppendElement(p_enum_win_ctx->interp,
-                             p_enum_win_ctx->win_listobj,
+                             p_enum_win_ctx->objP,
                              ObjFromHWND(hwnd));
     
     return 1;
@@ -153,19 +153,19 @@ BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
  */
 int Twapi_EnumWindows(Tcl_Interp *interp)
 {
-    struct Twapi_EnumCtx enum_win_ctx;
+    TwapiEnumCtx enum_win_ctx;
 
     enum_win_ctx.interp = interp;
-    enum_win_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
 
     
     if (EnumWindows(Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
         TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_win_ctx.win_listobj);
+        Twapi_FreeNewTclObj(enum_win_ctx.objP);
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_win_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_win_ctx.objP);
     return TCL_OK;
 }
 
@@ -175,10 +175,10 @@ int Twapi_EnumWindows(Tcl_Interp *interp)
  */
 int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle)
 {
-    struct Twapi_EnumCtx enum_win_ctx;
+    TwapiEnumCtx enum_win_ctx;
 
     enum_win_ctx.interp = interp;
-    enum_win_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
     
     /* As per newer MSDN docs, EnumChildWindows return value is meaningless.
      * We used to check GetLastError ERROR_PROC_NOT_FOUND and
@@ -187,7 +187,7 @@ int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle)
      * We now follow the docs and ignore return value.
      */
     EnumChildWindows(parent_handle, Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx);
-    Tcl_SetObjResult(interp, enum_win_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_win_ctx.objP);
     return TCL_OK;
 }
 
@@ -414,11 +414,11 @@ static void init_keyboard_input(INPUT *pin, WORD vkey, DWORD flags)
 
 /* Window station enumeration callback */
 BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARAM p_ctx) {
-    struct Twapi_EnumCtx *p_enum_ctx =
-        (struct Twapi_EnumCtx *) p_ctx;
+    TwapiEnumCtx *p_enum_ctx =
+        (TwapiEnumCtx *) p_ctx;
 
     Tcl_ListObjAppendElement(p_enum_ctx->interp,
-                             p_enum_ctx->win_listobj,
+                             p_enum_ctx->objP,
                              Tcl_NewUnicodeObj(p_winsta, -1));
     return 1;
 }
@@ -427,19 +427,19 @@ BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARA
 /* Window station enumeration */
 int Twapi_EnumWindowStations(Tcl_Interp *interp)
 {
-    struct Twapi_EnumCtx enum_ctx;
+    TwapiEnumCtx enum_ctx;
 
     enum_ctx.interp = interp;
-    enum_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_ctx.objP = Tcl_NewListObj(0, NULL);
 
     
     if (EnumWindowStationsW(Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
         TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_ctx.win_listobj);
+        Twapi_FreeNewTclObj(enum_ctx.objP);
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 #endif
@@ -448,19 +448,19 @@ int Twapi_EnumWindowStations(Tcl_Interp *interp)
 /* Desktop enumeration */
 int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
 {
-    struct Twapi_EnumCtx enum_ctx;
+    TwapiEnumCtx enum_ctx;
 
     enum_ctx.interp = interp;
-    enum_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_ctx.objP = Tcl_NewListObj(0, NULL);
 
     
     if (EnumDesktopsW(hwinsta, Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
         TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_ctx.win_listobj);
+        Twapi_FreeNewTclObj(enum_ctx.objP);
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 #endif
@@ -471,10 +471,10 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
  */
 int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle)
 {
-    struct Twapi_EnumCtx enum_win_ctx;
+    TwapiEnumCtx enum_win_ctx;
 
     enum_win_ctx.interp = interp;
-    enum_win_ctx.win_listobj = Tcl_NewListObj(0, NULL);
+    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
     
     if (EnumDesktopWindows(desk_handle, Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
         /* Maybe the error is just that there are no child windows */
@@ -482,12 +482,12 @@ int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle)
         if (winerror && winerror != ERROR_INVALID_HANDLE) {
             /* Genuine error */
             Twapi_AppendSystemError(interp, winerror);
-            Twapi_FreeNewTclObj(enum_win_ctx.win_listobj);
+            Twapi_FreeNewTclObj(enum_win_ctx.objP);
             return TCL_ERROR;
         }
     }
 
-    Tcl_SetObjResult(interp, enum_win_ctx.win_listobj);
+    Tcl_SetObjResult(interp, enum_win_ctx.objP);
     return TCL_OK;
 }
 #endif
