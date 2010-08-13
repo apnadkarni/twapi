@@ -116,15 +116,29 @@ In all cases, the documentation will be built under the doc subdirectory.
 Packaging the distribution
 --------------------------
 
-For this step, you will need to edit the makefile to point
-to zip.exe compression program and run the commands
+Several distribution mechanisms are supported - zipped Tcl package,
+single-file dll, Tcl module etc. In combination with the various build
+types described above, this means there are a large number of
+distribution variations possible.
+
+See the file "buildall.cmd" for the "official" variations.
+
+For example,
 
     nmake distribution
-    nmake tmdistribution
 
-The first command will build TWAPI .zip distributions under the temp
-subdirectory. For 64-bit builds, the distribution will be placed under
-temp\win64.  The second command will build a Tcl 8.5 Tcl module
-instead of a .zip distribution. Both these commands are independent of
-the other.
+will build a zipped Tcl package.
 
+     nmake tmdistribution EMBED_SCRIPT=lzma
+
+will build a Tcl 8.5 module with scripts embedded in the DLL.
+
+     nmake dlldistribution EMBED_SCRIPT=lzma
+
+will build a single file DLL distribution.
+
+In call cases, the corresponding nmake command to build the binaries
+as described in the previous section must have been called first.
+
+Note that starkits are no longer supported as they are superceded by
+the single-file DLL distributions.
