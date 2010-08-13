@@ -63,7 +63,7 @@ tmdistribution:
 !ELSE
         cd tcl && $(MAKE) $(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) PACKAGESTYLE=tm twapi_buildid.tcl
 	$(TCLSH) "$(TOOLDIR)\commentify.tcl" LICENSE $(PACKAGEDIR)\LICENSE
-        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_buildid.tcl $(PACKAGEDIR)\$(PACKAGE).dll
+        $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -autoload $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_buildid.tcl $(PACKAGEDIR)\$(PACKAGE).dll
 !ENDIF
         move $(PACKAGE)-$(MODULEVERSION).tm "$(DISTDIR)"
 

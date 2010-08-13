@@ -43,7 +43,7 @@ proc foreachLine {var filename cmd} {
 }
 
 set usage {
-    usage: createtmfile ?-compact? ?-outfile OUTPUTFILE? package version ?tclfile...? ?dllfile?
+    usage: createtmfile ?-force? ?-autoload? ?-compact? ?-outfile OUTPUTFILE? package version ?tclfile...? ?dllfile?
     Creates a Tcl module file from the specified tclfiles
     and/or maximally one DLL. Arguments are globbed. If a file appears
     multiple times, it is only included once (this helps with controlling
@@ -53,6 +53,7 @@ set usage {
 array set opts {
     -compact 0
     -force 0
+    -autoload 0
 }
 while {[string index [lindex $argv 0] 0] eq "-"} {
     set opt [lindex $argv 0]
@@ -64,6 +65,7 @@ while {[string index [lindex $argv 0] 0] eq "-"} {
             set argv [lrange $argv 1 end]
         }
         -force { set opts(-force) 1 }
+        -autoload {set opts(-autoload) 1 }
         default {
             error "Unknown option '$opt'."
         }
@@ -73,21 +75,37 @@ while {[string index [lindex $argv 0] 0] eq "-"} {
 # This proc is not actually used here. Rather we "clone" it into
 # the tm file. That's easier than trying to write it to the tm file
 # using puts etc.
-proc copy_dll_from_tm {path} {
+# Returns the full dll path
+proc copy_dll_from_tm {{path {}} {reuse 0}} {
+    global _copy_dll_from_tm_state
+
+    # If path not specified, generate name for dll
     if {$path eq {}} {
+        set path [file tail [info script]].dll
+    }
+
+    # If no directories specified, place in temp or current if no temp
+    if {[file tail $path] eq $path} {
         catch {set dir [pwd]}
         catch {set dir $::env(TMP)}
         catch {set dir $::env(TEMP)}
-        set path [file join $dir "[file tail [info script]].dll"
+        set path [file join $dir $path]
     }
-    set tmp [open $path w]
-    set f [open [info script]]
-    fconfigure $f -translation binary
-    set data [read $f][close $f]
-    set ctrlz [string first \u001A $data]
-    fconfigure $tmp -translation binary
-    puts -nonewline $tmp [string range $data [incr ctrlz] end]
-    close $tmp
+    set path [file normalize $path]
+
+    # If the file already exists, do not overwrite (assumes same file
+    # so caller has to make sure unique names are passed in)
+    if {! ([file exists $path] && $reuse)} {
+        set tmp [open $path w]
+        set f [open [info script]]
+        fconfigure $f -translation binary
+        set data [read $f][close $f]
+        set ctrlz [string first \u001A $data]
+        fconfigure $tmp -translation binary
+        puts -nonewline $tmp [string range $data [incr ctrlz] end]
+        close $tmp
+    }
+    return $path
 }
 
 if {[llength $argv] == 0} {puts stderr $usage; exit 1}
@@ -113,7 +131,7 @@ proc main {package version header files} {
 
     # This proc has to be at the beginning of the file since the app
     # Tcl code may call it at any time
-    puts $outf [list proc copy_dll_from_tm [info args copy_dll_from_tm] [info body copy_dll_from_tm]]
+    puts $outf [list proc copy_dll_from_tm {{path {}} {reuse 0}} [info body copy_dll_from_tm]]
 
     # Commented out package provide - let package itself do this
     #puts $outf "package provide [lindex $argv 0] [lindex $argv 1]"
@@ -124,6 +142,11 @@ proc main {package version header files} {
                 set f [open $a]
                 fconfigure $f    -translation binary
                 puts $outf "\#-- from [file tail $a]"
+                # Note a "unique name" and reuse existing dll at load time
+                # TBD - allow override of package name in load command
+                if {$opts(-autoload)} {
+                    puts $outf "load \[copy_dll_from_tm {[clock seconds]-[file tail $a]} true\] [string totitle $package]"
+                }
                 puts -nonewline $outf \u001A
                 fconfigure $outf -translation binary
                 fcopy $f $outf

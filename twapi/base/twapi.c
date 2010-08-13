@@ -147,6 +147,7 @@ __declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
     if (TwapiLoadInitScript(ticP) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* return TCL_ERROR; */
+        Tcl_ResetResult(interp); /* Get rid of any error messages */
     }
 
     return TCL_OK;
