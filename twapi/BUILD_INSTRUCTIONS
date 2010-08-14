@@ -78,6 +78,10 @@ NOTE: /XP64 and /RETAIL MUST BE IN UPPER CASE.
 The locations of the Visual Studio and SDK directories may be different
 on your system.
 
+Note building the extension or distribution only builds either the 32-bit
+or 64-bit versions. Each has to be built separately in their respective
+build environments.
+
 Building the extension
 ----------------------
 
@@ -127,15 +131,25 @@ For example,
 
     nmake distribution
 
-will build a zipped Tcl package.
+will build a zipped Tcl package containing the source scripts, stripped
+DLL and documentation. It includes a pkgIndex.tcl file so after unzipping,
+it can be loaded with the Tcl "package require twapi" command in any
+supported Tcl version.
 
-     nmake tmdistribution EMBED_SCRIPT=lzma
+    nmake distribution EMBED_SCRIPT=lzma
 
-will build a Tcl 8.5 module with scripts embedded in the DLL.
+will also build a zipped Tcl package except that the Tcl scripts will
+be embedded in the DLL and documentation is not included.
 
-     nmake dlldistribution EMBED_SCRIPT=lzma
+    nmake tmdistribution EMBED_SCRIPT=lzma
 
-will build a single file DLL distribution.
+will build a single file Tcl 8.5 module with scripts embedded in the DLL.
+It can be loaded using "package require twapi" in Tcl 8.5 or later.
+
+    nmake dlldistribution EMBED_SCRIPT=lzma
+
+will build a single file DLL distribution. This has to be loaded using
+the Tcl "load" command in any supported Tcl version.
 
 In call cases, the corresponding nmake command to build the binaries
 as described in the previous section must have been called first.
