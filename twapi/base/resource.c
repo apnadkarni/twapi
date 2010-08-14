@@ -30,7 +30,7 @@ static Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s)
 
 
 TCL_RESULT Twapi_UpdateResource(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -41,23 +41,26 @@ TCL_RESULT Twapi_UpdateResource(
     LPCWSTR restype;
     LPCWSTR resname;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
                      GETVAR(restype, ObjToResourceIntOrString),
                      GETVAR(resname, ObjToResourceIntOrString),
-                     GETWORD(langid), GETBIN(resP, reslen),
+                     GETWORD(langid),
+                     ARGUSEDEFAULT,
+                     GETBIN(resP, reslen),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+    /* Note resP / reslen might be NULL/0 -> delete resource */
 
     if (UpdateResourceW(h, restype, resname, langid, resP, reslen))
         return TCL_OK;
     else
-        return TwapiReturnSystemError(ticP->interp);
+        return TwapiReturnSystemError(interp);
 }
 
 TCL_RESULT Twapi_FindResourceEx(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -67,7 +70,7 @@ TCL_RESULT Twapi_FindResourceEx(
     LPCWSTR resname;
     HRSRC hrsrc;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
                      GETVAR(restype, ObjToResourceIntOrString),
                      GETVAR(resname, ObjToResourceIntOrString),
@@ -78,14 +81,14 @@ TCL_RESULT Twapi_FindResourceEx(
 
     hrsrc = FindResourceExW(h, restype, resname, langid);
     if (hrsrc) {
-        Tcl_SetObjResult(ticP->interp, ObjFromOpaque(hrsrc, "HRSRC"));
+        Tcl_SetObjResult(interp, ObjFromOpaque(hrsrc, "HRSRC"));
         return TCL_OK;
     } else
-        return TwapiReturnSystemError(ticP->interp);
+        return TwapiReturnSystemError(interp);
 }
 
 TCL_RESULT Twapi_LoadResource(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -95,7 +98,7 @@ TCL_RESULT Twapi_LoadResource(
     DWORD ressize;
     void *resP;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hmodule), GETHANDLET(hrsrc, HRSRC),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
@@ -108,13 +111,13 @@ TCL_RESULT Twapi_LoadResource(
         if (hglob) {
             resP = LockResource(hglob);
             if (resP) {
-                Tcl_SetObjResult(ticP->interp, Tcl_NewByteArrayObj(resP, ressize));
+                Tcl_SetObjResult(interp, Tcl_NewByteArrayObj(resP, ressize));
                 return TCL_OK;
             }
         }
     }
 
-    return TwapiReturnSystemError(ticP->interp);
+    return TwapiReturnSystemError(interp);
 }
 
 
@@ -140,7 +143,7 @@ static BOOL CALLBACK EnumResourceNamesProc(
 }
 
 TCL_RESULT Twapi_EnumResourceNames(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -148,22 +151,22 @@ TCL_RESULT Twapi_EnumResourceNames(
     LPCWSTR restype;
     TwapiEnumCtx ctx;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hmodule),
                      GETVAR(restype, ObjToResourceIntOrString),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
 
-    ctx.interp = ticP->interp;
+    ctx.interp = interp;
     ctx.objP = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceNamesW(hmodule, restype, EnumResourceNamesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(ticP->interp, ctx.objP);
+        Tcl_SetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
-        TwapiReturnSystemError(ticP->interp);
+        TwapiReturnSystemError(interp);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_ERROR;
     }
@@ -187,19 +190,21 @@ static BOOL CALLBACK EnumResourceTypesProc(
     return TRUE;
 }
 
-TCL_RESULT Twapi_EnumResourceTypes(TwapiInterpContext *ticP, HMODULE hmodule)
+TCL_RESULT Twapi_EnumResourceTypes(
+    Tcl_Interp *interp,
+    HMODULE hmodule)
 {
     TwapiEnumCtx ctx;
 
-    ctx.interp = ticP->interp;
+    ctx.interp = interp;
     ctx.objP = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceTypesW(hmodule, EnumResourceTypesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(ticP->interp, ctx.objP);
+        Tcl_SetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
-        TwapiReturnSystemError(ticP->interp);
+        TwapiReturnSystemError(interp);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_ERROR;
     }
@@ -229,7 +234,7 @@ static BOOL CALLBACK EnumResourceLanguagesProc(
 }
 
 TCL_RESULT Twapi_EnumResourceLanguages(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -238,7 +243,7 @@ TCL_RESULT Twapi_EnumResourceLanguages(
     LPCWSTR resname;
     TwapiEnumCtx ctx;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hmodule),
                      GETVAR(restype, ObjToResourceIntOrString),
                      GETVAR(resname, ObjToResourceIntOrString),
@@ -246,17 +251,52 @@ TCL_RESULT Twapi_EnumResourceLanguages(
         return TCL_ERROR;
     }
 
-    ctx.interp = ticP->interp;
+    ctx.interp = interp;
     ctx.objP = Tcl_NewListObj(0, NULL);
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceLanguagesW(hmodule, restype, resname,
                                EnumResourceLanguagesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(ticP->interp, ctx.objP);
+        Tcl_SetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
-        TwapiReturnSystemError(ticP->interp);
+        TwapiReturnSystemError(interp);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_ERROR;
     }
 }
+
+/* Splits the 16-string block of a STRINGTABLE resource into a list of strings */
+TCL_RESULT Twapi_SplitStringResource(
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    WCHAR *wP;
+    int len;
+    int remain;
+    Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+    
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETBIN(wP, len),
+                     ARGEND) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    
+    while (len >= 2) {
+        WORD slen = *wP++;
+        if (slen > len) {
+            /* Should not happen */
+            break;
+        }
+        Tcl_ListObjAppendElement(interp, objP,
+                                 Tcl_NewUnicodeObj(wP, slen));
+        wP += slen;
+        len -= 1+slen;
+    }
+
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+
+
