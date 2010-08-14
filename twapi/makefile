@@ -2,11 +2,15 @@
 
 !include common.inc
 
+!ifndef EMBED_SCRIPT
+EMBED_SCRIPT=none
+!endif
+
 !if "$(MACHINE)" == "AMD64"
-DISTDIR=$(MAKEDIR)\temp\win64
+DISTDIR=$(MAKEDIR)\temp\embed_$(EMBED_SCRIPT)\win64
 DISTBASENAME=$(PACKAGE)-x64-$(MODULEVERSION)
 !else
-DISTDIR=$(MAKEDIR)\temp
+DISTDIR=$(MAKEDIR)\temp\embed_$(EMBED_SCRIPT)\x86
 DISTBASENAME=$(PACKAGE)-x86-$(MODULEVERSION)
 !endif
 
@@ -14,9 +18,6 @@ PACKAGEDIR="$(DISTDIR)\$(PACKAGE)"
 DISTFILE=$(DISTBASENAME).zip
 STARKITDIR="$(DISTDIR)\$(PACKAGE).vfs"
 
-!ifndef EMBED_SCRIPT
-EMBED_SCRIPT=no
-!endif
 
 all: base doc
 
@@ -33,10 +34,19 @@ distribution:
 	cd base && $(MAKE) MAKEFLAGS=$(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
 !IF "x$(EMBED_SCRIPT)" != "xlzma" && "x$(EMBED_SCRIPT)" != "xplain"
         cd tcl && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
-!ENDIF
-!IFNDEF LEAN
-        cd tests && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
         cd doc && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+#        cd tests && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+!ELSE
+	copy << $(PACKAGEDIR)\pkgIndex.tcl
+# When script is sourced, the variable $dir must contain the
+# full path name of this file's directory.
+if {$$::tcl_platform(os) eq "Windows NT" &&
+    ($$::tcl_platform(machine) eq "intel" ||
+     $$::tcl_platform(machine) eq "amd64") &&
+    [string index $$::tcl_platform(osVersion) 0] >= 5} {
+    package ifneeded $(PACKAGE) $(MODULEVERSION) [list load [file join $$dir [expr {$$::tcl_platform(machine) eq "amd64" ? "twapi64.dll" : "twapi.dll"}]]]
+}
+<<KEEP
 !ENDIF
         cd $(DISTDIR) && zip -r "$(DISTDIR)/$(DISTFILE)" $(PACKAGE)
 	if exist "%HOME%\My Documents\Downloads" $(COPY) "$(DISTDIR)\$(DISTFILE)" "%HOME%\My Documents\Downloads"
