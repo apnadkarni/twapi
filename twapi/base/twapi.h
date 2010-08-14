@@ -1466,12 +1466,14 @@ TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 TCL_RESULT Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* Resource manipulation */
-int Twapi_UpdateResource(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_FindResourceEx(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_LoadResource(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceNames(TwapiInterpContext *,int objc,Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceLanguages(TwapiInterpContext *,int objc,Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceTypes(TwapiInterpContext *, HMODULE hmodule);
+int Twapi_UpdateResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_FindResourceEx(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_LoadResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceNames(Tcl_Interp *,int objc,Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceLanguages(Tcl_Interp *,int objc,Tcl_Obj *CONST objv[]);
+int Twapi_EnumResourceTypes(Tcl_Interp *, HMODULE hmodule);
+TCL_RESULT Twapi_SplitStringResource(Tcl_Interp *interp, int objc,
+                                     Tcl_Obj *CONST objv[]);
 
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are

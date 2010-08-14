@@ -1,7 +1,7 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Windows file resources" n ""]
+[manpage_begin "Resources" n ""]
 [copyright "2010 Ashok P. Nadkarni"]
-[moddesc "Internationalization"]
+[moddesc "Resource handling"]
 [titledesc "Commands related to Windows file resources"]
 [require twapi]
 [description]
@@ -93,7 +93,7 @@ in the file are deleted.
 [call [cmd delete_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
 Deletes a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri #begin_resource_update [cmd begin_resource_update]].
 The resource is not actually deleted from the file until
 the [uri #end_resource_update [cmd end_resource_update]] command is called.
 
@@ -124,17 +124,20 @@ Returns a list of the types of resources in the specified module.
 [uri process.html#load_library [cmd load_library]].
 
 [call [cmd read_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
-Returns the binary content of a resource from the specified module
+Returns the content of a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
+If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
+the return value is a string, otherwise, the return value is 
+the raw binary data for the resource.
 
-[call [cmd update_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID] [arg RESBINDATA]]
+[call [cmd update_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID] [arg RESDATA]]
 Updates a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]]. [arg RESBINDATA] is
-the binary format data to be written to the resource. This must have been
-formatted for the caller as appropriate for the resource type except
-when [arg RESTYPE] corresponds to a string resource.
+[uri #begin_resource_update [cmd begin_resource_update]].
+If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
+[arg RESDATA] is the string to be stored in the resource, otherwise it
+should be the raw binary data for the resource in the type-specific format.
 [nl]
 The resource is not actually written out to the file until
 the [uri #end_resource_update [cmd end_resource_update]] command is called.
