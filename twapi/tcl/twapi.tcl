@@ -1659,8 +1659,7 @@ proc twapi::_log_timestamp {} {
 # If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
 # we expect all source files to have been appended to this file. So do not
 # source them.
-if {([file extension [info script]] ne ".tm") &&
-    [llength [info commands twapi::get_build_info]]} {
+if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
     # Source files based on build configuration
     # First, all the base files
     foreach ::twapi::_field_ {
