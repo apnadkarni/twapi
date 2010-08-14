@@ -571,6 +571,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_LoadResource, Call, 10126);
     CALL_(Twapi_EnumResourceNames, Call, 10127);
     CALL_(Twapi_EnumResourceLanguages, Call, 10128);
+    CALL_(Twapi_SplitStringResource, Call, 10129);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2555,15 +2556,17 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             break;
         case 10124:
-            return Twapi_UpdateResource(ticP, objc-2, objv+2);
+            return Twapi_UpdateResource(interp, objc-2, objv+2);
         case 10125:
-            return Twapi_FindResourceEx(ticP, objc-2, objv+2);
+            return Twapi_FindResourceEx(interp, objc-2, objv+2);
         case 10126:
-            return Twapi_LoadResource(ticP, objc-2, objv+2);
+            return Twapi_LoadResource(interp, objc-2, objv+2);
         case 10127:
-            return Twapi_EnumResourceNames(ticP, objc-2, objv+2);
+            return Twapi_EnumResourceNames(interp, objc-2, objv+2);
         case 10128:
-            return Twapi_EnumResourceLanguages(ticP, objc-2, objv+2);
+            return Twapi_EnumResourceLanguages(interp, objc-2, objv+2);
+        case 10129:
+            return Twapi_SplitStringResource(interp, objc-2, objv+2);
         }
     }
 
@@ -3431,7 +3434,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ResetEvent(h);
             break;
         case 68:
-            return Twapi_EnumResourceTypes(ticP, h);
+            return Twapi_EnumResourceTypes(interp, h);
         }
     } else if (func < 2000) {
 
