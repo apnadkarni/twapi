@@ -1,0 +1,148 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Windows file resources" n ""]
+[copyright "2010 Ashok P. Nadkarni"]
+[moddesc "Internationalization"]
+[titledesc "Commands related to Windows file resources"]
+[require twapi]
+[description]
+[para]
+
+Windows resources are binary data that can be added to executable files.
+Examples include icons, strings and fonts.
+This module provides commands related to manipulation of these
+resources.
+
+[section "Windows Resources"]
+Resources are stored in Portable Executable format files (exe's and dll's).
+A resource has an associated name, type and a language.
+The name and type can be either integer values or strings. To
+retrieve a particular resource, you must know both the associated
+values for that resource.
+
+[para]
+To support
+localization, there can be several resources with the same type and
+name, but associated with different languages. These languages are
+identified by a 16 bit language identifier ([cmd LANGID]) as 
+described in the TWAPI [uri nls.html Internationalization] documentation.
+
+[para]
+TWAPI provides commands to retrieve and update resources as binary data.
+It does not provide any functionality related to constructing the actual
+binary data itself. Each resource type has a specific structure and
+it is up to the application to construct it appropriately.
+
+[section "Locating and Loading Resources"]
+Manipulating a resource requires a Windows executable module
+handle for the corresponding
+executable file. The commands will accept [const NULL] or [const 0]
+for this handle corresponding the the main executable for the process.
+To retrieve or update resources in other executables or DLL's, the module
+must be first loaded through the
+[uri process.html#load_library [cmd load_library]] call.
+Generally, the [cmd -datafile] option should be passed to the
+[cmd load_library] command if the only purpose is to access or update
+resources.
+
+[para]
+When the resources in a module are no longer required, it must be
+released through [uri process.html#free_library [cmd free_library]]
+call.
+
+[para]
+Once the module is loaded, the content of a particular resource
+can be retrieved using [uri #read_resource] [cmd read_resource].
+
+[para]
+You can also enumerate resources present in a module using the
+[uri #enumerate_resource_types [cmd enumerate_resource_types]]
+[uri #enumerate_resource_names [cmd enumerate_resource_names]]
+[uri #enumerate_resource_languages [cmd enumerate_resource_languages]]
+commands.
+
+[para]
+Note that resources themselves do not need to be explicitly freed up.
+In particular, [emph "do not try to close the resource handles"] through
+the [cmd CloseHandle] or [uri handles.html#close_handles [cmd close_handles]].
+
+
+[section "Updating Resources"]
+Updating a resource in a file requires that the file not be in use
+by any application (including the current process).
+The [uri #begin_resource_update [cmd begin_resource_update]] command
+prepares the file for update. One or more
+[uri #update_resource [cmd update_resource]] commands can be used to
+modify the resources in the file and
+[uri #delete_resource [cmd delete_resource]] commands can be used to
+delete resources.
+Finally, the
+the [uri #end_resource_update [cmd end_resource_update]] command
+is used to commit or discard the modifications.
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd begin_resource_update] [arg MODULEPATH] [opt [cmd -deleteall]]]
+Returns a handle to the file [arg MODULEPATH] to be updated.
+The returned handle must be closed through
+the [uri #end_resource_update [cmd end_resource_update]] command.
+If the option [cmd -deleteall] is specified, all existing resources
+in the file are deleted.
+
+[call [cmd delete_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
+Deletes a resource from the specified module
+[arg HMODULE] which must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+The resource is not actually deleted from the file until
+the [uri #end_resource_update [cmd end_resource_update]] command is called.
+
+
+[call [cmd end_resource_update] [arg HMODULE] [opt [cmd -discard]]]
+Closes a handle previously returned by the
+[uri #begin_resource_update [cmd begin_resource_update]] command.
+Any modifications made through [uri #update_resource [cmd update_resource]]
+are written to the file unless the [cmd -discard] option is specified
+in which case they are discarded.
+
+[call [cmd enumerate_resource_languages] [arg HMODULE] [arg RESTYPE] [arg RESNAME]]
+Returns a list of language identifiers for which the specified
+module contains a resource of type [arg RESTYPE] with name [arg RESNAME].
+[arg HMODULE] must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+
+
+[call [cmd enumerate_resource_names] [arg HMODULE] [arg RESTYPE]]
+Returns a list of the names of resources of type [arg RESTYPE] in the specified
+module.
+[arg HMODULE] must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+
+[call [cmd enumerate_resource_types] [arg HMODULE]]
+Returns a list of the types of resources in the specified module.
+[arg HMODULE] must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+
+[call [cmd read_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
+Returns the binary content of a resource from the specified module
+[arg HMODULE] which must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+
+[call [cmd update_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID] [arg RESBINDATA]]
+Updates a resource from the specified module
+[arg HMODULE] which must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]]. [arg RESBINDATA] is
+the binary format data to be written to the resource. This must have been
+formatted for the caller as appropriate for the resource type except
+when [arg RESTYPE] corresponds to a string resource.
+[nl]
+The resource is not actually written out to the file until
+the [uri #end_resource_update [cmd end_resource_update]] command is called.
+
+[list_end]
+
+[keywords internationalization globalization localization locales language \
+     LCID LANGID "number formatting" "currency formatting" formatting \
+     "code page" "primary language" "sublanguage"]
+
+[manpage_end]

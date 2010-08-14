@@ -7,22 +7,32 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 3.0 Alpha 1"]
+[section "Version 3.0 Alpha"]
 [list_begin bullet]
 
 [bullet]
 Added support for 64-bit versions of Windows.
 
 [bullet]
+Added support for loading into multi-interpreter and multithreading.
+
+[bullet]
 [emph "INCOMPATIBLE CHANGE"] This version supports Windows XP or later versions
 of Windows and version 8.5 or later of Tcl. It should also run on Windows 2000
 and Tcl 8.4 but any bugs specific to these platforms will not be fixed.
+
+[bullet]
+[emph "INCOMPATIBLE CHANGE"] This version does not support
+the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI.
 
 [bullet] Added support for [uri namedpipe.html "named pipe"] channels
 and [uri security.html#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]].
 
 [bullet]
 Added [uri shell.html#shell_execute [cmd shell_execute]].
+
+[bullet]
+Added command for manipulating [uri resources.html "Windows resources"].
 
 [bullet]
 Added UAC related commands

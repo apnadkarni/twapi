@@ -30,7 +30,6 @@ HHC="$(PROGRAMFILES)\HTML Help Workshop\hhc.exe"
 !ifndef MANFILES
 MANFILES= \
 	overview.man \
-	packages.man \
 	installation.man \
 	raw.man \
 	ui.man \
@@ -55,6 +54,7 @@ MANFILES= \
 	console.man \
 	desktop.man \
 	schedule.man \
+	resources.man \
 	msi.man \
 	nls.man \
 	printer.man \
