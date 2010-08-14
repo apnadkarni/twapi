@@ -23,6 +23,13 @@
  * Globals
  */
 HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
+/*
+ * Linked to script level to indicate if twapi tcl scripts are embedded.
+ * This is actually shared among all interpreters but since the vallue
+ * will be read-only, that's ok.
+ */
+int gTwapiEmbedded;
+char *gTwapiEmbeddedVarName = "::twapi::embedded";
 
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
@@ -166,6 +173,15 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     int result;
 
     /*
+     * Set the variable to indicate that twapi is embedded.
+     * This is checked by the script to not try and source files.
+     * Read only so OK to share global among multiple interps / threads.
+     * If the resource read succeeds for one but not the other, something
+     * would have really gone wrong.
+     */
+    Tcl_LinkVar(ticP->interp, gTwapiEmbeddedVarName, (char *) &gTwapiEmbedded, TCL_LINK_BOOLEAN | TCL_LINK_READ_ONLY);
+
+    /*
      * Locate the twapi resource and load it if found. First check for
      * uncompressed type. Then compressed.
      */
@@ -193,6 +209,9 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
                 if (dataP == NULL)
                     return TCL_ERROR; /* ticP->interp already has error */
             }
+
+            gTwapiEmbedded = 1;
+            Tcl_UpdateLinkedVar(ticP->interp, gTwapiEmbeddedVarName);
 
             /* The resource is expected to be UTF-8 (actually strict ASCII) */
             /* TBD - double check use of GLOBAL and DIRECT */
