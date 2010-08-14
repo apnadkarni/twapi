@@ -54,7 +54,7 @@ MANFILES= \
 	console.man \
 	desktop.man \
 	schedule.man \
-	resources.man \
+	resource.man \
 	msi.man \
 	nls.man \
 	printer.man \
