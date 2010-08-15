@@ -30,6 +30,7 @@ HHC="$(PROGRAMFILES)\HTML Help Workshop\hhc.exe"
 !ifndef MANFILES
 MANFILES= \
 	overview.man \
+	packages.man \
 	installation.man \
 	raw.man \
 	ui.man \

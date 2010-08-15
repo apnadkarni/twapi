@@ -43,7 +43,7 @@ along with the corresponding [const #define] values from the SDK.
 [opt_def 3] RT_ICON - Icon
 [opt_def 4] RT_MENU - Menu
 [opt_def 5] RT_DIALOG - Dialog
-[opt_def 6] RT_STRING - String (see [sectref stringresources])
+[opt_def 6] RT_STRING - String (see [uri #stringresources "String Resources"])
 [opt_def 7] RT_FONTDIR - Font directory
 [opt_def 8] RT_FONT - Font
 [opt_def 9] RT_ACCELERATOR - Accelerator
