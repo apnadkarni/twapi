@@ -1,0 +1,281 @@
+//Microsoft Developer Studio generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Accelerator
+//
+
+IDR_ACCELERATOR1 ACCELERATORS DISCARDABLE 
+BEGIN
+    "C",            IDCANCEL,               VIRTKEY, SHIFT, CONTROL, ALT, 
+                                                    NOINVERT
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_ICON1               ICON    DISCARDABLE     "icon1.ico"
+IDI_ICON2               ICON    DISCARDABLE     "icon2.ico"
+"icon3"               ICON    DISCARDABLE     "icon3.ico"
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE DISCARDABLE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cursor
+//
+
+IDC_CURSOR1             CURSOR  DISCARDABLE     "cursor.cur"
+IDC_CURSOR2             CURSOR  DISCARDABLE     "arrow.cur"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_PROPPAGE_MEDIUM DIALOG DISCARDABLE  0, 0, 210, 154
+STYLE WS_CHILD | WS_DISABLED | WS_CAPTION
+CAPTION "Property Page"
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "TODO: layout property page",IDC_STATIC,60,73,90,8
+END
+
+IDD_DIALOG1 DIALOG DISCARDABLE  0, 0, 187, 89
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Dialog"
+FONT 8, "MS Sans Serif"
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,130,7,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,130,24,50,14
+END
+
+IDD_FORMVIEW DIALOG DISCARDABLE  0, 0, 185, 93
+STYLE WS_CHILD
+FONT 8, "MS Sans Serif"
+BEGIN
+    LTEXT           "TODO: layout formview",IDC_STATIC,55,42,74,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// HTML
+//
+
+IDR_HTML1               HTML    DISCARDABLE     "html1.htm"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP1             BITMAP  DISCARDABLE     "bitmap.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO DISCARDABLE 
+BEGIN
+    IDD_PROPPAGE_MEDIUM, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 203
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 147
+    END
+
+    IDD_DIALOG1, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 180
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 82
+    END
+
+    IDD_FORMVIEW, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 178
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 86
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Menu
+//
+
+IDR_MENU1 MENU DISCARDABLE 
+BEGIN
+    POPUP "File"
+    BEGIN
+        MENUITEM "Print",                       AFX_ID_PREVIEW_PRINT
+    END
+    POPUP "Edit"
+    BEGIN
+        MENUITEM "Search",                      AFX_IDC_COLOR_BLACK
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_ID_PREVIEW_PRINT    "Print the document"
+    IDS_STRING1             "This is string 1"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    AFX_IDC_COLOR_BLACK     "Search the document"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_NEUTRAL             "Neutral"
+    IDS_NEUTRAL_DEFAULT     "Neutral(Default)"
+    IDS_NEUTRAL_SYSDEFAULT  "Neutral(Sys. Default)"
+    IDS_BULGARIAN           "Bulgarian"
+    IDS_CROATIAN            "Croatian"
+    IDS_CZECH               "Czech"
+    IDS_DANISH              "Danish"
+    IDS_DUTCH_NETHERLANDS   "Dutch(Netherlands)"
+    IDS_DUTCH_BELGIUM       "Dutch(Belgium)"
+    IDS_ENGLISH_US          "English(U.S.)"
+    IDS_ENGLISH_UK          "English(U.K.)"
+    IDS_ENGLISH_AUSTRALIA   "English(Australia)"
+    IDS_ENGLISH_CANADA      "English(Canada)"
+    IDS_ENGLISH_NEWZEALAND  "English(NewZealand)"
+    IDS_ENGLISH_IRELAND     "English(Ireland)"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_FINNISH             "Finnish"
+    IDS_FRENCH_FRANCE       "French(France)"
+    IDS_FRENCH_BELGIUM      "French(Belgium)"
+    IDS_FRENCH_CANADA       "French(Canada)"
+    IDS_FRENCH_SWITZERLAND  "French(Switzerland)"
+    IDS_GERMAN_SWITZERLAND  "German(Switzerland)"
+    IDS_GERMAN_AUSTRIA      "German(Austria)"
+    IDS_GREEK               "Greek"
+    IDS_HUNGARIAN           "Hungarian"
+    IDS_ICELANDIC           "Icelandic"
+    IDS_ITALIAN_ITALY       "Italian(Italy)"
+    IDS_ITALIAN_SWITZERLAND "Italian(Switzerland)"
+    IDS_JAPANESE            "Japanese"
+    IDS_KOREAN              "Korean"
+    IDS_NORWEGIAN_BOKMAL    "Norwegian(Bokmal)"
+    IDS_NORWEGIAN_NYNORSK   "Norwegian(Nynorsk)"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_POLISH              "Polish"
+    IDS_PORTUGUESE_BRAZIL   "Portuguese(Brazil)"
+    IDS_PORTUGUESE_PORTUGAL "Portuguese(Portugal)"
+    IDS_ROMANIAN            "Romanian"
+    IDS_RUSSIAN             "Russian"
+    IDS_SLOVAK              "Slovak"
+    IDS_SLOVENIAN           "Slovenian"
+    IDS_SWEDISH             "Swedish"
+    IDS_TURKISH             "Turkish"
+    IDS_GERMAN_GERMANY      "German(Germany)"
+    IDS_INVALIDAPPNAME      "Invalid application name"
+    IDS_INVALIDLANGUAGE     "Language Selected is invalid"
+    IDS_INVALIDBLOCKID      "Invalid Block ID"
+    IDS_BLOCKCREATIONFAILED "String block could not be created."
+    IDS_STRIDCOLUMN         "ID"
+    IDS_STRTEXTCOLUMN       "String"
+END
+
+STRINGTABLE DISCARDABLE 
+BEGIN
+    IDS_STRINVALIDBLOCK     "The block is invalid"
+    IDS_UPDATENOTIMPLEMENTED "UpdateResource not implemented"
+    IDS_UPDATEFAILED        "Update failed."
+    IDS_NOMEMORY            "Inadequate memory to perform the oepration."
+    IDS_OPERATIONOK         "Operation Succeeded"
+    IDS_APPLOADFAIL         "The specified application could not be loaded"
+    IDS_RESNOTFOUND         "The specified resource not found"
+    IDS_RESLOADFAILED       "The specified resource could not be loaded"
+    IDS_UKNOWNERR           "An unspecified error occured"
+    IDS_UPDATESUCCEEDED     "The block was successfully updated."
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+
