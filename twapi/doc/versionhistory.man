@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2009 Ashok P. Nadkarni"]
+[copyright "2003-2010 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
@@ -23,37 +23,41 @@ and Tcl 8.4 but any bugs specific to these platforms will not be fixed.
 
 [bullet]
 [emph "INCOMPATIBLE CHANGE"] This version does not support
-the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI.
-
-[bullet] Added support for [uri namedpipe.html "named pipe"] channels
-and [uri security.html#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]].
+the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI
+and does not provide a Tclkit format distribution.
 
 [bullet]
-Added [uri shell.html#shell_execute [cmd shell_execute]].
+Added [uri installation.html "single-file DLL"] distribution.
+
+[bullet] Added support for [uri namedpipe.html "named pipe"] channels
+and [uri security.html#impersonate_namedpipe_client impersonate_namedpipe_client].
+
+[bullet]
+Added [uri shell.html#shell_execute shell_execute].
 
 [bullet]
 Added command for manipulating [uri resources.html "Windows resources"].
 
 [bullet]
 Added UAC related commands
-[uri process.html#get_process_elevation [cmd get_process_elevation]],
-[uri process.html#get_process_integrity [cmd get_process_integrity]] and,
-[uri process.html#set_process_integrity [cmd set_process_integrity]] and,
-[uri process.html#virtualized_process [cmd virtualized_process]],
-[uri process.html#set_process_virtualization [cmd set_process_virtualization]],
-[uri security.html#get_token_elevation [cmd get_token_elevation]],
-[uri security.html#get_token_integrity [cmd get_token_integrity]] and
-[uri security.html#set_token_integrity [cmd set_token_integrity]],
-[uri security.html#get_token_integrity [cmd get_token_integrity_policy]] and
-[uri security.html#set_token_integrity [cmd set_token_integrity_policy]],
-[uri security.html#get_token_virtualization [cmd get_token_virtualization]] and,
-[uri security.html#set_token_virtualization [cmd set_token_virtualization]],
-[uri security.html#get_token_linked_token [cmd get_token_linked_token]].
+[uri process.html#get_process_elevation get_process_elevation],
+[uri process.html#get_process_integrity get_process_integrity] and,
+[uri process.html#set_process_integrity set_process_integrity] and,
+[uri process.html#virtualized_process virtualized_process],
+[uri process.html#set_process_virtualization set_process_virtualization],
+[uri security.html#get_token_elevation get_token_elevation],
+[uri security.html#get_token_integrity get_token_integrity] and
+[uri security.html#set_token_integrity set_token_integrity],
+[uri security.html#get_token_integrity get_token_integrity_policy] and
+[uri security.html#set_token_integrity set_token_integrity_policy],
+[uri security.html#get_token_virtualization get_token_virtualization] and,
+[uri security.html#set_token_virtualization set_token_virtualization],
+[uri security.html#get_token_linked_token get_token_linked_token].
 
 [bullet]
-Added options [cmd -virtualized], [cmd -integrity]
-and [cmd -elevation] to
-[uri process.html#get_process_info [cmd get_process_info]].
+Added options -virtualized, -integrity
+and -elevation to
+[uri process.html#get_process_info get_process_info].
 
 [bullet]
 Enhanced
@@ -62,67 +66,67 @@ to support incremental mode of retrieval and
 to optionally include more account detail.
 
 [bullet]
-Enhanced [uri share.html#get_shares [cmd get_shares]] and
-[uri share.html#get_client_shares [cmd get_client_shares]] to optionally return
+Enhanced [uri share.html#get_shares get_shares] and
+[uri share.html#get_client_shares get_client_shares] to optionally return
 additional details.
 
 [bullet]
-Added [uri process.html#wow64_process [cmd wow64_process]].
+Added [uri process.html#wow64_process wow64_process].
 
 [bullet]
-Added [uri process.html#get_pid_from_handle [cmd get_pid_from_handle]].
+Added [uri process.html#get_pid_from_handle get_pid_from_handle].
 
 [bullet] 
-[uri osinfo.html#get_os_info [cmd get_os_info]] enhanced to support
+[uri osinfo.html#get_os_info get_os_info] enhanced to support
 newer operating systems and configurations.
 
 [bullet] Added 
-[uri eventlog.html#eventlog_monitor_start [cmd eventlog_monitor_start]] for
+[uri eventlog.html#eventlog_monitor_start eventlog_monitor_start] for
 asynchronous notification of event log modifications. 
 Enhanced formatting of event log messages to automatically retrieve
 parameter message file references.
 
 [bullet]
-Added [uri ui.html#flash_window [cmd flash_window]].
+Added [uri ui.html#flash_window flash_window].
 
 [bullet] Added SDDL support through
-[uri security.html#security_descriptor_to_sddl [cmd security_descriptor_to_sddl]] and
-[uri security.html#sddl_to_security_descriptor [cmd sddl_to_security_descriptor]].
+[uri security.html#security_descriptor_to_sddl security_descriptor_to_sddl] and
+[uri security.html#sddl_to_security_descriptor sddl_to_security_descriptor].
 
 [bullet]
 Added
-[uri security.html#new_restricted_dacl [cmd new_restricted_dacl]].
+[uri security.html#new_restricted_dacl new_restricted_dacl].
 
 [bullet] Added
-[uri process.html#process_in_administrators [cmd process_in_administrators]].
+[uri process.html#process_in_administrators process_in_administrators].
 
 [bullet]
-Added [cmd -hprocess] and [cmd -hthread] options to
-[uri security.html#open_process_token [cmd get_process_token]] and
-[uri security.html#open_thread_token [cmd get_thread_token]] respectively.
+Added -hprocess and -hthread options to
+[uri security.html#open_process_token get_process_token] and
+[uri security.html#open_thread_token get_thread_token] respectively.
 
-[bullet] Added the [cmd -attributes] option to
-[uri users.html#get_global_group_info [cmd get_global_group_info]].
+[bullet] Added the -attributes option to
+[uri users.html#get_global_group_info get_global_group_info].
 
-[bullet] Added [cmd -append] option to
-[uri input.html#register_hotkey [cmd register_hotkey]]
+[bullet] Added -append option to
+[uri input.html#register_hotkey register_hotkey]
 to allow multiple scripts to register for the same hotkey.
 
-[bullet] Added [uri misc.html#log [cmd log]] command to log debug
+[bullet] Added [uri misc.html#log log] command to log debug
 and trace messages.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
-[cmd lock_scm_db], [cmd unlock_scm_db] and [cmd query_scm_db_lock_status]
+lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
 on older machines as well.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the command
-[cmd get_mapped_share_info] which was deprecated in favor of
-[cmd get_client_share_info] in previous releases.
+get_mapped_share_info which was deprecated in favor of
+get_client_share_info in previous releases.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] The format of the lists returned by
-[uri services.html#get_dependent_service_status [cmd get_dependent_service_status]] and
-[uri services.html#get_multiple_service_status [cmd get_multiple_service_status]]
+[uri services.html#get_dependent_service_status get_dependent_service_status] and
+[uri services.html#get_multiple_service_status get_multiple_service_status]
 has changed to make access simpler and faster.
 
 [list_end]
@@ -132,17 +136,17 @@ has changed to make access simpler and faster.
 
 [bullet]
 Added commands 
-[uri com.html#comobj_object [cmd comobj_object]],
-[uri com.html#progid_to_clsid [cmd progid_to_clsid]], and
-[uri com.html#clsid_to_progid [cmd clsid_to_progid]].
+[uri com.html#comobj_object comobj_object],
+[uri com.html#progid_to_clsid progid_to_clsid], and
+[uri com.html#clsid_to_progid clsid_to_progid].
 
 [bullet] 
 [uri device.html#devicenotifications "Device notifications"]
 significantly enhanced. New commands
-[uri device.html#start_device_notifier [cmd start_device_notifier]] and
-[uri device.html#stop_device_notifier [cmd stop_device_notifier]] for
-handling device event notifications. [emph "INCOMPATIBLE CHANGE"]
-Commands [cmd start_device_change_monitor] and [cmd stop_device_change_monitor]
+[uri device.html#start_device_notifier start_device_notifier] and
+[uri device.html#stop_device_notifier stop_device_notifier] for
+handling device event notifications. "INCOMPATIBLE CHANGE"
+Commands start_device_change_monitor and stop_device_change_monitor
 are no longer available.
 
 [bullet]
@@ -151,7 +155,7 @@ Support for
 enhanced to handle additional control signals and system events.
 
 [bullet]
-Added [cmd GetSystemMetrics] and [cmd GetSystemWow64Directory],
+Added [emph GetSystemMetrics] and [emph GetSystemWow64Directory],
 but no Tcl wrappers.
 
 [list_end]
@@ -165,23 +169,23 @@ containing a subset of the TWAPI commands with a smaller footprint.
 Reduced footprint of full TWAPI package as well.
 
 [bullet]
-Added [uri shell.html#recycle_file [cmd recycle_file]].
+Added [uri shell.html#recycle_file recycle_file].
 
 [bullet]
 Added error notifications to
-[uri disk.html#begin_filesystem_monitor [cmd begin_filesystem_monitor]].
+[uri disk.html#begin_filesystem_monitor begin_filesystem_monitor].
 
 [bullet]
-Added options [cmd -foundcodepage], [cmd -foundlangid] and
-[cmd -datetime] to
-[uri disk.html#get_file_version_resource [cmd get_file_version_resource]].
+Added options -foundcodepage, -foundlangid and
+-datetime to
+[uri disk.html#get_file_version_resource get_file_version_resource].
 
 [bullet]
 Added Wow64EnableWow64FsRedirection, Wow64DisableWow64FsRedirection,
 and Wow64RevertWow64FsRedirection.
 
 [bullet]
-Added new formats to [uri security.html#get_current_user [cmd get_current_user]].
+Added new formats to [uri security.html#get_current_user get_current_user].
 
 [bullet]
 Added SHChangeNotify, CryptAcquireContext, CryptReleaseContext, and
@@ -215,78 +219,78 @@ Added [uri power.html "Power Management"] module.
 
 [bullet]
 Added
-[uri device.html#start_device_change_monitor [cmd start_device_change_monitor]]
+[uri device.html#start_device_change_monitor start_device_change_monitor]
 and
-[uri device.html#stop_device_change_monitor [cmd stop_device_change_monitor]].
+[uri device.html#stop_device_change_monitor stop_device_change_monitor].
 
 [bullet]
 Added
-[uri clipboard.html#start_clipboard_monitor [cmd start_clipboard_monitor]]
-and [uri clipboard.html#stop_clipboard_monitor [cmd stop_clipboard_monitor]].
+[uri clipboard.html#start_clipboard_monitor start_clipboard_monitor]
+and [uri clipboard.html#stop_clipboard_monitor stop_clipboard_monitor].
 
 [bullet]
-Added [cmd -patterns] option to
-[uri disk.html#begin_filesystem_monitor [cmd begin_filesystem_monitor]].
+Added -patterns option to
+[uri disk.html#begin_filesystem_monitor begin_filesystem_monitor].
 
 [bullet]
-Added [uri process.html#get_priority_class [cmd get_priority_class]],
-[uri process.html#set_priority_class [cmd set_priority_class]],
-[uri process.html#get_thread_relative_priority [cmd get_thread_relative_priority]] and
- [uri process.html#set_thread_relative_priority [cmd set_thread_relative_priority]].
-
-[bullet]
-Added commands
-[uri network.html\#get_outgoing_interface [cmd get_outgoing_interface]],
-[uri network.html\#get_route [cmd get_route]] and
-[uri network.html\#get_routing_table [cmd get_routing_table]].
+Added [uri process.html#get_priority_class get_priority_class],
+[uri process.html#set_priority_class set_priority_class],
+[uri process.html#get_thread_relative_priority get_thread_relative_priority] and
+ [uri process.html#set_thread_relative_priority set_thread_relative_priority].
 
 [bullet]
 Added commands
-[uri ui.html\#get_display_devices [cmd get_display_devices]],
-[uri ui.html\#get_display_monitors [cmd get_display_monitors]],
-[uri ui.html\#get_display_monitor_from_window [cmd get_display_monitor_from_window]],
-[uri ui.html\#get_display_monitor_from_point [cmd get_display_monitor_from_point]],
-[uri ui.html\#get_display_monitor_from_rect [cmd get_display_monitor_from_rect]],
-[uri ui.html\#get_display_monitor_info [cmd get_display_monitor_info]].
+[uri network.html\#get_outgoing_interface get_outgoing_interface],
+[uri network.html\#get_route get_route] and
+[uri network.html\#get_routing_table get_routing_table].
+
+[bullet]
+Added commands
+[uri ui.html\#get_display_devices get_display_devices],
+[uri ui.html\#get_display_monitors get_display_monitors],
+[uri ui.html\#get_display_monitor_from_window get_display_monitor_from_window],
+[uri ui.html\#get_display_monitor_from_point get_display_monitor_from_point],
+[uri ui.html\#get_display_monitor_from_rect get_display_monitor_from_rect],
+[uri ui.html\#get_display_monitor_info get_display_monitor_info].
 
 [bullet] Added commands
-[uri disk.html#find_physical_disks [cmd find_physical_disks]] and
-[uri disk.html#get_physical_disk_info [cmd get_physical_disk_info]].
+[uri disk.html#find_physical_disks find_physical_disks] and
+[uri disk.html#get_physical_disk_info get_physical_disk_info].
 
 [bullet] Added
-[uri handles.html#create_file [cmd create_file]].
+[uri handles.html#create_file create_file].
 
 [bullet] Added
-[uri device.html#device_ioctl [cmd device_ioctl]].
+[uri device.html#device_ioctl device_ioctl].
 
-[bullet] Added [cmd -extents] option to
-[uri disk.html#get_volume_info [cmd get_volume_info]].
+[bullet] Added -extents option to
+[uri disk.html#get_volume_info get_volume_info].
 
 [bullet]
-Added [cmd -isnull] subcommand to
+Added -isnull subcommand to
 [uri com.html COM] objects.
 
 [bullet] Added
-[uri input.html\#get_input_idle_time [cmd get_input_idle_time]].
+[uri input.html\#get_input_idle_time get_input_idle_time].
 
 [bullet] Added
-[uri misc.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]] and
-[uri misc.html#timelist_to_large_system_time [cmd timelist_to_large_system_time]].
+[uri misc.html#large_system_time_to_timelist large_system_time_to_timelist] and
+[uri misc.html#timelist_to_large_system_time timelist_to_large_system_time].
 
 [bullet] Added
-[cmd -modulename], [cmd -modulepath], [cmd -bindtime] options to
-[uri network.html#get_tcp_connections [cmd get_tcp_connections]]
+-modulename, -modulepath, -bindtime options to
+[uri network.html#get_tcp_connections get_tcp_connections]
 and
-[uri network.html#get_udp_connections [cmd get_udp_connections]].
-Modified [cmd -matchremoteaddr] and [cmd -matchlocaladdr] options
+[uri network.html#get_udp_connections get_udp_connections].
+Modified -matchremoteaddr and -matchlocaladdr options
 to allow DNS names and accept multiple addresses.
 
-[bullet] Added [cmd -messageonlywindow] option to
-[uri ui.html#find_windows [cmd find_windows]].
+[bullet] Added -messageonlywindow option to
+[uri ui.html#find_windows find_windows].
 
 [bullet]
-Added options [cmd -noexist] and [cmd -noaccess] to
-[uri process.html#get_thread_info [cmd get_thread_info]].
+Added options -noexist and -noaccess to
+[uri process.html#get_thread_info get_thread_info].
 [emph "INCOMPATIBLE CHANGE"] The command
 no longer raises an exception if a thread does not exist
 or cannot be accessed.
@@ -303,39 +307,39 @@ Added enhanced [uri schedule.html "Windows task scheduler"] interface.
 
 [bullet]
 Added commands
-[uri share.html\#find_lm_sessions [cmd find_lm_sessions]],
-[uri share.html\#end_lm_sessions [cmd end_lm_sessions]],
-[uri share.html\#get_lm_session_info [cmd get_lm_session_info]] and
-[uri share.html\#find_lm_connections [cmd find_lm_connections]]
+[uri share.html\#find_lm_sessions find_lm_sessions],
+[uri share.html\#end_lm_sessions end_lm_sessions],
+[uri share.html\#get_lm_session_info get_lm_session_info] and
+[uri share.html\#find_lm_connections find_lm_connections]
 dealing with Lan Manager sessions and connections.
 
 [bullet]
 Added commands
-[uri share.html\#find_lm_open_files [cmd find_lm_open_files]],
-[uri share.html\#close_lm_open_file [cmd close_lm_open_file]] and
-[uri share.html\#get_lm_open_file_info [cmd get_lm_open_file_info]]
+[uri share.html\#find_lm_open_files find_lm_open_files],
+[uri share.html\#close_lm_open_file close_lm_open_file] and
+[uri share.html\#get_lm_open_file_info get_lm_open_file_info]
 dealing with files opened in Lan Manager sessions.
 
 [bullet]
-Added [uri osinfo.html\#find_domain_controller [cmd find_domain_controller]]
+Added [uri osinfo.html\#find_domain_controller find_domain_controller]
 command.
 
 [bullet]
-Added [uri disk.html\#get_file_times [cmd get_file_times]] and
-[uri disk.html\#set_file_times [cmd set_file_times]] dealing
+Added [uri disk.html\#get_file_times get_file_times] and
+[uri disk.html\#set_file_times set_file_times] dealing
 with file timestamps.
 
 [bullet]
-Enhanced [uri process.html\#get_process_info [cmd get_process_info]]
-and [uri process.html\#get_thread_info [cmd get_thread_info]]
+Enhanced [uri process.html\#get_process_info get_process_info]
+and [uri process.html\#get_thread_info get_thread_info]
 return additional process and thread information.
 
 [bullet]
-Enhanced [uri osinfo.html\#get_processor_info [cmd get_processor_info]]
+Enhanced [uri osinfo.html\#get_processor_info get_processor_info]
 to return additional processor information.
 
 [bullet]
-Enhanced [uri osinfo.html\#get_memory_info [cmd get_memory_info]]
+Enhanced [uri osinfo.html\#get_memory_info get_memory_info]
 to return additional swap file information.
 
 [bullet]
@@ -344,37 +348,37 @@ in almost two orders of magnitude better performance in retrieving process,
 thread and system information.
 
 [bullet]
-Added [uri osinfo.html\#get_system_time [cmd get_system_time]].
+Added [uri osinfo.html\#get_system_time get_system_time].
 
 [bullet]
 Added
-[uri misc.html\#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]].
+[uri misc.html\#secs_since_1970_to_large_system_time secs_since_1970_to_large_system_time].
 
 [bullet]
-Added [uri com.html\#variant_time_to_timelist [cmd variant_time_to_timelist]]
+Added [uri com.html\#variant_time_to_timelist variant_time_to_timelist]
 and
-[uri com.html\#timelist_to_variant_time [cmd timelist_to_variant_time]].
+[uri com.html\#timelist_to_variant_time timelist_to_variant_time].
 
 [bullet]
-Added [cmd -handle] option to
-[uri security.html\#get_resource_security_descriptor [cmd get_resource_security_descriptor]] and
-options [cmd -handle], [cmd -unprotect_dacl] and [cmd -unprotect_sacl] to
-[uri security.html\#set_resource_security_descriptor [cmd set_resource_security_descriptor]].
+Added -handle option to
+[uri security.html\#get_resource_security_descriptor get_resource_security_descriptor] and
+options -handle, -unprotect_dacl and -unprotect_sacl to
+[uri security.html\#set_resource_security_descriptor set_resource_security_descriptor].
 
 [bullet]
-Added [cmd -logonsession] option to
-[uri process.html\#get_process_ids [cmd get_process_ids]].
+Added -logonsession option to
+[uri process.html\#get_process_ids get_process_ids].
 
 [bullet]
 Include process id and attribute information (if available) in
 data returned by
-[uri services.html\#get_service_status [cmd get_service_status]] and
-[uri services.html\#get_multiple_service_status [cmd get_multiple_service_status]].
+[uri services.html\#get_service_status get_service_status] and
+[uri services.html\#get_multiple_service_status get_multiple_service_status].
 
 [bullet]
 [emph "INCOMPATIBLE CHANGE"]
 Changed default value of
-[uri share.html\#new_share [cmd new_share]] option [cmd -secd].
+[uri share.html\#new_share new_share] option -secd.
 
 [bullet]
 Bug fixes.
@@ -383,471 +387,6 @@ Bug fixes.
 
 [section "Version 1.0"]
 
-[list_begin bullet]
-
-[bullet]
-Added [uri inifile.html\#read_inifile_section [cmd read_inifile_section]] and
-[uri inifile.html\#read_inifile_section_names [cmd read_inifile_section_names]].
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"]
-Removed unsupported commands
-[cmd get_open_handles] and [cmd get_open_handle_pids]. They used
-undocumented system functions and caused some nasty behaviour with
-the latest service packs.
-
-[bullet]
-Added option [cmd -stdchannels] to
-[uri process.html\#create_process [cmd create_process]].
-
-[list_end]
-
-[section "Version 1.0 Beta"]
-
-[list_begin bullet]
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"]
-The error class stored in [cmd errorCode] when Windows encounters an error
-has changed. In V0.9 and before, the error class was [const WINDOWS].
-To prevent clashes with other extensions, the error class now used
-is [const TWAPI_WIN32]. Code that traps errors using pattern matching
-in [uri errors.html\#try [cmd try]] or otherwise parses
-[cmd errorCode] will need to be modified accordingly.
-
-[bullet]
-Added [uri com.html COM] module.
-
-[bullet] Added
-[uri osinfo.html\#get_system_parameters_info [cmd get_system_parameters_info]]
-and
-[uri osinfo.html\#set_system_parameters_info [cmd set_system_parameters_info]].
-
-[bullet] Added
-[uri disk.html\#get_file_version_resource [cmd get_file_version_resource]].
-
-[bullet] Added
-[uri nls.html\#map_langid_to_name [cmd map_langid_to_name]].
-
-[list_end]
-
-[section "Version 0.9"]
-
-Note: only bug fixes that are incompatible with previous releases
-are mentioned here.
-
-[list_begin bullet]
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"]
-Remote file shares now have type [const file] instead of [const disk]
-for consistency with local file shares.
-
-[bullet]
-Added
-[uri shell.html\#write_shortcut [cmd write_shortcut]] and
-[uri shell.html\#read_shortcut [cmd read_shortcut]].
-
-[bullet]
-Added
-[uri shell.html\#write_url_shortcut [cmd write_url_shortcut]],
-[uri shell.html\#read_url_shortcut [cmd read_url_shortcut]] and
-[uri shell.html\#invoke_url_shortcut [cmd invoke_url_shortcut]].
-
-[bullet]
-Added [uri "osinfo.html#get_primary_domain_info" [cmd get_primary_domain_info]].
-
-[bullet]
-Added commands
-[uri network.html\#address_to_hostname [cmd address_to_hostname]],
-[uri network.html\#hostname_to_address [cmd hostname_to_address]],
-[uri network.html\#port_to_service [cmd port_to_service]] and
-[uri network.html\#service_to_port [cmd service_to_port]].
-
-[bullet]
-Added command [uri osinfo.html\#get_system_info [cmd get_system_info]].
-
-[bullet] Added
-[uri osinfo.html\#get_computer_name [cmd get_computer_name]].
-
-[bullet] Added [cmd -logonsession] option to
-[uri process.html\#get_process_info [cmd get_process_info]].
-
-[bullet] Added Windows 2000 support for
-[uri shell.html\#shell_object_properties_dialog [cmd shell_object_properties_dialog]],
-[uri disk.html\#volume_properties_dialog [cmd volume_properties_dialog]],
-[uri disk.html\#file_properties_dialog [cmd file_properties_dialog]],
-[uri printer.html\#printer_properties_dialog [cmd printer_properties_dialog]].
-
-[bullet] Added [cmd -user] option to
-[uri process.html\#get_process_ids [cmd get_process_ids]].
-
-[bullet] Added
-[uri users.html\#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]].
-
-[bullet] Added command
-[uri security.html\#get_security_descriptor_control [cmd get_security_descriptor_control]].
-
-[bullet] Added commands
-[uri security.html\#get_ace_text [cmd get_ace_text]] and
-[uri security.html\#get_security_descriptor_text [cmd get_security_descriptor_text]].
-
-[list_end]
-
-
-[section "Version 0.8"]
-[list_begin bullet]
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"] Changed to require at least Service Pack 4
-on Windows NT 4.0.
-The extension will no longer load on otherwise.
-This was required to support the LSA related functions.
-
-[bullet]
-Added commands
-[uri security.html\#find_logon_sessions [cmd find_logon_sessions]]
-and [uri security.html\#get_logon_session_info [cmd get_logon_session_info]]
-for dealing with logon sessions.
-
-[bullet] Added commands to retrieve information related to
-Windows shell [uri shell.html\#Themes Themes].
-[bullet] Added commands
-[uri users.html\#get_global_group_info [cmd get_global_group_info]] and
-[uri users.html\#get_local_group_info [cmd get_local_group_info]].
-
-[bullet] Added commands
-[uri network.html\#get_tcp_connections [cmd get_tcp_connections]] and
-[uri network.html\#get_udp_connections [cmd get_udp_connections]] and
-[uri network.html\#terminate_tcp_connections [cmd terminate_tcp_connections]].
-
-[bullet] Added LSA related commands
-[uri users.html\#add_account_rights [cmd add_account_rights]],
-[uri users.html\#remove_account_rights [cmd remove_account_rights]],
-[uri users.html\#find_accounts_with_right [cmd find_accounts_with_right]],
-[uri users.html\#get_account_rights [cmd get_accounts_with_rights]],
-
-[bullet] Modified commands
-[uri users.html\#delete_user [cmd delete_user]],
-[uri users.html\#delete_global_group [cmd delete_global_group]] and
-[uri users.html\#delete_local_group [cmd delete_local_group]] to
-remove account rights before deleting the account.
-
-[bullet] Added [uri printer.html\#enumerate_printers [cmd enumerate_printers]].
-
-[bullet] Added
-[uri shell.html\#shell_object_properties_dialog [cmd shell_object_properties_dialog]],
-[uri disk.html\#volume_properties_dialog [cmd volume_properties_dialog]],
-[uri disk.html\#file_properties_dialog [cmd file_properties_dialog]],
-[uri printer.html\#printer_properties_dialog [cmd printer_properties_dialog]].
-
-[bullet] Added [uri osinfo.html\#get_system_uptime [cmd get_system_uptime]].
-
-[bullet] Added
-[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]].
-
-[bullet] Added
-[uri ui.html\#configure_window_titlebar [cmd configure_window_titlebar]].
-
-
-[bullet] Added
-[uri share.html\#get_client_share_info [cmd get_client_share_info]].
-[cmd get_mapped_share_info] is now deprecated.
-
-[bullet] Added
-[uri osinfo.html\#suspend_system [cmd suspend_system]].
-
-[bullet] Added
-[uri security.html\#get_privilege_description [cmd get_privilege_description]],
-
-[bullet] Added option [cmd -description] to
-[uri services.html\#get_service_configuration [cmd get_service_configuration]].
-
-[bullet] Added options [cmd -noaccess] and [cmd -noexist] to commands
-[uri process.html\#get_process_info [cmd get_process_info]],
-[uri process.html\#get_process_parent [cmd get_process_parent]] and
-[uri process.html\#get_process_commandline [cmd get_process_commandline]].
-[emph "INCOMPATIBLE CHANGE"] These commands no longer raise a Tcl error if
-the process does not exist or if access is denied to the process.
-
-[bullet] Added command
-[uri nls.html\#map_code_page_to_name [cmd map_code_page_to_name]]
-
-[bullet] Added option [cmd -sid] to
-[uri security.html\#get_user_account_info [cmd get_user_account_info]].
-
-[bullet] Added commands
-[uri process.html\#is_system_pid [cmd is_system_pid]] and
-[uri process.html\#is_idle_pid [cmd is_idle_pid]].
-
-[bullet] Added commands
-[uri nls.html\#extract_primary_langid [cmd extract_primary_langid]] and
-[uri nls.html\#extract_sublanguage_langid [cmd extract_sublanguage_langid]].
-
-[bullet] Significant improvement in retrieval of performance related data.
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"]
-The format of return value of the
-[uri security.html\#get_token_privileges [cmd "get_token_privileges"]]
-command has changed when the [cmd -all] option is specified. The value
-returned by the [cmd -privileges] option of the
-[uri process.html\#get_process_info [cmd get_process_info]] has changed
-accordingly.
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"]
-[uri disk.html\#get_drive_type [cmd get_drive_type]]
-now returns [const invalid] as the drive type
-for non-existent drives instead of generating an error.
-
-[list_end]
-
-[section "Version 0.7"]
-[list_begin bullet]
-[bullet] Added high level Tcl interface for console access to replace
-direct Win32 API calls.
-
-[bullet] Added volume and mount point related commands (see [uri disk.html])
-
-[bullet] [emph "INCOMPATIBLE CHANGE"] Enhanced
-[uri disk.html\#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
-to return more detail.
-
-[bullet]
-Enhanced [uri services.html#get_service_status [cmd get_service_status]]
-to return the process id of the service.
-
-[bullet] For consistency,
-renamed [uri "disk.html#get_drive_info" [cmd get_drive_info]] to
-[uri "disk.html#get_volume_info" [cmd get_volume_info]] and
-[cmd get_logical_drives] to
-[uri "disk.html#find_logical_drives" [cmd find_logical_drives]]. Older
-names will still work.
-
-[bullet] Miscellaneous bug fixes.
-[list_end]
-
-[section "Version 0.6"]
-[list_begin bullet]
-
-[bullet] Added commands [uri "disk.html#begin_filesystem_monitor" [cmd begin_filesystem_monitor]] and
-[uri "disk.html#end_filesystem_monitor" [cmd end_filesystem_monitor]]
-for monitoring file system changes.
-
-[bullet] Added module [uri desktop.html "Desktops and Window Stations"].
-
-[bullet] Added module [uri nls.html "Internationalization"].
-
-[bullet] Added command
-[uri "shell.html#get_shell_folder" [cmd get_shell_folder]].
-
-[bullet] Added command
-[uri "ui.html#get_desktop_workarea" [cmd get_desktop_workarea]].
-
-[bullet] Added commands
-[uri "ui.html#get_desktop_wallpaper" [cmd get_desktop_wallpaper]] and
-[uri "ui.html#set_desktop_wallpaper" [cmd set_desktop_wallpaper]].
-
-[list_end]
-
-[section "Version 0.5"]
-[list_begin bullet]
-
-[bullet]
-Removed dependencies on the external
-[cmd cmdline] and [cmd TclExcept] packages. These are no longer required.
-
-[bullet]
-Added the [uri schedule.html "Task Scheduler"] module
-
-[bullet]
-Added [uri "handles.html#duplicate_handle" [cmd duplicate_handle]]
-
-[bullet]
-Added [uri "osinfo.html#get_primary_domain_controller" [cmd get_primary_domain_controller]]
-
-[bullet]
-Added options [cmd -groups], [cmd -primarygroup], [cmd -user]
-and [cmd -privileges] to commands
-[uri "process.html#get_process_info" [cmd get_process_info]]
-and [uri "process.html#get_thread_info" [cmd get_thread_info]]
-
-[bullet]
-Added [uri "misc.html#parseargs" [cmd parseargs]]
-for option parsing
-
-[bullet]
-Added [uri "process.html#get_process_parent" [cmd get_process_parent]]
-
-[bullet]
-Added [uri "process.html#get_process_commandline" [cmd get_process_commandline]]
-and option [cmd -commandline] to [uri "process.html#get_process_info" [cmd get_process_info]]
-
-[bullet]
-Added command
-[uri "process.html#get_process_exit_code" [cmd get_process_exit_code]]
-
-[bullet]
-Added command
-[uri "ui.html#get_display_size" [cmd get_display_size]]
-
-[bullet]
-Added commands
-[uri "misc.html#get_command_line" [cmd get_command_line]]
-and [uri "misc.html#get_command_line_args" [cmd get_command_line_args]]
-
-[bullet]
-Added [uri "misc.html.#try" [cmd try]] command
-
-[bullet]
-Added [uri "misc.html#get_version" [cmd get_version]]
-to get TWAPI version information
-
-[bullet]
-Added [uri "security.html#eval_with_privileges" [cmd eval_with_privileges]],
-[uri "security.html#enable_privileges" [cmd enable_privileges]]
-and [uri "security.html#disable_privileges" [cmd disable_privileges]]
-
-[bullet]
-Added [cmd -sync] option to [uri "ui.html\#move_window" [cmd move_window]]
-and [uri "ui.html\#resize_window" [cmd resize_window]] commands.
-
-
-[bullet][emph "INCOMPATIBLE CHANGE"] Return values from
-[uri "security.html#enable_token_privileges" [cmd enable_token_privileges]],
-[uri "security.html#disable_token_privileges" [cmd disable_token_privileges]] and
-[uri "security.html#disable_all_token_privileges" [cmd disable_all_token_privileges]]
-have changed.
-
-[bullet][emph "INCOMPATIBLE CHANGE"] Command arguments for
-[uri "security.html#open_process_token" [cmd open_process_token]]
-and [uri "security.html#open_thread_token" [cmd open_thread_token]]
-have changed.
-
-[bullet][emph "INCOMPATIBLE CHANGE"] [uri "sound.html#stop_sound" [cmd stop_sound]]
-usage has changed.
-
-[bullet][emph "INCOMPATIBLE CHANGE"] Usage and semantics of the
-[cmd -toplevel] option for [uri "ui.html#find_windows" [cmd find_windows]]
-has changed.
-
-[bullet][emph "INCOMPATIBLE CHANGE"] Removed [cmd -dpcbypassrate] and
-[cmd -apcbypassrate] options from command
-[uri "osinfo.html#get_processor_info" [cmd get_processor_info]]
-as they are not present on XP and Windows 2003.
-
-[bullet]
-Greatly expanded test coverage.
-
-[list_end]
-
-
-[section "Version 0.4"]
-[list_begin bullet]
-[bullet]Added support to be sourced as a single file Starkit
-[bullet]Added the [uri network.html "Network configuration"] module
-[bullet]Added the [uri clipboard.html "Clipboard"] module
-[bullet]Added [cmd get_memory_info] to retrieve system physical and virtual
-memory information
-[bullet]Added [cmd get_open_handle_pids] to retrieve a list of processes
-that have an open handle to a resource.
-[bullet]Added option [cmd -handles] to [cmd get_process_info]
-to retrieve a list of open handles in a process.
-[bullet]Added [cmd get_open_handles]
-to retrieve information about open handles in the system.
-[bullet]Added [cmd -device] option to [cmd get_drive_info] command
-[bullet][emph "INCOMPATIBLE CHANGE"] Changed
-[cmd set_drive_volumename] to [cmd set_drive_label] and changed option
-[cmd -volumename] of [cmd get_drive_info] to [cmd -label]. This
-is to avoid future confusion with logical volumes as defined by Windows.
-[bullet]Added options [cmd -processormodel], [cmd -processorname] and
-[cmd -processorspeed] to [cmd get_processor_info].
-[bullet][emph "INCOMPATIBLE CHANGE"] Changed the arguments to commands
-[cmd get_process_handle] and [cmd get_thread_handle].
-[bullet][emph "INCOMPATIBLE CHANGE"] Changed [cmd get_os_info] to
-not return memory related information. [cmd get_memory_info] provides a
-superset of the same information.
-[bullet]Documentation is now in Windows compiled help format with index
-and search.
-[list_end]
-
-[section "Version 0.3"]
-[list_begin bullet]
-
-[bullet]Added the [uri eventlog.html "Event log"] module
-[bullet]Added the [uri console.html Console] module
-[bullet]Added [cmd register_hotkey] and [cmd unregister_hotkey]
-[bullet]Added [cmd create_process], [cmd get_process_handle] and
-[cmd get_thread_handle]
-[bullet]Added [cmd suspend_thread] and [cmd resume_thread]
-[bullet]Added [cmd shutdown_system] and [cmd abort_system_shutdown]
-[bullet]Added [cmd format_message] and [cmd map_windows_error]
-[bullet]Added [cmd logoff_user] and [cmd lock_workstation]
-[bullet]Added [cmd get_current_user]
-[bullet]Added [cmd expand_environment_strings]
-[bullet]Added [cmd load_library] and [cmd free_library]
-[bullet]Added [cmd get_processor_count] and [cmd get_active_processor_mask]
-[bullet]Enhanced [cmd get_os_info] to return additional OS information
-[bullet]Enhanced [cmd get_processor_info] to return additional
-processor information
-[bullet]Added commands [cmd read_inifile_key], [cmd write_inifile_key],
-[cmd delete_inifile_key] and [cmd delete_inifile_section] for manipulating
-INI files.
-[bullet]Added [cmd process_waiting_for_input]
-[bullet]Added [cmd block_input]
-[bullet]Added [cmd close_handles]
-[bullet]Added [cmd get_tcl_channel_handle]
-[bullet]Bug fixes to [cmd delete_share], [cmd close_window]
-[list_end]
-
-[section "Version 0.2"]
-[list_begin bullet]
-[bullet]Added the [uri security.html Security] module containing commands for
-user/group management, resource protection,
-access control, authorization
-and impersonation
-[bullet]Added the [uri share.html "Network shares"]
-module containing commands for configuration
-of network shares
-[bullet]Added [cmd play_sound] for basic audio playback
-[bullet]Added [cmd send_keys] command
-(clone of Visual Basic SendKeys using same syntax) for generating keystrokes
-[bullet]Added [cmd find_windows]
-[bullet]Added [cmd get_logical_drives]
-[bullet]Added [cmd get_drive_type]
-[bullet]Added [cmd set_drive_volumename]
-[bullet]Added [cmd get_mouse_location]
-[bullet]Added [cmd get_computer_netbios_name]
-[bullet][emph "INCOMPATIBLE CHANGE"] Changed parameters and return format
-for [cmd get_process_modules].
-[bullet][emph "INCOMPATIBLE CHANGE"] Changed the [cmd -machine] and [cmd -display_name]
-options in the services module to [cmd -system] and [cmd -displayname]
-for consistency with other modules.
-[bullet][emph "INCOMPATIBLE CHANGE"] Several commands that used to return
-multiple values in [emph "fieldname value"] format have been
-changed so that the [emph "fieldname"] matches the option
-specified to retrieve the field (to include the [strong -] prefix).
-These commands include [cmd get_device_drivers], [cmd get_process_info],
-[cmd get_disk_info], [cmd get_user_account_info], [cmd lookup_account_name]
-[bullet][emph "INCOMPATIBLE CHANGE"] get_service_configuration options
-        and return format has changed.
-[bullet][emph "INCOMPATIBLE CHANGE"] The return values from the commands
-[cmd start_service], [cmd stop_service],
-[cmd pause_service], [cmd resume_service] and [cmd interrogate_service] have
-changed. Moreover, [cmd start_service] and [cmd stop_service] will no
-longer throw an exception if the service is already running or stopped
-respectively.
-[bullet]Allow window styles to be expressed as symbols in addition to
-        bitmasks
-[bullet]The commands [cmd start_service], [cmd stop_service],
-[cmd pause_service], [cmd resume_service] now take an additional [cmd -wait] option.
-[list_end]
-
-[section "Version 0.1"]
-[list_begin bullet]
-[bullet] Initial release
-[list_end]
-
+First official release.
 
 [manpage_end]
