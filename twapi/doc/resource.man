@@ -15,9 +15,9 @@ resources.
 [section "Windows Resources"]
 Resources are stored in Portable Executable format files (exe's and dll's).
 A resource has an associated name, type and a language.
-The name and type can be either integer values or strings. To
-retrieve a particular resource, you must know both the associated
-values for that resource.
+The name and type can be either integer values or strings.
+To retrieve a particular resource, you must know both the associated
+values, the type and the name, for that resource.
 
 [para]
 To support
@@ -34,7 +34,32 @@ it is up to the application to construct it appropriately.
 
 [section "Resource Types"]
 
-TBD
+Windows defines certain standard resource types shown in the table below
+along with the corresponding [const #define] values from the SDK.
+
+[list_begin opt]
+[opt_def 1] RT_CURSOR - Cursor
+[opt_def 2] RT_BITMAP - Bitmap
+[opt_def 3] RT_ICON - Icon
+[opt_def 4] RT_MENU - Menu
+[opt_def 5] RT_DIALOG - Dialog
+[opt_def 6] RT_STRING - String (see [sectref stringresources])
+[opt_def 7] RT_FONTDIR - Font directory
+[opt_def 8] RT_FONT - Font
+[opt_def 9] RT_ACCELERATOR - Accelerator
+[opt_def 10] RT_RCDATA - Application defined raw data
+[opt_def 11] RT_MESSAGETABLE - Message table
+[opt_def 12] RT_GROUP_CURSOR - Hardware independent cursor
+[opt_def 14] RT_GROUP_ICON - Hardware independent icon
+[opt_def 16] RT_VERSION - Version
+[opt_def 17] RT_DLGINCLUDE - Name of C include file containing corresponding symbolic names of resources
+[opt_def 19] RT_PLUGPLAY - Plug and play
+[opt_def 20] RT_VXD - Vxd
+[opt_def 21] RT_ANICURSOR - Animated cursor
+[opt_def 22] RT_ANIICON - Animated icon
+[opt_def 23] RT_HTML - HTML
+[opt_def 24] RT_MANIFEST - Executable Manifest
+[list_end]
 
 [section "Locating and Loading Resources"]
 Manipulating a resource requires a Windows executable module
@@ -187,11 +212,28 @@ Returns the string in the resource table for the module specified by
 [arg HMODULE] which must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
 [nl]
-A peculiarity in the storage format for resource strings means it is not
-always possible to distinguish between a resource string that is not defined
+Because of the storage format used in string resources, it is not always
+possible to distinguish between a resource string that is not defined
 and a resource string that is defined with an empty value. An attempt
 to read an undefined resource string may either result in an error being
 generated, or in the return of an empty string.
+
+[call [cmd resource_stringblock_to_strings] [arg BINDATA]]
+Converts a binary resource string block to a list of strings. As every
+string block contains 16 strings, the returned list as exactly
+16 strings.
+
+[call [cmd resource_stringid_to_stringblockid] [arg STRINGID]]
+Maps a string resource id to a list containing the id of the
+corresponding string block in the resource and the index of the string
+within the block as described in [sectref "stringresources"].
+
+[call [cmd strings_to_resource_stringblock] [arg STRINGS]]
+Converts the list of strings in [arg STRINGS] to a binary resource string block
+that can be passed to [uri #update_resource [cmd update_resource]].
+The number of strings in [arg STRINGS] must not be more than 16 which
+is the number stored in a single resource string block. If fewer than 16
+strings are provided, they are stored as empty strings.
 
 [call [cmd update_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID] [arg RESDATA]]
 Updates a resource from the specified module
