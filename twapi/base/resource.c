@@ -11,8 +11,12 @@ static TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LP
 {
     int i;
 
-    /* Resource type and name can be integers or strings */
-    if (Tcl_GetLongFromObj(NULL, objP, &i) == TCL_OK)
+    /*
+     * Resource type and name can be integers or strings. If integer,
+     * they must pass the IS_INTRESOURCE test as not all integers are valid.
+     */
+    if (Tcl_GetLongFromObj(NULL, objP, &i) == TCL_OK &&
+        IS_INTRESOURCE(i))
         *wsP = MAKEINTRESOURCEW(i);
     else
         *wsP = Tcl_GetUnicode(objP);
