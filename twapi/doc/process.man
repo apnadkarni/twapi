@@ -788,10 +788,8 @@ Returns true if the passed [arg PID] is that of the system process.
 
 [call [cmd load_library] [arg FILEPATH] [opt [arg options]]]
 
-Loads a DLL and returns a handle to it. This handle
-may be passed to other commands, such as
-[uri misc.html\#format_message [cmd format_message]] that expect
-a module handle as a parameter. The handle must later be released by calling
+Loads a DLL and returns a handle to it.
+The handle must later be released by calling
 [uri \#free_library [cmd free_library]].
 
 The following options may be specified:
@@ -802,7 +800,9 @@ the system will load any other modules referenced by it and also call its
 of these actions will be done.
 [opt_def [cmd -datafile]]If specified, the module is loaded as a data file as
 opposed to an executable module. This is useful when the file is being
-loaded only to extract resources or messages.
+loaded only to 
+[uri resource.html "extract resources"] or 
+[uri misc.html\#format_message "format messages"].
 [opt_def [cmd -alteredpath]]Uses an alternative search strategy to find
 modules referenced by this module. See the Windows SDK for more details.
 [list_end]
