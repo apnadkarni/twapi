@@ -6,31 +6,37 @@
 [description]
 
 [section "System Requirements"]
-The 32-bit builds of the [const TWAPI] extension requires
+The 32-bit builds of the [const TWAPI] extension require
 Windows 2000 or newer Windows versions and Tcl version 8.4 or later.
 [para]
-The 64-bit builds of [const TWAPI] requires
-Windows 2003 Server or newer Windows versions and Tcl version 8.5 or later.
+The 64-bit builds of [const TWAPI] require Windows 2003 Server or newer Windows versions and Tcl version 8.5 or later.
 [para]
 For Windows NT 4.0 (SP3 or later), use TWAPI 1.1.5 or earlier releases.
 
 [section "Distribution formats"]
-Each [uri packages.html "TWAPI package"] comes in multiple forms.
-The main [cmd twapi] package distribution comes in three forms:
-a ZIP archive ([file twapi-[arg PLATFORM]-[arg VERSION].zip]),
-a single file Tcl module ([file twapi-[arg PLATFORM]-[arg VERSION].tm]) for Tcl 8.5 and above,
-and a Starkit ([file twapi-[arg PLATFORM]-[arg VERSION].kit]). [arg PLATFORM]
-may be [const x86] or [const x64] for the 32- and 64-bit builds respectively.
-[para]
-The subset packages [cmd twapi_desktop] and [cmd twapi_server] are
-only distributed as single file Tcl modules and Starkits and are only
-available in 32-bit versions.
+The software is distributed in multiple forms ([arg PLATFORM]
+may be [const x86] or [const x64] for the 32- and 64-bit builds respectively):
+[list_begin bullet]
+[bullet]
+A ZIP archive, [file twapi-[arg PLATFORM]-[arg VERSION].zip], that includes 
+the Tcl scripts in source form along with the TWAPI DLL. This is best
+suited for developers who might want access to the Tcl scripts during
+development. This distribution can be used with any version of Tcl.
+[bullet]
+A ZIP archive, [file twapi-deploy-[arg PLATFORM]-[arg VERSION].zip], in
+which the Tcl scripts are embedded within the TWAPI DLL.
+[bullet]
+A single file Tcl module, [file twapi-[arg PLATFORM]-[arg VERSION].tm],
+for Tcl 8.5 and above.
+[bullet]
+A standalone DLL, [file twapi-[arg PLATFORM]-[arg VERSION].dll], that can
+be directly loaded into Tcl.
+[list_end]
 
 [para]
-To install the ZIP distribution,
-unzip it into a directory and
-add the location of the twapi distribution
-directory to your Tcl [cmd auto_path] variable.
+To install either ZIP distribution,
+unzip it into a directory that is included in the path contained
+in your Tcl [cmd auto_path] variable.
 
 [para]
 The Tcl module distributions can be used with Tcl 8.5 or later.
@@ -40,52 +46,75 @@ Tcl's [cmd "::tcl::tm::path list"] command and rename it to
 twapi-[arg VERSION].tm (i.e. remove the [arg PLATFORM] string).
 
 [para]
-The Starkit distributions are self-contained except for the documentation.
-To use one of these
-distributions, simply use the Tcl [cmd source] command to read
-it into your Tcl interpreters.
+The standalone DLL distributions are self-contained and may be placed
+anywhere. However, they are not discoverable by Tcl's package mechanism
+and must be explicitly loaded through Tcl's [cmd load] command.
 
 [para]
 Some factors to consider in choosing the distribution:
 [list_begin bullet]
 
 [bullet]
-The ZIP distribution is the most complete, including a test suite for
+The [file twapi-[arg PLATFORM]-[arg VERSION].zip]
+distribution is the most complete, including a test suite for
 testing the installation using Tcl's [cmd tcltest] command. It also
 makes it easy to look through or adapt the Tcl script level code if required.
+It is however the bulkiest on disk, and has a somewhat longer load
+time.
 [bullet]
-The Starkit is the most compact on-disk if distribution size is a
-factor.
+The [file twapi-deploy-[arg PLATFORM]-[arg VERSION].zip] distribution
+is intended for deployment into standard Tcl installations where
+the script source is not required or desired.
 [bullet]
-The Tcl module distribution loads the fastest. However, it can only be
-used with Tcl 8.5 or later.
+The standalone DLL and the Tcl module distributions provide the convenience
+of single file deployment. The standalone DLL has the advantage of
+working with Tcl 8.4 as well unlike the Tcl module which is only supported
+by Tcl 8.5 or later. On the other hand, the Tcl module is compatible with
+Tcl's [cmd "package require"] command while the standalone DLL must be
+loaded using an explicit path to the DLL. This makes it most suitable
+for customized applications.
 [bullet]
-Both the Starkit and Tcl module distributions write the TWAPI DLL
+The Tcl module distributions write the TWAPI DLL
 component to a temporary directory before calling the OS loader. They
 therefore cannot be used in read-only disk environments. However, this
 writing is done only the first time a specific TWAPI build is loaded.
 The written DLL is identified by
 a GUID that is specific to every TWAPI build and not rewritten if it
 already exists.
+[bullet]
+The standalone DLL replaces the Starkit distribution that was present
+in earlier versions of TWAPI. It has the advantage over the Starkit
+distribution in that it does not require starkit and vfs support
+in the core Tcl and in addition loads significantly faster than
+the Starkit.
 [list_end]
 
+There is no prebuilt TWAPI distribution that simultaneously supports both
+32-bit and 64-bit Tcl distributions. However, you can package one yourself
+by simply including the 64-bit TWAPI DLL in the corresponding 32-bit ZIP
+distribution. The [file pkgIndex.tcl] script will appropriately select
+the right DLL to load.
+
 [section "Loading TWAPI"]
-Once installed, TWAPI can be loaded using the command
-[cmd "package require [arg PACKAGENAME]"] where [arg PACKAGENAME] is
-one of [cmd twapi], [cmd twapi_desktop] or [cmd twapi_server].
-Note that with the Starkit distribution,
-you still need to source the file before invoking this command.
+Once installed, all distributions, except the standalone DLL,
+can be loaded into an interpreter using the command
+[example_begin]
+package require twapi
+[example_end]
+
+In the case of the standalone DLL, it must be loaded using the command
+[example_begin]
+load [arg PATH_TO_TWAPIDLL] Twapi
+[example_end]
 
 [section Commands]
 
-[para]
 All commands installed by this extension fall under the [cmd twapi::]
-namespace [emph "even if you load the [cmd twapi_server] or [cmd twapi_desktop] packages"].
-[para]
+namespace.
 The commands are not exported from the namespace by default. To
 import the commands, they must first be exported by calling
-::twapi::export_public_commands. Alternatively, you can call
-::twapi::import_commands to import all TWAPI commands.
+[cmd ::twapi::export_public_commands]. Alternatively, you can call
+[cmd ::twapi::import_commands] to import all TWAPI commands.
 
 [keywords "installation" "system requirements" "package dependencies" starkit "Tcl module"]
 
