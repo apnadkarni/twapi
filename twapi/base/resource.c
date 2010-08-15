@@ -129,14 +129,9 @@ static BOOL CALLBACK EnumResourceNamesProc(
 )
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
-    Tcl_Obj *objs[3];
-
-    objs[0] = ObjFromOpaque(hModule, "HMODULE");
-    objs[1] = ObjFromResourceIntOrString(lpszType);
-    objs[2] = ObjFromResourceIntOrString(lpszName);
 
     Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP,
-                             Tcl_NewListObj(3, objs));
+                             ObjFromResourceIntOrString(lpszName));
 
     return TRUE;
 
@@ -179,14 +174,9 @@ static BOOL CALLBACK EnumResourceTypesProc(
 )
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
-    Tcl_Obj *objs[2];
-
-    objs[0] = ObjFromOpaque(hModule, "HMODULE");
-    objs[1] = ObjFromResourceIntOrString(lpszType);
 
     Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP,
-                             Tcl_NewListObj(2, objs));
-
+                             ObjFromResourceIntOrString(lpszType));
     return TRUE;
 }
 
@@ -219,18 +209,9 @@ static BOOL CALLBACK EnumResourceLanguagesProc(
 )
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
-    Tcl_Obj *objs[4];
 
-    objs[0] = ObjFromOpaque(hModule, "HMODULE");
-    objs[1] = ObjFromResourceIntOrString(lpszType);
-    objs[2] = ObjFromResourceIntOrString(lpszName);
-    objs[3] = Tcl_NewIntObj(langid);
-
-    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP,
-                             Tcl_NewListObj(4, objs));
-
+    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP, Tcl_NewIntObj(langid));
     return TRUE;
-
 }
 
 TCL_RESULT Twapi_EnumResourceLanguages(
