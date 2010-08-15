@@ -32,6 +32,10 @@ It does not provide any functionality related to constructing the actual
 binary data itself. Each resource type has a specific structure and
 it is up to the application to construct it appropriately.
 
+[section "Resource Types"]
+
+TBD
+
 [section "Locating and Loading Resources"]
 Manipulating a resource requires a Windows executable module
 handle for the corresponding
@@ -51,7 +55,8 @@ call.
 
 [para]
 Once the module is loaded, the content of a particular resource
-can be retrieved using [uri #read_resource] [cmd read_resource].
+can be retrieved using [uri #read_resource [cmd read_resource]]
+and [uri #read_resource_string [cmd read_resource_string]].
 
 [para]
 You can also enumerate resources present in a module using the
@@ -78,6 +83,49 @@ delete resources.
 Finally, the
 the [uri #end_resource_update [cmd end_resource_update]] command
 is used to commit or discard the modifications.
+
+[section "String Resources"]
+Strings defined through a string table definition in a resource definition
+file are not directly stored in the resource binary. They are stored in
+string blocks, each containing 16 strings. 
+It is therefore not possible
+to directly retrieve or update a string based on its string id.
+
+[para]
+If you call [uri #read_resource [cmd read_resource]] with a resource type of
+[const 6] (STRING), the resource name or id has to actually be the id
+of the string block, not the string. The command
+[uri #resource_stringid_to_stringblockid [cmd resource_stringid_to_stringblockid]]
+will take a string id and return a pair consisting of the id of the 
+corresponding block and the index of the string within the block. The block
+id can be passed to [uri #read_resource [cmd read_resource]] to read
+the string block. Since this is in binary format, it needs to be converted
+into a list of strings using
+[uri #resource_stringblock_to_strings [cmd resource_stringblock_to_strings]].
+The string index returned from 
+[uri #resource_stringid_to_stringblockid [cmd resource_stringid_to_stringblockid]] can be used to then pick out the appropriate string from the this list.
+[para]
+If you are only interested in a single string, the command
+[uri #read_resource_string [cmd read_resource_string]] ensapsulates this
+entire process.
+[para]
+Updating strings in a resource involves multiple steps for the same reason.
+First, the string block has to be retrieved and converted to a list
+of strings as described above. The list must then be modified as desired
+and converted back to a string block using
+[uri #strings_to_resource_stringblock [cmd strings_to_resource_stringblock]]
+and then written out using [uri #update_resource [cmd update_resource]].
+[para]
+Deleting a string resource is similar. Once the list of strings in
+the appropriate block is retrieved, set the corresponding element in
+the list to an empty string before writing it back using
+[uri #update_resource [cmd update_resource]].
+[para]
+A peculiarity in the storage format for resource strings means it is not
+always possible to distinguish between a resource string that is not defined
+and a resource string that is defined with an empty value. An attempt
+to read an undefined resource string may either result in an error being
+generated, or in the return of an empty string.
 
 [section Commands]
 
@@ -127,9 +175,23 @@ Returns a list of the types of resources in the specified module.
 Returns the content of a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
-If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
-the return value is a string, otherwise, the return value is 
-the raw binary data for the resource.
+[nl]
+Note that If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
+[arg RESTYPE] is the id for a string block, not an individual string.
+The returned value is the binary data corresponding to the string block.
+To retrieve individual strings, use the
+[uri #read_resource_string [cmd read_resource_string]] command.
+
+[call [cmd read_resource_string] [arg HMODULE] [arg STRINGID] [arg LANGID]]
+Returns the string in the resource table for the module specified by
+[arg HMODULE] which must be a handle previously retrieved via
+[uri process.html#load_library [cmd load_library]].
+[nl]
+A peculiarity in the storage format for resource strings means it is not
+always possible to distinguish between a resource string that is not defined
+and a resource string that is defined with an empty value. An attempt
+to read an undefined resource string may either result in an error being
+generated, or in the return of an empty string.
 
 [call [cmd update_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID] [arg RESDATA]]
 Updates a resource from the specified module
