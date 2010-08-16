@@ -112,9 +112,6 @@ Added -hprocess and -hthread options to
 [uri input.html#register_hotkey register_hotkey]
 to allow multiple scripts to register for the same hotkey.
 
-[bullet] Added [uri misc.html#log log] command to log debug
-and trace messages.
-
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
 lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
@@ -128,6 +125,9 @@ get_client_share_info in previous releases.
 [uri services.html#get_dependent_service_status get_dependent_service_status] and
 [uri services.html#get_multiple_service_status get_multiple_service_status]
 has changed to make access simpler and faster.
+
+[bullet] Added [uri errors.html#debuglog debuglog] command to log debug
+and trace messages.
 
 [list_end]
 
