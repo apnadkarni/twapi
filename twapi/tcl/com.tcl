@@ -1813,9 +1813,9 @@ proc twapi::_comobj_wrapper {comobj clsid args} {
         }
     }
     
-    # Invoke the function. TBD - should we do a uplevel instead of eval
-    # here so variables if any are in caller's context ?
-    return [_convert_from_variant [eval [list twapi::idispatch_invoke $ifc $::twapi::idispatch_prototypes($ifc,$name,0,$flags)] $params] false]
+    # Invoke the function. We do a uplevel instead of eval
+    # here so variables if any are in caller's context
+    return [_convert_from_variant [uplevel 1 [list twapi::idispatch_invoke $ifc $::twapi::idispatch_prototypes($ifc,$name,0,$flags)] $params] false]
 }
 
 
