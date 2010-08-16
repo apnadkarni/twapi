@@ -23,7 +23,6 @@ replaces environment variables
 in a string with their values. [uri \#format_message [cmd format_message]]
 formats a operating system
 or application message.
-[uri \#log [cmd log]] provides an internal message logging facility.
 
 [section Commands]
 [list_begin definitions]
@@ -135,12 +134,6 @@ Some Windows functions return time as the number of 100 nanosecond units
 since Jan 1, 1601. The command converts such time values to a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
-
-[call [cmd log] [opt [arg "MESSAGE..."]]]
-If any arguments are specified, adds each to the internal Twapi trace log.
-If no arguments are specified, returns the list of messages that have been
-logged. This command is primarily meant for internal logging by Twapi for
-debug and tracing purposes.
 
 [call [cmd parseargs] [arg ARGLISTVAR] [arg OPTLIST] [opt [cmd -ignoreunknown]] [opt [cmd -nulldefault]] [opt "[cmd -maxleftover] [arg MAXLEFTOVER]"]]
 Parses the options specified in a list of arguments.

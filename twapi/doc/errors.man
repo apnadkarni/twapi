@@ -45,9 +45,22 @@ of an operating system error code.
 [para]
 [uri \#try [cmd try]] provides exception handling with finalization features.
 
+[section "Error Logging"]
+
+For troubleshooting and debug purposes, TWAPI provides the
+[uri #debuglog [cmd debuglog]] command which writes to an internal log.
+Applications can use this command for their purposes. TWAPI uses it
+internally to log unexpected state and error conditions.
+
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd debuglog] [opt [arg MESSAGE]] [opt [arg MESSAGE]] [arg ...]]
+Writes each specified argument as a message to an internal log.
+If no arguments are specified, returns the current contents of the log.
+There is an internal limit on the number of messages stored. Older messages
+are discarded once the log reaches this limit.
 
 [call [cmd map_windows_error] [arg ERRORCODE]]
 Returns the text string corresponding to a Windows error code.

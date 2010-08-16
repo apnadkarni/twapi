@@ -24,7 +24,7 @@ if {![info exists twapi::version]} {
 }
 
 # log for tracing / debug messages.
-proc twapi::log {args} {
+proc twapi::debuglog {args} {
     variable log_messages
     if {[llength $args] == 0} {
         if {[info exists log_messages]} {
