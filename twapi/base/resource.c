@@ -259,7 +259,6 @@ TCL_RESULT Twapi_SplitStringResource(
 {
     WCHAR *wP;
     int len;
-    int remain;
     Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
     
     if (TwapiGetArgs(interp, objc, objv,
