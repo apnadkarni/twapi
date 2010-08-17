@@ -1647,11 +1647,6 @@ proc twapi::Twapi_AddressToPtr {addr type} {
 }
 
 
-# TBD - debug_puts
-proc twapi::debug_puts {msg {fd stderr}} {
-    puts $fd $msg; flush $fd
-}
-
 proc twapi::_log_timestamp {} {
     return [clock format [clock seconds] -format "%a %T"]
 }
