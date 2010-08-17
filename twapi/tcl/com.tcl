@@ -44,15 +44,12 @@ namespace eval twapi {
     # need this level of indirection because multiple object creation
     # can return the same interface pointer if the referenced resource
     # is the same. We need to treat these as separate objects from
-    # the application's point of view.
+    # the application's point of view. TBD - do we really need to?
     # Indexed by ($comobj,field) where field may be
     #  ifc  - corresponding idispatch interface
     #  sinks,SINKID - event sinks with id SINKID bound to this object
     #  connpts,SINKID - connection points with id SINKID bound to this object
     array set com_instance_data {}
-
-    # Counter of COM instances - used for name generation
-    variable com_instance_counter 0
 
     # Controls debug checks
     variable com_debug 0
@@ -112,21 +109,22 @@ proc twapi::iunknown_query_interface {ifc name_or_iid} {
 }
 
 #
-# Get an existing active object interface
-proc twapi::get_iunknown_active {clsid} {
+# Get IUnknown interface for an existing active object
+proc twapi::get_active_object {clsid} {
     return [GetActiveObject $clsid]
 }
 
 #
 # Create a new object and get an interface to it
 # Generates exception if no such interface
-proc twapi::com_create_instance {clsid name_or_iid args} {
+proc twapi::com_create_instance {clsid args} {
     array set opts [parseargs args {
         {model.arg any}
         download.bool
         {disablelog.bool false}
         enableaaa.bool
         {nocustommarshal.bool false}
+        {interface.arg IUnknown}
     } -maxleftover 0]
 
     # CLSCTX_NO_CUSTOM_MARSHAL ?
@@ -167,7 +165,7 @@ proc twapi::com_create_instance {clsid name_or_iid args} {
         }
     }
 
-    foreach {iid iid_name} [_resolve_iid $name_or_iid] break
+    foreach {iid iid_name} [_resolve_iid $opts(interface)] break
 
     # In some cases, like Microsoft Office getting an interface other
     # than IUnknown fails fails.
@@ -192,20 +190,7 @@ proc twapi::com_create_instance {clsid name_or_iid args} {
 
 
 #
-proc twapi::get_iunknown {clsid args} {
-    return [eval [list com_create_instance $clsid IUnknown] $args]
-}
-
-#
 # IDispatch commands
-
-
-# Get the IDispatch interface for a class
-# Generates exception if no such interface
-#
-proc twapi::get_idispatch {clsid args} {
-    return [eval [list com_create_instance $clsid IDispatch] $args]
-}
 
 #
 # Has type information?
@@ -277,7 +262,7 @@ proc twapi::comobj_idispatch {ifc need_addref {objclsid ""}} {
         iunknown_addref $ifc
     }
 
-    set objname ::twapi::com_[incr twapi::com_instance_counter]
+    set objname ::twapi::com[TwapiId]
     set ::twapi::com_instance_data($objname,ifc) $ifc
     interp alias {} $objname {} ::twapi::_comobj_wrapper $objname $objclsid
     return $objname
@@ -296,7 +281,7 @@ proc twapi::comobj_object {path} {
 # comid is either a CLSID or a PROGID
 proc twapi::comobj {comid args} {
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list get_idispatch $clsid] $args] false $clsid]
+    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch] $args] false $clsid]
 }
 
 
@@ -1835,7 +1820,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
     # Check if the comobj is still active
     if {![_comobj_active $comobj]} {
         if {$::twapi::com_debug} {
-            debug_puts "COM event received for inactive object"
+            debuglog "COM event received for inactive object"
         }
         return;                         # Object has gone away, ignore
     }
@@ -1852,7 +1837,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
     } msg]
 
     if {$::twapi::com_debug && $retcode} {
-        debug_puts "Event sink callback error ($retcode): $msg\n$::errorInfo"
+        debuglog "Event sink callback error ($retcode): $msg\n$::errorInfo"
     }
 
     # $retcode is returned as HRESULT by the Invoke
