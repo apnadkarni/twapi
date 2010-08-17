@@ -239,6 +239,11 @@ CFLAGS = $(CFLAGS) /D_DLL /MD
 # /OPT:NOWIN98 reduces code size by using 512k byte section alignment
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF
 
+!IFDEF ENABLE_DELAYLOAD
+LIBS = $(LIBS) delayimp.lib
+LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll
+!ENDIF
+
 !if $(VCVER) == 6
 LOPT = $(LOPT) /debug:full /debugtype:cv 
 !endif
