@@ -218,6 +218,8 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
             result = Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
             if (compressed)
                 TwapiLzmaFreeBuffer(dataP);
+            if (result == TCL_OK)
+                Tcl_ResetResult(ticP->interp);
             return result;
         }
     }
