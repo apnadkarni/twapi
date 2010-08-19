@@ -1137,6 +1137,15 @@ int Twapi_IDispatch_InvokeObjCmd(
         return TCL_ERROR;
 
     /* Extract prototype information */
+#if 1
+    if (TwapiGetArgs(interp, protoc, protov,
+                     GETINT(dispid), ARGSKIP, GETINT(lcid),
+                     GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
+                     ARGTERM) != TCL_OK) {
+        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID RIID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
+        return TCL_ERROR;
+    }
+#else
     if (protoc < 5) {
         Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID RIID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
         return TCL_ERROR;
@@ -1156,6 +1165,7 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     if (ObjToVT(interp, protov[4], &retvar_vt) != TCL_OK)
         return TCL_ERROR;
+#endif
 
     if (protoc >= 6) {
         /* Extract the parameter information */
