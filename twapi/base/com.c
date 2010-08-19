@@ -1542,7 +1542,7 @@ int Twapi_ITypeInfo_GetNames(
     MEMBERID memid)
 {
     HRESULT hr;
-    BSTR    names[32];
+    BSTR    names[64];
     int     name_count;
 
     ZeroMemory(names, sizeof(names));
