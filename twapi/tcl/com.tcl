@@ -2468,7 +2468,7 @@ twapi::com::define_interface ITypeInfo -forwards {
 
 }
 
-twapi::com::define_interfaces ITypeLib -forwards {
+twapi::com::define_interface ITypeLib -forwards {
     GetDocumentation
     GetTypeInfoCount
     GetTypeInfoType
