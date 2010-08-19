@@ -947,6 +947,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALLCOM_(IDispatchEx_GetMemberProperties, 203);
     CALLCOM_(IDispatchEx_GetNextDispID, 204);
     CALLCOM_(IDispatchEx_GetNameSpaceParent, 205);
+    CALLCOM_(IDispatchEx_DeleteMemberByName, 206);
+    CALLCOM_(IDispatchEx_DeleteMemberByDispID, 207);
 
     CALLCOM_(ITypeInfo_GetRefTypeOfImplType, 301);
     CALLCOM_(ITypeInfo_GetRefTypeInfo, 302);
