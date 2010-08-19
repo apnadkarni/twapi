@@ -2279,21 +2279,23 @@ namespace eval twapi::com::IUnknown {}
 
 interp alias {} twapi::_make_com_interface {} twapi::com::IUnknown::_register
 
-proc twapi::com::forwards {args} {
-    set ns [uplevel 1 "namespace current"]
-    set aliases ""
-    foreach methodname $args {
-        lappend aliases "interp alias {} ${ns}::$methodname {} ::twapi::[namespace tail $ns]_$methodname"
-    }
-    uplevel 1 [join $aliases ";"]
-}
-proc twapi::com::define_interface {ifcname body args} {
+proc twapi::com::define_interface {ifcname args} {
     array set opts [::twapi::parseargs args {
+        forwards.arg
         {inherit.arg IUnknown}
+        methods.arg
     } -maxleftover 0]
 
     set ns [namespace current]::$ifcname
     namespace eval $ns "variable parent [namespace qualifiers $ns]::$opts(inherit)"
+    if {[info exists opts(forwards)]} {
+        set aliases ""
+        foreach methodname $opts(forwards) {
+            lappend aliases "interp alias {} ${ns}::$methodname {} ::twapi::[namespace tail $ns]_$methodname"
+        }
+        namespace eval $ns [join $aliases ";"]
+    }
+
     namespace eval $ns {
         proc _dispatch {ifc method args} {
             # Note we have to invoke via uplevel so uplevels/upvar in the parent
@@ -2309,7 +2311,9 @@ proc twapi::com::define_interface {ifcname body args} {
             }
         }
     }
-    namespace eval $ns $body
+    if {[info exists opts(methods)]} {
+        namespace eval $ns $opts(methods)
+    }
 }
 
 namespace eval twapi::com::IUnknown {
@@ -2388,21 +2392,16 @@ namespace eval twapi::com::IUnknown {
     }
 }
 
-twapi::com::define_interface IDispatch {
-    ::twapi::com::forwards GetTypeInfoCount GetIDsOfNames Invoke
-
-    proc GetTypeInfo {ifc infotype lcid} {
+twapi::com::define_interface IDispatch -forwards {
+    GetTypeInfoCount
+    GetIDsOfNames
+} -methods {
+    proc GetTypeInfo {ifc {infotype 0} {lcid 0}} {
         if {$infotype != 0} {error "Parameter infotype must be 0"}
         return [twapi::_make_com_interface [::twapi::IDispatch_GetTypeInfo $ifc $infotype $lcid]]
     }
-    proc gettypeinfo {ifc args} {
-        array set opts [::twapi::parseargs args {
-            lcid.int
-        } -maxleftover 0 -nulldefault]
-        return [GetTypeInfo $ifc 0 $opts(lcid)]
-    }
 
-    proc getidsofnames {ifc name args} {
+    proc name_to_ids {ifc name args} {
         array set opts [parseargs args {
             lcid.int
             paramnames.arg
@@ -2411,7 +2410,7 @@ twapi::com::define_interface IDispatch {
         return [GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)] $opts(lcid)]
     }
 
-    proc invoke {ifc prototype args} {
+    proc Invoke {ifc prototype args} {
         if {$prototype eq ""} {
             # Treat as a property get DISPID_VALLUE (default value)
             # {dispid=0, riid="" lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
@@ -2422,8 +2421,63 @@ twapi::com::define_interface IDispatch {
 }
 
 
-twapi::com::define_interface IDispatchEx {
-    ::twapi::com::forwards DeleteMemberByDispID DeleteMemberByName GetDispID GetMemberName GetMemberProperties GetNextDispID GetNameSpaceParent
+twapi::com::define_interface IDispatchEx -inherit IDispatch -forwards {
+    DeleteMemberByDispID
+    DeleteMemberByName
+    GetDispID
+    GetMemberName
+    GetMemberProperties
+    GetNextDispID
+    GetNameSpaceParent
+} 
+
+twapi::com::define_interface ITypeInfo -forwards {
+    GetRefTypeOfImplType
+    GetDocumentation
+    GetImplTypeFlags
+    GetNames
+    GetTypeAttr
+    GetFuncDesc
+    GetVarDesc
+    GetIDsOfNames
+} -methods {
+    proc GetRefTypeInfo {ifc hreftype} {
+        return [twapi::com::_make_com_interface [::twapi::ITypeInfo_GetRefTypeInfo $ifc $hreftype]]
+    }
+    # Return ITypeInfo* for a referenced type based in its index
+    proc get_referenced_typeinfo {ifc index} {
+        return [GetRefTypeInfo $ifc [GetRefTypeOfImplType $ifc $index]]
+    }
+
+    proc GetTypeComp {ifc} {
+        return [twapi::com::_make_com_interface [::twapi::ITypeInfo_GetTypeComp $ifc]]
+    }
+
+    proc GetContainingTypeLib {ifc} {
+        foreach {ityplib index} [::twapi::ITypeInfo_GetContainingTypeLib $ifc] break
+        return [list [::twapi::com::_make_com_interface $itypelib] $index]
+    }
+
+    proc name_to_ids {ifc name args} {
+        array set opts [parseargs args {
+            paramnames.arg
+        } -maxleftover 0 -nulldefault]
+        
+        return [GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)]]
+    }
+
 }
 
-
+twapi::com::define_interfaces ITypeLib -forwards {
+    GetDocumentation
+    GetTypeInfoCount
+    GetTypeInfoType
+    GetLibAttr
+} -methods {
+    proc GetTypeInfo {ifc index} {
+        return [twapi::com::_make_com_interface [::twapi::ITypeLib_GetTypeInfo $ifc $index]]
+    }
+    proc GetTypeInfoOfGuid {ifc guid} {
+        return [twapi::com::_make_com_interface [::twapi::ITypeLib_GetTypeInfoOfGuid $ifc $guid]]
+    }
+}
