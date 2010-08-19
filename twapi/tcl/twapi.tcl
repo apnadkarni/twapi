@@ -1642,6 +1642,18 @@ proc twapi::Twapi_PtrToAddress {p} {
     }
 }
 
+proc twapi::Twapi_PtrType {p} {
+    if {[Twapi_IsPtr $p]} {
+        set type [lindex $p 1]
+        if {$type eq ""} {
+            set type void*
+        }
+    } else {
+        error "'$p' is not a valid pointer value."
+    }
+    return $type
+}
+
 proc twapi::Twapi_AddressToPtr {addr type} {
     return [list $addr $type]
 }
@@ -1732,7 +1744,7 @@ proc twapi::_get_public_procs {} {
 
     foreach p [info procs] {
         # Export only names beginning with lowercase and do not
-        # export 'try' as that conflicts with Tcl 8.6 try
+        # export 'try' as that conflicts with Tcl 8.6 try.
         if {![regexp {^([_A-Z]|try)} $p]} {
             lappend public_procs $p
         }
@@ -1743,10 +1755,15 @@ proc twapi::_get_public_procs {} {
     foreach p [interp aliases] {
         # TBD - really we should be consistent in how aliases are
         # defined - with or without a preceding ::
+        set p ""
         if {[string match "twapi::*" $p]} {
-            lappend public_procs [string range $p 7 end]
+            set p [string range $p 7 end]
         } elseif {[string match "::twapi::*" $p]} {
-            lappend public_procs [string range $p 9 end]
+            set p [string range $p 9 end]
+        }
+        # Do not try export slave namespaces
+        if {![string is wordchar -strict $p]} {
+            lappend public_procs $p
         }
     }
 

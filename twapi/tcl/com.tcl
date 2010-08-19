@@ -55,6 +55,7 @@ namespace eval twapi {
     variable com_debug 0
 }
 
+
 # Get the CLSID for a ProgID
 proc twapi::progid_to_clsid {progid} {
     return [CLSIDFromProgID $progid]
@@ -86,7 +87,6 @@ proc twapi::iunknown_release {ifc} {
     IUnknown_Release $ifc
 }
 
-# Release an interface
 proc twapi::iunknown_addref {ifc} {
     if {$ifc eq "NULL"} {
         error "NULL interface pointer passed."
@@ -2272,3 +2272,158 @@ proc twapi::_stop_service_tracker {} {
     $::twapi::_service_event_sink -destroy
     $::twapi::_service_wmi -destroy
 }
+
+#================ NEW COM CODE
+
+namespace eval twapi::com::IUnknown {}
+
+interp alias {} twapi::_make_com_interface {} twapi::com::IUnknown::_register
+
+proc twapi::com::forwards {args} {
+    set ns [uplevel 1 "namespace current"]
+    set aliases ""
+    foreach methodname $args {
+        lappend aliases "interp alias {} ${ns}::$methodname {} ::twapi::[namespace tail $ns]_$methodname"
+    }
+    uplevel 1 [join $aliases ";"]
+}
+proc twapi::com::define_interface {ifcname body args} {
+    array set opts [::twapi::parseargs args {
+        {inherit.arg IUnknown}
+    } -maxleftover 0]
+
+    set ns [namespace current]::$ifcname
+    namespace eval $ns "variable parent [namespace qualifiers $ns]::$opts(inherit)"
+    namespace eval $ns {
+        proc _dispatch {ifc method args} {
+            # Note we have to invoke via uplevel so uplevels/upvar in the parent
+            # dispatch will work correctly
+
+            if {[info commands [namespace current]::$method] ne ""} {
+                return [uplevel 1 [list [namespace current]::$method $ifc] $args]
+            } else {
+                # Note every interface has a parent except IUnknown
+                # which cannot be defined using define_interface
+                variable parent
+                return [uplevel 1 [list ${parent}::_dispatch $ifc $method] $args]
+            }
+        }
+    }
+    namespace eval $ns $body
+}
+
+namespace eval twapi::com::IUnknown {
+    proc _register {ifc} {
+        variable interfaces
+        variable interface_handles
+
+        if {[::twapi::Twapi_IsNullPtr $ifc]} {
+            error "Attempt to register a NULL interface"
+        }
+
+        # We need to keep both internal and external reference counts.
+        # The latter indicates how often an interface has been registered
+        # with us. We need to call Release on that interface that many times
+        # to free the COM object.
+        #
+        # The internal ref count on the other hand indicates how many times
+        # references to the object are held by us and our callers, including
+        # those passed in here plus those handed out by our AddRef stubs.
+        #
+        # When the internal ref count goes to 0, we will invoke the 
+        # object's "native" Release repeatedly until the external reference
+        # count goes to 0.
+        #
+        # Note the primary purpose of maintaining our internal reference counts
+        # is not efficiency by shortcutting the "native" AddRefs. It is to
+        # prevent crashes by bad application code; we can just generate an
+        # error instead.
+
+        if {[info exists interfaces($ifc)]} {
+            incr interfaces($ifc,nrefsint)
+            incr interfaces($ifc,nrefsext)
+            return $interfaces($ifc)
+        }
+
+        # We could use $ifc as the command name but we do not in order
+        # to better catch errors bypassing our code, stale interfaces etc.
+
+        set cmd [namespace parent]::ifc#[::twapi::TwapiId]
+        
+        interp alias {} $cmd {} [namespace parent]::[lindex $ifc 1]::_dispatch $ifc
+
+        set interfaces($ifc) $cmd
+        set interfaces($ifc,nrefsint) 1
+        set interfaces($ifc,nrefsext) 1
+
+        return $cmd
+    }
+
+    proc _dispatch {ifc method args} {
+        return [eval [list $method $ifc] $args]
+    }
+
+    proc AddRef {ifc} {
+        variable interfaces
+        # We maintain our own ref counts. Not pass it on to the actual object
+        incr interfaces($ifc,nrefsint)
+    }
+
+    proc Release {ifc} {
+        variable interfaces
+        # If our internal refs reach 0, remove all refs to real object
+        if {[incr interfaces($ifc,nrefsint) -1] == 0} {
+            while {[incr interfaces($ifc,nrefsext) -1] >= 0} {
+                twapi::IUnknown_Release $ifc
+            }
+            # Delete the command for the object and get rid of bookkeeping
+            rename $interfaces($ifc) ""
+            array unset interfaces $ifc,*
+        }
+    }
+
+    proc QueryInterface {ifc name_or_iid} {
+        foreach {iid name} [_resolve_iid $name_or_iid] break
+        return [twapi::com::_make_com_interface [::twapi::Twapi_IUnknown_QueryInterface $ifc $iid $name]]
+    }
+}
+
+twapi::com::define_interface IDispatch {
+    ::twapi::com::forwards GetTypeInfoCount GetIDsOfNames Invoke
+
+    proc GetTypeInfo {ifc infotype lcid} {
+        if {$infotype != 0} {error "Parameter infotype must be 0"}
+        return [twapi::_make_com_interface [::twapi::IDispatch_GetTypeInfo $ifc $infotype $lcid]]
+    }
+    proc gettypeinfo {ifc args} {
+        array set opts [::twapi::parseargs args {
+            lcid.int
+        } -maxleftover 0 -nulldefault]
+        return [GetTypeInfo $ifc 0 $opts(lcid)]
+    }
+
+    proc getidsofnames {ifc name args} {
+        array set opts [parseargs args {
+            lcid.int
+            paramnames.arg
+        } -maxleftover 0 -nulldefault]
+        
+        return [GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)] $opts(lcid)]
+    }
+
+    proc invoke {ifc prototype args} {
+        if {$prototype eq ""} {
+            # Treat as a property get DISPID_VALLUE (default value)
+            # {dispid=0, riid="" lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
+            set prototype {0 {} 0 2 8 {}}
+        }
+        uplevel 1 [list ::twapi::IDispatch_Invoke $ifc $prototype] $args
+    }
+}
+
+
+twapi::com::define_interface IDispatchEx {
+    ::twapi::com::forwards DeleteMemberByDispID DeleteMemberByName GetDispID GetMemberName GetMemberProperties GetNextDispID GetNameSpaceParent
+}
+
+
