@@ -2466,6 +2466,25 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = ifc.dispatchex->lpVtbl->GetNameSpaceParent(ifc.dispatchex,
                                                             (IUnknown **)&result.value.ifc.p);
             break;
+        case 206: // DeleteMemberByName
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
+                             ARGEND) != TCL_OK)
+                goto ret_error;
+            hr = S_OK;
+            result.type = TRT_BOOL;
+            result.value.bval = ifc.dispatchex->lpVtbl->DeleteMemberByName(
+                ifc.dispatchex, bstr1, dw1) == S_OK ? 1 : 0;
+            break;
+        case 207: // DeleteMemberByDispID
+            if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw1), ARGEND)
+                != TCL_OK)
+                goto ret_error;
+            hr = S_OK;
+            result.type = TRT_BOOL;
+            result.value.bval = ifc.dispatchex->lpVtbl->DeleteMemberByDispID(
+                ifc.dispatchex, dw1) == S_OK ? 1 : 0;
+            break;
 
         }
     } else if (func < 400) {
