@@ -1,11 +1,15 @@
-# metoo stands for "Metoo Emulates TclOO"
+# MeTOO stands for "Metoo Emulates TclOO" (at a superficial syntactic level)
 #
-# Implements a *tiny* subst of TclOO, primarily for use with Tcl 8.4.
+# Implements a *tiny* subset of TclOO, primarily for use with Tcl 8.4.
 # Intent is that if you write code using MeToo, it should work unmodified
 # with TclOO in 8.5/8.6. Obviously, don't try going the other way!
 #
 # Emulation is superficial, don't try to be too clever in usage.
 # Renaming classes or objects will in all likelihood break stuff.
+# Doing funky, or even non-funky, things with object namespaces will
+# not work as you would expect.
+#
+# Note - MeTOO is class-based 
 
 catch {namespace delete metoo}
 
@@ -16,8 +20,11 @@ namespace eval metoo {
 # Namespace in which commands in a class definition block are called
 namespace eval metoo::define {
     proc method {class_ns name params body} {
+        # Methods are defined in the methods subspace of the class namespace
         # The first parameter to a method is always the object namespace
-        proc ${class_ns}::$name [concat [list _this] $params] $body
+        # denoted as the paramter "_this"
+        namespace eval ${class_ns}::methods [list proc $name [concat [list _this] $params] $body]
+
     }
     proc superclass {class_ns superclass} {
         set ${class_ns}::super [uplevel 1 "namespace eval $class_ns {namespace current}"]
@@ -27,10 +34,11 @@ namespace eval metoo::define {
 # Namespace in which commands used in objects methods are defined
 # (self, my etc.)
 namespace eval metoo::object {
-    proc self {obj_ns {what object}} {
+    proc self {{what object}} {
+        upvar 1 _this this
         switch -exact -- $what {
-            namespace { return $obj_ns }
-            object { return ${obj_ns}::_(name) }
+            namespace { return $this }
+            object { return [set ${this}::_(name)] }
             default {
                 error "Argument '$what' not understood by self method"
             }
@@ -38,12 +46,15 @@ namespace eval metoo::object {
     }
 
     proc my {methodname args} {
-        # Class namespace is always parent of object namespace
-        # We insert the object namespace as the first parameter to the command
+        # We insert the object namespace as the first parameter to the command.
+        # This is passed as the first parameter "_this" to methods. Since
+        # "my" can be only called from methods, we can retrieve it fro
+        # our caller.
+        upvar 1 _this this
+
         # We need to invoke in the caller's context so upvar etc. will
         # not be affected by this intermediate method dispatcher
-        upvar 1 _this this
-        uplevel 1 [list $methodname $this] $args
+        uplevel 1 [list [namespace parent $this]::methods::$methodname $this] $args
     }
 }
 
@@ -71,8 +82,11 @@ proc metoo::_new {class_ns cmd args} {
         }
     }
 
-    # Create the namespace. Add built-in commands to it
-    namespace eval $objns {}
+    # Create the namespace. The array _ is used to hold private information
+    namespace eval $objns {
+        variable _
+    }
+    set ${objns}::_(name) $objname
 
     # Invoke the constructor
     # TBD
@@ -109,8 +123,9 @@ proc metoo::class {cmd cname definition} {
         interp alias {} ${class_ns}::[namespace tail $procname] {} $procname $class_ns
     }
 
+    # Define the built in commands callable within class instance methods
     foreach procname [info commands [namespace current]::object::*] {
-        interp alias {} ${class_ns}::[namespace tail $procname] {} $procname
+        interp alias {} ${class_ns}::methods::[namespace tail $procname] {} $procname
     }
 
     # Define the class
@@ -118,10 +133,10 @@ proc metoo::class {cmd cname definition} {
 
     # Also define the call dispatcher within the class. This is to get
     # the namespaces right when dispatching via "my"
-    namespace eval $class_ns {
+    namespace eval ${class_ns} {
         proc _call {objns args} {
             set _this $objns;   # Proc my does an uplevel on _this to get objns
-            eval [list [namespace current]::my] $args
+            eval [namespace current]::methods::my $args
         }
     }
 
