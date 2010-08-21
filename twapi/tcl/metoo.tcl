@@ -48,6 +48,9 @@ namespace eval metoo::define {
     proc constructor {class_ns params body} {
         method $class_ns constructor $params $body
     }
+    proc destructor {class_ns body} {
+        method $class_ns destructor {} $body
+    }
 }
 
 # Namespace in which commands used in objects methods are defined
@@ -171,6 +174,16 @@ proc metoo::class {cmd cname definition} {
 
     # Define the class
     namespace eval $class_ns $definition
+    # Define the destroy method for the class
+    namespace eval $class_ns {
+        method destroy {} {
+            my destructor
+            # TBD - remove trace on command rename/deletion, if any
+            rename [self object] ""
+            namespace delete $_this
+            return
+        }
+    }
 
     # Also define the call dispatcher within the class. This is to get
     # the namespaces right when dispatching via "my"
