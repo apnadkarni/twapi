@@ -1,4 +1,4 @@
-# MeTOO stands for "Metoo Emulates TclOO" (at a superficial syntactic level)
+# MeTOO stands for "MeTOO Emulates TclOO" (at a superficial syntactic level)
 #
 # Implements a *tiny* subset of TclOO, primarily for use with Tcl 8.4.
 # Intent is that if you write code using MeToo, it should work unmodified
@@ -25,6 +25,9 @@ catch {namespace delete metoo}
 # TBD - put a trace when command is renamed
 # TBD - delete all objects when a class is deleted
 # TBD - delete all subclasses when a class is deleted
+# TBD - implement next
+# TBD - implement destructor
+# TBD - variable
 
 namespace eval metoo {
     variable next_id 0
@@ -41,6 +44,9 @@ namespace eval metoo::define {
     }
     proc superclass {class_ns superclass} {
         set ${class_ns}::super [uplevel 3 "namespace eval $superclass {namespace current}"]
+    }
+    proc constructor {class_ns params body} {
+        method $class_ns constructor $params $body
     }
 }
 
@@ -85,7 +91,11 @@ namespace eval metoo::object {
             }
         }
 
-        error "Unknown method $methodname"
+        # It is ok for constructor or destructor to be undefined
+        if {$methodname ne "constructor" && $methodname ne "destructor"} {
+            error "Unknown method $methodname"
+        }
+        return
     }
 }
 
@@ -94,7 +104,7 @@ proc metoo::_new {class_ns cmd args} {
 
     # object namespace *must* be child of class namespace. Saves a bit
     # of bookkeeping
-    set objns ${class_ns}::[incr next_id]
+    set objns ${class_ns}::o[incr next_id]
 
     switch -exact -- $cmd {
         create {
@@ -119,11 +129,11 @@ proc metoo::_new {class_ns cmd args} {
     }
     set ${objns}::_(name) $objname
 
-    # Invoke the constructor
-    # TBD
-
     # When invoked by its name, call the dispatcher
     interp alias {} $objname {} ${class_ns}::_call $objns
+
+    # Invoke the constructor
+    eval [list $objname constructor] $args
 
     return $objname
 }
