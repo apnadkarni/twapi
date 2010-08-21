@@ -25,7 +25,7 @@ catch {namespace delete metoo}
 # TBD - put a trace when command is renamed
 # TBD - delete all objects when a class is deleted
 # TBD - delete all subclasses when a class is deleted
-# TBD - variable
+# TBD - variable (my variable is done, variable in class definition is not)
 # TBD - exported methods
 
 namespace eval metoo {
@@ -98,7 +98,7 @@ namespace eval metoo::object {
         set class_ns [namespace parent $this]
 
         # See if there is a method defined in this class.
-        # Breakage if method names with with wildcard chars. Too bad
+        # Breakage if method names with wildcard chars. Too bad
         if {[llength [info commands ${class_ns}::methods::$methodname]]} {
             # We need to invoke in the caller's context so upvar etc. will
             # not be affected by this intermediate method dispatcher
@@ -203,6 +203,15 @@ proc metoo::class {cmd cname definition} {
             rename [self object] ""
             namespace delete $_this
             return
+        }
+        method variable {args} {
+            if {[llength $args]} {
+                set cmd [list upvar 0]
+                foreach varname $args {
+                    lappend cmd ${_this}::$varname $varname
+                }
+                uplevel 1 $cmd
+            }
         }
     }
 
