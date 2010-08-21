@@ -9,9 +9,22 @@
 # Doing funky, or even non-funky, things with object namespaces will
 # not work as you would expect.
 #
-# Note - MeTOO is class-based 
+# Differences:
+# - MeTOO is class-based, not object based like TclOO, thus class instances
+#   (objects) cannot be modified. Also a class is not itself an object
+# - does not support class refinement/definition. This would not actually
+#   be hard to add but I wanted to keep this small
+# - The unknown method is not supported. Again should not be hard to add
+# - no filters, forwarding, multiple-inheritance
+# - no introspection capabilities
+
 
 catch {namespace delete metoo}
+
+# TBD - put a trace to delete object when the command is deleted
+# TBD - put a trace when command is renamed
+# TBD - delete all objects when a class is deleted
+# TBD - delete all subclasses when a class is deleted
 
 namespace eval metoo {
     variable next_id 0
@@ -27,7 +40,7 @@ namespace eval metoo::define {
 
     }
     proc superclass {class_ns superclass} {
-        set ${class_ns}::super [uplevel 1 "namespace eval $class_ns {namespace current}"]
+        set ${class_ns}::super [uplevel 3 "namespace eval $superclass {namespace current}"]
     }
 }
 
@@ -50,11 +63,29 @@ namespace eval metoo::object {
         # This is passed as the first parameter "_this" to methods. Since
         # "my" can be only called from methods, we can retrieve it fro
         # our caller.
-        upvar 1 _this this
+        upvar 1 _this this;     # object namespace
 
-        # We need to invoke in the caller's context so upvar etc. will
-        # not be affected by this intermediate method dispatcher
-        uplevel 1 [list [namespace parent $this]::methods::$methodname $this] $args
+        set class_ns [namespace parent $this]
+
+        # See if there is a method defined in this class.
+        # Breakage if method names with with wildcard chars. Too bad
+        if {[llength [info commands ${class_ns}::methods::$methodname]]} {
+            # We need to invoke in the caller's context so upvar etc. will
+            # not be affected by this intermediate method dispatcher
+            return [uplevel 1 [list ${class_ns}::methods::$methodname $this] $args]
+        }
+
+        # No method here, check for super class.
+        while {[info exists ${class_ns}::super]} {
+            set class_ns [set ${class_ns}::super]
+            if {[llength [info commands ${class_ns}::methods::$methodname]]} {
+                return [uplevel 1 [list ${class_ns}::methods::$methodname $this] $args]
+                # return [eval [list [set ${class_ns}::super]::_call $this $methodname] $args]
+
+            }
+        }
+
+        error "Unknown method $methodname"
     }
 }
 
