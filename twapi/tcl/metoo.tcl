@@ -17,7 +17,7 @@
 # - The unknown method is not supported. Again should not be hard to add
 # - no filters, forwarding, multiple-inheritance
 # - no introspection capabilities
-
+# - no private methods (all methods are exported)
 
 catch {namespace delete metoo}
 
@@ -25,9 +25,8 @@ catch {namespace delete metoo}
 # TBD - put a trace when command is renamed
 # TBD - delete all objects when a class is deleted
 # TBD - delete all subclasses when a class is deleted
-# TBD - implement next
-# TBD - implement destructor
 # TBD - variable
+# TBD - exported methods
 
 namespace eval metoo {
     variable next_id 0
@@ -56,6 +55,28 @@ namespace eval metoo::define {
 # Namespace in which commands used in objects methods are defined
 # (self, my etc.)
 namespace eval metoo::object {
+    proc next {args} {
+        upvar 1 _this this;     # object namespace
+
+        # Figure out what class context this is executing in. Note
+        # we cannot use _this in caller since that is the object namespace
+        # which is not necessarily related to the current class namespace.
+        set class_ns [namespace parent [uplevel 1 {namespace current}]]
+        
+        # Figure out the current method being called
+        set methodname [namespace tail [lindex [uplevel 1 {info level 0}] 0]]
+        
+        # Find the next method in the class hierarchy and call it
+        while {[info exists ${class_ns}::super]} {
+            set class_ns [set ${class_ns}::super]
+            if {[llength [info commands ${class_ns}::methods::$methodname]]} {
+                return [uplevel 1 [list ${class_ns}::methods::$methodname $this] $args]
+            }
+        }
+        
+        error "'next' command has no receiver in the hierarchy for method $methodname"
+    }
+
     proc self {{what object}} {
         upvar 1 _this this
         switch -exact -- $what {
@@ -115,7 +136,7 @@ proc metoo::_new {class_ns cmd args} {
                 error "Insufficient args, should be: class create CLASSNAME ?args?"
             }
             # TBD - check if command already exists
-            set objname [uplevel 1 "namespace current"]::[lindex $args 0]
+            set objname ::[string trimleft "[uplevel 1 "namespace current"]::[lindex $args 0]" :]
             set args [lrange $args 1 end]
         }
         new {
@@ -200,3 +221,28 @@ proc metoo::class {cmd cname definition} {
     return $class_ns
 }
 
+
+proc cps {script} {
+    # Eat the script compilation costs
+    uplevel 1 [list time $script]
+    # Have a guess at how many iterations to run for around a second
+    set s [uplevel 1 [list time $script 5]]
+    set iters [expr {round(1/([lindex $s 0]/1e6))}]
+    if {$iters < 50} {
+        puts "WARNING: number of iterations low"
+    }
+    # The main timing run
+    set s [uplevel 1 [list time $script $iters]]
+    set cps [expr {round(1/([lindex $s 0]/1e6))}]
+    puts "$cps calls per second of: $script"
+}
+
+metoo::class create metoofoo {
+    constructor {} {
+       variable x 1
+    }
+    method bar {} {
+       variable x
+       set x [expr {!$x}]
+    }
+}
