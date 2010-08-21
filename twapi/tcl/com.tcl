@@ -55,6 +55,13 @@ namespace eval twapi {
     variable com_debug 0
 }
 
+# The raw namespace contains commands that bypass the script level
+# "commandification" and ref counting of COM interfaces
+namespace eval twapi::com::raw {}
+
+# Contains the IUnknown client implementation
+namespace eval twapi::com::IUnknown {}
+
 
 # Get the CLSID for a ProgID
 proc twapi::progid_to_clsid {progid} {
@@ -66,42 +73,41 @@ proc twapi::clsid_to_progid {progid} {
     return [ProgIDFromCLSID $progid]
 }
 
-# Increment ref count for an interface
-proc twapi::iunknown_release {ifc} {
+proc twapi::com::raw::iunknown_release {ifc} {
     if {$ifc eq "NULL"} {
         error "NULL interface pointer passed."
     }
     if {$::twapi::com_debug} {
         # Check if we are releaseing once too often
         # We may even crash if the memory has been reclaimed already
-        set refs [IUnknown_AddRef $ifc]
+        set refs [::twapi::IUnknown_AddRef $ifc]
         if {$refs >= 2} {
             # Fine. Undo our addref
-            IUnknown_Release $ifc
+            ::twapi::IUnknown_Release $ifc
         } else {
             error "Internal error: attempt to release interface that's already released"
             # TBD - should really exit
             # Fall thru to undo a single addref (our addref)
         }
     }
-    IUnknown_Release $ifc
+    ::twapi::IUnknown_Release $ifc
 }
 
-proc twapi::iunknown_addref {ifc} {
+proc twapi::com::raw::iunknown_addref {ifc} {
     if {$ifc eq "NULL"} {
         error "NULL interface pointer passed."
     }
-    IUnknown_AddRef $ifc
+    ::twapi::IUnknown_AddRef $ifc
 }
 
 # Query interface
-proc twapi::iunknown_query_interface {ifc name_or_iid} {
+proc twapi::com::raw::iunknown_query_interface {ifc name_or_iid} {
     if {$ifc eq "NULL"} {
         error "NULL interface pointer passed."
     }
     foreach {iid name} [_resolve_iid $name_or_iid] break
     try {
-        return [Twapi_IUnknown_QueryInterface $ifc $iid $name]
+        return [::twapi::Twapi_IUnknown_QueryInterface $ifc $iid $name]
     } onerror {TWAPI_WIN32 0x80004002} {
         # No such interface, return "", don't generate error
         return ""
@@ -111,7 +117,7 @@ proc twapi::iunknown_query_interface {ifc name_or_iid} {
 #
 # Get IUnknown interface for an existing active object
 proc twapi::get_active_object {clsid} {
-    return [GetActiveObject $clsid]
+    return [twapi::com::_ifcobj [GetActiveObject $clsid]]
 }
 
 #
@@ -125,6 +131,7 @@ proc twapi::com_create_instance {clsid args} {
         enableaaa.bool
         {nocustommarshal.bool false}
         {interface.arg IUnknown}
+        raw
     } -maxleftover 0]
 
     # CLSCTX_NO_CUSTOM_MARSHAL ?
@@ -179,13 +186,17 @@ proc twapi::com_create_instance {clsid args} {
         try {
             # Wait for it to run, then get IDispatch from it
             twapi::OleRun $iunk
-            set ifc [iunknown_query_interface $iunk $iid]
+            set ifc [::twapi::com::raw::iunknown_query_interface $iunk $iid]
         } finally {
-            iunknown_release $iunk
+            ::twapi::com::raw::iunknown_release $iunk
         }
     }
 
-    return $ifc
+    if {$opts(raw)} {
+        return $ifc
+    } else {
+        return [::twapi::com::_ifcobj $ifc $clsid]
+    }
 }
 
 
@@ -194,31 +205,31 @@ proc twapi::com_create_instance {clsid args} {
 
 #
 # Has type information?
-proc twapi::idispatch_has_typeinfo {ifc} {
-    return [IDispatch_GetTypeInfoCount $ifc]
+proc twapi::com::raw::idispatch_has_typeinfo {ifc} {
+    return [::twapi::IDispatch_GetTypeInfoCount $ifc]
 }
 
 #
 # Returns the type information for a IDispatch interface
-proc twapi::idispatch_get_itypeinfo {ifc args} {
+proc twapi::com::raw::idispatch_get_itypeinfo {ifc args} {
     array set opts [parseargs args {
         lcid.int
     } -maxleftover 0 -nulldefault]
 
     # TBD - what is the second param (0) supposed to be?
-    IDispatch_GetTypeInfo $ifc 0 $opts(lcid)
+    ::twapi::IDispatch_GetTypeInfo $ifc 0 $opts(lcid)
 }
 
 #
 # Get ids of names
-proc twapi::idispatch_names_to_ids {ifc name args} {
+proc twapi::com::raw::idispatch_names_to_ids {ifc name args} {
     array set opts [parseargs args {
         lcid.int
         paramnames.arg
     } -maxleftover 0 -nulldefault]
     
     
-    return [IDispatch_GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)] $opts(lcid)]
+    return [::twapi::IDispatch_GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)] $opts(lcid)]
 }
 
 
@@ -226,13 +237,13 @@ proc twapi::idispatch_names_to_ids {ifc name args} {
 # Invoke an IDispatch function
 # prototype should consist of basically params to IDispatch_Invoke - this
 # format is happily returned by idispatch_fill_prototypes
-proc twapi::idispatch_invoke {ifc prototype args} {
+proc twapi::com::raw::idispatch_invoke {ifc prototype args} {
     if {$prototype eq ""} {
         # Treat as a property get DISPID_VALLUE (default value)
         # {dispid=0, riid="" lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
         set prototype {0 {} 0 2 8 {}}
     }
-    uplevel 1 [list twapi::IDispatch_Invoke $ifc $prototype] $args
+    uplevel 1 [list ::twapi::IDispatch_Invoke $ifc $prototype] $args
 }
 
 #
@@ -253,18 +264,20 @@ proc twapi::comobj_null {args} {
 # need_addref should be false if the object will own the interface
 # and true if the caller will be independently using it (and releasing it)
 # as well
-proc twapi::comobj_idispatch {ifc need_addref {objclsid ""}} {
-    if {$ifc eq "NULL"} {
+proc twapi::comobj_idispatch {ifcobj} {
+    if {[$ifcobj @null?]} {
         return ::twapi::comobj_null
     }
 
-    if {$need_addref} {
-        iunknown_addref $ifc
+    set ifc_type [$ifcobj @type]
+    if {$ifc_type ne "IDispatch" && $ifc_type ne "IDispatchEx"} {
+        error "'$ifcobj' does not reference an IDispatch interface"
     }
 
     set objname ::twapi::com[TwapiId]
-    set ::twapi::com_instance_data($objname,ifc) $ifc
-    interp alias {} $objname {} ::twapi::_comobj_wrapper $objname $objclsid
+    set ::twapi::com_instance_data($objname,ifcobj) $ifcobj
+    interp alias {} $objname {} ::twapi::com::raw::_comobj_wrapper $objname
+
     return $objname
 }
 
@@ -272,8 +285,7 @@ proc twapi::comobj_idispatch {ifc need_addref {objclsid ""}} {
 # Create an object command for a COM object from a name
 # TBD - document
 proc twapi::comobj_object {path} {
-    #    return [comobj_idispatch [::twapi::Twapi_GetObjectIDispatch $path] false]
-    return [comobj_idispatch [::twapi::Twapi_CoGetObject $path {} {{00020400-0000-0000-C000-000000000046}} IDispatch] false]
+    return [comobj_idispatch [twapi::com::_ifcobj [::twapi::Twapi_CoGetObject $path {} {{00020400-0000-0000-C000-000000000046}} IDispatch]]]
 }
 
 #
@@ -281,7 +293,7 @@ proc twapi::comobj_object {path} {
 # comid is either a CLSID or a PROGID
 proc twapi::comobj {comid args} {
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch] $args] false $clsid]
+    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch] $args]]
 }
 
 
@@ -306,7 +318,7 @@ proc twapi::comobj {comid args} {
 # two cases
 #
 # Returns number of entries found
-proc twapi::idispatch_fill_prototypes {ifc v_protos lcid args} {
+proc twapi::com::raw::idispatch_fill_prototypes {ifc v_protos lcid args} {
     upvar $v_protos protos
 
     array set protos {};                #  Just to make sure array is created
@@ -2275,9 +2287,15 @@ proc twapi::_stop_service_tracker {} {
 
 #================ NEW COM CODE
 
-namespace eval twapi::com::IUnknown {}
+namespace eval twapi::com {
+    variable contexts
 
-interp alias {} twapi::_make_com_interface {} twapi::com::IUnknown::_register
+    TBD - make contexts (namespace qualified) be passed to every method
+    as an argument. Store all state in there as a keyed list
+
+}
+
+interp alias {} twapi::com::_ifcobj {} twapi::com::IUnknown::@_ifcobj_create
 
 proc twapi::com::define_interface {ifcname args} {
     array set opts [::twapi::parseargs args {
@@ -2287,7 +2305,7 @@ proc twapi::com::define_interface {ifcname args} {
     } -maxleftover 0]
 
     set ns [namespace current]::$ifcname
-    namespace eval $ns "variable parent [namespace qualifiers $ns]::$opts(inherit)"
+    namespace eval $ns "variable super [namespace qualifiers $ns]::$opts(inherit)"
     if {[info exists opts(forwards)]} {
         set aliases ""
         foreach methodname $opts(forwards) {
@@ -2297,17 +2315,17 @@ proc twapi::com::define_interface {ifcname args} {
     }
 
     namespace eval $ns {
-        proc _dispatch {ifc method args} {
-            # Note we have to invoke via uplevel so uplevels/upvar in the parent
+        proc @call {ifc method args} {
+            # Note we have to invoke via uplevel so uplevels/upvar in the super
             # dispatch will work correctly
 
             if {[info commands [namespace current]::$method] ne ""} {
                 return [uplevel 1 [list [namespace current]::$method $ifc] $args]
             } else {
-                # Note every interface has a parent except IUnknown
+                # Note every interface has a super except IUnknown
                 # which cannot be defined using define_interface
-                variable parent
-                return [uplevel 1 [list ${parent}::_dispatch $ifc $method] $args]
+                variable super
+                return [uplevel 1 [list ${super}::_call $ifc $method] $args]
             }
         }
     }
@@ -2316,14 +2334,29 @@ proc twapi::com::define_interface {ifcname args} {
     }
 }
 
+#
+# NULL interface. The command name follows syntax for interface objects
+# though it need not
+proc twapi::com::ifc#NULL args {
+    # A single command is accepted - to check if null
+    if {[llength $args] == 1 && [lindex $args 0] eq "@null?"} {
+        return 1
+    }
+    error "Attempt to invoke NULL interface. Args: '[join $args ,]'"
+}
+
 namespace eval twapi::com::IUnknown {
-    proc _register {ifc} {
+    proc @_ifcobj_create {ifc args} {
         variable interfaces
-        variable interface_handles
 
         if {[::twapi::Twapi_IsNullPtr $ifc]} {
             error "Attempt to register a NULL interface"
         }
+
+        array set opts [parseargs args {
+            {clsid.arg ""}
+        } -maxleftover 0]
+
 
         # We need to keep both internal and external reference counts.
         # The latter indicates how often an interface has been registered
@@ -2346,6 +2379,9 @@ namespace eval twapi::com::IUnknown {
         if {[info exists interfaces($ifc)]} {
             incr interfaces($ifc,nrefsint)
             incr interfaces($ifc,nrefsext)
+            if {$interfaces($ifc,clsid) eq ""} {
+                set interfaces($ifc,clsid) $opts(clsid)
+            }
             return $interfaces($ifc)
         }
 
@@ -2354,16 +2390,35 @@ namespace eval twapi::com::IUnknown {
 
         set cmd [namespace parent]::ifc#[::twapi::TwapiId]
         
-        interp alias {} $cmd {} [namespace parent]::[lindex $ifc 1]::_dispatch $ifc
+        interp alias {} $cmd {} [namespace parent]::[lindex $ifc 1]::@call $ifc
 
         set interfaces($ifc) $cmd
         set interfaces($ifc,nrefsint) 1
         set interfaces($ifc,nrefsext) 1
+        set interfaces($ifc,clsid) $opts(clsid)
 
         return $cmd
     }
 
-    proc _dispatch {ifc method args} {
+    proc @clsid {ifc} {
+        variable interfaces
+        return $interfaces($ifc,clsid)
+    }
+
+    proc @type {ifc} {
+        return [Twapi_PtrType $ifc]
+    }
+
+    proc @type? {ifc type} {
+        return [Twapi_IsPtr $ifc $type]
+    }
+
+    proc @null? {ifc} {
+        # Should never be true
+        return 0
+    }
+
+    proc @call {ifc method args} {
         return [eval [list $method $ifc] $args]
     }
 
@@ -2388,7 +2443,7 @@ namespace eval twapi::com::IUnknown {
 
     proc QueryInterface {ifc name_or_iid} {
         foreach {iid name} [_resolve_iid $name_or_iid] break
-        return [twapi::com::_make_com_interface [::twapi::Twapi_IUnknown_QueryInterface $ifc $iid $name]]
+        return [twapi::com::_ifcobj [::twapi::Twapi_IUnknown_QueryInterface $ifc $iid $name]]
     }
 }
 
@@ -2398,7 +2453,7 @@ twapi::com::define_interface IDispatch -forwards {
 } -methods {
     proc GetTypeInfo {ifc {infotype 0} {lcid 0}} {
         if {$infotype != 0} {error "Parameter infotype must be 0"}
-        return [twapi::_make_com_interface [::twapi::IDispatch_GetTypeInfo $ifc $infotype $lcid]]
+        return [twapi::com::_ifcobj [::twapi::IDispatch_GetTypeInfo $ifc $infotype $lcid]]
     }
 
     proc name_to_ids {ifc name args} {
@@ -2431,6 +2486,86 @@ twapi::com::define_interface IDispatchEx -inherit IDispatch -forwards {
     GetNameSpaceParent
 } 
 
+
+#
+# Define some aux methods for IDispatch
+
+# Get prototype that match the specified name
+proc twapi::com::IDispatch::@prototype {ifc name lcid invkind} {
+    variable prototypes
+
+    array set opts [parseargs args {
+        lcid.int
+    } -nulldefault]
+        
+    set clsid [$ifc @clsid];    # May be empty string
+
+    # If a prototype exists, return it. 
+    if {$clsid ne "" && [info exists prototypes(clsid,$clsid,$name,$lcid,$invkind)]} {
+        return $prototypes(clsid,$clsid,$name,$lcid,$invkind); # May be ""
+    }
+    if {[info exists prototypes(ifc,$ifc,$name,$lcid,$invkind)]} {
+        return $prototypes(ifc,$ifc,$name,$lcid,$invkind); # May be ""
+    }
+
+    try {
+        # Not in cache, have to look for it
+        set ti [GetTypeInfo $ifc 0 $lcid]; # ITypeInfo
+
+        # In case of dual interfaces, we need the typeinfo for the dispatch
+        switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
+            4 {
+                # Dispatch type, fine, just what we want
+            }
+            3 {
+                # Interface type, Get the dispatch interface
+                set ti2 [$ti get_referenced_typeinfo -1]
+                $ti Release
+                set ti $ti2
+            }
+            default {
+                # Note ti is released in the finally clause
+                error "Interface is not a dispatch interface"
+            }
+        }
+
+HERE TBD        set tc [$ti GetTypeComp]; # ITypeComp
+        
+        set binddata [ITypeComp_Bind $tc $name $invkind $lcid]
+        if {[llength $binddata]} {
+            foreach {type data ti2} $binddata break
+            iunknown_release $ti2; # Don't need this but must release
+            if {$type ne "funcdesc"} continue
+            array set bindings $data
+            set protos($ifc,$name,$lcid,$bindings(invkind)) [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
+    } onerror {TWAPI_WIN32 0x80004001} {
+        # Not implemented
+        # Ignore the error - we will try below using another method
+    } onerror {TWAPI_WIN32 0x80004002} {
+        # Interface not supported
+        # Ignore the error - we will try below using another method
+    } finally {
+        if {[info exists tc]} {
+            iunknown_release $tc
+        }
+        if {[info exists ti]} {
+            iunknown_release $ti
+        }
+    }    
+
+    TBD
+
+    # Cache the result. However for interfaces that
+    # are IDispatchEx, we do not cache negative results since a member
+    # can be created on the fly later.
+
+
+}
+
+
+# ITypeInfo 
+#-----------
+
 twapi::com::define_interface ITypeInfo -forwards {
     GetRefTypeOfImplType
     GetDocumentation
@@ -2442,7 +2577,7 @@ twapi::com::define_interface ITypeInfo -forwards {
     GetIDsOfNames
 } -methods {
     proc GetRefTypeInfo {ifc hreftype} {
-        return [twapi::com::_make_com_interface [::twapi::ITypeInfo_GetRefTypeInfo $ifc $hreftype]]
+        return [twapi::com::_ifcobj [::twapi::ITypeInfo_GetRefTypeInfo $ifc $hreftype]]
     }
     # Return ITypeInfo* for a referenced type based in its index
     proc get_referenced_typeinfo {ifc index} {
@@ -2450,12 +2585,12 @@ twapi::com::define_interface ITypeInfo -forwards {
     }
 
     proc GetTypeComp {ifc} {
-        return [twapi::com::_make_com_interface [::twapi::ITypeInfo_GetTypeComp $ifc]]
+        return [twapi::com::_ifcobj [::twapi::ITypeInfo_GetTypeComp $ifc]]
     }
 
     proc GetContainingTypeLib {ifc} {
         foreach {ityplib index} [::twapi::ITypeInfo_GetContainingTypeLib $ifc] break
-        return [list [::twapi::com::_make_com_interface $itypelib] $index]
+        return [list [::twapi::com::_ifcobj $itypelib] $index]
     }
 
     proc name_to_ids {ifc name args} {
@@ -2468,6 +2603,9 @@ twapi::com::define_interface ITypeInfo -forwards {
 
 }
 
+# ITypeLib
+#----------
+
 twapi::com::define_interface ITypeLib -forwards {
     GetDocumentation
     GetTypeInfoCount
@@ -2475,9 +2613,15 @@ twapi::com::define_interface ITypeLib -forwards {
     GetLibAttr
 } -methods {
     proc GetTypeInfo {ifc index} {
-        return [twapi::com::_make_com_interface [::twapi::ITypeLib_GetTypeInfo $ifc $index]]
+        return [twapi::com::_ifcobj [::twapi::ITypeLib_GetTypeInfo $ifc $index]]
     }
     proc GetTypeInfoOfGuid {ifc guid} {
-        return [twapi::com::_make_com_interface [::twapi::ITypeLib_GetTypeInfoOfGuid $ifc $guid]]
+        return [twapi::com::_ifcobj [::twapi::ITypeLib_GetTypeInfoOfGuid $ifc $guid]]
     }
+}
+
+# ITypeComp
+#----------
+twapi::com::define_interface ITypeComp -methods {
+    proc Bind {ifc 
 }
