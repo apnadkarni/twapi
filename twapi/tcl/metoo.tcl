@@ -26,8 +26,6 @@ catch {namespace delete metoo}
 # TBD - variable (my variable is done, variable in class definition is not)
 #       within method and at class level
 # TBD - exported methods
-# TBD - currently methods are callable as procs - that should not be. Rename
-#       method names with _m_ prefix.
 namespace eval metoo {
     variable next_id 0
 }
@@ -35,10 +33,12 @@ namespace eval metoo {
 # Namespace in which commands in a class definition block are called
 namespace eval metoo::define {
     proc method {class_ns name params body} {
-        # Methods are defined in the methods subspace of the class namespace
+        # Methods are defined in the methods subspace of the class namespace.
+        # We prefix with _m_ to prevent them from being directly called
+        # as procs, for example if the method is a Tcl command like "set"
         # The first parameter to a method is always the object namespace
         # denoted as the paramter "_this"
-        namespace eval ${class_ns}::methods [list proc $name [concat [list _this] $params] $body]
+        namespace eval ${class_ns}::methods [list proc _m_$name [concat [list _this] $params] $body]
 
     }
     proc superclass {class_ns superclass} {
@@ -99,19 +99,17 @@ namespace eval metoo::object {
 
         # See if there is a method defined in this class.
         # Breakage if method names with wildcard chars. Too bad
-        if {[llength [info commands ${class_ns}::methods::$methodname]]} {
+        if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
             # We need to invoke in the caller's context so upvar etc. will
             # not be affected by this intermediate method dispatcher
-            return [uplevel 1 [list ${class_ns}::methods::$methodname $this] $args]
+            return [uplevel 1 [list ${class_ns}::methods::_m_$methodname $this] $args]
         }
 
         # No method here, check for super class.
         while {[info exists ${class_ns}::super]} {
             set class_ns [set ${class_ns}::super]
-            if {[llength [info commands ${class_ns}::methods::$methodname]]} {
-                return [uplevel 1 [list ${class_ns}::methods::$methodname $this] $args]
-                # return [eval [list [set ${class_ns}::super]::_call $this $methodname] $args]
-
+            if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
+                return [uplevel 1 [list ${class_ns}::methods::_m_$methodname $this] $args]
             }
         }
 
