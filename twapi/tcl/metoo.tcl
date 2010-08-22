@@ -26,7 +26,8 @@ catch {namespace delete metoo}
 # TBD - variable (my variable is done, variable in class definition is not)
 #       within method and at class level
 # TBD - exported methods
-
+# TBD - currently methods are callable as procs - that should not be. Rename
+#       method names with _m_ prefix.
 namespace eval metoo {
     variable next_id 0
 }
@@ -258,6 +259,7 @@ proc cps {script} {
     puts "$cps calls per second of: $script"
 }
 
+# Test class for benchmarking from wiki TclOO page
 metoo::class create metoofoo {
     constructor {} {
        my variable x
@@ -268,3 +270,42 @@ metoo::class create metoofoo {
        set x [expr {!$x}]
     }
 }
+
+
+# Simple sample class showing all capabilities. Anything not shown here will
+# probably not work. Call as "demo" to use metoo, or "demo oo" to use TclOO.
+# Output should be same in both cases.
+proc ::metoo::demo {{ns metoo}} {
+    ${ns}::class create Base {
+        constructor {x y} { puts "Base constructor: $x, $y" }
+        method m {} { puts "Base::m called" }
+        method n {args} { puts "Base::n called: [join $args {, }]"; my m }
+        destructor { puts "Base::destructor called" }
+    }
+
+    ${ns}::class create Derived {
+        superclass Base
+        constructor {x y} { puts "Derived constructor: $x, $y" ; next $x $y }
+        destructor { puts "Derived::destructor called" ; next }
+        method n {args} { puts "Derived::n called: [join $args {, }]"; eval next $args}
+        method put {val} {my variable var ; set var $val}
+        method get {} {my variable var ; return $var}
+    }
+
+    Base create b dum dee
+    set o [Derived new fo fum]
+    $o put 10
+    $o get
+    b m
+    $o m
+    $o n
+    $o destroy
+    rename b ""    
+    rename Derived ""
+    rename Base ""
+    if {$ns eq "metoo"} {
+        namespace delete Base
+        namespace delete Derived
+    }
+}
+
