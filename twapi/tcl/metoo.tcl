@@ -1,31 +1,98 @@
 # MeTOO stands for "MeTOO Emulates TclOO" (at a superficial syntactic level)
 #
-# Implements a *tiny* subset of TclOO, primarily for use with Tcl 8.4.
-# Intent is that if you write code using MeToo, it should work unmodified
-# with TclOO in 8.5/8.6. Obviously, don't try going the other way!
+# Implements a *tiny*, but useful, subset of TclOO, primarily for use 
+# with Tcl 8.4. Intent is that if you write code using MeToo, it should work 
+# unmodified with TclOO in 8.5/8.6. Obviously, don't try going the other way!
 #
 # Emulation is superficial, don't try to be too clever in usage.
-# Renaming classes will in all likelihood break stuff.
 # Doing funky, or even non-funky, things with object namespaces will
 # not work as you would expect.
 #
-# Differences:
+# See the metoo::demo proc for sample usage. Calling with this proc
+# with parameter "oo" will use the TclOO commands. Else the metoo::
+# commands. Note the demo code remains the same for both.
+#
+# The following fragment use MeToo only if TclOO is not available:
+#   if {[llength [info commands oo::*]]} {
+#       namespace import oo::*
+#   } else {
+#       source metoo.tcl
+#       namespace import metoo::class
+#   }
+#   class create C {...}
+#
+# Summary of the TclOO subset implemented - see TclOO docs for detail :
+#
+# Creating a new class: 
+#   metoo::class create CLASSNAME CLASSDEFINITION
+#
+# Destroying a class:
+#   CLASSNAME destroy
+#    - this also destroys objects of that class and recursively destroys
+#      child classes. NOTE: deleting the class namespace or renaming 
+#      the CLASSNAME command to "" will NOT call object destructors.
+#
+# CLASSDEFINITION: Following may appear in CLASSDEFINTION
+#   method METHODNAME params METHODBODY
+#    - same as TclOO
+#   constructor params METHODBODY
+#    - same syntax as TclOO
+#   destructor METHODBODY
+#    - same syntax as TclOO
+#   superclass SUPER
+#    - inherits from SUPER. Unlike TclOO, only single inheritance. Also
+#      no checks for inheritance loops. You'll find out quickly enough!
+#   All other commands within a CLASSDEFINITION will either raise error or
+#   work differently from TclOO.
+#
+# METHODBODY: The following method-internal TclOO commands are available:
+#   my METHODNAME ARGS
+#    - to call another method METHODNAME
+#   my variable VAR1 ?VAR2...?
+#    - brings object-specific variables into scope
+#   next ?ARGS?
+#    - calls the superclass method of the same name
+#   self
+#   self object
+#    - returns the object name (usable as a command)
+#   self namespace
+#    - returns namespace of this object
+#
+# Creating objects:
+#   CLASSNAME create OBJNAME ?ARGS?
+#    - creates object OBJNAME of class CLASSNAME, passing ARGS to constructor
+#      Returns the fully qualified object name that can be used as a command.
+#   CLASSNAME new ?ARGS?
+#    - creates a new object with an auto-generated name
+#
+# Destroying objects
+#   OBJNAME destroy
+#    - destroys the object calling destructors
+#   rename OBJNAME ""
+#    - same as above
+#
+# Renaming an object
+#   rename OBJNAME NEWNAME
+#    - the object can now be invoked using the new name. Note this is unlike
+#      classes which should not be renamed.
+#
+# Differences and missing features from TclOO: Everything not listed above
+# is missing. Some notable differences:
 # - MeTOO is class-based, not object based like TclOO, thus class instances
-#   (objects) cannot be modified. Also a class is not itself an object
-# - does not support class refinement/definition. This would not actually
-#   be hard to add but I wanted to keep this small
-# - The unknown method is not supported. Again should not be hard to add
+#   (objects) cannot be modified by adding instance-specific methods etc..
+#   Also a class is not itself an object.
+# - does not support class refinement/definition.
+# - The unknown method is not supported.
 # - no filters, forwarding, multiple-inheritance
 # - no introspection capabilities
-# - no private methods (all methods are exported)
+# - no private methods (all methods are exported).
 
 catch {namespace delete metoo}
 
-# TBD - delete all objects when a class is deleted
-# TBD - delete all subclasses when a class is deleted
 # TBD - variable (my variable is done, variable in class definition is not)
 #       within method and at class level
-# TBD - exported methods
+# TBD - do not allow "variable" in class definition
+
 namespace eval metoo {
     variable next_id 0
 }
@@ -42,7 +109,14 @@ namespace eval metoo::define {
 
     }
     proc superclass {class_ns superclass} {
-        set ${class_ns}::super [uplevel 3 "namespace eval $superclass {namespace current}"]
+        if {[info exists ${class_ns}::super]} {
+            error "Only one superclass allowed for a class"
+        }
+        set sup [uplevel 3 "namespace eval $superclass {namespace current}"]
+        set ${class_ns}::super $sup
+        # We store the subclass in the super so it can be destroyed
+        # if the super is destroyed.
+        set ${sup}::subclasses($class_ns) 1
     }
     proc constructor {class_ns params body} {
         method $class_ns constructor $params $body
@@ -124,9 +198,11 @@ namespace eval metoo::object {
 proc metoo::_new {class_ns cmd args} {
     variable next_id
 
-    # object namespace *must* be child of class namespace. Saves a bit
-    # of bookkeeping
-    set objns ${class_ns}::o[incr next_id]
+    # IMPORTANT:
+    # object namespace *must* be child of class namespace. 
+    # Saves a bit of bookkeeping. Putting it somewhere else will require
+    # changes to many other places in the code.
+    set objns ${class_ns}::o#[incr next_id]
 
     switch -exact -- $cmd {
         create {
@@ -134,6 +210,7 @@ proc metoo::_new {class_ns cmd args} {
                 error "Insufficient args, should be: class create CLASSNAME ?args?"
             }
             # TBD - check if command already exists
+            # Note objname must always be fully qualified
             set objname ::[string trimleft "[uplevel 1 "namespace current"]::[lindex $args 0]" :]
             set args [lrange $args 1 end]
         }
@@ -171,6 +248,31 @@ proc metoo::_trace_object_renames {objns oldname newname op} {
     }
 }
 
+proc metoo::_class_cmd {class_ns cmd args} {
+    switch -exact -- $cmd {
+        create -
+        new {
+            return [uplevel 1 [list [namespace current]::_new $class_ns $cmd] $args]
+        }
+        destroy {
+            # Destroy all objects belonging to this class
+            foreach objns [namespace children ${class_ns} o#*] {
+                [set ${objns}::_(name)] destroy
+            }
+            # Destroy all classes that inherit from this
+            foreach child_ns [array names ${class_ns}::subclasses] {
+                # Child namespace is also subclass command
+                $child_ns destroy
+            }
+            namespace delete ${class_ns}
+            rename ${class_ns} ""
+        }
+        default {
+            error "Unknown command '$cmd'. Should be create, new or destroy."
+        }
+    }
+}
+
 proc metoo::class {cmd cname definition} {
     variable next_id
 
@@ -202,7 +304,13 @@ proc metoo::class {cmd cname definition} {
     }
 
     # Define the class
-    namespace eval $class_ns $definition
+    if {[catch {
+        namespace eval $class_ns $definition
+    } msg ]} {
+        namespace delete $class_ns
+        error $msg $::errorInfo $::errorCode
+    }
+
     # Define the destroy method for the class
     namespace eval $class_ns {
         method destroy {} {
@@ -236,74 +344,44 @@ proc metoo::class {cmd cname definition} {
     }
 
     # The namespace is also a command used to create class instances
-    interp alias {} $class_ns {} [namespace current]::_new $class_ns
+    interp alias {} $class_ns {} [namespace current]::_class_cmd $class_ns
 
     return $class_ns
 }
 
-
-proc cps {script} {
-    # Eat the script compilation costs
-    uplevel 1 [list time $script]
-    # Have a guess at how many iterations to run for around a second
-    set s [uplevel 1 [list time $script 5]]
-    set iters [expr {round(1/([lindex $s 0]/1e6))}]
-    if {$iters < 50} {
-        puts "WARNING: number of iterations low"
-    }
-    # The main timing run
-    set s [uplevel 1 [list time $script $iters]]
-    set cps [expr {round(1/([lindex $s 0]/1e6))}]
-    puts "$cps calls per second of: $script"
-}
-
-# Test class for benchmarking from wiki TclOO page
-metoo::class create metoofoo {
-    constructor {} {
-       my variable x
-        set x 1
-    }
-    method bar {} {
-       my variable x
-       set x [expr {!$x}]
-    }
-}
-
+namespace eval metoo { namespace export class }
 
 # Simple sample class showing all capabilities. Anything not shown here will
 # probably not work. Call as "demo" to use metoo, or "demo oo" to use TclOO.
 # Output should be same in both cases.
 proc ::metoo::demo {{ns metoo}} {
     ${ns}::class create Base {
-        constructor {x y} { puts "Base constructor: $x, $y" }
+        constructor {x y} { puts "Base constructor ([self object]): $x, $y"
+        }
         method m {} { puts "Base::m called" }
         method n {args} { puts "Base::n called: [join $args {, }]"; my m }
-        destructor { puts "Base::destructor called" }
+        destructor { puts "Base::destructor ([self object])" }
     }
 
     ${ns}::class create Derived {
         superclass Base
-        constructor {x y} { puts "Derived constructor: $x, $y" ; next $x $y }
-        destructor { puts "Derived::destructor called" ; next }
-        method n {args} { puts "Derived::n called: [join $args {, }]"; eval next $args}
+        constructor {x y} { puts "Derived constructor ([self object]): $x, $y" ; next $x $y }
+        destructor { puts "Derived::destructor called ([self object])" ; next }
+        method n {args} { puts "Derived::n ([self object]): [join $args {, }]"; eval next $args}
         method put {val} {my variable var ; set var $val}
         method get {} {my variable var ; return $var}
     }
 
     Base create b dum dee
+    Derived create d fee fi
     set o [Derived new fo fum]
     $o put 10
     $o get
     b m
     $o m
     $o n
-    $o destroy
-    rename b ""    
-    rename Derived ""
-    rename Base ""
-    if {$ns eq "metoo"} {
-        namespace delete Base
-        namespace delete Derived
-    }
+    $o destroy;                 # Explicit destroy
+    rename b "";                # Destroy through rename
+    Base destroy;               # Should destroy object d, Derived, Base
 }
 
