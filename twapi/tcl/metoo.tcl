@@ -5,7 +5,7 @@
 # with TclOO in 8.5/8.6. Obviously, don't try going the other way!
 #
 # Emulation is superficial, don't try to be too clever in usage.
-# Renaming classes or objects will in all likelihood break stuff.
+# Renaming classes will in all likelihood break stuff.
 # Doing funky, or even non-funky, things with object namespaces will
 # not work as you would expect.
 #
@@ -21,11 +21,10 @@
 
 catch {namespace delete metoo}
 
-# TBD - put a trace to delete object when the command is deleted
-# TBD - put a trace when command is renamed
 # TBD - delete all objects when a class is deleted
 # TBD - delete all subclasses when a class is deleted
 # TBD - variable (my variable is done, variable in class definition is not)
+#       within method and at class level
 # TBD - exported methods
 
 namespace eval metoo {
@@ -159,9 +158,19 @@ proc metoo::_new {class_ns cmd args} {
     # Invoke the constructor
     eval [list $objname constructor] $args
 
+    # Set up trace to track when the object is renamed/destroyed
+    trace add command $objname {rename delete} [list [namespace current]::_trace_object_renames $objns]
+
     return $objname
 }
 
+proc metoo::_trace_object_renames {objns oldname newname op} {
+    if {$op eq "rename"} {
+        set ${objns}::_(name) $newname
+    } else {
+        $oldname destroy
+    }
+}
 
 proc metoo::class {cmd cname definition} {
     variable next_id
@@ -199,7 +208,10 @@ proc metoo::class {cmd cname definition} {
     namespace eval $class_ns {
         method destroy {} {
             my destructor
-            # TBD - remove trace on command rename/deletion, if any
+            # Remove trace on command rename/deletion.
+            # ${_this}::_(name) contains the object's current name on
+            # which the trace is set
+            trace remove command [set ${_this}::_(name)] {rename delete} [list ::metoo::_trace_object_renames $_this]
             rename [self object] ""
             namespace delete $_this
             return
@@ -248,10 +260,11 @@ proc cps {script} {
 
 metoo::class create metoofoo {
     constructor {} {
-       variable x 1
+       my variable x
+        set x 1
     }
     method bar {} {
-       variable x
+       my variable x
        set x [expr {!$x}]
     }
 }
