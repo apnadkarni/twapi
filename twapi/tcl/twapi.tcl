@@ -1670,6 +1670,7 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
     # Source files based on build configuration
     # First, all the base files
     foreach ::twapi::_field_ {
+        metoo.tcl
         osinfo.tcl
         security.tcl
         process.tcl
