@@ -8,11 +8,11 @@
 # Doing funky, or even non-funky, things with object namespaces will
 # not work as you would expect.
 #
-# See the metoo::demo proc for sample usage. Calling with this proc
+# See the metoo::demo proc for sample usage. Calling this proc
 # with parameter "oo" will use the TclOO commands. Else the metoo::
 # commands. Note the demo code remains the same for both.
 #
-# The following fragment use MeToo only if TclOO is not available:
+# The following fragment uses MeToo only if TclOO is not available:
 #   if {[llength [info commands oo::*]]} {
 #       namespace import oo::*
 #   } else {
@@ -43,7 +43,9 @@
 #    - inherits from SUPER. Unlike TclOO, only single inheritance. Also
 #      no checks for inheritance loops. You'll find out quickly enough!
 #   All other commands within a CLASSDEFINITION will either raise error or
-#   work differently from TclOO.
+#   work differently from TclOO. Actually you can use pretty much any
+#   Tcl command inside CLASSDEFINITION but the results may not be what you
+#   expect. Best to avoid this.
 #
 # METHODBODY: The following method-internal TclOO commands are available:
 #   my METHODNAME ARGS
@@ -89,9 +91,10 @@
 
 catch {namespace delete metoo}
 
-# TBD - variable (my variable is done, variable in class definition is not)
-#       within method and at class level
-# TBD - do not allow "variable" in class definition
+# TBD - variable ("my variable" is done, "variable" in method or
+# class definition is not)
+# TBD - default constructor and destructor to "next" (or maybe that
+# is already taken care of by the inheritance code
 
 namespace eval metoo {
     variable next_id 0
@@ -232,7 +235,16 @@ proc metoo::_new {class_ns cmd args} {
     interp alias {} $objname {} ${class_ns}::_call $objns
 
     # Invoke the constructor
-    eval [list $objname constructor] $args
+    if {[catch {
+        eval [list $objname constructor] $args
+    } msg]} {
+        # Undo what we did
+        set erinfo $::errorInfo
+        set ercode $::errorCode
+        rename $objname ""
+        namespace delete $objns
+        error $msg $erinfo $ercode
+    }
 
     # Set up trace to track when the object is renamed/destroyed
     trace add command $objname {rename delete} [list [namespace current]::_trace_object_renames $objns]
