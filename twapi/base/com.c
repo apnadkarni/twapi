@@ -2083,7 +2083,7 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP)
         VariantClear(varP);     /* Will do a SysFreeString */
 }
 
-int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, unsigned short flags, LCID lcid)
+int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long hashval, unsigned short flags)
 {
     ITypeInfo *tiP;
     DESCKIND   desckind;
@@ -2095,7 +2095,7 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, unsig
 
     hr = tcP->lpVtbl->Bind(tcP,
                            nameP,
-                           LHashValOfNameSys(SYS_WIN32, lcid, nameP),
+                           hashval,
                            flags,
                            &tiP,
                            &desckind,
@@ -3019,10 +3019,10 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         switch (func) {
         case 1401:
             if (TwapiGetArgs(interp, objc-3, objv+3,
-                             GETWSTR(s), GETWORD(w), GETINT(dw2),
+                             GETWSTR(s), GETINT(dw1), GETWORD(w),
                              ARGEND) != TCL_OK)
                 goto ret_error;
-            return Twapi_ITypeComp_Bind(interp, ifc.typecomp, s, w, dw2);
+            return Twapi_ITypeComp_Bind(interp, ifc.typecomp, s, dw1, w);
         }
     } else if (func < 5100) {
         /* ITaskScheduler */
