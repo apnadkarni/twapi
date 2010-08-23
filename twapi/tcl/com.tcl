@@ -73,51 +73,10 @@ proc twapi::clsid_to_progid {progid} {
     return [ProgIDFromCLSID $progid]
 }
 
-proc twapi::com::raw::iunknown_release {ifc} {
-    if {$ifc eq "NULL"} {
-        error "NULL interface pointer passed."
-    }
-    if {$::twapi::com_debug} {
-        # Check if we are releaseing once too often
-        # We may even crash if the memory has been reclaimed already
-        set refs [::twapi::IUnknown_AddRef $ifc]
-        if {$refs >= 2} {
-            # Fine. Undo our addref
-            ::twapi::IUnknown_Release $ifc
-        } else {
-            error "Internal error: attempt to release interface that's already released"
-            # TBD - should really exit
-            # Fall thru to undo a single addref (our addref)
-        }
-    }
-    ::twapi::IUnknown_Release $ifc
-}
-
-proc twapi::com::raw::iunknown_addref {ifc} {
-    if {$ifc eq "NULL"} {
-        error "NULL interface pointer passed."
-    }
-    ::twapi::IUnknown_AddRef $ifc
-}
-
-# Query interface
-proc twapi::com::raw::iunknown_query_interface {ifc name_or_iid} {
-    if {$ifc eq "NULL"} {
-        error "NULL interface pointer passed."
-    }
-    foreach {iid name} [_resolve_iid $name_or_iid] break
-    try {
-        return [::twapi::Twapi_IUnknown_QueryInterface $ifc $iid $name]
-    } onerror {TWAPI_WIN32 0x80004002} {
-        # No such interface, return "", don't generate error
-        return ""
-    }
-}
-
 #
 # Get IUnknown interface for an existing active object
 proc twapi::get_active_object {clsid} {
-    return [twapi::com::_ifcobj [GetActiveObject $clsid]]
+    return [::twapi::make_interface_proxy [GetActiveObject $clsid]]
 }
 
 #
@@ -184,66 +143,19 @@ proc twapi::com_create_instance {clsid args} {
         # Try through IUnknown
         set iunk [Twapi_CoCreateInstance $clsid NULL $flags [_iid_iunknown] IUnknown]
         try {
-            # Wait for it to run, then get IDispatch from it
+            # Wait for it to run, then get desired interface from it
             twapi::OleRun $iunk
-            set ifc [::twapi::com::raw::iunknown_query_interface $iunk $iid]
+            set ifc [Twapi_IUnknown_QueryInterface $iunk $iid $iid_name]
         } finally {
-            ::twapi::com::raw::iunknown_release $iunk
+            IUnknown_Release $iunk
         }
     }
 
     if {$opts(raw)} {
         return $ifc
     } else {
-        return [::twapi::com::_ifcobj $ifc $clsid]
+        return [make_interface_proxy $ifc]
     }
-}
-
-
-#
-# IDispatch commands
-
-#
-# Has type information?
-proc twapi::com::raw::idispatch_has_typeinfo {ifc} {
-    return [::twapi::IDispatch_GetTypeInfoCount $ifc]
-}
-
-#
-# Returns the type information for a IDispatch interface
-proc twapi::com::raw::idispatch_get_itypeinfo {ifc args} {
-    array set opts [parseargs args {
-        lcid.int
-    } -maxleftover 0 -nulldefault]
-
-    # TBD - what is the second param (0) supposed to be?
-    ::twapi::IDispatch_GetTypeInfo $ifc 0 $opts(lcid)
-}
-
-#
-# Get ids of names
-proc twapi::com::raw::idispatch_names_to_ids {ifc name args} {
-    array set opts [parseargs args {
-        lcid.int
-        paramnames.arg
-    } -maxleftover 0 -nulldefault]
-    
-    
-    return [::twapi::IDispatch_GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)] $opts(lcid)]
-}
-
-
-#
-# Invoke an IDispatch function
-# prototype should consist of basically params to IDispatch_Invoke - this
-# format is happily returned by idispatch_fill_prototypes
-proc twapi::com::raw::idispatch_invoke {ifc prototype args} {
-    if {$prototype eq ""} {
-        # Treat as a property get DISPID_VALLUE (default value)
-        # {dispid=0, riid="" lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
-        set prototype {0 {} 0 2 8 {}}
-    }
-    uplevel 1 [list ::twapi::IDispatch_Invoke $ifc $prototype] $args
 }
 
 #
@@ -264,12 +176,12 @@ proc twapi::comobj_null {args} {
 # need_addref should be false if the object will own the interface
 # and true if the caller will be independently using it (and releasing it)
 # as well
-proc twapi::comobj_idispatch {ifcobj} {
-    if {[$ifcobj @null?]} {
+proc twapi::TBDcomobj_idispatch {ifcobj} {
+    if {[$ifcobj @Null?]} {
         return ::twapi::comobj_null
     }
 
-    set ifc_type [$ifcobj @type]
+    set ifc_type [$ifcobj @Type]
     if {$ifc_type ne "IDispatch" && $ifc_type ne "IDispatchEx"} {
         error "'$ifcobj' does not reference an IDispatch interface"
     }
@@ -284,573 +196,24 @@ proc twapi::comobj_idispatch {ifcobj} {
 #
 # Create an object command for a COM object from a name
 # TBD - document
-proc twapi::comobj_object {path} {
+proc twapi::TBDcomobj_object {path} {
     return [comobj_idispatch [twapi::com::_ifcobj [::twapi::Twapi_CoGetObject $path {} {{00020400-0000-0000-C000-000000000046}} IDispatch]]]
 }
 
 #
 # Create a object command for a COM object
 # comid is either a CLSID or a PROGID
-proc twapi::comobj {comid args} {
+proc twapi::TBDcomobj {comid args} {
     set clsid [_convert_to_clsid $comid]
     return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch] $args]]
 }
 
 
 #
-# Returns the "prototypes" for idispatch methods (non-dispatch methods
-# are ignored!
-#
-# $args is a list of names.
-#
-# Stores prototypes for each function in array $v_protos. 
-# The array elements are indexed as 
-# ($ifc,$name,$lcid,$invokeflag)  - contains the full prototype in a form
-#     that can be passed to idispatch_invoke. This is a list with the
-#     elements {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
-# Here PARAMTYPES is a list each element of which is a describes a
-# parameter in the following format:
-#     {TYPE {FLAGS DEFAULT}} where DEFAULT may be missing
-# 
-# Entries are created for every match, so for example if the name
-# was a property, entries would be created for both the set property
-# and the get property method ($invokeflag would be different in the
-# two cases
-#
-# Returns number of entries found
-proc twapi::com::raw::idispatch_fill_prototypes {ifc v_protos lcid args} {
-    upvar $v_protos protos
-
-    array set protos {};                #  Just to make sure array is created
-
-    # Filter out the names we already have
-    set names [list ]
-    foreach name $args {
-        set count [llength [array names protos $ifc,$name,$lcid*]]
-        if {$count} {
-            # Already have the prototypes
-            return $count
-        }
-    }
-
-    set count 0
-    try {
-        set ti [idispatch_get_itypeinfo $ifc -lcid $lcid]
-
-        # In case of dual interfaces, we need the typeinfo for the dispatch
-        switch -exact -- [lindex [itypeinfo_get_info $ti -typekind] 1] {
-            dispatch {
-                # Fine, just what we want
-            }
-            interface {
-                # Get the dispatch interface
-                set ti2 [itypeinfo_get_referenced_itypeinfo $ti -1]
-                iunknown_release $ti
-                set ti $ti2
-            }
-            default {
-                error "Interface is not a dispatch interface"
-            }
-        }
-
-        set tc [itypeinfo_get_itypecomp $ti]
-        
-        foreach name $args {
-            # Check for existence of method, propget, propput
-            foreach invkind {1 2 4} {
-                if {![catch {
-                    set binddata [ITypeComp_Bind $tc $name $invkind $lcid]
-                }]} {
-                    if {[llength $binddata] == 0} {
-                        continue;       # Not found
-                    }
-                    foreach {type data ti2} $binddata break
-                    iunknown_release $ti2; # Don't need this but must release
-                    if {$type ne "funcdesc"} continue
-                    array set bindings $data
-                    set protos($ifc,$name,$lcid,$bindings(invkind)) [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
-                    incr count
-                }
-            }
-        }
-    } onerror {TWAPI_WIN32 0x80004001} {
-        # Not implemented
-        # Ignore the error - we will try below using another method
-    } onerror {TWAPI_WIN32 0x80004002} {
-        # Interface not supported
-        # Ignore the error - we will try below using another method
-    } finally {
-        if {[info exists tc]} {
-            iunknown_release $tc
-        }
-        if {[info exists ti]} {
-            iunknown_release $ti
-        }
-    }    
-
-    if {$count} {
-        return $count
-    }
-
-    # No interfaces found. See if we have a IDispatchEx interface that
-    # will has dynamic members. Note that these DISPID will work with
-    # the original IDispatch as well
-    try {
-        set dispex [iunknown_query_interface $ifc IDispatchEx]
-        if {$dispex ne ""} {
-            # flags = 10 - case insensitive, create if required
-            set dispid [IDispatchEx_GetDispID $dispex $name 10]
-
-            # No type information is available for dynamic members.
-            # Try at least getting the invocation type but even that is not
-            # supported by all objects
-
-            # Invoke kind - 1 (method), 2 (propget), 4 (propput)
-            set invkinds [list 1 2 4];      # In case call below fails
-
-            # 1+4+10+100
-            # We look for the following flags
-            #  0x1 - property get
-            #  0x4 - property put
-            #  0x10 - property putref
-            #  0x100 - method call
-            if {! [catch {set flags [IDispatchEx_GetMemberProperties $dispex 0x115] }]} {
-                set invkinds [list ]
-                if {$flags & 0x100} {lappend invkinds 1}
-                if {$flags & 0x1} {lappend invkinds 2}
-                if {$flags & 0x14} {
-                    # TBD - we are marking putref and put the same. Is that OK?
-                    lappend invkinds 4
-                }
-            }
-
-            foreach invkind $invkinds {
-                # Note that the last element in prototype is missing indicating
-                # we do not have parameter information. Also, we assume return
-                # type of 8 (BSTR) (although the actual return type doesn't matter)
-                set protos($ifc,$name,$lcid,$invkind) [list $dispid "" $lcid $invkind 8]
-                incr count
-            }
-        }
-    } onerror {} {
-        # Ignore errors, just means prototypes not filled
-    } finally {
-        if {[info exists dispex] && $dispex ne ""} {
-            iunknown_release $dispex
-        }
-    }
-
-    return $count
-}
-
-# Define a prototype manually in the same format as idispatch_fill_prototypes
-# TBD - should we document this?
-proc twapi::idispatch_define_prototype {ifc name args} {
-    # Parse out options.
-    # Return type is assumed 8 (BSTR) but does
-    # not matter as automatic type conversion will be done on
-    # the return value.
-    array set opts [parseargs args {
-        {lcid.int 0}
-        {type.arg 1 {-get get -set set -call call 1 2 4}}
-        {rettype.arg bstr}
-        params.arg
-    } -maxleftover 0]
-
-    set dispid [lindex [idispatch_names_to_ids $ifc $name] 1]
-    if {$dispid eq ""} {
-        win32_error 0x80020003 "No property or method found with name '$name'."
-    }
-
-    switch -exact -- $opts(type) {
-        "call"  -
-        "-call" {set flags 1 }
-        "get"   -
-        "-get" { set flags 2 }
-        "set"   -
-        "-set" { set flags 4 }
-        default {
-            set flags $opts(type)
-        }
-    }
-
-    # Create prototype. The 6th element - parameter description -
-    # if missing which means we will just to default parameter
-    # type handling. This is different from an empty element which
-    # would mean no parameters
-    set proto [list $dispid "" $opts(lcid) $flags $opts(rettype)]
-    if {[info exists opts(params)]} {
-        lappend proto $opts(params)
-    }
-
-    return $proto
-}
-
-
-#
-# Return attributes of a ITypeInfo
-proc twapi::itypeinfo_get_info {ifc args} {
-    array set opts [parseargs args {
-        all
-        guid
-        lcid
-        constructorid
-        destructorid
-        schema
-        instancesize
-        typekind
-        fncount
-        varcount
-        interfacecount
-        vtblsize
-        alignment
-        majorversion
-        minorversion
-        aliasdesc
-        flags
-        idldesc
-        memidmap
-    } -maxleftover 0]
-
-    array set data [ITypeInfo_GetTypeAttr $ifc]
-    set result [list ]
-    foreach {opt key} {
-        guid guid
-        lcid lcid
-        constructorid memidConstructor
-        destructorid  memidDestructor
-        schema lpstrSchema
-        instancesize cbSizeInstance
-        fncount cFuncs
-        varcount cVars
-        interfacecount cImplTypes
-        vtblsize cbSizeVft
-        alignment cbAlignment
-        majorversion wMajorVerNum
-        minorversion wMinorVerNum
-        aliasdesc tdescAlias
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt $data($key)
-        }
-    }
-
-    if {$opts(all) || $opts(typekind)} {
-        set typekind $data(typekind)
-        if {[info exists ::twapi::_typekind_map($typekind)]} {
-            set typekind $::twapi::_typekind_map($typekind)
-        }
-        lappend result -typekind $typekind
-    }
-
-    if {$opts(all) || $opts(flags)} {
-        lappend result -flags [_make_symbolic_bitmask $data(wTypeFlags) {
-            appobject       1
-            cancreate       2
-            licensed        4
-            predeclid       8
-            hidden         16
-            control        32
-            dual           64
-            nonextensible 128
-            oleautomation 256
-            restricted    512
-            aggregatable 1024
-            replaceable  2048
-            dispatchable 4096
-            reversebind  8192
-            proxy       16384
-        }]
-    }
-
-    if {$opts(all) || $opts(idldesc)} {
-        lappend result -idldesc [_make_symbolic_bitmask $data(idldescType) {
-            in 1
-            out 2
-            lcid 4
-            retval 8
-        }]
-    }
-
-    if {$opts(all) || $opts(memidmap)} {
-        set memidmap [list ]
-        for {set i 0} {$i < $data(cFuncs)} {incr i} {
-            array set fninfo [itypeinfo_get_func_info $ifc $i -memid -name]
-            lappend memidmap $fninfo(-memid) $fninfo(-name)
-        }
-        lappend result -memidmap $memidmap
-    }
-
-    return $result
-}
-
-#
-# Get the referenced typeinfo of a typeinfo
-proc twapi::itypeinfo_get_referenced_itypeinfo {ifc index} {
-    set hreftype [ITypeInfo_GetRefTypeOfImplType $ifc $index]
-    return [ITypeInfo_GetRefTypeInfo $ifc $hreftype]
-}
-
-#
-# Get the containing typelib
-proc twapi::itypeinfo_get_itypelib {ifc} {
-    return [ITypeInfo_GetContainingTypeLib $ifc]
-}
-
-#
-# Get the typecomp for a typeinfo
-proc twapi::itypeinfo_get_itypecomp {ifc} {
-    return [ITypeInfo_GetTypeComp $ifc]
-}
-
-#
 # Get a function definition
-proc twapi::itypeinfo_get_name {ifc} {
+proc twapi::TBDitypeinfo_get_name {ifc} {
     return [lindex [itypeinfo_get_doc $ifc -1 -name] 1]
 }
-
-
-#
-# Get a variable description associated with a type
-proc twapi::itypeinfo_get_var_info {ifc index args} {
-    # TBD - add support for retrieving elemdescVar.paramdesc fields
-
-    array set opts [parseargs args {
-        all
-        name
-        memid
-        schema
-        datatype
-        value
-        valuetype
-        varkind
-        flags
-    } -maxleftover 0]
-
-    array set data [ITypeInfo_GetVarDesc $ifc $index]
-    
-    set result [list ]
-    foreach {opt key} {
-        memid memid
-        schema lpstrSchema
-        datatype elemdescVar.tdesc
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt $data($key)
-        }
-    }
-
-    if {$opts(all) || $opts(value)} {
-        if {[info exists data(lpvarValue)]} {
-            # Const value
-            lappend result -value [lindex $data(lpvarValue) 1]
-        } else {
-            lappend result -value $data(oInst)
-        }
-    }
-
-    if {$opts(all) || $opts(valuetype)} {
-        if {[info exists data(lpvarValue)]} {
-            lappend result -valuetype [lindex $data(lpvarValue) 0]
-        } else {
-            lappend result -valuetype int
-        }
-    }
-
-    if {$opts(all) || $opts(varkind)} {
-        lappend result -varkind [kl_get {
-            0 perinstance
-            1 static
-            2 const
-            3 dispatch
-        } $data(varkind) $data(varkind)]
-    }
-
-    if {$opts(all) || $opts(flags)} {
-        lappend result -flags [_make_symbolic_bitmask $data(wVarFlags) {
-            readonly       1
-            source       2
-            bindable        4
-            requestedit       8
-            displaybind         16
-            defaultbind        32
-            hidden           64
-            restricted 128
-            defaultcollelem 256
-            uidefault    512
-            nonbrowsable 1024
-            replaceable  2048
-            immediatebind 4096
-        }]
-    }
-    
-    if {$opts(all) || $opts(name)} {
-        set result [concat $result [itypeinfo_get_doc $ifc $data(memid) -name]]
-    }    
-
-    return $result
-}
-
-#
-# Get a function definition
-proc twapi::itypeinfo_get_func_info {ifc index args} {
-
-    array set opts [parseargs args {
-        all
-        name
-        memid
-        funckind
-        invkind
-        callconv
-        params
-        paramnames
-        flags
-        datatype
-        resultcodes
-        vtbloffset
-    } -maxleftover 0]
-
-    array set data [ITypeInfo_GetFuncDesc $ifc $index]
-    set result [list ]
-
-    if {$opts(all) || $opts(paramnames)} {
-        lappend result -paramnames [lrange [itypeinfo_get_names $ifc $data(memid)] 1 end]
-    }
-    foreach {opt key} {
-        memid       memid
-        vtbloffset  oVft
-        datatype    elemdescFunc.tdesc
-        resultcodes lprgscode
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt $data($key)
-        }
-    }
-
-    if {$opts(all) || $opts(funckind)} {
-        lappend result -funckind [kl_get {
-            0 virtual
-            1 purevirtual
-            2 nonvirtual
-            3 static
-            4 dispatch
-        } $data(funckind) $data(funckind)]
-    }
-
-    if {$opts(all) || $opts(invkind)} {
-        lappend result -invkind [_string_to_invkind $data(invkind)]
-    }
-
-    if {$opts(all) || $opts(callconv)} {
-        lappend result -callconv [kl_get {
-            0 fastcall
-            1 cdecl
-            2 pascal
-            3 macpascal
-            4 stdcall
-            5 fpfastcall
-            6 syscall
-            7 mpwcdecl
-            8 mpwpascal
-        } $data(callconv) $data(callconv)]
-    }
-
-    if {$opts(all) || $opts(flags)} {
-        lappend result -flags [_make_symbolic_bitmask $data(wFuncFlags) {
-            restricted   1
-            source       2
-            bindable     4
-            requestedit  8
-            displaybind  16
-            defaultbind  32
-            hidden       64
-            usesgetlasterror  128
-            defaultcollelem 256
-            uidefault    512
-            nonbrowsable 1024
-            replaceable  2048
-            immediatebind 4096
-        }]
-    }
-
-    if {$opts(all) || $opts(params)} {
-        set params [list ]
-        foreach param $data(lprgelemdescParam) {
-            foreach {paramtype paramdesc} $param break
-            set paramflags [_paramflags_to_tokens [lindex $paramdesc 0]]
-            if {[llength $paramdesc] > 1} {
-                # There is a default value associated with the parameter
-                lappend params [list $paramtype $paramflags [lindex $paramdesc 1]]
-            } else {
-                lappend params [list $paramtype $paramflags]
-            }
-        }
-        lappend result -params $params
-    }
-
-    if {$opts(all) || $opts(name)} {
-        set result [concat $result [itypeinfo_get_doc $ifc $data(memid) -name]]
-    }    
-
-    return $result
-}
-
-#
-# Get documentation for a element of a type
-proc twapi::itypeinfo_get_doc {ifc memid args} {
-    array set opts [parseargs args {
-        all
-        name
-        docstring
-        helpctx
-        helpfile
-    } -maxleftover 0]
-
-    foreach {name docstring helpctx helpfile} [ITypeInfo_GetDocumentation $ifc $memid] break
-
-    set result [list ]
-    foreach opt {name docstring helpctx helpfile} {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt [set $opt]
-        }
-    }
-    return $result
-}
-
-#
-# Get ids of names
-proc twapi::itypeinfo_names_to_ids {ifc name args} {
-    array set opts [parseargs args {
-        paramnames.arg
-    } -maxleftover 0 -nulldefault]
-
-    return [ITypeInfo_GetIDsOfNames $ifc [concat [list $name] $opts(paramnames)]]
-}
-
-
-#
-# Get type information
-proc twapi::itypeinfo_get_impl_type_flags {ifc index} {
-    return [_make_symbolic_bitmask \
-                [ITypeInfo_GetImplTypeFlags $ifc $index] \
-                {
-                    default      1
-                    source       2
-                    restricted   4
-                    defaultvtable 8
-                }]    
-}
-
-#
-# Get names in a typeinfo
-proc twapi::itypeinfo_get_names {ifc memid} {
-    return [ITypeInfo_GetNames $ifc $memid]
-}
-
-
-#
-# ITypeLib commands
-#
 
 # Return an interface to a typelib
 proc twapi::get_itypelib {path args} {
@@ -858,7 +221,7 @@ proc twapi::get_itypelib {path args} {
         {registration.arg none {none register default}}
     } -maxleftover 0]
 
-    return [LoadTypeLibEx $path [kl_get {default 0 register 1 none 2} $opts(registration) $opts(registration)]]
+    return [make_interface_proxy [LoadTypeLibEx $path [kl_get {default 0 register 1 none 2} $opts(registration) $opts(registration)]]]
 }
 
 #
@@ -868,18 +231,18 @@ proc twapi::get_registered_itypelib {uuid major minor args} {
         lcid.int
     } -maxleftover 0 -nulldefault]
     
-    return [LoadRegTypeLib $uuid $major $minor $opts(lcid)]
+    return [make_interface_proxy [LoadRegTypeLib $uuid $major $minor $opts(lcid)]]
 }
 
 #
 # Register a typelib
-proc twapi::itypelib_register {ifc path helppath args} {
+proc twapi::TBDitypelib_register {ifc path helppath args} {
     RegisterTypeLib $ifc $path $helppath
 }
 
 #
 # Unregister a typelib
-proc twapi::itypelib_unregister {uuid major minor args} {
+proc twapi::TBDitypelib_unregister {uuid major minor args} {
     array set opts [parseargs args {
         lcid.int
     } -maxleftover 0 -nulldefault]
@@ -887,53 +250,6 @@ proc twapi::itypelib_unregister {uuid major minor args} {
     UnRegisterTypeLib $uuid $major $minor $opts(lcid) 1
 }
 
-
-
-#
-# Return count of entries in a typelib
-proc twapi::itypelib_count {ifc} {
-    return [ITypeLib_GetTypeInfoCount $ifc]
-}
-
-#
-# Returns the type of a type description
-proc twapi::itypelib_get_entry_typekind {ifc id} {
-    set typekind [ITypeLib_GetTypeInfoType $ifc $id]
-    if {[info exists ::twapi::_typekind_map($typekind)]} {
-        set typekind $::twapi::_typekind_map($typekind)
-    }
-}
-
-#
-# Get documentation for a element of a typelib
-proc twapi::itypelib_get_entry_doc {ifc id args} {
-    array set opts [parseargs args {
-        all
-        name
-        docstring
-        helpctx
-        helpfile
-    } -maxleftover 0]
-
-    foreach {name docstring helpctx helpfile} [ITypeLib_GetDocumentation $ifc $id] break
-
-    set result [list ]
-    foreach opt {name docstring helpctx helpfile} {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt [set $opt]
-        }
-    }
-    return $result
-}
-
-#
-# Returns the ITypeInfo interface for a typelib entry
-interp alias {} twapi::itypelib_get_entry_itypeinfo {} twapi::ITypeLib_GetTypeInfo
-
-
-#
-# Returns the ITypeInfo interface for a typelib guid
-interp alias {} twapi::itypelib_get_registered_itypeinfo {} ITypeLib_GetTypeInfoOfGuid
 
 
 #
@@ -953,52 +269,7 @@ proc twapi::itypelib_get_registered_path {guid major minor args} {
     return $path
 }
 
-#
-# Get attributes of a library
-proc twapi::itypelib_get_info {ifc args} {
-    array set opts [parseargs args {
-        all
-        guid
-        lcid
-        syskind
-        majorversion
-        minorversion
-        flags
-    } -maxleftover 0]
-
-    array set data [ITypeLib_GetLibAttr $ifc]
-    set result [list ]
-    foreach {opt key} {
-        guid guid
-        lcid lcid
-        majorversion wMajorVerNum
-        minorversion wMinorVerNum
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend result -$opt $data($key)
-        }
-    }
-
-    if {$opts(all) || $opts(flags)} {
-        lappend result -flags [_make_symbolic_bitmask $data(wLibFlags) {
-            restricted      1
-            control         2
-            hidden          4
-            hasdiskimage    8
-        }]
-    }
-
-    if {$opts(all) || $opts(syskind)} {
-        lappend result -syskind [kl_get {
-            0 win16
-            1 win32
-            2 mac
-        } $data(syskind) $data(syskind)]
-    }
-
-    return $result
-}
-
+HERE
 #
 # Iterate through a typelib. Caller is responsible for each itypeinfo
 # passed
@@ -2288,22 +1559,21 @@ proc twapi::_stop_service_tracker {} {
 
 #================ NEW COM CODE
 
-namespace eval twapi::com {
-    variable contexts
+namespace eval twapi {
+    # TBD - enable oo if available
+    if {0} {
+        namespace import oo::class
+    } else {
+        namespace import oo::metoo
+    }
 
-    TBD - make contexts (namespace qualified) be passed to every method
-    as an argument. Store all state in there as a keyed list
-
-}
-
-interp alias {} twapi::com::_ifcobj {} twapi::com::IUnknown::@_ifcobj_create
 
 #
 # NULL interface. The command name follows syntax for interface objects
 # though it need not
 proc twapi::com::ifc#NULL args {
     # A single command is accepted - to check if null
-    if {[llength $args] == 1 && [lindex $args 0] eq "@null?"} {
+    if {[llength $args] == 1 && [lindex $args 0] eq "@Null?"} {
         return 1
     }
     error "Attempt to invoke NULL interface. Args: '[join $args ,]'"
@@ -2333,7 +1603,7 @@ proc twapi::make_interface_proxy {ifc} {
     return $proxy
 }
 
-class create ::twapi::IUnknownProxy {
+twapi::class create ::twapi::IUnknownProxy {
     constructor {ifc} {
 
         if {[::twapi::Twapi_IsNullPtr $ifc]} {
@@ -2381,24 +1651,34 @@ class create ::twapi::IUnknownProxy {
         return [::twapi::make_interface_proxy [::twapi::Twapi_IUnknown_QueryInterface $_ifc $iid $name]]
     }
 
-    method @type {} {
+    method @Type {} {
         my variable _ifc
         return [::twapi::Twapi_PtrType $_ifc]
     }
 
-    method @type? {type} {
+    method @Type? {type} {
         my variable _ifc
         return [::twapi::Twapi_IsPtr $_ifc $type]
     }
 
-    method @null? {} {
+    method @Null? {} {
         # Should never be true since we check in constructor
         return 0
     }
 
+    # Same as QueryInterface except return "" instead of exception
+    # if interface not found
+    method @QueryInterface {name_or_iid} {
+        ::twapi::try {
+            return [my QueryInterface $name_or_iid]
+        } onerror {TWAPI_WIN32 0x80004002} {
+            # No such interface, return "", don't generate error
+            return ""
+        }
+    }
 }
 
-class ::Twapi::IDispatchProxy {
+twapi::class ::Twapi::IDispatchProxy {
     superclass ::twapi::IUnknownProxy
 
     destructor {
@@ -2439,10 +1719,19 @@ class ::Twapi::IDispatchProxy {
     }
 
     # Get prototype that match the specified name
-    method @prototype {name invkind lcid} {
+    method @Prototype {name invkind lcid} {
         my variable  _ifc  _prototypes  _typecomp
 
         set invkind [::twapi::_string_to_invkind $invkind]
+
+        # _prototypes($name,$lcid,$invokeflag)
+        # contains the full prototype in a form
+        # that can be passed to IDispatch_Invoke. This is a list with the
+        # elements {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
+        # Here PARAMTYPES is a list each element of which describes a
+        # parameter in the following format:
+        #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
+        # 
 
         # If a prototype exists, return it. 
         if {[info exists _prototypes($name,$lcid,$invkind)]} {
@@ -2504,10 +1793,56 @@ class ::Twapi::IDispatchProxy {
 
         return $_prototypes($name,$lcid,$invkind); # May be ""
     }
+
+    # Define a prototype manually
+    method @PrototypeDefine {name args} {
+        my variable _prototypes  _ifc
+
+        # Parse out options.
+        # Return type is assumed 8 (BSTR) but does
+        # not matter as automatic type conversion will be done on
+        # the return value.
+        # TBD - allows mnemonics for parsing params
+
+        array set opts [::twapi::parseargs args {
+            {lcid.int 0}
+            {type.arg 1 {-get get -set set -call call 1 2 4}}
+            {rettype.arg bstr}
+            params.arg
+        } -maxleftover 0]
+
+        set dispid [lindex [my GetIDsOfNames [list $name]] 1]
+
+        switch -exact -- $opts(type) {
+            "call"  -
+            "-call" {set invkind 1 }
+            "get"   -
+            "-get" { set invkind 2 }
+            "set"   -
+            "-set" { set invkind 4 }
+            default {
+                if {![string is integer -strict $opts(type)]} {
+                    error "Invalid value '$opts(type)' for -type option"
+                }
+                set invkind $opts(type)
+            }
+        }
+
+        # Create prototype. The 6th element - parameter description -
+        # if missing which means we will just to default parameter
+        # type handling. This is different from an empty element which
+        # would mean no parameters
+        set proto [list $dispid "" $opts(lcid) $invkind $opts(rettype)]
+        if {[info exists opts(params)]} {
+            lappend proto $opts(params)
+        }
+
+        return [set _prototypes($name,$lcid,$invkind) $proto]
+    }
 }
 
 
-class create ::twapi::IDispatchExProxy {
+twapi::class create ::twapi::IDispatchExProxy {
     superclass ::twapi::IDispatchProxy
 
     method DeleteMemberByDispID {dispid} {
@@ -2546,7 +1881,7 @@ class create ::twapi::IDispatchExProxy {
         return [::twapi::make_interface_proxy [::twapi::IDispatchEx_GetNameSpaceParent $_ifc]]
     }
 
-    method @prototype {name invkind {lcid 0}} {
+    method @Prototype {name invkind {lcid 0}} {
         set invkind [::twapi::_string_to_invkind $invkind]
 
         # First try IDispatch
@@ -2618,7 +1953,7 @@ class create ::twapi::IDispatchExProxy {
 # ITypeInfo 
 #-----------
 
-class create ::twapi::ITypeInfoProxy {
+twapi::class create ::twapi::ITypeInfoProxy {
     superclass ::twapi::IUnknownProxy
 
     method GetRefTypeOfImplType {index} {
@@ -2676,12 +2011,332 @@ class create ::twapi::ITypeInfoProxy {
         foreach {ityplib index} [::twapi::ITypeInfo_GetContainingTypeLib $_ifc] break
         return [list [::twapi::make_interface_proxy $itypelib] $index]
     }
+
+    method @GetReferencedTypeInfo {index} {
+        my variable _ifc
+        return [my GetRefTypeInfo $_ifc [my GetRefTypeOfImplType $_ifc $index]]
+    }
+
+    # Friendlier version of GetTypeAttr
+    method @GetAttributes {args} {
+
+        array set opts [::twapi::parseargs args {
+            all
+            guid
+            lcid
+            constructorid
+            destructorid
+            schema
+            instancesize
+            typekind
+            fncount
+            varcount
+            interfacecount
+            vtblsize
+            alignment
+            majorversion
+            minorversion
+            aliasdesc
+            flags
+            idldesc
+            memidmap
+        } -maxleftover 0]
+
+        array set data [my GetTypeAttr $ifc]
+        set result [list ]
+        foreach {opt key} {
+            guid guid
+            lcid lcid
+            constructorid memidConstructor
+            destructorid  memidDestructor
+            schema lpstrSchema
+            instancesize cbSizeInstance
+            fncount cFuncs
+            varcount cVars
+            interfacecount cImplTypes
+            vtblsize cbSizeVft
+            alignment cbAlignment
+            majorversion wMajorVerNum
+            minorversion wMinorVerNum
+            aliasdesc tdescAlias
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt $data($key)
+            }
+        }
+
+        if {$opts(all) || $opts(typekind)} {
+            set typekind $data(typekind)
+            if {[info exists ::twapi::_typekind_map($typekind)]} {
+                set typekind $::twapi::_typekind_map($typekind)
+            }
+            lappend result -typekind $typekind
+        }
+
+        if {$opts(all) || $opts(flags)} {
+            lappend result -flags [::twapi::_make_symbolic_bitmask $data(wTypeFlags) {
+                appobject       1
+                cancreate       2
+                licensed        4
+                predeclid       8
+                hidden         16
+                control        32
+                dual           64
+                nonextensible 128
+                oleautomation 256
+                restricted    512
+                aggregatable 1024
+                replaceable  2048
+                dispatchable 4096
+                reversebind  8192
+                proxy       16384
+            }]
+        }
+
+        if {$opts(all) || $opts(idldesc)} {
+            lappend result -idldesc [::twapi::_make_symbolic_bitmask $data(idldescType) {
+                in 1
+                out 2
+                lcid 4
+                retval 8
+            }]
+        }
+
+        if {$opts(all) || $opts(memidmap)} {
+            set memidmap [list ]
+            for {set i 0} {$i < $data(cFuncs)} {incr i} {
+                array set fninfo [my @GetFuncInfo $i -memid -name]
+                lappend memidmap $fninfo(-memid) $fninfo(-name)
+            }
+            lappend result -memidmap $memidmap
+        }
+
+        return $result
+    }
+
+    #
+    # Get a variable description associated with a type
+    method @GetVarInfo {index args} {
+        # TBD - add support for retrieving elemdescVar.paramdesc fields
+
+        array set opts [parseargs args {
+            all
+            name
+            memid
+            schema
+            datatype
+            value
+            valuetype
+            varkind
+            flags
+        } -maxleftover 0]
+
+        array set data [my GetVarDesc $index]
+        
+        set result [list ]
+        foreach {opt key} {
+            memid memid
+            schema lpstrSchema
+            datatype elemdescVar.tdesc
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt $data($key)
+            }
+        }
+
+        if {$opts(all) || $opts(value)} {
+            if {[info exists data(lpvarValue)]} {
+                # Const value
+                lappend result -value [lindex $data(lpvarValue) 1]
+            } else {
+                lappend result -value $data(oInst)
+            }
+        }
+
+        if {$opts(all) || $opts(valuetype)} {
+            if {[info exists data(lpvarValue)]} {
+                lappend result -valuetype [lindex $data(lpvarValue) 0]
+            } else {
+                lappend result -valuetype int
+            }
+        }
+
+        if {$opts(all) || $opts(varkind)} {
+            lappend result -varkind [::twapi::kl_get {
+                0 perinstance
+                1 static
+                2 const
+                3 dispatch
+            } $data(varkind) $data(varkind)]
+        }
+
+        if {$opts(all) || $opts(flags)} {
+            lappend result -flags [::twapi::_make_symbolic_bitmask $data(wVarFlags) {
+                readonly       1
+                source       2
+                bindable        4
+                requestedit       8
+                displaybind         16
+                defaultbind        32
+                hidden           64
+                restricted 128
+                defaultcollelem 256
+                uidefault    512
+                nonbrowsable 1024
+                replaceable  2048
+                immediatebind 4096
+            }]
+        }
+        
+        if {$opts(all) || $opts(name)} {
+            set result [concat $result [my @GetDocumentation $data(memid) -name]]
+        }    
+
+        return $result
+    }
+
+    method @GetFuncInfo {index args} {
+        array set opts [parseargs args {
+            all
+            name
+            memid
+            funckind
+            invkind
+            callconv
+            params
+            paramnames
+            flags
+            datatype
+            resultcodes
+            vtbloffset
+        } -maxleftover 0]
+
+        array set data [my GetFuncDesc $index]
+        set result [list ]
+
+        if {$opts(all) || $opts(paramnames)} {
+            lappend result -paramnames [lrange [my GetNames $data(memid)] 1 end]
+        }
+        foreach {opt key} {
+            memid       memid
+            vtbloffset  oVft
+            datatype    elemdescFunc.tdesc
+            resultcodes lprgscode
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt $data($key)
+            }
+        }
+
+        if {$opts(all) || $opts(funckind)} {
+            lappend result -funckind [::twapi::kl_get {
+                0 virtual
+                1 purevirtual
+                2 nonvirtual
+                3 static
+                4 dispatch
+            } $data(funckind) $data(funckind)]
+        }
+
+        if {$opts(all) || $opts(invkind)} {
+            lappend result -invkind [::twapi::_string_to_invkind $data(invkind)]
+        }
+
+        if {$opts(all) || $opts(callconv)} {
+            lappend result -callconv [kl_get {
+                0 fastcall
+                1 cdecl
+                2 pascal
+                3 macpascal
+                4 stdcall
+                5 fpfastcall
+                6 syscall
+                7 mpwcdecl
+                8 mpwpascal
+            } $data(callconv) $data(callconv)]
+        }
+
+        if {$opts(all) || $opts(flags)} {
+            lappend result -flags [::twapi::_make_symbolic_bitmask $data(wFuncFlags) {
+                restricted   1
+                source       2
+                bindable     4
+                requestedit  8
+                displaybind  16
+                defaultbind  32
+                hidden       64
+                usesgetlasterror  128
+                defaultcollelem 256
+                uidefault    512
+                nonbrowsable 1024
+                replaceable  2048
+                immediatebind 4096
+            }]
+        }
+
+        if {$opts(all) || $opts(params)} {
+            set params [list ]
+            foreach param $data(lprgelemdescParam) {
+                foreach {paramtype paramdesc} $param break
+                set paramflags [::twapi::_paramflags_to_tokens [lindex $paramdesc 0]]
+                if {[llength $paramdesc] > 1} {
+                    # There is a default value associated with the parameter
+                    lappend params [list $paramtype $paramflags [lindex $paramdesc 1]]
+                } else {
+                    lappend params [list $paramtype $paramflags]
+                }
+            }
+            lappend result -params $params
+        }
+
+        if {$opts(all) || $opts(name)} {
+            set result [concat $result [my @GetDocumentation $data(memid) -name]]
+        }    
+
+        return $result
+    }
+
+    #
+    # Get documentation for a element of a type
+    method @GetDocumentation {memid args} {
+        array set opts [parseargs args {
+            all
+            name
+            docstring
+            helpctx
+            helpfile
+        } -maxleftover 0]
+
+        foreach {name docstring helpctx helpfile} [my GetDocumentation $memid] break
+
+        set result [list ]
+        foreach opt {name docstring helpctx helpfile} {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt [set $opt]
+            }
+        }
+        return $result
+    }
+
+    method @GetImplTypeFlags {index} {
+        return [::twapi::_make_symbolic_bitmask \
+                    [my GetImplTypeFlags $index] \
+                    {
+                        default      1
+                        source       2
+                        restricted   4
+                        defaultvtable 8
+                    }]  
+    }
+
+
 }
+
 
 # ITypeLib
 #----------
 
-class create ::twapi::ITypeLibProxy {
+twapi::class create ::twapi::ITypeLibProxy {
     superclass ::twapi::IUnknownProxy
 
     method GetDocumentation {index} {
@@ -2708,11 +2363,83 @@ class create ::twapi::ITypeLibProxy {
         my variable _ifc
         return [::twapi::make_interface_proxy [::twapi::ITypeLib_GetTypeInfoOfGuid $_ifc $guid]]
     }
+    method @GetTypeInfoType {id} {
+        set typekind [my GetTypeInfoType $id]
+        if {[info exists ::twapi::_typekind_map($typekind)]} {
+            set typekind $::twapi::_typekind_map($typekind)
+        }
+        return $typekind
+    }
+
+    method @GetDocumentation {id args} {
+        array set opts [::twapi::parseargs args {
+            all
+            name
+            docstring
+            helpctx
+            helpfile
+        } -maxleftover 0]
+
+        foreach {name docstring helpctx helpfile} [my GetDocumentation $id] break
+        set result [list ]
+        foreach opt {name docstring helpctx helpfile} {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt [set $opt]
+            }
+        }
+        return $result
+    }
+
+    method @GetLibAttr {args} {
+        array set opts [parseargs args {
+            all
+            guid
+            lcid
+            syskind
+            majorversion
+            minorversion
+            flags
+        } -maxleftover 0]
+
+        array set data [my GetLibAttr]
+        set result [list ]
+        foreach {opt key} {
+            guid guid
+            lcid lcid
+            majorversion wMajorVerNum
+            minorversion wMinorVerNum
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt $data($key)
+            }
+        }
+
+        if {$opts(all) || $opts(flags)} {
+            lappend result -flags [::twapi::_make_symbolic_bitmask $data(wLibFlags) {
+                restricted      1
+                control         2
+                hidden          4
+                hasdiskimage    8
+            }]
+        }
+
+        if {$opts(all) || $opts(syskind)} {
+            lappend result -syskind [kl_get {
+                0 win16
+                1 win32
+                2 mac
+            } $data(syskind) $data(syskind)]
+        }
+
+        return $result
+    }
+
+
 }
 
 # ITypeComp
 #----------
-class create ::twapi::ITypeCompProxy {
+twapi::class create ::twapi::ITypeCompProxy {
     superclass ::twapi::IUnknownProxy
 
     method Bind {name lhash flags} {
@@ -2721,7 +2448,7 @@ class create ::twapi::ITypeCompProxy {
         return [list $type $data [::twapi::make_interface_proxy $ti]]
     }
 
-    method @bind {name flags {lcid 0}} {
+    method @Bind {name flags {lcid 0}} {
         return [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
     }
 }
