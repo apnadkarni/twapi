@@ -2479,7 +2479,7 @@ class ::Twapi::IDispatchProxy {
                 set _typecomp [$ti GetTypeComp]; # ITypeComp
             }            
 
-            set binddata [$_typecomp Bind $name $invkind $lcid]
+            set binddata [$_typecomp @bind $name $invkind $lcid]
             if {[llength $binddata]} {
                 foreach {type data ti2} $binddata break
                 $ti2 Release; # Don't need this but must release
@@ -2715,5 +2715,13 @@ class create ::twapi::ITypeLibProxy {
 class create ::twapi::ITypeCompProxy {
     superclass ::twapi::IUnknownProxy
 
-    TBD - make sure BInd returns metoo object, not just interface
+    method Bind {name lhash flags} {
+        my variable _ifc
+        foreach {type data ti} [::twapi::ITypeComp_Bind $_ifc $name $lhash $flags] break
+        return [list $type $data [::twapi::make_interface_proxy $ti]]
+    }
+
+    method @bind {name flags {lcid 0}} {
+        return [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
+    }
 }
