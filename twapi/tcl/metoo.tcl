@@ -174,28 +174,49 @@ namespace eval metoo::object {
 
         set class_ns [namespace parent $this]
 
-        # See if there is a method defined in this class.
-        # Breakage if method names with wildcard chars. Too bad
-        if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
-            # We need to invoke in the caller's context so upvar etc. will
-            # not be affected by this intermediate method dispatcher
-            return [uplevel 1 [list ${class_ns}::methods::_m_$methodname $this] $args]
-        }
-
-        # No method here, check for super class.
-        while {[info exists ${class_ns}::super]} {
-            set class_ns [set ${class_ns}::super]
-            if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
-                return [uplevel 1 [list ${class_ns}::methods::_m_$methodname $this] $args]
+        set meth [::metoo::_locate_method $class_ns $methodname]
+        if {$meth eq ""} {
+            # It is ok for constructor or destructor to be undefined. For
+            # the others, invoke "unknown" if it exists
+            if {$methodname ne "constructor" && $methodname ne "destructor"} {
+                set meth [::metoo::_locate_method $class_ns "unknown"]
             }
         }
+        if {$meth ne ""} {
+            # We need to invoke in the caller's context so upvar etc. will
+            # not be affected by this intermediate method dispatcher
+            return [uplevel 1 [list $meth $this] $args]
+        }
 
-        # It is ok for constructor or destructor to be undefined
+        # It is ok for constructor or destructor to be undefined. For
+        # the others, invoke "unknown" if it exists
         if {$methodname ne "constructor" && $methodname ne "destructor"} {
             error "Unknown method $methodname"
         }
         return
     }
+}
+
+# Given a method name, locate it in the class hierarchy. Returns
+# fully qualified method if found, else an empty string
+proc metoo::_locate_method {class_ns methodname} {
+    # See if there is a method defined in this class.
+    # Breakage if method names with wildcard chars. Too bad
+    if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
+        # We need to invoke in the caller's context so upvar etc. will
+        # not be affected by this intermediate method dispatcher
+        return ${class_ns}::methods::_m_$methodname
+    }
+
+    # No method here, check for super class.
+    while {[info exists ${class_ns}::super]} {
+        set class_ns [set ${class_ns}::super]
+        if {[llength [info commands ${class_ns}::methods::_m_$methodname]]} {
+            return ${class_ns}::methods::_m_$methodname
+        }
+    }
+
+    return "";                  # Not found
 }
 
 proc metoo::_new {class_ns cmd args} {
@@ -372,6 +393,7 @@ proc ::metoo::demo {{ns metoo}} {
         }
         method m {} { puts "Base::m called" }
         method n {args} { puts "Base::n called: [join $args {, }]"; my m }
+        method unknown {args} { puts "Base::unknown called: [join $args {, }]"}
         destructor { puts "Base::destructor ([self object])" }
     }
 
@@ -384,14 +406,16 @@ proc ::metoo::demo {{ns metoo}} {
         method get {} {my variable var ; return $var}
     }
 
-    Base create b dum dee
-    Derived create d fee fi
-    set o [Derived new fo fum]
-    $o put 10
+    Base create b dum dee;      # Create named object
+    Derived create d fee fi;    # Create derived object
+    set o [Derived new fo fum]; # Create autonamed object
+    $o put 10;                  # Use of instance variable
     $o get
-    b m
-    $o m
-    $o n
+    b m;                        # Direct method
+    b n;                        # Use of my to call another method
+    $o m;                       # Inherited method
+    $o n;                       # Overridden method chained to inherited
+    $o noduchmethod;            # Invoke unknown
     $o destroy;                 # Explicit destroy
     rename b "";                # Destroy through rename
     Base destroy;               # Should destroy object d, Derived, Base
