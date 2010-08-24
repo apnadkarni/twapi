@@ -269,58 +269,6 @@ proc twapi::itypelib_get_registered_path {guid major minor args} {
     return $path
 }
 
-HERE
-#
-# Iterate through a typelib. Caller is responsible for each itypeinfo
-# passed
-proc twapi::itypelib_foreach {args} {
-
-    array set opts [parseargs args {
-        type.arg
-        name.arg
-        guid.arg
-    } -maxleftover 3]
-
-    if {[llength $args] != 3} {
-        error "Syntax error: Should be 'itypelib_foreach ?options? VARNAME ITYPELIB SCRIPT'"
-    }
-
-    foreach {varname tl script} $args break
-
-    set count [itypelib_count $tl]
-
-    for {set i 0} {$i < $count} {incr i} {
-        if {[info exists opts(type)] &&
-            $opts(type) ne [itypelib_get_entry_typekind $tl $i]} {
-            continue;                   # Type does not match
-        }
-        if {[info exists opts(name)] &&
-            [string compare -nocase $opts(name) [lindex [itypelib_get_entry_doc $tl $i -name] 1]]} {
-            continue;                   # Name does not match
-        }
-        upvar $varname ti
-        set ti [itypelib_get_entry_itypeinfo $tl $i]
-        if {[info exists opts(guid)]} {
-            if {[string compare -nocase [lindex [itypeinfo_get_info $ti -guid] 1] $opts(guid)]} {
-                continue
-            }
-        }
-        set ret [catch {uplevel $script} msg]
-        switch -exact -- $ret {
-            1 {
-                error $msg $::errorInfo $::errorCode
-            }
-            2 {
-                return; # TCL_RETURN
-            }
-            3 {
-                set i $count; # TCL_BREAK
-            }
-        }
-    }
-    return
-}
-
 #
 # Map interface name to IID
 proc twapi::name_to_iid {iname} {
@@ -358,7 +306,7 @@ proc twapi::iid_to_name {iid} {
 # {name value} pairs. Assumes the collection is a list of COM objects
 # which have properties Name and value
 # obj is a COM object as returned by comobj command
-proc twapi::com_named_property_list {obj} {
+proc twapi::TBDcom_named_property_list {obj} {
     set result [list ]
     $obj -iterate itemobj {
         lappend result [$itemobj Name] [$itemobj]
@@ -367,21 +315,6 @@ proc twapi::com_named_property_list {obj} {
     return $result
 }
 
-
-#
-# Get the typeinfo for the default source interface of a coclass
-# $coti is the typeinfo of the coclass
-proc twapi::get_coclass_default_source_itypeinfo {coti} {
-    set count [lindex [itypeinfo_get_info $coti -interfacecount] 1]
-    for {set i 0} {$i < $count} {incr i} {
-        set flags [ITypeInfo_GetImplTypeFlags $coti $i]
-        # default 0x1, source 0x2
-        if {($flags & 3) == 3} {
-            return [itypeinfo_get_referenced_itypeinfo $coti $i]
-        }
-    }
-    return ""
-}
 
 #
 # Convert a variant time to a time list
@@ -395,10 +328,9 @@ proc twapi::timelist_to_variant_time {timelist} {
     return [SystemTimeToVariantTime $timelist]
 }
 
-
 #
 # Load COM IDispatch interface prototypes from a type library
-proc twapi::read_prototypes_from_typelib {path ifc_name} {
+proc twapi::TBDread_prototypes_from_typelib {path ifc_name} {
     # contains typelib information that is already loaded
     variable typelib_cache
 
@@ -465,7 +397,7 @@ proc twapi::read_prototypes_from_typelib {path ifc_name} {
 
 #
 # Test code
-proc twapi::_print_typelib {path args} {
+proc twapi::TBD_print_typelib {path args} {
     array set opts [parseargs args {
         type.arg
         name.arg
@@ -559,13 +491,13 @@ proc twapi::_print_typelib {path args} {
 
 #
 # Print methods in an interface
-proc twapi::_print_interface {ifc} {
+proc twapi::TBD_print_interface {ifc} {
     set ti [idispatch_get_itypeinfo $ifc]
     twapi::_print_interface_helper $ti
     iunknown_release $ti
 }
 
-proc twapi::_print_interface_helper {ti {names_already_done ""}} {
+proc twapi::TBD_print_interface_helper {ti {names_already_done ""}} {
     set name [itypeinfo_get_name $ti]
     if {[lsearch -exact $names_already_done $name] >= 0} {
         # Already printed this
@@ -633,9 +565,9 @@ proc twapi::_resolve_com_type {ti typedesc} {
         }
         userdefined {
             set hreftype [lindex $typedesc 1]
-            set ti2 [ITypeInfo_GetRefTypeInfo $ti $hreftype]
-            set typedesc [list userdefined [itypeinfo_get_name $ti2]]
-            iunknown_release $ti2
+            set ti2 [$ti GetRefTypeInfo $hreftype]
+            set typedesc [list userdefined [$ti2 @GetName]]
+            $ti2 Release
         }
         default {
         }
@@ -649,7 +581,8 @@ proc twapi::_resolve_com_type {ti typedesc} {
 # $addref controls whether we do an AddRef when the value is a pointer to
 # an interface. $raw controls whether interfaces are converted to comobjs
 # or not.
-proc twapi::_convert_from_variant {variant addref {raw false}} {
+# TBD - should we always return raw interface ? Let caller deal with it
+proc twapi::_convert_variant {variant {raw false}} {
     # TBD - format appropriately depending on variant type for dates and
     # currency
     if {[llength $variant] == 0} {
@@ -667,7 +600,7 @@ proc twapi::_convert_from_variant {variant addref {raw false}} {
             # Array of variants. Recursively convert values
             set result [list ]
             foreach elem [lindex $variant 2] {
-                lappend result [_convert_from_variant $elem $addref $raw]
+                lappend result [_convert_variant $elem $raw]
             }
             return $result
         } else {
@@ -675,48 +608,21 @@ proc twapi::_convert_from_variant {variant addref {raw false}} {
         }
     } else {
         if {$vt == 9} {
-            # IDispatch - return as comobj
+            # IDispatch - return as comobj. TBD - should we really ?
             set idisp [lindex $variant 1]; # May be NULL!
             if {$raw} {
-                if {$addref && $idisp ne "NULL"} {
-                    iunknown_addref $idisp
-                }
                 return $idisp
             } else {
                 # Note comobj_idispatch takes care of NULL
-                return [comobj_idispatch $idisp $addref]
+                return [comobj_idispatch $idisp 0]
             }
         } elseif {$vt == 13} {
             # IUnknown - try converting to IDispatch
             set iunk [lindex $variant 1]; # May be NULL!
             if {$raw} {
-                if {$addref && $iunk ne "NULL"} {
-                    iunknown_addref $iunk
-                }
                 return $iunk
             } else {
-                # Try to return as idispatch
-                if {$iunk eq "NULL"} {
-                    return ::twapi::comobj_null
-                }
-                set idisp [iunknown_query_interface $iunk IDispatch]
-                if {$idisp eq ""} {
-                    # No IDispatch - return as is
-                    if {$addref} {
-                        iunknown_addref $iunk
-                    }
-                    return $iunk
-                } else {
-                    # If caller did not need us to do an addref, implies
-                    # it would already have done it, and app code is expected
-                    # to release. However, what we pass the appcode is
-                    # a converted idispatch. So we have to do the release
-                    # on the original interface ourselves.
-                    if {! $addref} {
-                        iunknown_release $iunk
-                    }
-                    return [comobj_idispatch $idisp false]
-                }
+                return [make_interface_proxy $iunk]
             }
         }
     }
@@ -809,7 +715,7 @@ proc twapi::_comobj_wrapper {comobj clsid args} {
             return
         }
         "" {
-            return [_convert_from_variant [twapi::idispatch_invoke $ifc ""] false]
+            return [_convert_variant [twapi::idispatch_invoke $ifc ""]]
         }
         -print {
             _print_interface $ifc
@@ -869,7 +775,7 @@ proc twapi::_comobj_wrapper {comobj clsid args} {
                         foreach {more values} $next break
                         if {[llength $values]} {
                             # TBD - does var have to be released?
-                            set var [_convert_from_variant [lindex $values 0] false]
+                            set var [_convert_variant [lindex $values 0]]
                             set ret [catch {uplevel [lindex $args 2]} msg]
                             switch -exact -- $ret {
                                 1 {
@@ -1084,7 +990,7 @@ proc twapi::_comobj_wrapper {comobj clsid args} {
     
     # Invoke the function. We do a uplevel instead of eval
     # here so variables if any are in caller's context
-    return [_convert_from_variant [uplevel 1 [list twapi::idispatch_invoke $ifc $::twapi::idispatch_prototypes($ifc,$name,0,$flags)] $params] false]
+    return [_convert_variant [uplevel 1 [list twapi::idispatch_invoke $ifc $::twapi::idispatch_prototypes($ifc,$name,0,$flags)] $params]]
 }
 
 
@@ -1115,7 +1021,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
         set dispid [twapi::kl_get_default $dispidmap $dispid $dispid]
         set converted_params [list ]
         foreach param $params {
-            lappend converted_params [_convert_from_variant $param false true]
+            lappend converted_params [_convert_variant $param true]
         }
         set result [uplevel \#0 $script [list $dispid] $converted_params]
     } msg]
@@ -1566,17 +1472,6 @@ namespace eval twapi {
     } else {
         namespace import oo::metoo
     }
-
-
-#
-# NULL interface. The command name follows syntax for interface objects
-# though it need not
-proc twapi::com::ifc#NULL args {
-    # A single command is accepted - to check if null
-    if {[llength $args] == 1 && [lindex $args 0] eq "@Null?"} {
-        return 1
-    }
-    error "Attempt to invoke NULL interface. Args: '[join $args ,]'"
 }
 
 # Return a COM interface proxy object for the specified interface.
@@ -1592,15 +1487,57 @@ proc twapi::make_interface_proxy {ifc} {
     if {[info exists interfaces($ifc)]} {
         set proxy $interfaces($ifc)
         $proxy AddRef
-        # Release the caller's ref to the interface since we are holding
-        # one in the proxy object
-        ::twapi::IUnknown_Release $ifc
+        if {! [Twapi_IsNullPtr $ifc]} {
+            # Release the caller's ref to the interface since we are holding
+            # one in the proxy object
+            ::twapi::IUnknown_Release $ifc
+        }
     } else {
-        set ifcname [Twapi_PtrType $ifc]
-        set proxy [${ifcName}Proxy new $ifc]
+        if {[Twapi_IsNullPtr $ifc]} {
+            set proxy [INullProxy new $ifc]
+        } else {
+            set ifcname [Twapi_PtrType $ifc]
+            set proxy [${ifcName}Proxy new $ifc]
+        }
         set interfaces($ifc) $proxy
     }
     return $proxy
+}
+
+# "Null" object - clones IUnknown but will raise error on method calls
+twapi::class create ::twapi::INullProxy {
+    constructor {ifc} {
+        my variable _ifc
+        # We keep the interface pointer because it encodes type information
+        if {! [::twapi::Twapi_IsNullPtr $ifc]} {
+            error "Attempt to create a INullProxy with non-NULL interface"
+        }
+
+        my variable _nrefs;   # Internal ref count (held by app)
+        set _nrefs 1
+    }
+
+    method @Null? {} { return true }
+    method @Type {} {
+        my variable _ifc
+        return [::twapi::Twapi_PtrType $_ifc]
+    }
+    method @Type? {type} {
+        my variable _ifc
+        return [::twapi::Twapi_IsPtr $_ifc $type]
+    }
+    method AddRef {} {
+        my variable _nrefs
+        # We maintain our own ref counts.
+        incr _nrefs
+    }
+
+    method Release {} {
+        my variable _nrefs
+        if {[incr _nrefs -1] == 0} {
+            my destroy
+        }
+    }
 }
 
 twapi::class create ::twapi::IUnknownProxy {
@@ -2318,6 +2255,10 @@ twapi::class create ::twapi::ITypeInfoProxy {
         return $result
     }
 
+    method @GetName {} {
+        return [lindex [my GetDocumentation -1] 0]
+    }
+
     method @GetImplTypeFlags {index} {
         return [::twapi::_make_symbolic_bitmask \
                     [my GetImplTypeFlags $index] \
@@ -2329,7 +2270,20 @@ twapi::class create ::twapi::ITypeInfoProxy {
                     }]  
     }
 
-
+    #
+    # Get the typeinfo for the default source interface of a coclass
+    # This object must be the typeinfo of the coclass
+    method @GetDefaultSourceTypeInfo {} {
+        set count [lindex [my @GetAttributes -interfacecount] 1]
+        for {set i 0} {$i < $count} {incr i} {
+            set flags [my GetImplTypeFlags $i]
+            # default 0x1, source 0x2
+            if {($flags & 3) == 3} {
+                return [my @GetReferencedTypeInfo $i]
+            }
+        }
+        return ""
+    }
 }
 
 
@@ -2363,8 +2317,8 @@ twapi::class create ::twapi::ITypeLibProxy {
         my variable _ifc
         return [::twapi::make_interface_proxy [::twapi::ITypeLib_GetTypeInfoOfGuid $_ifc $guid]]
     }
-    method @GetTypeInfoType {id} {
-        set typekind [my GetTypeInfoType $id]
+    method @GetTypeInfoType {index} {
+        set typekind [my GetTypeInfoType $index]
         if {[info exists ::twapi::_typekind_map($typekind)]} {
             set typekind $::twapi::_typekind_map($typekind)
         }
@@ -2434,7 +2388,58 @@ twapi::class create ::twapi::ITypeLibProxy {
         return $result
     }
 
+    #
+    # Iterate through a typelib. Caller is responsible for releasing
+    # each ITypeInfo passed to it
+    # 
+    method @Foreach {args} {
 
+        array set opts [parseargs args {
+            type.arg
+            name.arg
+            guid.arg
+        } -maxleftover 2]
+
+        if {[llength $args] != 2} {
+            error "Syntax error: Should be '[self] @Foreach ?options? VARNAME SCRIPT'"
+        }
+
+        foreach {varname script} $args break
+        upvar $varname varti
+
+        set count [my GetTypeInfoCount]
+        for {set i 0} {$i < $count} {incr i} {
+            if {[info exists opts(type)] &&
+                $opts(type) ne [my @GetTypeInfoType $i]} {
+                continue;                   # Type does not match
+            }
+            if {[info exists opts(name)] &&
+                [string compare -nocase $opts(name) [lindex [my @GetDocumentation $i -name] 1]]} {
+                continue;                   # Name does not match
+            }
+            set ti [my GetTypeInfo $i]
+            if {[info exists opts(guid)]} {
+                if {[string compare -nocase [lindex [$ti @GetAttributes -guid] 1] $opts(guid)]} {
+                    $ti Release
+                    continue
+                }
+            }
+            set varti $ti
+            set ret [catch {uplevel $script} result]
+            switch -exact -- $ret {
+                1 {
+                    error $result $::errorInfo $::errorCode
+                }
+                2 {
+                    return -code return $result; # TCL_RETURN
+                }
+                3 {
+                    set i $count; # TCL_BREAK
+                }
+            }
+        }
+        return
+    }
 }
 
 # ITypeComp
@@ -2450,5 +2455,29 @@ twapi::class create ::twapi::ITypeCompProxy {
 
     method @Bind {name flags {lcid 0}} {
         return [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
+    }
+}
+
+# IEnumVARIANT
+#-------------
+
+twapi::class create ::twapi::IEnumVARIANTProxy {
+    superclass ::twapi::IUnknownProxy
+
+    method Next {count {value_only 0}} {
+        my variable _ifc
+        return [::twapi::IEnumVARIANT_Next $_ifc $count $value_only]
+    }
+    method Clone {} {
+        my variable _ifc
+        return [::twapi::make_interface_proxy [::twapi::IEnumVARIANT_Clone $_ifc]]
+    }
+    method Reset {} {
+        my variable _ifc
+        return [::twapi::IEnumVARIANT_Reset $_ifc]
+    }
+    method Skip {count} {
+        my variable _ifc
+        return [::twapi::IEnumVARIANT_Skip $_ifc $count]
     }
 }
