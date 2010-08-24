@@ -534,6 +534,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
          * to know that. We therefore do a AddRef on the pointer here
          * so it can be released later in the script (ie. the script
          * can treat VT_DISPATCH and VT_DISPATCH|VT_BYREF the same
+         * TBD - revisit this as to whether Release is required
          */
         idispP = * (V_DISPATCHREF(varP));
         idispP->lpVtbl->AddRef(idispP);
@@ -579,6 +580,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
          * we should not Release it but there is no way for the script
          * to know that. We therefore do a AddRef on the pointer here
          * so it can be released later
+         * TBD - revisit this as to whether Release is required
          */
         iunkP = * (V_UNKNOWNREF(varP));
         iunkP->lpVtbl->AddRef(iunkP);
