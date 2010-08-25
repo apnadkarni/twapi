@@ -2825,7 +2825,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.type = TRT_EMPTY;
             hr = ifc.enumvariant->lpVtbl->Skip(ifc.enumvariant, dw1);
             break;
-        case 704:
+        case 704: // Next
             if (objc < 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
