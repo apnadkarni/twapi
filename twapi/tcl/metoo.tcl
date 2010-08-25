@@ -175,13 +175,6 @@ namespace eval metoo::object {
         set class_ns [namespace parent $this]
 
         set meth [::metoo::_locate_method $class_ns $methodname]
-        if {$meth eq ""} {
-            # It is ok for constructor or destructor to be undefined. For
-            # the others, invoke "unknown" if it exists
-            if {$methodname ne "constructor" && $methodname ne "destructor"} {
-                set meth [::metoo::_locate_method $class_ns "unknown"]
-            }
-        }
         if {$meth ne ""} {
             # We need to invoke in the caller's context so upvar etc. will
             # not be affected by this intermediate method dispatcher
@@ -190,10 +183,19 @@ namespace eval metoo::object {
 
         # It is ok for constructor or destructor to be undefined. For
         # the others, invoke "unknown" if it exists
-        if {$methodname ne "constructor" && $methodname ne "destructor"} {
-            error "Unknown method $methodname"
+
+        if {$methodname eq "constructor" || $methodname eq "destructor"} {
+            return
         }
-        return
+
+        set meth [::metoo::_locate_method $class_ns "unknown"]
+        if {$meth ne ""} {
+            # We need to invoke in the caller's context so upvar etc. will
+            # not be affected by this intermediate method dispatcher
+            return [uplevel 1 [list $meth $this $methodname] $args]
+        }
+
+        error "Unknown method $methodname"
     }
 }
 
@@ -393,7 +395,7 @@ proc ::metoo::demo {{ns metoo}} {
         }
         method m {} { puts "Base::m called" }
         method n {args} { puts "Base::n called: [join $args {, }]"; my m }
-        method unknown {args} { puts "Base::unknown called: [join $args {, }]"}
+        method unknown {methodname args} { puts "Base::unknown called for $methodname [join $args {, }]"}
         destructor { puts "Base::destructor ([self object])" }
     }
 
@@ -415,7 +417,7 @@ proc ::metoo::demo {{ns metoo}} {
     b n;                        # Use of my to call another method
     $o m;                       # Inherited method
     $o n;                       # Overridden method chained to inherited
-    $o noduchmethod;            # Invoke unknown
+    $o nosuchmethod arg1 arg2;  # Invoke unknown
     $o destroy;                 # Explicit destroy
     rename b "";                # Destroy through rename
     Base destroy;               # Should destroy object d, Derived, Base
