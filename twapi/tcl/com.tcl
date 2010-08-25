@@ -1668,6 +1668,27 @@ twapi::class ::Twapi::IDispatchProxy {
         uplevel 1 [list ::twapi::IDispatch_Invoke $_ifc $prototype] $args
     }
 
+    # Methods are tried in the order specified by invkinds.
+    method @Invoke {name invkinds lcid params} {
+        if {$name eq ""} {
+            # Default method
+            return [uplevel 1 [list [self] Invoke {}] $params]
+        } else {
+            set nparams [llength $params]
+            foreach invkind invkinds {
+                set proto [my @Prototype $name $invkind $lcid]
+                # For a prototype to match, number of supplied params must
+                # not be more than number in prototype. They can be less
+                # assuming the prototypes contain default
+                if {$proto ne "" && [llength [lindex $proto 5]] >= $nparams} {
+                    # Need uplevel so by-ref param vars are resolved correctly
+                    return [uplevel 1 [list [self] Invoke $proto] $params]
+                }
+            }
+            win32_error 0x80020003 "No property or method found with name '$name'."
+        }
+    }
+
     # Get prototype that match the specified name
     method @Prototype {name invkind lcid} {
         my variable  _ifc  _prototypes  _typecomp
@@ -1794,22 +1815,6 @@ twapi::class ::Twapi::IDispatchProxy {
         return [set _prototypes($name,$lcid,$invkind) $proto]
     }
 
-    # Methods are tried in the order specified by invkinds
-    method @Invoke {name invkinds lcid params} {
-        if {$name eq ""} {
-            # Default method
-            return [uplevel 1 [list [self] Invoke {}] $params]
-        } else {
-            foreach invkind invkinds {
-                set proto [my @Prototype $name $invkind $lcid]
-                if {$proto ne ""} {
-                    # Need uplevel so by-ref param vars are resolved correctly
-                    return [uplevel 1 [list [self] Invoke $proto] $params]
-                }
-            }
-            win32_error 0x80020003 "No property or method found with name '$name'."
-        }
-    }
 
     method @GetCoClassTypeInfo {{co_clsid ""}} {
         my variable _ifc
@@ -2813,101 +2818,31 @@ twapi::class create ::twapi::Automation {
         return
     }
 
-HERE
-    set nargs [llength $args]
-    # parse to figure out what the command is
-    switch -exact -- [lindex $args 0] {
-        default {
-            # Try to figure out whether it is a name or method
-            set name [lindex $args 0]
-            set params [lrange $args 1 end]
-            twapi::idispatch_fill_prototypes $ifc ::twapi::idispatch_prototypes 0 $name
-            # We have to figure out if it is a property get, property put
-            # or a method. We will check in that order. If multiple matches
-            # we check if number of parameters matches that in prototype
+    method unknown {name args} {
+        my variable _proxy
 
-            set flags 0
-            if {[info exists ::twapi::idispatch_prototypes($ifc,$name,0,2)]} {
-                # Property get
-                set flags [expr {$flags | 2}]
-            }
-            if {[info exists ::twapi::idispatch_prototypes($ifc,$name,0,4)]} {
-                # Property set
-                set flags [expr {$flags | 4}]
-            }
-            if {[info exists ::twapi::idispatch_prototypes($ifc,$name,0,1)]} {
-                # Property set
-                set flags [expr {$flags | 1}]
-            }
-            # If only one of the bits is set, then that's what we go with
-            # else we have to use a priority scheme
-            if {$flags != 0 && $flags != 1 && $flags != 2 && $flags != 4} {
-                # More than 1 possibility
-                # Check for match on exact number of parameters
-                set nparams [llength $params]
-                foreach flag {1 2 4} {
-                    if {$flags & $flag} {
-                        set proto $::twapi::idispatch_prototypes($ifc,$name,0,$flag)
-                        # See if we do have parameter info in prototype
-                        if {[llength $proto] > 5} {
-                            # Yes we do. see if number matches supplied args
-                            if {$nparams == [llength [lindex $proto 5]]} {
-                                # Matched
-                                set matched_flags $flag
-                                break
-                            }
-                        }
-                    }
-                }
-                if {![info exists matched_flags]} {
-                    # Still ambiguity. Use following heruristic. 
-                    # If possible get, and no args supplied, assume get
-                    # If possible put, and one arg supplied, assume put
-                    # Else method if set
-                    # TBD - maybe we should use return type to distinguish
-                    # between put and get? But not sure that's always
-                    # supplied in prototype
-                    if {($flags & 2) && $nparams == 0} {
-                        set matched_flags 2
-                    } elseif {($flags & 4) && $nparams == 1} {
-                        set matched_flags 4
-                    } elseif {$flags & 1} {
-                        set matched_flags 1
-                    }
-                }
-                if {[info exists matched_flags]} {
-                    set flags $matched_flags
-                } else {
-                    set flags 0
-                }
-            }
-            if {$flags == 0} {
-                # Could not figure out, assume method
-                set flags 1
-            }
+        # Try to figure out whether it is a property or method
+
+        # We have to figure out if it is a property get, property put
+        # or a method. We make a guess based on number of parameters.
+        # We specify an order to try based on this. The invoke will try
+        # all invocations in that order.
+        # TBD - what about propputref ?
+        set nargs [llength $args]
+        if {$nargs == 0} {
+            # No arguments, cannot be propput. Try propget and method
+            set invkinds [list 2 4]
+        } elseif {$nargs == 1} {
+            # One argument, likely propput, method, propget
+            set invkinds [list 4 1 2]
+        } else {
+            # Multiple arguments, likely method, propput, propget
+            set invkinds [list 1 4 2]
         }
+
+        # Invoke the function. We do a uplevel instead of eval
+        # here so variables if any are in caller's context
+        return [_convert_variant [uplevel 1 [list $_proxy @Invoke $invkinds 0 $args]]]
     }
 
-    # Check if a prototype exists
-    if {![info exists ::twapi::idispatch_prototypes($ifc,$name,0,$flags)]} {
-        twapi::idispatch_fill_prototypes $ifc ::twapi::idispatch_prototypes 0 $name
-        if {![info exists ::twapi::idispatch_prototypes($ifc,$name,0,$flags)]} {
-            # Don't have prototype. Try to get the dispatch id of the
-            # function, use a default prototype and hope for the best
-            set dispid [lindex [idispatch_names_to_ids $ifc $name] 1]
-            if {$dispid eq ""} {
-                win32_error 0x80020003 "No property or method found with name '$name'."
-            }
-            # Create prototype. Return type is assumed 8 (BSTR) but does
-            # not matter as automatic type conversion will be done on
-            # the return value. The 6th element - parameter description -
-            # is missing which means we will just to default parameter
-            # type handling
-            set ::twapi::idispatch_prototypes($ifc,$name,0,$flags) [list $dispid "" 0 $flags 8]
-        }
-    }
-    
-    # Invoke the function. We do a uplevel instead of eval
-    # here so variables if any are in caller's context
-    return [_convert_variant [uplevel 1 [list twapi::idispatch_invoke $ifc $::twapi::idispatch_prototypes($ifc,$name,0,$flags)] $params]]
 }
