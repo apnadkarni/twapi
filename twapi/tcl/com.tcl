@@ -291,71 +291,8 @@ proc twapi::variant_time_to_timelist {double} {
 proc twapi::timelist_to_variant_time {timelist} {
     return [SystemTimeToVariantTime $timelist]
 }
+
 #HERE
-#
-# Load COM IDispatch interface prototypes from a type library
-proc twapi::TBDread_prototypes_from_typelib {path ifc_name} {
-    # contains typelib information that is already loaded
-    variable typelib_cache
-
-    # If already exists in cache, no need to reload.
-    # Do not normalize path as that takes too much time. At worst
-    # we will have duplicate entries.
-    # Also, if ANY interface names exist for that file, than
-    # ALL interfaces from that file have been loaded
-    if {[info exists typelib_cache(${path},$ifc_name)]} {
-        return $typelib_cache(${path},$ifc_name)
-    }
-    if {[llength [array names typelib_cache "${path},*"]]} {
-        return {}
-    }
-
-    # The typelib has not been loaded yet
-    try {
-        set ifc [get_itypelib $path -registration none]
-        set count [itypelib_count $ifc]
-
-        for {set i 0} {$i < $count} {incr i} {
-            set type [itypelib_get_entry_typekind $ifc $i]
-            if {$type ne "dispatch"} continue
-
-            # We have an IDispatch interface
-            set protos {}
-            array set tlinfo [itypelib_get_entry_doc $ifc $i -all]
-            set desc [list "$i:\t$type\t$tlinfo(-name) - $tlinfo(-docstring)"]
-            set ti [twapi::itypelib_get_entry_itypeinfo $ifc $i]
-            array set attrs [itypeinfo_get_info $ti -all]
-            for {set j 0} {$j < $attrs(-fncount)} {incr j} {
-                array set funcdata [itypeinfo_get_func_info $ti $j -all] 
-                if {$funcdata(-funckind) ne "dispatch"} {
-                    # Vtable set funckind "(vtable $funcdata(-vtbloffset))"
-                    continue;
-                }
-                set proto [list $funcdata(-memid) {} $attrs(-lcid) $funcdata(-invkind) $funcdata(-datatype) $funcdata(-params)]
-                lappend protos $funcdata(-name) $proto
-            }
-            # Remember names can be duplicates so we need to also qualify
-            # with lcid and invocation type to disambiguate
-            set typelib_cache(${path},$tlinfo(-name)) $protos
-            iunknown_release $ti
-            unset ti;           # For exception handling
-        }
-    } finally {
-        if {[info exists ti]} {
-            catch {iunknown_release $ti}
-        }
-        if {[info exists ifc]} {
-            catch {iunknown_release $ifc}
-        }
-    }
-
-    if {[info exists typelib_cache(${path},$ifc_name)]} {
-        return $typelib_cache(${path},$ifc_name)
-    } else {
-        return {}
-    }
-}
-
 
 ################################################################
 
@@ -1073,16 +1010,54 @@ namespace eval twapi {
     } else {
         namespace import ::metoo::class
     }
+
+    # The prototype cache is indexed a composite key consisting of
+    #  - the GUID of the interface,
+    #  - the name of the function
+    #  - the LCID
+    #  - the invocation kind (as an integer)
+    # Each value contains the full prototype in a form
+    # that can be passed to IDispatch_Invoke. This is a list with the
+    # elements {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
+    # Here PARAMTYPES is a list each element of which describes a
+    # parameter in the following format:
+    #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
+    # 
+    
+    variable _dispatch_prototype_cache
+    array set _dispatch_prototype_cache {}
 }
+
+
+proc twapi::_dispatch_prototype_get {guid name lcid invkind vproto} {
+    variable _dispatch_prototype_cache
+    set invkind [::twapi::_string_to_invkind $invkind]
+    if {[info exists _dispatch_prototype_cache($guid,$name,$lcid,$invkind)]} {
+        # Note this may be null if that name does not exist in the interface
+        upvar 1 $vproto proto
+        set proto $_dispatch_prototype_cache($guid,$name,$lcid,$invkind)
+        return 1
+    }
+    return 0
+}
+
+# Update a prototype in cache. Note lcid and invkind cannot be
+# picked up from prototype since it might be empty.
+proc twapi::_dispatch_prototype_set {guid name lcid invkind proto} {
+    variable _dispatch_prototype_cache
+    set invkind [_string_to_invkind $invkind]
+    set _dispatch_prototype_cache($guid,$name,$lcid,$invkind) $proto
+}
+
 
 # Used to track when interface proxies are renamed/deleted
 proc twapi::_interface_proxy_tracer {ifc oldname newname op} {
-    variable interface_proxies
+    variable _interface_proxies
     if {$op eq "rename"} {
         if {$oldname eq $newname} return
-        set interface_proxies($ifc) $newname
+        set _interface_proxies($ifc) $newname
     } else {
-        unset interface_proxies($ifc)
+        unset _interface_proxies($ifc)
     }
 }
 
@@ -1095,10 +1070,10 @@ proc twapi::_interface_proxy_tracer {ifc oldname newname op} {
 # returned proxy object. When done with the object, call the Release
 # method on it, NOT destroy.
 proc twapi::make_interface_proxy {ifc} {
-    variable interface_proxies
+    variable _interface_proxies
 
-    if {[info exists interface_proxies($ifc)]} {
-        set proxy $interface_proxies($ifc)
+    if {[info exists _interface_proxies($ifc)]} {
+        set proxy $_interface_proxies($ifc)
         $proxy AddRef
         if {! [Twapi_IsNullPtr $ifc]} {
             # Release the caller's ref to the interface since we are holding
@@ -1112,7 +1087,7 @@ proc twapi::make_interface_proxy {ifc} {
             set ifcname [Twapi_PtrType $ifc]
             set proxy [${ifcname}Proxy new $ifc]
         }
-        set interface_proxies($ifc) $proxy
+        set _interface_proxies($ifc) $proxy
         trace add command $proxy {rename delete} [list ::twapi::_interface_proxy_tracer $ifc]
     }
     return $proxy
@@ -1298,130 +1273,86 @@ twapi::class create ::Twapi::IDispatchProxy {
 
     # Get prototype that match the specified name
     method @Prototype {name invkind lcid} {
-        my variable  _ifc  _prototypes  _typecomp
+        my variable  _ifc  _guid  _typecomp
 
-        set invkind [::twapi::_string_to_invkind $invkind]
-
-        # _prototypes($name,$lcid,$invokeflag)
-        # contains the full prototype in a form
-        # that can be passed to IDispatch_Invoke. This is a list with the
-        # elements {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
-        # Here PARAMTYPES is a list each element of which describes a
-        # parameter in the following format:
-        #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
-        # 
-
-        # If a prototype exists, return it. 
-        if {[info exists _prototypes($name,$lcid,$invkind)]} {
-            return $_prototypes($name,$lcid,$invkind); # May be "" (no method)
+        # If we have been through here before and have our guid,
+        # check if a prototype exists and return it. 
+        if {[info exists _guid] &&
+            [::twapi::_dispatch_prototype_get $_guid $name $invkind $lcid proto]} {
+            return $proto
         }
 
-        ::twapi::try {
-            # Not in cache, have to look for it
+        # Not in cache, have to look for it
 
-            # Get the ITypeComp for this interface if we do not
-            # already have it.
-            if {![info exists _typecomp]} {
-                # Note errors are handled in the try handlers below,
-                # for example if the object does not support ITypeInfo interface
-                set ti [my @GetTypeInfo $lcid]
+        # Get the ITypeComp for this interface if we do not
+        # already have it.
+        my @InitTypeCompAndGuid; # Inits _guid and _typecomp
 
-                # In case of dual interfaces, we need the typeinfo for the 
-                # dispatch. Again, errors handled in try handlers
-                switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
-                    4 {
-                        # Dispatch type, fine, just what we want
-                    }
-                    3 {
-                        # Interface type, Get the dispatch interface
-                        set ti2 [$ti @GetRefTypeInfo [$ti GetRefTypeOfImplType -1]]
-                        $ti Release
-                        set ti $ti2
-                    }
-                    default {
-                        error "Interface is not a dispatch interface"
-                    }
-                }
+        set binddata [$_typecomp @Bind $name $invkind $lcid]
+        if {[llength $binddata]} {
+            foreach {type data ti2} $binddata break
+            $ti2 Release; # Don't need this but must release
+            if {$type ne "funcdesc"} continue; # TBD - properties?
+            array set bindings $data
+            set proto [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
+        } else {
+            # No such proto
+            set proto {}
+        }
+        ::twapi::_dispatch_prototypes_set $_guid $name $lcid $bindings(invkind) $proto
 
-                set _typecomp [$ti @GetTypeComp]; # ITypeComp
-            }            
-
-            set binddata [$_typecomp @bind $name $invkind $lcid]
-            if {[llength $binddata]} {
-                foreach {type data ti2} $binddata break
-                $ti2 Release; # Don't need this but must release
-                if {$type ne "funcdesc"} continue; # TBD - properties?
-                array set bindings $data
-                set _prototypes($name,$lcid,$bindings(invkind)) [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
-            } else {
-                # No such proto
-                set _prototypes($name,$lcid,$bindings(invkind)) {}
-            }
-        } onerror {TWAPI_WIN32 0x80004001} {
-            # Not implemented
-            # Ignore the error - we will try below using another method
-        } onerror {TWAPI_WIN32 0x80004002} {
-            # Interface not supported
-            # Ignore the error - we will try below using another method
-        } finally {
-            if {[info exists ti]} {
-                $ti Release
-            }
-        }    
-
-        return $_prototypes($name,$lcid,$invkind); # May be ""
+        return $proto
     }
 
     # Load a list of prototypes provided by caller
     method @DefinePrototypes {protolist} {
-        my variable _prototypes
+        my variable  _guid
 
+        my @InitTypeCompAndGuid
         foreach {name proto} $protolist {
-            set invkind [::twapi::_string_to_invkind [lindex $proto 3]]
-            set lcid [lindex $proto 2]
-            set _prototypes($name,$lcid,$invkind) [lreplace $proto 3 3 $invkind]
+            ::twapi::_dispatch_prototypes_set $_guid $name [lindex $proto 2] [lindex $proto 3] $proto
         }
-        return
     }
 
+    # Initialize _typecomp and _guid. Not in constructor because may
+    # not always be required. Raises error if not available
+    method @InitTypeCompAndGuid {} {
+        my variable   _guid   _typecomp
+        
+        if {[info exists _typecomp]} {
+            return
+        }
+
+        set ti [my @GetTypeInfo 0]
+
+        try {
+            # In case of dual interfaces, we need the typeinfo for the 
+            # dispatch. Again, errors handled in try handlers
+            switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
+                4 {
+                    # Dispatch type, fine, just what we want
+                }
+                3 {
+                    # Interface type, Get the dispatch interface
+                    set ti2 [$ti @GetRefTypeInfo [$ti GetRefTypeOfImplType -1]]
+                    $ti Release
+                    set ti $ti2
+                }
+                default {
+                    error "Interface is not a dispatch interface"
+                }
+            }
+            set _guid [::twapi::kl_get [$ti GetTypeAttr] guid]
+            set _typecomp [$ti @GetTypeComp]; # ITypeComp
+
+        } finally {
+            $ti Release
+        }
+    }            
 
     method @LoadPrototypes {path} {
         TBD - read_prototypes_from_typelib
     }
-
-    # Define a prototype manually. TBD - is this method really useful?
-    method @OBSOLETEPrototypeDefine {name args} {
-        my variable _prototypes  _ifc
-
-        # Parse out options.
-        # Return type is assumed 8 (BSTR) but does
-        # not matter as automatic type conversion will be done on
-        # the return value.
-        # TBD - allows mnemonics for parsing params
-
-        array set opts [::twapi::parseargs args {
-            {lcid.int 0}
-            {type.arg 1}
-            {rettype.arg bstr}
-            params.arg
-        } -maxleftover 0]
-
-        set dispid [lindex [my GetIDsOfNames [list $name]] 1]
-
-        set invkind [::twapi::_string_to_invkind $opts(type)]
-
-        # Create prototype. The 6th element - parameter description -
-        # if missing which means we will just to default parameter
-        # type handling. This is different from an empty element which
-        # would mean no parameters
-        set proto [list $dispid "" $opts(lcid) $invkind $opts(rettype)]
-        if {[info exists opts(params)]} {
-            lappend proto $opts(params)
-        }
-
-        return [set _prototypes($name,$lcid,$invkind) $proto]
-    }
-
 
     method @GetCoClassTypeInfo {{co_clsid ""}} {
         my variable _ifc
@@ -1758,7 +1689,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
         if {$opts(all) || $opts(memidmap)} {
             set memidmap [list ]
             for {set i 0} {$i < $data(cFuncs)} {incr i} {
-                array set fninfo [my @GetFuncInfo $i -memid -name]
+                array set fninfo [my @GetFuncDesc $i -memid -name]
                 lappend memidmap $fninfo(-memid) $fninfo(-name)
             }
             lappend result -memidmap $memidmap
@@ -1848,7 +1779,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
         return $result
     }
 
-    method @GetFuncInfo {index args} {
+    method @GetFuncDesc {index args} {
         array set opts [parseargs args {
             all
             name
@@ -2168,6 +2099,28 @@ twapi::class create ::twapi::ITypeLibProxy {
         ::twapi::RegisterTypeLib $_ifc $path $helppath
     }
 
+    method @LoadDispatchPrototypes {} {
+        my @Foreach -type dispatch ti {
+            ::twapi::try {
+                set attrs [$ti GetTypeAttr]
+                set nfuncs   [::twapi::kl_get $attrs cFuncs]
+                for {set j 0} {$j < $nfuncs} {incr j} {
+                    array set funcdata [$ti @GetFuncDesc $j -all]
+                    if {$funcdata(-funckind) ne "dispatch"} {
+                        # Not a dispatch function, ignore
+                        # TBD - what else could it be if already filtering
+                        # typeinfo on dispatch
+                        # Vtable set funckind "(vtable $funcdata(-vtbloffset))"
+                        continue;
+                    }
+                    set proto [list $funcdata(-memid) {} [::twapi::kl_get $attrs  lcid] $funcdata(-invkind) $funcdata(-datatype) $funcdata(-params)]
+                    ::twapi::_dispatch_prototypes_set [::twapi::kl_get $attrs guid] $funcdata(-name) [lindex $proto 2] $funcdata(-invkind) $proto
+                }
+            } finally {
+                $ti Release
+            }
+        }
+    }
 }
 
 # ITypeComp
