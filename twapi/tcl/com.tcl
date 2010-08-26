@@ -291,7 +291,7 @@ proc twapi::variant_time_to_timelist {double} {
 proc twapi::timelist_to_variant_time {timelist} {
     return [SystemTimeToVariantTime $timelist]
 }
-HERE
+#HERE
 #
 # Load COM IDispatch interface prototypes from a type library
 proc twapi::TBDread_prototypes_from_typelib {path ifc_name} {
@@ -1069,11 +1069,23 @@ proc twapi::_stop_service_tracker {} {
 namespace eval twapi {
     # TBD - enable oo if available
     if {0} {
-        namespace import oo::class
+        namespace import ::oo::class
     } else {
-        namespace import oo::metoo
+        namespace import ::metoo::class
     }
 }
+
+# Used to track when interface proxies are renamed/deleted
+proc twapi::_interface_proxy_tracer {ifc oldname newname op} {
+    variable interface_proxies
+    if {$op eq "rename"} {
+        if {$oldname eq $newname} return
+        set interface_proxies($ifc) $newname
+    } else {
+        unset interface_proxies($ifc)
+    }
+}
+
 
 # Return a COM interface proxy object for the specified interface.
 # If such an object already exists, it is returned. Otherwise a new one
@@ -1083,10 +1095,10 @@ namespace eval twapi {
 # returned proxy object. When done with the object, call the Release
 # method on it, NOT destroy.
 proc twapi::make_interface_proxy {ifc} {
-    variable interfaces
+    variable interface_proxies
 
-    if {[info exists interfaces($ifc)]} {
-        set proxy $interfaces($ifc)
+    if {[info exists interface_proxies($ifc)]} {
+        set proxy $interface_proxies($ifc)
         $proxy AddRef
         if {! [Twapi_IsNullPtr $ifc]} {
             # Release the caller's ref to the interface since we are holding
@@ -1098,9 +1110,10 @@ proc twapi::make_interface_proxy {ifc} {
             set proxy [INullProxy new $ifc]
         } else {
             set ifcname [Twapi_PtrType $ifc]
-            set proxy [${ifcName}Proxy new $ifc]
+            set proxy [${ifcname}Proxy new $ifc]
         }
-        set interfaces($ifc) $proxy
+        set interface_proxies($ifc) $proxy
+        trace add command $proxy {rename delete} [list ::twapi::_interface_proxy_tracer $ifc]
     }
     return $proxy
 }
@@ -1218,7 +1231,7 @@ twapi::class create ::twapi::IUnknownProxy {
 
 }
 
-twapi::class ::Twapi::IDispatchProxy {
+twapi::class create ::Twapi::IDispatchProxy {
     superclass ::twapi::IUnknownProxy
 
     destructor {
@@ -1337,7 +1350,7 @@ twapi::class ::Twapi::IDispatchProxy {
             if {[llength $binddata]} {
                 foreach {type data ti2} $binddata break
                 $ti2 Release; # Don't need this but must release
-                if {$type ne "funcdesc"} continue
+                if {$type ne "funcdesc"} continue; # TBD - properties?
                 array set bindings $data
                 set _prototypes($name,$lcid,$bindings(invkind)) [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
             } else {
@@ -1647,7 +1660,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     }
 
     method @GetContainingTypeLib {} {
-        foreach {ityplib index} [my GetContainingTypeLib] break
+        foreach {itypelib index} [my GetContainingTypeLib] break
         return [list [::twapi::make_interface_proxy $itypelib] $index]
     }
 
@@ -1682,7 +1695,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
             memidmap
         } -maxleftover 0]
 
-        array set data [my GetTypeAttr $ifc]
+        array set data [my GetTypeAttr]
         set result [list ]
         foreach {opt key} {
             guid guid
@@ -1959,7 +1972,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     }
 
     method @GetName {} {
-        return [lindex [my GetDocumentation -1 -name] 0]
+        return [lindex [my @GetDocumentation -1 -name] 1]
     }
 
     method @GetImplTypeFlags {index} {
@@ -2134,7 +2147,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                 }
             }
             set varti $ti
-            set ret [catch {uplevel $script} result]
+            set ret [catch {uplevel 1 $script} result]
             switch -exact -- $ret {
                 1 {
                     error $result $::errorInfo $::errorCode
