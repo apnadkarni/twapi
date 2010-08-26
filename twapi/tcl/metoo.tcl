@@ -181,13 +181,6 @@ namespace eval metoo::object {
             return [uplevel 1 [list $meth $this] $args]
         }
 
-        # It is ok for constructor or destructor to be undefined. For
-        # the others, invoke "unknown" if it exists
-
-        if {$methodname eq "constructor" || $methodname eq "destructor"} {
-            return
-        }
-
         set meth [::metoo::_locate_method $class_ns "unknown"]
         if {$meth ne ""} {
             # We need to invoke in the caller's context so upvar etc. will
@@ -369,12 +362,40 @@ proc metoo::class {cmd cname definition} {
         }
     }
 
-    # Also define the call dispatcher within the class. This is to get
-    # the namespaces right when dispatching via "my"
+    # Also define the call dispatcher within the class.
+    # TBD - not sure this is actually necessary any more
     namespace eval ${class_ns} {
-        proc _call {objns args} {
-            set _this $objns;   # Proc my does an uplevel on _this to get objns
-            eval [namespace current]::methods::my $args
+        proc _call {objns methodname args} {
+            # Note this duplicates the "my" code but cannot call that as
+            # it adds another frame level which interferes with uplevel etc.
+
+            set class_ns [namespace parent $objns]
+
+            # We insert the object namespace as the first param to the command.
+            # This is passed as the first parameter "_this" to methods.
+
+            set meth [::metoo::_locate_method $class_ns $methodname]
+            if {$meth ne ""} {
+                # We need to invoke in the caller's context so upvar etc. will
+                # not be affected by this intermediate method dispatcher
+                return [uplevel 1 [list $meth $objns] $args]
+            }
+
+            # It is ok for constructor or destructor to be undefined. For
+            # the others, invoke "unknown" if it exists
+
+            if {$methodname eq "constructor" || $methodname eq "destructor"} {
+                return
+            }
+
+            set meth [::metoo::_locate_method $class_ns "unknown"]
+            if {$meth ne ""} {
+                # We need to invoke in the caller's context so upvar etc. will
+                # not be affected by this intermediate method dispatcher
+                return [uplevel 1 [list $meth $objns $methodname] $args]
+            }
+
+            error "Unknown method $methodname"
         }
     }
 
