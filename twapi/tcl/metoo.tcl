@@ -426,14 +426,15 @@ proc ::metoo::demo {{ns metoo}} {
         destructor { puts "Derived::destructor called ([self object])" ; next }
         method n {args} { puts "Derived::n ([self object]): [join $args {, }]"; eval next $args}
         method put {val} {my variable var ; set var $val}
-        method get {} {my variable var ; return $var}
+        method get {varname} {my variable var ; upvar 1 $varname retvar; set retvar $var}
     }
 
     Base create b dum dee;      # Create named object
     Derived create d fee fi;    # Create derived object
     set o [Derived new fo fum]; # Create autonamed object
     $o put 10;                  # Use of instance variable
-    $o get
+    $o get v;                   # Verify correct frame level ...
+    puts "v:$v";                # ...when calling methods
     b m;                        # Direct method
     b n;                        # Use of my to call another method
     $o m;                       # Inherited method
