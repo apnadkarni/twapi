@@ -237,7 +237,7 @@ int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (objP && Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
                 goto argerror;
             if (ival & ~0xffff) {
-                TwapiReturnTwapiError(interp, "Value does fit in 16 bits.", TWAPI_INVALID_ARGS);
+                TwapiReturnTwapiError(interp, "Value does not fit in 16 bits.", TWAPI_INVALID_ARGS);
                 goto argerror;
             }
             if (p)

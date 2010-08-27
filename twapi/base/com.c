@@ -1116,11 +1116,10 @@ int Twapi_IDispatch_InvokeObjCmd(
      *
      * objv[2] is the prototype for the command which itself is a list
      *   0 - DISPID
-     *   1 - RIID - ignored, always set to NULL
-     *   2 - LCID
-     *   3 - flags
-     *   4 - return type
-     *   5 - (optional) list of parameters to dispatch function. This is a list
+     *   1 - LCID
+     *   2 - flags
+     *   3 - return type
+     *   4 - (optional) list of parameters to dispatch function. This is a list
      *       of elements of the form {type paramflags ?defaultvalue?}. If this
      *       element is missing (as opposed to empty), it means no parameter
      *       info is available and we will go strictly by the arguments
@@ -1141,15 +1140,15 @@ int Twapi_IDispatch_InvokeObjCmd(
     /* Extract prototype information */
 #if 1
     if (TwapiGetArgs(interp, protoc, protov,
-                     GETINT(dispid), ARGSKIP, GETINT(lcid),
+                     GETINT(dispid), GETINT(lcid),
                      GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
                      ARGTERM) != TCL_OK) {
-        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID RIID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
+        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
         return TCL_ERROR;
     }
 #else
     if (protoc < 5) {
-        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID RIID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
+        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
         return TCL_ERROR;
     }
 
@@ -1169,9 +1168,9 @@ int Twapi_IDispatch_InvokeObjCmd(
         return TCL_ERROR;
 #endif
 
-    if (protoc >= 6) {
+    if (protoc >= 5) {
         /* Extract the parameter information */
-        if (Tcl_ListObjGetElements(interp, protov[5], &nparams, &params) != TCL_OK)
+        if (Tcl_ListObjGetElements(interp, protov[4], &nparams, &params) != TCL_OK)
             return TCL_ERROR;
     } else {
         /* No parameter information available. Base count on number of

@@ -298,7 +298,7 @@ proc twapi::timelist_to_variant_time {timelist} {
 
 #
 # Test code
-proc twapi::TBD_print_typelib {path args} {
+proc twapi::typelib_print {path args} {
     array set opts [parseargs args {
         type.arg
         name.arg
@@ -1018,7 +1018,7 @@ namespace eval twapi {
     #  - the invocation kind (as an integer)
     # Each value contains the full prototype in a form
     # that can be passed to IDispatch_Invoke. This is a list with the
-    # elements {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
+    # elements {DISPID LCID INVOKEFLAGS RETTYPE PARAMTYPES}
     # Here PARAMTYPES is a list each element of which describes a
     # parameter in the following format:
     #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
@@ -1242,8 +1242,8 @@ twapi::class create ::Twapi::IDispatchProxy {
         my variable _ifc
         if {$prototype eq "" && [llength $args] == 0} {
             # Treat as a property get DISPID_VALUE (default value)
-            # {dispid=0, riid="" lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
-            set prototype {0 {} 0 2 8 {}}
+            # {dispid=0, lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
+            set prototype {0 0 2 8 {}}
         }
         # The uplevel is so that if some parameters are output, the varnames
         # are resolved in caller
@@ -1262,7 +1262,7 @@ twapi::class create ::Twapi::IDispatchProxy {
                 # For a prototype to match, number of supplied params must
                 # not be more than number in prototype. They can be less
                 # assuming the prototypes contain default
-                if {$proto ne "" && [llength [lindex $proto 5]] >= $nparams} {
+                if {$proto ne "" && [llength [lindex $proto 4]] >= $nparams} {
                     # Need uplevel so by-ref param vars are resolved correctly
                     return [uplevel 1 [list [self] Invoke $proto] $params]
                 }
@@ -1288,18 +1288,26 @@ twapi::class create ::Twapi::IDispatchProxy {
         # already have it.
         my @InitTypeCompAndGuid; # Inits _guid and _typecomp
 
-        set binddata [$_typecomp @Bind $name $invkind $lcid]
-        if {[llength $binddata]} {
-            foreach {type data ti2} $binddata break
-            $ti2 Release; # Don't need this but must release
-            if {$type ne "funcdesc"} continue; # TBD - properties?
-            array set bindings $data
-            set proto [list $bindings(memid) "" $lcid $bindings(invkind) $bindings(elemdescFunc.tdesc) $bindings(lprgelemdescParam)]
-        } else {
-            # No such proto
-            set proto {}
+        set invkind [::twapi::_string_to_invkind $invkind]
+        set lhash   [::twapi::LHashValOfName $lcid $name]
+
+        set proto {}
+        if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
+            [llength $binddata]} {
+            foreach {type data ifc} $binddata break
+            ::twapi::IUnknown_Release $ifc; # Don't need this but must release
+            if {$type eq "funcdesc" ||
+                ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
+                set proto [list [::kl_get $data memid] \
+                               $lcid \
+                               $invkind \
+                               [::twapi::kl_get $data elemdescFunc.tdesc] \
+                               [::twapi::kl_get $data lprgelemdescParam]]
+            } else {
+                debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
+            }
         }
-        ::twapi::_dispatch_prototypes_set $_guid $name $lcid $bindings(invkind) $proto
+        ::twapi::_dispatch_prototype_set $_guid $name $lcid $bindings(invkind) $proto
 
         return $proto
     }
@@ -1310,7 +1318,7 @@ twapi::class create ::Twapi::IDispatchProxy {
 
         my @InitTypeCompAndGuid
         foreach {name proto} $protolist {
-            ::twapi::_dispatch_prototypes_set $_guid $name [lindex $proto 2] [lindex $proto 3] $proto
+            ::twapi::_dispatch_prototype_set $_guid $name [lindex $proto 1] [lindex $proto 2] $proto
         }
     }
 
@@ -1349,10 +1357,6 @@ twapi::class create ::Twapi::IDispatchProxy {
             $ti Release
         }
     }            
-
-    method @LoadPrototypes {path} {
-        TBD - read_prototypes_from_typelib
-    }
 
     method @GetCoClassTypeInfo {{co_clsid ""}} {
         my variable _ifc
@@ -1461,6 +1465,9 @@ twapi::class create ::twapi::IDispatchExProxy {
             if {[llength $proto]} {
                 return $proto
             }
+            # Note negative results ignored, as new members may be added
+            # to an IDispatchEx at any time. We will try below another way.
+
         } onerror {TWAPI_WIN32 0x80004001} {
             # Method not implemented
             # Ignore the error - we will try below using another method
@@ -1472,8 +1479,7 @@ twapi::class create ::twapi::IDispatchExProxy {
         # Not a simple dispatch interface method. Could be expando
         # type which is dynamically created.
 
-        my variable _prototypes
-        
+
         # 10 -> case insensitive, create if required
         set dispid [my GetDispID $name 10]
 
@@ -1500,22 +1506,23 @@ twapi::class create ::twapi::IDispatchExProxy {
             }
         }
 
+        # Note - since we called the IDispatch @Prototype at least once,
+        # _typecomp and _guid are guaranteed to have been initialized
+        my variable  _guid
+
         # Since we have retrieved them anyways, also remember the prototypes
         # for invkinds other than what we asked for.
         foreach i $invkinds {
             # Note that the last element in prototype is missing indicating
             # we do not have parameter information. Also, we assume return
             # type of 8 (BSTR) (although the actual return type doesn't matter)
-            set _prototypes($name,$lcid,$i) [list $dispid "" $lcid $i 8]
+            ::twapi::_dispatch_prototype_set $_guid $name $lcid $i [list $dispid $lcid $i 8]
         }
 
-        # See if we got what we asked for and return it. If not found,
-        # we do not store the negative result in the cache since IDispatchEx
-        # interfaces may add members at any time.
-        if {[info exists _prototypes($name,$lcid,$invkind)]} {
-            return $_prototypes($name,$lcid,$invkind)
+        if {[::twapi::_dispatch_prototype_get $_guid $name $lcid $invkind proto]} {
+            return $proto
         } else {
-            return ""
+            return {}
         }
     }
 }
@@ -1595,14 +1602,12 @@ twapi::class create ::twapi::ITypeInfoProxy {
         return [list [::twapi::make_interface_proxy $itypelib] $index]
     }
 
-
-    method @GetReferencedTypeInfo {index} {
-        my variable _ifc
-        return [my GetRefTypeInfo $_ifc [my GetRefTypeOfImplType $_ifc $index]]
+    method @GetRefTypeInfoFromIndex {index} {
+        return [my @GetRefTypeInfo [my GetRefTypeOfImplType $index]]
     }
 
     # Friendlier version of GetTypeAttr
-    method @GetAttributes {args} {
+    method @GetTypeAttr {args} {
 
         array set opts [::twapi::parseargs args {
             all
@@ -1700,7 +1705,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
 
     #
     # Get a variable description associated with a type
-    method @GetVarInfo {index args} {
+    method @GetVarDesc {index args} {
         # TBD - add support for retrieving elemdescVar.paramdesc fields
 
         array set opts [parseargs args {
@@ -1902,8 +1907,8 @@ twapi::class create ::twapi::ITypeInfoProxy {
         return $result
     }
 
-    method @GetName {} {
-        return [lindex [my @GetDocumentation -1 -name] 1]
+    method @GetName {{memid -1}} {
+        return [lindex [my @GetDocumentation $memid -name] 1]
     }
 
     method @GetImplTypeFlags {index} {
@@ -1921,12 +1926,12 @@ twapi::class create ::twapi::ITypeInfoProxy {
     # Get the typeinfo for the default source interface of a coclass
     # This object must be the typeinfo of the coclass
     method @GetDefaultSourceTypeInfo {} {
-        set count [lindex [my @GetAttributes -interfacecount] 1]
+        set count [lindex [my @GetTypeAttr -interfacecount] 1]
         for {set i 0} {$i < $count} {incr i} {
             set flags [my GetImplTypeFlags $i]
             # default 0x1, source 0x2
             if {($flags & 3) == 3} {
-                return [my @GetReferencedTypeInfo $i]
+                return [my @GetRefTypeInfoFromIndex $i]
             }
         }
         return ""
@@ -2051,7 +2056,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             type.arg
             name.arg
             guid.arg
-        } -maxleftover 2]
+        } -maxleftover 2 -nulldefault]
 
         if {[llength $args] != 2} {
             error "Syntax error: Should be '[self] @Foreach ?options? VARNAME SCRIPT'"
@@ -2062,17 +2067,16 @@ twapi::class create ::twapi::ITypeLibProxy {
 
         set count [my GetTypeInfoCount]
         for {set i 0} {$i < $count} {incr i} {
-            if {[info exists opts(type)] &&
-                $opts(type) ne [my @GetTypeInfoType $i]} {
+            if {$opts(type) ne "" && $opts(type) ne [my @GetTypeInfoType $i]} {
                 continue;                   # Type does not match
             }
-            if {[info exists opts(name)] &&
+            if {$opts(name) ne "" &&
                 [string compare -nocase $opts(name) [lindex [my @GetDocumentation $i -name] 1]]} {
                 continue;                   # Name does not match
             }
             set ti [my @GetTypeInfo $i]
-            if {[info exists opts(guid)]} {
-                if {[string compare -nocase [lindex [$ti @GetAttributes -guid] 1] $opts(guid)]} {
+            if {$opts(guid) ne ""} {
+                if {[string compare -nocase [lindex [$ti @GetTypeAttr -guid] 1] $opts(guid)]} {
                     $ti Release
                     continue
                 }
@@ -2102,25 +2106,131 @@ twapi::class create ::twapi::ITypeLibProxy {
     method @LoadDispatchPrototypes {} {
         my @Foreach -type dispatch ti {
             ::twapi::try {
-                set attrs [$ti GetTypeAttr]
-                set nfuncs   [::twapi::kl_get $attrs cFuncs]
-                for {set j 0} {$j < $nfuncs} {incr j} {
-                    array set funcdata [$ti @GetFuncDesc $j -all]
-                    if {$funcdata(-funckind) ne "dispatch"} {
-                        # Not a dispatch function, ignore
+                array set attrs [$ti GetTypeAttr]
+                # Load up the functions
+                for {set j 0} {$j < $attrs(cFuncs)} {incr j} {
+                    array set funcdata [$ti GetFuncDesc $j]
+                    if {$funcdata(funckind) != 4} {
+                        # Not a dispatch function (4), ignore
                         # TBD - what else could it be if already filtering
                         # typeinfo on dispatch
-                        # Vtable set funckind "(vtable $funcdata(-vtbloffset))"
+                        # Vtable set funckind "(vtable $funcdata(-oVft))"
                         continue;
                     }
-                    set proto [list $funcdata(-memid) {} [::twapi::kl_get $attrs  lcid] $funcdata(-invkind) $funcdata(-datatype) $funcdata(-params)]
-                    ::twapi::_dispatch_prototypes_set [::twapi::kl_get $attrs guid] $funcdata(-name) [lindex $proto 2] $funcdata(-invkind) $proto
+                    set proto [list $funcdata(memid) \
+                                   $attrs(lcid) \
+                                   $funcdata(invkind) \
+                                   $funcdata(elemdescFunc.tdesc) \
+                                   $funcdata(lprgelemdescParam)]
+                    ::twapi::_dispatch_prototype_set \
+                        $attrs(guid) [$ti @GetName $funcdata(memid)] \
+                        $attrs(lcid) \
+                        $funcdata(invkind) \
+                        $proto
+                }
+                # Load up the properties
+                for {set j 0} {$j < $attrs(cVars)} {incr j} {
+                    array set vardata [$ti GetVarDesc $j]
+                    # We will add both propput and propget.
+                    # propget:
+                    ::twapi::_dispatch_prototype_set \
+                        $attrs(guid) [$ti @GetName $vardata(memid)] \
+                        $attrs(lcid) \
+                        2 \
+                        [list $vardata(memid) $attrs(lcid) 2 $vardata(elemdescVar.tdesc) {}]
+
+                    # TBD - mock up the parameters for the property set
+                    # Single parameter corresponding to return type of
+                    # property. Param list is of the form
+                    # {PARAM1 PARAM2} where PARAM is {TYPE {FLAGS ?DEFAULT}}
+                    # So param list with one param is
+                    # {{TYPE {FLAGS ?DEFAULT?}}}
+                    # propput:
+                    if {! ($vardata(wVarFlags) & 1)} {
+                        # Not read-only
+                        ::twapi::_dispatch_prototype_set \
+                            $attrs(guid) [$ti @GetName $vardata(memid)] \
+                            $attrs(lcid) \
+                            4 \
+                            [list $vardata(memid) $attrs(lcid) 4 24 [list [list $vardata(elemdescVar.tdesc) [list 1]]]]
+                    }
                 }
             } finally {
                 $ti Release
             }
         }
     }
+
+    method @Text {args} {
+        array set opts [parseargs args {
+            type.arg
+            name.arg
+        } -maxleftover 0 -nulldefault]
+
+        set text {}
+        my @Foreach -type $opts(type) -name $opts(name) ti {
+            ::twapi::try {
+                array set attrs [$ti @GetTypeAttr -all]
+                set docs [$ti @GetDocumentation -1 -name -docstring]
+                set desc [list "[::twapi::kl_get $docs -name] - [::twapi::kl_get $docs -docstring]"]
+                switch -exact -- $attrs(-typekind) {
+                    record -
+                    union  -
+                    enum {
+                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+                            array set vardata [$ti @GetVarDesc $j -all]
+                            set vardesc "$vardata(-varkind) $vardata(-datatype) $vardata(-name)"
+                            if {$attrs(-typekind) eq "enum"} {
+                                append vardesc " = $vardata(-value)"
+                            } else {
+                                append vardesc " (offset $vardata(-value))"
+                            }
+                            lappend desc $vardesc
+                        }
+                    }
+                    alias {
+                        lappend desc "typedef $attrs(-aliasdesc)"
+                    }
+                    dispatch -
+                    interface {
+                        for {set j 0} {$j < $attrs(-fncount)} {incr j} {
+                            array set funcdata [$ti @GetFuncDesc $j -all]
+                            if {$funcdata(-funckind) eq "dispatch"} {
+                                set funckind "(dispid $funcdata(-memid))"
+                            } else {
+                                set funckind "(vtable $funcdata(-vtbloffset))"
+                            }
+                            lappend desc "$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]"
+                        }
+                    }
+                    coclass {
+                        for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
+                            set ti2 [$ti @GetRefTypeInfoFromIndex $j]
+                            set idesc [$ti2 @GetName]
+                            set iflags [$ti @GetImplTypeFlags $j]
+                            if {[llength $iflags]} {
+                                append idesc " ([join $iflags ,])"
+                            }
+                            lappend desc $idesc
+                            $ti2 Release
+                            unset ti2
+                        }
+                    }
+                    default {
+                        puts "Unknown typekind: $attrs(-typekind)"
+                    }
+                }
+                lappend text $attrs(-typekind) $desc
+            } finally {
+                $ti Release
+                if {[info exists ti2]} {
+                    $ti2 Release
+                }
+            }
+        }
+        return $text
+    }
+
 }
 
 # ITypeComp
@@ -2133,8 +2243,16 @@ twapi::class create ::twapi::ITypeCompProxy {
         return [::twapi::ITypeComp_Bind $_ifc $name $lhash $flags]
     }
 
+    # Returns empty list if bind not found
     method @Bind {name flags {lcid 0}} {
-        foreach {type data tifc} [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags] break
+        try {
+            set binding [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
+        } onerror {TWAPI_WIN32 0x80028ca0} {
+            # Found but type mismatch (flags not correct)
+            return {}
+        }
+
+        foreach {type data tifc} $binding break
         return [list $type $data [::twapi::make_interface_proxy $tifc]]
     }
 }
@@ -2327,7 +2445,7 @@ twapi::class create ::twapi::Automation {
             # $coti is the coclass information. Get dispids for the default
             # source interface for events and its guid
             set srcti [$coti @GetDefaultSourceTypeInfo]
-            array set srcinfo [$srcti @GetAttributes -memidmap -guid]
+            array set srcinfo [$srcti @GetTypeAttr -memidmap -guid]
 
             # TBD - implement IConnectionPointContainerProxy
             # Now we need to get the actual connection point itself
