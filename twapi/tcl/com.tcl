@@ -1297,7 +1297,7 @@ twapi::class create ::twapi::IDispatchProxy {
             ::twapi::IUnknown_Release $ifc; # Don't need this but must release
             if {$type eq "funcdesc" ||
                 ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
-                set proto [list [::kl_get $data memid] \
+                set proto [list [::twapi::kl_get $data memid] \
                                $lcid \
                                $invkind \
                                [::twapi::kl_get $data elemdescFunc.tdesc] \
@@ -1825,7 +1825,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
         }
 
         if {$opts(all) || $opts(callconv)} {
-            lappend result -callconv [kl_get {
+            lappend result -callconv [::twapi::kl_get {
                 0 fastcall
                 1 cdecl
                 2 pascal
@@ -2029,7 +2029,7 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
 
         if {$opts(all) || $opts(syskind)} {
-            lappend result -syskind [kl_get {
+            lappend result -syskind [::twapi::kl_get {
                 0 win16
                 1 win32
                 2 mac

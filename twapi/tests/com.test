@@ -187,7 +187,7 @@ namespace eval twapi::shell::test {
         $ie Quit
         $ie -destroy
     } -body {
-        $ie
+        $ie -default
     } -result "Windows Internet Explorer"
 
     ###
@@ -293,7 +293,7 @@ namespace eval twapi::shell::test {
     ###
 
     test comobj-13.0 {
-        Get comobj interface using -interface
+        Get comobj interface using -proxy
     } -constraints {
         nt
     } -setup {
@@ -302,7 +302,7 @@ namespace eval twapi::shell::test {
         $wscript -destroy
     } -body {
         # Interface should be an IDispatch so try calling one of its methods
-        twapi::idispatch_has_typeinfo [$wscript -interface]
+        [$wscript -proxy] GetTypeInfoCount
     } -result 1
 
     ###
