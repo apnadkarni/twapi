@@ -173,7 +173,7 @@ proc twapi::comobj_idispatch {ifc} {
         error "'$ifc' does not reference an IDispatch interface"
     }
 
-    return [class new Automation $proxyobj]
+    return [Automation new $proxyobj]
 }
 
 #
@@ -191,7 +191,7 @@ proc twapi::comobj_object {path args} {
 # comid is either a CLSID or a PROGID
 proc twapi::comobj {comid args} {
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch] $args]]
+    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch -raw] $args]]
 }
 
 #
@@ -1256,7 +1256,7 @@ twapi::class create ::twapi::IDispatchProxy {
             return [uplevel 1 [list [self] Invoke {}] $params]
         } else {
             set nparams [llength $params]
-            foreach invkind invkinds {
+            foreach invkind $invkinds {
                 set proto [my @Prototype $name $invkind $lcid]
                 # For a prototype to match, number of supplied params must
                 # not be more than number in prototype. They can be less
@@ -1306,7 +1306,7 @@ twapi::class create ::twapi::IDispatchProxy {
                 debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
             }
         }
-        ::twapi::_dispatch_prototype_set $_guid $name $lcid $bindings(invkind) $proto
+        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
 
         return $proto
     }
@@ -1403,12 +1403,6 @@ twapi::class create ::twapi::IDispatchProxy {
             }
         }
     }
-
-    method @Print {} {
-        my variable _ifc
-        TBD _print_interface $_ifc
-    }
-
 }
 
 
@@ -2310,18 +2304,18 @@ twapi::class create ::twapi::Automation {
     }
 
     method -get {name args} {
-        my variable _proxy
-        return [$_proxy @Invoke $name [list propget] $args]
+        my variable _proxy   _lcid
+        return [::twapi::_variant_value [$_proxy @Invoke $name [list propget] $_lcid $args]]
     }
 
     method -set {name args} {
-        my variable _proxy
-        return [$_proxy @Invoke $name [list propput] $args]
+        my variable _proxy   _lcid
+        return [::twapi::_variant_value [$_proxy @Invoke $name [list propput] $_lcid $args]]
     }
 
     method -call {name args} {
-        my variable _proxy
-        return [$_proxy @Invoke $name [list func] $args]
+        my variable _proxy   _lcid
+        return [::twapi::_variant_value [$_proxy @Invoke $name [list func] $_lcid $args]]
     }
 
     method -destroy {} {
@@ -2330,7 +2324,6 @@ twapi::class create ::twapi::Automation {
     }
 
     method -isnull {} {
-        # TBD - need to create a Null Comobj class
         return false
     }
 
@@ -2495,7 +2488,7 @@ twapi::class create ::twapi::Automation {
     }
 
     method unknown {name args} {
-        my variable _proxy
+        my variable _proxy   _lcid
 
         # Try to figure out whether it is a property or method
 
@@ -2507,7 +2500,7 @@ twapi::class create ::twapi::Automation {
         set nargs [llength $args]
         if {$nargs == 0} {
             # No arguments, cannot be propput. Try propget and method
-            set invkinds [list 2 4]
+            set invkinds [list 2 1]
         } elseif {$nargs == 1} {
             # One argument, likely propput, method, propget
             set invkinds [list 4 1 2]
@@ -2518,6 +2511,6 @@ twapi::class create ::twapi::Automation {
 
         # Invoke the function. We do a uplevel instead of eval
         # here so variables if any are in caller's context
-        return [_variant_value [uplevel 1 [list $_proxy @Invoke $invkinds 0 $args]]]
+        return [::twapi::_variant_value [uplevel 1 [list $_proxy @Invoke $name $invkinds $_lcid $args]]]
     }
 }
