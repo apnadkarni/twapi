@@ -447,16 +447,37 @@ proc twapi::TBD_print_interface_helper {ti {names_already_done ""}} {
 proc twapi::_resolve_com_params {ti params paramnames} {
     set result [list ]
     foreach param $params paramname $paramnames {
-        set paramdesc [lreplace $param 0 0 [_resolve_com_type $ti [lindex $param 0]]]
-        lappend paramdesc $paramname
+        set paramdesc [_flatten_com_type [_resolve_com_type $ti [lindex $param 0]]]
+        if {[llength $param] > 1 && [llength [lindex $param 1]] > 0} {
+            set paramdesc "\[[lindex $param 1]\] $paramdesc"
+        }
+        if {[llength $param] > 2} {
+            append paramdesc " [lrange $param 2 end]"
+        }
+        append paramdesc " $paramname"
         lappend result $paramdesc
     }
-    return $result
+    return "([join $result {, }])"
 }
 
+# Flattens the output of _resolve_com_type
+proc twapi::_flatten_com_type {com_type_desc} {
+    if {[llength $com_type_desc] < 2} {
+        return $com_type_desc
+    }
+
+    if {[lindex $com_type_desc 0] eq "ptr"} {
+        return "[_flatten_com_type [lindex $com_type_desc 1]]*"
+    } else {
+        return "([lindex $com_type_desc 0] [_flatten_com_type [lindex $com_type_desc 1]])"
+    }
+}
 #
 # Resolves typedefs
 proc twapi::_resolve_com_type {ti typedesc} {
+    
+    set typedesc [_vttype_to_string $typedesc]
+
     switch -exact -- [lindex $typedesc 0] {
         ptr {
             # Recurse to resolve any inner types
@@ -464,8 +485,8 @@ proc twapi::_resolve_com_type {ti typedesc} {
         }
         userdefined {
             set hreftype [lindex $typedesc 1]
-            set ti2 [$ti GetRefTypeInfo $hreftype]
-            set typedesc [list userdefined [$ti2 @GetName]]
+            set ti2 [$ti @GetRefTypeInfo $hreftype]
+            set typedesc [$ti2 @GetName]
             $ti2 Release
         }
         default {
@@ -691,17 +712,12 @@ proc twapi::_string_to_invkind {s} {
 # Convert a VT typedef to a string
 # vttype may be nested
 proc twapi::_vttype_to_string {vttype} {
-    set result [_vtcode_to_string [lindex $vttype 0]]
-    if {[llength $vttype] > 1} {
-        if {$result eq "ptr"} {
-            set sep "->"
-        } else {
-            set sep ":"
-        }
-        append result "$sep[_vttype_to_string [lindex $vttype 1]]"
+    set vts [_vtcode_to_string [lindex $vttype 0]]
+    if {[llength $vttype] < 2} {
+        return $vts
     }
 
-    return "[join $result ->]"
+    return [list $vts [_vttype_to_string [lindex $vttype 1]]]
 }
 
 #
@@ -2192,6 +2208,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     }
                     dispatch -
                     interface {
+                        append desc "Functions:\n"
                         for {set j 0} {$j < $attrs(-fncount)} {incr j} {
                             array set funcdata [$ti @GetFuncDesc $j -all]
                             if {$funcdata(-funckind) eq "dispatch"} {
@@ -2201,9 +2218,10 @@ twapi::class create ::twapi::ITypeLibProxy {
                             }
                             append desc "\t$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]\n"
                         }
+                        append desc "Variables:\n"
                         for {set j 0} {$j < $attrs(-varcount)} {incr j} {
                             array set vardata [$ti @GetVarDesc $j -all]
-                            set vardesc "($vardata(-memid)) $vardata(-varkind) $vardata(-datatype) $vardata(-name)"
+                            set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type $ti $vardata(-datatype)]] $vardata(-name)"
                             if {$attrs(-typekind) eq "enum"} {
                                 append vardesc " = $vardata(-value)"
                             } else {
