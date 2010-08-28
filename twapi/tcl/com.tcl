@@ -296,15 +296,15 @@ proc twapi::timelist_to_variant_time {timelist} {
 
 #
 # Test code
-proc twapi::TBDtypelib_print {path args} {
+proc twapi::typelib_print {path args} {
     array set opts [parseargs args {
         type.arg
         name.arg
         output.arg
-    } -maxleftover 0]
+    } -maxleftover 0 -nulldefault]
 
     
-    if {[info exists opts(output)]} {
+    if {$opts(output) ne ""} {
         if {[file exists $opts(output)]} {
             error "File $opts(output) already exists."
         }
@@ -314,89 +314,79 @@ proc twapi::TBDtypelib_print {path args} {
     }
 
     try {
-        set ifc [get_itypelib $path -registration none]
-        set count [itypelib_count $ifc]
-
-        for {set i 0} {$i < $count} {incr i} {
-            set type [itypelib_get_entry_typekind $ifc $i]
-            if {[info exists opts(type)] && $opts(type) ne $type} continue
-            array set tlinfo [itypelib_get_entry_doc $ifc $i -all]
-            if {[info exists opts(name)] && [string compare -nocase $opts(name) $tlinfo(-name)]} continue
-            set desc [list "$i:\t$type\t$tlinfo(-name) - $tlinfo(-docstring)"]
-            set ti [twapi::itypelib_get_entry_itypeinfo $ifc $i]
-            array set attrs [itypeinfo_get_info $ti -all]
-            switch -exact -- $type {
-                record -
-                union  -
-                enum {
-                    for {set j 0} {$j < $attrs(-varcount)} {incr j} {
-                        array set vardata [itypeinfo_get_var_info $ti $j -all]
-                        set vardesc "\t\t$vardata(-varkind) $vardata(-datatype) $vardata(-name)"
-                        if {$type eq "enum"} {
-                            append vardesc " = $vardata(-value)"
-                        } else {
-                            append vardesc " (offset $vardata(-value))"
-                        }
-                        lappend desc $vardesc
-                    }
-                }
-                alias {
-                    lappend desc "\t\ttypedef $attrs(-aliasdesc)"
-                }
-                dispatch -
-                interface {
-                    for {set j 0} {$j < $attrs(-fncount)} {incr j} {
-                        array set funcdata [itypeinfo_get_func_info $ti $j -all] 
-                        if {$funcdata(-funckind) eq "dispatch"} {
-                            set funckind "(dispid $funcdata(-memid))"
-                        } else {
-                            set funckind "(vtable $funcdata(-vtbloffset))"
-                        }
-                        lappend desc "\t\t$funckind [_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]"
-                    }
-                }
-                coclass {
-                    for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
-                        set ti2 [itypeinfo_get_referenced_itypeinfo $ti $j]
-                        set idesc "\t\t[$ti2 @GetName]"
-                        set iflags [itypeinfo_get_impl_type_flags $ti $j]
-                        if {[llength $iflags]} {
-                            append idesc " ([join $iflags ,])"
-                        }
-                        lappend desc $idesc
-                        iunknown_release $ti2
-                    }
-                }
-            }
-            puts $outfd [join $desc \n]
-            iunknown_release $ti
-            unset ti;           # For exception handling
-        }
+        set tl [get_itypelib $path -registration none]
+        puts $outfd [$tl @Text -type $opts(type) -name $opts(name)]
     } finally {
-        if {[info exists ti]} {
-            catch {iunknown_release $ti}
-        }
-        if {[info exists ifc]} {
-            catch {iunknown_release $ifc}
+        if {[info exists tl]} {
+            $tl Release
         }
         if {$outfd ne "stdout"} {
             close $outfd
         }
-    }
+    }        
 
     return
 }
 
 
-#
-# Print methods in an interface
-proc twapi::TBD_print_interface {ifc} {
-    set ti [idispatch_get_itypeinfo $ifc]
-    twapi::_print_interface_helper $ti
-    iunknown_release $ti
+proc twapi::_interface_text {ti} {
+    # ti must be TypeInfo for an interface
+    set desc ""
+    array set attrs [$ti @GetTypeAttr -all]
+    set desc "Functions:\n"
+    for {set j 0} {$j < $attrs(-fncount)} {incr j} {
+        array set funcdata [$ti @GetFuncDesc $j -all]
+        if {$funcdata(-funckind) eq "dispatch"} {
+            set funckind "(dispid $funcdata(-memid))"
+        } else {
+            set funckind "(vtable $funcdata(-vtbloffset))"
+        }
+        append desc "\t$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]\n"
+    }
+    append desc "Variables:\n"
+    for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+        array set vardata [$ti @GetVarDesc $j -all]
+        set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type $ti $vardata(-datatype)]] $vardata(-name)"
+        if {$attrs(-typekind) eq "enum"} {
+            append vardesc " = $vardata(-value)"
+        } else {
+            append vardesc " (offset $vardata(-value))"
+        }
+        append desc "\t$vardesc\n"
+    }
+    return $desc
 }
 
-proc twapi::TBD_print_interface_helper {ti {names_already_done ""}} {
+#
+# Print methods in an interface, including inherited names
+proc twapi::dispatch_print {di args} {
+    array set opts [parseargs args {
+        output.arg
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(output) ne ""} {
+        if {[file exists $opts(output)]} {
+            error "File $opts(output) already exists."
+        }
+        set outfd [open $opts(output) a]
+    } else {
+        set outfd stdout
+    }
+
+    try {
+        set ti [$di @GetTypeInfo]
+        twapi::_dispatch_print_helper $ti $outfd
+    } finally {
+        if {[info exists ti]} {
+            $ti Release
+        }
+        close $outfd
+    }
+
+    return
+}
+
+proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
     set name [$ti @GetName]
     if {[lsearch -exact $names_already_done $name] >= 0} {
         # Already printed this
@@ -406,35 +396,30 @@ proc twapi::TBD_print_interface_helper {ti {names_already_done ""}} {
 
     # Check for dual interfaces - we want to print both vtable and disp versions
     set tilist [list $ti]
-    if {![catch {set ti2 [itypeinfo_get_referenced_itypeinfo $ti -1]}]} {
+    if {![catch {set ti2 [$ti @GetRefTypeInfoFromIndex $ti -1]}]} {
         lappend tilist $ti2
     }
 
-    foreach tifc $tilist {
-        array set attrs [itypeinfo_get_info $tifc -all]
-        for {set j 0} {$j < $attrs(-fncount)} {incr j} {
-            array set funcdata [itypeinfo_get_func_info $tifc $j -all] 
-            if {$funcdata(-funckind) eq "dispatch"} {
-                set funckind "(dispid $funcdata(-memid))"
-            } else {
-                set funckind "(vtable $funcdata(-vtbloffset))"
-            }
-            lappend desc "\t$funckind [_resolve_com_type $tifc $funcdata(-datatype)] $funcdata(-name) [_resolve_com_params $tifc $funcdata(-params) $funcdata(-paramnames)]"
+    try {
+        foreach tifc $tilist {
+            puts $outfd $name
+            puts $outfd [_interface_text $tifc]
+        }
+    } finally {
+        if {[info exists ti2]} {
+            iunknown_release $ti2
         }
     }
 
-    if {[info exists ti2]} {
-        iunknown_release $ti2
-    }
-
-    puts $name
-    puts [join $desc \n]
-
     # Now get any referenced typeinfos and print them
-    for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
-        set ti2 [itypeinfo_get_referenced_itypeinfo $ti $j]
-        set names_already_done [_print_interface_helper $ti2 $names_already_done]
-        iunknown_release $ti2
+    array set tiattrs [$ti GetTypeAttr]
+    for {set j 0} {$j < $tiattrs(cImplTypes)} {incr j} {
+        set ti2 [$ti @GetRefTypeInfoFromIndex $j]
+        try {
+            set names_already_done [_dispatch_print_helper $ti2 $outfd $names_already_done]
+        } finally {
+            $ti2 Release
+        }
     }
 
     return $names_already_done
@@ -1220,7 +1205,7 @@ twapi::class create ::twapi::IUnknownProxy {
 
 }
 
-twapi::class create ::Twapi::IDispatchProxy {
+twapi::class create ::twapi::IDispatchProxy {
     superclass ::twapi::IUnknownProxy
 
     destructor {
@@ -2208,27 +2193,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     }
                     dispatch -
                     interface {
-                        append desc "Functions:\n"
-                        for {set j 0} {$j < $attrs(-fncount)} {incr j} {
-                            array set funcdata [$ti @GetFuncDesc $j -all]
-                            if {$funcdata(-funckind) eq "dispatch"} {
-                                set funckind "(dispid $funcdata(-memid))"
-                            } else {
-                                set funckind "(vtable $funcdata(-vtbloffset))"
-                            }
-                            append desc "\t$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]\n"
-                        }
-                        append desc "Variables:\n"
-                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
-                            array set vardata [$ti @GetVarDesc $j -all]
-                            set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type $ti $vardata(-datatype)]] $vardata(-name)"
-                            if {$attrs(-typekind) eq "enum"} {
-                                append vardesc " = $vardata(-value)"
-                            } else {
-                                append vardesc " (offset $vardata(-value))"
-                            }
-                            append desc "\t$vardesc\n"
-                        }
+                        set desc [::twapi::_interface_text $ti]
                     }
                     coclass {
                         for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
