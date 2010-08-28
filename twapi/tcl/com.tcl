@@ -180,7 +180,7 @@ proc twapi::comobj_idispatch {ifc} {
 # Create an object command for a COM object from a name
 proc twapi::comobj_object {path args} {
     array set opts [parseargs args {
-        interface.arg IDispatch {IDispatch IDispatchEx}
+        {interface.arg IDispatch {IDispatch IDispatchEx}}
     } -maxleftover 0]
 
     return [comobj_idispatch [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]]
@@ -2338,6 +2338,7 @@ twapi::class create ::twapi::Automation {
     }
 
     method -default {} {
+        my variable _proxy
         return [::twapi::_variant_value [$_proxy Invoke ""]]
     }
 
@@ -2391,7 +2392,7 @@ twapi::class create ::twapi::Automation {
                     set next [$iter Next 1]
                     foreach {more values} $next break
                     if {[llength $values]} {
-                        set var [_variant_value [lindex $values 0]]
+                        set var [::twapi::_variant_value [lindex $values 0]]
                         set ret [catch {uplevel 1 $script} msg]
                         switch -exact -- $ret {
                             1 {
