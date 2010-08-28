@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, 2007 Ashok P. Nadkarni
+# Copyright (c) 2006-2010 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -292,13 +292,11 @@ proc twapi::timelist_to_variant_time {timelist} {
     return [SystemTimeToVariantTime $timelist]
 }
 
-#HERE
-
 ################################################################
 
 #
 # Test code
-proc twapi::typelib_print {path args} {
+proc twapi::TBDtypelib_print {path args} {
     array set opts [parseargs args {
         type.arg
         name.arg
@@ -2115,6 +2113,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                         # TBD - what else could it be if already filtering
                         # typeinfo on dispatch
                         # Vtable set funckind "(vtable $funcdata(-oVft))"
+                        ::twapi::debuglog "Unexpected funckind value '$funcdata(funckind)' ignored. funcdata: [array get funcdata]"
                         continue;
                     }
                     set proto [list $funcdata(memid) \
@@ -2172,7 +2171,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             ::twapi::try {
                 array set attrs [$ti @GetTypeAttr -all]
                 set docs [$ti @GetDocumentation -1 -name -docstring]
-                set desc [list "[::twapi::kl_get $docs -name] - [::twapi::kl_get $docs -docstring]"]
+                set desc "[string totitle $attrs(-typekind)] [::twapi::kl_get $docs -name] - [::twapi::kl_get $docs -docstring]\n"
                 switch -exact -- $attrs(-typekind) {
                     record -
                     union  -
@@ -2185,11 +2184,11 @@ twapi::class create ::twapi::ITypeLibProxy {
                             } else {
                                 append vardesc " (offset $vardata(-value))"
                             }
-                            lappend desc $vardesc
+                            append desc "\t$vardesc\n"
                         }
                     }
                     alias {
-                        lappend desc "typedef $attrs(-aliasdesc)"
+                        append desc "\ttypedef $attrs(-aliasdesc)\n"
                     }
                     dispatch -
                     interface {
@@ -2200,7 +2199,17 @@ twapi::class create ::twapi::ITypeLibProxy {
                             } else {
                                 set funckind "(vtable $funcdata(-vtbloffset))"
                             }
-                            lappend desc "$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]"
+                            append desc "\t$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]\n"
+                        }
+                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+                            array set vardata [$ti @GetVarDesc $j -all]
+                            set vardesc "($vardata(-memid)) $vardata(-varkind) $vardata(-datatype) $vardata(-name)"
+                            if {$attrs(-typekind) eq "enum"} {
+                                append vardesc " = $vardata(-value)"
+                            } else {
+                                append vardesc " (offset $vardata(-value))"
+                            }
+                            append desc "\t$vardesc\n"
                         }
                     }
                     coclass {
@@ -2211,16 +2220,16 @@ twapi::class create ::twapi::ITypeLibProxy {
                             if {[llength $iflags]} {
                                 append idesc " ([join $iflags ,])"
                             }
-                            lappend desc $idesc
+                            append desc \t$idesc
                             $ti2 Release
                             unset ti2
                         }
                     }
                     default {
-                        puts "Unknown typekind: $attrs(-typekind)"
+                        set desc "Unknown typekind: $attrs(-typekind)\n"
                     }
                 }
-                lappend text $attrs(-typekind) $desc
+                append text \n$desc
             } finally {
                 $ti Release
                 if {[info exists ti2]} {
@@ -2245,7 +2254,7 @@ twapi::class create ::twapi::ITypeCompProxy {
 
     # Returns empty list if bind not found
     method @Bind {name flags {lcid 0}} {
-        try {
+        ::twapi::try {
             set binding [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
         } onerror {TWAPI_WIN32 0x80028ca0} {
             # Found but type mismatch (flags not correct)
