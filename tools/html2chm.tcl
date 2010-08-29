@@ -3,6 +3,19 @@
 #
 # Example: (in the h2c directory)
 #  tclsh86t ..\html2chm.tcl -name TclWinHelp -title "Tcl for Windows"  -overwrite -tcl -noregexp -hidewarnings -compile
+#
+# To create the "integrated" Tcl documentation
+#  (1) Create a temporary directory, h2c
+#  (2) Copy twapi doc files into h2c\twapi_doc. Remember to delete any *.man
+#      *.hh*, *.chm and styles.css (keep styleschm.css). Edit the h2c.cfg
+#      to update the table of contents. (why is this necessary?)
+#  (3) Copy Tcl/Tk files from the Tcl\Tk docs to h2c\tcl-tk. Delete the
+#      .chm and .log files from there. Also delete the Keywords directory.
+#  (4) Copy tcllib documentation into h2c\tcllib_doc
+#  (5) Copy tklib documentation into h2c\tklib_doc
+#  (6) Copy h2c-*.cfg files into the respective directories
+#  (7) tclwinhelp.thml to h2c directory
+#  (8) Compile with above command
 
 package require Tcl 8.5
 package require cmdline
