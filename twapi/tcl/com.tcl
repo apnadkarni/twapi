@@ -552,22 +552,20 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
         return;                         # Object has gone away, ignore
     }
 
-    set result ""
     set retcode [catch {
         # Map dispid to event if possible
         set dispid [twapi::kl_get_default $dispidmap $dispid $dispid]
         set converted_params [list ]
         foreach param $params {
-            # Note we ask _variant_value to do AddRef since interfaces
-            # are passed as input params to the sink object, we need
-            # to AddRef if we are holding on to them.
-            lappend converted_params [_variant_value $param true true]
+            # Note we do NOT ask _variant_value to do AddRef.
+            # Called script has to do that if holding on to them.
+            lappend converted_params [_variant_value $param true]
         }
         set result [uplevel \#0 $script [list $dispid] $converted_params]
-    } msg]
+    } result]
 
     if {$::twapi::com_debug && $retcode} {
-        debuglog "Event sink callback error ($retcode): $msg\n$::errorInfo"
+        debuglog "Event sink callback error ($retcode): $result\n$::errorInfo"
     }
 
     # $retcode is returned as HRESULT by the Invoke
@@ -916,7 +914,7 @@ proc twapi::_process_start_handler {wmi_event args} {
         # First arg is a IDispatch interface of the event object
         # Create a TWAPI COM object out of it
         set ifc [lindex $args 0]
-        IUnknown_AddRef $ifc
+        IUnknown_AddRef $ifc;   # Must hold ref before creating comobj
         set event_obj [comobj_idispatch $ifc]
 
         # Get and print the Name property
@@ -940,10 +938,10 @@ proc twapi::_start_process_tracker {} {
 
     # Associate the sink with a query that polls every 1 sec for process
     # starts.
-    set sink_ifc [$::twapi::_process_event_sink -interface]
+    set sink_ifc [$::twapi::_process_event_sink -interface]; # Does AddRef
     try {
         $::twapi::_process_wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
-        # WMI will internally do a AddRef, so we can release our ref on sink_ifc
+        # WMI will internally do a AddRef, so we can release our AddRef on sink_ifc
     } finally {
         IUnknown_Release $sink_ifc
     }
@@ -972,7 +970,7 @@ proc twapi::_service_change_handler {wmi_event args} {
         # First arg is a IDispatch interface of the event object
         # Create a TWAPI COM object out of it
         set ifc [lindex $args 0]
-        IUnknown_AddRef $ifc
+        IUnknown_AddRef $ifc;   # Needed before passing to comobj
         set event_obj [twapi::comobj_idispatch $ifc]
 
         puts "Previous: [$event_obj PreviousInstance]"
