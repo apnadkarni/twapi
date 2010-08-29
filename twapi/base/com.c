@@ -1131,10 +1131,8 @@ int Twapi_IDispatch_InvokeObjCmd(
         return TCL_ERROR;
     }
 
-    if (ObjToIDispatch(interp, objv[1], &idispP) != TCL_OK &&
-        ObjToOpaque(interp, objv[1], &idispP, "IDispatchEx")) {
+    if (ObjToIDispatch(interp, objv[1], &idispP) != TCL_OK)
         return TCL_ERROR;
-    }
 
     if (Tcl_ListObjGetElements(interp, objv[2], &protoc, &protov) != TCL_OK)
         return TCL_ERROR;
@@ -2393,9 +2391,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     } else if (func < 200) {
         /* IDispatch */
         /* We accept both IDispatch and IDispatchEx interfaces here */
-        if (ObjToIDispatch(interp, objv[2], (void **)&ifc.dispatch) != TCL_OK &&
-            ObjToOpaque(interp, objv[2], (void **)&ifc.dispatch, "IDispatchEx")
-            != TCL_OK)
+        if (ObjToIDispatch(interp, objv[2], (void **)&ifc.dispatch) != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {

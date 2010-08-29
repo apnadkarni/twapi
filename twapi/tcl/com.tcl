@@ -159,7 +159,9 @@ proc twapi::comobj_null {args} {
 
 #
 # Creates an object command for a COM object from IDispatch or IDispatchEx
-# Caller 
+# Caller must hold a reference (count) to ifc that it hands off to comobj.
+# If caller wants to use ifc for its own purpose, it must do an additional
+# AddRef itself to ensure the interface is not released.
 proc twapi::comobj_idispatch {ifc} {
     if {[Twapi_IsNullPtr $ifc]} {
         return ::twapi::comobj_null
@@ -913,7 +915,9 @@ proc twapi::_process_start_handler {wmi_event args} {
     if {$wmi_event eq "OnObjectReady"} {
         # First arg is a IDispatch interface of the event object
         # Create a TWAPI COM object out of it
-        set event_obj [comobj_idispatch [lindex $args 0] true]
+        set ifc [lindex $args 0]
+        IUnknown_AddRef $ifc
+        set event_obj [comobj_idispatch $ifc]
 
         # Get and print the Name property
         puts "Process [$event_obj ProcessID] [$event_obj ProcessName] started at [clock format [large_system_time_to_secs [$event_obj TIME_CREATED]] -format {%x %X}]"
@@ -936,7 +940,13 @@ proc twapi::_start_process_tracker {} {
 
     # Associate the sink with a query that polls every 1 sec for process
     # starts.
-    $::twapi::_process_wmi ExecNotificationQueryAsync [$::twapi::_process_event_sink -interface] "select * from Win32_ProcessStartTrace"
+    set sink_ifc [$::twapi::_process_event_sink -interface]
+    try {
+        $::twapi::_process_wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
+        # WMI will internally do a AddRef, so we can release our ref on sink_ifc
+    } finally {
+        IUnknown_Release $sink_ifc
+    }
 }
 
 # Stop tracking of process starts
@@ -961,7 +971,9 @@ proc twapi::_service_change_handler {wmi_event args} {
     if {$wmi_event eq "OnObjectReady"} {
         # First arg is a IDispatch interface of the event object
         # Create a TWAPI COM object out of it
-        set event_obj [twapi::comobj_idispatch [lindex $args 0] true]
+        set ifc [lindex $args 0]
+        IUnknown_AddRef $ifc
+        set event_obj [twapi::comobj_idispatch $ifc]
 
         puts "Previous: [$event_obj PreviousInstance]"
         #puts "Target: [$event_obj -with TargetInstance State]"
@@ -1129,6 +1141,9 @@ twapi::class create ::twapi::INullProxy {
 }
 
 twapi::class create ::twapi::IUnknownProxy {
+    # Note caller must hold ref on the ifc. This ref is passed to
+    # the proxy object and caller must not make use of that ref
+    # unless it does an AddRef on it.
     constructor {ifc} {
 
         if {[::twapi::Twapi_IsNullPtr $ifc]} {
@@ -1202,6 +1217,12 @@ twapi::class create ::twapi::IUnknownProxy {
         return 0
     }
 
+    # Returns raw interface. Caller must call IUnknown_Release on it
+    method @Interface {} {
+        my variable _ifc
+        ::twapi::IUnknown_AddRef $_ifc
+        return $_ifc
+    }
 
 }
 
@@ -1332,7 +1353,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
         set ti [my @GetTypeInfo 0]
 
-        try {
+        ::twapi::try {
             # In case of dual interfaces, we need the typeinfo for the 
             # dispatch. Again, errors handled in try handlers
             switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
@@ -1385,7 +1406,7 @@ twapi::class create ::twapi::IDispatchProxy {
         }
 
         set ti [my @GetTypeInfo]
-        try {
+        ::twapi::try {
             set tl [$ti @GetContainingTypeLib]
             $tl @Foreach -guid $co_clsid -type coclass coti {
                 break
@@ -2325,7 +2346,7 @@ twapi::class create ::twapi::Automation {
         set proxy_ex [$_proxy @QueryInterface IDispatchEx]
         if {$proxy_ex eq ""} {
             set _have_dispex 0
-            return
+            error $ermsg $erinfo $ercode
         }
 
         set _have_dispex 1
@@ -2379,6 +2400,12 @@ twapi::class create ::twapi::Automation {
         return $_proxy
     }
 
+    # Returns the raw interface. Caller must call IUnknownRelease on it.
+    method -interface {} {
+        my variable _proxy
+        return [$_proxy @Interface]
+    }
+
     method -with {subobjlist args} {
         # $obj -with SUBOBJECTPATHLIST arguments
         # where SUBOBJECTPATHLIST is list each element of which is
@@ -2412,7 +2439,7 @@ twapi::class create ::twapi::Automation {
         # First get IEnumVariant iterator using the _NewEnum method
         set enumerator [my -get _NewEnum]
         # This gives us an IUnknown.
-        try {
+        ::twapi::try {
             # Convert the IUnknown to IEnumVARIANT
             set iter [$enumerator @QueryInterface IEnumVARIANT]
             if {! [$iter @Null?]} {
@@ -2452,7 +2479,7 @@ twapi::class create ::twapi::Automation {
 
         # Get the coclass typeinfo and  locate the source interface
         # within it and retrieve disp id mappings
-        try {
+        ::twapi::try {
             # TBD - where can we get co_clsid from ? Ask from caller?
             # Or part of automation class ?
             set co_clsid "";    # TBD - temp placeholder
@@ -2465,13 +2492,13 @@ twapi::class create ::twapi::Automation {
 
             # TBD - implement IConnectionPointContainerProxy
             # Now we need to get the actual connection point itself
-            set container [my QueryInterface $ifc IConnectionPointContainer]
+            set container [$_proxy QueryInterface IConnectionPointContainer]
             set connpt_ifc [::twapi::IConnectionPointContainer_FindConnectionPoint $container $srcinfo(-guid)]
 
             # Finally, create our sink object
             # TBD - need to make sure Automation object is not deleted or
             # should the callback itself check?
-            set sink_ifc [::twapi::ComEventSink $srcinfo(-guid) [list ::twapi::_eventsink_callback [self] $srcinfo(-memidmap) [lindex $args 1]]]
+            set sink_ifc [::twapi::ComEventSink $srcinfo(-guid) [list ::twapi::_eventsink_callback [self] $srcinfo(-memidmap) $script]]
 
             # OK, we finally have everything we need. Tell the event source
             set sinkid [::twapi::IConnectionPoint_Advise $connpt_ifc $sink_ifc]
@@ -2483,8 +2510,8 @@ twapi::class create ::twapi::Automation {
             # These are released only on error as otherwise they have
             # to be kept until unbind time
             foreach ifc {connpt_ifc sink_ifc} {
-                if {[info exists $x] && [set $x] ne ""} {
-                    ::twapi::IUnknown_Release [set $x]
+                if {[info exists $ifc] && [set $ifc] ne ""} {
+                    ::twapi::IUnknown_Release [set $ifc]
                 }
             }
             error $errorResult $errorInfo $errorCode
@@ -2494,7 +2521,7 @@ twapi::class create ::twapi::Automation {
             # on error
             foreach obj {coti srcti} {
                 if {[info exists $obj]} {
-                    $obj Release
+                    [set $obj] Release
                 }
             }
             if {[info exists container]} {
