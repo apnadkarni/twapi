@@ -1006,6 +1006,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     Tcl_SaveResult(me->interp, &savedresult);
     hr = Tcl_EvalObjv(me->interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
     if (hr != TCL_OK) {
+        Tcl_BackgroundError(me->interp);
         if (excepP) {
             ZeroMemory(excepP, sizeof(*excepP));
             excepP->scode = hr;
