@@ -12,7 +12,7 @@ FILETYPE VFT_DLL
             VALUE "OriginalFilename", MODULE_STR
             VALUE "CompanyName", "Ashok P. Nadkarni"
             VALUE "FileVersion", FILE_VERSION_STR
-            VALUE "LegalCopyright", "Copyright © 2009 Ashok P. Nadkarni"
+            VALUE "LegalCopyright", "Copyright © 2010 Ashok P. Nadkarni"
             VALUE "ProductName", "Tcl Windows API Extension"
             VALUE "ProductVersion", PRODUCT_VERSION_STR
         }
