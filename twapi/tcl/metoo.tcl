@@ -39,6 +39,8 @@
 #    - same syntax as TclOO
 #   destructor METHODBODY
 #    - same syntax as TclOO
+#   unknown METHODNAME ARGS
+#    - if defined, called when an undefined method is invoked
 #   superclass SUPER
 #    - inherits from SUPER. Unlike TclOO, only single inheritance. Also
 #      no checks for inheritance loops. You'll find out quickly enough!
@@ -84,7 +86,6 @@
 #   (objects) cannot be modified by adding instance-specific methods etc..
 #   Also a class is not itself an object.
 # - does not support class refinement/definition.
-# - The unknown method is not supported.
 # - no filters, forwarding, multiple-inheritance
 # - no introspection capabilities
 # - no private methods (all methods are exported).
