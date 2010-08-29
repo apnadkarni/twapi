@@ -1131,8 +1131,10 @@ int Twapi_IDispatch_InvokeObjCmd(
         return TCL_ERROR;
     }
 
-    if (ObjToIDispatch(interp, objv[1], &idispP) != TCL_OK)
+    if (ObjToIDispatch(interp, objv[1], &idispP) != TCL_OK &&
+        ObjToOpaque(interp, objv[1], &idispP, "IDispatchEx")) {
         return TCL_ERROR;
+    }
 
     if (Tcl_ListObjGetElements(interp, objv[2], &protoc, &protov) != TCL_OK)
         return TCL_ERROR;
@@ -1283,6 +1285,7 @@ int Twapi_IDispatch_InvokeObjCmd(
         status = TCL_OK;
     } else {
         /* Failure, fill in exception and return error */
+        Tcl_ResetResult(interp); /* Clear out any left-over from arg checking */
         if (hr == DISP_E_EXCEPTION) {
             Tcl_Obj *errorcode_extra; /* Extra argument for error code */
             Tcl_Obj *errorResultObj;

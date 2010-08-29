@@ -1461,11 +1461,7 @@ twapi::class create ::twapi::IDispatchExProxy {
             # Note negative results ignored, as new members may be added
             # to an IDispatchEx at any time. We will try below another way.
 
-        } onerror {TWAPI_WIN32 0x80004001} {
-            # Method not implemented
-            # Ignore the error - we will try below using another method
-        } onerror {TWAPI_WIN32 0x80004002} {
-            # Interface not supported
+        } onerror {} {
             # Ignore the error - we will try below using another method
         }
 
@@ -2303,19 +2299,53 @@ twapi::class create ::twapi::Automation {
         $_proxy Release
     }
 
+    # Intended to be called only from another method. Not directly.
+    # Does an uplevel 2 to get to application context.
+    # On failures, retries with IDispatchEx interface
+    method _invoke {name invkinds params} {
+        my variable  _proxy  _lcid
+        ::twapi::try {
+            return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params]]]
+        } onerror {} {
+            set erinfo $::errorInfo
+            set ercode $::errorCode
+            set ermsg $::errorResult
+        }
+
+        # We plan on trying to get a IDispatchEx interface in case
+        # the method/property is the "expando" type
+        my variable  _have_dispex
+        if {[info exists _have_dispex]} {
+            # We have already tried for IDispatchEx, either successfully
+            # or not. Either way, no need to try again
+            error $ermsg $erinfo $ercode
+        }
+
+        # Try getting a IDispatchEx interface
+        set proxy_ex [$_proxy @QueryInterface IDispatchEx]
+        if {$proxy_ex eq ""} {
+            set _have_dispex 0
+            return
+        }
+
+        set _have_dispex 1
+        $_proxy Release
+        set _proxy $proxy_ex
+        
+        # Retry with the IDispatchEx interface
+        return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params]]]
+    }
+
     method -get {name args} {
-        my variable _proxy   _lcid
-        return [::twapi::_variant_value [$_proxy @Invoke $name [list propget] $_lcid $args]]
+        return [my _invoke $name [list propget] $args]
     }
 
     method -set {name args} {
-        my variable _proxy   _lcid
-        return [::twapi::_variant_value [$_proxy @Invoke $name [list propput] $_lcid $args]]
+        return [my _invoke $name [list propput] $args]
     }
 
     method -call {name args} {
-        my variable _proxy   _lcid
-        return [::twapi::_variant_value [$_proxy @Invoke $name [list func] $_lcid $args]]
+        return [my _invoke $name [list func] $args]
     }
 
     method -destroy {} {
@@ -2489,8 +2519,6 @@ twapi::class create ::twapi::Automation {
     }
 
     method unknown {name args} {
-        my variable _proxy   _lcid
-
         # Try to figure out whether it is a property or method
 
         # We have to figure out if it is a property get, property put
@@ -2512,6 +2540,6 @@ twapi::class create ::twapi::Automation {
 
         # Invoke the function. We do a uplevel instead of eval
         # here so variables if any are in caller's context
-        return [::twapi::_variant_value [uplevel 1 [list $_proxy @Invoke $name $invkinds $_lcid $args]]]
+        return [my _invoke $name $invkinds $args]
     }
 }
