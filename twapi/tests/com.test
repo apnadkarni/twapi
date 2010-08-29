@@ -328,7 +328,7 @@ namespace eval twapi::shell::test {
     ###
 
     test comobj-15.0 {
-        Get a comobj interface using -queryinterface with an interface name
+        Get a interface from a comobj using -interface
     } -constraints {
         nt
     } -setup {
@@ -336,23 +336,8 @@ namespace eval twapi::shell::test {
     } -cleanup {
         $wscript -destroy
     } -body {
-        set iunk [$wscript -queryinterface IUnknown]
-        twapi::iunknown_release $iunk
-    } -result 1
-
-    ###
-
-    test comobj-15.1 {
-        Get a comobj interface using -queryinterface with an interface IID
-    } -constraints {
-        nt
-    } -setup {
-        set wscript [twapi::comobj wscript.shell]
-    } -cleanup {
-        $wscript -destroy
-    } -body {
-        set iunk [$wscript -queryinterface [twapi::name_to_iid IUnknown]]
-        twapi::iunknown_release $iunk
+        twapi::IUnknown_Release [$wscript -interface]
+        # There is one ref left from the wscript.shell object itself
     } -result 1
 
     ###
