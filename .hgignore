@@ -13,5 +13,6 @@ base/build
 doc/chm-build
 doc/website-build
 doc/website
+tools/h2c/*
 TAGS
 \#*#
