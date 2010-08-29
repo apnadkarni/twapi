@@ -1244,9 +1244,11 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
             return TCL_OK;
         }
 
-        Tcl_ResetResult(interp);
-        Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
-                         Tcl_GetString(obj), "'.", NULL);
+        if (interp) {
+            Tcl_ResetResult(interp);
+            Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
+                             Tcl_GetString(obj), "'.", NULL);
+        }
         return TCL_ERROR;
     }
 
@@ -1254,21 +1256,34 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
     if (name) {
         char *s = Tcl_GetString(objsP[1]);
         if (! STREQ(s, name)) {
-            Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
-                             name, "'.", NULL);
-            return TCL_ERROR;
+            if (interp) {
+                Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
+                                 name, "'.", NULL);
+                return TCL_ERROR;
+            }
         }
     }
     
     if (ObjToDWORD_PTR(NULL, objsP[0], &dwp) != TCL_OK) {
-        Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
-                         Tcl_GetString(objsP[0]), "'.", NULL);
+        if (interp)
+            Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
+                             Tcl_GetString(objsP[0]), "'.", NULL);
         return TCL_ERROR;
     }
     *pvP = (void*) dwp;
     return TCL_OK;
 }
 
+int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP) 
+{
+    /*
+     * Either IDispatchEx or IDispatch is acceptable. We try in that
+     * order so error message, if any will refer to IDispatch.
+     */
+    if (ObjToOpaque(NULL, obj, dispP, "IDispatchEx") == TCL_OK)
+        return TCL_OK;
+    return ObjToOpaque(interp, obj, dispP, "IDispatch");
+}
 
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 {

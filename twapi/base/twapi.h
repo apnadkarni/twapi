@@ -974,9 +974,8 @@ Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
 int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
 
 #define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch")
+int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP);
 #define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown")
-#define ObjToIDispatch(ip_, obj_, ifc_) \
-    ObjToOpaque((ip_), (obj_), (ifc_), "IDispatch")
 #define ObjToIUnknown(ip_, obj_, ifc_) \
     ObjToOpaque((ip_), (obj_), (ifc_), "IUnknown")
 
