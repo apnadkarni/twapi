@@ -61,6 +61,7 @@ proc twapi::clsid_to_progid {progid} {
 
 #
 # Get IUnknown interface for an existing active object
+# TBD - make a comobj out of this and document
 proc twapi::get_active_object {clsid} {
     return [::twapi::make_interface_proxy [GetActiveObject $clsid]]
 }
@@ -68,6 +69,7 @@ proc twapi::get_active_object {clsid} {
 #
 # Create a new object and get an interface to it
 # Generates exception if no such interface
+# TBD - document
 proc twapi::com_create_instance {clsid args} {
     array set opts [parseargs args {
         {model.arg any}
@@ -180,6 +182,8 @@ proc twapi::comobj_idispatch {ifc} {
 
 #
 # Create an object command for a COM object from a name
+# TBD - add -progid option so file can be opened with different app
+#       see "Mapping Visual Basic to Automation" in SDK help
 proc twapi::comobj_object {path args} {
     array set opts [parseargs args {
         {interface.arg IDispatch {IDispatch IDispatchEx}}
@@ -192,16 +196,11 @@ proc twapi::comobj_object {path args} {
 # Create a object command for a COM object IDispatch interface
 # comid is either a CLSID or a PROGID
 proc twapi::comobj {comid args} {
+    array set opts [parseargs args {
+        {interface.arg IDispatch {IDispatch IDispatchEx}}
+    }]
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatch -raw] $args]]
-}
-
-#
-# Create a object command for a COM object IDispatchEx interface
-# comid is either a CLSID or a PROGID
-proc twapi::comobjex {comid args} {
-    set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list com_create_instance $clsid -interface IDispatchEx] $args]]
+    return [comobj_idispatch [eval [list com_create_instance $clsid -interface $opts(interface) -raw] $args]]
 }
 
 
@@ -382,7 +381,9 @@ proc twapi::dispatch_print {di args} {
         if {[info exists ti]} {
             $ti Release
         }
-        close $outfd
+        if {$outfd ne "stdout"} {
+            close $outfd
+        }
     }
 
     return
