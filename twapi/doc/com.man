@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
-[copyright "2006-2009 Ashok P. Nadkarni"]
+[copyright "2006-2010 Ashok P. Nadkarni"]
 [moddesc "COM client support"]
 [titledesc "Commands for accessing COM servers"]
 [require twapi]
@@ -8,21 +8,57 @@
 
 [para]
 This module provides commands for supporting COM clients.
-TWAPI's COM support is limited to client side calls only and is not
-intended to compete with the OpTcl or TCOM packages. It was added
-to allow TWAPI access to some of the simpler COM based API's
-in Windows including WMI and ADSI.
+TWAPI's COM support is limited to client side calls only and does not
+provide facilities for writing COM components. Like other scripting
+languages like VBScript and Javascript, TWAPI's COM support is focused
+on Automation objects through their [cmd IDispatch] and
+[cmd IDispatchEx] interfaces. This provides the ability to script
+Windows applications such as Microsoft Office and Internet Explorer
+as well as admistrative interfaces such as Active Directory and 
+Windows Management Instrumentation.
+[para]
+This documentation assumes some familiarity with COM programming
+concepts such as COM interfaces, COM automation, 
+PROGID and CLSID identifier types etc.
 
-[section "Creation and Destruction of COM objects"]
+[section "COM API layers"]
+
+TWAPI's COM support is implemented in layers:
+[list_begin bullet]
+[bullet] At the lowest layer, TWAPI supports the raw Windows API calls
+such as [cmd IUnknown_QueryInterface] or [cmd IDispatch_Invoke]. It is
+not expected that applications will directly use these calls and
+they are not documented here. See the Windows Platform SDK for details
+of these calls.
+
+[bullet] At the next layer, TWAPI provides object wrappers
+around COM interfaces like IUnknown, IDispatch, ITypeInfo etc. They
+provide a more convenient programming interface as well as better
+efficiency by caching type information etc. They also provide access
+to type libraries and other system facilities.
+
+[bullet] The highest layer exposes COM automation servers through
+"proxy" objects created
+through the [uri \#comobj [cmd comobj]] command. All details of
+method lookup, type management and runtime dispatching are internally
+handled. The COM automation server's methods and properties are
+directly accessible to the application. In the rest of this
+documentation the proxy object and underlying COM automation object
+are both refered to as "object" unless the distinction is significant.
+
+[list_end]
+
+[section "Creation and Destruction of COM automation objects"]
 
 [para]
-A COM object can be created through the command [uri \#comobj [cmd comobj]]
+A COM automation proxy object is created through the 
+command [uri \#comobj [cmd comobj]]
 using the PROGID or CLSID of the corresponding COM class. This returns
-a Tcl command that may be used to access the object through subcommands.
-The example below creates a COM object using the PROGID for
+a Tcl object command that may be used to access the object's methods
+and properties.
+The example below creates a proxy object using the PROGID for
 Internet Explorer.
 [example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
-
 
 [para]
 Alternatively, the [uri \#comobj_object [cmd comobj_object]] command can
@@ -34,15 +70,11 @@ the following creates a COM object for an Excel file.
 When an object is no longer required, it must be explicitly destroyed
 by calling the command with the [cmd -destroy] subcommand.
 
-[section "Properties and Methods"]
+[section "Accessing Properties and Methods of Automation Objects"]
 
-The properties and methods of a COM object can be accessed as subcommands
-of the Tcl command representing that object. The names of properties and
-methods can in theory overlap. Althouth TWAPI can usually figure
-out whether a property is being retrieved/set or a method is being called,
-you can explicitly control this by using the [cmd -get], [cmd -set] or
-[cmd -call] subcommands followed by the actual name.
-
+The properties and methods of a COM object can be accessed through
+the proxy object returned by the [uri \#comobj [cmd comobj]]
+command.
 The following sequence of commands shows a sample session that drives
 Internet Explorer through its properties and methods.
 
@@ -50,11 +82,27 @@ Internet Explorer through its properties and methods.
 Start up Internet Explorer (note it will not be visible yet)
 [example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
 
-Make its window visible by changing its [var Visible] property.
+Automation objects can be associated with a default property that is
+retrieved if no property or method are specified. 
+This is the property marked
+as the default value in the COM object's IDL definition. In TWAPI this
+default property can be accessed using the [cmd -default] method
+on the object.
+
+[example "\$ie -default"]
+
+Properties can be directly retrieved and modified. For example,
+the following commands makes
+its window visible by changing its [var Visible] property.
 
 [example "\$ie Visible true"]
 
-This could also have been written as
+In theory, the names of properties and methods of an automation
+object can overlap. Althouth TWAPI can usually figure
+out whether a property is being retrieved/set or a method is being called,
+you can explicitly control this by using the [cmd -get], [cmd -set] or
+[cmd -call] subcommands followed by the actual name. So the above
+call could also have been written as
 
 [example "\$ie -set Visible true"]
 
@@ -67,52 +115,90 @@ To go to the TWAPI home page,
 invoke the [method Navigate] method
 [example "\$ie Navigate http://twapi.sf.net"]
 
-Get the [var LocationURL] property to find the URL after redirection
+[para]
+Again, we could specify this is a method call, not a property, by
+explicitly indicating that as follows:
+
+[example "\$ie -call Navigate http://twapi.sf.net"]
+
+Explicitly specifying [cmd -call] may also be required to disambiguate
+between methods that are implemented within the TWAPI [cmd comobj]
+command object and the actual COM automation object itself. For example,
+the method [uri \#destroy [cmd destroy]] destroys the command object.
+If the underlying automatio object also had a [cmd destroy] method,
+you would need to invoke it as
+
+[example "\$ie -call destroy"]
+
+
+[para]
+To continue with the example, we can read the [var LocationURL] property
+to find the URL after redirection
 [example "\$ie LocationURL"]
 
-Not specifying any parameters gets
-the default value of the object. This is the property marked
-as the default value in the COM object's IDL definition.
-[example "\$ie"]
 
 Ask the application to exit by calling its [method Quit] method.
 [example "\$ie Quit"]
 
-Finally, destroy the COM object.
-[example "\$ie -destroy"]
+Finally, destroy the proxy object and release the underlying COM object,
+[example "\$ie destroy"]
 
 [section "COM Collections"]
 
 Some COM objects are collection of items which may even
 be other COM objects. The items within
-these collections can be accessed by their index (which is not necessarily
-an integer) but it is often easier to iterate over them using
-the [cmd -iterate] operator on the collection object. The following
-example illustrates this.
+these collections can be accessed by their index
+(which is not necessarily an integer) using the [cmd Item] method
+as shown below.
 
 [example_begin]
-set fso_obj [lb]comobj Scripting.FileSystemObject[rb]
-set drives_obj [lb]$fso_obj Drives[rb]
-$drives_obj -iterate drive_obj {
-    puts [lb]$drive_obj DriveLetter[rb]
-    $drive_obj -destroy
-}
-$drives_obj -destroy
-$fso_obj -destroy
+set fso [lb]comobj Scripting.FileSystemObject[rb]
+set drives [lb]$fso Drives[rb]
+set cdrive [lb]$drives Item c:[rb]
+puts "Drive C: is [lb]lindex {{not ready} ready} [lb]$cdrive IsReady[rb][rb]"
+$cdrive -destroy
+$drives -destroy
+$fso -destroy
 [example_end]
 
-The [method Drives] method of the [var Scripting.FileSystemObject]
-returns a collection [var drives_obj]. The [cmd -iterate] operator
+In the above example, the
+[method Drives] method of the [var Scripting.FileSystemObject] object
+(implemented as an automation object by the Windows Shell)
+returns a collection [var drives]. The drive letter [const c:] is used to
+index into the collection object [cmd drives]. As an alternative to
+explicit indexing in this fashion, TWAPI provides the
+[cmd -iterate] method for iterating over all items in the collection.
+This is similar to the VBScript [cmd "For each"] statement.
+The following example illustrates this.
+
+[example_begin]
+set fso [lb]comobj Scripting.FileSystemObject[rb]
+set drives [lb]$fso Drives[rb]
+$drives -iterate drive {
+    set drive_letter [lb]$drive DriveLetter[rb]
+    if {[lb]$drive IsReady[rb]} {
+        puts "Drive $drive_letter free space: [lb]$drive FreeSpace[rb]"
+    } else {
+        puts "Drive $drive_letter is not ready."
+    }
+    $drive -destroy
+}
+$drives -destroy
+$fso -destroy
+[example_end]
+
+The [cmd -iterate] operator
 on the collection then loops through each item in the collection,
-assigning the item to [var drive_obj]. In this case, each item is
-itself a COM object from which we get the [var DriveLetter] property.
-Note that the [var drive_obj] object generated in each iteration
+assigning the item to [var drive]. In this case, each item is
+itself a COM automation object on which commands can be invoked.
+Note that the [var drive] object generated in each iteration
 has to be explicitly destroyed.
 
-[section "Navigating Objects"]
+[section "Navigating Automation Objects"]
 
-In many cases, the desired objects have to be created by navigating through
-other objects. For example, the following example sets all cells within
+In many cases, the resource represented by a COM object has to
+be accessed by navigating through multiple intermediary objects.
+For example, the following example sets all cells within
 a range in a spreadsheet to 12345.
 
 [example_begin]
@@ -139,8 +225,9 @@ worksheet within that collection and finally the cell range. After setting
 the value, all the created objects have to be deleted.
 
 [para]
-As an alternative, the [cmd -with] subcommand can be used to navigate through
-the intermediate objects as follows:
+As an alternative, TWAPI automation proxy objects
+provide the [cmd -with] internal method to simplify
+this process:
 
 [example_begin]
 set xl [lb]comobj Excel.Application[rb]
@@ -154,13 +241,13 @@ $xl -with {
 } Value 12345
 $xl -destroy
 [example_end]
-The [cmd -with] subcommand takes a list of intermediate methods and
+The [cmd -with] method takes a list of intermediate methods and
 associated parameters each of which should return a new object. Each
-element in the list is invoked on the previously created object and
-in turn should return a new COM object. The final object created
+method in the method list is invoked on the object returned by the
+previous method and should itself
+return a new object. The final object created
 from this list is passed the remaining arguments in the command.
 All intermediate objects are automatically destroyed.
-
 
 [section "COM Events"]
 
@@ -189,6 +276,62 @@ $ie -destroy
 Note that the script is unregistered using the [cmd -unbind]
 subcommand when no longer needed.
 
+[section "Interface Wrappers"]
+
+In addition to the high level [cmd comobj] based access to 
+COM automation objects, TWAPI also provides object based wrappers for certain
+standard COM interfaces. These are provided for finer control of COM
+operation when the high level [cmd comobj] does not provide enough
+flexibility. These wrapped include [cmd IUnknown], [cmd IDispatch],
+[cmd IDispatchEx], [cmd ITypeInfo], [cmd ITypeLib] and [cmd ITypeComp].
+The corresponding wrapper classes are named with a [cmd Proxy] suffix.
+For example, [cmd IUnknown] is wrapped by the class [cmd IUnknownProxy].
+[para]
+Use of the classes requires a detailed understanding of COM programming
+techniques including lifetime management of objects through reference
+counting. Individual methods of these objects are not documented here.
+See the Windows SDK for details on these.
+[para]
+In addition to the standard methods defined by these interfaces,
+the proxy wrappers also implement additional helper methods that simplify
+working with the interfaces.
+[para]
+The following illustrates how these wrappers might be used:
+[example_begin]
+set tlib [lb]get_itypelib c:/windows/system32/stdole2.tlb[rb]
+set count [lb]$tlib GetTypeInfoCount[rb]
+for {set i 0} {$i < $count} {incr i} {
+    if {[lb]$tlib GetTypeInfoType $i[rb] == 4} {
+        puts [lb]lindex [lb]$tlib GetDocumentation $i[rb] 0[rb]
+    }
+}
+$tlib Release
+[example_end]
+The example starts off by getting a [cmd ITypeLibProxy] object which
+wraps the [cmd ITypeLib] interface for the [const stdole2.tlb] type
+library. It then iterates through to print the names of dispatch interfaces
+in the type library using the [cmd ITypeLib] methods [cmd GetTypeInfoCount],
+[cmd GetTypeInfoType]
+and [cmd GetDocumentation] as documented in the Windows SDK.
+[para]
+Note the object is released by calling [cmd Release] and not its
+[cmd destroy] method. This follows standard COM methodlogy. Calling
+the [cmd destroy] method will delete the object while there might
+still be other references to it.
+[para]
+The same may be written with the [cmd @Foreach] helper method as follows:
+[example_begin]
+set tlib [lb]get_itypelib c:/windows/system32/stdole2.tlb[rb]
+$tlib @Foreach -type dispatch ti {
+    puts [lb]$ti @GetName[rb]
+    $ti Release
+}
+$tlib Release
+[example_end]
+
+The @Foreach method  passes [cmd ITypeInfoProxy] objects into the loop for
+every dispatch interface type entry in the library.
+
 [section Commands]
 
 [list_begin definitions]
@@ -203,7 +346,7 @@ InternetExplorer.Application.1
 
 [call [cmd comobj] [arg PROGID_OR_CLSID] [opt [arg options]]]
 
-Creates a COM object and returns the name of a Tcl command that can be
+Creates a COM object and returns a proxy object that can be
 used to access it. [arg PROGID_OR_CLSID] is either the PROGID or the CLSID
 for the COM object.
 
@@ -252,6 +395,14 @@ This corresponds to setting the flag
 If this option is not specified, neither of the flags is set in the
 underlying call to [cmd CoCreateInstance].
 
+[opt_def [cmd -interface] [arg IDISPATCHINTERFACE]]
+By default, the command will bind to the object's [cmd IDispatch] interface.
+If the object is known to support the [cmd IDispatchEx] interface as well,
+this option may be used to specify that should be used
+instead. [arg IDISPATCHINTERFACE] must be [cmd IDispatch] or 
+[cmd IDispatchEx].
+
+
 [opt_def [cmd -model] [arg MODELLIST]]
 Specifies which of the COM hosting models are acceptable. [arg MODELLIST]
 must be a list containing one or more of the symbols
@@ -265,10 +416,6 @@ Corresponds to the flag
 [uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_NO_CUSTOM_MARSHAL]].
 
 [list_end]
-
-[call [cmd COMOBJ]]
-Without any arguments, returns the value of the
-default property of the COM object.
 
 [call "[arg COMOBJ] [cmd NAME]" [opt "[arg parameter] ..."]]
 The command interprets [arg NAME] as a property or method name of the COM
@@ -295,6 +442,9 @@ See [sectref "COM Events"] for an example.
 [call "[arg COMOBJ] [cmd -call]" [arg METHOD] [opt "[arg parameter] ..."]]
 Calls the specified COM object method with the given parameters and returns
 the result if any.
+
+[call "[arg COMOBJ] [cmd -default]"]
+Returns the default property of the COM object.
 
 [call "[arg COMOBJ] [cmd -destroy]"]
 Destroys the COM object, removing any bindings and releasing resources.
@@ -351,6 +501,16 @@ from this list is passed the remaining arguments in the command.
 All the intermediate objects created are automatically destroyed.
 [nl]
 See [sectref "Navigating Objects"] for an example.
+
+[call [cmd comobj_object] [arg DISPLAYNAME] [opt "[cmd -interface] [cmd IDispatch]|[cmd IDispatchEx]"]]
+Creates a COM object identified by its display name [arg DISPLAYNAME]
+and returns a proxy object that can be used to access it. See
+[uri #comobj [cmd comobj]] for more details.
+[nl]
+By default, the command will bind to the object's [cmd IDispatch] interface.
+If the object is known to support the [cmd IDispatchEx] interface as well,
+the [cmd -interface] option may be used to specify that should be used
+instead.
 
 [call [cmd progid_to_clsid] [arg PROGID]]
 Returns the CLSID for a given PROGID. For example, 
