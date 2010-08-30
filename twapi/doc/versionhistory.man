@@ -14,12 +14,13 @@ Summarizes the list of changes for each version of TWAPI.
 Added support for 64-bit versions of Windows.
 
 [bullet]
-Added support for loading into multi-interpreter and multithreading.
+Added support for loading into multiple interpreters and multithreading.
 
 [bullet]
 [emph "INCOMPATIBLE CHANGE"] This version supports Windows XP or later versions
-of Windows and version 8.5 or later of Tcl. It should also run on Windows 2000
-and Tcl 8.4 but any bugs specific to these platforms will not be fixed.
+of Windows and version 8.5 or later of Tcl. It has also been tested 
+on Windows 2000 and Tcl 8.4 but any bugs specific to these platforms 
+will not be fixed.
 
 [bullet]
 [emph "INCOMPATIBLE CHANGE"] This version does not support
@@ -27,10 +28,14 @@ the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI
 and does not provide a Tclkit format distribution.
 
 [bullet]
-Added [uri installation.html "single-file DLL"] distribution.
+Added [uri installation.html "single-file DLL"] distribution that replaces
+the Tclkit format distribution.
 
 [bullet] Added support for [uri namedpipe.html "named pipe"] channels
 and [uri security.html#impersonate_namedpipe_client impersonate_namedpipe_client].
+
+[bullet] [uri com.html COM] support has been reworked and enhanced to
+include script level access to interfaces and type libraries.
 
 [bullet]
 Added [uri shell.html#shell_execute shell_execute].
