@@ -141,17 +141,22 @@ supported Tcl version.
 will also build a zipped Tcl package except that the Tcl scripts will
 be embedded in the DLL and documentation is not included.
 
+Both the above will try to include the 64-bit DLL in the 32-bit version
+to produce a single zip file runnable in either environment.
+
     nmake tmdistribution EMBED_SCRIPT=lzma
 
 will build a single file Tcl 8.5 module with scripts embedded in the DLL.
 It can be loaded using "package require twapi" in Tcl 8.5 or later.
+These are platform specific.
 
     nmake dlldistribution EMBED_SCRIPT=lzma
 
 will build a single file DLL distribution. This has to be loaded using
 the Tcl "load" command in any supported Tcl version.
+These are platform specific.
 
-In call cases, the corresponding nmake command to build the binaries
+In all cases, the corresponding nmake command to build the binaries
 as described in the previous section must have been called first.
 
 Note that starkits are no longer supported as they are superceded by
