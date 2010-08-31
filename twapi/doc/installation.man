@@ -18,25 +18,28 @@ The software is distributed in multiple forms ([arg PLATFORM]
 may be [const x86] or [const x64] for the 32- and 64-bit builds respectively):
 [list_begin bullet]
 [bullet]
-A ZIP archive, [file twapi-[arg PLATFORM]-[arg VERSION].zip], that includes 
-the Tcl scripts in source form along with the TWAPI DLL. This is best
+A ZIP archive, [file twapi-[arg VERSION].zip], that includes 
+the Tcl scripts in source form and is platform independent, containing
+both 32- and 64-bit DLLs. This is best
 suited for developers who might want access to the Tcl scripts during
-development. This distribution can be used with any version of Tcl.
+development.
 [bullet]
-A ZIP archive, [file twapi-deploy-[arg PLATFORM]-[arg VERSION].zip], in
-which the Tcl scripts are embedded within the TWAPI DLL.
+A ZIP archive, [file twapi-[arg VERSION]-bin.zip], in
+which the Tcl scripts are embedded within the DLL. This is also platform
+independent.
 [bullet]
 A single file Tcl module, [file twapi-[arg PLATFORM]-[arg VERSION].tm],
-for Tcl 8.5 and above.
+for Tcl 8.5 and above. This is platform-specific.
 [bullet]
 A standalone DLL, [file twapi-[arg PLATFORM]-[arg VERSION].dll], that can
-be directly loaded into Tcl.
+be directly loaded into Tcl. This is also platform specific.
 [list_end]
 
 [para]
 To install either ZIP distribution,
 unzip it into a directory that is included in the path contained
-in your Tcl [cmd auto_path] variable.
+in your Tcl [cmd auto_path] variable. The ZIP distributions can
+be used by both 32-bit and 64-bit Tcl from the same location.
 
 [para]
 The Tcl module distributions can be used with Tcl 8.5 or later.
@@ -55,16 +58,17 @@ Some factors to consider in choosing the distribution:
 [list_begin bullet]
 
 [bullet]
-The [file twapi-[arg PLATFORM]-[arg VERSION].zip]
+The [file twapi-[arg VERSION].zip]
 distribution is the most complete, including a test suite for
 testing the installation using Tcl's [cmd tcltest] command. It also
 makes it easy to look through or adapt the Tcl script level code if required.
 It is however the bulkiest on disk, and has a somewhat longer load
-time.
+time. It simultaneously supports both 32- and 64-bit Tcl.
 [bullet]
-The [file twapi-deploy-[arg PLATFORM]-[arg VERSION].zip] distribution
+The [file twapi-[arg VERSION]-bin.zip] distribution
 is intended for deployment into standard Tcl installations where
 the script source is not required or desired.
+It simultaneously supports both 32- and 64-bit Tcl.
 [bullet]
 The standalone DLL and the Tcl module distributions provide the convenience
 of single file deployment. The standalone DLL has the advantage of
@@ -72,7 +76,8 @@ working with Tcl 8.4 as well unlike the Tcl module which is only supported
 by Tcl 8.5 or later. On the other hand, the Tcl module is compatible with
 Tcl's [cmd "package require"] command while the standalone DLL must be
 loaded using an explicit path to the DLL. This makes it most suitable
-for customized applications.
+for customized applications. However, both these are specific to 32- or
+64-bit platforms.
 [bullet]
 The Tcl module distributions write the TWAPI DLL
 component to a temporary directory before calling the OS loader. They
@@ -89,12 +94,6 @@ in the core Tcl and in addition loads significantly faster than
 the Starkit.
 [list_end]
 
-There is no prebuilt TWAPI distribution that simultaneously supports both
-32-bit and 64-bit Tcl distributions. However, you can package one yourself
-by simply including the 64-bit TWAPI DLL in the corresponding 32-bit ZIP
-distribution. The [file pkgIndex.tcl] script will appropriately select
-the right DLL to load.
-
 [section "Loading TWAPI"]
 Once installed, all distributions, except the standalone DLL,
 can be loaded into an interpreter using the command
@@ -102,10 +101,16 @@ can be loaded into an interpreter using the command
 package require twapi
 [example_end]
 
-In the case of the standalone DLL, it must be loaded using the command
+In the case of the ZIP distributions, the 32- or 64-bit DLL will
+be loaded as appropriate. In case of the TM module, however, co-location
+of 32- and 64-bit modules is not possible.
+
+[para]
+The standalone DLL must be loaded using the command
 [example_begin]
 load [arg PATH_TO_TWAPIDLL] Twapi
 [example_end]
+where the path must point to the 32- or 64-bit DLL as appropriate.
 
 [section Commands]
 
