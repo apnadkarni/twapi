@@ -315,7 +315,7 @@ in the type library using the [cmd ITypeLib] methods [cmd GetTypeInfoCount],
 and [cmd GetDocumentation] as documented in the Windows SDK.
 [para]
 Note the object is released by calling [cmd Release] and not its
-[cmd destroy] method. This follows standard COM methodlogy. Calling
+[cmd destroy] method. This follows standard COM methodology. Calling
 the [cmd destroy] method will delete the object while there might
 still be other references to it.
 [para]
@@ -512,6 +512,38 @@ If the object is known to support the [cmd IDispatchEx] interface as well,
 the [cmd -interface] option may be used to specify that should be used
 instead.
 
+[call [cmd get_typelib_path_from_guid] [arg GUID] [arg MAJOR] [arg MINOR] [opt "[cmd -lcid] [arg LCID]"]]
+Returns the path to the type library identified
+by [arg GUID] that is registered with the system. [arg MAJOR] and [arg MINOR]
+specify the version of the libary. An optional LCID may also be specified.
+
+[call [cmd iid_to_name] [arg IID]]
+Returns the name for the interface identifier [arg IID] (a GUID).
+
+[call [cmd ITypeLibProxy_from_path] [arg PATH] [opt "[cmd -registration] [arg REGOPT]"]]
+Reads a type library from the file at [arg PATH] and 
+returns an [arg ITypeLibProxy] object for it. The type library is also
+optionally registered in the system registry. If [cmd -registration]
+is not specified or specified as [const none], the type library is not
+registered. If [arg REGOPT] is [const register], the type library
+is registered. If [arg REGOPT] is [const default], the system's default
+rules for registration are followed.
+[nl]
+The returned [arg ITypeLibProxy] object must be freed when done by calling
+its [cmd Release] method.
+
+[call [cmd ITypeLibProxy_from_guid] [arg GUID] [arg MAJOR] [arg MINOR] [opt "[cmd -lcid] [arg LCID]"]]
+Returns an [arg ITypeLibProxy] object for a type library identified
+by [arg GUID] that is registered with the system. [arg MAJOR] and [arg MINOR]
+specify the version of the libary. An optional LCID may also be specified.
+[nl]
+The returned [arg ITypeLibProxy] object must be freed when done by calling
+its [cmd Release] method.
+
+[call [cmd name_to_iid] [arg INTERFACENAME]]
+Returns the unique interface identifier (IID) for the specified
+interface name, for example [const IDispatch].
+
 [call [cmd progid_to_clsid] [arg PROGID]]
 Returns the CLSID for a given PROGID. For example, 
 [example_begin]
@@ -526,6 +558,12 @@ and the fractional part representing the time in the day. This command
 converts [arg TIMELIST] to this format. [arg TIMELIST] must be a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
+
+[call [cmd unregister_typelib] [arg GUID] [arg MAJOR] [arg MINOR] [opt "[cmd -lcid] [arg LCID]"]]
+Unregisters the type library identified by [arg GUID] with version
+[arg MAJOR].[arg MINOR] from 
+the system registry. An LCID may be optionally specified.
+
 
 [call [cmd variant_time_to_timelist] [arg DOUBLE]]
 Several COM applications store date and time information as type double

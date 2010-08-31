@@ -7,10 +7,17 @@
 
 [section "System Requirements"]
 The 32-bit builds of the [const TWAPI] extension require
-Windows 2000 or newer Windows versions and Tcl version 8.4 or later.
+[list_begin bullet]
+[bullet] Windows 2000 or later,
+[bullet] Tcl version 8.4 or later.
+[list_end]
 [para]
-The 64-bit builds of [const TWAPI] require Windows 2003 Server or newer Windows versions and Tcl version 8.5 or later.
-[para]
+The 64-bit builds of [const TWAPI] require 
+[list_begin bullet]
+[bullet] Windows 2003 Server or later,
+[bullet] Tcl version 8.5 or later.
+[list_end]
+
 For Windows NT 4.0 (SP3 or later), use TWAPI 1.1.5 or earlier releases.
 
 [section "Distribution formats"]
@@ -26,7 +33,7 @@ development.
 [bullet]
 A ZIP archive, [file twapi-[arg VERSION]-bin.zip], in
 which the Tcl scripts are embedded within the DLL. This is also platform
-independent.
+independent and simultaneuosly supports both 32- and 64-bit Tcl.
 [bullet]
 A single file Tcl module, [file twapi-[arg PLATFORM]-[arg VERSION].tm],
 for Tcl 8.5 and above. This is platform-specific.
