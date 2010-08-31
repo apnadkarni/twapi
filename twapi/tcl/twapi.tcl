@@ -1087,20 +1087,6 @@ proc twapi::_array_non_zero_switches {v_arr indices all} {
     return $result
 }
 
-# Return a list of the form "field value field value..." for all
-# fields in a SWIG generated struct
-proc twapi::swig_struct_fields {structptr structname} {
-    set result [list ]
-    foreach fieldcmd [info commands :::twapi::${structname}_*_get] {
-        if {[catch {$fieldcmd $structptr} fieldval] == 0} {
-            regexp "${structname}_(.*)_get" $fieldcmd dontcare fieldname
-            lappend result $fieldname $fieldval
-        }
-
-    }
-    return $result
-}
-
 
 # Bitmask operations on 32bit values
 # The int() casts are to deal with hex-decimal sign extension issues
@@ -1324,30 +1310,6 @@ proc twapi::get_array_as_options {v_arr} {
     return $result
 }
 
-# Note that if tcl_platform(pointerSize) does not exist (Tcl 8.4) then
-# the extension is definitely 32-bits since twapi does not support 64 bits
-# on Tcl 8.4
-if {[info exists ::tcl_platform(pointerSize)] &&
-    $::tcl_platform(pointerSize) == 8} {
-    # TBD - need more robust way
-    proc twapi::OBSOLETE_cast_swig_ptr {p newtype} {
-        # *** Does NO ERROR CHECKING ***
-        if {$p eq "NULL"} {
-            return $p
-        }
-        return "[string range $p 0 19]$newtype"
-    }
-} else {
-    proc twapi::OBSOLETE_cast_swig_ptr {p newtype} {
-        # *** Does NO ERROR CHECKING ***
-        if {$p eq "NULL"} {
-            return $p
-        }
-        return "[string range $p 0 11]$newtype"
-    }
-}
-
-
 # Parse a list of two integers or a x,y pair and return a list of two integers
 # Generate exception on format error using msg
 proc twapi::_parse_integer_pair {pair {msg "Invalid integer pair"}} {
@@ -1475,41 +1437,6 @@ proc twapi::_timelist_to_timestring {timelist} {
 # Convert a time string to a time list
 proc twapi::_timestring_to_timelist {timestring} {
     return [_seconds_to_timelist [clock scan $timestring -gmt false]]
-}
-
-# Malloc and cast. If init_size_field is non-0 first 4 bytes are set
-# to it (useful for many Windows data strucures)
-proc twapi::OBSOLETEmalloc_and_cast {size type {size_field 0}} {
-    set mem [malloc $size]
-    if {$size_field} {
-        # As an aside note that the value $size_field may not be
-        # the same as $size for some windows variable length structures
-        Twapi_WriteMemoryInt $mem 0 $size $size_field
-    }
-    return [_cast_swig_ptr $mem $type]
-}
-
-# Malloc and initialize with a binary
-proc twapi::OBSOLETEmalloc_binary {args} {
-    array set opts [parseargs args {
-        size.int
-        type.arg
-    }]
-
-    # Create a binary based on the passed arguments
-    set bin [eval [list binary format] $args]
-
-    if {![info exists opts(size)]} {
-        # No size specified, allocate length of the binary
-        set opts(size) [string length $bin]
-    }
-
-    set p [malloc $opts(size)]
-    Twapi_WriteMemoryBinary $p 0 $opts(size) $bin
-    if {[info exists opts(type)]} {
-        return [_cast_swig_ptr $p $opts(type)]
-    }
-    return $p
 }
 
 # Parse raw memory like binary scan command
