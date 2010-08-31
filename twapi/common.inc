@@ -98,4 +98,4 @@ TCLSH_TARGET = tclsh86t
 DEL           = del
 COPY          = copy /y >NUL
 RMDIR	      = rmdir /S /Q
-
+ZIP           = "$(TOOLDIR)"\zip.exe
