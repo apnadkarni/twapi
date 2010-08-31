@@ -2757,53 +2757,6 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
 }
 #endif // TWAPI_LEAN
 
-#ifdef OBSOLETE
-#ifndef TWAPI_LEAN
-int Twapi_LsaAddAccountRights(
-    Tcl_Interp *interp,
-    LSA_HANDLE policyH,
-    PSID sidP,
-    LSA_UNICODE_STRING *LSASTRINGARRAY,
-    ULONG LSASTRINGARRAYCOUNT
-)
-{
-    NTSTATUS ntstatus;
-
-    ntstatus = LsaAddAccountRights(policyH, sidP,
-                                   LSASTRINGARRAY, LSASTRINGARRAYCOUNT);
-    if (ntstatus != STATUS_SUCCESS) {
-        Tcl_SetResult(interp, "Could not add account rights: ",
-                      TCL_STATIC);
-        return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
-    }
-
-    return TCL_OK;
-}
-#endif // TWAPI_LEAN
-
-#ifndef TWAPI_LEAN
-int Twapi_LsaRemoveAccountRights(
-    Tcl_Interp *interp,
-    LSA_HANDLE policyH,
-    PSID sidP,
-    int all_rights,
-    LSA_UNICODE_STRING *LSASTRINGARRAY,
-    ULONG LSASTRINGARRAYCOUNT
-)
-{
-    NTSTATUS ntstatus;
-
-    ntstatus = LsaRemoveAccountRights(policyH, sidP, (BOOLEAN) all_rights,
-                                      LSASTRINGARRAY, LSASTRINGARRAYCOUNT);
-    if (ntstatus != STATUS_SUCCESS) {
-        Tcl_SetResult(interp, "Could not remove account rights: ", TCL_STATIC);
-        return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
-    }
-
-    return TCL_OK;
-}
-#endif // TWAPI_LEAN
-#endif // OBSOLETE
 
 #ifndef TWAPI_LEAN
 /* Note LsaEnumerateLogonSessions is present on Win2k too although not documented*/

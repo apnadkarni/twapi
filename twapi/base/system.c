@@ -27,7 +27,7 @@ int TwapiFormatMessageHelper(
 
     result = TCL_ERROR;
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER;
-#if 1
+
     /* For security reasons, MSDN recommends not to use FormatMessageW
        with arbitrary codes unless IGNORE_INSERTS is also used, in which
        case arguments are ignored and we do not need the __try. Note __try
@@ -70,20 +70,6 @@ int TwapiFormatMessageHelper(
             break;
         }
     }
-#else
-    dwFlags |= FORMAT_MESSAGE_IGNORE_INSERTS;
-    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId,
-                       (LPWSTR) &msgP,
-                       argc,
-                       (va_list *)argv /* Actually ignored (IGNORE_INSERTS) */
-            )) {
-        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
-        LocalFree(msgP);
-        result = TCL_OK;
-    } else {
-        TwapiReturnSystemError(interp);
-    }
-#endif /* OBSOLETE */
 
     return result;
 }
