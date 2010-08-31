@@ -204,8 +204,8 @@ proc twapi::comobj {comid args} {
 }
 
 
-# Return an interface to a typelib
-proc twapi::get_itypelib {path args} {
+# Return an interface to a typelib<
+proc twapi::ITypeLibProxy_from_path {path args} {
     array set opts [parseargs args {
         {registration.arg none {none register default}}
     } -maxleftover 0]
@@ -215,7 +215,7 @@ proc twapi::get_itypelib {path args} {
 
 #
 # Return an interface to a typelib from the registry
-proc twapi::get_registered_itypelib {uuid major minor args} {
+proc twapi::ITypeLibProxy_from_guid {uuid major minor args} {
     array set opts [parseargs args {
         lcid.int
     } -maxleftover 0 -nulldefault]
@@ -235,7 +235,7 @@ proc twapi::unregister_typelib {uuid major minor args} {
 
 #
 # Returns the path to the typelib based on a guid
-proc twapi::get_registered_typelib_path {guid major minor args} {
+proc twapi::get_typelib_path_from_guid {guid major minor args} {
     array set opts [parseargs args {
         lcid.int
     } -maxleftover 0 -nulldefault]
@@ -315,7 +315,7 @@ proc twapi::typelib_print {path args} {
     }
 
     try {
-        set tl [get_itypelib $path -registration none]
+        set tl [ITypeLibProxy_from_path $path -registration none]
         puts $outfd [$tl @Text -type $opts(type) -name $opts(name)]
     } finally {
         if {[info exists tl]} {
@@ -410,7 +410,7 @@ proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
         }
     } finally {
         if {[info exists ti2]} {
-            iunknown_release $ti2
+            $ti2 Release
         }
     }
 
