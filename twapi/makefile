@@ -37,6 +37,7 @@ distribution:
         -rmdir/s/q $(PACKAGEDIR)
         -mkdir $(PACKAGEDIR)
         copy LICENSE $(PACKAGEDIR)
+	copy doc\announce.txt $(PACKAGEDIR)\RELNOTES.TXT
 	cd base && $(MAKE) MAKEFLAGS=$(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
 !IF "$(MACHINE)" != "AMD64"
 # Also copy the 64bit version
