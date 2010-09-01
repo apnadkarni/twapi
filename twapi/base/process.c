@@ -40,21 +40,13 @@ BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P)
 
 /* Wrapper around NtQuerySystemInformation to process list */
 int Twapi_GetProcessList(
-    Tcl_Interp *interp,
-    DWORD dwpid,         /* If -1, get all, else get only matching pid */
-    int flags
-#define TWAPI_F_GETPROCESSLIST_STATE  1
-#define TWAPI_F_GETPROCESSLIST_NAME   2
-#define TWAPI_F_GETPROCESSLIST_PERF   4
-#define TWAPI_F_GETPROCESSLIST_VM     8
-#define TWAPI_F_GETPROCESSLIST_IO     16
-#define TWAPI_F_GETPROCESSLIST_THREAD 32
-#define TWAPI_F_GETPROCESSLIST_THREAD_PERF 64
-#define TWAPI_F_GETPROCESSLIST_THREAD_STATE 128
-    )
+    TwapiInterpContext *ticP,
+    int  objc,
+    Tcl_Obj *CONST objv[])
 {
     struct _SYSTEM_PROCESSES *processP;
-    ULONG_PTR pid = dwpid;
+    Tcl_Interp *interp = ticP->interp;
+    ULONG_PTR pid;
     int      first_iteration;
     void  *bufP;
     ULONG  bufsz;          /* Number of bytes allocated */
@@ -71,10 +63,26 @@ int Twapi_GetProcessList(
     Tcl_Obj *process_fieldObj = NULL;
     Tcl_Obj *thread_fieldObj = NULL;
     Tcl_Obj *field_and_list[2];
+    int      flags;
+#define TWAPI_F_GETPROCESSLIST_STATE  1
+#define TWAPI_F_GETPROCESSLIST_NAME   2
+#define TWAPI_F_GETPROCESSLIST_PERF   4
+#define TWAPI_F_GETPROCESSLIST_VM     8
+#define TWAPI_F_GETPROCESSLIST_IO     16
+#define TWAPI_F_GETPROCESSLIST_THREAD 32
+#define TWAPI_F_GETPROCESSLIST_THREAD_PERF 64
+#define TWAPI_F_GETPROCESSLIST_THREAD_STATE 128
     
+
     if (NtQuerySystemInformationPtr == NULL) {
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
     }
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETDWORD_PTR(pid), GETINT(flags),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
 
     /* We do not bother with MemLifo* because these are large allocations */
     /* TBD - should we use a separate heap for this to avoid fragmentation ? */
@@ -111,7 +119,7 @@ int Twapi_GetProcessList(
         this_pid = processP->ProcessId;
 
         /* Only include this process if we want all or pid matches */
-        if (dwpid == (DWORD) -1 || pid == this_pid) {
+        if (pid == (ULONG_PTR) (LONG_PTR) -1 || pid == this_pid) {
             /* List contains PID, Process info list pairs (flat list) */
             Tcl_ListObjAppendElement(interp, resultObj,
                                      ObjFromULONG_PTR(processP->ProcessId));
@@ -286,7 +294,7 @@ int Twapi_GetProcessList(
             first_iteration = 0;
 
             /* If PID was specified and we found it, all done */
-            if (dwpid != (DWORD) -1)
+            if (pid != (ULONG_PTR) (LONG_PTR) -1)
                 break;
         }
 

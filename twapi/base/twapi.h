@@ -1164,7 +1164,7 @@ void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
 
 
 /* Processes and threads */
-int Twapi_GetProcessList(Tcl_Interp *interp, DWORD pid, int flags);
+int Twapi_GetProcessList(TwapiInterpContext *, int objc, Tcl_Obj * CONST objv[]);
 int Twapi_EnumProcesses (TwapiInterpContext *ticP);
 int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP);
 int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle);

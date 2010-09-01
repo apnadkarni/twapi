@@ -572,6 +572,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_EnumResourceNames, Call, 10127);
     CALL_(Twapi_EnumResourceLanguages, Call, 10128);
     CALL_(Twapi_SplitStringResource, Call, 10129);
+    CALL_(Twapi_GetProcessList, Call, 10130);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -613,7 +614,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetBestInterface, CallU, 38);
     CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
 
-    CALL_(Twapi_GetProcessList, CallU, 1001);
     CALL_(Beep, CallU, 1002);
     CALL_(MapVirtualKey, CallU, 1003);
     CALL_(SetCaretPos, CallU, 1004);
@@ -2569,6 +2569,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_EnumResourceLanguages(interp, objc-2, objv+2);
         case 10129:
             return Twapi_SplitStringResource(interp, objc-2, objv+2);
+#ifndef TWAPI_LEAN
+        case 10130:
+            return Twapi_GetProcessList(ticP, objc-2, objv+2);
+#endif
+
         }
     }
 
@@ -2774,10 +2779,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
         switch (func) {
-#ifndef TWAPI_LEAN
-        case 1001:
-            return Twapi_GetProcessList(interp, dw, dw2);
-#endif
+//      case 1001: UNUSED            
         case 1002:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Beep(dw, dw2);
