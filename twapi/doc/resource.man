@@ -17,7 +17,13 @@ Resources are stored in Portable Executable format files (exe's and dll's).
 A resource has an associated name, type and a language.
 The name and type can be either integer values or strings.
 To retrieve a particular resource, you must know both the associated
-values, the type and the name, for that resource.
+values, the type and the name, for that resource. When a resource type
+or name is a string, it must be explicitly enclosed in quotes. For example,
+[example "::twapi::read_resource \$h 14 {\"ICON3\"} 0"]
+and not
+[example "::twapi::read_resource \$h 14 \"ICON3\" 0"]
+or
+[example "::twapi::read_resource \$h 14 ICON3 0"]
 
 [para]
 To support
