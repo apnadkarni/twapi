@@ -257,6 +257,10 @@ int Twapi_GetTwapiBuildInfo(
     objs[i++] = STRING_LITERAL_OBJ("x86");
 #endif    
     
+    if (gTwapiEmbedded) {
+        objs[i++] = STRING_LITERAL_OBJ("embedded");
+    }
+
     Tcl_SetObjResult(interp, Tcl_NewListObj(i, objs));
     return TCL_OK;
 }
