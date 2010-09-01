@@ -1,5 +1,7 @@
 <div class='news'>
 <dl>
+<dt>Sep 1, 2010:</dt>
+<dd>Tcl Windows API extension 3.0.0 (Alpha) released</dd>
 <dt>Dec 23, 2009:</dt>
 <dd>Tcl Windows API extension 2.2.3 released</dd>
 </dl>
@@ -7,7 +9,7 @@
 
 <p>
   The Tcl Windows API (TWAPI) extension
-  provides Tcl bindings to over 470 functions in the
+  provides Tcl bindings to over 500 functions in the
   Windows API.
 </p>
 <p>
@@ -16,8 +18,8 @@
   Tcl commands directly map to Windows functions as described in
   Microsoft Windows
   SDK. The recommended interface is a higher level interface
-  that is more convenient, powerful and easier to use
-  than the Windows API.
+  that is more convenient, powerful and much easier to use
+  than the raw Windows API.
 </p>
 <p>
   In combination with the built-in facilities in
@@ -37,6 +39,7 @@
   <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
   <li>Browse the <a href="http://twapi.cvs.sourceforge.net/twapi">CVS source repository</a></li>
   <li>Documentation for older versions: 
+    <a href="http://twapi.magicsplat.com/v2.2">2.2</a>
     <a href="http://twapi.magicsplat.com/v2.1">2.1</a>
     <a href="http://twapi.magicsplat.com/v2.0">2.0</a>
     <a href="http://twapi.magicsplat.com/v1.1">1.1</a>
