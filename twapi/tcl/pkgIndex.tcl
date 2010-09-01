@@ -6,6 +6,6 @@ if {$::tcl_platform(os) eq "Windows NT" &&
      $::tcl_platform(machine) eq "amd64") &&
     [string index $::tcl_platform(osVersion) 0] >= 5} {
     source [file join $dir twapi_version.tcl]
-    source [file join $dir twapi_buildinfo.tcl]
+    source [file join $dir twapi_buildid.tcl]
     package ifneeded $::twapi::package_name $twapi::patchlevel [list source [file join $dir twapi.tcl]]
 }
