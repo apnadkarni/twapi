@@ -301,6 +301,8 @@ namespace eval twapi::disk::test {
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
                 # Ignore access denied
+            } onerror {TWAPI_WIN32 50} {
+                # Ignore request not supported
             }
         }
         concat [join $result "\n"]
@@ -320,6 +322,8 @@ namespace eval twapi::disk::test {
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
                 # Ignore access denied
+            } onerror {TWAPI_WIN32 50} {
+                # Ignore request not supported
             }
         }
         concat [join $result "\n"]
@@ -358,6 +362,8 @@ namespace eval twapi::disk::test {
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
                 # Ignore access denied
+            } onerror {TWAPI_WIN32 50} {
+                # Ignore request not supported
             }
         }
         concat [join $result "\n"]
