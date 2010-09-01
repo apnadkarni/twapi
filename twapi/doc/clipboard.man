@@ -72,14 +72,17 @@ opened with the [uri \#open_clipboard [cmd open_clipboard]]
 to it. Data may be read and written using the
 [uri \#read_clipboard [cmd read_clipboard]] and
 [uri \#write_clipboard [cmd write_clipboard]]
- commands respectively. The clipboard must then be closed
+commands respectively.  If data is to be written, ownership must
+first be claimed by calling [uri #empty_clipboard [cmd empty_clipboard]]
+else the writes may not succeed.
+The clipboard must then be closed
 by calling [uri \#close_clipboard [cmd close_clipboard]].
 There may be multiple write commands between
 the clipboard open and close to store data in multiple formats.
 
 [para]
 For the simple case of reading and storing text data, the commands
-[uri \#read_clipboard_textwrite_clipboard [cmd write_clipboard]]
+[uri \#read_clipboard_text [cmd read_clipboard_text]]
 and [uri \#write_clipboard_text [cmd write_clipboard_text]] may be used.
 
 [section "Monitoring clipboard changes"]
@@ -102,6 +105,13 @@ previously opened with [uri \#open_clipboard [cmd open_clipboard]].
 
 [nl]
 [uri putclipboard.example "Example: Copy standard input to the clipboard"]
+
+[call [cmd empty_clipboard]]
+
+Empties the clipboard and claims ownership for further writes.
+The clipboard must have been
+previously opened with [uri \#open_clipboard [cmd open_clipboard]]. This
+command must be called before any writes to the clipboard.
 
 [call [cmd get_clipboard_formats]]
 Returns a list of the formats currently available in the clipboard. The
@@ -191,10 +201,13 @@ Stops a previously registered script that monitors clipboard contents.
 
 Writes [arg DATA] to the clipboard in the given format.
 The clipboard must have been previously opened through
-[uri \#open_clipboard [cmd open_clipboard]]
-and remains open when the command returns except in the case of any Tcl
-exceptions. In these cases, the clipboard is closed before the exception is
-thrown.
+[uri \#open_clipboard [cmd open_clipboard]] and ownership claimed
+through the [uri #empty_clipboard [cmd empty_clipboard]] command.
+The clipboard remains open when the command returns except in the case
+of any Tcl exceptions. In these cases, the clipboard is closed before
+the exception is thrown. This ensures other applications are not
+locked out of the clipboard on errors.
+
 [nl]
 [arg FORMAT] must be one of the clipboard formats as defined in
 [sectref "Clipboard formats"]. The content is an exact copy of the
@@ -211,9 +224,11 @@ specified in the sequence overwrites the previous contents of that format.
 
 Writes the given text string to the clipboard. The clipboard must have
 been previously opened through [uri \#open_clipboard [cmd open_clipboard]]
-and remains open when the command returns except in the case of any Tcl
-exceptions. In these cases, the clipboard is closed before the exception is
-thrown.
+and ownership obtained using [uri #empty_clipboard [cmd empty_clipboard].
+The clipboard remains open when the command returns except in the case of 
+any Tcl exceptions. In these cases, the clipboard is closed before 
+the exception is thrown. This ensures other applications are not locked
+out of the clipboard on errors.
 [nl]
 [uri putclipboard.example "Example: Copy standard input to the clipboard"]
 
