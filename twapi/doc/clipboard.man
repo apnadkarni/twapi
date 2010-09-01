@@ -224,7 +224,7 @@ specified in the sequence overwrites the previous contents of that format.
 
 Writes the given text string to the clipboard. The clipboard must have
 been previously opened through [uri \#open_clipboard [cmd open_clipboard]]
-and ownership obtained using [uri #empty_clipboard [cmd empty_clipboard].
+and ownership obtained using [uri #empty_clipboard [cmd empty_clipboard]].
 The clipboard remains open when the command returns except in the case of 
 any Tcl exceptions. In these cases, the clipboard is closed before 
 the exception is thrown. This ensures other applications are not locked
