@@ -1392,8 +1392,8 @@ namespace eval twapi::security::test {
         Get a token impersonation level (anonymous)
     } -constraints {
         nt TBD
-        TBD - once we impersonate as anonymous, we cannot open token
     } -setup {
+        # TBD - once we impersonate as anonymous, we cannot open token
         twapi::impersonate_self anonymous
         set tok [twapi::open_thread_token -access token_query]
     } -body {
@@ -1409,8 +1409,8 @@ namespace eval twapi::security::test {
         Get a token impersonation level (identification)
     } -constraints {
         nt TBD
-        TBD - once we impersonate as identification, we cannot open token
     } -setup {
+        # TBD - once we impersonate as identification, we cannot open token
         twapi::impersonate_self identification
         set tok [twapi::open_thread_token -access token_query]
     } -body {
