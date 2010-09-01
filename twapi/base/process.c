@@ -111,7 +111,7 @@ int Twapi_GetProcessList(
         this_pid = processP->ProcessId;
 
         /* Only include this process if we want all or pid matches */
-        if (pid == (ULONG_PTR) -1 || pid == this_pid) {
+        if (dwpid == (DWORD) -1 || pid == this_pid) {
             /* List contains PID, Process info list pairs (flat list) */
             Tcl_ListObjAppendElement(interp, resultObj,
                                      ObjFromULONG_PTR(processP->ProcessId));
@@ -286,7 +286,7 @@ int Twapi_GetProcessList(
             first_iteration = 0;
 
             /* If PID was specified and we found it, all done */
-            if (pid != -1)
+            if (dwpid != (DWORD) -1)
                 break;
         }
 
