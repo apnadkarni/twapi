@@ -246,6 +246,8 @@ LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /
 
 !if $(VCVER) == 6
 LOPT = $(LOPT) /debug:full /debugtype:cv 
+!else
+LOPT = $(LOPT) /debug
 !endif
 
 # Resource definitions
