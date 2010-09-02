@@ -35,10 +35,10 @@ proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
     if {$::np_echo_server_status eq "connected"} {
         while {1} {
             if {[gets $echo_fd line] >= 0} {
-                puts $echo_fd $line
                 if {$line eq "exit"} {
                     break
                 }
+                puts $echo_fd $line
                 incr msgs
                 set last_size [string length $line]
                 incr total $last_size
@@ -117,7 +117,7 @@ proc np_echo_client {args} {
     set total 0
     set fd [twapi::namedpipe_client $opts(name)]
     fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
-    for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
+    for {set i 1} {$i < $opts(limit)} {incr i [expr {1+($i+1)/$opts(density)}]} {
         set c [string index $alphabet [expr {$i % $alphalen}]]
         set request [string repeat $c $i]
         puts $fd $request
@@ -141,7 +141,6 @@ proc np_echo_client {args} {
 
 
 # Main code
-
 if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]]} {
 
     # We are being directly sourced, not as a library
@@ -152,11 +151,19 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
     switch -exact -- [lindex $argv 0] {
         syncserver {
             puts "Running syncserver"
-            foreach {nmsgs nbytes last} [eval np_echo_server_sync [lrange $argv 1 end]] break
+            if {[catch {
+                foreach {nmsgs nbytes last} [eval np_echo_server_sync [lrange $argv 1 end]] break
+            }]} {
+                puts stderr $::errorInfo
+            }
         }
         asyncserver {
             puts "Running asyncserver"
-            foreach {nmsgs nbytes last} [eval np_echo_server_async [lrange $argv 1 end]] break
+            if {[catch {
+                foreach {nmsgs nbytes last} [eval np_echo_server_async [lrange $argv 1 end]] break
+            }]} {
+                puts stderr $::errorInfo
+            }
         }
         default {
             np_echo_usage
