@@ -39,8 +39,12 @@ namespace eval twapi::pipe::test {
         Test server using blocking I/O
     } -setup {
         set control_channel [start_server test_blocking_server {
-            source npecho.tcl
-            puts [np_echo_server_sync {\\.\pipe\twapitest}]
+            if {[catch {
+                source npecho.tcl
+                puts [np_echo_server_sync {\\.\pipe\twapitest}]
+            }]} {
+                testlog $::errorInfo
+            }
         }]
 
         expect $control_channel READY 5000
@@ -61,7 +65,9 @@ namespace eval twapi::pipe::test {
         }
         set result
     } -cleanup {
-        stop_server $control_channel
+        if {[info exists control_channel]} {
+            stop_server $control_channel
+        }
     } -result ""
 
 
@@ -93,7 +99,9 @@ namespace eval twapi::pipe::test {
         }
         join $result \n
     } -cleanup {
-        stop_server $control_channel
+        if {[info exists control_channel]} {
+            stop_server $control_channel
+        }
     } -result ""
     ################################################################
 
