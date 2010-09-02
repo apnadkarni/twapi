@@ -1675,11 +1675,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
     
             if (ConvertSecurityDescriptorToStringSecurityDescriptorW(
-                    secdP, dw, dw2, &result.value.unicode.str, NULL)) {
-                // Cannot use TRT_UNICODE since buffer has to be freed
+                    secdP, dw, dw2, &s, &dw3)) {
+                /* Cannot use TRT_UNICODE since buffer has to be freed */
                 result.type = TRT_OBJ;
-                result.value.obj = Tcl_NewUnicodeObj(result.value.unicode.str, -1);
-                LocalFree(result.value.unicode.str);
+                /* Do not use dw3 as length because it seems to be size
+                   of buffer, not string length as it includes padded nulls */
+                result.value.obj = Tcl_NewUnicodeObj(s, -1);
+                LocalFree(s);
             } else
                 result.type = TRT_GETLASTERROR;
             if (secdP)
