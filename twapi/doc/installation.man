@@ -36,7 +36,9 @@ which the Tcl scripts are embedded within the DLL. This is also platform
 independent and simultaneuosly supports both 32- and 64-bit Tcl.
 [bullet]
 A single file Tcl module, [file twapi-[arg PLATFORM]-[arg VERSION].tm],
-for Tcl 8.5 and above. This is platform-specific.
+for Tcl 8.5 and above. This is platform-specific. Note the file must
+be renamed to [file twapi-[arg VERSION].tm] else the packaging system will
+not find it.
 [bullet]
 A standalone DLL, [file twapi-[arg PLATFORM]-[arg VERSION].dll], that can
 be directly loaded into Tcl. This is also platform specific.
@@ -91,7 +93,7 @@ component to a temporary directory before calling the OS loader. They
 therefore cannot be used in read-only disk environments. However, this
 writing is done only the first time a specific TWAPI build is loaded.
 The written DLL is identified by
-a GUID that is specific to every TWAPI build and not rewritten if it
+a build id that is specific to every TWAPI build and not rewritten if it
 already exists.
 [bullet]
 The standalone DLL replaces the Starkit distribution that was present

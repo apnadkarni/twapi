@@ -28,6 +28,26 @@ see http://twapi.magicsplat.com/versionhistory.html
   * new and improved bugs!
 
 
+Distributions
+-------------
+
+TWAPI is distributed in multiple formats.
+
+  * A ZIP archive, "twapi-VERSION.zip", that includes the Tcl scripts
+    (including test scripts) in source form and is platform independent,
+    containing both 32- and 64-bit DLLs.
+  * A ZIP archive, "twapi-VERSION-bin.zip", in which the Tcl scripts
+    are embedded within the DLL. This is also platform independent and
+    simultaneuosly supports both 32- and 64-bit Tcl.
+  * A single file Tcl module, "twapi-PLATFORM-VERSION.tm", for Tcl 8.5
+    and above. This is platform-specific (separate 32- and 64-bit versions)
+  * A standalone DLL, "twapi-PLATFORM-VERSION.dll", that can be
+    directly loaded into any supported version of Tcl. This is also 
+    platform specific.
+
+See http://twapi.magicsplat.com/installation.html for more details
+and the pros/cons of each distribution.
+
 TWAPI Summary
 --------------
 
