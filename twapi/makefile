@@ -46,8 +46,8 @@ distribution:
 !ENDIF
 !IF "x$(EMBED_SCRIPT)" != "xlzma" && "x$(EMBED_SCRIPT)" != "xplain"
         cd tcl && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
-        cd doc && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
-#        cd tests && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+#        cd doc && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
+        cd tests && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
 !ELSE
 	copy << $(PACKAGEDIR)\pkgIndex.tcl
 # When script is sourced, the variable $dir must contain the
