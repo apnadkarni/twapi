@@ -33,6 +33,39 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    # Monitoring test first !! Else Windows event log
+    test eventlog_monitor-1.0 {
+        Verify asynchronous monitoring of event log
+    } -constraints {
+        nt
+    } -setup {
+        set hevl [twapi::eventlog_open]
+    } -body {
+        # Note this test may sometimes fail because event log service
+        # restricts frequency of notifications to 5 sec intervals
+        # For this reason, we also test start and stop in a single test
+        set hevm [twapi::eventlog_monitor_start $hevl {append ::_vwait_result}]
+        after 1000;             # Let monitoring take effect
+        twapi::eventlog_log "eventlog_monitor test message"
+        set after_id [after 2000 {set ::_vwait_result timeout}]
+        vwait ::_vwait_result
+        after cancel $after_id
+        if {$::_vwait_result ne "timeout"} {
+            twapi::eventlog_monitor_stop $hevm
+            twapi::eventlog_log "eventlog_monitor test message"
+            # Wait at least 5 secs before logging one more message else
+            # event monitor will not generate event for it anyway
+            set after_if [after 6000 {set ::_vwait_result stopped}]
+            vwait ::_vwait_result
+            after cancel $after_id
+        }
+        set ::_vwait_result
+    } -cleanup {
+        twapi::eventlog_close $hevl
+    } -result stopped
+
+    ################################################################
+
     test eventlog_open-1.0 {
         Open the eventlog for reading using defaults
     } -constraints {
@@ -403,36 +436,6 @@ namespace eval twapi::eventlog::test {
     } -result abcdef
 
     ################################################################
-
-    test eventlog_monitor-1.0 {
-        Verify asynchronous monitoring of event log
-    } -constraints {
-        nt
-    } -setup {
-        set hevl [twapi::eventlog_open]
-    } -body {
-        # Note this test may sometimes fail because event log service
-        # restricts frequency of notifications to 5 sec intervals
-        # For this reason, we also test start and stop in a single test
-        set hevm [twapi::eventlog_monitor_start $hevl {append ::_vwait_result}]
-        after 1000;             # Let monitoring take effect
-        twapi::eventlog_log "eventlog_monitor test message"
-        set after_id [after 2000 {set ::_vwait_result timeout}]
-        vwait ::_vwait_result
-        after cancel $after_id
-        if {$::_vwait_result ne "timeout"} {
-            twapi::eventlog_monitor_stop $hevm
-            twapi::eventlog_log "eventlog_monitor test message"
-            # Wait at least 5 secs before logging one more message else
-            # event monitor will not generate event for it anyway
-            set after_if [after 6000 {set ::_vwait_result stopped}]
-            vwait ::_vwait_result
-            after cancel $after_id
-        }
-        set ::_vwait_result
-    } -cleanup {
-        twapi::eventlog_close $hevl
-    } -result stopped
 
     #
     # Clean up

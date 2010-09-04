@@ -3754,7 +3754,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::map_account_to_name [::twapi::get_security_descriptor_owner [::twapi::get_resource_security_descriptor file $::env(TEMP) -owner]]
-    } -result $::env(USERNAME)
+    }  -match regexp -result "$::env(USERNAME)|Administrators"
 
     ###
 

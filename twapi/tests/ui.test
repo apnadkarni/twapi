@@ -1459,10 +1459,10 @@ namespace eval twapi::clipboard::test {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
-        twapi::resize_window $np_win 200 300
+        twapi::resize_window $np_win 400 600
         after 100;                      # Give it time to finish
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
-        expr { ($right-$left) == 200 && ($bottom-$top) == 300 }
+        expr { ($right-$left) == 400 && ($bottom-$top) == 600 }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
     } -result 1
@@ -1477,9 +1477,9 @@ namespace eval twapi::clipboard::test {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
-        twapi::resize_window $np_win 200 300 -sync
+        twapi::resize_window $np_win 400 600 -sync
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
-        expr { ($right-$left) == 200 && ($bottom-$top) == 300 }
+        expr { ($right-$left) == 400 && ($bottom-$top) == 600 }
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
     } -result 1
