@@ -16,20 +16,11 @@ source [file join [file dirname [info script]] npecho.tcl]
 namespace eval twapi::pipe::test {
     namespace import ::tcltest::test
 
-    proc start_server {fn script} {
-        set fd [tclsh_slave_start]
-        tclsh_slave_wait $fd 2000
-        # We create a temp file and have the slave tclsh read it.
-        # We do NOT write the commands to $fd as then the slave reads
-        # from there a line at a time in async mode, causing sequential
-        # code to become non-sequential in the presence of vwaits etc.
-        puts $fd [list source [tcltest::makeFile $script $fn]]
-        flush $fd
-        return $fd
-    }
-
-   proc stop_server {fd} {
-       tclsh_slave_stop $fd
+    proc start_npecho_server {name} {
+        set control_channel [open "| [list [::tcltest::interpreter] npecho.tcl $name \\\\.\\pipe\\twapitest$name]" r+]
+        fconfigure $control_channel -blocking 0
+        expect $control_channel READY 5000
+        return $control_channel
     }
 
      ################################################################
@@ -37,25 +28,11 @@ namespace eval twapi::pipe::test {
     test pipe-server-1.0 {
         Test server using blocking I/O
     } -setup {
-        if {1} {
-            set control_channel [open "| [::tcltest::interpreter] npecho.tcl syncserver \\\\.\\pipe\\twapitest" r+]
-            fconfigure $control_channel -blocking 0
-        } else {
-            set control_channel [start_server test_blocking_server {
-                if {[catch {
-                    source npecho.tcl
-                    puts [np_echo_server_sync {\\.\pipe\twapitest}] }]} {
-                    testlog $::errorInfo
-                }
-            }]
-            
-        }
-        expect $control_channel READY 5000
-        
+        set control_channel [start_npecho_server syncserver]
     } -constraints {
         nt
     } -body {
-        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitest}] break
+        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitestsyncserver}] break
         foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
         set result ""
         if {$msgs != $msgs2} {
@@ -71,7 +48,7 @@ namespace eval twapi::pipe::test {
     } -cleanup {
         if {[info exists control_channel]} {
             close $control_channel
-            #stop_server $control_channel
+            unset control_channel
         }
     } -result ""
 
@@ -81,16 +58,11 @@ namespace eval twapi::pipe::test {
     test pipe-server-2.0 {
         Test server using non-blocking I/O
     } -setup {
-        set control_channel [start_server test_nonblocking_server {
-            source npecho.tcl
-            puts [np_echo_server_async {\\.\pipe\twapitest}]
-        }]
-
-        expect $control_channel READY 5000
+        set control_channel [start_npecho_server asyncserver]
     } -constraints {
         nt
     } -body {
-        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitest}] break
+        foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitestasyncserver}] break
         foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
         set result ""
         if {$msgs != $msgs2} {
@@ -105,7 +77,8 @@ namespace eval twapi::pipe::test {
         join $result \n
     } -cleanup {
         if {[info exists control_channel]} {
-            stop_server $control_channel
+            close $control_channel
+            unset control_channel
         }
     } -result ""
     ################################################################
