@@ -16,16 +16,15 @@ source [file join [file dirname [info script]] npecho.tcl]
 namespace eval twapi::pipe::test {
     namespace import ::tcltest::test
 
-    ::tcltest::testConstraint tcl85plus [package vsatisfies [package require Tcl] 8.5]
-
     proc start_server {fn script} {
         set fd [tclsh_slave_start]
-        tclsh_slave_wait $fd
+        tclsh_slave_wait $fd 2000
         # We create a temp file and have the slave tclsh read it.
         # We do NOT write the commands to $fd as then the slave reads
         # from there a line at a time in async mode, causing sequential
         # code to become non-sequential in the presence of vwaits etc.
         puts $fd [list source [tcltest::makeFile $script $fn]]
+        flush $fd
         return $fd
     }
 
@@ -38,16 +37,21 @@ namespace eval twapi::pipe::test {
     test pipe-server-1.0 {
         Test server using blocking I/O
     } -setup {
-        set control_channel [start_server test_blocking_server {
-            if {[catch {
-                source npecho.tcl
-                puts [np_echo_server_sync {\\.\pipe\twapitest}]
-            }]} {
-                testlog $::errorInfo
-            }
-        }]
-
+        if {1} {
+            set control_channel [open "| [::tcltest::interpreter] npecho.tcl syncserver \\\\.\\pipe\\twapitest" r+]
+            fconfigure $control_channel -blocking 0
+        } else {
+            set control_channel [start_server test_blocking_server {
+                if {[catch {
+                    source npecho.tcl
+                    puts [np_echo_server_sync {\\.\pipe\twapitest}] }]} {
+                    testlog $::errorInfo
+                }
+            }]
+            
+        }
         expect $control_channel READY 5000
+        
     } -constraints {
         nt
     } -body {
@@ -66,7 +70,8 @@ namespace eval twapi::pipe::test {
         set result
     } -cleanup {
         if {[info exists control_channel]} {
-            stop_server $control_channel
+            close $control_channel
+            #stop_server $control_channel
         }
     } -result ""
 
