@@ -1,8 +1,12 @@
 # Named pipe test routines
 
-source [file join [file dirname [info script]] testutil.tcl]
+if {[llength [info commands load_twapi]] == 0} {
+    source [file join [file dirname [info script]] testutil.tcl]
+}
 
-load_twapi
+if {[llength [info commands ::twapi::get_version]] == 0} {
+    load_twapi
+}
 
 proc np_echo_usage {} {
     puts stderr {
@@ -16,13 +20,17 @@ Usage:
 }
 
 proc np_echo_server_sync_accept {chan} {
+testlog np_echo_server_sync_accept
     set ::np_echo_server_status connected
     fileevent $chan writable {}
 }
 
 proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
+testlog np_echo_server_sync:start
     set timer [after $timeout "set ::np_echo_server_status timeout"]
+testlog "np_echo_server_sync: created pipe $name"
     set echo_fd [::twapi::namedpipe_server $name]
+
     fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
     fileevent $echo_fd writable [list ::np_echo_server_sync_accept $echo_fd]
     # Following line is important as it is used by automated test scripts
@@ -34,11 +42,12 @@ proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
     set total 0
     if {$::np_echo_server_status eq "connected"} {
         while {1} {
+testlog "np_echo_server_sync:reading $msgs"
             if {[gets $echo_fd line] >= 0} {
-                puts $echo_fd $line
                 if {$line eq "exit"} {
                     break
                 }
+                puts $echo_fd $line
                 incr msgs
                 set last_size [string length $line]
                 incr total $last_size
@@ -117,7 +126,7 @@ proc np_echo_client {args} {
     set total 0
     set fd [twapi::namedpipe_client $opts(name)]
     fconfigure $fd -buffering line -translation crlf -eofchar {} -encoding utf-8
-    for {set i 1} {$i < 100000} {incr i [expr {1+($i+1)/$opts(density)}]} {
+    for {set i 1} {$i < $opts(limit)} {incr i [expr {1+($i+1)/$opts(density)}]} {
         set c [string index $alphabet [expr {$i % $alphalen}]]
         set request [string repeat $c $i]
         puts $fd $request
@@ -141,7 +150,6 @@ proc np_echo_client {args} {
 
 
 # Main code
-
 if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]]} {
 
     # We are being directly sourced, not as a library
@@ -149,14 +157,24 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
         np_echo_usage
     }
 
+testlog $argv
+
     switch -exact -- [lindex $argv 0] {
         syncserver {
-            puts "Running syncserver"
-            foreach {nmsgs nbytes last} [eval np_echo_server_sync [lrange $argv 1 end]] break
+            testlog "Running syncserver"
+            if {[catch {
+                foreach {nmsgs nbytes last} [eval np_echo_server_sync [lrange $argv 1 end]] break
+            }]} {
+                testlog $::errorInfo
+            }
         }
         asyncserver {
-            puts "Running asyncserver"
-            foreach {nmsgs nbytes last} [eval np_echo_server_async [lrange $argv 1 end]] break
+            testlog "Running asyncserver"
+            if {[catch {
+                foreach {nmsgs nbytes last} [eval np_echo_server_async [lrange $argv 1 end]] break
+            }]} {
+                testlog $::errorInfo
+            }
         }
         default {
             np_echo_usage
