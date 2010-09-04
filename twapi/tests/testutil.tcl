@@ -415,38 +415,28 @@ proc verify_priv_list {privs} {
 # Read commands from standard input and execute them.
 # From Welch.
 proc start_commandline {} {
-    testlog "start_commandline enter"
     set ::command_line ""
     fileevent stdin readable [list eval_commandline]
     # We need a vwait for events to fire!
-    testlog "vwait on ::exit_command_loop"
     vwait ::exit_command_loop
 }
 
 proc eval_commandline {} {
-    testlog "eval_commandline enter"
     if {[eof stdin]} {
-        testlog "eval_commandline: exiting"
         exit
     }
     
     append ::command_line [gets stdin]
-    testlog "eval_commandline: command: $::command_line"
     if {[info complete $::command_line]} {
-        testlog "eval_commandline: evaluating command"
         catch {uplevel \#0 $::command_line[set ::command_line ""]} result
-        testlog "eval_commandline: command returned \"$result\""
     } else {
         # Command not complete
-        testlog "eval_commandline: appending newline to command"
         append ::command_line "\n"
     }
-    testlog "Exiting eval_commandline:"
 }
 
 # Stops the command line loop
 proc stop_commandline {} {
-    testlog "stop_commandline: enter"
     set ::exit_command_loop 1
     set ::command_line ""
     fileevent stdin readable {}
@@ -457,25 +447,61 @@ proc tclsh_slave_start {} {
     set fd [open "| [list [::tcltest::interpreter]]" r+]
     fconfigure $fd -buffering line -blocking 0 -eofchar {}
     tclsh_slave_verify_started $fd
-    puts $fd {fconfigure stdin -buffering line -eofchar {} -encoding utf-8}
-    puts $fd {fconfigure stdout -buffering line -eofchar {} -encoding utf-8}
-    puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
+    #puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
     #puts $fd start_commandline
     return $fd
 }
 proc tclsh_slave_verify_started {fd} {
     # Verify started. Note we need the puts because tclsh does
     # not output result unless it is a tty.
-    puts $fd {puts [info tclversion]}
+    puts $fd {
+        source testutil.tcl
+        if {[catch {
+            fconfigure stdout -buffering line -encoding utf-8
+            fconfigure stdin -buffering line -encoding utf-8 -eofchar {}
+            puts [info tclversion]
+            flush stdout
+        }]} {
+            testlog Error
+            testlog $::errorInfo
+        }
+    }
+
     if {[catch {
-        set ver [gets_timeout $fd 5000]
+        set ver [gets_timeout $fd 2000]
     } msg]} {
         #close $fd
+        testlog $msg
         error $msg $::errorInfo $::errorCode
     }
     if {$ver ne [info tclversion]} {
         error "Slave Tcl version $ver does not match."
     }
+
+    puts $fd {
+        if {[catch {
+            puts [info tclversion]
+            flush stdout
+        }]} {
+            testlog $::errorInfo
+        }
+    }
+    flush $fd
+
+    if {[catch {
+        set ver [gets_timeout $fd 2000]
+    } msg]} {
+        #close $fd
+        testlog $msg
+        error $msg $::errorInfo $::errorCode
+    }
+    if {$ver ne [info tclversion]} {
+        error "Slave Tcl version $ver does not match."
+    }
+
+
+
+
     return $fd
 }
 
@@ -492,6 +518,7 @@ proc gets_timeout {fd {ms 1000}} {
     while {$elapsed < $ms} {
         if {[gets $fd line] == -1} {
             if {[eof $fd]} {
+                testlog "get_timeout: unexpected eof"
                 error "Unexpected EOF reading from $fd."
             }
             after 50;           # Wait a bit and then retry
@@ -500,6 +527,7 @@ proc gets_timeout {fd {ms 1000}} {
             return $line
         }
     }
+
     error "Time out reading from $fd."
 }
 
@@ -523,7 +551,7 @@ proc expect {fd expected {ms 1000}} {
 # As long as slave keeps writing, we will keep reading.
 proc tclsh_slave_wait {fd {ms 1000}} {
     set marker "Ready: [clock clicks]"
-    puts $fd "puts {$marker}"
+    flush $fd
     set elapsed 0
     while {$elapsed < $ms} {
         set data [gets_timeout $fd $ms]
@@ -540,9 +568,9 @@ proc tclsh_slave_wait {fd {ms 1000}} {
 proc testlog {msg} {
     if {![info exists ::testlog_fd]} {
         set ::testlog_fd [open testlog-[pid].log w+]
-        set ::testlog_time [clock seconds]
+        set ::testlog_time [clock clicks]
     }
-    puts $::testlog_fd "[expr {[clock seconds]-$::testlog_time}]: $msg"
+    puts $::testlog_fd "[expr {[clock clicks]-$::testlog_time}]: $msg"
     flush $::testlog_fd
 }
 

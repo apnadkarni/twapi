@@ -1,8 +1,12 @@
 # Named pipe test routines
 
-source [file join [file dirname [info script]] testutil.tcl]
+if {[llength [info commands load_twapi]] == 0} {
+    source [file join [file dirname [info script]] testutil.tcl]
+}
 
-load_twapi
+if {[llength [info commands ::twapi::get_version]] == 0} {
+    load_twapi
+}
 
 proc np_echo_usage {} {
     puts stderr {
@@ -16,13 +20,17 @@ Usage:
 }
 
 proc np_echo_server_sync_accept {chan} {
+testlog np_echo_server_sync_accept
     set ::np_echo_server_status connected
     fileevent $chan writable {}
 }
 
 proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
+testlog np_echo_server_sync:start
     set timer [after $timeout "set ::np_echo_server_status timeout"]
+testlog "np_echo_server_sync: created pipe $name"
     set echo_fd [::twapi::namedpipe_server $name]
+
     fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8
     fileevent $echo_fd writable [list ::np_echo_server_sync_accept $echo_fd]
     # Following line is important as it is used by automated test scripts
@@ -34,6 +42,7 @@ proc np_echo_server_sync {{name {\\.\pipe\twapiecho}} {timeout 20000}} {
     set total 0
     if {$::np_echo_server_status eq "connected"} {
         while {1} {
+testlog "np_echo_server_sync:reading $msgs"
             if {[gets $echo_fd line] >= 0} {
                 if {$line eq "exit"} {
                     break
@@ -148,21 +157,23 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
         np_echo_usage
     }
 
+testlog $argv
+
     switch -exact -- [lindex $argv 0] {
         syncserver {
-            puts "Running syncserver"
+            testlog "Running syncserver"
             if {[catch {
                 foreach {nmsgs nbytes last} [eval np_echo_server_sync [lrange $argv 1 end]] break
             }]} {
-                puts stderr $::errorInfo
+                testlog $::errorInfo
             }
         }
         asyncserver {
-            puts "Running asyncserver"
+            testlog "Running asyncserver"
             if {[catch {
                 foreach {nmsgs nbytes last} [eval np_echo_server_async [lrange $argv 1 end]] break
             }]} {
-                puts stderr $::errorInfo
+                testlog $::errorInfo
             }
         }
         default {
