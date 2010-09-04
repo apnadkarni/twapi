@@ -187,6 +187,10 @@ namespace eval twapi::network::test {
         twapi::hostname_to_address [resolvable_hostname]
     } -body {
         set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
+        # Wait for 30 seconds since Windows also keep a cache and that
+        # must flush else we cannot tell if our internal cache was flushed
+        # TBD - replace with some quicker means
+        after 30000
         set nocache_lookup [time {set ipaddrs [twapi::hostname_to_address [resolvable_hostname] -flushcache]}]
         expr {[llength $ipaddrs] &&
               [validate_ip_addresses $ipaddrs] &&
@@ -222,8 +226,10 @@ namespace eval twapi::network::test {
     } -constraints {
         nt
     } -body {
-        twapi::address_to_hostname 127.0.0.1
-    } -result localhost
+        set name [twapi::address_to_hostname 127.0.0.1]
+        expr {[string equal -nocase $name localhost] ||
+              [string equal -nocase $name $::env(COMPUTERNAME)]}
+    } -result 1
 
     ###
 
@@ -265,6 +271,10 @@ namespace eval twapi::network::test {
     } -body {
         set addr [resolvable_address]
         set cache_lookup [time {twapi::address_to_hostname $addr}]
+        # Wait for 30 seconds since Windows also keep a cache and that
+        # must flush else we cannot tell if our internal cache was flushed
+        # TBD - replace with some quicker means
+        after 30000
         set nocache_lookup [time {set hostname [twapi::address_to_hostname $addr -flushcache]}]
         expr {[string match *[resolvable_address_domain] $hostname] &&
               [lindex $cache_lookup 0] < 50 &&
