@@ -889,8 +889,7 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
          */
         for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
             error = GetTcpTable(tab, &sz, sorted);
-            if (error != ERROR_INSUFFICIENT_BUFFER &&
-                error != ERROR_SUCCESS)
+            if (error != ERROR_INSUFFICIENT_BUFFER)
                 break;
             /* Retry with larger buffer */
             if (tab)
@@ -945,8 +944,7 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
          */
         for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
             error = GetUdpTable(tab, &sz, sorted);
-            if (error != ERROR_INSUFFICIENT_BUFFER &&
-                error != ERROR_SUCCESS)
+            if (error != ERROR_INSUFFICIENT_BUFFER)
                 break;
             /* Retry with larger buffer */
             if (tab)
