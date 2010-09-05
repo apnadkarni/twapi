@@ -448,7 +448,8 @@ namespace eval twapi::shell::test {
     } -constraints {
         nt
     } -body {
-        set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
+        # We choose event viewer here as that has an argument even on Vista
+        set path [file join [twapi::get_shell_folder common_admintools] "event viewer.lnk"]
         array set data [twapi::read_shortcut $path]
         set data(-args)
     } -result /s
