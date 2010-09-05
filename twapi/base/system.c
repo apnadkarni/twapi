@@ -234,7 +234,15 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
     GetSystemInfo(&sysinfo);
 
     bufsz = sizeof(SYSTEM_PROCESSOR_TIMES) * sysinfo.dwNumberOfProcessors;
+#ifdef BADCODE
+    /* On Vista and later, the system does not like it if we supply a buffer
+       larger than required. So do not update bufsz to actual allocated
+       size, just use exact size as below
+    */
     bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+#else
+    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
+#endif
     status = (*NtQuerySystemInformationPtr)(8, bufP, bufsz, &dummy);
 
     if (status == 0) {
