@@ -950,7 +950,7 @@ namespace eval ::twapi::process::test {
             error "Process ended without -force"
         }
         # Now forcibly terminate
-        twapi::end_process $notepad_pid -force -wait 100 -exitcode 3
+        twapi::end_process $notepad_pid -force -wait 500 -exitcode 3
         # TBD - how can check the exit code for the process?
         twapi::process_exists $notepad_pid
     } -result 0
@@ -1114,6 +1114,9 @@ namespace eval ::twapi::process::test {
     }
     
     ### Option tests - numeric type fields - approximate match
+    # Note when comparing values, the WMI code to get values is potentially
+    # scaled on different platforms. Hence we pass 1024 as a potential
+    # adjustment factor to the approx command.
 
     foreach field { -handlecount
         -pagefilebytes -pagefilebytespeak
@@ -1127,7 +1130,7 @@ namespace eval ::twapi::process::test {
             eval set \[twapi::get_process_info \$pid $field\]
             set checkval \[get_process_field \$pid $field\]
             set procval \[set $field\]
-            if {\[approx \$checkval \$procval\]} {
+            if {\[approx \$checkval \$procval\ 1024]} {
                 return {}
             } else {
                 return \"Mismatch in field $field (\$procval != \$checkval)\"
@@ -1474,7 +1477,7 @@ namespace eval ::twapi::process::test {
         set pid [lindex $result 0]
         after 50;                       # Wait for console process to come up
         
-        set hwins [twapi::find_windows -text "TWAPI" -pids $pid]
+        set hwins [twapi::find_windows -text "*TWAPI" -match glob -pids $pid]
         twapi::end_process $pid
 
         llength $hwins

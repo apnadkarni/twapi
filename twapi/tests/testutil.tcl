@@ -346,7 +346,22 @@ proc wmic_get {obj fields} {
 }
 
 # Return true if $a is close to $b (within 5%)
-proc approx {a b} {
+proc approx {a b {adjust 0}} {
+    if {[expr {abs($b-$a) < (max($a,$b)/20)}]} {
+        return 1
+    }
+    if {! $adjust} {
+        return 0
+    }
+
+    # Scale whichever one is smaller
+    if {$a < $b} {
+        set a [expr {$a * $adjust}]
+    } else {
+        set b [expr {$b * $adjust}]
+    }
+
+    # See if they match up after adjustment
     return [expr {abs($b-$a) < (max($a,$b)/20)}]
 }
 

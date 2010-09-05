@@ -50,7 +50,7 @@ namespace eval twapi::security::test {
              -full_name * \
              -units_per_week 168 \
              -primary_group_id 513 \
-             -status "enabled" \
+             -status "*abled" \
              -logon_server "*" \
              -country_code 0 \
              -home_dir * \
@@ -107,7 +107,8 @@ namespace eval twapi::security::test {
         expr {
               [llength [setops::symdiff [array names unameinfo] {-domain -type -sid}]] == 0 &&
               [twapi::is_valid_sid_syntax $unameinfo(-sid)] &&
-              $unameinfo(-type) == "user"
+              $unameinfo(-type) == "user" &&
+              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
           }
     } -result 1
 
@@ -153,7 +154,7 @@ namespace eval twapi::security::test {
         array set unameinfo [twapi::lookup_account_name guest -domain]
         expr {
               [array size unameinfo] == 1 &&
-              $unameinfo(-domain) == $::env(COMPUTERNAME)
+              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
           }
     } -result 1
 
@@ -338,7 +339,7 @@ namespace eval twapi::security::test {
         array set unameinfo [twapi::lookup_account_sid $guest_sid -domain]
         expr {
               [array size unameinfo] == 1 &&
-              $unameinfo(-domain) == $::env(COMPUTERNAME)
+              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
           }
     } -result 1
 
@@ -533,8 +534,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        twapi::get_current_user
-    } -result $::env(COMPUTERNAME)\\$::env(USERNAME)
+        string tolower [twapi::get_current_user]
+    } -result [string tolower $::env(COMPUTERNAME)\\$::env(USERNAME)]
 
     ###
 
@@ -1890,7 +1891,7 @@ namespace eval twapi::security::test {
               [string match -nocase "*built-in*" $uinfo(-comment)] &&
               $uinfo(-units_per_week) == 168 &&
               $uinfo(-primary_group_id) == 513 &&
-              $uinfo(-status) == "enabled" &&
+              ($uinfo(-status) == "enabled" || $uinfo(-status) == "disabled") &&
               $uinfo(-logon_server) == "\\\\*" &&
               [lsearch $uinfo(-local_groups) "Administrators"] >= 0 &&
               $uinfo(-acct_expires) == "never"
@@ -4288,9 +4289,9 @@ namespace eval twapi::security::test {
     } -constraints {
         win2k
     } -body {
-        # TBD - assumes running in session 0
+        # TBD - assumes running in session 0 or 1
         twapi::get_logon_session_info [current_logon_session] -tssession
-    } -result [list -tssession 0]
+    } -match regexp -result "-tssession (0|1)$"
 
 
     ###
