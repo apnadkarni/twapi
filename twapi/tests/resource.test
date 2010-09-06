@@ -18,6 +18,8 @@ namespace eval twapi::resource::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
+    set rctest_dll "rctest.dll"
+
     ################################################################
 
     test begin_resource_update-1.0 {
@@ -56,7 +58,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 1 6 0] H* hex
         set hex
@@ -69,7 +71,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 2 106 0] H* hex
         set hex
@@ -82,7 +84,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 3 1 0] H* hex
         set hex
@@ -96,7 +98,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 4 110 0] H* hex
         set hex
@@ -109,7 +111,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 5 101 0] H* hex
         set hex
@@ -122,7 +124,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         # NOTE this reads string BLOCK, NOT a string
         binary scan [twapi::read_resource $reslibh 6 1 0] H* hex
@@ -136,7 +138,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 9 101 0] H* hex
         set hex
@@ -149,7 +151,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 12 103 0] H* hex
         set hex
@@ -162,7 +164,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 14 102 0] H* hex
         set hex
@@ -175,7 +177,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 23 105 0] H* hex
         set hex
@@ -188,7 +190,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::read_resource $reslibh 14 {"ICON3"} 0] H* hex
         set hex
@@ -201,7 +203,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource $reslibh 6 999 0
     } -cleanup {
@@ -213,7 +215,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource $reslibh 1234 1 0
     } -cleanup {
@@ -227,7 +229,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource_string $reslibh 1 0
     } -cleanup {
@@ -239,7 +241,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource_string $reslibh 16 0
     } -cleanup {
@@ -251,7 +253,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource_string $reslibh 58117 0
     } -cleanup {
@@ -263,7 +265,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource_string $reslibh 58 0
     } -cleanup {
@@ -275,7 +277,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::read_resource_string $reslibh 999 0
     } -cleanup {
@@ -289,7 +291,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         binary scan [twapi::strings_to_resource_stringblock {{} Neutral Neutral(Default) {Neutral(Sys. Default)} Bulgarian Croatian Czech Danish Dutch(Netherlands) Dutch(Belgium) English(U.S.) English(U.K.) English(Australia) English(Canada) English(NewZealand) English(Ireland)}] H* hex
         set hex
@@ -302,7 +304,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         set bin [twapi::read_resource $reslibh 6 1 0]
         string equal $bin [twapi::strings_to_resource_stringblock [twapi::resource_stringblock_to_strings $bin]]
@@ -317,7 +319,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::resource_stringblock_to_strings [twapi::read_resource $reslibh 6 1 0]
     } -cleanup {
@@ -331,7 +333,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_types $reslibh
     } -cleanup {
@@ -345,7 +347,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 1
     } -cleanup {
@@ -357,7 +359,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 2
     } -cleanup {
@@ -370,7 +372,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 3
     } -cleanup {
@@ -382,7 +384,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 4
     } -cleanup {
@@ -394,7 +396,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 5
     } -cleanup {
@@ -406,7 +408,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 6
     } -cleanup {
@@ -418,7 +420,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 9
     } -cleanup {
@@ -430,7 +432,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 12
     } -cleanup {
@@ -442,7 +444,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 14
     } -cleanup {
@@ -454,7 +456,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 23
     } -cleanup {
@@ -466,7 +468,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_names $reslibh 999
     } -cleanup {
@@ -481,7 +483,7 @@ namespace eval twapi::resource::test {
     } -constraints {
         nt
     } -setup {
-        set reslibh [twapi::load_library rctest/rctest.dll -datafile]
+        set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
         twapi::enumerate_resource_languages $reslibh 6 1
     } -cleanup {
