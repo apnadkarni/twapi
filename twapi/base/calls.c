@@ -4233,6 +4233,7 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
             result.value.hval = MonitorFromWindow(hwnd, dw);
             break;
         case 8:
+            SetLastError(0);    /* Avoid spurious errors when checking GetLastError */
             result.value.dwp = GetWindowLongPtrW(hwnd, dw);
             if (result.value.dwp || GetLastError() == 0)
                 result.type = TRT_DWORD_PTR;
