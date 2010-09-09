@@ -24,3 +24,5 @@ nmake /s /nologo /a EMBED_SCRIPT=lzma distribution
 nmake /s /nologo /a EMBED_SCRIPT=lzma tmdistribution
 nmake /s /nologo /a EMBED_SCRIPT=lzma dlldistribution
 
+# Libraries
+cd base && nmake /s /nologo /a clean lib EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1
