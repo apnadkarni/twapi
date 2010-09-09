@@ -16,8 +16,10 @@ CONFIGFLAGS = -DTWAPI_NOSERVER -DTWAPI_LEAN
 
 !if "$(MACHINE)" == "AMD64"
 MODULE        = $(PACKAGE)64.dll
+MODULELIB     = $(PACKAGE)64.lib
 !else
 MODULE        = $(PACKAGE).dll
+MODULELIB     = $(PACKAGE).lib
 !endif
 
 # Output directories
@@ -35,6 +37,10 @@ OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
 OBJDIR = $(OBJDIR)_embed_lzma
 !ELSEIF "x$(EMBED_SCRIPT)" == "xplain"
 OBJDIR = $(OBJDIR)_embed
+!ENDIF
+
+!IF "x$(TWAPI_STATIC_BUILD)" != "x"
+OBJDIR = $(OBJDIR)_static
 !ENDIF
 
 OBJS  = \
@@ -137,6 +143,7 @@ SDK           = "c:\program files\microsoft platform sdk"
 !endif
 CC            = cl.exe
 LINK          = link.exe
+LIBTOOL       = lib.exe
 
 # TCL resources. By default, we will use 8.5 for 64-bit builds and 8.4
 # for 32-bit builds.
@@ -216,10 +223,17 @@ CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT
 
 INCFLAGS       =  -I. -I$(TCLDIR)\include
 
-CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -DUSE_TCL_STUBS -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
+CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
 !endif
+
+!IF "x$(TWAPI_STATIC_BUILD)" == "x"
+CFLAGS = $(CFLAGS) -DUSE_TCL_STUBS
+!ELSE
+CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD -DSTATIC_BUILD=1
+!ENDIF
+
 
 # Note CRT=none option does not work. When building with _WINNT_VER=0x5000
 # (ie. Win2K) the winsocket headers define inline functions that make use
@@ -236,7 +250,7 @@ CFLAGS = $(CFLAGS) /D_DLL /MD
 !ENDIF
 
 # Linker options
-# /OPT:NOWIN98 reduces code size by using 512k byte section alignment
+# /OPT:NOWIN98 reduces code size by using 512 byte section alignment
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF
 
 !IFDEF ENABLE_DELAYLOAD
@@ -287,9 +301,15 @@ $(TWAPI_SCRIPT_RESOURCE_PATH):
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !endif
 
-
 $(OBJDIR):
 	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
+
+lib: $(OBJDIR)\$(MODULELIB)
+
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) makefile
+	cd ..\tcl && nmake PACKAGEDIR="..\base\$(OBJDIR)\tcl" COMBINEOUTPUT="combined_twapi_script.lzma.raw" combine
+	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_twapi_script.lzma.raw" "$(OBJDIR)\combined_twapi_script.lzma"
+	$(LIBTOOL) /OUT:$@ $(OBJS)
 
 distribution:
         $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
