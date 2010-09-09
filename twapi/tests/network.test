@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2010, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -34,6 +34,59 @@ namespace eval twapi::network::test {
 
     proc resolvable_address_domain {} {
         return yahoo.com
+    }
+
+    # Only validates fields that are present
+    proc validate_connection {conndata} {
+        array set conn $conndata
+        # state does not exist for UDP, only TCP
+        if {[info exists conn(-state)]} {
+            if {[string is integer -strict $conn(-state)]} {
+                if {$conn(-state) <= 0 || $conn(-state) >= 13} {
+                    return "Invalid connection state $conn(-state)"
+                }
+            } else {
+                if {![info exists ::twapi::tcp_statevalues($conn(-state))]} {
+                    return "Invalid connection state $conn(-state)"
+                }
+            }
+        }
+
+        if {[info exists conn(-remoteaddr)]
+            && ![valid_ip_address $conn(-remoteaddr)]} {
+            return "Invalid remote address $conn(-remoteaddr)"
+        }
+        if {[info exists conn(-localaddr)]
+            && ![valid_ip_address $conn(-localaddr)]} {
+            return "Invalid local address $conn(-localaddr)"
+        }
+
+        if {[info exists conn(-remoteport)]} {
+            if {(![string is integer -strict $conn(-remoteport)]) ||
+                ($conn(-remoteport) < 0 || $conn(-remoteport) > 65535)} {
+                return "Invalid remote port $conn(-remoteport)"
+            }
+        }
+        if {[info exists conn(-localport)]} {
+            if {(![string is integer -strict $conn(-localport)]) ||
+                ($conn(-localport) < 0 || $conn(-localport) > 65535)} {
+                return "Invalid local port $conn(-localport)"
+            }
+        }
+        # Note on some platforms, PID not available, and empty string is
+        # returned
+        if {[info exists conn(-pid)] && $conn(-pid) ne ""} {
+            # TBD - should we do a process exist check ? But it might have
+            # gone away
+            if {(! [string is integer $conn(-pid)])
+                || $conn(-pid) < 0 || $conn(-pid) > 32000} {
+                return "Invalid PID '$conn(-pid)'"
+            }
+        }
+
+        # TBD - how and when to verify module modulepath etc.
+
+        return
     }
 
     ################################################################
@@ -339,7 +392,8 @@ namespace eval twapi::network::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_tcp_connections -all] {
+        set conns [twapi::get_tcp_connections -all]
+        verify_list_kl_fields $conns {
             -state
             -localaddr
             -remoteaddr
@@ -350,6 +404,12 @@ namespace eval twapi::network::test {
             -modulepath
             -bindtime
         }
+        set msg ""
+        foreach conn $conns {
+            set msg [validate_connection $conn]
+            if {$msg ne ""} break;
+        }
+        set msg
     } -result ""
 
     ###
@@ -369,7 +429,8 @@ namespace eval twapi::network::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_udp_connections -all] {
+        set conns [twapi::get_udp_connections -all]
+        verify_list_kl_fields $conns {
             -localaddr
             -localport
             -pid
@@ -377,6 +438,12 @@ namespace eval twapi::network::test {
             -modulepath
             -bindtime
         }
+        set msg ""
+        foreach conn $conns {
+            set msg [validate_connection $conn]
+            if {$msg ne ""} break;
+        }
+        set msg
     } -result ""
 
     ###

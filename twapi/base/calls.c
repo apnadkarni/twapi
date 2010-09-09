@@ -1583,7 +1583,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10000: // Twapi_FormatExtendedTcpTable
         case 10001: // Twapi_FormatExtendedUdpTable
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
+                             GETVOIDP(pv), GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
