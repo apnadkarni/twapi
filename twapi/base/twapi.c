@@ -69,7 +69,10 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 }
 
 /* Main entry point */
-__declspec(dllexport) int Twapi_Init(Tcl_Interp *interp)
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_Init(Tcl_Interp *interp)
 {
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
