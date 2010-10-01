@@ -947,6 +947,64 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
+    test find_physical_disks-1.0 {
+        Find physical drives in the system
+    } -constraints {
+        nt
+    } -body {
+        # TBD - how to do better checking ? This only checks for complete fail
+        expr {[llength [twapi::find_physical_disks]] > 0}
+    } -result 1
+
+    ################################################################
+    
+    test get_physical_disk_info-1.0 {
+        Get physical drive information (no options)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0]
+    } -result ""
+
+    test get_physical_disk_info-2.0 {
+        Get physical drive information (-geometry)
+    } -constraints {
+        nt
+    } -body {
+        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -geometry]
+        verify_kl_fields $vals [list -geometry]
+        verify_kl_fields [lindex $vals 1] {
+            -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+        }
+    } -result ""
+
+    test get_physical_disk_info-3.0 {
+        Get physical drive information (-layout)
+    } -constraints {
+        nt
+    } -body {
+        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -layout]
+        verify_kl_fields $vals [list -layout]
+        # TBD - verify values - remember OS version dependent
+    } -result ""
+
+    test get_physical_disk_info-4.0 {
+        Get physical drive information (-all)
+    } -constraints {
+        nt
+    } -body {
+        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -all]
+        verify_kl_fields $vals [list -layout -geometry]
+        verify_kl_fields [twapi::kl_get $vals -geometry] {
+            -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+        }
+        # TBD - verify -layout values - remember OS version dependent
+    } -result ""
+
+
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
