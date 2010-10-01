@@ -2148,6 +2148,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETINT(dw),
                              GETHANDLET(h, HDEVINFO),
                              GETNULLIFEMPTY(s2),
+                             ARGUSEDEFAULT,
                              GETVOIDP(pv),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -2182,6 +2183,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
+            u.dev.sp_device_interface_data.cbSize = sizeof(u.dev.sp_device_interface_data);
             if (SetupDiEnumDeviceInterfaces(
                     h, u.dev.sp_devinfo_dataP,  &guid,
                     dw, &u.dev.sp_device_interface_data)) {
