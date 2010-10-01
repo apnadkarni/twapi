@@ -90,7 +90,7 @@ Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP)
     Tcl_Obj *objv[3];
     objv[0] = ObjFromGUID(&sddP->ClassGuid);
     objv[1] = Tcl_NewLongObj(sddP->DevInst);
-    objv[3] = ObjFromDWORD_PTR(sddP->Reserved);
+    objv[2] = ObjFromDWORD_PTR(sddP->Reserved);
     return Tcl_NewListObj(3, objv);
 }
 
@@ -133,7 +133,7 @@ Tcl_Obj *ObjFromSP_DEVICE_INTERFACE_DATA(SP_DEVICE_INTERFACE_DATA *sdidP)
     Tcl_Obj *objv[3];
     objv[0] = ObjFromGUID(&sdidP->InterfaceClassGuid);
     objv[1] = Tcl_NewLongObj(sdidP->Flags);
-    objv[3] = ObjFromDWORD_PTR(sdidP->Reserved);
+    objv[2] = ObjFromDWORD_PTR(sdidP->Reserved);
     return Tcl_NewListObj(3, objv);
 }
 
