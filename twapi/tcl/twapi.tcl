@@ -1650,6 +1650,7 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
             power.tcl
             namedpipe.tcl
             resource.tcl
+            rds.tcl
         } {
             source [file join [file dirname [info script]] $::twapi::_field_]
         }

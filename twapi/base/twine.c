@@ -54,6 +54,8 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
     int i, n1, n2, nmin;
     Tcl_Obj *resultObj;
 
+    /* TBD - make more efficient by allocating array of Tcl_Obj* */
+
     if (Tcl_ListObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
         Tcl_ListObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
         return NULL;

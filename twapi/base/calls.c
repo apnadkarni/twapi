@@ -487,7 +487,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetSecurityInfo, Call, 10041);
     CALL_(ScrollConsoleScreenBuffer, Call, 10042);
     CALL_(WriteConsoleOutputCharacter, Call, 10043);
-    CALL_(WTSSendMessage, Call, 10044); /* TBD - tcl wrapper */
+    CALL_(WTSSendMessage, Call, 10044);
     CALL_(DuplicateTokenEx, Call, 10045);
     CALL_(ReadProcessMemory, Call, 10046);
     CALL_(Twapi_AdjustTokenPrivileges, Call, 10047);
@@ -539,8 +539,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SHInvokePrinterCommand, Call, 10094); // TBD - Tcl wrapper
     CALL_(Twapi_SHFileOperation, Call, 10095); // TBD - some more wrappers
     CALL_(Twapi_ShellExecuteEx, Call, 10096);
-    CALL_(CreateMutex, Call, 10097); /* TBD - Tcl wrapper */
-    CALL_(OpenMutex, Call, 10098); /* TBD - Tcl wrapper */
+    CALL_(CreateMutex, Call, 10097);
+    CALL_(OpenMutex, Call, 10098);
     CALL_(OpenSemaphore, Call, 10099); /* TBD - Tcl wrapper */
     CALL_(CreateSemaphore, Call, 10100); /* TBD - Tcl wrapper */
     CALL_(Twapi_ReadMemoryInt, Call, 10101);
