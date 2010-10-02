@@ -583,8 +583,10 @@ proc twapi::get_file_times {fd args} {
     set close_handle false
     if {[file exists $fd]} {
         # It's a file name
+        # 0x02000000 -> FILE_FLAG_BACKUP_SEMANTICS, always required in case 
+        # opening a directory (even if SeBackupPrivilege is not held
+        set h [create_file $fd -createdisposition open_existing -flags 0x02000000]
         set close_handle true
-        set h [create_file $fd -createdisposition open_existing]
     } elseif {[catch {fconfigure $fd}]} {
         # Not a Tcl channel, See if handle
         if {[Twapi_IsPtr $fd]} {
@@ -638,8 +640,10 @@ proc twapi::set_file_times {fd args} {
         }
 
         # It's a file name
+        # 0x02000000 -> FILE_FLAG_BACKUP_SEMANTICS, always required in case 
+        # opening a directory (even if SeBackupPrivilege is not held
+        set h [create_file $fd -access {generic_write} -createdisposition open_existing -flags 0x02000000]
         set close_handle true
-        set h [create_file $fd -access {generic_write} -createdisposition open_existing]
     } elseif {[catch {fconfigure $fd}]} {
         # Not a Tcl channel, assume a handle
         set h $fd
