@@ -802,6 +802,19 @@ namespace eval twapi::disk::test {
         close $fd
     } -result 1
 
+    ###
+
+    test get_file_times-5.0 {
+        Get all file times on a directory
+    } -constraints {
+        nt
+    } -body {
+        set fn $tcltest::temporaryDirectory
+        set times [twapi::get_file_times $fn -all]
+        verify_file_times $fn $times {-mtime -ctime -atime}
+    } -result 1
+
+
     ################################################################
 
     test set_file_times-1.0 {
@@ -944,6 +957,27 @@ namespace eval twapi::disk::test {
         # Verify that access time not changed even though we wrote the file
         expr {$fstat(mtime) >= $now && $fstat(atime) == 6000}
     } -result 1
+
+    ###
+
+    test set_file_times-8.0 {
+        Set all times on a directory
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join $tcltest::temporaryDirectory set_file_times-8.0-[clock clicks]]
+        file mkdir $fn
+    } -body {
+        set ctime [twapi::secs_since_1970_to_large_system_time 0]
+        set mtime [twapi::secs_since_1970_to_large_system_time 100]
+        set atime [twapi::secs_since_1970_to_large_system_time 200]
+        twapi::set_file_times $fn -ctime $ctime -atime $atime -mtime $mtime
+        file stat $fn fstat
+        expr {$fstat(ctime) == 0 && $fstat(mtime) == 100 && $fstat(atime) == 200}
+    } -cleanup {
+        file delete $fn
+    } -result 1
+
 
     ################################################################
 
