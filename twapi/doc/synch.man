@@ -1,0 +1,178 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Synchronization" n ""]
+[copyright "2010 Ashok P. Nadkarni"]
+[moddesc "Synchronization"]
+[titledesc "Commands related to synchronization primitives"]
+[require twapi]
+[description]
+[para]
+
+This package provides procedures related to various syncrhonization
+primitives on Windows platforms.
+
+[section "Mutexes"]
+A [emph mutex] is a synchronization object that can be used to coordinate
+mutually exclusive access to shared resources. Refer to the Windows SDK
+for details about capabilities and use.
+[para]
+Mutexes can be created using
+[uri #create_mutex [cmd create_mutex]]. Existing mutexes can be
+accessed using [uri #open_mutex [cmd open_mutex]].
+The commands [uri #lock_mutex [cmd lock_mutex]] and 
+[uri #unlock_mutex [cmd unlock_mutex]] can be used to gain and release
+ownership of the shared resource.
+
+[section "Events"]
+
+An [emph event] is a synchronization object that can be in one of two
+states - signalled and non-signalled. It is useful for notifying a
+process or thread of the occurence of some event. Refer to the Windows SDK
+for details about usage.
+[para]
+Event objects can be created through [uri #create_event [cmd create_event]]
+and their state changed using the commands
+[uri #set_event [cmd set_event]] and [uri #reset_event [cmd reset_event]].
+An application can wait on an event object to be signalled using the
+[uri #wait_on_handle [cmd wait_on_handle]] command.
+
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd cancel_wait_on_handle] [arg HANDLE]]
+Cancels any previously registered asynchronous wait on a handle that
+was registered using [uri #wait_on_handle [cmd wait_on_handle]].
+
+[call [cmd create_event] [opt [arg options]]]
+Creates an event object with the specified options and returns a
+handle to it. The following options control the event properties:
+
+[list_begin opt]
+[opt_def [cmd -inherit] [arg BOOLEAN]] If specified as [const true],
+the handle will be inherited by child processes (default [const false]).
+[opt_def [cmd -manualreset] [arg BOOLEAN]] By default, events are
+automatically reset to a non-signalled state when a thread successfully
+waits on an event. If this option is specified as [const true], the
+event remains signalled until it is explicitly reset using the
+[uri #reset_event [cmd reset_event]] command. Default is [const false].
+[opt_def [cmd -name] [arg NAME]] Specifies the name of the event. Events
+are unnamed by default.
+[opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]] Specifies a 
+[uri security.html#securitydescriptors "security descriptor"]
+for the event object. By default, a null security descriptor
+is used.
+[opt_def [cmd -signalled] [arg BOOLEAN]] If specified as [const true]
+the event object is created in a signalled state. Default is [const false].
+This option must not be specified as [const true] if the option
+[cmd -name] is also specified.
+[list_end]
+[nl]
+The returned handle can be passed to
+[uri #set_event [cmd set_event]] and
+[uri #reset_event [cmd reset_event]] to change the state of the event object.
+The application can wait for an event to be signalled by calling
+[uri #wait_on_handle [cmd wait_on_handle]].
+The handle must be closed when no longer needed by passing it
+to [uri handles.html#close_handle [cmd close_handle]].
+
+[call [cmd create_mutex] [opt [arg options]]]
+Creates a mutex object with the specified options and returns a
+handle to it. The following options control the mutex properties:
+
+[list_begin opt]
+[opt_def [cmd -inherit] [arg BOOLEAN]] If specified as [const true],
+the handle will be inherited by child processes (default [const false]).
+[opt_def [cmd -lock] [arg BOOLEAN]] If specified as [const true]
+the mutex is created in a locked state. Default is [const false].
+This option must not be specified as [const true] if the option
+[cmd -name] is also specified.
+[opt_def [cmd -name] [arg NAME]] Specifies the name of the event. Events
+are unnamed by default.
+[opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]] Specifies a 
+[uri security.html#securitydescriptors "security descriptor"]
+for the event object. By default, a null security descriptor
+is used.
+[list_end]
+[nl]
+The returned mutex handle can be passed to
+[uri #lock_mutex [cmd lock_mutex]] and
+[uri #unlock_mutex [cmd unlock_mutex]] to claim or release ownership.
+The handle must be closed when no longer needed by passing it
+to [uri handles.html#close_handle [cmd close_handle]].
+
+[call [cmd lock_mutex] [arg HANDLE] [opt "[cmd -wait] [arg MILLISECS]"]]
+Attempts to lock the mutex specified by [arg HANDLE]. Refer to
+[uri #wait_on_handle [cmd wait_on_handle]] for possible return values
+and details about the [cmd -wait] option.
+
+[call [cmd open_mutex] [opt "[cmd -access] [arg ACCESSRIGHTS]"] [opt "[cmd -inherit] [arg BOOLEAN]"]]
+Returns a handle to an existing mutex. The following options may be specfied:
+[list_begin opt]
+[opt_def [cmd -access] [arg ACCESSRIGHTS]]
+Specifies a list of desired access rights. If this option is
+not specified, access rights default to [const mutex_all_access].
+See [uri security.html#accessrights "Access Rights"] 
+for a description of the format of this
+list and for a description of standard access rights.
+[opt_def [cmd -inherit] [arg BOOLEAN]] If specified as [const true],
+the handle will be inherited by child processes (default [const false]).
+[list_end]
+The returned mutex handle can be passed to
+[uri #lock_mutex [cmd lock_mutex]] and
+[uri #unlock_mutex [cmd unlock_mutex]] to claim or release ownership.
+The handle must be closed when no longer needed by passing it
+to [uri handles.html#close_handle [cmd close_handle]].
+
+[call [cmd reset_event] [arg HANDLE]]
+Changes the state of the event object specified by [arg HANDLE] to
+be non-signalled.
+
+[call [cmd set_event] [arg HANDLE]]
+Changes the state of the event object specified by [arg HANDLE] to
+be signalled.
+
+[call [cmd unlock_mutex] [arg HANDLE]]
+Unlocks the mutex specified by [arg HANDLE].
+
+[call [cmd wait_on_handle] [arg HANDLE] [opt [arg options]]]
+The command waits on the specified [arg HANDLE] until it is either
+signalled or a timeout expires. The command can also be used for
+non-blocking asynchronous notification. [arg HANDLE] may be any
+operating system handle for which Windows supports the
+[cmd WaitForSingleObject] API.
+[nl]
+The command may return one of the following values if the
+[cmd -async] option is not specified: [const signalled], [const timeout],
+[const abandoned]. If [cmd -async] is specified, the command
+returns an empty string and the result is passed to the callback script
+instead.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -wait] [arg MILLISECS]] Specifies the number of 
+number of milliseconds to wait for the handle to be signalled.
+The default is [const -1] which indicates no timeout.
+[opt_def [cmd -async] [arg SCRIPT]] If specified, the command
+returns immediately. [arg SCRIPT] is then invoked when the handle
+is signalled or the timeout specified through [cmd -wait] has elapsed.
+Two additional arguments are appended to [arg SCRIPT] - [arg HANDLE]
+and the return value ([const signalled] etc.). Once a handle is registered
+for asynchronous notification, it must not be used for synchronous
+notification unless the asynchronous notification is first canceled through
+the [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]] command.
+If the handle was already registered for asynchronous notification,
+the previously registered script is replaced with [arg SCRIPT].
+[opt_def [cmd -executeonce] [arg BOOLEAN]]
+If this option is specified as [const true], the [arg SCRIPT] is
+executed only once, even if the object [arg HANDLE] stays in a signalled
+state. Default is [const false].
+This option is ignored if [cmd -async] is not specified.
+[list_end]
+
+
+[list_end]
+
+[keywords synchronization mutex event ]
+
+[manpage_end]
