@@ -1096,7 +1096,7 @@ process is assumed. The options [cmd -hprocess] or [cmd -pid] options
 may be used to retrieve the token for another process by passing a handle
 to it or its PID.
 [nl]
-By [cmd -access] option may be used to specify a list of desired
+The [cmd -access] option may be used to specify a list of desired
 access rights. If this option is
 not specified, access rights default to [const token_query].
 See [sectref "Access Rights"] for a description of the format of this

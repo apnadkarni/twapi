@@ -42,7 +42,7 @@ proc twapi::open_mutex {name args} {
 # Lock the mutex
 proc twapi::lock_mutex {h args} {
     array set opts [parseargs args {
-        {wait.int 1000}
+        {wait.int -1}
     }]
 
     return [wait_on_handle $h -wait $opts(wait)]
@@ -66,7 +66,7 @@ proc twapi::create_event {args} {
     } -nulldefault -maxleftover 0]
 
     if {$opts(name) ne "" && $opts(signalled)} {
-        # Note clear whether event will be signalled state if it already
+        # Not clear whether event will be signalled state if it already
         # existed but was not signalled
         error "Option -signalled must not be specified as true if event is named."
     }

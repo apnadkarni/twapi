@@ -60,6 +60,7 @@ MANFILES= \
 	nls.man \
 	printer.man \
 	device.man \
+	synch.man \
 	power.man \
 	errors.man \
 	misc.man \

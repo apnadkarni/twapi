@@ -1,4 +1,4 @@
-Development version 3.0.0 Alpha of the Tcl Windows API (TWAPI)
+Development version 3.0.3 Alpha of the Tcl Windows API (TWAPI)
 extension has been released.
 
 Project home page, including documentation, download links and 
@@ -22,6 +22,7 @@ see http://twapi.magicsplat.com/versionhistory.html
   * Enhanced COM support
   * New Vista and Windows 7 security functions including UAC
   * Device management API's
+  * Synchronization commands (3.0.3)
   * Manipulation of Windows resources (icons etc.)
   * Enhancements to many existing components
     and of course
@@ -83,6 +84,7 @@ Functions in the following areas are implemented:
   * Task scheduling
   * Shell functions for shortcuts, themes, dialogs, resources
   * Windows Installer
+  * Synchronization
   * Power management
   * Device I/O and management
   * Crypto API
