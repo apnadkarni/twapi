@@ -25,10 +25,20 @@ int Twapi_RecordArrayObjCmd(
     Tcl_Obj **fields;
     int       nfields;
     char     *cmdstr;
-    enum {RA_GET, RA_FIELD, RA_EXISTS, RA_KEYS, RA_FILTER} cmd;
+    enum {RA_GET, RA_FIELD, RA_EXISTS, RA_KEYS, RA_FILTER, RA_SLICE} cmd;
     int   cmptype;
     int (WINAPI *cmpfn) (const char *, const char *) = lstrcmpA;
     Tcl_Obj *new_ra[2];
+    Tcl_Obj **slice_fields;
+    int      nslice_fields;
+#if 0
+    Tcl_Obj **slice_renamedfields;
+#endif
+#define MAX_SLICE_WIDTH 64
+    Tcl_Obj  *slice_newfields[MAX_SLICE_WIDTH];
+    Tcl_Obj  *slice_values[MAX_SLICE_WIDTH];
+    int       slice_fieldindices[MAX_SLICE_WIDTH];
+    Tcl_Obj  *emptyObj;
 
     /*
      * A record array consists of an empty list or a list with two sublists.
@@ -61,6 +71,10 @@ int Twapi_RecordArrayObjCmd(
      *     Returns a record array containing only those records
      *     whose FIELD has value FIELDVALUE.
      *
+     *   recordarray slice RECORDARRAY FIELDS
+     *     Returns a record array containing all records but with only 
+     *     the specified fields.
+     *     
      * Following options available:
      *  -integer : compare as integer
      *  -string  : compare as string
@@ -130,6 +144,11 @@ int Twapi_RecordArrayObjCmd(
             goto badargcount;
         cmd = RA_FILTER;
         raindex = objc-3;
+    } else if (STREQ("slice", cmdstr)) {
+        if (objc != 4)
+            goto badargcount;
+        cmd = RA_SLICE;
+        raindex = 2;
     } else {
         Tcl_SetResult(interp, "Invalid command. Must be one of 'exists', 'field' or 'get'.", TCL_STATIC);
         return TCL_ERROR;
@@ -208,7 +227,10 @@ int Twapi_RecordArrayObjCmd(
     }
 
     /* Locate the key. */
-    if (keyindex != -1) {
+    if (keyindex == -1) {
+        /* Command does not operate on a key, so no need to locate */
+        i = nrecs;
+    } else {
         if (cmptype == 1) {
             if (Tcl_GetIntFromObj(interp, objv[keyindex], &integer_key) != TCL_OK)
                 return TCL_ERROR;
@@ -228,8 +250,6 @@ int Twapi_RecordArrayObjCmd(
                     break;
             }
         }
-    } else {
-        i = nrecs;
     }
 
     /* i is index of matched key, if any, or >= nrecs on no match or
@@ -350,6 +370,112 @@ int Twapi_RecordArrayObjCmd(
                 return TCL_ERROR;
             /* Note resultObj may be NULL even on TCL_OK */
         }
+        break;
+
+    case RA_SLICE:
+        /* Return a vertical slice of the array */
+
+        /* Get list of fields in current recordarray */
+        if (Tcl_ListObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
+            return TCL_ERROR;
+
+        /* Get list of fields to include in slice */
+        if (Tcl_ListObjGetElements(interp, objv[3],
+                                   &nslice_fields, &slice_fields) != TCL_OK)
+            return TCL_ERROR;
+        if (nslice_fields > MAX_SLICE_WIDTH) {
+            Tcl_SetResult(interp, "Internal limit on number of fields in recordarray slice exceeded.", TCL_STATIC);
+            return TCL_ERROR;
+        }
+
+#if 0
+        /* Get new field names, if specified, to use for the slice */
+        if (objc == 5) {
+            if (Tcl_ListObjGetElements(interp, objv[4],
+                                       &i, &slice_renamedfields) != TCL_OK)
+                return TCL_ERROR;
+            if (i != nslice_fields) {
+                Tcl_SetResult(interp, "Number of renamed fields differs from number of original fields in recordarray slice.", TCL_STATIC);
+                return TCL_ERROR;
+            }
+        } else {
+            /* Slice keeps original names */
+            slice_renamedfields = slice_fields;
+        }
+#endif
+
+        /* Figure out which columns go into the slice, and their names */
+        for (i=0; i < nslice_fields; ++i) {
+            int slen;
+            char *s;
+            Tcl_Obj **names;
+            if (Tcl_ListObjGetElements(interp, slice_fields[i], &j, &names) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            if (j == 1) {
+                /* Field name in slice is same as original */
+                slice_newfields[i] = names[0];
+            } else if (j == 2) {
+                /* Field name is to be changed */
+                slice_newfields[i] = names[1];
+            } else {
+                Tcl_SetResult(interp, "There must be just 1 or 2 elements in a slice field renaming entry.", TCL_STATIC);
+                return TCL_ERROR;
+            }
+            s = Tcl_GetStringFromObj(names[0], &slen);
+            for (j = 0; j < nfields; ++j) {
+                char *f;
+                int flen;
+                f = Tcl_GetStringFromObj(fields[j], &flen);
+                if (flen == slen && !strcmp(s, f)) {
+                    slice_fieldindices[i] = j;
+                    break;
+                }
+            }
+            if (j == nfields) {
+                Tcl_SetResult(interp, "Slice field not found in recordarray.", TCL_STATIC);
+                return TCL_ERROR;
+            }
+        }
+        /*
+         * At this point,
+         * slice_fieldindices[] maps field pos in slice to field pos in
+         *   original recordarray
+         * slice_newfields[] contains the names of the fields to
+         *   be returned in the slice.
+         * Now just loop through records and collect everything.
+         */
+
+        // Construct the sliced recordarray
+        // raObj[0] contains field names
+        // NOTE WE CANNOT JUST REUSE raobj ARRAY AND OVERWRITE raObj[1] AS
+        // raObj POINTS INTO THE LIST object. We have to use a separate array.
+        new_ra[0] = Tcl_NewListObj(nslice_fields, slice_newfields);
+        new_ra[1] = Tcl_NewListObj(0, NULL);
+        emptyObj = STRING_LITERAL_OBJ(""); /* So we don't create multiple empty objs */
+        Tcl_IncrRefCount(emptyObj);
+        for (i=0; i < nrecs; i += 2) {
+            Tcl_Obj **values;
+            int nvalues;
+            Tcl_ListObjAppendElement(interp, new_ra[1], recs[i]); // Key
+            if (Tcl_ListObjGetElements(interp, recs[i+1], &nvalues, &values)
+                != TCL_OK) {
+                return TCL_ERROR;
+            }
+
+            for (j = 0; j < nslice_fields; ++j) {
+                if (slice_fieldindices[j] >= nvalues) {
+                    slice_values[j] = emptyObj;
+                } else {
+                    slice_values[j] = values[slice_fieldindices[j]];
+                }
+            }
+            Tcl_ListObjAppendElement(interp, new_ra[1],
+                                     Tcl_NewListObj(nslice_fields, slice_values));
+        }
+        Tcl_DecrRefCount(emptyObj);
+        resultObj = Tcl_NewListObj(2, new_ra);
+        break;
     }
 
         
