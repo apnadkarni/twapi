@@ -768,7 +768,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
     CALL_(EndUpdateResource, CallH, 1020);
 
-    CALL_(WTSDisconnectionSession, CallH, 2001); /* TBD - tcl wrapper */
+    CALL_(WTSDisconnectSession, CallH, 2001);
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
     CALL_(WTSQuerySessionInformation, CallH, 2003); /* TBD - tcl wrapper */
     CALL_(GetSecurityInfo, CallH, 2004);
