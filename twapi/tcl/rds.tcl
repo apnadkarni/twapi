@@ -4,7 +4,7 @@
 #
 # See the file LICENSE for license
 
-# Remote Desktop Services
+# Remote Desktop Services - TBD - document
 
 namespace eval twapi {}
 
@@ -15,13 +15,14 @@ proc twapi::rds_enumerate_sessions {args} {
     array set opts [parseargs args {
         {hserver.arg 0}
         state.arg
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0]
 
+    set states {active connected connectquery shadow disconnected idle listen reset down init}
     if {[info exists opts(state)]} {
         if {[string is integer -strict $opts(state)]} {
             set state $opts(state)
         } else {
-            set state [lsearch -exact $opts(state) {active connected connectquery shadow disconnected idle listen reset down init}]
+            set state [lsearch -exact $states $opts(state)]
             if {$state < 0} {
                 error "Invalid value '$opts(state)' specified for -state option."
             }
@@ -34,16 +35,71 @@ proc twapi::rds_enumerate_sessions {args} {
         set sessions [recordarray filter -integer $sessions State $state]
     }
 
-    
+    set result {}
+    foreach {sess rec} [recordarray get $sessions] {
+        set state [lindex $states [kl_get $rec State]]
+        if {$state eq ""} {
+            set state [kl_get $rec State]
+        }
+        lappend result $sess [list -tssession [kl_get $rec SessionId] \
+                                  -winstaname [kl_get $rec pWinStationName] \
+                                  -state $state]
+    }
+    return $result
+}
 
+proc twapi::rds_disconnect_session args {
+    array set opts [parseargs args {
+        {hserver.arg 0}
+        {tssession.int -1}
+        {async.bool false}
+    } -maxleftover 0]
+
+    WTSDisconnectSession $opts(hserver) $opts(tssession) [expr {! $opts(async)}]
 
 }
+
+proc twapi::rds_logoff_session args {
+    array set opts [parseargs args {
+        {hserver.arg 0}
+        {tssession.int -1}
+        {async.bool false}
+    } -maxleftover 0]
+
+    WTSLogoffSession $opts(hserver) $opts(tssession) [expr {! $opts(async)}]
+}
+
+proc twapi::rds_query_session_information {infoclass args} {
+    array set opts [parseargs args {
+        {hserver.arg 0}
+        {tssession.int -1}
+    } -maxleftover 0]
+
+    return [WTSQuerySessionInformation $opts(hserver) $opts(tssession) $infoclass]
+}
+
+interp alias {} twapi::rds_get_session_appname {} twapi::rds_query_session_information 1
+interp alias {} twapi::rds_get_session_clientdir {} twapi::rds_query_session_information 11
+interp alias {} twapi::rds_get_session_clientname {} twapi::rds_query_session_information 10
+interp alias {} twapi::rds_get_session_userdomain {} twapi::rds_query_session_information 7
+interp alias {} twapi::rds_get_session_initialprogram {} twapi::rds_query_session_information 0
+interp alias {} twapi::rds_get_session_oemid {} twapi::rds_query_session_information 3
+interp alias {} twapi::rds_get_session_user {} twapi::rds_query_session_information 5
+interp alias {} twapi::rds_get_session_winsta {} twapi::rds_query_session_information 6
+interp alias {} twapi::rds_get_session_intialdir {} twapi::rds_query_session_information 2
+interp alias {} twapi::rds_get_session_clientbuild {} twapi::rds_query_session_information 9
+interp alias {} twapi::rds_get_session_clienthwid {} twapi::rds_query_session_information 13
+interp alias {} twapi::rds_get_session_state {} twapi::rds_query_session_information 8
+interp alias {} twapi::rds_get_session_id {} twapi::rds_query_session_information 4
+interp alias {} twapi::rds_get_session_productid {} twapi::rds_query_session_information 12
+interp alias {} twapi::rds_get_session_protocol {} twapi::rds_query_session_information 16
+
 
 proc twapi::rds_send_message {args} {
 
     array set opts [parseargs args {
         {hserver.arg 0}
-        {session.int -1}
+        tssession.int
         title.arg
         message.arg
         {buttons.arg ok}
@@ -115,7 +171,7 @@ proc twapi::rds_send_message {args} {
     if {$opts(foreground)} { setbits style 0x00010000 }
     if {$opts(service)} { setbits style 0x00200000 }
 
-    set response [WTSSendMessage $opts(hserver) $opts(session) $opts(title) \
+    set response [WTSSendMessage $opts(hserver) $opts(tssession) $opts(title) \
                       $opts(message) $style $opts(timeout) \
                       [expr {!$opts(async)}]]
     
