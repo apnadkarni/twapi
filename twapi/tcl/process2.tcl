@@ -485,7 +485,6 @@ proc twapi::get_multiple_process_info {pids args} {
     array set opts [parseargs args \
                         [concat [list all \
                                      pid \
-                                     handles \
                                      path \
                                      toplevels \
                                      commandline \
@@ -499,6 +498,7 @@ proc twapi::get_multiple_process_info {pids args} {
                              $pdh_rate_opts]]
 
     array set results {}
+    set now [clock seconds]
 
     # If user is requested, try getting it through terminal services
     # if possible since the token method fails on some newer platforms
@@ -508,30 +508,17 @@ proc twapi::get_multiple_process_info {pids args} {
 
     # See if any Twapi_GetProcessList options are requested and if
     # so, calculate the appropriate flags
-    set flags 0
+    set baseflags 0
     foreach opt [array names ::twapi::get_multiple_process_info_base_opts] {
         if {$opts($opt) || $opts(all)} {
-            set flags [expr {$flags | $::twapi::get_multiple_process_info_base_opts($opt)}]
+            set baseflags [expr {$baseflags | $::twapi::get_multiple_process_info_base_opts($opt)}]
         }
     }
-    if {$flags} {
-        set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
-        set precords [twapi::Twapi_GetProcessList $pidarg $flags]
-    } else {
-        set precords [list]
-    }
-
-    set now [clock seconds]
-    foreach pid $pids {
-        set result [list ]
-
-        if {$opts(all) || $opts(pid)} {
-            lappend result -pid $pid
-        }
-
-        set basedata [recordarray get -integer $precords $pid]
-
+    set basenoexistvals {}
+    if {$baseflags} {
         foreach {opt field} {
+            pid                ProcessId
+            name               ProcessName
             createtime         CreateTime
             usertime           UserTime
             privilegedtime     KernelTime
@@ -559,48 +546,66 @@ proc twapi::get_multiple_process_info {pids args} {
             tssession          SessionId
         } {
             if {$opts($opt) || $opts(all)} {
-                lappend result -$opt [kl_get $basedata $field $opts(noexist)]
+                lappend basefields [list $field -$opt]
+                lappend basenoexistvals -$opt $opts(noexist)
             }
         }
+        set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
+        set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
+        if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
+            array set baserawdata [recordarray get $data]
+        }
+        if {[info exists basefields]} {
+            array set results [recordarray get [recordarray slice $data $basefields]]
+        }
+        # Fix up system idle process names
+        if {$opts(all) || $opts(name)} {
+            if {[info exists results(0)]} {
+                set results(0) [kl_set $results(0) -name "System Idle Process"]
+            }
+        }
+    } else {
+        array set results {}
+    }
 
-        if {$opts(elapsedtime) || $opts(all)} {
-            set elapsed [twapi::kl_get $basedata CreateTime 0]
-            if {$elapsed} {
-                lappend result -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
+    set requested_token_opts {}
+    foreach opt {elevation integrity groups primarygroup privileges logonsession virtualized} {
+        if {$opts(all) || $opts($opt)} {
+            lappend requested_token_opts -$opt
+        }
+    }
+
+    foreach pid $pids {
+        # If base values were requested, but this pid does not exist
+        # use the "noexist" values
+        if {![info exists results($pid)]} {
+            if {$opts(all) || $opts(pid)} {
+                set results($pid) [kl_set $basenoexistvals -pid $pid]
             } else {
-                lappend result -elapsedtime $opts(noexist)
+                set results($pid) $basenoexistvals
+            }
+        }
+        
+        if {$opts(elapsedtime) || $opts(all)} {
+            if {[info exists baserawdata($pid)]} {
+                set elapsed [twapi::kl_get $baserawdata($pid) CreateTime]
+                lappend results($pid) -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
+            } else {
+                lappend results($pid) -elapsedtime $opts(noexist)
             }
         }
 
         if {$opts(tids) || $opts(all)} {
-            set tids [recordarray keys [kl_get $basedata Threads {}]]
-            if {[llength $tids]} {
-                lappend result -tids $tids
+            if {[info exists baserawdata($pid)]} {
+                set tids [recordarray keys [kl_get $baserawdata($pid) Threads]]
+                lappend results($pid) -tids $tids
             } else {
-                lappend result -tids $opts(noexist)
+                lappend results($pid) -tids $opts(noexist)
             }
-        }
-
-        if {$opts(name) || $opts(all)} {
-            # We cannot directly use $opts(noexist) as default because caller
-            # might very well specify "" as its value and then we could
-            # not distinguish between system processes. So we use the
-            # unlikely xgarbagez value
-            set name [twapi::kl_get $basedata ProcessName xgarbagez]
-            if {$name eq ""} {
-                if {[is_system_pid $pid]} {
-                    set name "System"
-                } elseif {[is_idle_pid $pid]} {
-                    set name "System Idle Process"
-                }
-            } elseif {$name eq "xgarbagez"} {
-                set name $opts(noexist)
-            }
-            lappend result -name $name
         }
 
         if {$opts(all) || $opts(path)} {
-            lappend result -path [get_process_path $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
+            lappend results($pid) -path [get_process_path $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
         }
 
         if {$opts(all) || $opts(priorityclass)} {
@@ -611,52 +616,42 @@ proc twapi::get_multiple_process_info {pids args} {
             } onerror {TWAPI_WIN32 87} {
                 set prioclass $opts(noexist)
             }
-            lappend result -priorityclass $prioclass
+            lappend results($pid) -priorityclass $prioclass
         }
 
         if {$opts(all) || $opts(toplevels)} {
             set toplevels [get_toplevel_windows -pid $pid]
             if {[llength $toplevels]} {
-                lappend result -toplevels $toplevels
+                lappend results($pid) -toplevels $toplevels
             } else {
                 if {[process_exists $pid]} {
-                    lappend result -toplevels [list ]
+                    lappend results($pid) -toplevels [list ]
                 } else {
-                    lappend result -toplevels $opts(noexist)
+                    lappend results($pid) -toplevels $opts(noexist)
                 }
             }
         }
 
-        # NOTE: we do not check opts(all) for handles since the latter
-        # is an unsupported option
-        if {$opts(handles)} {
-            set handles [list ]
-            foreach hinfo [get_open_handles $pid] {
-                lappend handles [list [kl_get $hinfo -handle] [kl_get $hinfo -type] [kl_get $hinfo -name]]
-            }
-            lappend result -handles $handles
-        }
-
         if {$opts(all) || $opts(commandline)} {
-            lappend result -commandline [get_process_commandline $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
+            lappend results($pid) -commandline [get_process_commandline $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
         }
 
         # Now get token related info, if any requested
-        set requested_opts [list ]
+        set requested_opts $requested_token_opts
         if {$opts(all) || $opts(user)} {
             # See if we already have the user. Note sid of system idle
             # will be empty string
             if {[info exists wtssids($pid)]} {
                 if {$wtssids($pid) == ""} {
                     # Put user as System
-                    lappend result -user "SYSTEM"
+                    lappend results($pid) -user "SYSTEM"
                 } else {
                     # We speed up account lookup by caching sids
                     if {[info exists sidcache($wtssids($pid))]} {
-                        lappend result -user $sidcache($wtssids($pid))
+                        lappend results($pid) -user $sidcache($wtssids($pid))
                     } else {
                         set uname [lookup_account_sid $wtssids($pid)]
-                        lappend result -user $uname
+                        lappend results($pid) -user $uname
                         set sidcache($wtssids($pid)) $uname
                     }
                 }
@@ -664,14 +659,9 @@ proc twapi::get_multiple_process_info {pids args} {
                 lappend requested_opts -user
             }
         }
-        foreach opt {elevation integrity groups primarygroup privileges logonsession virtualized} {
-            if {$opts(all) || $opts($opt)} {
-                lappend requested_opts -$opt
-            }
-        }
         if {[llength $requested_opts]} {
             try {
-                set result [concat $result [eval [list _token_info_helper -pid $pid] $requested_opts]]
+                set results($pid) [concat $results($pid) [eval [list _token_info_helper -pid $pid] $requested_opts]]
             } onerror {TWAPI_WIN32 5} {
                 foreach opt $requested_opts {
                     set tokresult($opt) $opts(noaccess)
@@ -711,19 +701,17 @@ proc twapi::get_multiple_process_info {pids args} {
                     }
                 }
 
-                set result [concat $result [array get tokresult]]
+                set results($pid) [concat $results($pid) [array get tokresult]]
             } onerror {TWAPI_WIN32 87} {
                 foreach opt $requested_opts {
                     if {$opt eq "-user" && ([is_idle_pid $pid] || [is_system_pid $pid])} {
-                        lappend result $opt SYSTEM
+                        lappend results($pid) $opt SYSTEM
                     } else {
-                        lappend result $opt $opts(noexist)
+                        lappend results($pid) $opt $opts(noexist)
                     }
                 }
             }
         }
-
-        set results($pid) $result
     }
 
     # Now deal with the PDH stuff. We need to track what data we managed
