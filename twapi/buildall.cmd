@@ -1,5 +1,11 @@
 rem Builds all release configurations of TWAPI
+rem For 64-bit builds, should be called from buildall64.cmd, not directly
 
+IF "x%CPU%" == "xAMD64" goto cleanbin
+@call "%ProgramFiles%\Microsoft Visual Studio\VC98\Bin\vcvars32.bat"
+@call "%ProgramFiles%\Microsoft Platform SDK\setenv.cmd" /2000 /RETAIL
+
+:cleanbin
 nmake /s /nologo /a clean
 nmake /s /nologo /a EMBED_SCRIPT=lzma clean
 
@@ -24,5 +30,5 @@ nmake /s /nologo /a EMBED_SCRIPT=lzma distribution
 nmake /s /nologo /a EMBED_SCRIPT=lzma tmdistribution
 nmake /s /nologo /a EMBED_SCRIPT=lzma dlldistribution
 
-# Libraries
+rem Libraries
 cd base && nmake /s /nologo /a clean lib EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1
