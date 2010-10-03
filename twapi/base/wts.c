@@ -121,14 +121,8 @@ int Twapi_WTSQuerySessionInformation(
     LPWSTR bufP = NULL;
     DWORD  bytes;
     DWORD winerr;
+    ULONG ul;
 
-    if (! (BOOL) WTSQuerySessionInformationW(wtsH, sess_id, info_class, &bufP, &bytes )) {
-        winerr = GetLastError();
-        goto handle_error;
-
-    }
-
-    /* Note bufP can be NULL even on success! */
 
     switch (info_class) {
     case WTSApplicationName:
@@ -140,10 +134,39 @@ int Twapi_WTSQuerySessionInformation(
     case WTSUserName:
     case WTSWinStationName:
     case WTSWorkingDirectory:
+        if (! (BOOL) WTSQuerySessionInformationW(wtsH, sess_id, info_class, &bufP, &bytes )) {
+            winerr = GetLastError();
+            goto handle_error;
+
+        }
+        /* Note bufP can be NULL even on success! */
         if (bufP)
             Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(bufP, -1));
         break;
 
+    WTSClientBuildNumber:
+    WTSClientHardwareId:
+    WTSConnectState:
+    WTSSessionId:
+        if (! (BOOL) WTSQuerySessionInformationW(wtsH, sess_id, info_class, &bufP, &bytes )) {
+            winerr = GetLastError();
+            goto handle_error;
+        }
+        if (bufP)
+            Tcl_SetObjResult(interp, Tcl_NewLongObj(*(long *)bufP));
+        break;
+        
+    case WTSClientProductId:
+    case WTSClientProtocolType:
+        if (! (BOOL) WTSQuerySessionInformationW(wtsH, sess_id, info_class, &bufP, &bytes )) {
+            winerr = GetLastError();
+            goto handle_error;
+        }
+        if (bufP)
+            Tcl_SetObjResult(interp, Tcl_NewLongObj(*(USHORT *)bufP));
+        break;
+
+    case WTSClientAddress: /* TBD */
     default:
         winerr = ERROR_NOT_SUPPORTED;
         goto handle_error;
