@@ -413,6 +413,7 @@ proc twapi::get_process_info {pid args} {
 
 
 # Get multiple process information
+# TBD - document and write tests
 proc twapi::get_multiple_process_info {pids args} {
 
     # Options that are directly available from Twapi_GetProcessList
@@ -566,6 +567,20 @@ proc twapi::get_multiple_process_info {pids args} {
         }
     } else {
         array set results {}
+    }
+    # If all we need are baseline options, and no massaging is required
+    # (as for elapsedtime, for example), we can return what we have
+    # without looping through below. Saves significant time.
+    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list elapsedtime tids path toplevels commandline priorityclass]] $opts(all)]] == 0} {
+        set return_data {}
+        foreach pid $pids {
+            if {[info exists results($pid)]} {
+                lappend return_data $pid $results($pid)
+            } else {
+                lappend return_data $basenoexistvals
+            }
+        }
+        return $return_data
     }
 
     set requested_token_opts {}
