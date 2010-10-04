@@ -604,7 +604,13 @@ proc twapi::get_multiple_process_info {pids args} {
         if {$opts(elapsedtime) || $opts(all)} {
             if {[info exists baserawdata($pid)]} {
                 set elapsed [twapi::kl_get $baserawdata($pid) CreateTime]
-                lappend results($pid) -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
+                if {$elapsed} {
+                    lappend results($pid) -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
+                } else {
+                    # For some processes like, System and Idle, kernel
+                    # returns start time of 0. Just use system uptime
+                    lappend results($pid) -elapsedtime [get_system_uptime]
+                }
             } else {
                 lappend results($pid) -elapsedtime $opts(noexist)
             }
