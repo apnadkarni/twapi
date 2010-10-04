@@ -144,10 +144,10 @@ int Twapi_WTSQuerySessionInformation(
             Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(bufP, -1));
         break;
 
-    WTSClientBuildNumber:
-    WTSClientHardwareId:
-    WTSConnectState:
-    WTSSessionId:
+    case WTSClientBuildNumber:
+    case WTSClientHardwareId:
+    case WTSConnectState:
+    case WTSSessionId:
         if (! (BOOL) WTSQuerySessionInformationW(wtsH, sess_id, info_class, &bufP, &bytes )) {
             winerr = GetLastError();
             goto handle_error;
