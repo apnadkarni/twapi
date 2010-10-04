@@ -302,6 +302,7 @@ proc twapi::get_command_line_args {cmdline} {
 
 
 # Return true if passed pid is system
+# TBD - update for Win2k8, vista, Windows 7, 64 bits
 proc twapi::is_system_pid {pid} {
     foreach {major minor} [get_os_version] break
     if {$major == 4 } {

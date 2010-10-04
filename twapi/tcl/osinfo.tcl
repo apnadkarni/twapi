@@ -455,8 +455,14 @@ proc twapi::abort_system_shutdown {args} {
 
 # Get system uptime
 proc twapi::get_system_uptime {} {
-    set ctr_path [make_perf_counter_path System "System Up Time" -localize true]
-    return [get_counter_path_value $ctr_path -interval 0]
+    variable _system_start_time
+    set now [clock seconds]
+    if {![info exists _system_start_time]} {
+        set ctr_path [make_perf_counter_path System "System Up Time" -localize true]
+        set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
+        set _system_start_time [expr {$now - round($uptime+0.5)}]
+    }
+    return [expr {$now - $_system_start_time}]
 }
 
 # Get system information
