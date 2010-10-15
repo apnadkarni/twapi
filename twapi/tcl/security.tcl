@@ -89,7 +89,12 @@ proc twapi::_lookup_account {func account args} {
 
     # Lookup the info if have not already hardcoded results
     if {![info exists domain]} {
-        foreach "$lookup domain type" [$func $opts(system) $account] break
+        # Use cache if possible
+        variable _lookup_account_cache
+        if {![info exists _lookup_account_cache($lookup,$opts(system),$account)]} {
+            set _lookup_account_cache($lookup,$opts(system),$account) [$func $opts(system) $account]
+        }
+        foreach "$lookup domain type" $_lookup_account_cache($lookup,$opts(system),$account) break
     }
 
     set result [list ]
@@ -719,18 +724,25 @@ proc twapi::disable_all_token_privileges {tok} {
 
 # Map a privilege given as a LUID
 proc twapi::map_luid_to_privilege {luid args} {
+    variable _map_luid_to_privilege_cache
     
     array set opts [parseargs args [list system.arg mapunknown] -nulldefault]
+
+    if {[info exists _map_luid_to_privilege_cache($opts(system),$luid)]} {
+        return $_map_luid_to_privilege_cache($opts(system),$luid)
+    }
 
     # luid may in fact be a privilege name. Check for this
     if {[is_valid_luid_syntax $luid]} {
         try {
             set name [LookupPrivilegeName $opts(system) $luid]
+            set _map_luid_to_privilege_cache($opts(system),$luid) $name
         } onerror {TWAPI_WIN32 1313} {
             if {! $opts(mapunknown)} {
                 error $errorResult $errorInfo $errorCode
             }
             set name "Privilege-$luid"
+            # Do not put in cache as privilege name might change?
         }
     } else {
         # Not a valid LUID syntax. Check if it's a privilege name
