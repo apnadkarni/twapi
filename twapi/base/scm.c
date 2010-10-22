@@ -8,56 +8,21 @@
 /* Define interface to Windows NT services */
 #include "twapi.h"
 
-#define RETURN_SS_FIELDS(objmaker, structp)             \
-    do { \
-        Tcl_Obj *objv[7];                                             \
-        objv[0] = objmaker(dwServiceType, Tcl_NewLongObj, structp);           \
-        objv[1] = objmaker(dwCurrentState, Tcl_NewLongObj, structp);          \
-        objv[2] = objmaker(dwControlsAccepted, Tcl_NewLongObj, structp);      \
-        objv[3] = objmaker(dwWin32ExitCode, Tcl_NewLongObj, structp);         \
-        objv[4] = objmaker(dwServiceSpecificExitCode, Tcl_NewLongObj, structp); \
-        objv[5] = objmaker(dwCheckPoint, Tcl_NewLongObj, structp);            \
-        objv[6] = objmaker(dwWaitHint, Tcl_NewLongObj, structp);              \
-        return Tcl_NewListObj(sizeof(objv)/sizeof(objv[0]), objv);   \
-    } while (0)
-
-static Tcl_Obj *NamesFromSERVICE_STATUS(void) 
+/* Map service state int to string */
+static Tcl_Obj *ObjFromServiceState(DWORD state)
 {
-    RETURN_SS_FIELDS(FIELD_NAME_OBJ, notused);
+    switch (state) {
+    case 1: return STRING_LITERAL_OBJ("stopped");
+    case 2: return STRING_LITERAL_OBJ("start_pending");
+    case 3: return STRING_LITERAL_OBJ("stop_pending");
+    case 4: return STRING_LITERAL_OBJ("running");
+    case 5: return STRING_LITERAL_OBJ("continue_pending");
+    case 6: return STRING_LITERAL_OBJ("pause_pending");
+    case 7: return STRING_LITERAL_OBJ("paused");
+    }
+
+    return Tcl_NewLongObj(state);
 }
-
-static Tcl_Obj *ObjFromSERVICE_STATUS(SERVICE_STATUS *ssP)
-{
-    RETURN_SS_FIELDS(FIELD_VALUE_OBJ, ssP);
-}
-#undef RETURN_SS_FIELDS
-
-#define RETURN_SSP_FIELDS(objmaker, structp)             \
-    do { \
-        Tcl_Obj *objv[9];                                             \
-        objv[0] = objmaker(dwServiceType, Tcl_NewLongObj, structp);           \
-        objv[1] = objmaker(dwCurrentState, Tcl_NewLongObj, structp);          \
-        objv[2] = objmaker(dwControlsAccepted, Tcl_NewLongObj, structp);      \
-        objv[3] = objmaker(dwWin32ExitCode, Tcl_NewLongObj, structp);         \
-        objv[4] = objmaker(dwServiceSpecificExitCode, Tcl_NewLongObj, structp); \
-        objv[5] = objmaker(dwCheckPoint, Tcl_NewLongObj, structp);            \
-        objv[6] = objmaker(dwWaitHint, Tcl_NewLongObj, structp);              \
-        objv[7] = objmaker(dwProcessId, Tcl_NewLongObj, structp);             \
-        objv[8] = objmaker(dwServiceFlags, Tcl_NewLongObj, structp);          \
-        return Tcl_NewListObj(sizeof(objv)/sizeof(objv[0]), objv);   \
-    } while (0)
-
-static Tcl_Obj *NamesFromSERVICE_STATUS_PROCESS(void) 
-{
-    RETURN_SSP_FIELDS(FIELD_NAME_OBJ, notused);
-}
-
-static Tcl_Obj *ObjFromSERVICE_STATUS_PROCESS(SERVICE_STATUS_PROCESS *ssP)
-{
-    RETURN_SSP_FIELDS(FIELD_VALUE_OBJ, ssP);
-}
-#undef RETURN_SSP_FIELDS
-
 
 
 int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
@@ -66,7 +31,8 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     SERVICE_STATUS_PROCESS ssp;
     DWORD numbytes;
     DWORD result;
-    Tcl_Obj *objv[2];
+    Tcl_Obj *rec[18];
+    DWORD state;
 
     if (infolevel != SC_STATUS_PROCESS_INFO) {
         return Twapi_AppendSystemError(interp, ERROR_INVALID_LEVEL);
@@ -77,9 +43,26 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
         return TwapiReturnSystemError(interp);
     }
 
-    objv[0] = NamesFromSERVICE_STATUS_PROCESS();
-    objv[1] = ObjFromSERVICE_STATUS_PROCESS(&ssp);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    rec[0] = STRING_LITERAL_OBJ("dwServiceType");
+    rec[1] = Tcl_NewLongObj(ssp.dwServiceType);
+    rec[2] = STRING_LITERAL_OBJ("dwCurrentState");
+    rec[3] = ObjFromServiceState(ssp.dwCurrentState);
+    rec[4] = STRING_LITERAL_OBJ("dwControlsAccepted");
+    rec[5] = Tcl_NewLongObj(ssp.dwControlsAccepted);
+    rec[6] = STRING_LITERAL_OBJ("dwWin32ExitCode");
+    rec[7] = Tcl_NewLongObj(ssp.dwWin32ExitCode);
+    rec[8] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
+    rec[9] = Tcl_NewLongObj(ssp.dwServiceSpecificExitCode);
+    rec[10] = STRING_LITERAL_OBJ("dwCheckPoint");
+    rec[11] = Tcl_NewLongObj(ssp.dwCheckPoint);
+    rec[12] = STRING_LITERAL_OBJ("dwWaitHint");
+    rec[13] = Tcl_NewLongObj(ssp.dwWaitHint);
+    rec[14] = STRING_LITERAL_OBJ("dwProcessId");
+    rec[15] = Tcl_NewLongObj(ssp.dwProcessId);
+    rec[16] = STRING_LITERAL_OBJ("dwServiceFlags");
+    rec[17] = Tcl_NewLongObj(ssp.dwServiceFlags);
+
+    Tcl_SetObjResult(interp, Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
     return TCL_OK;
 }
 
@@ -223,9 +206,12 @@ int Twapi_EnumServicesStatusEx(
     DWORD services_returned;
     DWORD resume_handle;
     BOOL  success;
-    Tcl_Obj *objv[2];
+    Tcl_Obj *ra[2];     /* recordarray return value */
+    Tcl_Obj *rec[11];    /* Holds values for each status record */
+    Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
     DWORD winerr;
     DWORD i;
+    TCL_RESULT status = TCL_ERROR;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
         Tcl_SetResult(interp, "Unsupported information level", TCL_STATIC);
@@ -234,9 +220,14 @@ int Twapi_EnumServicesStatusEx(
 
     /* 32000 - Initial estimate based on my system */
     sbuf = MemLifoPushFrame(&ticP->memlifo, 32000, &buf_sz);
-    resume_handle = 0;
 
-    objv[1] = Tcl_NewListObj(0, NULL);
+    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
+        states[i] = ObjFromServiceState(i);
+        Tcl_IncrRefCount(states[i]);
+    }
+
+    ra[1] = Tcl_NewListObj(0, NULL);
+    resume_handle = 0;
     do {
         /* Note we don't actually make use of buf_needed, just reuse the
          * buffer we have
@@ -254,41 +245,70 @@ int Twapi_EnumServicesStatusEx(
             &resume_handle,
             groupname);
         if ((!success) && ((winerr = GetLastError()) != ERROR_MORE_DATA)) {
-            Twapi_FreeNewTclObj(objv[1]);
+            Twapi_FreeNewTclObj(ra[1]);
             Twapi_AppendSystemError(interp, winerr);
-            MemLifoPopFrame(&ticP->memlifo);
-            return TCL_ERROR;
+            goto pop_and_vamoose;
         }
 
         /* Tack on the services returned */
         for (i = 0; i < services_returned; ++i) {
             Tcl_Obj *objP;
             Tcl_Obj *keyP;
+            DWORD state;
 
-            objP = ObjFromSERVICE_STATUS_PROCESS(&sbuf[i].ServiceStatusProcess);
+            /* Note order should be same as order of field names below */
+            rec[0] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceType);
+            state = sbuf[i].ServiceStatusProcess.dwCurrentState;
+            if (state < (sizeof(states)/sizeof(states[0]))) {
+                rec[1] = states[state];
+            } else {
+                rec[1] = Tcl_NewLongObj(state);
+            }
+            rec[2] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwControlsAccepted);
+            rec[3] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwWin32ExitCode);
+            rec[4] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceSpecificExitCode);
+            rec[5] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwCheckPoint);
+            rec[6] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwWaitHint);
+            rec[7] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwProcessId);
+            rec[8] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceFlags);
+            rec[9] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
+            rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
 
-            /* Note order of values should be same as order of names below */
-            keyP = ObjFromUnicode(sbuf[i].lpServiceName);
-            Tcl_ListObjAppendElement(NULL, objP, keyP);
-            Tcl_ListObjAppendElement(NULL, objP,
-                                     ObjFromUnicode(sbuf[i].lpDisplayName));
-
-            Tcl_ListObjAppendElement(interp, objv[1], keyP);
-            Tcl_ListObjAppendElement(interp, objv[1], objP);
+            /* Note rec[9] object is also appended as the "key" for the "record" */
+            Tcl_ListObjAppendElement(interp, ra[1], rec[9]);
+            Tcl_ListObjAppendElement(interp, ra[1],
+                                     Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
         }
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
 
-    MemLifoPopFrame(&ticP->memlifo);
 
     /* Note order of names should be same as order of values above */
-    objv[0] = NamesFromSERVICE_STATUS_PROCESS();
-    Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpServiceName"));
-    Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpDisplayName"));
+    /* Note order of field names should be same as order of values above */
+    rec[0] = STRING_LITERAL_OBJ("dwServiceType");
+    rec[1] = STRING_LITERAL_OBJ("dwCurrentState");
+    rec[2] = STRING_LITERAL_OBJ("dwControlsAccepted");
+    rec[3] = STRING_LITERAL_OBJ("dwWin32ExitCode");
+    rec[4] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
+    rec[5] = STRING_LITERAL_OBJ("dwCheckPoint");
+    rec[6] = STRING_LITERAL_OBJ("dwWaitHint");
+    rec[7] = STRING_LITERAL_OBJ("dwProcessId");
+    rec[8] = STRING_LITERAL_OBJ("dwServiceFlags");
+    rec[9] = STRING_LITERAL_OBJ("lpServiceName");
+    rec[10] = STRING_LITERAL_OBJ("lpDisplayName");
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    ra[0] = Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec);
 
-    return TCL_OK;
+    Tcl_SetObjResult(interp, Tcl_NewListObj(2, ra));
+    status = TCL_OK;
+
+pop_and_vamoose:
+    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
+        Tcl_DecrRefCount(states[i]);
+    }
+
+    MemLifoPopFrame(&ticP->memlifo);
+    return status;
 }
 
 int Twapi_EnumDependentServices(
@@ -302,11 +322,20 @@ int Twapi_EnumDependentServices(
     DWORD buf_sz;
     DWORD services_returned;
     BOOL  success;
-    Tcl_Obj *objv[2];
+    Tcl_Obj *ra[2];     /* recordarray return value */
+    Tcl_Obj *rec[9];    /* Holds values for each status record */
+    Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
     DWORD winerr;
     DWORD i;
+    TCL_RESULT status = TCL_ERROR;
 
     sbuf = MemLifoPushFrame(&ticP->memlifo, 4000, &buf_sz);
+
+    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
+        states[i] = ObjFromServiceState(i);
+        Tcl_IncrRefCount(states[i]);
+    }
+
     do {
         success = EnumDependentServicesW(hService,
                                          dwServiceState,
@@ -317,40 +346,67 @@ int Twapi_EnumDependentServices(
         if (success)
             break;
         winerr = GetLastError();
-        MemLifoPopFrame(&ticP->memlifo);
-        if (winerr != ERROR_MORE_DATA) 
-            return Twapi_AppendSystemError(interp, winerr);
+        if (winerr != ERROR_MORE_DATA)  {
+            Twapi_AppendSystemError(interp, winerr);
+            goto pop_and_vamoose;
+        }
 
         /* Need a bigger buffer */
+        MemLifoPopFrame(&ticP->memlifo);
         sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
     } while (1);
 
-    objv[1] = Tcl_NewListObj(0, NULL);
+    ra[1] = Tcl_NewListObj(0, NULL);
     /* Tack on the services returned */
     for (i = 0; i < services_returned; ++i) {
-        Tcl_Obj *objP;
-        Tcl_Obj *keyP;
-
-        objP = ObjFromSERVICE_STATUS(&sbuf[i].ServiceStatus);
-        keyP = ObjFromUnicode(sbuf[i].lpServiceName);
+        DWORD state;
 
         /* Note order should be same as order of field names below */
-        Tcl_ListObjAppendElement(NULL, objP, keyP);
-        Tcl_ListObjAppendElement(NULL, objP, ObjFromUnicode(sbuf[i].lpDisplayName));
+        rec[0] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwServiceType);
+        state = sbuf[i].ServiceStatus.dwCurrentState;
+        if (state < (sizeof(states)/sizeof(states[0]))) {
+            rec[1] = states[state];
+        } else {
+            rec[1] = Tcl_NewLongObj(state);
+        }
+        rec[2] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwControlsAccepted);
+        rec[3] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwWin32ExitCode);
+        rec[4] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwServiceSpecificExitCode);
+        rec[5] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwCheckPoint);
+        rec[6] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwWaitHint);
+        rec[7] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
+        rec[8] = ObjFromUnicode(sbuf[i].lpDisplayName);
 
-        /* Note keyP object is also appended as the "key" for the "record" */
-        Tcl_ListObjAppendElement(interp, objv[1], keyP);
-        Tcl_ListObjAppendElement(interp, objv[1], objP);
+        /* Note rec[7] object is also appended as the "key" for the "record" */
+        Tcl_ListObjAppendElement(interp, ra[1], rec[7]);
+        Tcl_ListObjAppendElement(interp, ra[1],
+                                 Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
     }
 
-    /* Note order of field names should be same as order of values above */
-    objv[0] = NamesFromSERVICE_STATUS();
-    Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpServiceName"));
-    Tcl_ListObjAppendElement(NULL, objv[0], STRING_LITERAL_OBJ("lpDisplayName"));
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
 
+    /* Note order of field names should be same as order of values above */
+    rec[0] = STRING_LITERAL_OBJ("dwServiceType");
+    rec[1] = STRING_LITERAL_OBJ("dwCurrentState");
+    rec[2] = STRING_LITERAL_OBJ("dwControlsAccepted");
+    rec[3] = STRING_LITERAL_OBJ("dwWin32ExitCode");
+    rec[4] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
+    rec[5] = STRING_LITERAL_OBJ("dwCheckPoint");
+    rec[6] = STRING_LITERAL_OBJ("dwWaitHint");
+    rec[7] = STRING_LITERAL_OBJ("lpServiceName");
+    rec[8] = STRING_LITERAL_OBJ("lpDisplayName");
+
+    ra[0] = Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec);
+
+    Tcl_SetObjResult(interp, Tcl_NewListObj(2, ra));
+
+    status = TCL_OK;
+
+pop_and_vamoose:
+    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
+        Tcl_DecrRefCount(states[i]);
+    }
     MemLifoPopFrame(&ticP->memlifo);
-    return TCL_OK;
+    return status;
 }
 
 
