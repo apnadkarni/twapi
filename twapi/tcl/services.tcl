@@ -319,7 +319,7 @@ proc twapi::get_service_status {name args} {
     }
 
     try {
-        return [_format_SERVICE_STATUS_EX [twine [QueryServiceStatusEx $svch 0]]]
+        return [_format_SERVICE_STATUS_EX [QueryServiceStatusEx $svch 0]]
     } finally {
         CloseServiceHandle $svch
     }
@@ -1003,17 +1003,6 @@ proc twapi::_map_errorcontrol_code {code} {
                 $code {ignore normal severe critical} "SERVICE_ERROR_"]
 }
 
-
-# Map a service state code to a symbol
-proc twapi::_map_state_code {code} {
-    # Map state integer code to symbol *if possible*
-    return [kl_get {
-        1 stopped 2 start_pending 3 stop_pending 4 running 5 continue_pending
-        6 pause_pending 7 paused
-    } [expr {$code}] $code]
-}
-
-
 # Format a service status list record
 # {dwServiceType 1 dwCurrentState 2....}
 # gets formatted as
@@ -1037,10 +1026,11 @@ proc twapi::_format_SERVICE_STATUS_EX {svc_status} {
         [_map_servicetype_code [kl_get $svc_status dwServiceType]] break
 
     # Map state integer code to symbol *if possible*
-    set state [_map_state_code [kl_get $svc_status dwCurrentState]]
+    #set state [_map_state_code [kl_get $svc_status dwCurrentState]]
 
     # Pid if available
     set pid [kl_get $svc_status dwProcessId -1]
+    set state [kl_get $svc_status dwCurrentState]
     if {$pid == -1 && $state eq "stopped"} {
         set pid 0
     }
