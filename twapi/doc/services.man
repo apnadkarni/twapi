@@ -34,7 +34,8 @@ a service to update its status with the service control manager (SCM).
 Service configuration changes, including creation of new services
 and deletion of existing ones, can be done through the
 commands [uri \#create_service [cmd create_service]],
-[uri \#delete_service [cmd delete_service]] and
+[uri \#delete_service [cmd delete_service]],
+[uri \#get_service_configuration [cmd get_service_configuration]] and
 [uri \#set_service_configuration [cmd set_service_configuration]].
 [para]
 The commands [uri \#start_service [cmd start_service]],
