@@ -319,10 +319,23 @@ proc twapi::get_service_status {name args} {
     }
 
     try {
-        return [_format_SERVICE_STATUS_EX [QueryServiceStatusEx $svch 0]]
+        set svc_status [QueryServiceStatusEx $svch 0]
     } finally {
         CloseServiceHandle $svch
     }
+
+    return [list \
+                servicetype  [kl_get $svc_status servicetype] \
+                interactive  [kl_get $svc_status interactive] \
+                state        [kl_get $svc_status state] \
+                controls_accepted [kl_get $svc_status dwControlsAccepted] \
+                exitcode     [kl_get $svc_status dwWin32ExitCode] \
+                service_code [kl_get $svc_status dwServiceSpecificExitCode] \
+                checkpoint   [kl_get $svc_status dwCheckPoint] \
+                wait_hint    [kl_get $svc_status dwWaitHint] \
+                pid          [kl_get $svc_status dwProcessId] \
+                serviceflags [kl_get $svc_status dwServiceFlags]]
+
 }
 
 
@@ -592,11 +605,23 @@ proc twapi::get_multiple_service_status {args} {
         CloseServiceHandle $scm
     }
 
-    set servicelist [list ]
-    foreach {name rec} [recordarray get $recs] {
-        lappend servicelist $name [_format_status_record $rec]
-    }
-    return $servicelist
+    return [recordarray get [recordarray slice $recs \
+                                 {
+                                     {lpServiceName name}
+                                     {lpDisplayName displayname}
+                                     servicetype
+                                     state
+                                     interactive
+                                     {dwControlsAccepted controls_accepted}
+                                     {dwWin32ExitCode exitcode}
+                                     {dwServiceSpecificExitCode service_code}
+                                     {dwCheckPoint checkpoint}
+                                     {dwWaitHint wait_hint}
+                                     {dwProcessId pid}
+                                     {dwServiceFlags serviceflags}
+                                 } \
+                                ]]
+
 }
 
 
@@ -626,12 +651,21 @@ proc twapi::get_dependent_service_status {name args} {
     set opts(proc)     twapi::EnumDependentServices
     set opts(args)     [list $servicestate]
 
-    set servicelist [list ]
-    foreach {id rec} [recordarray get [_service_fn_wrapper $name opts]] {
-        lappend servicelist $id [_format_status_record $rec]
-    }
-
-    return $servicelist
+    return [recordarray get [recordarray slice \
+                                 [_service_fn_wrapper $name opts] \
+                                 {
+                                     {lpServiceName name}
+                                     {lpDisplayName displayname}
+                                     servicetype
+                                     state
+                                     interactive
+                                     {dwControlsAccepted controls_accepted}
+                                     {dwWin32ExitCode exitcode}
+                                     {dwServiceSpecificExitCode service_code}
+                                     {dwCheckPoint checkpoint}
+                                     {dwWaitHint wait_hint}
+                                 } \
+                                ]]
 }
 
 
@@ -1001,56 +1035,6 @@ proc twapi::_map_starttype_code {code} {
 proc twapi::_map_errorcontrol_code {code} {
     return [code_to_symbol \
                 $code {ignore normal severe critical} "SERVICE_ERROR_"]
-}
-
-# Format a service status list record
-# {dwServiceType 1 dwCurrentState 2....}
-# gets formatted as
-# {-servicetype win32_own_process -state running ...}
-proc twapi::_format_status_record {status_rec} {
-
-    set retval [_format_SERVICE_STATUS_EX $status_rec]
-    if {[kl_vget $status_rec lpServiceName name]} {
-        lappend retval name $name
-    }
-    if {[kl_vget $status_rec lpDisplayName displayname]} {
-        lappend retval displayname $displayname
-    }
-    return $retval
-}
-
-# Format an extended service status record
-proc twapi::_format_SERVICE_STATUS_EX {svc_status} {
-    # Get the service type and strip off the interactive flag
-    foreach {servicetype interactive} \
-        [_map_servicetype_code [kl_get $svc_status dwServiceType]] break
-
-    # Map state integer code to symbol *if possible*
-    #set state [_map_state_code [kl_get $svc_status dwCurrentState]]
-
-    # Pid if available
-    set pid [kl_get $svc_status dwProcessId -1]
-    set state [kl_get $svc_status dwCurrentState]
-    if {$pid == -1 && $state eq "stopped"} {
-        set pid 0
-    }
-
-    set attrs [list ]
-    if {[kl_get $svc_status dwServiceFlags 0] && 1} {
-        lappend attrs systemprocess
-    }
-
-    return [list \
-                servicetype  $servicetype \
-                interactive  $interactive \
-                state        $state \
-                controls_accepted [kl_get $svc_status dwControlsAccepted] \
-                exitcode     [kl_get $svc_status dwWin32ExitCode] \
-                service_code [kl_get $svc_status dwServiceSpecificExitCode] \
-                checkpoint   [kl_get $svc_status dwCheckPoint] \
-                wait_hint    [kl_get $svc_status dwWaitHint] \
-                pid          $pid \
-                attrs        $attrs]
 }
 
 
