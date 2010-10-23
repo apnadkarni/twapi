@@ -146,7 +146,10 @@ int Twapi_GetProcessList(
                 if (flags & TWAPI_F_GETPROCESSLIST_NAME) {
                     if (first_iteration)
                         process_fields[pi] = STRING_LITERAL_OBJ("ProcessName");
-                    process[pi] = ObjFromLSA_UNICODE_STRING(&processP->ProcessName);
+                    if (processP->ProcessId)
+                        process[pi] = ObjFromLSA_UNICODE_STRING(&processP->ProcessName);
+                    else
+                        process[pi] = STRING_LITERAL_OBJ("System Idle Process");
                     pi += 1;
                 }
 
