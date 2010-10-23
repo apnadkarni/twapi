@@ -132,39 +132,11 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
 }
 
 
-#define RETURN_QSC_FIELDS(objmaker, structp) \
-    do { \
-        Tcl_Obj *objv[9]; \
-        objv[0] = objmaker(lpDependencies,  ObjFromMultiSz_MAX, structp); \
-        objv[1] = objmaker(dwServiceType, Tcl_NewLongObj, structp); \
-        objv[2] = objmaker(dwStartType, Tcl_NewLongObj, structp); \
-        objv[3] = objmaker(dwErrorControl, Tcl_NewLongObj, structp); \
-        objv[4] = objmaker(dwTagId, Tcl_NewLongObj, structp); \
-        objv[5] = objmaker(lpBinaryPathName,  ObjFromUnicode, structp); \
-        objv[6] = objmaker(lpLoadOrderGroup,  ObjFromUnicode, structp); \
-        objv[7] = objmaker(lpServiceStartName,  ObjFromUnicode, structp); \
-        objv[8] = objmaker(lpDisplayName,  ObjFromUnicode, structp); \
-        return Tcl_NewListObj(sizeof(objv)/sizeof(objv[0]), objv);   \
-    } while (0)
-
-
-
-static Tcl_Obj *NamesFromQUERY_SERVICE_CONFIGW(void)
-{
-    RETURN_QSC_FIELDS(FIELD_NAME_OBJ, notused);
-}
-
-static Tcl_Obj *ObjFromQUERY_SERVICE_CONFIGW(QUERY_SERVICE_CONFIGW *qP)
-{
-    RETURN_QSC_FIELDS(FIELD_VALUE_OBJ, qP);
-}
-#undef RETURN_QSC_FIELDS
-
 int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
 {
     QUERY_SERVICE_CONFIGW *qbuf;
     DWORD buf_sz;
-    Tcl_Obj *objv[2];
+    Tcl_Obj *objv[20];
     DWORD winerr;
     int   tcl_result = TCL_ERROR;
 
@@ -193,9 +165,28 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
         }
     }
 
-    objv[0] = NamesFromQUERY_SERVICE_CONFIGW();
-    objv[1] = ObjFromQUERY_SERVICE_CONFIGW(qbuf);
-    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2,objv));
+    objv[0] = STRING_LITERAL_OBJ("lpDependencies");
+    objv[1] = ObjFromMultiSz_MAX(qbuf->lpDependencies);
+    objv[2] = STRING_LITERAL_OBJ("servicetype");
+    objv[3] = ObjFromServiceType(qbuf->dwServiceType);
+    objv[4] = STRING_LITERAL_OBJ("dwStartType");
+    objv[5] = Tcl_NewLongObj(qbuf->dwStartType);
+    objv[6] = STRING_LITERAL_OBJ("dwErrorControl");
+    objv[7] = Tcl_NewLongObj(qbuf->dwErrorControl);
+    objv[8] = STRING_LITERAL_OBJ("dwTagId");
+    objv[9] = Tcl_NewLongObj(qbuf->dwTagId);
+    objv[10] = STRING_LITERAL_OBJ("lpBinaryPathName");
+    objv[11] = ObjFromUnicode(qbuf->lpBinaryPathName);
+    objv[12] = STRING_LITERAL_OBJ("lpLoadOrderGroup");
+    objv[13] = ObjFromUnicode(qbuf->lpLoadOrderGroup);
+    objv[14] = STRING_LITERAL_OBJ("lpServiceStartName");
+    objv[15] = ObjFromUnicode(qbuf->lpServiceStartName);
+    objv[16] = STRING_LITERAL_OBJ("lpDisplayName");
+    objv[17] = ObjFromUnicode(qbuf->lpDisplayName);
+    objv[18] = STRING_LITERAL_OBJ("interactive");
+    objv[19] = Tcl_NewBooleanObj(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+
+    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(20,objv));
     tcl_result = TCL_OK;
 
 vamoose:
@@ -338,7 +329,7 @@ int Twapi_EnumServicesStatusEx(
             rec[8] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceFlags);
             rec[9] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
             rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
-            rec[11] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+            rec[11] = Tcl_NewBooleanObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
 
             /* Note rec[9] object is also appended as the "key" for the "record" */
