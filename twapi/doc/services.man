@@ -60,8 +60,6 @@ response to control signals. This can be done through
 [uri #update_service_status [cmd update_service_status]].
 
 
-
-
 [section "Standard Options"]
 Most commands allow the following options to be specified:
 
@@ -308,9 +306,8 @@ with the following fields:
 
 [list_begin opt]
 
-[opt_def [const attrs]] Contains a list of attributes. Currently, the only
-attribute that may appear in this list is [const systemprocess] which
-indicates that the service runs in a system process that must alway be
+[opt_def [const serviceflags]] Integer value. If the low bit is set,
+the service runs in a system process that must alway be
 running.
 
 [opt_def [const checkpoint]] Contains the last checkpoint value
@@ -332,8 +329,9 @@ allowed to interact with the desktop ([const 1]) or not ([const 0]).
 [opt_def [const name]] Indicates the internal name of the service
 
 [opt_def [const pid]] The PID of the process in which the service is running.
-If the service is currently stopped, this will be 0. A value of -1 indicates
-that the process id of the service cannot be determined.
+A value of -1 indicates
+the service is stopped or that the process id of the service cannot be 
+determined.
 
 [opt_def [const service_code]] In case the [const exitcode]
 field contains 1066, this field contains a service specific code
@@ -457,9 +455,8 @@ The following fields are returned:
 
 [list_begin opt]
 
-[opt_def [const attrs]] Contains a list of attributes. Currently, the only
-attribute that may appear in this list is [const systemprocess] which
-indicates that the service runs in a system process that must alway be
+[opt_def [const serviceflags]] Integer value. If the low bit is set,
+the service runs in a system process that must alway be
 running.
 
 [opt_def [const controls_accepted]] Contains a bitmask indicating the
@@ -496,8 +493,8 @@ reported by the service during a lengthy operation.
 start, stop, pause or continue operation as last reported by the service.
 
 [opt_def [const pid]] The PID of the process in which the service is running.
-If the service is currently stopped, this will be 0. A value of -1 indicates
-that the process id of the service cannot be determined (NT 4.0).
+A value of -1 indicates
+that the process id of the service cannot be determined or is stopped.
 
 [list_end]
 
