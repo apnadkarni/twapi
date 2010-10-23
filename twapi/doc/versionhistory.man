@@ -122,6 +122,10 @@ lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
 on older machines as well.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"] The format of the data returned by
+commands that return the status of 
+[uri services.html "Windows services"] has changed.
+
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the command
 get_mapped_share_info which was deprecated in favor of
 get_client_share_info in previous releases.
