@@ -368,18 +368,16 @@ proc twapi::get_service_configuration {name args} {
 
     set opts(svc_priv) SERVICE_QUERY_CONFIG
     set opts(proc)     twapi::QueryServiceConfig
-    array set svc_config [twine [_service_fn_wrapper $name opts]]
+    array set svc_config [_service_fn_wrapper $name opts]
 
     # Get the service type info
-    foreach {servicetype interactive} \
-        [_map_servicetype_code $svc_config(dwServiceType)] break
 
     set result [list ]
     if {$opts(all) || $opts(servicetype)} {
-        lappend result -servicetype $servicetype
+        lappend result -servicetype $svc_config(servicetype)
     }
     if {$opts(all) || $opts(interactive)} {
-        lappend result -interactive $interactive
+        lappend result -interactive $svc_config(interactive)
     }
     if {$opts(all) || $opts(errorcontrol)} {
         lappend result -errorcontrol [_map_errorcontrol_code $svc_config(dwErrorControl)]
