@@ -408,18 +408,19 @@ proc twapi::get_process_thread_ids {pid} {
 
 # Get process information
 proc twapi::get_process_info {pid args} {
-    return [lindex [eval [list get_multiple_process_info [list $pid]] $args] 1]
+    return [lindex [eval get_multiple_process_info $args [list -matchpids [list $pid]]] 1]
 }
 
 
 # Get multiple process information
 # TBD - document and write tests
-proc twapi::get_multiple_process_info {pids args} {
+proc twapi::get_multiple_process_info {args} {
 
     # Options that are directly available from Twapi_GetProcessList
     if {![info exists ::twapi::get_multiple_process_info_base_opts]} {
         # Array value is the flags to pass to Twapi_GetProcessList
         array set ::twapi::get_multiple_process_info_base_opts {
+            pid                1
             basepriority       1
             parent             1
             tssession          1
@@ -485,18 +486,24 @@ proc twapi::get_multiple_process_info {pids args} {
 
     array set opts [parseargs args \
                         [concat [list all \
-                                     pid \
                                      path \
                                      toplevels \
                                      commandline \
                                      priorityclass \
                                      [list noexist.arg "(no such process)"] \
                                      [list noaccess.arg "(unknown)"] \
+                                     matchpids.arg \
                                      [list interval.int 100]] \
                              [array names ::twapi::get_multiple_process_info_base_opts] \
                              $token_opts \
                              $pdh_opts \
-                             $pdh_rate_opts]]
+                             $pdh_rate_opts] -maxleftover 0]
+
+    if {[info exists opts(matchpids)]} {
+        set pids $opts(matchpids)
+    } else {
+        set pids [Twapi_GetProcessList -1 0]
+    }
 
     array set results {}
     set now [clock seconds]
@@ -551,6 +558,7 @@ proc twapi::get_multiple_process_info {pids args} {
                 lappend basenoexistvals -$opt $opts(noexist)
             }
         }
+
         set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
         set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
         if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
@@ -558,12 +566,6 @@ proc twapi::get_multiple_process_info {pids args} {
         }
         if {[info exists basefields]} {
             array set results [recordarray get [recordarray slice $data $basefields]]
-        }
-        # Fix up system idle process names
-        if {$opts(all) || $opts(name)} {
-            if {[info exists results(0)]} {
-                set results(0) [kl_set $results(0) -name "System Idle Process"]
-            }
         }
     } else {
         array set results {}
@@ -577,7 +579,7 @@ proc twapi::get_multiple_process_info {pids args} {
             if {[info exists results($pid)]} {
                 lappend return_data $pid $results($pid)
             } else {
-                lappend return_data $basenoexistvals
+                lappend return_data $pid $basenoexistvals
             }
         }
         return $return_data
