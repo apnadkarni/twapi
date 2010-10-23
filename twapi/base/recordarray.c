@@ -73,7 +73,8 @@ int Twapi_RecordArrayObjCmd(
      *
      *   recordarray slice RECORDARRAY FIELDS
      *     Returns a record array containing all records but with only 
-     *     the specified fields.
+     *     the specified fields. FIELDS is a list of fields to include
+     *     each element may be a pair if field is to be renamed.
      *     
      * Following options available:
      *  -integer : compare as integer
