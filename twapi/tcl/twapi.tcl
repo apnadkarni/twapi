@@ -149,14 +149,13 @@ proc ::twapi::load_twapi {} {
             error $msg $erinfo $ercode
         }
         set dir [file join $dir SYSTEM32]
-        # TBD - check which of these we really need. e.g. MSVCP60 
-        # no longer needed ?
+        # TBD -  MSVCP60 no longer needed ?
         foreach dll {
             KERNEL32.dll ADVAPI32.dll USER32.dll RPCRT4.dll
             GDI32.dll PSAPI.DLL NETAPI32.dll pdh.dll WINMM.dll
             MPR.dll WS2_32.dll ole32.dll OLEAUT32.dll SHELL32.dll
             WINSPOOL.DRV VERSION.dll iphlpapi.dll POWRPROF.dll Secur32.dll
-            USERENV.dll WTSAPI32.dll SETUPAPI.dll MSVCRT.dll MSVCP60.dll
+            USERENV.dll WTSAPI32.dll SETUPAPI.dll MSVCRT.dll
         } {
             if {![file exists [file join $dir $dll]]} {
                 lappend missing $dll
@@ -1043,7 +1042,7 @@ proc twapi::wait {script guard wait_ms {gap_ms 10}} {
     return [string equal [uplevel $script] $guard]
 }
 
-# Get tcl version
+# Get twapi version
 proc twapi::get_version {args} {
     array set opts [parseargs args {patchlevel}]
     if {$opts(patchlevel)} {
@@ -1145,7 +1144,6 @@ proc twapi::_make_symbolic_bitmask {bits symvals {append_unknown 1}} {
     # Get rid of bits that mapped to symbols
     set bits [expr {$bits & ~$symbits}]
     # If any left over, add them
-    # TBD - should we list individual bits?
     if {$bits && $append_unknown} {
         lappend symmask $bits
     }
