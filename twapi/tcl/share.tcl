@@ -353,15 +353,15 @@ proc twapi::get_client_share_info {sharename args} {
     if {$opts(all) || $opts(user) || $opts(status) || $opts(type) ||
         $opts(opencount) || $opts(usecount) || $opts(domain)} {
         if {[info exists local]} {
-            array set shareinfo [Twapi_NetUseGetInfo "" $local]
+            array set shareinfo [NetUseGetInfo "" $local 2]
         } else {
-            array set shareinfo [Twapi_NetUseGetInfo "" $unc]
+            array set shareinfo [NetUseGetInfo "" $unc 2]
         }
     }
 
     if {$opts(all) || $opts(comment) || $opts(provider) || $opts(remoteshare)} {
         # Only get this information if we are connected
-        if {$shareinfo(ui2_status) == 0} {
+        if {$shareinfo(status) == 0} {
             array set shareinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
         } else {
             set shareinfo(lpRemoteName) $unc
@@ -373,14 +373,14 @@ proc twapi::get_client_share_info {sharename args} {
 
     array set result {}
     foreach {opt index} {
-        user           ui2_username
-        localdevice    ui2_local
+        user           username
+        localdevice    local
         remoteshare    lpRemoteName
-        status         ui2_status
-        type           ui2_asg_type
-        opencount      ui2_refcount
-        usecount       ui2_usecount
-        domain         ui2_domainname
+        status         status
+        type           asg_type
+        opencount      refcount
+        usecount       usecount
+        domain         domainname
         provider       lpProvider
         comment        lpComment
     } {
