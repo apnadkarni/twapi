@@ -190,7 +190,7 @@ namespace eval twapi::share::test {
         if {$localdevice eq ""} {
             ::twapi::connect_share $client_share
         } else {
-            ::twapi::connect_share $client_share -localdevice $localdevice
+            ::twapi::connect_share $client_share -localdevice $localdevice -type disk
         }
         catch {
             set fd [open [file join $client_share twapi_dummy_client_file] w+]
@@ -926,7 +926,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::get_logical_drives -type remote] 0]
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
         if {$drive == ""} {
             create_client_share r:
             set drive r:
@@ -953,7 +953,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::get_logical_drives -type remote] 0]
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
         if {$drive == ""} {
             create_client_share r:
             set drive r:
@@ -980,7 +980,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::get_logical_drives -type remote] 0]
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
         if {$drive == ""} {
             create_client_share r:
             set drive r:
@@ -1008,7 +1008,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::get_logical_drives -type remote] 0]
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
         if {$drive == ""} {
             create_client_share r:
             set drive r:
@@ -1036,7 +1036,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::get_logical_drives -type remote] 0]
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
         if {$drive == ""} {
             create_client_share r:
             set drive r:
@@ -2042,6 +2042,58 @@ namespace eval twapi::share::test {
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -system \\\\127.0.0.1 -all] $lm_openfile_fields [list -id $lm_fid]
     } -cleanup {
         close $fd
+    } -result ""
+
+
+    ################################################################
+
+    # TBD - need more detailed tests for get_client_share_info
+    test get_client_share_info-1.0 {
+        Get info for a client share with no options
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
+        if {$drive == ""} {
+            create_client_share r:
+            set drive r:
+            set docleanup 1
+        } else {
+            set docleanup 0
+        }
+        array unset clientshareinfo
+    } -body {
+        twapi::get_client_share_info $drive
+    } -cleanup {
+        if {$docleanup} {
+            delete_client_share r:
+        }
+    } -result ""
+
+
+    test get_client_share_info-1.1 {
+        Get info for a client share with no options
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set drive [lindex [twapi::find_logical_drives -type remote] 0]
+        if {$drive == ""} {
+            create_client_share r:
+            set drive r:
+            set docleanup 1
+        } else {
+            set docleanup 0
+        }
+        array unset clientshareinfo
+    } -body {
+        array set clientshareinfo [twapi::get_client_share_info $drive -all]
+        ::setops::symdiff [array names clientshareinfo] {
+            -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
+        }
+    } -cleanup {
+        if {$docleanup} {
+            delete_client_share r:
+        }
     } -result ""
 
 

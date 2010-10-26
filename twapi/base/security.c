@@ -1562,7 +1562,7 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
 }
         
 /*
- * COnvert USE_INFO_2 to list
+ * Convert USE_INFO_* to list
  */
 Tcl_Obj *ObjFromUSE_INFO(
     Tcl_Interp *interp,
@@ -1574,7 +1574,7 @@ Tcl_Obj *ObjFromUSE_INFO(
     int         objc;
     Tcl_Obj    *objv[18];
 
-    uiP = (USE_INFO_2 *) infoP; /* May acutally be any SHARE_INFO_* */
+    uiP = (USE_INFO_2 *) infoP; /* May acutally be any USE_INFO_* */
 
     /* We build from back of array since we would like basic elements
        at front of Tcl list we build (most accessed elements in front */
