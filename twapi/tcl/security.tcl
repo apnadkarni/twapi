@@ -323,20 +323,11 @@ proc twapi::set_token_virtualization {tok enabled} {
 # Get the integrity level associated with a token
 proc twapi::get_token_integrity {tok args} {
 
-    array set opts [parseargs args {
-        label
-        raw
-    } -maxleftover 0 -nulldefault]
-
-
     if {[min_os_version 6]} {
         # TokenIntegrityLevel -> 25
         foreach {integrity attrs} [GetTokenInformation $tok 25] break
         if {$attrs != 96} {
             # TBD - is this ok?
-        }
-        if {![string equal -length 7 S-1-16-* $integrity]} {
-            error "Unexpected integrity level value '$integrity' returned by GetTokenInformation."
         }
     } else {
         # Older OS versions have no concept of elevation.
@@ -345,32 +336,7 @@ proc twapi::get_token_integrity {tok args} {
         set integrity S-1-16-8192
     }
 
-
-    if {$opts(raw)} {
-        if {$opts(label)} {
-            error "Options -raw and -label may not be specified together."
-        }
-        return $integrity
-    }
-
-    set integrity [string range $integrity 7 end]
-
-    if {! $opts(label)} {
-        # Return integer level
-        return $integrity
-    }
-
-    if {$integrity < 4096} {
-        return untrusted
-    } elseif {$integrity < 8192} {
-        return low
-    } elseif {$integrity < 12288} {
-        return medium
-    } elseif {$integrity < 16384} {
-        return high
-    } else {
-        return system
-    }
+    return [eval [list _sid_to_integrity $integrity] $args]
 }
 
 # Get the integrity level associated with a token
@@ -384,24 +350,8 @@ proc twapi::set_token_integrity {tok integrity} {
         return
     }
 
-
-    # Integrity level must be either a number < 65536 or a valid string
-    # or a SID. Check for the first two and convert to SID. Anything else
-    # will be trapped by the actual call as an invalid format.
-    if {[string is integer -strict $integrity]} {
-        set integrity S-1-16-[format %d $integrity]; # In case in hex
-    } else {
-        switch -exact -- $integrity {
-            untrusted { set integrity S-1-16-0 }
-            low { set integrity S-1-16-4096 }
-            medium { set integrity S-1-16-8192 }
-            high { set integrity S-1-16-12288 }
-            system { set integrity S-1-16-16384 }
-        }
-    }
-
     # SE_GROUP_INTEGRITY attribute - 0x20
-    Twapi_SetTokenIntegrityLevel $tok [list $integrity 0x20]
+    Twapi_SetTokenIntegrityLevel $tok [list [_integrity_to_sid $integrity] 0x20]
 }
 
 
@@ -796,6 +746,7 @@ proc twapi::new_ace {type account rights args} {
     set access_mask [_access_rights_to_mask $rights]
 
     switch -exact -- $type {
+        mandatory_label -
         allow -
         deny  -
         audit {
@@ -839,9 +790,26 @@ proc twapi::set_ace_type {ace type} {
 
 # Get the access rights in an ACE
 proc twapi::get_ace_rights {ace args} {
-    array set opts [parseargs args {type.arg raw} -nulldefault]
+    array set opts [parseargs args {
+        {type.arg ""}
+        resourcetype.arg
+        raw
+    } -maxleftover 0]
+
     if {$opts(raw)} {
         return [format 0x%x [lindex $ace 2]]
+    }
+
+    if {[lindex $ace 0] == 0x11} {
+        # MANDATORY_LABEL -> 0x11
+        # Resource type is immaterial
+        return [_access_mask_to_rights [lindex $ace 2] mandatory_label]
+    }
+
+    # Backward compatibility - in 2.x -type was documented instead
+    # of -resourcetype
+    if {[info exists opts(resourcetype)]} {
+        return [_access_mask_to_rights [lindex $ace 2] $opts(resourcetype)]
     } else {
         return [_access_mask_to_rights [lindex $ace 2] $opts(type)]
     }
@@ -947,7 +915,7 @@ proc twapi::sort_aces {aces} {
         }
     }
 
-    # TBD - check this order
+    # TBD - check this order ACE's, especially audit and mandatory label
     return [concat \
                 $direct_aces(deny) \
                 $direct_aces(deny_object) \
@@ -962,6 +930,7 @@ proc twapi::sort_aces {aces} {
                 $direct_aces(audit_object) \
                 $direct_aces(audit_callback) \
                 $direct_aces(audit_callback_object) \
+                $direct_aces(mandatory_label) \
                 $direct_aces(alarm) \
                 $direct_aces(alarm_object) \
                 $direct_aces(alarm_callback) \
@@ -979,6 +948,7 @@ proc twapi::sort_aces {aces} {
                 $inherited_aces(audit_object) \
                 $inherited_aces(audit_callback) \
                 $inherited_aces(audit_callback_object) \
+                $inherited_aces(mandatory_label) \
                 $inherited_aces(alarm) \
                 $inherited_aces(alarm_object) \
                 $inherited_aces(alarm_callback) \
@@ -1022,20 +992,24 @@ proc twapi::get_ace_text {ace args} {
 
 # Create a new ACL
 proc twapi::new_acl {{aces ""}} {
+    variable windefs
 
-    set acl_rev 2; #ACL_REVISION
-    
+    set max 0
     foreach ace $aces {
         set ace_typecode [lindex $ace 0]
-        #ACCESS_ALLOWED_ACE_TYPE -> 0
-        #ACCESS_DENIED_ACE_TYPE -> 1
-        #SYSTEM_AUDIT_ACE_TYPE 2
-        if {$ace_typecode != 0 &&
-            $ace_typecode != 1 &&
-            $ace_typecode != 2} {
-            set acl_rev 4; #ACL_REVISION_DS
-            break
+        if {$ace_typecode > $max} {
+            set max $ace_typecode
         }
+    }
+
+    if {$max <= $windefs(ACCESS_MAX_MS_V2_ACE_TYPE)} {
+        set acl_rev 2
+    } elseif {$max <= $windefs(ACCESS_MAX_MS_V3_ACE_TYPE)} {
+        set acl_rev 3
+    } elseif {$max <= $windefs(ACCESS_MAX_MS_V4_ACE_TYPE)} {
+        set acl_rev 4
+    } elseif {$max <= $windefs(ACCESS_MAX_MS_V5_ACE_TYPE)} {
+        set acl_rev 5
     }
 
     return [list $acl_rev $aces]
@@ -1236,6 +1210,7 @@ proc twapi::get_resource_security_descriptor {restype name args} {
         group
         dacl
         sacl
+        mandatory_label
         all
         handle
     }]
@@ -1248,8 +1223,18 @@ proc twapi::get_resource_security_descriptor {restype name args} {
         }
     }
 
+    if {[min_os_version 6]} {
+        if {$opts(mandatory_label) || $opts(all)} {
+            set wanted [expr {$wanted | $windefs(LABEL_SECURITY_INFORMATION)}]
+        }
+    } else {
+        if {$opts(mandatory_label)} {
+            error "Option -mandatory_label not supported by this version of Windows"
+        }
+    }
+
     # Note if no options specified, we ask for everything except
-    # SACL's which require special privileges
+    # SACL's (and mandatory_label) which require special privileges
     if {! $wanted} {
         foreach field {owner group dacl} {
             set wanted [expr {$wanted | $windefs([string toupper $field]_SECURITY_INFORMATION)}]
@@ -1305,6 +1290,7 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
         group
         dacl
         sacl
+        mandatory_label
         all
         protect_dacl
         unprotect_dacl
@@ -1314,31 +1300,32 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
 
     set mask 0
 
-    if {[min_os_version 5 0]} {
-        # Only win2k and above. Ignore otherwise
+    if {![min_os_version 6]} {
+        if {$opts(mandatory_label)} {
+            error "Option -mandatory_label not supported by this version of Windows"
+        }
+    }
 
-        if {$opts(protect_dacl) && $opts(unprotect_dacl)} {
-            error "Cannot specify both -protect_dacl and -unprotect_dacl."
-        }
+    if {$opts(protect_dacl) && $opts(unprotect_dacl)} {
+        error "Cannot specify both -protect_dacl and -unprotect_dacl."
+    }
 
-        if {$opts(protect_dacl)} {
-            setbits mask $windefs(PROTECTED_DACL_SECURITY_INFORMATION)
-        }
-        if {$opts(unprotect_dacl)} {
-            setbits mask $windefs(UNPROTECTED_DACL_SECURITY_INFORMATION)
-        }
+    if {$opts(protect_dacl)} {
+        setbits mask $windefs(PROTECTED_DACL_SECURITY_INFORMATION)
+    }
+    if {$opts(unprotect_dacl)} {
+        setbits mask $windefs(UNPROTECTED_DACL_SECURITY_INFORMATION)
+    }
 
-        if {$opts(protect_sacl) && $opts(unprotect_sacl)} {
-            error "Cannot specify both -protect_sacl and -unprotect_sacl."
-        }
+    if {$opts(protect_sacl) && $opts(unprotect_sacl)} {
+        error "Cannot specify both -protect_sacl and -unprotect_sacl."
+    }
 
-        if {$opts(protect_sacl)} {
-            setbits mask $windefs(PROTECTED_SACL_SECURITY_INFORMATION)
-        }
-        if {$opts(unprotect_sacl)} {
-            setbits mask $windefs(UNPROTECTED_SACL_SECURITY_INFORMATION)
-        }
-
+    if {$opts(protect_sacl)} {
+        setbits mask $windefs(PROTECTED_SACL_SECURITY_INFORMATION)
+    }
+    if {$opts(unprotect_sacl)} {
+        setbits mask $windefs(UNPROTECTED_SACL_SECURITY_INFORMATION)
     }
 
     if {$opts(owner) || $opts(all)} {
@@ -1362,9 +1349,16 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
         set opts(dacl) null
     }
 
-    if {$opts(sacl) || $opts(all)} {
+    if {$opts(sacl) || $opts(mandatory_label) || $opts(all)} {
         set opts(sacl) [get_security_descriptor_sacl $secd]
-        setbits mask $windefs(SACL_SECURITY_INFORMATION)
+        if {$opts(sacl) || $opts(all)} {
+            setbits mask $windefs(SACL_SECURITY_INFORMATION)
+        }
+        if {[min_os_version 6]} {
+            if {$opts(mandatory_label) || $opts(all)} {
+                setbits mask $windefs(LABEL_SECURITY_INFORMATION)
+            }
+        }
     } else {
         set opts(sacl) null
     }
@@ -1397,6 +1391,81 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
             $opts(sacl)
     }
 }
+
+# Get integrity level from a security descriptor
+proc twapi::get_security_descriptor_integrity {secd args} {
+    foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
+        if {[get_ace_type $ace] eq "mandatory_label"} {
+            set integrity [eval [list _sid_to_integrity $sid] $args]
+            set rights [get_ace_rights $ace -resourcetype mandatory_label]
+            return [list $integrity $rights]
+        }
+    }
+    return {}
+}
+
+# Get integrity level for a resource
+proc twapi::get_resource_integrity {restype name args} {
+    # Note label and raw options are simply passed on
+
+    if {![min_os_version 6]} {
+        return ""
+    }
+    set saved_args $args
+    array set opts [parseargs args {
+        label
+        raw
+        handle
+    }]
+
+    if {$opts(handle)} {
+        set secd [get_resource_security_descriptor $restype $name -mandatory_label -handle]
+    } else {
+        set secd [get_resource_security_descriptor $restype $name -mandatory_label]
+    }
+
+    return [eval [list get_security_descriptor_integrity $secd] $args]
+}
+
+
+proc twapi::set_security_descriptor_integrity {secd integrity args} {
+    # Not clear from docs whether this can
+    # be done without interfering with SACL fields. Nevertheless
+    # we provide this proc because we might want to set the
+    # integrity level on new objects create thru CreateFile etc.
+    # TBD - need to test under vista and win 7
+    
+    array set opts [parseargs args {
+        {recursecontainers.bool 0}
+        {recurseobjects.bool 0}
+        {policy.arg 
+    } -maxleftover 0]
+
+    # We preserve any non-integrity aces in the sacl.
+    set sacl [get_security_descriptor_sacl $secd]
+    set aces {}
+    foreach ace [get_acl_aces $sacl] {
+        if {[get_ace_type $ace] ne "mandatory_label"} {
+            lappend aces $ace
+        }
+    }
+
+    # Now create and attach an integrity ace. Note placement does not
+    # matter
+    lappend aces [new_ace mandatory_label \
+                      [_integrity_to_sid $integrity] \
+                      [_access_rights_to_mask $opts(rights)] \
+                      -self 1 \
+                      -recursecontainers $opts(recursecontainers) \
+                      -recurseobjects $opts(recurseobjects)]
+                  
+    return [set_security_descriptor_sacl $secd [new_acl $aces]]
+}
+
+proc twapi::set_resource_integrity {restype name integrity policy} {
+    TBD - HERE
+}
+
 
 # Convert a security descriptor to SDDL format
 proc twapi::security_descriptor_to_sddl {secd} {
@@ -1590,6 +1659,19 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
     variable windefs
 
     set rights [list ]
+
+    if {$type eq "mandatory_label"} {
+        if {$access_mask & 1} {
+            lappend rights system_mandatory_label_no_write_up
+        }
+        if {$access_mask & 2} {
+            lappend rights system_mandatory_label_no_read_up
+        }
+        if {$access_mask & 4} {
+            lappend rights system_mandatory_label_no_execute_up
+        }
+        return $rights
+    }
 
     # The returned list will include rights that map to multiple bits
     # as well as the individual bits. We first add the multiple bits
@@ -1860,6 +1942,7 @@ proc twapi::_init_ace_type_symbol_to_code_map {} {
              alarm_callback [expr { $windefs(SYSTEM_ALARM_CALLBACK_ACE_TYPE) + 0 }] \
              audit_callback_object [expr { $windefs(SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
              alarm_callback_object [expr { $windefs(SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
+             mandatory_label [expr { $windefs(SYSTEM_MANDATORY_LABEL_ACE_TYPE) + 0 }] \
                  ]
 
     # Now define the array in the other direction
@@ -1985,3 +2068,72 @@ proc twapi::_is_valid_security_descriptor {secd} {
     }
 }
 
+# Maps a integrity SID to integer or label
+proc twapi::_sid_to_integrity {sid args} {
+    # Note - to make it simpler for callers, additional options are ignored
+    array set opts [parseargs args {
+        label
+        raw
+    }]
+
+    if {$opts(raw) && $opts(label)} {
+        error "Options -raw and -label may not be specified together."
+    }
+
+    if {![string equal -length 7 S-1-16-* $sid]} {
+        error "Unexpected integrity level value '$sid' returned by GetTokenInformation."
+    }
+
+    if {$opts(raw)} {
+        return $sid
+    }
+
+    set integrity [string range $sid 7 end]
+
+    if {! $opts(label)} {
+        # Return integer level
+        return $integrity
+    }
+
+    # Map to a label
+    if {$integrity < 4096} {
+        return untrusted
+    } elseif {$integrity < 8192} {
+        return low
+    } elseif {$integrity < 12288} {
+        return medium
+    } elseif {$integrity < 16384} {
+        return high
+    } else {
+        return system
+    }
+
+}
+
+proc twapi::_integrity_to_sid {integrity} {
+    # Integrity level must be either a number < 65536 or a valid string
+    # or a SID. Check for the first two and convert to SID. Anything else
+    # will be trapped by the actual call as an invalid format.
+    if {[string is integer -strict $integrity]} {
+        set integrity S-1-16-[format %d $integrity]; # In case in hex
+    } else {
+        switch -glob -- $integrity {
+            untrusted { set integrity S-1-16-0 }
+            low { set integrity S-1-16-4096 }
+            medium { set integrity S-1-16-8192 }
+            high { set integrity S-1-16-12288 }
+            system { set integrity S-1-16-16384 }
+            S-1-16-* {
+                if {![string is integer -strict [string range $integrity 7 end]]} {
+                    error "Invalid integrity level '$integrity'"
+                }
+                # Format in case level component was in hex/octal
+                set integrity S-1-16-[format %d [string range $integrity 7 end]]
+            }
+            default {
+                error "Invalid integrity level '$integrity'"
+            }
+        }
+    }
+    return $integrity
+}

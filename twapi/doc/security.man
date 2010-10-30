@@ -269,7 +269,8 @@ The type of an ACE may be one of the following values:
 [const deny_object], [const audit_object], [const alarm_object],
 [const allow_callback], [const deny_callback], [const allow_callback_object],
 [const deny_callback_object], [const audit_callback], [const alarm_callback],
-[const audit_callback_object], [const alarm_callback_object]. Currently, only
+[const audit_callback_object], [const alarm_callback_object],
+[const mandatory_label]. Currently, only
 the [const allow], [const deny] and [const audit] type ACE's are supported.
 The type of an ACE may be manipulated through the
 [uri \#get_ace_type [cmd get_ace_type]] and
@@ -328,6 +329,7 @@ Access control lists are of two types - a discretionary access control list
 the identity of the accessor, while a system access control list (SACL)
 controls the audit events that are generated when the resource is accessed.
 A SACL should contain only ACE elements of types prefixed with [const audit]
+or [const mandatory_label]
 while a DACL should only contain ACE elements of other types.
 
 [para]
@@ -432,7 +434,14 @@ mechanism attempts to distinguish between applications at different levels
 of trust and control access to resources accordingly. The commands
 [uri #get_token_integrity [cmd get_token_integrity]] and
 [uri #set_token_integrity [cmd set_token_integrity]] allow retrieving and
-setting the integrity level associated with a process token. The associated
+setting the integrity level associated with a process token. Alternatively,
+the higher level commands
+[uri process.html#get_process_integrity get_process_integrity] and
+[uri process.html#set_process_integrity set_process_integrity] can also
+be used for this purpose.
+
+[para]
+ The associated
 policy for maintaining integrity levels can be read and modified using
 [uri #get_token_integrity_policy [cmd get_token_integrity_policy]] and
 [uri #set_token_integrity_policy [cmd set_token_integrity_policy]].
@@ -577,10 +586,10 @@ the inheritance characteristics of the ACE. The [arg option] elements are
 [cmd new_ace]. In addition, the read-only option [cmd -inherited] indicates
 whether the ACE has been inherited from an ancestor or not.
 
-[call [cmd get_ace_rights] [arg ACE] [opt "[cmd -type] [arg RESOURCETYPE]"] [opt [cmd -raw]]]
+[call [cmd get_ace_rights] [arg ACE] [opt "[cmd -resourcetype] [arg RESOURCETYPE]"] [opt [cmd -raw]]]
 Returns a list of access rights contained within an ACE. This is a list
 of symbolic constants and bit masks as described in [sectref "Access Rights"].
-The option [cmd -type] may be used to map the access rights to symbolic
+The option [cmd -resourcetype] may be used to map the access rights to symbolic
 constants for a specific type of resource. [arg RESOURCETYPE] must be
 one of [const file], [const pipe], [const service],
 [const registry], [const process], [const thread] or [const token].
