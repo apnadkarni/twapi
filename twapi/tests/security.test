@@ -3334,7 +3334,7 @@ namespace eval twapi::security::test {
     } -body {
         set acl [twapi::new_acl [list $ace]]
         twapi::get_acl_rev $acl
-    } -result 4
+    } -result 5
 
 
     ################################################################
