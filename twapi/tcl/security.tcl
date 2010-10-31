@@ -1428,7 +1428,7 @@ proc twapi::get_resource_integrity {restype name args} {
 }
 
 
-proc twapi::set_security_descriptor_integrity {secd integrity args} {
+proc twapi::set_security_descriptor_integrity {secd integrity rights} {
     # Not clear from docs whether this can
     # be done without interfering with SACL fields. Nevertheless
     # we provide this proc because we might want to set the
@@ -1438,7 +1438,6 @@ proc twapi::set_security_descriptor_integrity {secd integrity args} {
     array set opts [parseargs args {
         {recursecontainers.bool 0}
         {recurseobjects.bool 0}
-        {policy.arg 
     } -maxleftover 0]
 
     # We preserve any non-integrity aces in the sacl.
@@ -1454,7 +1453,7 @@ proc twapi::set_security_descriptor_integrity {secd integrity args} {
     # matter
     lappend aces [new_ace mandatory_label \
                       [_integrity_to_sid $integrity] \
-                      [_access_rights_to_mask $opts(rights)] \
+                      [_access_rights_to_mask $rights] \
                       -self 1 \
                       -recursecontainers $opts(recursecontainers) \
                       -recurseobjects $opts(recurseobjects)]
@@ -1462,8 +1461,14 @@ proc twapi::set_security_descriptor_integrity {secd integrity args} {
     return [set_security_descriptor_sacl $secd [new_acl $aces]]
 }
 
-proc twapi::set_resource_integrity {restype name integrity policy} {
-    TBD - HERE
+proc twapi::set_resource_integrity {restype name integrity rights} {
+    
+    set_resources_security_descriptor $restype $name \
+        [set_security_descriptor_integrity \
+             [new_security_descriptor] \
+             $integrity \
+             $rights]
+        -mandatory_label
 }
 
 
@@ -1492,14 +1497,14 @@ proc twapi::get_security_descriptor_text {secd args} {
     if {$name eq ""} {
         set name Undefined
     } else {
-        set name [map_account_to_name $name]
+        catch {set name [map_account_to_name $name]}
     }
     append result "Owner:\t$name\n"
     set name [get_security_descriptor_group $secd]
     if {$name eq ""} {
         set name Undefined
     } else {
-        set name [map_account_to_name $name]
+        catch {set name [map_account_to_name $name]}
     }
     append result "Group:\t$name\n"
 
