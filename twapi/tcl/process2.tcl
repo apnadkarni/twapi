@@ -95,7 +95,7 @@ proc twapi::get_process_ids {args} {
             lappend popts -$opt
         }
     }
-    foreach {pid piddata} [eval [list get_multiple_process_info $all_pids] $popts] {
+    foreach {pid piddata} [eval [list get_multiple_process_info -matchpids $all_pids] $popts] {
         array set pidvals $piddata
         if {[info exists opts(path)] &&
             ![string [expr {$match_op eq "-glob" ? "match" : "equal"}] -nocase $opts(path) [file join $pidvals(-path)]]} {
@@ -402,7 +402,7 @@ proc twapi::get_thread_parent_process_id {tid} {
 
 # Get the thread ids belonging to a process
 proc twapi::get_process_thread_ids {pid} {
-    return [lindex [lindex [get_multiple_process_info [list $pid] -tids] 1] 1]
+    return [lindex [lindex [get_multiple_process_info -matchpids [list $pid] -tids] 1] 1]
 }
 
 
