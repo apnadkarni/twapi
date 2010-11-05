@@ -317,6 +317,8 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     Tcl_Obj    *resultObj = NULL;
     Tcl_Obj    *obj = NULL;
     ACE_HEADER *acehdrP = &((ACCESS_ALLOWED_ACE *) aceP)->Header;
+    ACCESS_ALLOWED_OBJECT_ACE *objectAceP;
+    SID        *sidP;
 
     if (aceP == NULL) {
         if (interp)
@@ -329,30 +331,21 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
         goto allocation_error_return;
 
     /* ACE type */
-    obj = Tcl_NewIntObj(acehdrP->AceType);
-    if (obj == NULL)
-        goto allocation_error_return;
-    if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
-        goto error_return;
+    Tcl_ListObjAppendElement(interp, resultObj,
+                             Tcl_NewIntObj(acehdrP->AceType));
 
     /* ACE flags */
-    obj = Tcl_NewIntObj(acehdrP->AceFlags);
-    if (obj == NULL)
-        goto allocation_error_return;
-    if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
-        goto error_return;
+    Tcl_ListObjAppendElement(interp, resultObj,
+                             Tcl_NewIntObj(acehdrP->AceFlags));
 
     /* Now for type specific fields */
     switch (acehdrP->AceType) {
     case ACCESS_ALLOWED_ACE_TYPE:
     case ACCESS_DENIED_ACE_TYPE:
     case SYSTEM_AUDIT_ACE_TYPE:
-        /* Get the mask */
-        obj = Tcl_NewIntObj(((ACCESS_ALLOWED_ACE *)aceP)->Mask);
-        if (obj == NULL)
-            goto allocation_error_return;
-        if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
-            goto error_return;
+    case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 Tcl_NewIntObj(((ACCESS_ALLOWED_ACE *)aceP)->Mask));
 
         /* and the SID */
         obj = NULL;                /* In case of errors */
@@ -362,14 +355,40 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
             != TCL_OK) {
             goto error_return;
         }
-        if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
-            goto error_return;
-
+        Tcl_ListObjAppendElement(interp, resultObj, obj);
         break;
 
     case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
     case ACCESS_DENIED_OBJECT_ACE_TYPE:
     case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
+        objectAceP = (ACCESS_ALLOWED_OBJECT_ACE *)aceP;
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 Tcl_NewIntObj(objectAceP->Mask));
+        if (objectAceP->Flags & ACE_OBJECT_TYPE_PRESENT) {
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
+            if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
+                Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->InheritedObjectType));
+                sidP = (SID *) &objectAceP->SidStart;
+            } else {
+                Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+                sidP = (SID *) &objectAceP->InheritedObjectType;
+            }
+        } else if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
+            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
+            sidP = (SID *) &objectAceP->InheritedObjectType;
+        } else {
+            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+            sidP = (SID *) &objectAceP->ObjectType;
+        }
+        obj = NULL;                /* In case of errors */
+        if (ObjFromSID(interp, sidP, &obj) != TCL_OK)
+            goto error_return;
+        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        
+        break;
+
     default:
         /*
          * Return a binary rep of the whole dang thing.
