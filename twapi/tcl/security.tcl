@@ -1428,7 +1428,7 @@ proc twapi::get_resource_integrity {restype name args} {
 }
 
 
-proc twapi::set_security_descriptor_integrity {secd integrity rights} {
+proc twapi::set_security_descriptor_integrity {secd integrity rights args} {
     # Not clear from docs whether this can
     # be done without interfering with SACL fields. Nevertheless
     # we provide this proc because we might want to set the
@@ -1461,14 +1461,25 @@ proc twapi::set_security_descriptor_integrity {secd integrity rights} {
     return [set_security_descriptor_sacl $secd [new_acl $aces]]
 }
 
-proc twapi::set_resource_integrity {restype name integrity rights} {
+proc twapi::set_resource_integrity {restype name integrity rights args} {
+    array set opts [parseargs args {
+        {recursecontainers.bool 0}
+        {recurseobjects.bool 0}
+        handle
+    } -maxleftover 0]
     
-    set_resources_security_descriptor $restype $name \
-        [set_security_descriptor_integrity \
-             [new_security_descriptor] \
-             $integrity \
-             $rights]
-        -mandatory_label
+    set secd [set_security_descriptor_integrity \
+                  [new_security_descriptor] \
+                  $integrity \
+                  $rights \
+                  -recurseobjects $opts(recurseobjects) \
+                  -recursecontainers $opts(recursecontainers)]
+
+    if {$opts(handle)} {
+        set_resources_security_descriptor $restype $name $secd -mandatory_label -handle
+    } else {
+        set_resources_security_descriptor $restype $name $secd -mandatory_label
+    }
 }
 
 
