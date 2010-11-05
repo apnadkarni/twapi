@@ -441,10 +441,21 @@ the higher level commands
 be used for this purpose.
 
 [para]
- The associated
+The associated
 policy for maintaining integrity levels can be read and modified using
 [uri #get_token_integrity_policy [cmd get_token_integrity_policy]] and
 [uri #set_token_integrity_policy [cmd set_token_integrity_policy]].
+
+[para]
+The integrity level associated with a resource can be retrieved and
+set using the commands
+[uri #get_resource_integrity [cmd get_resource_integrity]] and
+[uri #set_resource_integrity [cmd set_resource_integrity]] respectively.
+The integrity level stored in a security descriptor can be retrieved and
+set using
+[uri #get_security_descriptor_integrity [cmd get_security_descriptor_integrity]]
+and
+[uri #set_security_descriptor_integrity [cmd set_security_descriptor_integrity]].
 
 [para]
 The above security mechanims also introduced compatibility issues for
@@ -700,6 +711,43 @@ This is always an empty string on Windows 2000.
 [call [cmd get_privilege_description] [arg PRIVILEGE]]
 Returns a string description of the specified privilege.
 
+[call [cmd get_resource_integrity] [arg RESTYPE] [arg NAME] [opt [arg options]]]
+Retrieves the integrity level associated with a resource. 
+[arg RESTYPE] specifies the resource type and if option [cmd -handle] is
+not specified, must be one of [const file],
+[const service] (Windows service), [const printer], [const registry],
+[const share] (Network shares) or [const kernelobj]
+(kernel objects such as mutexes, semaphores and events).
+If option [cmd -handle] is specified, then [arg RESTYPE] may also
+be one of [const windowstation], [const directoryservice],
+[const directoryserviceall], [const providerdefined], [const wmiguid]
+or [const registrywow6432key] but not [const share].
+[nl]
+[arg NAME] specifies the name of the resource, for example, the path of
+a file unless option [cmd -handle] is specified in which case it is the
+handle to the resource.
+
+[nl] On systems that
+do not support integrity levels, the command returns an empty list.
+Otherwise, a list with two elements is returned. The first element of
+the list is the integrity value associated with the resource, by
+default represented as an integer value 
+between 0 and 65535. If the option [cmd -raw] is specified, the integrity
+level is returned as the raw SID value as stored internally by Windows in the
+token. Alternatively, if the [cmd -label] option is specified the corresponding
+integrity level range label is returned which is one of
+[const untrusted] (0-4095), [const low] (4096-8191),
+[const medium] (8192-12287, [const high] (12288-16383) or
+[const system] (anything higher).
+[nl]
+The second element of the returned list is a list containing zero or
+or more of the following values: 
+[const system_mandatory_label_no_write_up],
+[const system_mandatory_label_no_read_up],
+[const system_mandatory_label_no_execute_up]. These control the operations
+allowed on the resource by processes with lower integrity levels. Refer
+to the Windows SDK for more details.
+
 [call [cmd get_resource_security_descriptor] [arg RESTYPE] [arg NAME] [opt [arg options]]]
 
 Retrieves the security descriptor attached to a operating system resource.
@@ -763,6 +811,13 @@ Returns the DACL contained in the given security descriptor [arg SECD].
 
 [call [cmd get_security_descriptor_group] [arg SECD]]
 Returns the group SID for the given security descriptor [arg SECD].
+
+[call [cmd get_security_descriptor_integrity] [arg SECD] [opt [cmd "-label|-raw"]]]
+Returns the integrity level stored in the given security descriptor [arg SECD].
+Refer to
+[uri #get_resource_integrity [cmd get_resource_integrity]] for the 
+option description and format
+of the returned value.
 
 [call [cmd get_security_descriptor_owner] [arg SECD]]
 Returns the owner SID for the given security descriptor [arg SECD].
@@ -1236,6 +1291,15 @@ See [sectref "Access Control Entries"] for valid values of [arg ACETYPE].
 Sets the list of ACEs within an ACL to those given in [arg ACELIST]. Returns
 the modified ACL.
 
+
+[call [cmd set_resource_integrity] [arg RESTYPE] [arg NAME] [arg INTEGRITYLEVEL] [arg INTEGRITYPOLICY] [opt [arg options]]]
+Sets the integrity level associated with a resource. See
+[uri #set_security_descriptor_integrity [cmd set_security_descriptor_integrity]]
+for a description of the [arg INTEGRITYLEVEL] and [arg INTEGRITYPOLICY]
+parameters and the options [cmd -recurseobjects] and [cmd -recursecontainers].
+See [uri #set_resource_security_descriptor [cmd set_resource_security_descriptor]]
+for description of [arg RESTYPE], [arg NAME] and the [cmd -handle] option.
+
 [call [cmd set_resource_security_descriptor] [arg RESTYPE] [arg NAME] [arg SECD] [opt [arg options]]]
 
 Modifies the security descriptor attached to a operating system resource.
@@ -1304,6 +1368,30 @@ which is [emph not] the same not having a DACL.
 Returns a security descriptor identical to [arg SECD]
 except for the group field which is set to the SID for account [arg ACCOUNT].
 [arg ACCOUNT] may be the SID itself or the name of the group.
+
+[call [cmd set_security_descriptor_integrity] [arg SECD] [arg INTEGRITYLEVEL] [arg INTEGRITYPOLICY] [opt [arg options]]]
+Returns a new security descriptor based on [arg SECD] with the specified
+integrity. [arg INTEGRITYLEVEL] may be specified in one of the forms
+described in [uri #get_resource_integrity [cmd get_resource_integrity]].
+[arg INTEGRITYPOLICY] is a list of one or more of the following:
+[const system_mandatory_label_no_write_up],
+[const system_mandatory_label_no_read_up],
+[const system_mandatory_label_no_execute_up]. These control the operations
+allowed on the resource by processes with lower integrity levels. Refer
+to the Windows SDK for more details.
+[nl]
+The following options may also be specified with the command:
+[list_begin opt]
+[opt_def [cmd -recursecontainers] [arg BOOLEAN]] If the specified value is 1,
+the integrity is also applied to all descendents of the object to which the
+security descriptor is attached that are themselves containers.
+If 0 (default), the integrity is not inherited by descendents that are containers.
+[opt_def [cmd -recurseobjects] [arg BOOLEAN]] If the specified value is 1,
+the integrity is also applied to all descendents of the object to which the 
+security descriptor is attached that 
+are [emph not] themselves containers.
+If 0 (default), the integrity does not apply to descendents that are not containers.
+[list_end]
 
 [call [cmd set_security_descriptor_owner] [arg SECD] [arg ACCOUNT]]
 Returns a security descriptor identical to [arg SECD]
