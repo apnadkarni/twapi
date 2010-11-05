@@ -1396,7 +1396,7 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
 proc twapi::get_security_descriptor_integrity {secd args} {
     foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
         if {[get_ace_type $ace] eq "mandatory_label"} {
-            set integrity [eval [list _sid_to_integrity $sid] $args]
+            set integrity [eval [list _sid_to_integrity [get_ace_sid $ace]] $args]
             set rights [get_ace_rights $ace -resourcetype mandatory_label]
             return [list $integrity $rights]
         }
@@ -1424,7 +1424,7 @@ proc twapi::get_resource_integrity {restype name args} {
         set secd [get_resource_security_descriptor $restype $name -mandatory_label]
     }
 
-    return [eval [list get_security_descriptor_integrity $secd] $args]
+    return [eval [list get_security_descriptor_integrity $secd] $saved_args]
 }
 
 
