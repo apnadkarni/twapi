@@ -3561,12 +3561,32 @@ namespace eval twapi::security::test {
     ################################################################
 
     test get_security_descriptor_integrity-1.0 {
-        Get the integrity field of a security descriptor
+        Get the integer integrity field of a security descriptor
     } -setup {
         set secd [twapi::get_resource_security_descriptor file $::env(WINDIR)]
     } -body {
         twapi::get_security_descriptor_integrity $secd
     } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+
+    test get_security_descriptor_integrity-1.1 {
+        Get the raw integrity field of a security descriptor
+    } -setup {
+        set secd [twapi::get_resource_security_descriptor file $::env(WINDIR)]
+    } -body {
+        twapi::get_security_descriptor_integrity $secd -raw
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+
+    test get_security_descriptor_integrity-1.2 {
+        Get the label integrity field of a security descriptor
+    } -setup {
+        set secd [twapi::get_resource_security_descriptor file $::env(WINDIR)]
+    } -body {
+        twapi::get_security_descriptor_integrity $secd -label
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+
 
     ################################################################
 
@@ -3798,6 +3818,27 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_resource_integrity-1.0 {
+        Get the integer integrity of a file resource
+    } -body {
+        twapi::get_resource_integrity file $::env(WINDIR)
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+    test get_resource_integrity-1.1 {
+        Get the raw integrity of a file resource
+    } -body {
+        twapi::get_resource_integrity file $::env(WINDIR) -raw
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+    test get_resource_integrity-1.2 {
+        Get the label integrity of a file resource
+    } -body {
+        twapi::get_resource_integrity file $::env(WINDIR) -label
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
+
+
+    ################################################################
+
     test set_resource_security_descriptor-1.0 {
         Set the security descriptor for a resource (file)
     } -constraints {
@@ -3896,6 +3937,152 @@ namespace eval twapi::security::test {
     } -cleanup {
         twapi::close_handles $h
     } -result 1
+
+    ################################################################
+    
+    test set_resource_integrity-1.0 {
+        Set medium integrity level for a resource with system_mandatory_label_no_write_up
+    } -constraints {
+        win6
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $fn medium system_mandatory_label_no_write_up
+        twapi::get_resource_integrity file $fn
+    } -result {8192 system_mandatory_label_no_write_up}
+
+    test set_resource_integrity-1.1 {
+        Set low integrity level for a resource with system_mandatory_label_no_read_up
+    } -constraints {
+        win6
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $fn low system_mandatory_label_no_read_up
+        twapi::get_resource_integrity file $fn
+    } -result {4096 system_mandatory_label_no_read_up}
+
+    test set_resource_integrity-1.2 {
+        Set untrusted integrity level for a resource with all policy rights
+    } -constraints {
+        win6
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $fn untrusted {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}
+        twapi::get_resource_integrity file $fn
+    } -result {0 {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}}
+
+    test set_resource_integrity-1.3 {
+        Set high integrity level for a resource with all policy rights
+    } -constraints {
+        win6
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $fn high {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}
+        twapi::get_resource_integrity file $fn
+    } -result {16384 {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}}
+
+    test set_resource_integrity-2.0 {
+        Set integer integrity level for a resource with integer policy rights
+    } -constraints {
+        win6
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $fn 8192 7
+        twapi::get_resource_integrity file $fn
+    } -result {8192 {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}}
+
+    test set_resource_integrity-2.0 {
+        Set integrity level for a directory with default recursion setting
+    } -constraints {
+        win6
+    } -setup {
+        set dir [file join [tcltest::temporaryDirectory] [clock seconds]]
+        file mkdir $dir
+        set subdir [file join $dir subdir]
+        file mkdir $subdir
+        set fn [file join $dir file]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $dir 8192 1
+        list [twapi::get_resource_integrity file $dir] \
+            [twapi::get_resource_integrity file $subdir] \
+            [twapi::get_resource_integrity file $fn]
+    } -result {{8192 system_mandatory_label_no_write_up} {} {}}
+
+    test set_resource_integrity-2.1 {
+        Set integrity level for a directory with explicit no recursion setting
+    } -constraints {
+        win6
+    } -setup {
+        set dir [file join [tcltest::temporaryDirectory] [clock seconds]]
+        file mkdir $dir
+        set subdir [file join $dir subdir]
+        file mkdir $subdir
+        set fn [file join $dir file]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $dir 8192 1 -recursecontainers false -recurseobjects false
+        list [twapi::get_resource_integrity file $dir] \
+            [twapi::get_resource_integrity file $subdir] \
+            [twapi::get_resource_integrity file $fn]
+    } -result {{8192 system_mandatory_label_no_write_up} {} {}}
+
+    test set_resource_integrity-2.2 {
+        Set integrity level for a directory with -recursecontainers true
+    } -constraints {
+        win6
+    } -setup {
+        set dir [file join [tcltest::temporaryDirectory] [clock seconds]]
+        file mkdir $dir
+        set subdir [file join $dir subdir]
+        file mkdir $subdir
+        set fn [file join $dir file]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $dir 8192 1 -recursecontainers true
+        list [twapi::get_resource_integrity file $dir] \
+            [twapi::get_resource_integrity file $subdir] \
+            [twapi::get_resource_integrity file $fn]
+    } -result {{8192 system_mandatory_label_no_write_up} {8192 system_mandatory_label_no_write_up} {}}
+
+    test set_resource_integrity-2.3 {
+        Set integrity level for a directory with -recurseobjects true
+    } -constraints {
+        win6
+    } -setup {
+        set dir [file join [tcltest::temporaryDirectory] [clock seconds]]
+        file mkdir $dir
+        set subdir [file join $dir subdir]
+        file mkdir $subdir
+        set fn [file join $dir file]
+        close [open $fn w+]
+    } -body {
+        twapi::set_resource_integrity file $dir 8192 1 -recurseobjects true
+        list [twapi::get_resource_integrity file $dir] \
+            [twapi::get_resource_integrity file $subdir] \
+            [twapi::get_resource_integrity file $fn]
+    } -result {{8192 system_mandatory_label_no_write_up} {} {8192 system_mandatory_label_no_write_up}}
+
+    ################################################################
+
+    # Only basic test, since other cases are covered indirectly through
+    # other tests
+    test set_security_descriptor_integrity-1.0 {
+        Set the integrity level in a security descriptor
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_security_descriptor_integrity [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
+    } -result {low system_mandatory_label_no_write_up}
 
     ################################################################
 
