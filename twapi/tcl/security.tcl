@@ -994,25 +994,10 @@ proc twapi::get_ace_text {ace args} {
 proc twapi::new_acl {{aces ""}} {
     variable windefs
 
-    set max 0
-    foreach ace $aces {
-        set ace_typecode [lindex $ace 0]
-        if {$ace_typecode > $max} {
-            set max $ace_typecode
-        }
-    }
-
-    if {$max <= $windefs(ACCESS_MAX_MS_V2_ACE_TYPE)} {
-        set acl_rev 2
-    } elseif {$max <= $windefs(ACCESS_MAX_MS_V3_ACE_TYPE)} {
-        set acl_rev 3
-    } elseif {$max <= $windefs(ACCESS_MAX_MS_V4_ACE_TYPE)} {
-        set acl_rev 4
-    } elseif {$max <= $windefs(ACCESS_MAX_MS_V5_ACE_TYPE)} {
-        set acl_rev 5
-    }
-
-    return [list $acl_rev $aces]
+    # NOTE: we ALWAYS set aclrev to 2. This may not be correct for the
+    # supplied ACEs but that's ok. The C level code calculates the correct
+    # acl rev level and overwrites anyways.
+    return [list 2 $aces]
 }
 
 # Creates an ACL that gives the specified rights to specified trustees
@@ -1350,7 +1335,7 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
     }
 
     if {$opts(sacl) || $opts(mandatory_label) || $opts(all)} {
-        set opts(sacl) [get_security_descriptor_sacl $secd]
+        set sacl [get_security_descriptor_sacl $secd]
         if {$opts(sacl) || $opts(all)} {
             setbits mask $windefs(SACL_SECURITY_INFORMATION)
         }
@@ -1359,6 +1344,7 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
                 setbits mask $windefs(LABEL_SECURITY_INFORMATION)
             }
         }
+        set opts(sacl) $sacl
     } else {
         set opts(sacl) null
     }
@@ -1476,9 +1462,9 @@ proc twapi::set_resource_integrity {restype name integrity rights args} {
                   -recursecontainers $opts(recursecontainers)]
 
     if {$opts(handle)} {
-        set_resources_security_descriptor $restype $name $secd -mandatory_label -handle
+        set_resource_security_descriptor $restype $name $secd -mandatory_label -handle
     } else {
-        set_resources_security_descriptor $restype $name $secd -mandatory_label
+        set_resource_security_descriptor $restype $name $secd -mandatory_label
     }
 }
 
