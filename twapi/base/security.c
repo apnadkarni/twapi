@@ -454,6 +454,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
     case ACCESS_ALLOWED_ACE_TYPE:
     case ACCESS_DENIED_ACE_TYPE:
     case SYSTEM_AUDIT_ACE_TYPE:
+    case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
         if (objc != 4)
             goto format_error;
         acesz += sizeof(*aceP);
@@ -603,11 +604,16 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
      * First figure out how much space we need to allocate. For this, we
      * first need to figure out space for the ACE's
      */
+#if 0
+    objv[0] is the ACL rev. We always recalculate it, ignore value passed in.
+    if (Tcl_GetIntFromObj(interp, objv[0], &aclrev) != TCL_OK)
+        goto error_return;
+#endif
     if (Tcl_ListObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
         goto error_return;
 
     aclsz = sizeof(ACL);
-    aclrev = ACL_REVISION;      /* Assume only standed ACE types */
+    aclrev = ACL_REVISION;
     if (aceobjc) {
         acePP = TwapiAlloc(aceobjc*sizeof(*acePP));
         for (i = 0; i < aceobjc; ++i)
@@ -619,18 +625,30 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
             acehdrP = (ACE_HEADER *)acePP[i];
             aclsz += acehdrP->AceSize;
             switch (acehdrP->AceType) {
-            case ACCESS_ALLOWED_ACE_TYPE:
-            case ACCESS_DENIED_ACE_TYPE:
-            case SYSTEM_AUDIT_ACE_TYPE:
+            case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
+            case ACCESS_DENIED_OBJECT_ACE_TYPE:
+            case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
+            case SYSTEM_ALARM_OBJECT_ACE_TYPE:
+            case ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE:
+            case ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE:
+            case SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE:
+            case SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE:
+                /* Change rev if object ace's present */
+                aclrev = ACL_REVISION_DS;
                 break;
             default:
-                aclrev = ACL_REVISION_DS; /* Change rev if object ace's present */
                 break;
             }
+
         }
     }
 
-    /* OK, now allocate the ACL and add the ACE's to it */
+    /*
+     * OK, now allocate the ACL and add the ACE's to it
+     * We currently use AddAce, not AddMandatoryAce even for integrity labels.
+     * This seems to work and avoids AddMandatoryAce which is not present
+     * on XP/2k3
+     */
     *aclPP = TwapiAlloc(aclsz);
     InitializeAcl(*aclPP, aclsz, aclrev);
     for (i = 0; i < aceobjc; ++i) {
