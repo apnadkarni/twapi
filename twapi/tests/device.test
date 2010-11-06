@@ -16,6 +16,7 @@ load_twapi
 namespace eval twapi::device::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint win6 [twapi::min_os_version 6]
 
     ################################################################
 
@@ -46,6 +47,25 @@ namespace eval twapi::device::test {
     } -body {
         TBD
     } -result TBD
+
+    ################################################################
+
+    test create_file-1.0 {
+    } -constraints {
+        nt TBD
+    } -body {
+    } -result TBD
+
+    test create_file-2.0 {
+        Create a file with a specific integrity value
+    } -constraints {
+        win6
+    } -body {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        set secd [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
+        twapi::close_handle [twapi::create_file $fn -secd $secd]
+        twapi::get_resource_integrity file $fn -label
+    } -result {low system_mandatory_label_no_write_up}
 
     ################################################################
 
