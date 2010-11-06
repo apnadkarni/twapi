@@ -17,6 +17,7 @@ load_twapi
 namespace eval twapi::security::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint win6 [twapi::min_os_version 6]
 
     # Account name to use for creation/deletion
     variable user_account_name "TWAPI_TESTER"
@@ -3556,6 +3557,16 @@ namespace eval twapi::security::test {
     } -body {
         twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_sacl $secd]] 0]
     } -result "audit"
+
+    ################################################################
+
+    test get_security_descriptor_integrity-1.0 {
+        Get the integrity field of a security descriptor
+    } -setup {
+        set secd [twapi::get_resource_security_descriptor file $::env(WINDIR)]
+    } -body {
+        twapi::get_security_descriptor_integrity $secd
+    } -result [expr {[twapi::min_os_version 6] ? "high" : ""}]
 
     ################################################################
 
