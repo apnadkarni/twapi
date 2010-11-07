@@ -829,11 +829,11 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_groups $tok
-        set tbd TBD
+        set sids [twapi::get_token_groups $tok]
+        expr {[llength $sids] && [valid_sids $sids]}
     } -cleanup {
         twapi::close_token $tok
-    } -result TBD
+    } -result 1
 
     ###
 
@@ -844,11 +844,11 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_groups $tok -name
-        set tbd TBD
+        set names [twapi::get_token_groups $tok -name]
+        expr {[llength $names] && [valid_account_names $names]}
     } -cleanup {
         twapi::close_token $tok
-    } -result TBD
+    } -result 1
 
 
     ################################################################
@@ -860,11 +860,28 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_group_sids_and_attrs $tok
-        set tbd TBD
+        set sids {}
+        set attrs [setops::create]
+        foreach {sid gattrs} [twapi::get_token_group_sids_and_attrs $tok] {
+            lappend sids $sid
+            set attrs [setops::union $attrs $gattrs]
+        }
+        expr {[llength $sids] &&
+              [valid_sids $sids] &&
+              [llength [setops::diff $attrs {
+                  enabled
+                  enabled_by_default
+                  logon_id
+                  mandatory
+                  owner
+                  resource
+                  integrity
+                  integrity_enabled
+                  use_for_deny_only
+              }]] == 0}
     } -cleanup {
         twapi::close_token $tok
-    } -result TBD
+    } -result 1
 
 
     ################################################################
@@ -1290,7 +1307,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::is_valid_sid_syntax [twapi::get_token_primary_group $tok]
+        valid_sids [list [twapi::get_token_primary_group $tok]]
     } -cleanup {
         twapi::close_token $tok
     } -result 1
@@ -1300,15 +1317,14 @@ namespace eval twapi::security::test {
     test get_token_primary_group-2.0 {
         Get token primary_group name
     } -constraints {
-        nt TBD
+        nt
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_primary_group $tok -name
-        set x TBD
+        valid_account_names [list [twapi::get_token_primary_group $tok -name]]
     } -cleanup {
         twapi::close_token $tok
-    } -result TBD
+    } -result 1
 
     ################################################################
 
@@ -1457,56 +1473,57 @@ namespace eval twapi::security::test {
     test get_token_virtualization-1.0 {
         Get the virtualization for a token
     } -constraints {
-        nt TBD
+        nt
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        TBD twapi::get_token_user $tok
+        twapi::get_token_virtualization $tok
     } -cleanup {
-        TBD twapi::close_token $tok
-    } -result TBD
+        twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] && [lsearch -exact [twapi::get_build_config] x86] >= 0}]
 
     ################################################################
 
     test set_token_virtualization-1.0 {
         Set the virtualization for a token
     } -constraints {
-        nt TBD
+        nt win6
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        TBD twapi::get_token_user $tok
+        twapi::set_token_virtualization $tok false
+        twapi::get_token_virtualization $tok
     } -cleanup {
-        TBD twapi::close_token $tok
-    } -result TBD
+        twapi::close_token $tok
+    } -result 0
 
     ################################################################
 
     test get_token_elevation-1.0 {
         Get the elevation for a token
     } -constraints {
-        nt TBD
+        nt
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        TBD twapi::get_token_user $tok
+        twapi::get_token_elevation $tok
     } -cleanup {
-        TBD twapi::close_token $tok
-    } -result TBD
+        twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] ? "full" : "default"}]
 
     ################################################################
 
     test get_token_integrity-1.0 {
         Get the integrity level for a token
     } -constraints {
-        nt TBD
+        nt
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        TBD twapi::get_token_user $tok
+        twapi::get_token_integrity $tok
     } -cleanup {
-        TBD twapi::close_token $tok
-    } -result TBD
+        twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] ? "high" : "medium"}]
 
     ################################################################
 
