@@ -78,6 +78,24 @@ proc validate_ip_addresses {addrlist} {
     return 1
 }
 
+# Validate SIDs
+proc valid_sids {args} {
+    foreach sid [concat $args] {
+        if {[catch {twapi::lookup_account_sid $sid}]} {
+            return 0
+        }
+    }
+    return 1
+}
+
+proc valid_account_names {args} {
+    foreach name [concat $args] {
+        if {[catch {twapi::lookup_account_name $name}]} {
+            return 0
+        }
+    }
+    return 1
+}
 
 # Start notepad and wait till it's up and running.
 proc notepad_exec {args} {
