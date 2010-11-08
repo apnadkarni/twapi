@@ -406,8 +406,8 @@ proc twapi::init_windefs args {
         THREAD_SET_THREAD_TOKEN        0x00000080
         THREAD_IMPERSONATE             0x00000100
         THREAD_DIRECT_IMPERSONATION    0x00000200
-
-        THREAD_ALL_ACCESS              0x001f03ff
+        THREAD_SET_LIMITED_INFORMATION   0x00000400
+        THREAD_QUERY_LIMITED_INFORMATION 0x00000800
 
         EVENT_MODIFY_STATE             0x00000002
         EVENT_ALL_ACCESS               0x001F0003
@@ -437,6 +437,7 @@ proc twapi::init_windefs args {
 
         TOKEN_ALL_ACCESS_WINNT         0x000F00FF
         TOKEN_ALL_ACCESS_WIN2K         0x000F01FF
+        TOKEN_ALL_ACCESS               0x000F01FF
         TOKEN_READ                     0x00020008
         TOKEN_WRITE                    0x000200E0
         TOKEN_EXECUTE                  0x00020000
@@ -970,13 +971,14 @@ proc twapi::init_windefs args {
 
     if {[min_os_version 6]} {
         twapi::add_defines {
-            PROCESS_QUERY_LIMITED_INFORMATION      0x1000
+            PROCESS_QUERY_LIMITED_INFORMATION      0x00001000
             PROCESS_ALL_ACCESS             0x001fffff
+            THREAD_ALL_ACCESS              0x001fffff
         }
-
     } else {
         twapi::add_defines {
             PROCESS_ALL_ACCESS             0x001f0fff
+            THREAD_ALL_ACCESS              0x001f03ff
         }
     }
 }
