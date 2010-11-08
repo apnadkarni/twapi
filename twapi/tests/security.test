@@ -2695,7 +2695,8 @@ namespace eval twapi::security::test {
             process_set_sessionid process_vm_operation process_vm_read
             process_vm_write process_dup_handle process_create_process
             process_set_quota process_set_information process_query_information
-            process_suspend_resume 0x00001000 0x00002000 0x00004000 0x00008000
+            process_suspend_resume process_query_limited_information
+            0x00002000 0x00004000 0x00008000
             0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
             0x04000000 0x08000000        
         }
@@ -2717,8 +2718,9 @@ namespace eval twapi::security::test {
             generic_all thread_terminate thread_suspend_resume
             thread_get_context thread_set_context thread_set_information
             thread_query_information thread_set_thread_token thread_impersonate
-            thread_direct_impersonation 0x00000004 0x00000400
-            0x00000800 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
+            thread_direct_impersonation
+            thread_query_limited_information thread_set_limited_information
+            0x00000004 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
             0x00400000 0x00800000 0x01000000  0x02000000 0x04000000 0x08000000
         }
     } -result ""
@@ -2960,7 +2962,8 @@ namespace eval twapi::security::test {
             process_set_sessionid process_vm_operation process_vm_read
             process_vm_write process_dup_handle process_create_process
             process_set_quota process_set_information process_query_information
-            process_suspend_resume 0x00001000 0x00002000 0x00004000 0x00008000
+            process_suspend_resume process_query_limited_information
+            0x00002000 0x00004000 0x00008000
             0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
             0x04000000 0x08000000        
         }
@@ -3011,8 +3014,9 @@ namespace eval twapi::security::test {
             generic_all thread_terminate thread_suspend_resume
             thread_get_context thread_set_context thread_set_information
             thread_query_information thread_set_thread_token thread_impersonate
-            thread_direct_impersonation 0x00000004 0x00000400
-            0x00000800 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
+            thread_direct_impersonation
+            thread_query_limited_information thread_set_limited_information
+            0x00000004 0x00001000 0x00002000  0x00004000 0x00008000 0x00200000
             0x00400000 0x00800000 0x01000000  0x02000000 0x04000000 0x08000000
         }
     } -result ""
