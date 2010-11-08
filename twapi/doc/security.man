@@ -1450,9 +1450,8 @@ for the meaning of [const no_write_up] and [const new_process_min].
 Enables or disables virtualization of file and registry accesses depending
 on the boolean value of [arg ENABLE]. If this call is made on a
 system that does not support UAC, [arg ENABLE] must be [const false] else
-an exception will be generated.
-
-
+an exception will be generated. The token must have been opened
+with [const token_adjust_default] access.
 
 [list_end]
 

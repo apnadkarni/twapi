@@ -308,6 +308,7 @@ proc twapi::get_token_virtualization {tok} {
 }
 
 proc twapi::set_token_virtualization {tok enabled} {
+    # tok must have TOKEN_ADJUST_DEFAULT access
     if {![min_os_version 6]} {
         # Older OS versions have no concept of elevation, so only disable
         # allowed
@@ -1637,16 +1638,8 @@ proc twapi::_access_rights_to_mask {args} {
     set rights 0
     foreach right [eval concat $args] {
         if {![string is integer $right]} {
-            if {$right == "token_all_access"} {
-                if {[min_os_version 5 0]} {
-                    set right $windefs(TOKEN_ALL_ACCESS_WIN2K)
-                } else {
-                    set right $windefs(TOKEN_ALL_ACCESS_WIN2K)
-                }
-            } else {
-                if {[catch {set right $windefs([string toupper $right])}]} {
-                    error "Invalid access right symbol '$right'"
-                }
+            if {[catch {set right $windefs([string toupper $right])}]} {
+                error "Invalid access right symbol '$right'"
             }
         }
         set rights [expr {$rights | $right}]
@@ -1711,16 +1704,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
             set masks [list THREAD_ALL_ACCESS]
         }
         token {
-            set masks [list TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE]
-            # TOKEN_ALL_ACCESS depends on platform
-            if {[min_os_version 5 0]} {
-                set token_all_access $windefs(TOKEN_ALL_ACCESS_WIN2K)
-            } else {
-                set token_all_access $windefs(TOKEN_ALL_ACCESS_WIN2K)
-            }
-            if {($token_all_access & $access_mask) == $token_all_access} {
-                lappend rights "token_all_access"
-            }
+            set masks [list TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE TOKEN_ALL_ACCESS]
         }
         desktop {
             # THere is no desktop all access bits
@@ -1823,6 +1807,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
                 PROCESS_SET_INFORMATION
                 PROCESS_QUERY_INFORMATION
                 PROCESS_SUSPEND_RESUME
+                PROCESS_QUERY_LIMITED_INFORMATION
             }
         }
         thread {
@@ -1836,6 +1821,8 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
                 THREAD_SET_THREAD_TOKEN
                 THREAD_IMPERSONATE
                 THREAD_DIRECT_IMPERSONATION
+                THREAD_SET_LIMITED_INFORMATION
+                THREAD_QUERY_LIMITED_INFORMATION
             }
         }
         token {
