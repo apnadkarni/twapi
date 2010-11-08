@@ -99,6 +99,10 @@ proc valid_account_names {names} {
     return 1
 }
 
+proc system_drive_root {} {
+    return [file dirname $::env(WINDIR)]
+}
+
 # Start notepad and wait till it's up and running.
 proc notepad_exec {args} {
     set pid [eval [list exec notepad.exe] $args &]
