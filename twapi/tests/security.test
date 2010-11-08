@@ -861,7 +861,7 @@ namespace eval twapi::security::test {
         set tok [twapi::open_process_token]
     } -body {
         set sids {}
-        set attrs [setops::create]
+        set attrs {}
         foreach {sid gattrs} [twapi::get_token_group_sids_and_attrs $tok] {
             lappend sids $sid
             set attrs [setops::union $attrs $gattrs]
@@ -1523,7 +1523,31 @@ namespace eval twapi::security::test {
         twapi::get_token_integrity $tok
     } -cleanup {
         twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] ? 12288 : 8192}]
+
+    test get_token_integrity-1.1 {
+        Get the integrity level label for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_integrity $tok -label
+    } -cleanup {
+        twapi::close_token $tok
     } -result [expr {[twapi::min_os_version 6] ? "high" : "medium"}]
+
+    test get_token_integrity-1.2 {
+        Get the integrity level label for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_integrity $tok -raw
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] ? "S-1-16-12288" : "S-1-16-8192"}]
 
     ################################################################
 
@@ -3340,20 +3364,6 @@ namespace eval twapi::security::test {
           }
     } -result 1
 
-    ###
-
-    test new_acl-1.2 {
-        Create a new revision ACL
-    } -setup {
-        set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
-        # Construct an "allow_callback" ace. TWAPI does not support
-        # this so we need to hack it in to test revision setting
-        set ace [lreplace $ace 0 0 9]
-    } -body {
-        set acl [twapi::new_acl [list $ace]]
-        twapi::get_acl_rev $acl
-    } -result 5
-
 
     ################################################################
 
@@ -4099,7 +4109,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::get_security_descriptor_integrity [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
-    } -result {low system_mandatory_label_no_write_up}
+    } -result {4096 system_mandatory_label_no_write_up}
 
     ################################################################
 

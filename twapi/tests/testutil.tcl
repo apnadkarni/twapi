@@ -79,8 +79,8 @@ proc validate_ip_addresses {addrlist} {
 }
 
 # Validate SIDs
-proc valid_sids {args} {
-    foreach sid [concat $args] {
+proc valid_sids {sids} {
+    foreach sid $sids {
         if {[catch {twapi::lookup_account_sid $sid}]} {
             return 0
         }
@@ -88,10 +88,12 @@ proc valid_sids {args} {
     return 1
 }
 
-proc valid_account_names {args} {
-    foreach name [concat $args] {
+proc valid_account_names {names} {
+    foreach name $names {
         if {[catch {twapi::lookup_account_name $name}]} {
-            return 0
+            if {$name ne "Logon SID"} {
+                return 0
+            }
         }
     }
     return 1
