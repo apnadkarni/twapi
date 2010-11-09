@@ -94,7 +94,6 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     DWORD numbytes;
     DWORD result;
     Tcl_Obj *rec[20];
-    DWORD state;
 
     if (infolevel != SC_STATUS_PROCESS_INFO) {
         return Twapi_AppendSystemError(interp, ERROR_INVALID_LEVEL);
