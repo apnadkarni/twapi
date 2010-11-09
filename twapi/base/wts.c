@@ -121,8 +121,6 @@ int Twapi_WTSQuerySessionInformation(
     LPWSTR bufP = NULL;
     DWORD  bytes;
     DWORD winerr;
-    ULONG ul;
-
 
     switch (info_class) {
     case WTSApplicationName:
