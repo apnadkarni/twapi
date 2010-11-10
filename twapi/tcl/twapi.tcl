@@ -1678,34 +1678,19 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
 # be exported. SHould be called after completely loading twapi
 proc twapi::_get_public_procs {} {
 
+    set public_procs [info procs]
+
     # Init with C built-ins - there does not seem an easy auto way
-    # of getting these. Note "try" is not included
-    set public_procs {
-        kl_get parseargs recordarray twine win32_error
-    }
+    # of getting these. 
+    lappend public_procs kl_get parseargs recordarray twine win32_error trap
 
-    foreach p [info procs] {
-        # Export only names beginning with lowercase and do not
-        # export 'try' as that conflicts with Tcl 8.6 try.
-        if {![regexp {^([_A-Z]|try)} $p]} {
-            lappend public_procs $p
-        }
-    }
-
-    # Also export aliases and built-ins but not "try" as it conflicts
+    # Also export aliases but not "try" as it conflicts
     # with 8.6 try
     foreach p [interp aliases] {
-        # TBD - really we should be consistent in how aliases are
-        # defined - with or without a preceding ::
-        set p ""
-        if {[string match "twapi::*" $p]} {
-            set p [string range $p 7 end]
-        } elseif {[string match "::twapi::*" $p]} {
-            set p [string range $p 9 end]
-        }
-        # Do not try export slave namespaces
-        if {![string is wordchar -strict $p]} {
-            lappend public_procs $p
+        if {[regexp {twapi::([a-z][^:]*)$} $p _ tail]} {
+            if {$tail ne "try"} {
+                lappend public_procs $tail
+            }
         }
     }
 

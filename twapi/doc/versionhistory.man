@@ -117,6 +117,11 @@ Added -hprocess and -hthread options to
 [uri input.html#register_hotkey register_hotkey]
 to allow multiple scripts to register for the same hotkey.
 
+[bullet] Renamed
+[uri try.man#try [cmd try]] to
+[uri try.man#trap [cmd trap]] and aliased it to prevent conflicts
+with Tcl 8.6 [cmd try].
+
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
 lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
