@@ -134,8 +134,9 @@ int Twapi_Init(Tcl_Interp *interp)
     /* TBD - move these commands into the calls.c infrastructure */
     Tcl_CreateObjCommand(interp, "twapi::parseargs", Twapi_ParseargsObjCmd,
                          ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::try", Twapi_TryObjCmd,
+    Tcl_CreateObjCommand(interp, "twapi::trap", Twapi_TryObjCmd,
                          ticP, NULL);
+    Tcl_CreateAlias(interp, "twapi::try", interp, "twapi::trap", 0, NULL);
     Tcl_CreateObjCommand(interp, "twapi::kl_get", Twapi_KlGetObjCmd,
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::twine", Twapi_TwineObjCmd,

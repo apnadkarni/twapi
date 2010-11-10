@@ -254,7 +254,7 @@ int Twapi_AppendSystemError2(
     /* Third element of error code is also the message */
     if (Tcl_ListObjIndex(NULL, errorCodeObj, 2, &msgObj) == TCL_OK &&
         msgObj != NULL) {
-        Tcl_Obj *resultObj = Tcl_GetObjResult(interp);
+        Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
         if (Tcl_GetCharLength(resultObj)) {
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         }
@@ -296,11 +296,12 @@ int Twapi_AppendWNetError(
      * append the WNet message 
      */
     if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
-        Tcl_Obj *resultObj = Tcl_GetObjResult(interp);
+        Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
         Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         Tcl_AppendUnicodeToObj(resultObj, provider, -1);
         Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
         Tcl_AppendUnicodeToObj(resultObj, errorbuf, -1);
+        Tcl_SetObjResult(interp, resultObj);
     }
 
     return TCL_ERROR;
