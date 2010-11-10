@@ -43,7 +43,7 @@ returns the text description
 of an operating system error code.
 
 [para]
-[uri \#try [cmd try]] provides exception handling with finalization features.
+[uri \#trap [cmd trap]] provides exception handling with finalization features.
 
 [section "Error Logging"]
 
@@ -65,7 +65,7 @@ are discarded once the log reaches this limit.
 [call [cmd map_windows_error] [arg ERRORCODE]]
 Returns the text string corresponding to a Windows error code.
 
-[call [cmd try] [arg SCRIPT] [opt "[cmd onerror] [arg ERRORPATTERN] [arg ERRORSCRIPT]"]... [opt "[cmd finally] [arg FINALSCRIPT]"]]
+[call [cmd trap] [arg SCRIPT] [opt "[cmd onerror] [arg ERRORPATTERN] [arg ERRORSCRIPT]"]... [opt "[cmd finally] [arg FINALSCRIPT]"]]
 
 The command executes [arg SCRIPT] in the caller's context. If the script
 completes without generating any Tcl exceptions, the command executes
@@ -101,6 +101,11 @@ the variable [cmd ::errorResult] is set to the error message set by
 the original error. This behavior is
 similar to the [cmd try_eval] command from [uri http://tclx.sf.net TclX].
 
+[call [cmd try] [arg ...]]
+This is an alias for the [uri #trap [cmd trap]] command. This command
+is deprecated as it conflicts with the [cmd try] command in Tcl 8.6 when
+imported into the global namespace.
+
 [call [cmd win32_error] [arg WINERROR] [opt [arg MESSAGE]]]
 Generates a Tcl exception corresponding to the Windows error code WINERROR.
 [arg MESSAGE] may be specified as the error message in which case the
@@ -108,6 +113,6 @@ system error message for [arg WINERROR] is appended to it.
 
 [list_end]
 
-[keywords "exception handling" "error handling" errorCode]
+[keywords "exception handling" "error handling" errorCode trap]
 
 [manpage_end]

@@ -1326,11 +1326,12 @@ int Twapi_IDispatch_InvokeObjCmd(
 
             Twapi_AppendSystemError2(interp, hr, errorcode_extra);
             if (einfo.bstrDescription) {
-                errorResultObj = Tcl_GetObjResult(interp);
+                errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                 Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                 Tcl_AppendUnicodeToObj(errorResultObj,
                                        einfo.bstrDescription,
                                        SysStringLen(einfo.bstrDescription));
+                Tcl_SetObjResult(interp, errorResultObj);
             } else {
                 /* No error description. Perhaps the scode field
                  * tells us something more.
@@ -1343,9 +1344,10 @@ int Twapi_IDispatch_InvokeObjCmd(
                     Tcl_Obj *scodeObj = Twapi_MapWindowsErrorToString(einfo.scode);
                     if (scodeObj) {
                         Tcl_IncrRefCount(scodeObj);
-                        errorResultObj = Tcl_GetObjResult(interp);
+                        errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
+                        Tcl_SetObjResult(interp, errorResultObj);
                         Tcl_DecrRefCount(scodeObj);
                     }
                 }
