@@ -364,14 +364,15 @@ proc wmic_get {obj fields} {
         if {$line eq ""} continue
         set pos [string first = $line]
         if {$pos < 0} continue
-        lappend result [string range $line 0 $pos-1] [string range $line $pos+1 end]
+        lappend result [string range $line 0 [expr {$pos-1}]] [string range $line [expr {$pos+1}] end]
     }
     return $result
 }
 
 # Return true if $a is close to $b (within 5%)
 proc approx {a b {adjust 0}} {
-    if {[expr {abs($b-$a) < (max($a,$b)/20)}]} {
+    set max [expr {$a > $b ? $a : $b}]; # Tcl 8.4 does not have a max() func
+    if {[expr {abs($b-$a) < ($max/20)}]} {
         return 1
     }
     if {! $adjust} {
@@ -386,7 +387,8 @@ proc approx {a b {adjust 0}} {
     }
 
     # See if they match up after adjustment
-    return [expr {abs($b-$a) < (max($a,$b)/20)}]
+    set max [expr {$a > $b ? $a : $b}]; # Tcl 8.4 does not have a max() func
+    return [expr {abs($b-$a) < ($max/20)}]
 }
 
 
