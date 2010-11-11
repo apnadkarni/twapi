@@ -72,7 +72,7 @@ proc twapi::strings_to_resource_stringblock {strings} {
     for {set i 0} {$i < 16} {incr i} {
         set s [lindex $strings $i]
         set n [string length $s]
-        append bin [binary format ta* $n [encoding convertto unicode $s]]
+        append bin [binary format sa* $n [encoding convertto unicode $s]]
     }
 
     return $bin

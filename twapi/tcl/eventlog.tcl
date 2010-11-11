@@ -275,7 +275,7 @@ proc twapi::eventlog_format_message {event_record args} {
         foreach placeholder $placeholder_indices {
             foreach {start end} $placeholder break
             # Append the stuff between previous placeholder and this one
-            append msg2 [string range $msg $prev_end $start-1]
+            append msg2 [string range $msg $prev_end [expr {$start-1}]]
             set repl [string range $msg $start $end]; # Default if not found
             set msgid [string trimleft $repl %];     # Skip "%"
             # Try each file listed in turn
