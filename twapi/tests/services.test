@@ -112,7 +112,8 @@ namespace eval twapi::services::test {
         set mismatches [list ]
         foreach field {-errorcontrol -servicetype -interactive -starttype -account state} {
             if {[info exists svcinfo($field)]} {
-                if {[get_service_field $svcname $field] != $svcinfo($field)} {
+                if {[string map [list " " _] [get_service_field $svcname $field]] != $svcinfo($field)} {
+                    puts $svcname
                     lappend mismatches "Mismatch in field $field (was '[get_service_field $svcname $field]', expected '$svcinfo($field)')"
                 }
             }
@@ -505,7 +506,7 @@ namespace eval twapi::services::test {
     } -body {
         set result [list ]
         foreach svcname [get_service_names] {
-            if {[twapi::get_service_state $svcname] != [get_service_field $svcname state]} {
+            if {[twapi::get_service_state $svcname] ne [string map [list " " _] [get_service_field $svcname state]]} {
                 lappend result "State mismatch for service $svcname (expected '[get_service_field $svcname state]', got '[twapi::get_service_state $svcname]')"
             }
         }
@@ -542,7 +543,7 @@ namespace eval twapi::services::test {
         foreach {name svc} [twapi::get_multiple_service_status -active] {
             array set svcinfo $svc
             # Verify that the service is running
-            if {$svcinfo(state) != "running"} {
+            if {$svcinfo(state) != "running" && $svcinfo(state) != "start_pending"} {
                 lappend result "$svcinfo(name) is not active"
             }
             if {[string match "win32*" $svcinfo(servicetype)]} {

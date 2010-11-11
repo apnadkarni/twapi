@@ -4127,7 +4127,7 @@ namespace eval twapi::security::test {
     test set_security_descriptor_integrity-1.0 {
         Set the integrity level in a security descriptor
     } -constraints {
-        nt
+        nt win6
     } -body {
         twapi::get_security_descriptor_integrity [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
     } -result {4096 system_mandatory_label_no_write_up}
