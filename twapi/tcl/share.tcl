@@ -440,7 +440,7 @@ proc twapi::find_lm_sessions args {
     # On all platforms, client must be in UNC format
     set opts(client) [_make_unc_computername $opts(client)]
 
-    try {
+    trap {
         set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(client) $opts(user)] -level $level]
     } onerror {TWAPI_WIN32 2312} {
         # No session matching the specified client
@@ -514,7 +514,7 @@ proc twapi::end_lm_sessions args {
     # On all platforms, client must be in UNC format
     set opts(client) [_make_unc_computername $opts(client)]
 
-    try {
+    trap {
         NetSessionDel $opts(system) $opts(client) $opts(user)
     } onerror {TWAPI_WIN32 2312} {
         # No session matching the specified client - ignore error
@@ -552,7 +552,7 @@ proc twapi::find_lm_open_files args {
 
     # TBD - change to use -resume option to _net_enum_helper as there
     # might be a lot of files
-    try {
+    trap {
         set files [_net_enum_helper NetFileEnum -system $opts(system) -preargs [list [file nativename $opts(basepath)] $opts(user)] -level $level]
     } onerror {TWAPI_WIN32 2221} {
         # No files matching the user
@@ -601,7 +601,7 @@ proc twapi::close_lm_open_file {fid args} {
     array set opts [parseargs args {
         {system.arg ""}
     } -maxleftover 0]
-    try {
+    trap {
         NetFileClose $opts(system) $fid
     } onerror {TWAPI_WIN32 2314} {
         # No such fid. Ignore, perhaps it was closed in the meanwhile

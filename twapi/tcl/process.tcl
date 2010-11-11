@@ -33,7 +33,7 @@ proc twapi::process_waiting_for_input {pid args} {
     }
 
     set hpid [get_process_handle $pid]
-    try {
+    trap {
         return [WaitForInputIdle $hpid $opts(wait)]
     } finally {
         CloseHandle $hpid
@@ -223,7 +223,7 @@ proc twapi::create_process {path args} {
         set child_env "__null__"
     }
 
-    try {
+    trap {
         foreach {ph th pid tid} [CreateProcess [file nativename $path] \
                                      $opts(cmdline) \
                                      $process_sec_attr $thread_sec_attr \

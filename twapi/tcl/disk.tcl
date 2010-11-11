@@ -55,7 +55,7 @@ proc twapi::get_volume_info {drive args} {
         set extents {}
         if {! [_is_unc $drive]} {
             set device_handle [create_file "\\\\.\\[string range $drive 0 1]" -createdisposition open_existing]
-            try {
+            trap {
                 set bin [device_ioctl $device_handle 0x560000]
                 if {[binary scan $bin i nextents] != 1} {
                     error "Truncated information returned from ioctl 0x560000"
@@ -301,7 +301,7 @@ proc twapi::find_volumes {} {
 proc twapi::find_volume_mount_points {vol} {
     set mntpts [list ]
     set found 1
-    try {
+    trap {
         foreach {handle mntpt} [FindFirstVolumeMountPoint $vol] break
     } onerror {TWAPI_WIN32 18} {
         # ERROR_NO_MORE_FILES
@@ -385,7 +385,7 @@ proc twapi::get_file_version_resource {path args} {
 
     set ver [Twapi_GetFileVersionInfo $path]
 
-    try {
+    trap {
         array set verinfo [Twapi_VerQueryValue_FIXEDFILEINFO $ver]
 
         set result [list ]
@@ -669,7 +669,7 @@ proc twapi::find_physical_disks {} {
                       -guid $guid \
                       -presentonly true \
                       -classtype interface]
-    try {
+    trap {
         return [kl_flatten [get_devinfoset_interface_details $hdevinfo $guid -devicepath] -devicepath]
     } finally {
         close_devinfoset $hdevinfo
@@ -690,7 +690,7 @@ proc twapi::get_physical_disk_info {disk args} {
         set h [create_file $disk -createdisposition open_existing]
     }
 
-    try {
+    trap {
         if {$opts(all) || $opts(geometry)} {
             # IOCTL_DISK_GET_DRIVE_GEOMETRY - 0x70000
             if {[binary scan [device_ioctl $h 0x70000] "wiiii" geom(-cylinders) geom(-mediatype) geom(-trackspercylinder) geom(-sectorspertrack) geom(-bytespersector)] != 5} {

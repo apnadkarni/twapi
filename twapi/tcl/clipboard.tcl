@@ -30,7 +30,7 @@ proc twapi::empty_clipboard {} {
 proc twapi::read_clipboard {fmt} {
     # Always catch errors and close clipboard before passing exception on
     # Also ensure memory unlocked
-    try {
+    trap {
         set h [GetClipboardData $fmt]
         set p [GlobalLock $h]
         set data [Twapi_ReadMemoryBinary $p 0 [GlobalSize $h]]
@@ -52,7 +52,7 @@ proc twapi::read_clipboard_text {args} {
         {raw.bool 0}
     }]
 
-    try {
+    trap {
         set h [GetClipboardData 13];    # 13 -> Unicode
         set p [GlobalLock $h]
         # Read data discarding terminating null
@@ -76,7 +76,7 @@ proc twapi::read_clipboard_text {args} {
 proc twapi::write_clipboard {fmt data} {
     # Always catch errors and close
     # clipboard before passing exception on
-    try {
+    trap {
         # For byte arrays, string length does return correct size
         # (DO NOT USE string bytelength - see Tcl docs!)
         set len [string length $data]
@@ -111,7 +111,7 @@ proc twapi::write_clipboard {fmt data} {
 proc twapi::write_clipboard_text {data} {
     # Always catch errors and close
     # clipboard before passing exception on
-    try {
+    trap {
         set mem_size [expr {2*(1+[string length $data])}]
 
         # Allocate global memory

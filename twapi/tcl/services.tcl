@@ -37,13 +37,13 @@ proc twapi::service_exists {name args} {
     set scm [OpenSCManager $opts(system) $opts(database) \
                  $windefs(STANDARD_RIGHTS_READ)]
 
-    try {
+    trap {
         GetServiceKeyName $scm $name
         set exists 1
     } onerror {TWAPI_WIN32 1060} {
         # "no such service" error for internal name.
         # Try display name
-        try {
+        trap {
             GetServiceDisplayName $scm $name
             set exists 1
         } onerror {TWAPI_WIN32 1060} {
@@ -125,7 +125,7 @@ proc twapi::create_service {name command args} {
 
     set scm [OpenSCManager $opts(system) $opts(database) \
                  $windefs(SC_MANAGER_CREATE_SERVICE)]
-    try {
+    trap {
         set svch [CreateService \
                       $scm \
                       $name \
@@ -175,7 +175,7 @@ proc twapi::get_service_internal_name {name args} {
                  $windefs(STANDARD_RIGHTS_READ)]
 
 
-    try {
+    trap {
         if {[catch {GetServiceKeyName $scm $name} internal_name]} {
             # Maybe this is an internal name itself
             GetServiceDisplayName $scm $name; # Will throw an error if not internal name
@@ -197,7 +197,7 @@ proc twapi::get_service_display_name {name args} {
                  $windefs(STANDARD_RIGHTS_READ)]
 
 
-    try {
+    trap {
         if {[catch {GetServiceDisplayName $scm $name} display_name]} {
             # Maybe this is an display name itself
             GetServiceKeyName $scm $name; # Will throw an error if not display name
@@ -226,7 +226,7 @@ proc twapi::start_service {name args} {
     set opts(args)     [list $opts(params)]
     unset opts(params)
 
-    try {
+    trap {
         _service_fn_wrapper $name opts
     } onerror {TWAPI_WIN32 1056} {
         # Error 1056 means service already running
@@ -249,13 +249,13 @@ proc twapi::control_service {name code access finalstate args} {
     set scm [OpenSCManager $opts(system) $opts(database) \
                  $windefs(STANDARD_RIGHTS_READ)]
 
-    try {
+    trap {
         set svch [OpenService $scm $name $access]
     } finally {
         CloseServiceHandle $scm
     }
 
-    try {
+    trap {
         ControlService $svch $code
     } onerror {TWAPI_WIN32} {
         if {[lsearch -exact -integer $opts(ignorecodes) [lindex $errorCode 1]] < 0} {
@@ -311,14 +311,14 @@ proc twapi::get_service_status {name args} {
     set scm [OpenSCManager $opts(system) $opts(database) \
                  $windefs(STANDARD_RIGHTS_READ)]
 
-    try {
+    trap {
         set svch [OpenService $scm $name $windefs(SERVICE_QUERY_STATUS)]
     } finally {
         # Do not need SCM anymore
         CloseServiceHandle $scm
     }
 
-    try {
+    trap {
         set svc_status [QueryServiceStatusEx $svch 0]
     } finally {
         CloseServiceHandle $svch
@@ -597,7 +597,7 @@ proc twapi::get_multiple_service_status {args} {
 
     set scm [OpenSCManager $opts(system) $opts(database) \
                  $windefs(SC_MANAGER_ENUMERATE_SERVICE)]
-    try {
+    trap {
         set recs [EnumServicesStatusEx $scm 0 $servicetype $servicestate __null__]
     } finally {
         CloseServiceHandle $scm
@@ -1074,7 +1074,7 @@ proc twapi::_service_fn_wrapper {name v_opts} {
         set scm [OpenSCManager $opts(system) $opts(database) \
                      $windefs($scm_priv)]
     }
-    try {
+    trap {
         set svch [OpenService $scm $name $windefs($opts(svc_priv))]
     } finally {
         # No need for scm handle anymore. Close it unless it was
@@ -1086,7 +1086,7 @@ proc twapi::_service_fn_wrapper {name v_opts} {
     }
 
     set proc_args [expr {[info exists opts(args)] ? $opts(args) : ""}]
-    try {
+    trap {
         set results [eval [list $opts(proc) $svch] $proc_args]
     } finally {
         CloseServiceHandle $svch

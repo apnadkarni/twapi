@@ -163,7 +163,7 @@ interp alias {} twapi::close_devinfoset {} twapi::SetupDiDestroyDeviceInfoList
 proc twapi::get_devinfoset_elements {hdevinfo} {
     set result [list ]
     set i 0
-    try {
+    trap {
         while {true} {
             lappend result [SetupDiEnumDeviceInfo $hdevinfo $i]
             incr i
@@ -180,7 +180,7 @@ proc twapi::get_devinfoset_elements {hdevinfo} {
 # args is list of properties to retrieve
 proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
     set result [list ]
-    try {
+    trap {
         # Keep looping until there is an error saying no more items
         set i 0
         while {true} {
@@ -192,7 +192,7 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
             # Get all specified property values
             foreach prop $args {
                 set prop [_device_registry_sym_to_code $prop]
-                try {
+                trap {
                     lappend item $prop \
                         [list success \
                              [Twapi_SetupDiGetDeviceRegistryProperty \
@@ -228,7 +228,7 @@ proc twapi::get_devinfoset_interface_details {hdevinfo guid args} {
         ignoreerrors
     } -maxleftover 0]
 
-    try {
+    trap {
         # Keep looping until there is an error saying no more items
         set i 0
         while {true} {
@@ -246,7 +246,7 @@ proc twapi::get_devinfoset_interface_details {hdevinfo guid args} {
 
             if {$opts(devicepath) || $opts(deviceelement)} {
                 # Need to get device interface detail.
-                try {
+                trap {
                     foreach {devicepath deviceelement} \
                         [SetupDiGetDeviceInterfaceDetail \
                              $hdevinfo \
@@ -375,7 +375,7 @@ proc twapi::device_ioctl {h code args} {
     # Note on an exception error, the output buffer stays allocated.
     # That is not a bug.
     while {true} {
-        try {
+        trap {
             # IMPORTANT NOTE: the last parameter OVERLAPPED must be NULL
             # since device_ioctl is not reentrant (because of the use
             # of the "static" output buffer) and hence must not
