@@ -362,7 +362,6 @@ proc twapi::eventlog_monitor_stop {hevent} {
 
 proc twapi::_eventlog_notification_handler {hevent event} {
     variable _eventlog_notification_scripts
-    incr ::yy
     if {[info exists _eventlog_notification_scripts($hevent)] &&
         $event eq "signalled"} {
         uplevel #0 $_eventlog_notification_scripts($hevent) [list [list evl $hevent]]
