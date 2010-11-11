@@ -209,7 +209,7 @@ proc twapi::get_hcounter_value {hcounter args} {
 
     set status 1
     set result ""
-    try {
+    trap {
         set result [PdhGetFormattedCounterValue $hcounter $flags]
     } onerror {TWAPI_WIN32 0x800007d1} {
         # Error is that no such instance exists.
@@ -256,7 +256,7 @@ proc twapi::get_counter_path_value {counter_path args} {
 
     # Open the query
     set hquery [open_perf_query -datasource $opts(datasource)]
-    try {
+    trap {
         set hcounter [add_perf_counter $hquery $counter_path]
         collect_perf_query_data $hquery
         if {$opts(interval)} {
@@ -674,7 +674,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
                    $object $object_instances $object_counters \
                    -skiptotal $opts(skiptotal) -machine $opts(machine)]
     set result_paths [list ]
-    try {
+    trap {
         # Set up the query with the process id for all processes
         set hquery [open_perf_query -datasource $opts(datasource)]
         foreach path $paths {
@@ -836,7 +836,7 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
     set counters [list ]
     if {[llength $metacounters]} {
         set hquery [open_perf_query]
-        try {
+        trap {
             set counter_info [list ]
             set need_wait 0
             foreach counter_elem $metacounters {

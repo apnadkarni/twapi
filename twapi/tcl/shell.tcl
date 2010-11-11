@@ -68,7 +68,7 @@ proc twapi::get_shell_folder {csidl args} {
         set csidl $csidl_lookup($csidl_key)
     }
 
-    try {
+    trap {
         set path [SHGetSpecialFolderPath 0 $csidl $opts(create)]
     } onerror {} {
         # Try some other way to get the information

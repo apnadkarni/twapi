@@ -22,7 +22,7 @@ proc twapi::itaskscheduler_new {args} {
     if {![info exists opts(system)]} {
         return $its
     }
-    try {
+    trap {
         itaskscheduler_set_target_system $its $opts(system)
     } onerror {} {
         iunknown_release $its
@@ -38,7 +38,7 @@ interp alias {} ::twapi::itaskscheduler_release {} ::twapi::iunknown_release
 proc twapi::itaskscheduler_new_itask {its taskname} {
     set iid_itask [name_to_iid ITask]
     set iunk [ITaskScheduler_NewWorkItem $its $taskname $twapi::CLSID_ITask $iid_itask]
-    try {
+    trap {
         set itask [IUnknown_QueryInterface $iunk $iid_itask ITask]
     } finally {
         iunknown_release $iunk
@@ -50,7 +50,7 @@ proc twapi::itaskscheduler_new_itask {its taskname} {
 proc twapi::itaskscheduler_get_itask {its taskname} {
     set iid_itask [name_to_iid ITask]
     set iunk [ITaskScheduler_Activate $its $taskname $iid_itask]
-    try {
+    trap {
         set itask [IUnknown_QueryInterface $iunk $iid_itask ITask]
     } finally {
         iunknown_release $iunk
@@ -75,7 +75,7 @@ interp alias {} ::twapi::itaskscheduler_get_target_system {} ::twapi::ITaskSched
 # Return list of tasks
 proc twapi::itaskscheduler_get_tasks {its} {
     set ienum [ITaskScheduler_Enum $its]
-    try {
+    trap {
         set result [list ]
         set more 1
         while {$more} {
@@ -277,7 +277,7 @@ proc twapi::itask_get_info {itask args} {
         data               IScheduledWorkItem_GetWorkItemData
     } {
         if {$opts(all) || $opts($opt)} {
-            try {
+            trap {
                 lappend result -$opt [$fn  $itask]
             } onerror {TWAPI_WIN32 -2147216625} {
                 # THe information is empty in the scheduler database
@@ -287,7 +287,7 @@ proc twapi::itask_get_info {itask args} {
     }
 
     if {$opts(all) || $opts(lastruntime)} {
-        try {
+        trap {
             lappend result -lastruntime [_timelist_to_timestring [IScheduledWorkItem_GetMostRecentRunTime $itask]]
         } onerror {TWAPI_WIN32 267011} {
             # Not run yet at all
@@ -296,7 +296,7 @@ proc twapi::itask_get_info {itask args} {
     }
 
     if {$opts(all) || $opts(nextruntime)} {
-        try {
+        trap {
             lappend result -nextruntime [_timelist_to_timestring [IScheduledWorkItem_GetNextRunTime $itask]]
         } onerror {TWAPI_WIN32 267010} {
             # Task is disabled
@@ -418,7 +418,7 @@ interp alias {} ::twapi::itask_end {} ::twapi::IScheduledWorkItem_Terminate
 # Saves the specified ITask
 proc twapi::itask_save {itask} {
     set ipersist [iunknown_query_interface $itask IPersistFile]
-    try {
+    trap {
         IPersistFile_Save $ipersist "" 1
     } finally {
         iunknown_release $ipersist
@@ -678,7 +678,7 @@ proc twapi::mstask_create {taskname args} {
     } -maxleftover 0]
 
     set its [itaskscheduler_new]
-    try {
+    trap {
         if {[info exists opts(system)]} {
             itaskscheduler_set_target_system $opts(system)
         }
@@ -762,7 +762,7 @@ proc twapi::mstask_delete {taskname args} {
         system.arg
     } -maxleftover 0]
     set its [itaskscheduler_new]
-    try {
+    trap {
         if {[info exists opts(system)]} {
             itaskscheduler_set_target_system $opts(system)
         }

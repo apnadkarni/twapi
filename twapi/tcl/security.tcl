@@ -198,7 +198,7 @@ proc twapi::get_current_user {{format -samcompatible}} {
 
 # Verify that the given sid is valid. This is purely a syntactic check
 proc twapi::is_valid_sid_syntax sid {
-    try {
+    trap {
         set result [IsValidSid $sid]
     } onerror {TWAPI_WIN32 1337} {
         set result 0
@@ -229,7 +229,7 @@ proc twapi::open_process_token {args} {
         variable my_process_handle
         set ph $my_process_handle
     }
-    try {
+    trap {
         # Get a token for the process
         set ptok [OpenProcessToken $ph $access]
     } finally {
@@ -265,7 +265,7 @@ proc twapi::open_thread_token {args} {
         set th [GetCurrentThread]
     }
 
-    try {
+    trap {
         # Get a token for the thread
         set tok [OpenThreadToken $th $access $opts(self)]
     } finally {
@@ -492,7 +492,7 @@ proc twapi::enable_privileges {privlist} {
 
     # Get our process token
     set tok [OpenProcessToken $my_process_handle 0x28]; # QUERY + ADJUST_PRIVS
-    try {
+    trap {
         return [enable_token_privileges $tok $privlist]
     } finally {
         close_token $tok
@@ -507,7 +507,7 @@ proc twapi::disable_privileges {privlist} {
 
     # Get our process token
     set tok [OpenProcessToken $my_process_handle 0x28]; # QUERY + ADJUST_PRIVS
-    try {
+    trap {
         return [disable_token_privileges $tok $privlist]
     } finally {
         close_token $tok
@@ -685,7 +685,7 @@ proc twapi::map_luid_to_privilege {luid args} {
 
     # luid may in fact be a privilege name. Check for this
     if {[is_valid_luid_syntax $luid]} {
-        try {
+        trap {
             set name [LookupPrivilegeName $opts(system) $luid]
             set _map_luid_to_privilege_cache($opts(system),$luid) $name
         } onerror {TWAPI_WIN32 1313} {
@@ -1191,6 +1191,7 @@ proc twapi::set_security_descriptor_sacl {secd acl} {
 proc twapi::get_resource_security_descriptor {restype name args} {
     variable windefs
 
+    # -mandatory_label field is not documented. Should we ? TBD
     array set opts [parseargs args {
         owner
         group
@@ -1213,19 +1214,17 @@ proc twapi::get_resource_security_descriptor {restype name args} {
         if {$opts(mandatory_label) || $opts(all)} {
             set wanted [expr {$wanted | $windefs(LABEL_SECURITY_INFORMATION)}]
         }
-    } else {
-        if {$opts(mandatory_label)} {
-            error "Option -mandatory_label not supported by this version of Windows"
-        }
     }
 
     # Note if no options specified, we ask for everything except
-    # SACL's (and mandatory_label) which require special privileges
+    # SACL's which require special privileges
     if {! $wanted} {
-        foreach field {owner group dacl} {
-            set wanted [expr {$wanted | $windefs([string toupper $field]_SECURITY_INFORMATION)}]
+        set wanted [expr {$windefs(OWNER_SECURITY_INFORMATION) |
+                          $windefs(GROUP_SECURITY_INFORMATION) |
+                          $windefs(DACL_SECURITY_INFORMATION)}]
+        if {[min_os_version 6]} {
+            set wanted [expr {$wanted | $windefs(LABEL_SECURITY_INFORMATION)}]
         }
-        set opts($field) 1
     }
 
     if {$opts(handle)} {
@@ -1244,7 +1243,7 @@ proc twapi::get_resource_security_descriptor {restype name args} {
         # GetNamedSecurityInfo seems to fail with a overlapped i/o
         # in progress error under some conditions. If this happens
         # try getting with resource-specific API's if possible.
-        try {
+        trap {
             set secd [GetNamedSecurityInfo \
                           $name \
                           [_map_resource_symbol_to_type $restype true] \
@@ -1381,11 +1380,13 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
 
 # Get integrity level from a security descriptor
 proc twapi::get_security_descriptor_integrity {secd args} {
-    foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
-        if {[get_ace_type $ace] eq "mandatory_label"} {
-            set integrity [eval [list _sid_to_integrity [get_ace_sid $ace]] $args]
-            set rights [get_ace_rights $ace -resourcetype mandatory_label]
-            return [list $integrity $rights]
+    if {[min_os_version 6]} {
+        foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
+            if {[get_ace_type $ace] eq "mandatory_label"} {
+                set integrity [eval [list _sid_to_integrity [get_ace_sid $ace]] $args]
+                set rights [get_ace_rights $ace -resourcetype mandatory_label]
+                return [list $integrity $rights]
+            }
         }
     }
     return {}
@@ -1807,7 +1808,9 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
                 PROCESS_SET_INFORMATION
                 PROCESS_QUERY_INFORMATION
                 PROCESS_SUSPEND_RESUME
-                PROCESS_QUERY_LIMITED_INFORMATION
+            }
+            if {[min_os_version 6]} {
+                lappend masks PROCESS_QUERY_LIMITED_INFORMATION
             }
         }
         thread {

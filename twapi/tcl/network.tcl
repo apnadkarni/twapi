@@ -810,7 +810,7 @@ proc twapi::hostname_to_address {name args} {
 
     # Resolve address synchronously
     set addrs [list ]
-    try {
+    trap {
         foreach endpt [twapi::getaddrinfo $name 0 0] {
             foreach {addr port} $endpt break
             lappend addrs $addr
@@ -831,7 +831,7 @@ proc twapi::port_to_service {port} {
         return $port2name($port)
     }
 
-    try {
+    trap {
         set name [lindex [twapi::getnameinfo [list 0.0.0.0 $port] 2] 1]
     } onerror {TWAPI_WIN32 11004} {
         # Lookup failed
@@ -1045,7 +1045,7 @@ proc twapi::_get_all_tcp {{sort 0} {level 5}} {
 
     # Allocate the required buffer
     set buf [twapi::malloc $bufsz]
-    try {
+    trap {
         # The required buffer size might change as connections
         # are added or deleted. So we sit in a loop until
         # the required size that we get back from the command
@@ -1085,7 +1085,7 @@ proc twapi::_get_all_udp {{sort 0} {level 1}} {
 
     # Allocate the required buffer
     set buf [twapi::malloc $bufsz]
-    try {
+    trap {
         # The required buffer size might change as connections
         # are added or deleted. So we sit in a loop until
         # the required size that we get back from the command

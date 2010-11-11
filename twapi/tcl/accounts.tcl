@@ -24,7 +24,7 @@ proc twapi::new_user {username args} {
     NetUserAdd $opts(system) $username $opts(password) 1 \
         $opts(home_dir) $opts(comment) 0 $opts(script_path)
 
-    try {
+    trap {
         set_user_priv_level $username $opts(priv) -system $opts(system)
     } onerror {} {
         # Remove the previously created user account
@@ -490,7 +490,7 @@ proc twapi::add_user_to_global_group {grpname username args} {
     eval set [parseargs args {system.arg} -nulldefault]
 
     # No error if already member of the group
-    try {
+    trap {
         NetGroupAddUser $system $grpname $username
     } onerror {TWAPI_WIN32 1320} {
         # Ignore
@@ -503,7 +503,7 @@ proc twapi::add_member_to_local_group {grpname username args} {
     eval set [parseargs args {system.arg} -nulldefault]
 
     # No error if already member of the group
-    try {
+    trap {
         Twapi_NetLocalGroupAddMember $system $grpname $username
     } onerror {TWAPI_WIN32 1378} {
         # Ignore
@@ -515,7 +515,7 @@ proc twapi::add_member_to_local_group {grpname username args} {
 proc twapi::remove_user_from_global_group {grpname username args} {
     eval set [parseargs args {system.arg} -nulldefault]
 
-    try {
+    trap {
         NetGroupDelUser $system $grpname $username
     } onerror {TWAPI_WIN32 1321} {
         # Was not in group - ignore
@@ -527,7 +527,7 @@ proc twapi::remove_user_from_global_group {grpname username args} {
 proc twapi::remove_member_from_local_group {grpname username args} {
     eval set [parseargs args {system.arg} -nulldefault]
 
-    try {
+    trap {
         Twapi_NetLocalGroupDelMember $system $grpname $username
     } onerror {TWAPI_WIN32 1377} {
         # Was not in group - ignore
@@ -580,7 +580,7 @@ proc twapi::impersonate_token {token} {
 # Impersonate a user
 proc twapi::impersonate_user {args} {
     set token [eval open_user_token $args]
-    try {
+    trap {
         impersonate_token $token
     } finally {
         close_token $token
@@ -648,7 +648,7 @@ proc twapi::get_account_rights {account args} {
 
     set sid [map_account_to_sid $account -system $opts(system)]
 
-    try {
+    trap {
         set lsah [get_lsa_policy_handle -system $opts(system) -access policy_lookup_names]
         return [Twapi_LsaEnumerateAccountRights $lsah $sid]
     } onerror {TWAPI_WIN32 2} {
@@ -668,7 +668,7 @@ proc twapi::find_accounts_with_right {right args} {
         name
     } -maxleftover 0]
 
-    try {
+    trap {
         set lsah [get_lsa_policy_handle \
                       -system $opts(system) \
                       -access {
@@ -751,7 +751,7 @@ proc twapi::_modify_account_rights {operation account rights args} {
         }
     }
 
-    try {
+    trap {
         if {$operation == "add"} {
             Twapi_LsaAddAccountRights $lsah $sid $rights
         } else {
@@ -796,7 +796,7 @@ proc twapi::find_logon_sessions {args} {
     }
 
     foreach luid $luids {
-        try {
+        trap {
             unset -nocomplain session
             array set session [LsaGetLogonSessionData $luid]
 
