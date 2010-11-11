@@ -2685,7 +2685,7 @@ namespace eval twapi::security::test {
     } -setup {
         set ace [twapi::new_ace allow $::env(USERNAME) 0xffffffff]
     } -body {
-        setops::symdiff [twapi::get_ace_rights $ace -type process] {
+        set rights {
             standard_rights_required standard_rights_read standard_rights_write
             standard_rights_execute standard_rights_all specific_rights_all
             process_all_access delete read_control
@@ -2695,11 +2695,17 @@ namespace eval twapi::security::test {
             process_set_sessionid process_vm_operation process_vm_read
             process_vm_write process_dup_handle process_create_process
             process_set_quota process_set_information process_query_information
-            process_suspend_resume process_query_limited_information
+            process_suspend_resume
             0x00002000 0x00004000 0x00008000
             0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
             0x04000000 0x08000000        
         }
+        if {[twapi::min_os_version 6]} {
+            lappend rights  process_query_limited_information
+        } else {
+            lappend rights  0x00001000
+        }
+        setops::symdiff [twapi::get_ace_rights $ace -type process] $rights
     } -result ""
 
     ###
@@ -2951,8 +2957,7 @@ namespace eval twapi::security::test {
     } -setup {
         set ace [twapi::new_ace allow $::env(USERNAME) generic_read]
     } -body {
-        set ace [twapi::set_ace_rights $ace 0xffffffff]
-        setops::symdiff [twapi::get_ace_rights $ace -type process] {
+        set rights {
             standard_rights_required standard_rights_read standard_rights_write
             standard_rights_execute standard_rights_all specific_rights_all
             process_all_access delete read_control
@@ -2962,11 +2967,18 @@ namespace eval twapi::security::test {
             process_set_sessionid process_vm_operation process_vm_read
             process_vm_write process_dup_handle process_create_process
             process_set_quota process_set_information process_query_information
-            process_suspend_resume process_query_limited_information
+            process_suspend_resume 
             0x00002000 0x00004000 0x00008000
             0x00200000 0x00400000 0x00800000 0x01000000 0x02000000
             0x04000000 0x08000000        
         }
+        if {[twapi::min_os_version 6]} {
+            lappend rights process_query_limited_information
+        } else {
+            lappend rights 0x00001000
+        }
+        set ace [twapi::set_ace_rights $ace 0xffffffff]
+        setops::symdiff [twapi::get_ace_rights $ace -type process] $rights
     } -result ""
 
     ###
@@ -2988,13 +3000,13 @@ namespace eval twapi::security::test {
             process_set_quota process_set_information process_query_information
             process_suspend_resume
         }
+        set check_rights $sym_rights 
         if {[twapi::min_os_version 6]} {
             lappend sym_rights process_query_limited_information
+            lappend check_rights specific_rights_all 0x00002000 0x00004000 0x00008000
         }
-
         set ace [twapi::set_ace_rights $ace $sym_rights]
-        setops::symdiff [twapi::get_ace_rights $ace -type process] \
-            [concat $sym_rights [list specific_rights_all 0x00002000 0x00004000 0x00008000]]
+        setops::symdiff [twapi::get_ace_rights $ace -type process] $check_rights
     } -result ""
 
     ###

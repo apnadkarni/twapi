@@ -65,7 +65,7 @@ proc twapi::sspi_new_credentials {args} {
         set auth NULL
     }
 
-    try {
+    trap {
         set creds [AcquireCredentialsHandle $opts(principal) $opts(package) \
                        [kl_get {inbound 1 outbound 2 both 3} $opts(usage)] \
                        "" $auth]

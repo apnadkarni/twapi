@@ -136,7 +136,7 @@ proc twapi::get_process_modules {pid args} {
         set hpid [get_process_handle $pid -access {process_query_information process_vm_read}]
     }
     set results [list ]
-    try {
+    trap {
         foreach module [EnumProcessModules $hpid] {
             if {$noopts} {
                 lappend results $module
@@ -240,7 +240,7 @@ proc twapi::end_process {pid args} {
 
     # Open the process for terminate access. IF access denied (5), retry after
     # getting the required privilege
-    try {
+    trap {
         set hproc [get_process_handle $pid -access {synchronize process_terminate}]
     } onerror {TWAPI_WIN32 5} {
         # Retry - if still fail, then just throw the error
@@ -253,7 +253,7 @@ proc twapi::end_process {pid args} {
         return 1
     }
 
-    try {
+    trap {
         TerminateProcess $hproc $opts(exitcode)
         set status [WaitForSingleObject $hproc $opts(wait)]
         if {$status == 0} {
@@ -375,7 +375,7 @@ proc twapi::process_exists {pid args} {
 proc twapi::get_thread_parent_process_id {tid} {
     set status [catch {
         set th [get_thread_handle $tid]
-        try {
+        trap {
             set pid [lindex [lindex [Twapi_NtQueryInformationThreadBasicInformation $th] 2] 0]
         } finally {
             CloseHandle $th
@@ -632,7 +632,7 @@ proc twapi::get_multiple_process_info {args} {
         }
 
         if {$opts(all) || $opts(priorityclass)} {
-            try {
+            trap {
                 set prioclass [get_priority_class $pid]
             } onerror {TWAPI_WIN32 5} {
                 set prioclass $opts(noaccess)
@@ -683,7 +683,7 @@ proc twapi::get_multiple_process_info {args} {
             }
         }
         if {[llength $requested_opts]} {
-            try {
+            trap {
                 set results($pid) [concat $results($pid) [eval [list _token_info_helper -pid $pid] $requested_opts]]
             } onerror {TWAPI_WIN32 5} {
                 foreach opt $requested_opts {
@@ -837,8 +837,8 @@ proc twapi::get_thread_info {tid args} {
     set requested_opts [_array_non_zero_switches opts $token_opts $opts(all)]
     # Now get token info, if any
     if {[llength $requested_opts]} {
-        try {
-            try {
+        trap {
+            trap {
                 set results [eval [list _token_info_helper -tid $tid] $requested_opts]
             } onerror {TWAPI_WIN32 1008} {
                 # Thread does not have its own token. Use it's parent process
@@ -954,7 +954,7 @@ proc twapi::get_thread_info {tid args} {
     }
 
     if {$opts(all) || $opts(relativepriority)} {
-        try {
+        trap {
             lappend results -relativepriority [get_thread_relative_priority $tid]
         } onerror {TWAPI_WIN32 5} {
             lappend results -relativepriority $opts(noaccess)
@@ -988,7 +988,7 @@ proc twapi::get_thread_handle {tid args} {
 # Suspend a thread
 proc twapi::suspend_thread {tid} {
     set htid [get_thread_handle $tid -access thread_suspend_resume)]
-    try {
+    trap {
         set status [SuspendThread $htid]
     } finally {
         CloseHandle $htid
@@ -999,7 +999,7 @@ proc twapi::suspend_thread {tid} {
 # Resume a thread
 proc twapi::resume_thread {tid} {
     set htid [get_thread_handle $tid -access thread_suspend_resume)]
-    try {
+    trap {
         set status [ResumeThread $htid]
     } finally {
         CloseHandle $htid
@@ -1019,12 +1019,12 @@ proc twapi::get_process_commandline {pid args} {
         {noaccess.arg "(unknown)"}
     }]
 
-    try {
+    trap {
         # Assume max command line len is 1024 chars (2048 bytes)
         set max_len 2048
         set hgbl [GlobalAlloc 0 $max_len]
         set pgbl [GlobalLock $hgbl]
-        try {
+        trap {
             set hpid [get_process_handle $pid -access {process_query_information process_vm_read}]
         } onerror {TWAPI_WIN32 87} {
             # Process does not exist
@@ -1112,7 +1112,7 @@ proc twapi::get_process_commandline {pid args} {
             if {$cmdline_bytelen == 0} {
                 set cmdline ""
             } else {
-                try {
+                trap {
                     ReadProcessMemory $hpid $cmdline_addr $pgbl $cmdline_bytelen
                 } onerror {TWAPI_WIN32 299} {
                     # ERROR_PARTIAL_COPY
@@ -1132,7 +1132,7 @@ proc twapi::get_process_commandline {pid args} {
             # target process. So we have to check for this error and retry with
             # smaller read sizes
             while {$max_len > 128} {
-                try {
+                trap {
                     ReadProcessMemory $hpid $cmdline_addr $pgbl $max_len
                     break
                 } onerror {TWAPI_WIN32 299} {
@@ -1180,7 +1180,7 @@ proc twapi::get_process_parent {pid args} {
         return ""
     }
 
-    try {
+    trap {
         set hpid [get_process_handle $pid]
         set parent [lindex [Twapi_NtQueryInformationProcessBasicInformation $hpid] 5]
 
@@ -1217,7 +1217,7 @@ proc twapi::get_process_parent {pid args} {
 # Get the base priority class of a process
 proc twapi::get_priority_class {pid} {
     set ph [get_process_handle $pid]
-    try {
+    trap {
         return [GetPriorityClass $ph]
     } finally {
         CloseHandle $ph
@@ -1233,7 +1233,7 @@ proc twapi::set_priority_class {pid priority} {
     }
 
     set ph [get_process_handle $pid -access process_set_information]
-    try {
+    trap {
         SetPriorityClass $ph $priority
     } finally {
         CloseHandle $ph
@@ -1243,7 +1243,7 @@ proc twapi::set_priority_class {pid priority} {
 # Get the priority of a thread
 proc twapi::get_thread_relative_priority {tid} {
     set h [get_thread_handle $tid]
-    try {
+    trap {
         return [GetThreadPriority $h]
     } finally {
         CloseHandle $h
@@ -1268,7 +1268,7 @@ proc twapi::set_thread_relative_priority {tid priority} {
     }
 
     set h [get_thread_handle $tid -access thread_set_information]
-    try {
+    trap {
         SetThreadPriority $h $priority
     } finally {
         CloseHandle $h
@@ -1291,7 +1291,7 @@ proc twapi::wow64_process {args} {
     }
 
     if {[info exists opts(pid)] && $opts(pid) != [pid]} {
-        try {
+        trap {
             set hprocess [get_process_handle $opts(pid)]
             return [IsWow64Process $hprocess]
         } finally {
@@ -1353,7 +1353,7 @@ proc twapi::process_in_administrators {} {
     # will be disabled in the token. Rather, we need to get the linked
     # token (which is unfiltered) and check that.
     set tok [lindex [_token_info_helper -linkedtoken] 1]
-    try {
+    trap {
         return [CheckTokenMembership $tok S-1-5-32-544]
     } finally {
         close_token $tok
@@ -1392,7 +1392,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
         }
     }
 
-    try {
+    trap {
         set hprocess [get_process_handle $pid -access {process_query_information process_vm_read}]
     } onerror {TWAPI_WIN32 87} {
         return $opts(noexist)
@@ -1414,7 +1414,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
         return $opts(noaccess)
     }
 
-    try {
+    trap {
         set module [lindex [EnumProcessModules $hprocess] 0]
         if {[string equal $type "name"]} {
             set path [GetModuleBaseName $hprocess $module]
@@ -1503,7 +1503,7 @@ proc twapi::_token_info_helper {args} {
     }
 
     set result [list ]
-    try {
+    trap {
         if {$opts(linkedtoken)} {
             lappend result -linkedtoken [get_token_linked_token $tok]
         }
@@ -1580,7 +1580,7 @@ proc twapi::_token_set_helper {args} {
     }
 
     set result [list ]
-    try {
+    trap {
         if {[info exists opts(integrity)]} {
             set_token_integrity $tok $opts(integrity)
         }

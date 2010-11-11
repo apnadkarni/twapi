@@ -130,7 +130,7 @@ proc twapi::com_create_instance {clsid args} {
     if {[catch {set ifc [Twapi_CoCreateInstance $clsid NULL $flags $iid $iid_name]}]} {
         # Try through IUnknown
         set iunk [Twapi_CoCreateInstance $clsid NULL $flags [_iid_iunknown] IUnknown]
-        try {
+        trap {
             # Wait for it to run, then get desired interface from it
             twapi::OleRun $iunk
             set ifc [Twapi_IUnknown_QueryInterface $iunk $iid $iid_name]
@@ -314,7 +314,7 @@ proc twapi::typelib_print {path args} {
         set outfd stdout
     }
 
-    try {
+    trap {
         set tl [ITypeLibProxy_from_path $path -registration none]
         puts $outfd [$tl @Text -type $opts(type) -name $opts(name)]
     } finally {
@@ -374,7 +374,7 @@ proc twapi::dispatch_print {di args} {
         set outfd stdout
     }
 
-    try {
+    trap {
         set ti [$di @GetTypeInfo]
         twapi::_dispatch_print_helper $ti $outfd
     } finally {
@@ -403,7 +403,7 @@ proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
         lappend tilist $ti2
     }
 
-    try {
+    trap {
         foreach tifc $tilist {
             puts $outfd $name
             puts $outfd [_interface_text $tifc]
@@ -418,7 +418,7 @@ proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
     array set tiattrs [$ti GetTypeAttr]
     for {set j 0} {$j < $tiattrs(cImplTypes)} {incr j} {
         set ti2 [$ti @GetRefTypeInfoFromIndex $j]
-        try {
+        trap {
             set names_already_done [_dispatch_print_helper $ti2 $outfd $names_already_done]
         } finally {
             $ti2 Release
@@ -940,7 +940,7 @@ proc twapi::_start_process_tracker {} {
     # Associate the sink with a query that polls every 1 sec for process
     # starts.
     set sink_ifc [$::twapi::_process_event_sink -interface]; # Does AddRef
-    try {
+    trap {
         $::twapi::_process_wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
         # WMI will internally do a AddRef, so we can release our AddRef on sink_ifc
     } finally {
@@ -1193,7 +1193,7 @@ twapi::class create ::twapi::IUnknownProxy {
     # Same as QueryInterface except return "" instead of exception
     # if interface not found and returns proxy object instead of interface
     method @QueryInterface {name_or_iid} {
-        ::twapi::try {
+        ::twapi::trap {
             return [::twapi::make_interface_proxy [my QueryInterface $name_or_iid]]
         } onerror {TWAPI_WIN32 0x80004002} {
             # No such interface, return "", don't generate error
@@ -1352,7 +1352,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
         set ti [my @GetTypeInfo 0]
 
-        ::twapi::try {
+        ::twapi::trap {
             # In case of dual interfaces, we need the typeinfo for the 
             # dispatch. Again, errors handled in try handlers
             switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
@@ -1386,7 +1386,7 @@ twapi::class create ::twapi::IDispatchProxy {
         #   - from the typeinfo, we get the containing typelib
         #   - then we search the typelib for the coclass clsid
 
-        ::twapi::try {
+        ::twapi::trap {
             set pci_ifc [my QueryInterface IProvideClassInfo]
             set ti_ifc [::twapi::IProvideClassInfo_GetClassInfo $pci_ifc]
             return [::twapi::make_interface_proxy $ti_ifc]
@@ -1405,7 +1405,7 @@ twapi::class create ::twapi::IDispatchProxy {
         }
 
         set ti [my @GetTypeInfo]
-        ::twapi::try {
+        ::twapi::trap {
             set tl [$ti @GetContainingTypeLib]
             $tl @Foreach -guid $co_clsid -type coclass coti {
                 break
@@ -1473,7 +1473,7 @@ twapi::class create ::twapi::IDispatchExProxy {
         set invkind [::twapi::_string_to_invkind $invkind]
 
         # First try IDispatch
-        ::twapi::try {
+        ::twapi::trap {
             set proto [next $name $invkind $lcid]
             if {[llength $proto]} {
                 return $proto
@@ -2114,7 +2114,7 @@ twapi::class create ::twapi::ITypeLibProxy {
 
     method @LoadDispatchPrototypes {} {
         my @Foreach -type dispatch ti {
-            ::twapi::try {
+            ::twapi::trap {
                 array set attrs [$ti GetTypeAttr]
                 # Load up the functions
                 for {set j 0} {$j < $attrs(cFuncs)} {incr j} {
@@ -2179,7 +2179,7 @@ twapi::class create ::twapi::ITypeLibProxy {
 
         set text {}
         my @Foreach -type $opts(type) -name $opts(name) ti {
-            ::twapi::try {
+            ::twapi::trap {
                 array set attrs [$ti @GetTypeAttr -all]
                 set docs [$ti @GetDocumentation -1 -name -docstring]
                 set desc "[string totitle $attrs(-typekind)] [::twapi::kl_get $docs -name] - [::twapi::kl_get $docs -docstring]\n"
@@ -2247,7 +2247,7 @@ twapi::class create ::twapi::ITypeCompProxy {
 
     # Returns empty list if bind not found
     method @Bind {name flags {lcid 0}} {
-        ::twapi::try {
+        ::twapi::trap {
             set binding [my Bind $name [::twapi::LHashValOfName $lcid $name] $flags]
         } onerror {TWAPI_WIN32 0x80028ca0} {
             # Found but type mismatch (flags not correct)
@@ -2324,7 +2324,7 @@ twapi::class create ::twapi::Automation {
     # On failures, retries with IDispatchEx interface
     method _invoke {name invkinds params} {
         my variable  _proxy  _lcid
-        ::twapi::try {
+        ::twapi::trap {
             return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params]]]
         } onerror {} {
             set erinfo $::errorInfo
@@ -2416,7 +2416,7 @@ twapi::class create ::twapi::Automation {
         # Note that 'arguments' may themselves be comobj subcommands!
         set next [self]
         set releaselist [list ]
-        ::twapi::try {
+        ::twapi::trap {
             while {[llength $subobjlist]} {
                 set nextargs [lindex $subobjlist 0]
                 set subobjlist [lrange $subobjlist 1 end]
@@ -2438,7 +2438,7 @@ twapi::class create ::twapi::Automation {
         # First get IEnumVariant iterator using the _NewEnum method
         set enumerator [my -get _NewEnum]
         # This gives us an IUnknown.
-        ::twapi::try {
+        ::twapi::trap {
             # Convert the IUnknown to IEnumVARIANT
             set iter [$enumerator @QueryInterface IEnumVARIANT]
             if {! [$iter @Null?]} {
@@ -2478,7 +2478,7 @@ twapi::class create ::twapi::Automation {
 
         # Get the coclass typeinfo and  locate the source interface
         # within it and retrieve disp id mappings
-        ::twapi::try {
+        ::twapi::trap {
             # TBD - where can we get co_clsid from ? Ask from caller?
             # Or part of automation class ?
             set co_clsid "";    # TBD - temp placeholder

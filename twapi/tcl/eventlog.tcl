@@ -113,7 +113,7 @@ proc twapi::eventlog_log {message args} {
 
     set hevl [eventlog_open -write -source $opts(source) -system $opts(system)]
 
-    try {
+    trap {
         eventlog_write $hevl 1 -params [list $message] -type $opts(type) -category $opts(category)
     } finally {
         eventlog_close $hevl
@@ -154,7 +154,7 @@ proc twapi::eventlog_read {hevl args} {
 
     set results [list ]
 
-    try {
+    trap {
         set recs [ReadEventLog $hevl $flags $offset]
     } onerror {TWAPI_WIN32 38} {
         set recs [list ]

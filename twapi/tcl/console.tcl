@@ -286,7 +286,7 @@ proc twapi::_write_console {conh s args} {
         set_console_output_mode $conh $newmode
     }
     
-    try {
+    trap {
         # x,y are starting position to write
         if {[info exists opts(position)]} {
             foreach {x y} [_parse_integer_pair $opts(position)] break
@@ -548,7 +548,7 @@ proc twapi::_console_read {conh args} {
         set oldmode \
             [eval modify_console_input_mode [list $conh] $args]
     }
-    try {
+    trap {
         return [ReadConsole $conh 1024]
     } finally {
         if {[info exists oldmode]} {
@@ -599,7 +599,7 @@ proc twapi::_do_console_proc {proc default args} {
         stdout -
         stderr {
             set real_handle [get_console_handle $conh]
-            try {
+            trap {
                 lset args 0 $real_handle
                 return [eval [list $proc] $args]
             } finally {

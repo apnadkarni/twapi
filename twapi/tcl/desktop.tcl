@@ -47,7 +47,7 @@ proc twapi::find_desktops {args} {
         set hwinsta [get_current_window_station_handle]
     }
 
-    try {
+    trap {
         return [EnumDesktops $hwinsta]
     } finally {
         # Note close_window_station_handle protects against

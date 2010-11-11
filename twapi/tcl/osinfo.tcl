@@ -487,7 +487,7 @@ proc twapi::get_system_info {args} {
 
     if {$opts(all) || $opts(sid)} {
         set lsah [get_lsa_policy_handle -access policy_view_local_information]
-        try {
+        trap {
             lappend result -sid [lindex [LsaQueryInformationPolicy $lsah 5] 1]
         } finally {
             close_lsa_policy_handle $lsah
@@ -501,7 +501,7 @@ proc twapi::get_system_info {args} {
     }
 
     set hquery [open_perf_query]
-    try {
+    trap {
         # Create the counters
         if {$opts(all) || $opts(handlecount)} {
             set handlecount_ctr [add_perf_counter $hquery [make_perf_counter_path Process "Handle Count" -instance _Total -localize true]]
@@ -896,7 +896,7 @@ proc twapi::get_primary_domain_info {args} {
 
     set result [list ]
     set lsah [get_lsa_policy_handle -access policy_view_local_information]
-    try {
+    trap {
         foreach {name dnsdomainname dnsforestname domainguid sid} [LsaQueryInformationPolicy $lsah 12] break
         if {[string length $sid] == 0} {
             set type workgroup
@@ -943,7 +943,7 @@ proc twapi::duplicate_handle {h args} {
         set h [HANDLE2ADDRESS_LITERAL $h]
     }
 
-    try {
+    trap {
         set me [pid]
         # If source pid specified and is not us, get a handle to the process
         if {[info exists opts(sourcepid)] && $opts(sourcepid) != $me} {
@@ -1096,7 +1096,7 @@ proc twapi::get_system_parameters_info {uiaction} {
         set uiparam $sz
     }
     set mem [malloc $sz]
-    try {
+    trap {
         if {[lsearch -exact $modifiers cbsize] >= 0} {
             # A structure that needs first field set to its size
             Twapi_WriteMemoryBinary $mem 0 $sz [binary format i $sz]
@@ -1337,7 +1337,7 @@ proc twapi::_unsafe_format_message {args} {
                          $opts(messageid) $opts(langid) $opts(params)]
         } else {
             set hmod [load_library $opts(module) -datafile]
-            try {
+            trap {
                 set message  [FormatMessageFromModule $flags $hmod \
                                   $opts(messageid) $opts(langid) $opts(params)]
             } finally {

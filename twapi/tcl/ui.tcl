@@ -991,7 +991,7 @@ proc twapi::set_desktop_wallpaper {path args} {
 
     set mem_size [expr {2 * ([string length $path] + 1)}]
     set mem [malloc $mem_size]
-    try {
+    trap {
         twapi::Twapi_WriteMemoryUnicode $mem 0 $mem_size $path
         SystemParametersInfo 0x14 0 $mem $flags
     } finally {
@@ -1185,7 +1185,7 @@ proc twapi::register_hotkey {hotkey script args} {
         }
         return $atom
     }
-    try {
+    trap {
         RegisterHotKey $atom $modifiers $vk
     } onerror {} {
         GlobalDeleteAtom $atom; # Undo above AddAtom
@@ -1321,7 +1321,7 @@ proc twapi::stop_sound {} {
 # Get the color depth of the display
 proc twapi::get_color_depth {{hwin 0}} {
     set h [GetDC $hwin]
-    try {
+    trap {
         return [GetDeviceCaps $h 12]
     } finally {
         ReleaseDC $hwin $h
@@ -1333,7 +1333,7 @@ proc twapi::get_color_depth {{hwin 0}} {
 proc twapi::get_display_devices {} {
     set devs [list ]
     for {set i 0} {true} {incr i} {
-        try {
+        trap {
             set dev [EnumDisplayDevices "" $i 0]
         } onerror {TWAPI_WIN32} {
             # We don't check for a specific error since experimentation
@@ -1366,7 +1366,7 @@ proc twapi::get_display_monitors {args} {
     set monitors [list ]
     foreach dev $devs {
         for {set i 0} {true} {incr i} {
-            try {
+            trap {
                 set monitor [EnumDisplayDevices $dev $i 0]
             } onerror {} {
                 # We don't check for a specific error since experimentation
@@ -1405,7 +1405,7 @@ proc twapi::get_display_monitor_from_window {hwin args} {
         }
     }
 
-    try {
+    trap {
         return [MonitorFromWindow $hwin $flags]
     } onerror {TWAPI_WIN32 0} {
         win32_error 1461 "Window does not map to a monitor."
@@ -1427,7 +1427,7 @@ proc twapi::get_display_monitor_from_point {x y args} {
         }
     }
 
-    try {
+    trap {
         return [MonitorFromPoint [list $x $y] $flags]
     } onerror {TWAPI_WIN32 0} {
         win32_error 1461 "Virtual screen coordinates ($x,$y) do not map to a monitor."
@@ -1450,7 +1450,7 @@ proc twapi::get_display_monitor_from_rect {rect args} {
         }
     }
 
-    try {
+    trap {
         return [MonitorFromRect $rect $flags]
     } onerror {TWAPI_WIN32 0} {
         win32_error 1461 "Virtual screen rectangle <[join $rect ,]> does not map to a monitor."
@@ -1499,7 +1499,7 @@ proc twapi::_attach_hwin_and_eval {hwin script} {
         return [uplevel 1 $script]
     }
 
-    try {
+    trap {
         if {![AttachThreadInput $me $hwin_tid 1]} {
             error "Could not attach to thread input for window $hwin"
         }
