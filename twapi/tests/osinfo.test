@@ -39,6 +39,17 @@ namespace eval twapi::osinfo::test {
         return $build
     }
 
+    # Get memory number from wmi
+    proc verify_wmic_memory_value {field value {cmp exact}} {
+        array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
+        set wmic_val [expr {wide(1024)*$mem($field)}]
+        if {$cmp eq "approx"} {
+            return [approx $value $wmic_val]
+        } else {
+            return [expr {$value == $wmic_val}]
+        }
+    }
+
     ################################################################
 
     test get_os_version-1.0 {
@@ -511,8 +522,7 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -totalphysical]
         verify_kl_fields $optval [list -totalphysical]
-        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem totalvisiblememorysize] 1]}]
-        expr {[lindex $optval 1] == $expected}
+        verify_wmic_memory_value totalvisiblememorysize [lindex $optval 1]
     } -result 1
 
     ###
@@ -524,8 +534,7 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -availphysical]
         verify_kl_fields $optval [list -availphysical]
-        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem freephysicalmemory] 1]}]
-        approx [lindex $optval 1] $expected
+        verify_wmic_memory_value freephysicalmemory [lindex $optval 1] approx
     } -result 1
 
     ###
@@ -537,8 +546,7 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -availcommit]
         verify_kl_fields $optval [list -availcommit]
-        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem freespaceinpagingfiles] 1]}]
-        approx [lindex $optval 1] $expected
+        verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx
     } -result 1
 
     ###
@@ -550,8 +558,7 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -totalcommit]
         verify_kl_fields $optval [list -totalcommit]
-        set expected [expr {wide(1024)*[lindex [wmic_get CIM_OperatingSystem SizeStoredInPagingFiles] 1]}]
-        approx [lindex $optval 1] $expected
+        verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
     } -result 1
 
 

@@ -354,17 +354,34 @@ proc equal_paths {p1 p2} {
     return [string equal -nocase [file join $p1] [file join $p2]]
 }
 
-# Return the result of a WMIC call as a list
+
 proc wmic_get {obj fields} {
-    set result {}
-    # Why the funny echo to wmic you ask? Well, wmic seems to hang without
-    # it as though it is waiting for input. Google for wmic hang.
-    foreach line [split [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:value]] {
+    set data {}
+    foreach line [split [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv] \n] {
         set line [string trim $line]
         if {$line eq ""} continue
-        set pos [string first = $line]
-        if {$pos < 0} continue
-        lappend result [string range $line 0 [expr {$pos-1}]] [string range $line [expr {$pos+1}] end]
+        # Assumes no "," in content
+        lappend data [split $line ,]
+    }
+
+    # First element is field names, not in same order as $fields. Also,
+    # Case might be different. Make them consistent with what caller
+    # expects. Code below assumes no duplicate names
+    set fieldnames {}
+    foreach fname [lindex $data 0] {
+        set fieldname $fname
+        foreach fname2 $fields {
+            if {[string equal -nocase $fname $fname2]} {
+                set fieldname $fname2
+                break
+            }
+        }
+        lappend fieldnames $fieldname
+    }
+
+    set result {}
+    foreach values [lrange $data 1 end] {
+        lappend result [twapi::twine $fieldnames $values]
     }
     return $result
 }
