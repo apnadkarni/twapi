@@ -343,15 +343,20 @@ a nested list of keyed lists, one per share. The fields in each keyed list
 depend on [arg LEVEL] as follows:
 [list_begin opt]
 [opt_def [const 0]]
-[const local], [const remote]
+[const -localdevice], [const -remoteshare]
 [opt_def [const 1]]
-[const asg_type], [const local], [const password],
-[const refcount], [const remote], [const status], [const usecount].
+The fields for level [const 0] plus
+[const -type], [const -opencount], [const -status], [const -usecount].
 [opt_def [const 2]]
-[const asg_type], [const domainname], [const local], [const password],
-[const refcount], [const remote], [const status], [const usecount],
-[const username].
+The fields for level [const 1] plus
+[const -domain], 
+[const -user].
 [list_end]
+Refer to
+[uri \#get_client_share_info [cmd get_client_share_info]] for
+a description of these fields.
+
+[nl]
 [uri listconnectedshares.example "Example: List connected shares"]
 
 [call [cmd get_mapped_share_info] [arg SHAREPATH] [opt [arg options]]]
