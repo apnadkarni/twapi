@@ -16,14 +16,32 @@ namespace eval twapi::share::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
-    variable export_dir 
-    set export_dir [file nativename [file join $::env(TEMP) "TWAPI_TEST" [clock seconds]]]
-    tcltest::makeDirectory [file tail $export_dir] [file dirname $export_dir]
+    #
+    # We need server-side and client-side shares for testing
+    variable testshares
+    
+    # Contains directory exported from server, will be mapped to a local device
+    set testshares(export_dir_mapped) [tcltest::temporaryDirectory TWAPI_SHARE_MAPPED_[clock seconds]]
+    # Contains directory exported from server, but not mapped to local device
+    set testshares(export_dir_unmapped) [tcltest::temporaryDirectory TWAPI_SHARE_UNMAPPED_[clock seconds]]
 
-    variable export_name "TWAPI_EXPORT"
-    variable client_share "\\\\127.0.0.1\\$export_name"
+    # Name of exported share mapped to a device
+    set testshares(export_name_mapped) "TWAPI_EXPORT_MAPPED"
+    # Name of unmapped exported share
+    set testshares(export_name_unmapped) "TWAPI_EXPORT_UNMAPPED"
+    set testshares(export_comment_mapped) "This is a mapped TWAPI test share"
+    set testshares(export_comment_unmapped) "This is a unmapped TWAPI test share"
+    set testshares(export_limit_mapped) 5
+    set testshares(export_limit_unmapped) unlimited
+
+    # Client side share
+    set testshares(client_share_mapped) "\\\\$::env(COMPUTERNAME)\\$testshares(export_name_mapped)"
+    set testshares(client_share_unmapped) "\\\\$::env(COMPUTERNAME)\\$testshares(export_name_unmapped)"
+    set testshares(client_device) "V:"
+    
 
     variable shares
+    # Get share data from VBScript for verification purposes
     proc fill_shares {{refresh 0}} {
         variable shares
         if {$refresh || ![info exists shares]} {
@@ -44,12 +62,11 @@ namespace eval twapi::share::test {
                                        -comment  $share(Caption) \
                                        -type     [twapi::_share_type_code_to_symbols $share(Type)] \
                                       ]
-                #parray shares
-                #puts ------------------
             }
         }
     }
 
+    # Get value of a field from the verification data
     proc get_share_field {sharename field {refresh 0}} {
         variable shares
         fill_shares $refresh
@@ -60,6 +77,7 @@ namespace eval twapi::share::test {
         return [get_kl_field $shares($name) $field]
     }
 
+    # Verify that the passed share data matches
     proc verify_share {name v_shareinfo {refresh 0}} {
         variable shares
         upvar    $v_shareinfo shareinfo
@@ -97,7 +115,8 @@ namespace eval twapi::share::test {
         return [concat [join $result \n]]
     }
 
-    proc share_exists {name} {
+    # Check that a share exists in the verification data
+    proc export_exists {name} {
         variable shares
         fill_shares 1
         return [info exists shares([string tolower $name])]
@@ -153,8 +172,10 @@ namespace eval twapi::share::test {
     }
 
     # Delete the share used for testing
-    proc delete_test_share {} {
-        variable export_name
+    proc delete_test_export {type} {
+        # type must be "mapped" or "unmapped"
+        variable testshares
+        upvar 0 export_name testshares(export_name_$type)
         if {[catch {exec net share $export_name /delete} msg]} {
             if {![string match "This shared resource does not exist*" $msg]} {
                 error "Error while deleting share: $msg"
@@ -163,17 +184,18 @@ namespace eval twapi::share::test {
     }
 
     # Create test share if it does not exist
-    proc make_test_share {} {
-        variable export_name
-        variable export_dir
+    proc make_test_export {type} {
+        # type must be "mapped" or "unmapped"
+        variable testshares
+        upvar 0 export_name testshares(export_name_$type)
+        upvar 0 export_dir testshares(export_dir_$type)
 
-        if {[share_exists $export_name]} {
+        if {[export_exists $export_name]} {
             return $export_name
         }
-        twapi::new_share $export_name $export_dir
-        #after 100
-        #exec net share $export_name=$export_dir
-        if {![share_exists $export_name]} {
+
+        exec net share $export_name=$export_dir "/remark:$testshares(export_comment_$type)" /users:$testshares(export_limit_$type)
+        if {![export_exists $export_name]} {
             error "Failed to create test share"
         }
         return $export_name
@@ -182,49 +204,114 @@ namespace eval twapi::share::test {
     # Fields for LM sessions
     variable lm_session_fields {-username -clientname -transport -opencount -idleseconds -activeseconds -attrs -clienttype}
 
-    # Create a client share
-    proc create_client_share {{localdevice ""}} {
-        variable export_name
-        variable client_share
-        make_test_share
-        if {$localdevice eq ""} {
-            ::twapi::connect_share $client_share
-        } else {
-            ::twapi::connect_share $client_share -localdevice $localdevice -type disk
+    # Create a mapped client share
+    proc create_mapped_client_share {} {
+        variable testshares
+        make_test_export mapped
+        if {[mapped_client_share_exists]} {
+            return
         }
+        
+        exec net use $testshares(client_device) $testshares(client_share_mapped)
+
+        # TBD - why do we try to create a file ? To ensure connectivity?
         catch {
-            set fd [open [file join $client_share twapi_dummy_client_file] w+]
-            close $fd
-        }
-        #after 100
-    }
-
-    # Delete a LM session
-    proc delete_client_share {{localdevice ""}} {
-        variable export_name
-        variable client_share
-        if {$localdevice eq ""} {
-            catch {exec net use $client_share /delete}
-        } else {
-            catch {exec net use $localdevice /delete}
+            close [open [file join $testshares(client_device) twapi_dummy_client_file] w+]
         }
     }
 
-    # Check if client share exists 
-    proc client_share_exists {{localdevice ""}} {
-        variable client_share
-        set found 0
-        foreach cs [twapi::get_client_shares] {
-            if {[string equal -nocase [lindex $cs 1] $client_share]} {
-                if {$localdevice ne "" &&
-                    [string compare -nocase [lindex $cs 0] $localdevice]} {
-                    # Local device was specified but did not match
-                    return 0
+    # Create a unmapped client share
+    proc create_unmapped_client_share {} {
+        variable testshares
+        make_test_export unmapped
+        if {[unmapped_client_share_exists]} {
+            return
+        }
+        exec net use $testshares(client_share_unmapped)
+    }
+
+    proc delete_mapped_client_share {} {
+        variable testshares
+        catch {exec net use $testshares(client_device) /delete}
+    }
+
+    proc delete_unmapped_client_share {} {
+        variable testshares
+        catch {exec net use $testshares(client_share_unmapped) /delete}
+    }
+
+    proc mapped_client_share_exists {} {
+        variable testshares
+        foreach mapping [wmic_get Win32_MappedLogicalDisk {name providername}] {
+            array set amap $mapping
+            if {[string equal -nocase $amap(name) $testshares(client_device)]} {
+                if {[string equal -nocase $amap(providername) $testshares(client_share_mapped)]} {
+                    # Already mapped as desired
+                    return 1
+                } else {
+                    # Device mapped but not where we expect
+                    error "Local device $testshares(client_device) is already mapped to $amap(providername). Cannot map to $testshares(client_share_mapped)."
                 }
+            }
+        }
+        return 0
+    }
+
+    proc unmapped_client_share_exists {} {
+        variable testshares
+
+        foreach mapping [wmic_get Win32_NetworkConnection {localname remotename}] {
+            array set amap $mapping
+            if {[string equal -nocase $amap(remotename) $testshares(client_share_unmapped)]} {
                 return 1
             }
         }
         return 0
+    }
+
+    proc verify_client_share {share sharedata {fields {}}} {
+        variable testshares
+        array set shareinfo $sharedata
+        if {[llength $fields]} {
+            set diffs [::setops::symdiff $fields [array names shareinfo]]
+            if {[llength $diffs]} {
+                return "Field mismatch. Got fields [join [array names shareinfo] ,], expected [join $fields ,]".
+            }
+        }
+
+        if {[string equal -nocase $testshares(client_share_unmapped) $share]} {
+            set comment $testshares(export_comment_unmapped)
+            set remoteshare $share
+        } elseif {[string equal -nocase $testshares(client_share_mapped) $share] ||
+                  [string equal -nocase $testshares(client_device) $share]} {
+            set comment $testshares(export_comment_mapped)
+            set remoteshare $testshares(client_share_mapped)
+        } else {
+            return ""
+        }
+
+        set errors ""
+        if {[info exists shareinfo(-comment)] &&
+            $shareinfo(-comment) ne $comment} {
+            append errors "Comment for $share does not match. Was <$shareinfo(-comment)>, expected <$comment>"
+        }
+
+        if {[info exists shareinfo(-user)] &&
+            $shareinfo(-user) ne $::env(USERNAME)} {
+            append errors "User for $share does not match. Was $shareinfo(-user), expected $::env(USERNAME)"
+        }
+
+        if {[info exists shareinfo(-type)] &&
+            $shareinfo(-type) ne "file"} {
+            append errors "Share type for $share does not match. Was $shareinfo(-type), expected file."
+        }
+
+        if {[info exists shareinfo(-remoteshare)] &&
+            ! [string equal -nocase $shareinfo(-remoteshare) $remoteshare]} {
+            append errors "Remote share value for $share does not match. Was $shareinfo(-remoteshare), expected $remoteshare"
+        }
+
+        return $errors
     }
 
     # Verify fields in a session. Returns error messages if fail
@@ -408,12 +495,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         twapi::new_share $export_name $export_dir 
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [get_share_field $export_name -name 1] == $export_name &&
               [get_share_field $export_name -path 0] == $export_dir &&
               [get_share_field $export_name -comment 0] == $export_name &&
@@ -421,7 +508,7 @@ namespace eval twapi::share::test {
               [get_share_field $export_name -type 0] == "file"
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -431,12 +518,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         twapi::new_share $export_name $export_dir -max_conn 10
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [get_share_field $export_name -name 1] == $export_name &&
               [get_share_field $export_name -path 0] == $export_dir &&
               [get_share_field $export_name -comment 0] == $export_name &&
@@ -444,7 +531,7 @@ namespace eval twapi::share::test {
               [get_share_field $export_name -type 0] == "file"
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -454,13 +541,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         set comment "This is a TWAPI share"
         twapi::new_share $export_name $export_dir -comment $comment
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [get_share_field $export_name -name 1] == $export_name &&
               [get_share_field $export_name -path 0] == $export_dir &&
               [get_share_field $export_name -comment 0] == $comment &&
@@ -468,7 +555,7 @@ namespace eval twapi::share::test {
               [get_share_field $export_name -type 0] == "file"
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -478,16 +565,16 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         twapi::new_share $export_name $export_dir -secd ""
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [lindex [::twapi::get_share_info $export_name -secd] 1] eq ""
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -497,12 +584,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         twapi::new_share $export_name $export_dir -type file
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [get_share_field $export_name -name 1] == $export_name &&
               [get_share_field $export_name -path 0] == $export_dir &&
               [get_share_field $export_name -comment 0] == $export_name &&
@@ -510,7 +597,7 @@ namespace eval twapi::share::test {
               [get_share_field $export_name -type 0] == "file"
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -576,12 +663,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
     } -body {
         twapi::new_share $export_name $export_dir -type {file special}
         expr {
-              [share_exists $export_name] &&
+              [export_exists $export_name] &&
               [get_share_field $export_name -name 1] == $export_name &&
               [get_share_field $export_name -path 0] == $export_dir &&
               [get_share_field $export_name -comment 0] == $export_name &&
@@ -589,7 +676,7 @@ namespace eval twapi::share::test {
               [get_share_field $export_name -type 0] == "file special"
           }
     } -cleanup {
-        delete_test_share
+        delete_test_export
     } -result 1
 
     ###
@@ -613,12 +700,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        delete_test_share;    # In case it was left over from a failed test
+        delete_test_export;    # In case it was left over from a failed test
         file mkdir $export_dir
         twapi::new_share $export_name $export_dir -type {file special}
     } -body {
         twapi::delete_share $export_name
-        share_exists $export_name
+        export_exists $export_name
     } -result 0
 
     ###
@@ -641,6 +728,9 @@ namespace eval twapi::share::test {
         Enumerate shares
     } -constraints {
         nt
+    } -setup {
+        make_test_export mapped
+        make_test_export unmapped
     } -body {
         verify_share_list [twapi::get_shares] {} 1
     } -result ""
@@ -651,6 +741,9 @@ namespace eval twapi::share::test {
         Enumerate shares of type file
     } -constraints {
         nt
+    } -setup {
+        make_test_export mapped
+        make_test_export unmapped
     } -body {
         verify_share_list [twapi::get_shares -type file] {-type file} 1
     } -result ""
@@ -661,6 +754,9 @@ namespace eval twapi::share::test {
         Enumerate non-special shares of type file
     } -constraints {
         nt
+    } -setup {
+        make_test_export mapped
+        make_test_export unmapped
     } -body {
         verify_share_list [twapi::get_shares -type file -excludespecial] {-type file special} 1
     } -result ""
@@ -730,6 +826,8 @@ namespace eval twapi::share::test {
     } -constraints {
         nt
     } -setup {
+        make_test_export mapped
+        make_test_export unmapped
         fill_shares 1
     } -body {
         set result [list ]
@@ -764,6 +862,9 @@ namespace eval twapi::share::test {
     } {
         test get_share_info-[incr testnum].0 "Verify get_share_info $opt" -constraints {
             nt
+        } -setup {
+            make_test_export mapped
+            make_test_export unmapped
         } -body "
             set result \[list \]
             foreach name \[array names shares\] {
@@ -782,7 +883,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        make_test_share
+        make_test_export
     } -body {
         set comment foo
         expr {
@@ -798,7 +899,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        make_test_share
+        make_test_export
     } -body {
         set conn [get_share_field $export_name -max_conn]
         incr conn 10
@@ -843,9 +944,24 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_mapped_client_share
+        create_unmapped_client_share
     } -body {
-        client_share_exists
+        set found_mapped 0
+        set found_unmapped 0
+        foreach share [get_client_shares] {
+            foreach {device path} $share break
+            if {[string equal -nocase $path $testshares(client_share_unmapped)] &&
+                [string length $device] == 0} {
+                set found_unmapped 1
+            }
+
+            if {[string equal -nocase $path $testshares(client_share_mapped)] &&
+                [string equal -nocase $device $testshares(client_device)]} {
+                set found_mapped 1
+            }
+        }
+        expr {$found_mapped && $found_unmapped}
     } -result 1
 
     ################################################################
@@ -855,15 +971,15 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        make_test_share
+        make_test_export unmapped
         # Make sure no client share
-        delete_client_share
-        if {[client_share_exists]} {
+        delete_unmapped_client_share
+        if {[unmapped_client_share_exists]} {
             error "Client share exists and could not be deleted"
         }
     } -body {
-        ::twapi::connect_share $client_share
-        client_share_exists
+        ::twapi::connect_share $testshares(client_share_unmapped)
+        unmapped_client_share_exists
     } -result 1
 
     ###
@@ -873,17 +989,15 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        make_test_share
+        make_test_export
         # Make sure no client share
-        delete_client_share
-        if {[client_share_exists]} {
+        delete_mapped_client_share
+        if {[mapped_client_share_exists]} {
             error "Client share exists and could not be deleted"
         }
     } -body {
-        ::twapi::connect_share $client_share -localdevice R:
-        client_share_exists R:
-    } -cleanup {
-        ::twapi::disconnect_share R:
+        ::twapi::connect_share $testshares(client_share_mapped) -localdevice $testshares(client_device)
+        mapped_client_share_exists
     } -result 1
 
     ################################################################
@@ -893,13 +1007,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
-        if {![client_share_exists]} {
+        create_unmapped_client_share
+        if {![unmapped_client_share_exists]} {
             error "Client share could not be created"
         }
     } -body {
-        ::twapi::disconnect_share $client_share
-        client_share_exists
+        ::twapi::disconnect_share $testshares(client_share_unmapped)
+        unmapped_client_share_exists
     } -result 0
 
     ###
@@ -909,153 +1023,11 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        make_test_share
-        ::twapi::connect_share $client_share -localdevice R:
-        if {![client_share_exists R:]} {
-            error "Client share could not be created"
-        }
+        create_mapped_client_share
     } -body {
-        ::twapi::disconnect_share R:
-        client_share_exists R:
+        ::twapi::disconnect_share $testshares(client_device)
+        mapped_client_share_exists
     } -result 0
-
-    ################################################################
-
-    test get_mapped_share_info-1.0 {
-        Get all information about a mapped share
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset mappedinfo
-    } -body {
-        array set mappedinfo [twapi::get_mapped_share_info $drive -all]
-        ::setops::symdiff [array names mappedinfo] {
-            -uncpath -uncvolume -relativepath -user
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
-    } -result ""
-
-    ################################################################
-
-    test get_mapped_share_info-2.0 {
-        Get uncpath information about a mapped share
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset mappedinfo
-    } -body {
-        array set mappedinfo [twapi::get_mapped_share_info $drive -uncpath]
-        ::setops::symdiff [array names mappedinfo] {
-            -uncpath
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
-    } -result ""
-
-    ################################################################
-
-    test get_mapped_share_info-3.0 {
-        Get uncvolume information about a mapped share
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset mappedinfo
-    } -body {
-        array unset mappedinfo
-        array set mappedinfo [twapi::get_mapped_share_info $drive -uncvolume]
-        ::setops::symdiff [array names mappedinfo] {
-            -uncvolume
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
-    } -result ""
-
-    ################################################################
-
-    test get_mapped_share_info-4.0 {
-        Get relative path information about a mapped share
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset mappedinfo
-    } -body {
-        array unset mappedinfo
-        array set mappedinfo [twapi::get_mapped_share_info $drive -relativepath]
-        ::setops::symdiff [array names mappedinfo] {
-            -relativepath
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
-    } -result ""
-
-    ################################################################
-
-    test get_mapped_share_info-5.0 {
-        Get user information about a mapped share
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset mappedinfo
-    } -body {
-        array unset mappedinfo
-        array set mappedinfo [twapi::get_mapped_share_info $drive -user]
-        ::setops::symdiff [array names mappedinfo] {
-            -user
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
-    } -result ""
 
     ################################################################
 
@@ -1064,7 +1036,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions] [list ] [list ]
     } -result ""
@@ -1074,7 +1046,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -all] $lm_session_fields [list ]
     } -result ""
@@ -1086,7 +1058,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
@@ -1099,7 +1071,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client 127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
@@ -1112,7 +1084,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\nosuchclient -all] $lm_session_fields [list ] 0 0
@@ -1125,7 +1097,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client nosuchclient -all] $lm_session_fields [list ] 0 0
@@ -1138,7 +1110,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list -username $::env(USERNAME)] 1
     } -result ""
@@ -1150,7 +1122,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -user nosuchuser -all] $lm_session_fields [list ] 0 0
     } -result ""
@@ -1160,7 +1132,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -system \\\\127.0.0.1 -all] $lm_session_fields [list ]
     } -result ""
@@ -1170,7 +1142,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -system 127.0.0.1 -all] $lm_session_fields [list ]
     } -result ""
@@ -1182,7 +1154,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -activeseconds] [list -activeseconds] [list ]
     } -result ""
@@ -1194,7 +1166,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -idleseconds] [list -idleseconds] [list ]
     } -result ""
@@ -1206,7 +1178,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -attrs] [list -attrs] [list ]
     } -result ""
@@ -1218,7 +1190,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -clienttype] [list -clienttype] [list ]
     } -result ""
@@ -1230,7 +1202,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -opencount] [list -opencount] [list ]
     } -result ""
@@ -1242,7 +1214,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_sessions [::twapi::find_lm_sessions -transport] [list -transport] [list ]
     } -result ""
@@ -1265,7 +1237,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         ::twapi::end_lm_sessions -user nosuchuser
         verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 1
@@ -1278,7 +1250,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -user $::env(USERNAME)
@@ -1292,7 +1264,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
 
@@ -1311,7 +1283,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
 
@@ -1330,7 +1302,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -client \\\\127.0.0.1
@@ -1344,7 +1316,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -client 127.0.0.1
@@ -1358,7 +1330,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         ::twapi::end_lm_sessions -client \\\\127.0.0.2
         verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list ] 1
@@ -1371,7 +1343,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         ::twapi::get_lm_session_info \\\\127.0.0.1 $env(USERNAME)
     } -result ""
@@ -1383,7 +1355,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info \\\\127.0.0.1 $::env(USERNAME) -all] $lm_session_fields [list ]
     } -result ""
@@ -1395,7 +1367,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -all] $lm_session_fields [list ]
     } -result ""
@@ -1407,7 +1379,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info \\\\127.0.0.1 $::env(USERNAME) -all -system \\\\127.0.0.1] $lm_session_fields [list ]
     } -result ""
@@ -1419,7 +1391,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -all -system 127.0.0.1] $lm_session_fields [list ]
     } -result ""
@@ -1432,7 +1404,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -activeseconds] [list -activeseconds] [list ]
     } -result ""
@@ -1444,7 +1416,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -idleseconds] [list -idleseconds] [list ]
     } -result ""
@@ -1456,7 +1428,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -attrs] [list -attrs] [list ]
     } -result ""
@@ -1468,7 +1440,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -clienttype] [list -clienttype] [list ]
     } -result ""
@@ -1480,7 +1452,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -opencount] [list -opencount] [list ]
     } -result ""
@@ -1492,7 +1464,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -transport] [list -transport] [list ]
     } -result ""
@@ -1504,7 +1476,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -username] [list -username] [list -username $::env(USERNAME)]
     } -result ""
@@ -1516,7 +1488,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -clientname] [list -clientname] [list -clientname \\\\127.0.0.1]
     } -result ""
@@ -1529,7 +1501,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1] [list ] [list ]
     } -result ""
@@ -1541,7 +1513,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client \\\\127.0.0.1 -all] $lm_connection_fields [list ]
     } -result ""
@@ -1553,7 +1525,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one connection
         verify_lm_test_connections [::twapi::find_lm_connections -client \\\\127.0.0.1 -all] $lm_connection_fields [list -clientname "\\\\127.0.0.1"] 1
@@ -1566,7 +1538,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one connection
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -all] $lm_connection_fields [list -clientname "\\\\127.0.0.1"] 1
@@ -1579,7 +1551,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one connection
         verify_lm_test_connections [::twapi::find_lm_connections -client \\\\nosuchclient -all] $lm_connection_fields [list ] 0 0
@@ -1592,7 +1564,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one connection
         verify_lm_test_connections [::twapi::find_lm_connections -client nosuchclient -all] $lm_connection_fields [list ] 0 0
@@ -1605,7 +1577,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -share $export_name -all] $lm_connection_fields [list -sharename $export_name]
     } -result ""
@@ -1617,7 +1589,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -share nosuchshare -all] $lm_connection_fields [list ] 0 0
     } -result ""
@@ -1629,7 +1601,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -share $export_name -system \\\\127.0.0.1 -all] $lm_connection_fields [list ]
     } -result ""
@@ -1641,7 +1613,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -share $export_name -system 127.0.0.1 -all] $lm_connection_fields [list ]
     } -result ""
@@ -1653,7 +1625,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -activeseconds] [list -activeseconds] [list ]
     } -result ""
@@ -1665,7 +1637,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -id] [list -id] [list ]
     } -result ""
@@ -1677,7 +1649,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -opencount] [list -opencount] [list ]
     } -result ""
@@ -1689,7 +1661,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -type] [list -type] [list ]
     } -result ""
@@ -1701,7 +1673,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -usercount] [list -usercount] [list ]
     } -result ""
@@ -1713,7 +1685,7 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
     } -body {
         verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -username] [list -username] [list ]
     } -result ""
@@ -1725,10 +1697,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-1.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -all] $lm_openfile_fields [list ]
     } -cleanup {
@@ -1742,12 +1714,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-2.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
-         verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath "$export_dir\\find_lm_open_files-2"] $lm_openfile_fields [list ] 1 1
+         verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath "$testshares(export_dir_unmapped)\\find_lm_open_files-2"] $lm_openfile_fields [list ] 1 1
     } -cleanup {
         close $fd
     } -result "" 
@@ -1759,12 +1731,12 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-2.1"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
-        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath [file join "$export_dir\\find_lm_open_files-2"]] $lm_openfile_fields [list ] 1 1
+        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath [file join "$testshares(export_dir_unmapped)\\find_lm_open_files-2"]] $lm_openfile_fields [list ] 1 1
     } -cleanup {
         close $fd
     } -result "" 
@@ -1776,10 +1748,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-3.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -all -system 127.0.0.1 ] $lm_openfile_fields [list ] 1
     } -cleanup {
@@ -1793,10 +1765,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-4.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -id] [list -id] [list ]
     } -cleanup {
@@ -1810,10 +1782,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-5.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -path] [list -path] [list ]
     } -cleanup {
@@ -1827,10 +1799,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-6.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -lockcount] [list -lockcount] [list ]
     } -cleanup {
@@ -1844,10 +1816,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-7.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -username] [list -username] [list -username $::env(USERNAME)]
     } -cleanup {
@@ -1861,10 +1833,10 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "find_lm_open_files-8.0"
-        tcltest::makeFile "" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         verify_lm_test_openfiles [twapi::find_lm_open_files -permissions] [list -permissions] [list ]
     } -cleanup {
@@ -1878,13 +1850,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "close_lm_open_file-1.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         twapi::close_lm_open_file $lm_fid
         # Try reading from the file. Should fail since we closed it
         catch {set data [read $fd]}
@@ -1899,13 +1871,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-1.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid] [list ] [list ]
     } -cleanup {
         close $fd
@@ -1918,13 +1890,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-2.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -all] $lm_openfile_fields [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -1937,13 +1909,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-3.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -permissions] [list -permissions] [list ]
     } -cleanup {
         close $fd
@@ -1956,13 +1928,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-4.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -username] [list -username] [list -username $env(USERNAME)]
     } -cleanup {
         close $fd
@@ -1975,13 +1947,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-5.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -path] [list -path] [list ]
     } -cleanup {
         close $fd
@@ -1994,13 +1966,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-6.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -lockcount] [list -lockcount] [list ]
     } -cleanup {
         close $fd
@@ -2013,13 +1985,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-7.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -id] [list -id] [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -2032,13 +2004,13 @@ namespace eval twapi::share::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        create_client_share
+        create_unmapped_client_share
         set fn "get_lm_open_file_info-2.0"
-        tcltest::makeFile "Just some data" [file join $export_dir $fn]
-        set fd [open [file join $client_share $fn] r]
+        tcltest::makeFile "Just some data" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -system 127.0.0.1 -id -basepath [file join $export_dir $fn]] 0] 1]
+        set lm_fid [lindex [lindex [twapi::find_lm_open_files -system 127.0.0.1 -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -system \\\\127.0.0.1 -all] $lm_openfile_fields [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -2047,61 +2019,77 @@ namespace eval twapi::share::test {
 
     ################################################################
 
-    # TBD - need more detailed tests for get_client_share_info
     test get_client_share_info-1.0 {
-        Get info for a client share with no options
+        Get info for a unmapped client share with no options
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset clientshareinfo
+        create_unmapped_client_share
     } -body {
-        twapi::get_client_share_info $drive
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
+        verify_client_share $testshares(client_share_unmapped) \
+            [twapi::get_client_share_info $testshares(client_share_unmapped)]
     } -result ""
-
 
     test get_client_share_info-1.1 {
-        Get info for a client share with no options
+        Get info for a unmapped client share -all
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set drive [lindex [twapi::find_logical_drives -type remote] 0]
-        if {$drive == ""} {
-            create_client_share r:
-            set drive r:
-            set docleanup 1
-        } else {
-            set docleanup 0
-        }
-        array unset clientshareinfo
+        create_unmapped_client_share
     } -body {
-        array set clientshareinfo [twapi::get_client_share_info $drive -all]
-        ::setops::symdiff [array names clientshareinfo] {
-            -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
-        }
-    } -cleanup {
-        if {$docleanup} {
-            delete_client_share r:
-        }
+        verify_client_share $testshares(client_share_unmapped) \
+            [twapi::get_client_share_info $testshares(client_share_unmapped) -all] {
+                -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
+            }
     } -result ""
+
+    proc test_get_client_share_info_helper {testsharetype opt} {
+        variable testshares
+        return [verify_client_share $testshares($testsharetype) [twapi::get_client_share_info $testshares($testsharetype) [list $opt]]]
+    }
+
+    set testnum 1
+    foreach opt {
+        -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
+    }  "test get_client_share_info-1.[incr testnum] -constraints [list nt systemmodificationok] -setup create_unmapped_client_share -body [list test_get_client_share_info_helper client_share_unmapped $opt] -result {}"
+
+    test get_client_share_info-2.0 {
+        Get info for a mapped client share with no options
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        create_mapped_client_share
+    } -body {
+        verify_client_share $testshares(client_device) \
+            [twapi::get_client_share_info $testshares(client_device)]
+    } -result ""
+
+    test get_client_share_info-2.1 {
+        Get info for a mapped client share -all
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        create_mapped_client_share
+    } -body {
+        verify_client_share $testshares(client_device) \
+            [twapi::get_client_share_info $testshares(client_device) -all] {
+                -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
+            }
+    } -result ""
+
+    set testnum -1
+    foreach opt {
+        -comment -provider -opencount -remoteshare -localdevice -user -domain -status -usecount -type
+    }  "test get_client_share_info-2.[incr testnum] -constraints [list nt systemmodificationok] -setup create_mapped_client_share -body [list test_get_client_share_info_helper client_share_mapped $opt] -result {}"
 
 
     ################################################################
 
     ::tcltest::cleanupTests
-    delete_client_share
-    delete_test_share
+    delete_client_share mapped
+    delete_client_share unmapped
+    delete_test_export mapped
+    delete_test_export unmapped
 }
 
 namespace delete ::twapi::share::test
