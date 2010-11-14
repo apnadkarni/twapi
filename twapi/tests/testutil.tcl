@@ -383,6 +383,7 @@ proc wmic_get {obj fields} {
     foreach values [lrange $data 1 end] {
         lappend result [twapi::twine $fieldnames $values]
     }
+
     return $result
 }
 

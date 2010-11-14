@@ -193,7 +193,11 @@ proc twapi::get_client_shares {args} {
     } -maxleftover 0]
 
     if {[info exists opts(level)]} {
-        return [_net_enum_helper NetUseEnum -system $opts(system) -level $opts(level)]
+        set shares {}
+        foreach share [_net_enum_helper NetUseEnum -system $opts(system) -level $opts(level)] {
+            lappend shares [_map_USE_INFO $share]
+        }
+        return $shares
     }
 
     # For backwards compatibility, if no level specified, returned
@@ -294,6 +298,9 @@ proc twapi::get_client_share_info {sharename args} {
     # no local device mapped. The latter
     # always wants the UNC. So we need to figure out exactly if there
     # is a local device mapped to the sharename or not
+    # TBD _ see if this is really the case. Also, NetUse only works with
+    # LANMAN, not WebDAV. So see if there is a way to only use WNet*
+    # variants
     
     # There may be multiple entries for the same UNC
     # If there is an entry for the UNC with no device mapped, select
@@ -350,67 +357,49 @@ proc twapi::get_client_share_info {sharename args} {
 
     # Call Twapi_NetGetInfo always to get status. If we are not connected,
     # we will not call WNetGetResourceInformation as that will time out
-    if {$opts(all) || $opts(user) || $opts(status) || $opts(type) ||
-        $opts(opencount) || $opts(usecount) || $opts(domain)} {
-        if {[info exists local]} {
-            array set shareinfo [NetUseGetInfo "" $local 2]
-        } else {
-            array set shareinfo [NetUseGetInfo "" $unc 2]
-        }
+    if {[info exists local]} {
+        array set shareinfo [_map_USE_INFO [NetUseGetInfo "" $local 2]]
+    } else {
+        array set shareinfo [_map_USE_INFO [NetUseGetInfo "" $unc 2]]
     }
 
-    if {$opts(all) || $opts(comment) || $opts(provider) || $opts(remoteshare)} {
+    if {$opts(all) || $opts(comment) || $opts(provider)} {
         # Only get this information if we are connected
-        if {$shareinfo(status) == 0} {
-            array set shareinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
+        if {$shareinfo(-status) eq "connected"} {
+            array set wnetinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
+            set shareinfo(-comment) $wnetinfo(lpComment)
+            set shareinfo(-provider) $wnetinfo(lpProvider)
         } else {
-            set shareinfo(lpRemoteName) $unc
-            set shareinfo(lpProvider) ""
-            set shareinfo(lpComment) ""
+            set shareinfo(-comment) ""
+            set shareinfo(-provider) ""
         }
     }
 
+    if {$opts(all)} {
+        return [array get shareinfo]
+    }
 
-    array set result {}
-    foreach {opt index} {
-        user           username
-        localdevice    local
-        remoteshare    lpRemoteName
-        status         status
-        type           asg_type
-        opencount      refcount
-        usecount       usecount
-        domain         domainname
-        provider       lpProvider
-        comment        lpComment
+    # Get rid of unwanted fields
+    foreach opt {
+        user
+        localdevice
+        remoteshare
+        status
+        type
+        opencount
+        usecount
+        domain
+        provider
+        comment
     } {
-        if {$opts(all) || $opts($opt)} {
-            set result(-$opt) $shareinfo($index)
+        if {! $opts($opt)} {
+            if {[info exists shareinfo(-$opt)]} {
+                unset shareinfo(-$opt)
+            }
         }
     }
 
-    # Map values to symbols
-
-    if {[info exists result(-status)]} {
-        # Map code 0-5
-        set temp [lindex {connected paused lostsession disconnected networkerror connecting reconnecting} $result(-status)]
-        if {$temp ne ""} {
-            set result(-status) $temp
-        } else {
-            set result(-status) "unknown"
-        }
-    }
-
-    if {[info exists result(-type)]} {
-        set temp [lindex {file printer char ipc} $result(-type)]
-        if {$temp ne ""} {
-            set result(-type) $temp
-        } else {
-            set result(-type) "unknown"
-        }
-    }
-
-    return [array get result]
+    return [array get shareinfo]
 }
 
 
@@ -870,4 +859,48 @@ proc twapi::_make_unc_computername {name} {
     } else {
         return "\\\\[string trimleft $name \\]"
     }
+}
+
+# Maps a USE_INFO struct as returned from C level
+proc twapi::_map_USE_INFO {useinfo} {
+    array set shareinfo $useinfo
+
+    array set result {}
+    foreach {opt field} {
+        -user           username
+        -localdevice    local
+        -remoteshare    remote
+        -usecount       usecount
+        -opencount      refcount
+        -status         status
+        -type           asg_type
+        -domain         domainname
+    } {
+        if {[info exists shareinfo($field)]} {
+            set result($opt) $shareinfo($field)
+        }
+    }
+
+    # Map values to symbols
+
+    if {[info exists result(-status)]} {
+        # Map code 0-5
+        set temp [lindex {connected paused lostsession disconnected networkerror connecting reconnecting} $result(-status)]
+        if {$temp ne ""} {
+            set result(-status) $temp
+        } else {
+            set result(-status) "unknown"
+        }
+    }
+
+    if {[info exists result(-type)]} {
+        set temp [lindex {file printer char ipc} $result(-type)]
+        if {$temp ne ""} {
+            set result(-type) $temp
+        } else {
+            set result(-type) "unknown"
+        }
+    }
+
+    return [array get result]
 }
