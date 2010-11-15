@@ -1364,12 +1364,10 @@ namespace eval twapi::security::test {
         Get a token type (impersonation)
     } -constraints {
         nt TBD
-    } -setup {
-        TBD set tok [twapi::open_process_token -access token_query]
     } -body {
+        TBD because do not know how to create an impersonation type token
         twapi::get_token_type $tok
     } -cleanup {
-        TBD twapi::close_token $tok
     } -result "impersonation"
 
     ################################################################
@@ -1409,33 +1407,43 @@ namespace eval twapi::security::test {
     test get_token_impersonation_level-1.2 {
         Get a token impersonation level (anonymous)
     } -constraints {
-        nt TBD
+        nt
     } -setup {
-        # TBD - once we impersonate as anonymous, we cannot open token
         twapi::impersonate_self anonymous
-        set tok [twapi::open_thread_token -access token_query]
+        if {[info exists tok]} {
+            unset tok
+        }
     } -body {
-        twapi::get_token_impersonation_level $tok
+        # An anonymous access token cannot be opened
+        list \
+            [catch {set tok [twapi::open_thread_token -access token_query]}] \
+            [lindex $::errorCode 1]
     } -cleanup {
         twapi::revert_to_self
-        twapi::close_token $tok
-    } -result "anonymous"
+        if {[info exists tok]} {
+            twapi::close_token $tok
+        }
+    } -result {1 1347}
 
     ###
 
     test get_token_impersonation_level-1.3 {
         Get a token impersonation level (identification)
     } -constraints {
-        nt TBD
+        nt
     } -setup {
-        # TBD - once we impersonate as identification, we cannot open token
-        twapi::impersonate_self identification
-        set tok [twapi::open_thread_token -access token_query]
+        # Once we impersonate as identification, we cannot open token
+        # so we have to do it in a child process
+        set child [tclsh_slave_start]
+        tclsh_slave_puts $child {puts [twapi::get_current_thread_id]}
+        set tid [gets_timeout $child]
+        tclsh_slave_puts $child { twapi::impersonate_self identification }
+        set tok [twapi::open_thread_token -access token_query -tid $tid]
     } -body {
         twapi::get_token_impersonation_level $tok
     } -cleanup {
-        twapi::revert_to_self
         twapi::close_token $tok
+        tclsh_slave_stop $child
     } -result "identification"
 
     ################################################################
