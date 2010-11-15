@@ -513,8 +513,9 @@ proc tclsh_slave_start {} {
 proc tclsh_slave_verify_started {fd} {
     # Verify started. Note we need the puts because tclsh does
     # not output result unless it is a tty.
-    puts $fd {
+    tclsh_slave_puts $fd {
         source testutil.tcl
+        load_twapi
         if {[catch {
             fconfigure stdout -buffering line -encoding utf-8
             fconfigure stdin -buffering line -encoding utf-8 -eofchar {}
@@ -527,7 +528,7 @@ proc tclsh_slave_verify_started {fd} {
     }
 
     if {[catch {
-        set ver [gets_timeout $fd 2000]
+        set ver [gets_timeout $fd]
     } msg]} {
         #close $fd
         testlog $msg
@@ -536,36 +537,24 @@ proc tclsh_slave_verify_started {fd} {
     if {$ver ne [info tclversion]} {
         error "Slave Tcl version $ver does not match."
     }
-
-    puts $fd {
-        if {[catch {
-            puts [info tclversion]
-            flush stdout
-        }]} {
-            testlog $::errorInfo
-        }
-    }
-    flush $fd
-
-    if {[catch {
-        set ver [gets_timeout $fd 2000]
-    } msg]} {
-        #close $fd
-        testlog $msg
-        error $msg $::errorInfo $::errorCode
-    }
-    if {$ver ne [info tclversion]} {
-        error "Slave Tcl version $ver does not match."
-    }
-
-
-
 
     return $fd
 }
 
+# Send a command to the slave
+proc tclsh_slave_puts {fd cmd} {
+    if {[string index $cmd end] == "\n"} {
+        puts -nonewline $fd $cmd
+    } else {
+        puts $fd $cmd
+    }
+    flush $fd
+    # Need an update to get around a Tcl bug (Bug 3059220)
+    update
+}
+
 proc tclsh_slave_stop {fd} {
-    puts $fd "exit"
+    tclsh_slave_puts $fd "exit"
     close $fd
 }
 
@@ -610,7 +599,7 @@ proc expect {fd expected {ms 1000}} {
 # As long as slave keeps writing, we will keep reading.
 proc tclsh_slave_wait {fd {ms 1000}} {
     set marker "Ready: [clock clicks]"
-    flush $fd
+    tclsh_slave_puts $fd "puts {$marker}"
     set elapsed 0
     while {$elapsed < $ms} {
         set data [gets_timeout $fd $ms]
