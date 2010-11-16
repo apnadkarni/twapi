@@ -368,9 +368,11 @@ proc wmic_get {obj fields {clause ""}} {
     # The cmd echo is required because otherwise wmic hangs for some obscure
     # reason when spawned from a non-interactive tclsh
     if {$clause eq ""} {
-        set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
+        #set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
+        set lines [wmic path $obj get [join $fields ,] /format:csv]
     } else {
-        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
+#        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
+        set lines [wmic path $obj where $clause get [join $fields ,] /format:csv]
     }
 
 
