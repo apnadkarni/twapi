@@ -365,14 +365,18 @@ proc wmic_delete {obj clause} {
 # Note - use single quotes, not double quotes to pass values to wmic from exec
 proc wmic_get {obj fields {clause ""}} {
 
-    # The cmd echo is required because otherwise wmic hangs for some obscure
+    # On some systems when invoking wmic
+    # the "cmd echo..." is required because otherwise wmic hangs for some 
     # reason when spawned from a non-interactive tclsh
+    # On the other hand, if this is done, tests cannot be excuted from 
+    # a read-only dir. So we have both versions here, with one or the other
+    # commented out
     if {$clause eq ""} {
         #set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
-        set lines [wmic path $obj get [join $fields ,] /format:csv]
+        set lines [exec wmic path $obj get [join $fields ,] /format:csv]
     } else {
 #        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
-        set lines [wmic path $obj where $clause get [join $fields ,] /format:csv]
+        set lines [exec wmic path $obj where $clause get [join $fields ,] /format:csv]
     }
 
 
@@ -423,6 +427,14 @@ proc wmic_exists {obj field value} {
     return 1
 }
 
+# Returns value of a field in the first record with specified key
+proc wmic_value {obj field key keyval} {
+    # Some WMI fields have to be retrieved using *, not the name. For example
+    # the FullName field from Win32_Account. Dunno why
+
+    array set rec [lindex [wmic_get $obj [list $field] "$key='$keyval'"] 0]
+    return $rec($field)
+}
 
 # Return true if $a is close to $b (within 5%)
 proc approx {a b {adjust 0}} {
