@@ -355,9 +355,27 @@ proc equal_paths {p1 p2} {
 }
 
 
-proc wmic_get {obj fields} {
+# Note - use single quotes, not double quotes to pass values to wmic from exec
+proc wmic_delete {obj clause} {
+    # The cmd echo is required because otherwise wmic hangs for some obscure
+    # reason when spawned from a non-interactive tclsh
+    exec cmd /c echo . | wmic path $obj where $clause delete
+}
+
+# Note - use single quotes, not double quotes to pass values to wmic from exec
+proc wmic_get {obj fields {clause ""}} {
+
+    # The cmd echo is required because otherwise wmic hangs for some obscure
+    # reason when spawned from a non-interactive tclsh
+    if {$clause eq ""} {
+        set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
+    } else {
+        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
+    }
+
+
     set data {}
-    foreach line [split [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv] \n] {
+    foreach line [split $lines \n] {
         set line [string trim $line]
         if {$line eq ""} continue
         # Assumes no "," in content
@@ -386,6 +404,23 @@ proc wmic_get {obj fields} {
 
     return $result
 }
+
+# Return 1/0 depending on whether at least one record with specified field
+# value exists in wmic table
+# Note - use single quotes, not double quotes to pass values to wmic from exec
+proc wmic_exists {obj field value} {
+    if {[catch {
+        wmic_get $obj [list $field] "$field='$value'"
+    } msg]} {
+        if {[string match -nocase "*No Instance(s) available*" $msg]} {
+            return 0
+        }
+        error $msg $::errorInfo $::errorCode
+    }
+
+    return 1
+}
+
 
 # Return true if $a is close to $b (within 5%)
 proc approx {a b {adjust 0}} {
