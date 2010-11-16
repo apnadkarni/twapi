@@ -3684,7 +3684,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 
     result.type = TRT_BADFUNCTIONCODE;
 
-    if (func > 1000 && func < 2000) {
+    if (func == 0 || (func > 1000 && func < 2000)) {
         switch (func) {
         case 1005: // This block of function codes maps directly to
         case 1008: // the function codes accepted by Twapi_NetUserSetInfoDWORD.
@@ -3714,7 +3714,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         return TwapiSetResult(interp, &result);
 
     switch (func) {
-        // NOTE case 0: is defined below with the Twapi_NetUserSetInfoLPWSTR 
+        // NOTE case 0: is defined above with the Twapi_NetUserSetInfoLPWSTR 
         // section.
     case 1:
         return Twapi_LookupAccountName(interp, s1, s2);
