@@ -740,6 +740,15 @@ Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP)
     return Tcl_NewUnicodeObj(lsauniP->Buffer, lsauniP->Length / sizeof(WCHAR));
 }
 
+void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP)
+{
+    int nchars;
+    lsauniP->Buffer = Tcl_GetUnicodeFromObj(objP, &nchars);
+    lsauniP->Length = (USHORT) (sizeof(WCHAR)*nchars); /* in bytes */
+    lsauniP->MaximumLength = lsauniP->Length;
+}
+
+
 /* interp may be NULL */
 int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
 {

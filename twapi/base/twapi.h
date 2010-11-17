@@ -1093,6 +1093,7 @@ void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
 int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
+void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
