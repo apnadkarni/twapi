@@ -752,9 +752,9 @@ proc twapi::_modify_account_rights {operation account rights args} {
 
     trap {
         if {$operation == "add"} {
-            Twapi_LsaAddAccountRights $lsah $sid $rights
+            LsaAddAccountRights $lsah $sid $rights
         } else {
-            Twapi_LsaRemoveAccountRights $lsah $sid $opts(all) $rights
+            LsaRemoveAccountRights $lsah $sid $opts(all) $rights
         }
     } finally {
         # Close the handle if we opened it
