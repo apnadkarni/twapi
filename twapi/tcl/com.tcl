@@ -2203,7 +2203,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     }
                     dispatch -
                     interface {
-                        set desc [::twapi::_interface_text $ti]
+                        append desc [::twapi::_interface_text $ti]
                     }
                     coclass {
                         for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
@@ -2219,7 +2219,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                         }
                     }
                     default {
-                        set desc "Unknown typekind: $attrs(-typekind)\n"
+                        append desc "Unknown typekind: $attrs(-typekind)\n"
                     }
                 }
                 append text \n$desc
