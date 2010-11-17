@@ -1411,18 +1411,6 @@ the given token. This is generally used in combination with
 [uri \#open_thread_token [cmd open_thread_token]]
 to implement an impersonation stack.
 
-[call [cmd sort_aces] [arg ACELIST]]
-Although not enforced by the operating system, Windows has a recommended
-order in which multiple ACEs should be applied. The [cmd sort_aces] command
-takes a list of ACE elements and returns a list that has been sorted
-as per the Windows recommendation. This sort order places all inherited ACEs
-after all non-inherited ACEs. Within each group, deny ACEs are placed before
-allow ACEs.
-
-[call [cmd sort_acl_aces] [arg ACL]]
-Rearranges the ACEs in the given ACL to conform to the Windows recommended
-order. Returns the modified ACL.
-
 [call [cmd set_token_integrity] [arg TOKEN] [arg INTEGRITYLEVEL]]
 On systems that support Windows UAC, this command sets the integrity
 level for a token. [arg INTEGRITYLEVEL] must be an integer value 
@@ -1452,6 +1440,18 @@ on the boolean value of [arg ENABLE]. If this call is made on a
 system that does not support UAC, [arg ENABLE] must be [const false] else
 an exception will be generated. The token must have been opened
 with [const token_adjust_default] access.
+
+[call [cmd sort_aces] [arg ACELIST]]
+Although not enforced by the operating system, Windows has a recommended
+order in which multiple ACEs should be applied. The [cmd sort_aces] command
+takes a list of ACE elements and returns a list that has been sorted
+as per the Windows recommendation. This sort order places all inherited ACEs
+after all non-inherited ACEs. Within each group, deny ACEs are placed before
+allow ACEs.
+
+[call [cmd sort_acl_aces] [arg ACL]]
+Rearranges the ACEs in the given ACL to conform to the Windows recommended
+order. Returns the modified ACL.
 
 [list_end]
 

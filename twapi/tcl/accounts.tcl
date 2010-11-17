@@ -121,12 +121,13 @@ proc twapi::set_user_priv_level {username priv_level args} {
 proc twapi::set_user_expiration {username time args} {
     eval set [parseargs args {system.arg} -nulldefault]
 
-    if {[string equal $time "never"]} {
-        set time -1
-    } else {
-        set time [clock scan $time]
+    if {![string is integer -strict $time]} {
+        if {[string equal $time "never"]} {
+            set time -1
+        } else {
+            set time [clock scan $time]
+        }
     }
-
     Twapi_NetUserSetInfoDWORD 1017 $system $username $time
 }
 
@@ -246,8 +247,6 @@ proc twapi::get_user_account_info {account args} {
                     set result($time_field) "never"
                 } elseif {$result($time_field) == 0} {
                     set result($time_field) "unknown"
-                } else {
-                    set result($time_field) [clock format $result($time_field) -gmt 1]
                 }
             }
         }
