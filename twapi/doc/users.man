@@ -167,7 +167,7 @@ may be used to specify a system as described in [sectref "Standard Options"].
 Refer to
 [uri {http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/authorization_constants.asp} "Authorization constants"]
 in the Windows SDK for valid values.
-[emph "Note: you must use the string form of the privilege or right, for example, SeBatchLogon, not SE_BATCH_LOGON_NAME."]
+[emph "Note: you must use the string form of the privilege or right, for example, SeBatchLogonRight, not SE_BATCH_LOGON_NAME."]
 
 [call [cmd add_user_to_global_group] [arg GROUPNAME] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
@@ -742,7 +742,7 @@ may be used to specify a system as described in [sectref "Standard Options"].
 Refer to
 [uri {http://msdn.microsoft.com/library/default.asp?url=/library/en-us/secauthz/security/authorization_constants.asp} "Authorization constants"]
 in the Windows SDK for valid values.
-[emph "Note: you must use the string form of the privilege, for example, SeBatchLogon, not SE_BATCH_LOGON_NAME."]
+[emph "Note: you must use the string form of the privilege, for example, SeBatchLogonRight, not SE_BATCH_LOGON_NAME."]
 
 [call [cmd remove_user_from_global_group] [arg GROUPNAME] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
