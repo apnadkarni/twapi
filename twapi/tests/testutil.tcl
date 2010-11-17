@@ -11,27 +11,11 @@ set twapi_test_script_dir [file dirname [info script]]
 
 proc load_twapi {} {
 
-    # Tne environment variable TWAPI_PACKAGE determines if twapi_server
-    # or twapi_desktop should be loaded instead of the full package.
-    set package twapi
-    catch {set package $::env(TWAPI_PACKAGE)}
-
-    if {[catch {package require $package} msg]} {
-        # See if it is a star kit
-        if {[file exists $package] && ([file extension $package] eq ".kit")} {
-            source $package
-            set package [file tail [file rootname $package]]
-            # Strip off version number string from kit to get package name
-            set package [lindex [split $package -] 0]
-            package require $package
-        } else {
-            # Try sourcing from test directory
-            if {[file exists ../tcl/twapi.tcl]} {
-                source ../tcl/twapi.tcl
-            } else {
-                error "Could not load package: $msg"
-            }
-        }
+    # If in source dir, we load that twapi in preference to installed package
+    if {[file exists ../tcl/twapi.tcl]} {
+        uplevel #0 source ../tcl/twapi.tcl
+    } else {
+        uplevel #0 package require twapi
     }
 }
 
