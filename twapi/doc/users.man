@@ -428,64 +428,12 @@ whose context the account lookup should be performed.
 [nl]
 The data returned depends on which of the following options are specified:
 [list_begin opt]
-[opt_def [cmd -all]] Returns all data items.
-[opt_def [cmd -comment]] Returns the comment associated with the user account.
-[opt_def [cmd -password_expired]]
-Returns a value of 1 if the account password has expired, and 0 otherwise.
-[opt_def [cmd -full_name]] Returns the full name of the user.
-[opt_def [cmd -parms]] Returns an application specific string.
-[opt_def [cmd -sid]] Returns the SID of the user.
-[opt_def [cmd -units_per_week]] Returns an integer
-indicating the number of equal time units into
-which a week is divided (see [cmd -logon_hours]).
-[opt_def [cmd -primary_group_id]] Returns the
-the RID (relative id component of a SID) of the primary
-global group for the account.
-[opt_def [cmd -global_groups]] Returns the global groups of which the account
-is a member.
-[opt_def [cmd -local_groups]] Returns the local groups of which the account
-is a member. This includes only groups of which the account is directly
-a member and does [emph not] include indirect membership
-through a global group which is itself a member of a local group.
-See
-[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
-for a command that will recursively include groups.
-[opt_def [cmd -status]] Returns one
-of the values [const disabled], [const enabled] or [const locked].
-[opt_def [cmd -logon_server]]
-Returns the name of the server to which logon requests are sent.
-[opt_def [cmd -country_code]]
-Returns an integer country/region value for the user's preferred language.
-[opt_def [cmd -home_dir]]
-Returns the full path to the user's home directory.
-[opt_def [cmd -password_age]]
-Returns the number of seconds since the password was last changed for the
-account.
-[opt_def [cmd -home_dir_drive]]
-Returns the drive letter assigned to the user's home directory.
-[opt_def [cmd -num_logons]]
-Returns the number of times the user has logged on.
-In an environment with backup
-domain controllers, each domain controller maintains this value independently
-and must be queried (using the [cmd -system] option) separately. A value
-of -1 indicates the number is unknown.
 [opt_def [cmd -acct_expires]]
-Returns the time in GMT when the account is set to expire. This value may
-also be [const never] or [const unknown].
-[opt_def [cmd -last_logon]]
-Returns the time in GMT when the user last logged in. This value may
-also be [const never] or [const unknown]. In an environment with backup
-domain controllers, each domain controller maintains this value independently
-and must be queried separately (using the [cmd -system] option).
-[opt_def [cmd -last_logoff]]
-Returns the time in GMT when the user last logged off. This value may
-also be [const never] or [const unknown]. In an environment with backup
-domain controllers, each domain controller maintains this value independently
-and must be queried separately (using the [cmd -system] option).
-[opt_def [cmd -user_id]]
-Returns RID component of the user's SID.
-[opt_def [cmd -usr_comment]]
-Returns the user comment for the account.
+Returns the time when the account is set to expire. This value may
+be [const never] or [const unknown] or the number
+of seconds since Jan 1, 1970 00:00:00 UTC as accepted by the Tcl [cmd clock]
+command.
+[opt_def [cmd -all]] Returns all data items.
 [opt_def [cmd -bad_pw_count]]
 Returns the number of login attempts for that account
 that failed because of a bad password. In an environment with backup
@@ -494,26 +442,80 @@ and must be queried separately (using the [cmd -system] option).
 [opt_def [cmd -code_page]]
 Returns an integer corresponding to the code page
 for the user's preferred language.
+[opt_def [cmd -comment]] Returns the comment associated with the user account.
+[opt_def [cmd -country_code]]
+Returns an integer country/region value for the user's preferred language.
+[opt_def [cmd -full_name]] Returns the full name of the user.
+[opt_def [cmd -global_groups]] Returns the global groups of which the account
+is a member.
+[opt_def [cmd -home_dir]]
+Returns the full path to the user's home directory.
+[opt_def [cmd -home_dir_drive]]
+Returns the drive letter assigned to the user's home directory.
+[opt_def [cmd -last_logoff]]
+Returns the time in GMT when the user last logged off. This value may
+also be [const never] or [const unknown]. In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried separately (using the [cmd -system] option).
+[opt_def [cmd -last_logon]]
+Returns the time in GMT when the user last logged in. This value may
+also be [const never] or [const unknown]. In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried separately (using the [cmd -system] option).
+[opt_def [cmd -local_groups]] Returns the local groups of which the account
+is a member. This includes only groups of which the account is directly
+a member and does [emph not] include indirect membership
+through a global group which is itself a member of a local group.
+See
+[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
+for a command that will recursively include groups.
 [opt_def [cmd -logon_hours]]
 Returns a bit string of 1's and 0's corresponding to each hour
 in the week that the
 user is allowed to log on. Note the week starts based on GMT time, not local
 time.
-[opt_def [cmd -workstations]]
-Returns a comma-separated list of upto eight workstations from which
-the user can log in.
+[opt_def [cmd -logon_server]]
+Returns the name of the server to which logon requests are sent.
+[opt_def [cmd -max_storage]]
+Returns the maximum amount of disk space the user is allowed to use.
 [opt_def [cmd -name]]
 Returns the name of the account.
-[opt_def [cmd -script_path]]
-Returns the full path to the user's logon script.
+[opt_def [cmd -num_logons]]
+Returns the number of times the user has logged on.
+In an environment with backup
+domain controllers, each domain controller maintains this value independently
+and must be queried (using the [cmd -system] option) separately. A value
+of -1 indicates the number is unknown.
+[opt_def [cmd -parms]] Returns an application specific string.
+[opt_def [cmd -password_age]]
+Returns the number of seconds since the password was last changed for the
+account.
+[opt_def [cmd -password_expired]]
+Returns a value of 1 if the account password has expired, and 0 otherwise.
+[opt_def [cmd -primary_group_id]] Returns the
+the RID (relative id component of a SID) of the primary
+global group for the account.
 [opt_def [cmd -priv]]
 Returns one of the values
 [const admin], [const user] or [const guest] corresponding
 to the privilege level for the account.
 [opt_def [cmd -profile]]
 Returns the full path to the user's profile.
-[opt_def [cmd -max_storage]]
-Returns the maximum amount of disk space the user is allowed to use.
+[opt_def [cmd -script_path]]
+Returns the full path to the user's logon script.
+[opt_def [cmd -sid]] Returns the SID of the user.
+[opt_def [cmd -status]] Returns one
+of the values [const disabled], [const enabled] or [const locked].
+[opt_def [cmd -units_per_week]] Returns an integer
+indicating the number of equal time units into
+which a week is divided (see [cmd -logon_hours]).
+[opt_def [cmd -usr_comment]]
+Returns the user comment for the account.
+[opt_def [cmd -user_id]]
+Returns RID component of the user's SID.
+[opt_def [cmd -workstations]]
+Returns a comma-separated list of upto eight workstations from which
+the user can log in.
 [list_end]
 [uri listgroupsforuser.example "Example: List the group membership for a user"]
 [nl]
@@ -765,9 +767,8 @@ associated with the user account.
 [opt_def [cmd -home_dir] [arg PATH]] Sets the account's home directory path.
 [opt_def [cmd -home_dir_drive]] Sets the account's home directory drive.
 [opt_def [cmd -acct_expires] [arg DATETIME]] Sets the time at which the
-account will expire. [arg DATETIME] may be specified in any format accepted
-by the [cmd "clock scan"] command, or may be the string [const never]
-to indicate that the account should never expire.
+account will expire. See [uri #set_user_expiration [cmd set_user_expiration]]
+for valid formats for [arg DATETIME].
 [opt_def [cmd -name] [arg STRING]] Sets the [const name] field containing
 the name of the account.
 [opt_def [cmd -script_path] [arg PATH]] Sets the path to the
@@ -792,9 +793,12 @@ may be used to specify a system as described in [sectref "Standard Options"].
 [call [cmd set_user_expiration] [arg USERNAME] [arg DATETIME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
 Sets the time at which the specified user account expires.
-[arg DATETIME] may be specified in any format accepted
-by the [cmd "clock scan"] command, or may be the string [const never]
-to indicate that the account should never expire. The option [cmd -system]
+[arg DATETIME] may be specified as the number of seconds since
+Jan 1, 1970 00:00:00 UTC, the string [const never], or 
+in any format accepted
+by the [cmd "clock scan"] command. This last option is only for backward
+compatibility and is deprecated as it may lead to ambiguity.
+The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
 [call [cmd set_user_full_name] [arg USERNAME] [arg STRING] [opt "[cmd -system] [arg SYSTEMNAME]"]]

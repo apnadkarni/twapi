@@ -140,6 +140,15 @@ get_client_share_info in previous releases.
 [uri services.html#get_multiple_service_status get_multiple_service_status]
 has changed to make access simpler and faster.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"] 
+The format of expiration time of user accounts as returned by
+[uri users.html#get_user_account_info [cmd get_user_account_info]] has changed
+as have the formats accepted by 
+[uri users.html#set_user_account_info [cmd set_user_account_info]]
+and
+[uri users.html#set_user_expiration [cmd set_user_expiration]].
+
+
 [bullet] Added [uri errors.html#debuglog debuglog] command to log debug
 and trace messages.
 
