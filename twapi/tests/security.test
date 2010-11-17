@@ -555,6 +555,50 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_account_rights-1.0 {
+        Get account rights
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch -exact [twapi::get_account_rights administrators] SeInteractiveLogonRight] >= 0}
+    } -result 1
+
+    test get_account_rights-1.1 {
+        Get account rights with -system
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch -exact [twapi::get_account_rights administrators -system $::env(COMPUTERNAME)] SeInteractiveLogonRight] >= 0}
+    } -result 1
+
+    ################################################################
+
+    test find_accounts_with_right-1.0 {
+        Find accounts with a right
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight] S-1-5-32-544] >= 0}
+    } -result 1
+
+    test find_accounts_with_right-1.1 {
+        Find accounts with a right with -system
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -system $::env(COMPUTERNAME)] S-1-5-32-544] >= 0}
+    } -result 1
+
+    test find_accounts_with_right-2.0 {
+        Find accounts with a right with -name
+    } -constraints {
+        nt
+    } -body {
+        expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -name] Administrators] >= 0}
+    } -result 1
+
+    ################################################################
+
     test get_current_user-1.0 {
         Get current user name
     } -constraints {

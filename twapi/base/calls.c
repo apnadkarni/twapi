@@ -3051,9 +3051,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
 #ifndef TWAPI_LEAN
         case 502: // LsaOpenPolicy
-            lsa_ustr.Buffer = Tcl_GetUnicodeFromObj(objv[2], &dw2);
-            lsa_ustr.Length = (USHORT) dw2;
-            lsa_ustr.MaximumLength = lsa_ustr.Length;
+            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
             ZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
             dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
             if (dw2 == STATUS_SUCCESS) {
@@ -3623,9 +3621,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 10003:
             if (objc != 4)
                 return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
-            u.lsa_ustr.Buffer = Tcl_GetUnicodeFromObj(objv[3], &dw);
-            u.lsa_ustr.Length = (USHORT) dw;
-            u.lsa_ustr.MaximumLength = u.lsa_ustr.Length;
+            ObjToLSA_UNICODE_STRING(objv[3], &u.lsa_ustr);
             return Twapi_LsaEnumerateAccountsWithUserRight(interp, h,
                                                            &u.lsa_ustr);
 #endif
