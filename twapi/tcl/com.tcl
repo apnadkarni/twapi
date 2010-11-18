@@ -331,7 +331,7 @@ proc twapi::typelib_print {path args} {
 
 
 proc twapi::_interface_text {ti} {
-    # ti must be TypeInfo for an interface
+    # ti must be TypeInfo for an interface or module (or enum?) - TBD
     set desc ""
     array set attrs [$ti @GetTypeAttr -all]
     set desc "Functions:\n"
@@ -348,7 +348,7 @@ proc twapi::_interface_text {ti} {
     for {set j 0} {$j < $attrs(-varcount)} {incr j} {
         array set vardata [$ti @GetVarDesc $j -all]
         set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type $ti $vardata(-datatype)]] $vardata(-name)"
-        if {$attrs(-typekind) eq "enum"} {
+        if {$attrs(-typekind) eq "enum" || $vardata(-varkind) eq "const"} {
             append vardesc " = $vardata(-value)"
         } else {
             append vardesc " (offset $vardata(-value))"
@@ -2201,6 +2201,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     alias {
                         append desc "\ttypedef $attrs(-aliasdesc)\n"
                     }
+                    module -
                     dispatch -
                     interface {
                         append desc [::twapi::_interface_text $ti]
