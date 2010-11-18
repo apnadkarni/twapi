@@ -1297,7 +1297,7 @@ twapi::class create ::twapi::IDispatchProxy {
         # If we have been through here before and have our guid,
         # check if a prototype exists and return it. 
         if {[info exists _guid] &&
-            [::twapi::_dispatch_prototype_get $_guid $name $invkind $lcid proto]} {
+            [::twapi::_dispatch_prototype_get $_guid $name $lcid $invkind proto]} {
             return $proto
         }
 
