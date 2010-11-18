@@ -610,16 +610,6 @@ proc twapi::_format_prototype {name proto} {
     return "$dispid_lcid $invkind $ret_type ${name}${paramstr}"
 }
 
-#
-# Print all prototypes in the dispatch table
-proc twapi::_print_idispatch_prototypes {} {
-    variable idispatch_prototypes
-    foreach i [lsort [array names idispatch_prototypes]] {
-        foreach {ifc name lcid invokeflag} [split $i ,] break
-        puts "$ifc [_format_prototype $name $idispatch_prototypes($i)]"
-    }
-}
-
 # Convert parameter modifiers to string tokens.
 # modifiers is list of integer flags or tokens.
 proc twapi::_paramflags_to_tokens {modifiers} {
