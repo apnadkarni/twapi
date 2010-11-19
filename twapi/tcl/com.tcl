@@ -2396,6 +2396,12 @@ twapi::class create ::twapi::Automation {
         return [$_proxy @Interface]
     }
 
+    # Prints methods in an interface
+    method -print {} {
+        my variable _proxy
+        ::twapi::dispatch_print $_proxy
+    }
+
     method -with {subobjlist args} {
         # $obj -with SUBOBJECTPATHLIST arguments
         # where SUBOBJECTPATHLIST is list each element of which is
