@@ -1397,11 +1397,15 @@ twapi::class create ::twapi::IDispatchProxy {
         set ti [my @GetTypeInfo]
         ::twapi::trap {
             set tl [$ti @GetContainingTypeLib]
-            $tl @Foreach -guid $co_clsid -type coclass coti {
-                break
-            }
-            if {[info exists coti]} {
-                return $coti
+            if {0} {
+                $tl @Foreach -guid $co_clsid -type coclass coti {
+                    break
+                }
+                if {[info exists coti]} {
+                    return $coti
+                }
+            } else {
+                return [$tl @GetTypeInfoOfGuid $co_clsid]
             }
             win32_error 0x80004005 "Could not find coclass."; # E_FAIL
         } finally {
@@ -1707,7 +1711,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     method @GetVarDesc {index args} {
         # TBD - add support for retrieving elemdescVar.paramdesc fields
 
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             all
             name
             memid
@@ -1784,7 +1788,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     }
 
     method @GetFuncDesc {index args} {
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             all
             name
             memid
@@ -1887,7 +1891,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     #
     # Get documentation for a element of a type
     method @GetDocumentation {memid args} {
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             all
             name
             docstring
@@ -2002,7 +2006,7 @@ twapi::class create ::twapi::ITypeLibProxy {
     }
 
     method @GetLibAttr {args} {
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             all
             guid
             lcid
@@ -2051,7 +2055,7 @@ twapi::class create ::twapi::ITypeLibProxy {
     # 
     method @Foreach {args} {
 
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             type.arg
             name.arg
             guid.arg
@@ -2162,7 +2166,7 @@ twapi::class create ::twapi::ITypeLibProxy {
     }
 
     method @Text {args} {
-        array set opts [parseargs args {
+        array set opts [::twapi::parseargs args {
             type.arg
             name.arg
         } -maxleftover 0 -nulldefault]

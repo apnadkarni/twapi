@@ -1612,10 +1612,10 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
  * VARIANT to be passed to IDispatch::Invoke.
  * IMPORTANT: The created VARIANT must be cleared by calling
  * TwapiClearVariantParam
- * argP->var is the variant to construct, refargP->var is the
+ * varP is the variant to construct, refvarP is the
  * variant to use if a level of indirection is needed.
  * Both must have been VariantInit'ed.
- * The function also fills in argP->pflags based on the parameter
+ * The function also fills in varP->pflags based on the parameter
  * flags field.
  * valueObj is either the name of the variable containing the value
  * to be passed (if the parameter is out or inout) or the actual
