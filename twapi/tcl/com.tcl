@@ -342,12 +342,12 @@ proc twapi::_interface_text {ti} {
         } else {
             set funckind "(vtable $funcdata(-vtbloffset))"
         }
-        append desc "\t$funckind [::twapi::_resolve_com_type $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params $ti $funcdata(-params) $funcdata(-paramnames)]\n"
+        append desc "\t$funckind [::twapi::_resolve_com_type_text $ti $funcdata(-datatype)] $funcdata(-name) $funcdata(-invkind) [::twapi::_resolve_com_params_text $ti $funcdata(-params) $funcdata(-paramnames)]\n"
     }
     append desc "Variables:\n"
     for {set j 0} {$j < $attrs(-varcount)} {incr j} {
         array set vardata [$ti @GetVarDesc $j -all]
-        set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type $ti $vardata(-datatype)]] $vardata(-name)"
+        set vardesc "($vardata(-memid)) $vardata(-varkind) [::twapi::_flatten_com_type [::twapi::_resolve_com_type_text $ti $vardata(-datatype)]] $vardata(-name)"
         if {$attrs(-typekind) eq "enum" || $vardata(-varkind) eq "const"} {
             append vardesc " = $vardata(-value)"
         } else {
@@ -432,10 +432,10 @@ proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
 
 #
 # Resolves references to parameter definition
-proc twapi::_resolve_com_params {ti params paramnames} {
+proc twapi::_resolve_com_params_text {ti params paramnames} {
     set result [list ]
     foreach param $params paramname $paramnames {
-        set paramdesc [_flatten_com_type [_resolve_com_type $ti [lindex $param 0]]]
+        set paramdesc [_flatten_com_type [_resolve_com_type_text $ti [lindex $param 0]]]
         if {[llength $param] > 1 && [llength [lindex $param 1]] > 0} {
             set paramdesc "\[[lindex $param 1]\] $paramdesc"
         }
@@ -448,7 +448,7 @@ proc twapi::_resolve_com_params {ti params paramnames} {
     return "([join $result {, }])"
 }
 
-# Flattens the output of _resolve_com_type
+# Flattens the output of _resolve_com_type_text
 proc twapi::_flatten_com_type {com_type_desc} {
     if {[llength $com_type_desc] < 2} {
         return $com_type_desc
@@ -460,16 +460,17 @@ proc twapi::_flatten_com_type {com_type_desc} {
         return "([lindex $com_type_desc 0] [_flatten_com_type [lindex $com_type_desc 1]])"
     }
 }
+
 #
 # Resolves typedefs
-proc twapi::_resolve_com_type {ti typedesc} {
+proc twapi::_resolve_com_type_text {ti typedesc} {
     
     set typedesc [_vttype_to_string $typedesc]
 
     switch -exact -- [lindex $typedesc 0] {
         ptr {
             # Recurse to resolve any inner types
-            set typedesc [list ptr [_resolve_com_type $ti [lindex $typedesc 1]]]
+            set typedesc [list ptr [_resolve_com_type_text $ti [lindex $typedesc 1]]]
         }
         userdefined {
             set hreftype [lindex $typedesc 1]
@@ -482,6 +483,46 @@ proc twapi::_resolve_com_type {ti typedesc} {
     }
 
     return $typedesc
+}
+
+
+#
+# Given a COM type descriptor, resolved all user defined types (UDT) in it
+# The descriptor must be in raw form as returned by the C code
+proc twapi::_resolve_comtype {ti typedesc} {
+    
+    if {[lindex $typedesc 0] == 26} {
+        # VT_PTR - {26 INNER_TYPEDESC}
+        # If pointing to a UDT, convert to appropriate base type if possible
+        set inner [_resolve_comtype $ti [lindex $typedesc 1]]
+        if {[lindex $inner 0] == 29} {
+            switch -exact -- [lindex $inner 1] {
+                dispatch  {set typedesc [list 9]}
+                interface {set typedesc [list 13]}
+                default {
+                    # TBD - need to decode all the other types (record etc.)
+                    set typedesc [list 26 $inner]
+                }
+            }
+        }
+    } elseif {[lindex $typedesc 0] == 29} {
+        # VT_USERDEFINED - {29 HREFTYPE}
+        set ti2 [$ti @GetRefTypeInfo [lindex $typedesc 1]]
+        array set tattr [$ti2 @GetTypeAttr -guid -typekind]
+        set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+        $ti2 Release
+    }
+
+    return $typedesc
+}
+
+proc twapi::_resolve_params_for_prototype {ti paramdescs} {
+    set params {}
+    foreach paramdesc $paramdescs {
+        lappend params \
+            [lreplace $paramdesc 0 0 [::twapi::_resolve_comtype $ti [lindex $paramdesc 0]]]
+    }
+    return $params
 }
 
 #
@@ -1304,15 +1345,22 @@ twapi::class create ::twapi::IDispatchProxy {
         if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
             [llength $binddata]} {
             foreach {type data ifc} $binddata break
-            ::twapi::IUnknown_Release $ifc; # Don't need this but must release
             if {$type eq "funcdesc" ||
                 ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
+                set params {}
+                set bindti [::twapi::make_interface_proxy $ifc]
+                trap {
+                    set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
+                } finally {
+                    $bindti Release
+                }
                 set proto [list [::twapi::kl_get $data memid] \
                                $lcid \
                                $invkind \
                                [::twapi::kl_get $data elemdescFunc.tdesc] \
-                               [::twapi::kl_get $data lprgelemdescParam]]
+                               $params]
             } else {
+                ::twapi::IUnknown_Release $ifc; # Don't need this but must release
                 debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
             }
         }
@@ -2121,11 +2169,12 @@ twapi::class create ::twapi::ITypeLibProxy {
                         ::twapi::debuglog "Unexpected funckind value '$funcdata(funckind)' ignored. funcdata: [array get funcdata]"
                         continue;
                     }
+                    
                     set proto [list $funcdata(memid) \
                                    $attrs(lcid) \
                                    $funcdata(invkind) \
                                    $funcdata(elemdescFunc.tdesc) \
-                                   $funcdata(lprgelemdescParam)]
+                                   [::twapi::_resolve_params_for_prototype $ti $funcdata(lprgelemdescParam)]]
                     ::twapi::_dispatch_prototype_set \
                         $attrs(guid) [$ti @GetName $funcdata(memid)] \
                         $attrs(lcid) \
