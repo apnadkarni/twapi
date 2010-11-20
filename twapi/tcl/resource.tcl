@@ -22,7 +22,7 @@ proc twapi::delete_resource {hmod restype resname langid} {
 
 
 # Note this is not an alias because we want to make sure $bindata is specified
-# as an argument.
+# as an argument else it will have the effect of deleting a resource
 proc twapi::update_resource {hmod restype resname langid bindata} {
     UpdateResource $hmod $restype $resname $langid $bindata
 }

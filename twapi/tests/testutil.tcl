@@ -62,6 +62,10 @@ proc validate_ip_addresses {addrlist} {
     return 1
 }
 
+proc valid_handle {h} {
+    return [twapi::Twapi_IsPtr $h]
+}
+
 # Validate SIDs
 proc valid_sids {sids} {
     foreach sid $sids {
