@@ -181,6 +181,36 @@ namespace eval twapi::resource::test {
         file delete $resfile
     } -result 1
 
+    test update_resource-1.1 {
+        Update a resource (existing resource)
+    } -constraints {
+        nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+
+    } -body {
+        # Verify that a resource exists first
+        set reslibh [twapi::load_library $resfile -datafile]
+        twapi::read_resource $reslibh 9 101 1033
+        twapi::free_library $reslibh
+        # No error, so resource exists, now replace it
+
+        set resh [twapi::begin_resource_update $resfile]
+        # Note for our purposes, format of data does not have to match
+        # resource type
+        set data [binary format i4 {1 2 3 4}]
+        twapi::update_resource $resh 9 101 1033 $data
+        twapi::end_resource_update $resh
+        # Read it back in
+        set reslibh [twapi::load_library $resfile -datafile]
+        set data2 [twapi::read_resource $reslibh 9 101 1033]
+        twapi::free_library $reslibh
+        expr {$data eq $data2}
+    } -cleanup {
+        file delete $resfile
+    } -result 1
+
     ################################################################
 
     test read_resource-1.0 {
