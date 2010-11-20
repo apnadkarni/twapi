@@ -23,33 +23,163 @@ namespace eval twapi::resource::test {
     ################################################################
 
     test begin_resource_update-1.0 {
-        TBD
+        Open a resource file for update
     } -constraints {
         nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
     } -body {
-    } -result TBD
+        twapi::end_resource_update [twapi::begin_resource_update $resfile]
+        # Verify that no resource were auto delete by opening
+        set reslibh [twapi::load_library $resfile -datafile]
+        twapi::enumerate_resource_types $reslibh
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -result {1 2 3 4 5 6 9 12 14 23}
+
+    test begin_resource_update-2.0 {
+        Open a resource file for update -deleteall
+    } -constraints {
+        nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+    } -body {
+        twapi::end_resource_update [twapi::begin_resource_update $resfile -deleteall]
+        set reslibh [twapi::load_library $resfile -datafile]
+        twapi::enumerate_resource_types $reslibh
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -result {}
+
+    ################################################################
 
     test end_resource_update-1.0 {
-        TBD
+        End a resource file update
     } -constraints {
         nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
     } -body {
-    } -result TBD
+        twapi::end_resource_update [twapi::begin_resource_update $resfile]
+    } -cleanup {
+        file delete $resfile
+    } -result ""
 
+    test end_resource_update-2.0 {
+        End resource file update with -discard
+    } -constraints {
+        nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+    } -body {
+        set resh [twapi::begin_resource_update $resfile -deleteall]
+        twapi::end_resource_update $resh -discard
+        set reslibh [twapi::load_library $resfile -datafile]
+        twapi::enumerate_resource_types $reslibh
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -result {1 2 3 4 5 6 9 12 14 23}
+
+    test end_resource_update-2.1 {
+        End resource file update with discarded delete changes
+    } -constraints {
+        nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+    } -body {
+        set resh [twapi::begin_resource_update $resfile]
+        twapi::delete_resource $resh 9 101 1033
+        twapi::end_resource_update $resh -discard
+        set reslibh [twapi::load_library $resfile -datafile]
+        binary scan [twapi::read_resource $reslibh 9 101 1033] H* hex
+        set hex
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -result {9f00430002000000}
+
+
+    ################################################################
 
     test delete_resource-1.0 {
-        TBD
+        Delete a resource
     } -constraints {
         nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
     } -body {
-    } -result TBD
+        set resh [twapi::begin_resource_update $resfile]
+        twapi::delete_resource $resh 9 101 1033
+        twapi::end_resource_update $resh
+        set reslibh [twapi::load_library $resfile -datafile]
+        twapi::read_resource $reslibh 9 101 1033
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -returnCodes error -result "The specified resource type cannot be found in the image file."
+
+    test delete_resource-1.1 {
+        Delete a non-existent resource
+    } -constraints {
+        nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+    } -body {
+        set resh [twapi::begin_resource_update $resfile]
+        catch {twapi::delete_resource $resh 9 101 1034}
+        twapi::end_resource_update $resh
+        set reslibh [twapi::load_library $resfile -datafile]
+        binary scan [twapi::read_resource $reslibh 9 101 1033] H* hex
+        set hex
+    } -cleanup {
+        twapi::free_library $reslibh
+        file delete $resfile
+    } -result {9f00430002000000}
+
+    ################################################################
 
     test update_resource-1.0 {
-        TBD
+        Update a resource (new resource)
     } -constraints {
         nt
+    } -setup {
+        set resfile [file join [tcltest::temporaryDirectory] [clock clicks].dll]
+        file copy $rctest_dll $resfile
+        # Delete all resource from the file
+        twapi::end_resource_update [twapi::begin_resource_update $resfile -deleteall]
+        # Verify all resource deleted
+        set reslibh [twapi::load_library $resfile -datafile]
+        set resources [twapi::enumerate_resource_types $reslibh]
+        twapi::free_library $reslibh
+        if {[llength $resources] != 0} {
+            error "Could not empty out resources from test resource file"
+        }
     } -body {
-    } -result TBD
+        # Read a resource from the test template
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+        set data [twapi::read_resource $reslibh 9 101 1033]
+        twapi::free_library $reslibh
+        set resh [twapi::begin_resource_update $resfile]
+        twapi::update_resource $resh 9 1 1035 $data
+        twapi::end_resource_update $resh
+        # Read it back in
+        set reslibh [twapi::load_library $resfile -datafile]
+        set data2 [twapi::read_resource $reslibh 9 1 1035]
+        twapi::free_library $reslibh
+        expr {$data eq $data2}
+    } -cleanup {
+        file delete $resfile
+    } -result 1
 
     ################################################################
 
@@ -65,6 +195,7 @@ namespace eval twapi::resource::test {
     } -cleanup {
         twapi::free_library $reslibh
     } -result {000000002800000020000000400000000100010000000000000100000000000000000000000000000000000000000000ffffff0000000000000000000000000000080200000100000008aa0000000400002aa820010100100a800888040044400808200010101000082a0a000004444402222a0010001000028a2aa00044000402aa28a0110010000a8a2a800440440408a0aa8001101010088a8280004440000808200800011110000000000000000000000000fffffffffffffffffffffffffff3fcfffff031fffff645fffff669ffff8002cffc7e5707f03ea337e3cf0b37e7b3cabbe7cbedbbe781f5bbe74009bbe89891bbe9b921bbe831851bed8bc45bed11c65bee39e55bf434d16bf20f0b6bf30f116bf4434d6bf7603c6bf7881ce7f3e68ee7f91000e7feffffffffffffffffffffff}
+
 
     test read_resource-1.1 {
         Read bitmaps in a resource file
@@ -222,6 +353,32 @@ namespace eval twapi::resource::test {
         twapi::free_library $reslibh
     } -result "The specified resource type cannot be found in the image file." -returnCodes error
     
+    test read_resource-4.0 {
+        Read language-specific resource (accelerator)in a resource file
+    } -constraints {
+        nt
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        binary scan [twapi::read_resource $reslibh 9 101 1033] H* hex
+        set hex
+    } -cleanup {
+        twapi::free_library $reslibh
+    } -result {9f00430002000000}
+
+    test read_resource-4.1 {
+        Read non-existing language-specific resource in a resource file
+    } -constraints {
+        nt
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        binary scan [twapi::read_resource $reslibh 9 101 1034] H* hex
+        set hex
+    } -cleanup {
+        twapi::free_library $reslibh
+    } -returnCodes error -result "The specified resource language ID cannot be found in the image file."
+
     ################################################################
 
     test read_resource_string-1.0 {
@@ -326,6 +483,49 @@ namespace eval twapi::resource::test {
         twapi::free_library $reslibh
     } -result {{} Neutral Neutral(Default) {Neutral(Sys. Default)} Bulgarian Croatian Czech Danish Dutch(Netherlands) Dutch(Belgium) English(U.S.) English(U.K.) English(Australia) English(Canada) English(NewZealand) English(Ireland)}
     
+    ################################################################
+
+    test resource_stringid_to_stringblockid-1.0 {
+        Convert string id 0 to a string block id
+    } -constraints {
+        nt
+    } -body {
+        twapi::resource_stringid_to_stringblockid 0
+    } -result {1 0}
+
+    test resource_stringid_to_stringblockid-1.1 {
+        Convert string id 1 to a string block id
+    } -constraints {
+        nt
+    } -body {
+        twapi::resource_stringid_to_stringblockid 1
+    } -result {1 1}
+
+    test resource_stringid_to_stringblockid-1.2 {
+        Convert string id 15 (last in first block) to a string block id
+    } -constraints {
+        nt
+    } -body {
+        twapi::resource_stringid_to_stringblockid 15
+    } -result {1 15}
+
+    test resource_stringid_to_stringblockid-1.3 {
+        Convert string id 16 (firat in last block) to a string block id
+    } -constraints {
+        nt
+    } -body {
+        twapi::resource_stringid_to_stringblockid 16
+    } -result {2 0}
+
+    test resource_stringid_to_stringblockid-1.4 {
+        Convert a string id to a string block id
+    } -constraints {
+        nt
+    } -body {
+        twapi::resource_stringid_to_stringblockid 1000
+    } -result {63 8}
+   
+
     ################################################################
     
     test enumerate_resource_types-1.0 {

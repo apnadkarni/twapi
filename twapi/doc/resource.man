@@ -72,7 +72,7 @@ Manipulating a resource requires a Windows executable module
 handle for the corresponding
 executable file. The commands will accept [const NULL] or [const 0]
 for this handle corresponding the the main executable for the process.
-To retrieve or update resources in other executables or DLL's, the module
+To retrieve resources in other executables or DLL's, the module
 must be first loaded through the
 [uri process.html#load_library [cmd load_library]] call.
 Generally, the [cmd -datafile] option should be passed to the
@@ -137,7 +137,7 @@ The string index returned from
 [uri #resource_stringid_to_stringblockid [cmd resource_stringid_to_stringblockid]] can be used to then pick out the appropriate string from the this list.
 [para]
 If you are only interested in a single string, the command
-[uri #read_resource_string [cmd read_resource_string]] ensapsulates this
+[uri #read_resource_string [cmd read_resource_string]] encapsulates this
 entire process.
 [para]
 Updating strings in a resource involves multiple steps for the same reason.
@@ -232,7 +232,7 @@ string block contains 16 strings, the returned list as exactly
 [call [cmd resource_stringid_to_stringblockid] [arg STRINGID]]
 Maps a string resource id to a list containing the id of the
 corresponding string block in the resource and the index of the string
-within the block as described in [sectref "stringresources"].
+within the block as described in [sectref "String Resources"].
 
 [call [cmd strings_to_resource_stringblock] [arg STRINGS]]
 Converts the list of strings in [arg STRINGS] to a binary resource string block
@@ -245,8 +245,7 @@ strings are provided, they are stored as empty strings.
 Updates a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
 [uri #begin_resource_update [cmd begin_resource_update]].
-If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
-[arg RESDATA] is the string to be stored in the resource, otherwise it
+[arg RESDATA] 
 should be the raw binary data for the resource in the type-specific format.
 [nl]
 The resource is not actually written out to the file until
