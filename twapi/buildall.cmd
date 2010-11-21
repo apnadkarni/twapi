@@ -9,7 +9,7 @@ rem Set up 32-bit build environment. If we are using the TWAPI custom
 rem environment point there, else the standard Microsoft paths
 IF %TWAPI_COMPILER_DIR%. == . goto setupsdk
 
-@call "%TWAPI_COMPILER_DIR%"\vc6setup.bat
+@call "%TWAPI_COMPILER_DIR%"\x86\setup.bat
 goto cleanbin
 
 :setupsdk
