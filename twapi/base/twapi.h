@@ -18,6 +18,10 @@
 #include <winsock2.h>
 #include <windows.h>
 //#define _WSPIAPI_COUNTOF // Needed to use VC++ 6.0 with Platform SDK 2003 SP1
+#ifndef ARRAYSIZE
+/* Older SDK's do not define this */
+#define ARRAYSIZE(A) RTL_NUMBER_OF(A)
+#endif
 #include <ws2tcpip.h>
 #include <winsvc.h>
 #include <psapi.h>
