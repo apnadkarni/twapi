@@ -765,6 +765,8 @@ proc twapi::_vtcode_to_string {vt} {
         24       void
         25       hresult
         26       ptr
+        27       safearray
+        28       carray
         29       userdefined
         30       lpstr
         31       lpwstr
@@ -1784,6 +1786,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
             }
         }
 
+
         if {$opts(all) || $opts(value)} {
             if {[info exists data(lpvarValue)]} {
                 # Const value
@@ -2232,9 +2235,9 @@ twapi::class create ::twapi::ITypeLibProxy {
                     enum {
                         for {set j 0} {$j < $attrs(-varcount)} {incr j} {
                             array set vardata [$ti @GetVarDesc $j -all]
-                            set vardesc "$vardata(-varkind) $vardata(-datatype) $vardata(-name)"
+                            set vardesc "$vardata(-varkind) [::twapi::_resolve_com_type_text $ti $vardata(-datatype)] $vardata(-name)"
                             if {$attrs(-typekind) eq "enum"} {
-                                append vardesc " = $vardata(-value)"
+                                append vardesc " = $vardata(-value) ([::twapi::_resolve_com_type_text $ti $vardata(-valuetype)])"
                             } else {
                                 append vardesc " (offset $vardata(-value))"
                             }
