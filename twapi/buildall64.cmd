@@ -9,7 +9,7 @@ SET PATH=%WINDIR%\SYSTEM32
 
 
 rem Setup build environment
-call C:\PROGRA~1\MICROS~3\SetEnv.cmd /XP64 /RETAIL
+call "%ProgramFiles%\Microsoft Platform SDK\SetEnv.cmd" /XP64 /RETAIL
 
 call buildall.cmd
 
