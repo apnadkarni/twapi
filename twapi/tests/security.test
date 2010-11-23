@@ -20,7 +20,8 @@ namespace eval twapi::security::test {
     ::tcltest::testConstraint win6 [twapi::min_os_version 6]
 
     # Account name prefix to use for creation/deletion
-    variable test_account_name "TWAPI_[clock seconds]"
+    variable test_account_prefix "TWAPI"
+    variable test_account_name "${test_account_prefix}_[clock clicks]"
 
     # SID for the account the process is running under
     variable my_sid [twapi::lookup_account_name $::env(USERNAME)]
@@ -1808,7 +1809,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1827,7 +1828,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -system $::env(COMPUTERNAME) -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1846,7 +1847,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         catch {twapi::new_user $username -system NOSUCHSYSTEM}
     } -result 1
 
@@ -1856,7 +1857,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         set comment "Create [clock clicks]"
         twapi::new_user $username -comment $comment -home_dir [pwd] -script_path [pwd] -priv guest  -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
@@ -1877,7 +1878,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         set comment "Create [clock clicks]"
         twapi::new_user $username -comment $comment -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
@@ -1898,7 +1899,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -home_dir [pwd] -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1917,7 +1918,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -script_path [pwd] -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1936,7 +1937,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -priv user -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1955,7 +1956,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -priv guest -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1974,7 +1975,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -priv admin -password [twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
@@ -1993,7 +1994,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -body {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         set password [twapi::new_uuid]
         twapi::new_user $username -password $password
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
@@ -2016,7 +2017,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -password [twapi::new_uuid]
     } -body {
         twapi::delete_user $username
@@ -2030,7 +2031,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username  -password [twapi::new_uuid]
     } -body {
         twapi::set_user_name $username x$username
@@ -2047,7 +2048,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        set username "${test_account_name}_[clock clicks]"
+        set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -system $::env(COMPUTERNAME)  -password [twapi::new_uuid]
     } -body {
         twapi::set_user_name $username x$username -system $::env(COMPUTERNAME)
@@ -4828,13 +4829,15 @@ namespace eval twapi::security::test {
         twapi::revert_to_self
     } -result $::env(COMPUTERNAME)\\$test_account_name
 
-    test impersonate_user-1.2 {
+    test impersonate_user-1.3 {
         Impersonate a user -type new_credentials
     } -constraints {
-        nt systemmodificationok
+        nt systemmodificationok TBD
     } -setup {
         ensure_test_account
     } -body {
+        TBD because need to clarify what new_credentials does. Seems
+        the local creds are unchanged and only affects outgoing connections
         twapi::impersonate_user $test_account_name $test_account_password -type new_credentials
         twapi::get_current_user
     } -cleanup {
