@@ -1744,7 +1744,7 @@ namespace eval twapi::share::test {
         tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $subdir $fn]
         set fd [open [file join $testshares(client_share_unmapped) $subdir $fn] r]
     } -body {
-        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath "$testshares(client_share_unmapped)\\$subdir"] $lm_openfile_fields [list ] 1 1
+        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath "$testshares(export_dir_unmapped)\\$subdir"] $lm_openfile_fields [list ] 1 1
     } -cleanup {
         close $fd
     } -result "" 
