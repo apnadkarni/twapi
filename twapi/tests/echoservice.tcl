@@ -15,7 +15,14 @@ manager GUI.
     exit 1
 }
 
-package require twapi
+# If in source dir, we load that twapi in preference to installed package
+set echo_script_dir [file dirname [file dirname [file normalize [info script]]]]
+if {[file exists [file join $echo_script_dir tcl twapi.tcl]]} {
+    uplevel #0 source [file join $echo_script_dir tcl twapi.tcl]
+} else {
+    uplevel #0 package require twapi
+}
+
 
 ################################################################
 # The echo_server code is almost verbatim from the Tcl Developers
