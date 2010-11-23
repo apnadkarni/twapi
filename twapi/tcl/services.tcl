@@ -424,9 +424,6 @@ proc twapi::set_service_configuration {name args} {
     array set current [get_service_configuration $name -all]
     set current(-password) ""; # This is not returned by get_service_configuration
 
-    # Remember which arguments were actually specified
-    array set specified_args $args
-
     # Now parse arguments, filling in defaults
     array set opts [parseargs args {
         displayname.arg
@@ -447,7 +444,7 @@ proc twapi::set_service_configuration {name args} {
         error "Option -password must also be specified when -account is specified."
     }
 
-    # Overwrite current configuration with specified options
+    # Merge current configuration with specified options
     foreach opt {
         displayname
         servicetype
@@ -494,12 +491,16 @@ proc twapi::set_service_configuration {name args} {
     set winparams(starttype)    $windefs(SERVICE_[string toupper $winparams(starttype)])
     set winparams(errorcontrol) $windefs(SERVICE_ERROR_[string toupper $winparams(errorcontrol)])
 
-    # If interactive, add the flag to the service type
-    if {$winparams(interactive)} {
+    # If -interactive was specified, add the flag to the service type
+    if {[info exists opts(interactive)]} {
         if {![info exists opts(servicetype)]} {
             set opts(servicetype) $winparams(servicetype)
         }
-        setbits opts(servicetype) $windefs(SERVICE_INTERACTIVE_PROCESS)
+        if {$winparams(interactive)} {
+            setbits opts(servicetype) $windefs(SERVICE_INTERACTIVE_PROCESS)
+        } else {
+            resetbits opts(servicetype) $windefs(SERVICE_INTERACTIVE_PROCESS)
+        }
         setbits winparams(servicetype) $opts(servicetype)
     }
 

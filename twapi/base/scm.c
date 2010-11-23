@@ -490,9 +490,10 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLET(h, SC_HANDLE),
                      GETINT(service_type), GETINT(start_type),
-                     GETINT(error_control), GETWSTR(path),
-                     GETWSTR(logrp), ARGSKIP, ARGSKIP, GETWSTR(start_name),
-                     GETWSTR(password), GETWSTR(display_name),
+                     GETINT(error_control), GETNULLTOKEN(path),
+                     GETNULLTOKEN(logrp), ARGSKIP, ARGSKIP,
+                     GETNULLTOKEN(start_name),
+                     GETNULLTOKEN(password), GETNULLTOKEN(display_name),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 

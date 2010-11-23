@@ -75,9 +75,6 @@ static char *apiprocs =
     "proc twapi::Twapi_NetUserSetInfoLPWSTR {func server name value} {\n"
     "    return [CallSSSD $func $server $name $value 0];\n"
     "}\n"
-    "proc twapi::EnumServicesStatus {h dw_passed_as_s dw} {\n"
-    "    return [CallHSU 9 $h $dw_passed_as_s $dw]\n"
-    "}\n"
     "proc twapi::IsValidSid {sid} {\n"
     "    return [CallPSID 1 {} $sid]\n"
     "}\n"
@@ -2292,7 +2289,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10076:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
+                             GETNULLTOKEN(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
