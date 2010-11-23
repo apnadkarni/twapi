@@ -22,6 +22,9 @@ namespace eval twapi::services::test {
     variable service_internal_name "twapitestservice"
     variable service_display_name  "Twapi Test Service"
 
+    # Name for echo service
+    variable echo_service_name "twapiechoresponder"
+
     # List of services on the system
     variable servicescheck
 
@@ -1179,11 +1182,56 @@ namespace eval twapi::services::test {
 
     ################################################################
 
-    # TBD - tests for run_as_service
+    test run_as_service-1.0 {
+        Verify commands for running as a service
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] install $echo_service_name
+    } -body {
+        set state "starting"
+        if {[twapi::start_service $echo_service_name -wait 30000]} {
+            set state "started"
+            twapi::interrogate_service $echo_service_name
+            if {[twapi::get_service_state $echo_service_name] eq "running"} {
+                set state "connecting"
+                set sock [socket 127.0.0.1 2008]
+                set state "connected"
+                fconfigure $sock -buffering line
+                puts $sock "echo test"
+                if {[gets $sock] ne "echo test"} {
+                    set state echovaluefail
+                } else {
+                    # Pause the service
+                    set state pausing
+                    twapi::pause_service $echo_service_name
+                    twapi::interrogate_service $echo_service_name
+                    if {[twapi::get_service_state $echo_service_name] eq "paused"} {
+                        set state continuing
+                        twapi::continue_service $echo_service_name
+                        twapi::interrogate_service $echo_service_name
+                        if {[twapi::get_service_state $echo_service_name] eq "running"} {
+                            # Good, now just stop the service
+                            if {[twapi::stop_service $echo_service_name -wait 30000]} {
+                                set state stopped
+                            }
+                        }
+                    }
+                }
+            }
+            if {$state ne "stopped"} {
+                twapi::stop_service $echo_service_name
+            }
+        }
+        set state
+    } -cleanup {
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] uninstall $echo_service_name
+    } -result "stopped"
 
     ################################################################
 
     ensure_service_deleted $service_internal_name
+    ensure_service_deleted $echo_service_name
     ::tcltest::cleanupTests
 }
 
