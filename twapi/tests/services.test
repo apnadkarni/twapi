@@ -112,8 +112,7 @@ namespace eval twapi::services::test {
         set mismatches [list ]
         foreach field {-errorcontrol -servicetype -interactive -starttype -account state} {
             if {[info exists svcinfo($field)]} {
-                if {[string map [list " " _] [get_service_field $svcname $field]] != $svcinfo($field)} {
-                    puts $svcname
+                if {[string compare -nocase [get_service_field $svcname $field] $svcinfo($field)]} {
                     lappend mismatches "Mismatch in field $field (was '[get_service_field $svcname $field]', expected '$svcinfo($field)')"
                 }
             }
@@ -170,6 +169,44 @@ namespace eval twapi::services::test {
         }
     }
 
+    # Compare two service values and return 1 if same
+    proc service_configuration_value_same {field valA valB} {
+        switch -exact -- $field {
+            -dependencies {
+                return [string equal -nocase [lsort $valA] [lsort $valB]]
+            }
+            default {
+                return [string equal -nocase $valA $valB]
+            }
+        }
+    }
+
+    # Common procedure for set_service_configuration tests
+    proc check_set_service_configuration {args} {
+        variable service_internal_name
+        array set newopts $args
+        if {![twapi::service_exists $service_internal_name]} {
+            twapi::create_service $service_internal_name [file join [tcltest::temporaryDirectory] nosuchfile.exe]
+        }
+        array set orig [twapi::get_service_configuration $service_internal_name -all]
+        eval [list twapi::set_service_configuration $service_internal_name] [array get newopts]
+        # To verify that no fields other than that specified is changed,
+        # we retrieve all values
+        array set new [twapi::get_service_configuration $service_internal_name -all]
+        foreach {index newval} [array get new] {
+            if {[info exists newopts($index)]} {
+                if {![service_configuration_value_same $index $newval $newopts($index)]} {
+                    return "Value of requested option $index is '$newval' instead of the specified '$newopts($index)'."
+                }
+            } else {
+                if {![service_configuration_value_same $index $orig($index) $newval]} {
+                    return "Value of option $index changed unexpectedly from '$orig($index)' to $newval."
+                }
+            }
+        }
+        return ""
+    }
+    
     ################################################################
 
     test service_exists-1.0 {
@@ -277,9 +314,12 @@ namespace eval twapi::services::test {
         set result [list ]
         foreach svcname [get_service_names] {
             array set svcinfo [twapi::get_service_configuration $svcname -all]
-            lappend result [verify_service $svcname svcinfo]
+            set errors [verify_service $svcname svcinfo]
+            if {[string length $errors]} {
+                lappend result $errors
+            }
         }
-        concat [join $result \n]
+        join $result \n
     } -result ""
 
     ###
@@ -291,8 +331,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration rpcss -displayname]
-        set svcinfo(-displayname)
-    } -result "Remote Procedure Call (RPC)"
+        list -displayname $svcinfo(-displayname)
+    } -result {-displayname {Remote Procedure Call (RPC)}}
 
     ###
 
@@ -303,8 +343,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration rpcss -errorcontrol]
-        set svcinfo(-errorcontrol)
-    } -result "normal"
+        list -errorcontrol $svcinfo(-errorcontrol)
+    } -result {-errorcontrol normal}
 
     ###
 
@@ -315,8 +355,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration seclogon -errorcontrol]
-        set svcinfo(-errorcontrol)
-    } -result "ignore"
+        list -errorcontrol $svcinfo(-errorcontrol)
+    } -result {-errorcontrol ignore}
 
     ###
 
@@ -327,8 +367,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration eventlog -servicetype]
-        set svcinfo(-servicetype)
-    } -result "win32_share_process"
+        list -servicetype $svcinfo(-servicetype)
+    } -result {-servicetype win32_share_process}
 
     ###
 
@@ -339,8 +379,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration rpclocator -servicetype]
-        set svcinfo(-servicetype)
-    } -result "win32_own_process"
+        list -servicetype $svcinfo(-servicetype)
+    } -result {-servicetype win32_own_process}
 
     ###
 
@@ -353,8 +393,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration $::twapi::services::test::noninteractive_service -interactive]
-        set svcinfo(-interactive)
-    } -result 0
+        list -interactive $svcinfo(-interactive)
+    } -result {-interactive 0}
 
     ###
 
@@ -367,8 +407,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration $::twapi::services::test::interactive_service -interactive]
-        set svcinfo(-interactive)
-    } -result 1
+        list -interactive $svcinfo(-interactive)
+    } -result {-interactive 1}
 
     ###
 
@@ -379,8 +419,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration Alerter -loadordergroup]
-        set svcinfo(-loadordergroup)
-    } -result ""
+        list -loadordergroup $svcinfo(-loadordergroup)
+    } -result {-loadordergroup {}}
 
     
     ###
@@ -392,8 +432,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration LmHosts -loadordergroup]
-        set svcinfo(-loadordergroup)
-    } -result "TDI"
+        list -loadordergroup $svcinfo(-loadordergroup)
+    } -result {-loadordergroup TDI}
 
     ###
 
@@ -404,8 +444,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration lanmanworkstation -dependencies]
-        set svcinfo(-dependencies)
-    } -result ""
+        list -dependencies $svcinfo(-dependencies)
+    } -result {-dependencies {}}
 
     
     ###
@@ -417,8 +457,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration LmHosts -dependencies]
-        setops::symdiff $svcinfo(-dependencies) [list "NetBT" "Afd"]
-    } -result ""
+        list -dependencies [setops::symdiff $svcinfo(-dependencies) [list "NetBT" "Afd"]]
+    } -result {-dependencies {}}
 
     ###
 
@@ -429,8 +469,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration lanmanworkstation -account]
-        set svcinfo(-account)
-    } -result "LocalSystem"
+        list -account $svcinfo(-account)
+    } -result {-account LocalSystem}
 
     
     ###
@@ -442,8 +482,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration lanmanworkstation -starttype]
-        set svcinfo(-starttype)
-    } -result "auto_start"
+        list -starttype $svcinfo(-starttype)
+    } -result {-starttype auto_start}
 
     ###
 
@@ -454,8 +494,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration MSIserver -starttype]
-        set svcinfo(-starttype)
-    } -result "demand_start"
+        list -starttype $svcinfo(-starttype)
+    } -result {-starttype demand_start}
 
     ###
 
@@ -466,8 +506,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration RemoteAccess -starttype]
-        set svcinfo(-starttype)
-    } -result "disabled"
+        list -starttype $svcinfo(-starttype)
+    } -result {-starttype disabled}
 
     ###
 
@@ -782,198 +822,185 @@ namespace eval twapi::services::test {
         Verify set_service_configuration -displayname option
     } -constraints {
         nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-displayname"
-        set optval $service_display_name
     } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
-
-    ###
+        check_set_service_configuration -displayname "$service_internal_name [clock clicks]"
+    } -result ""
 
     test set_service_configuration-2.0 {
-        Verify set_service_configuration -errorcontrol option
+        Verify set_service_configuration -errorcontrol severe option
     } -constraints {
         nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-errorcontrol"
-        set optval "ignore"
     } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
+        # For this we also disable the service so that in case we fail
+        # to clean up properly, the system will not fail to start!!
+        check_set_service_configuration -errorcontrol severe -starttype disabled
     } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
+        # For safety
+        check_set_service_configuration -errorcontrol ignore
+    } -result ""
 
-    ###
+    test set_service_configuration-2.1 {
+        Verify set_service_configuration -errorcontrol critical option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        # For this we also disable the service so that in case we fail
+        # to clean up properly, the system will not fail to start!!
+        check_set_service_configuration -errorcontrol critical -starttype disabled
+    } -cleanup {
+        # For safety
+        check_set_service_configuration -errorcontrol ignore
+    } -result ""
+
+    test set_service_configuration-2.2 {
+        Verify set_service_configuration -errorcontrol normal option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -errorcontrol normal
+    } -result ""
+
+    test set_service_configuration-2.3 {
+        Verify set_service_configuration -errorcontrol ignore option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -errorcontrol ignore
+    } -result ""
 
     test set_service_configuration-3.0 {
-        Verify set_service_configuration -servicetype option
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-servicetype"
-        set optval "win32_share_process"
-    } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
-
-    ###
-
-    test set_service_configuration-4.0 {
-        Verify set_service_configuration -interactive option
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-interactive"
-        set optval 1
-    } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
-
-    ###
-
-    test set_service_configuration-5.0 {
-        Verify set_service_configuration -loadordergroup option
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-loadordergroup"
-        set optval "TWAPI Load Group"
-    } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
-
-    ###
-
-    test set_service_configuration-6.0 {
-        Verify set_service_configuration -dependencies option
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-dependencies"
-        set optval "rpcss"
-    } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
-
-    ###
-
-    test set_service_configuration-7.0 {
-        Verify set_service_configuration -account option
+        Verify set_service_configuration -servicetype kernel_driver option
     } -constraints {
         nt systemmodificationok TBD
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-account"
-        set optval "administrator"
     } -body {
-        TBD - Need to specify -password when specifying -account
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
+        TBD because cannot set driver to file that does not exist
+        # Also disable since we are setting a non-existent driver
+        check_set_service_configuration -servicetype kernel_driver -starttype disabled
+    } -result ""
 
-    ###
+    test set_service_configuration-3.1 {
+        Verify set_service_configuration -servicetype file_system_driver option
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD because cannot set driver to file that does not exist
+        # Also disable since we are setting a non-existent driver
+        check_set_service_configuration -servicetype file_system_driver -starttype disabled
+    } -result ""
+
+    test set_service_configuration-3.2 {
+        Verify set_service_configuration -servicetype win32_share_process option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -servicetype win32_share_process
+    } -result ""
+
+    test set_service_configuration-3.3 {
+        Verify set_service_configuration -servicetype win32_own_process option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -servicetype win32_own_process
+    } -result ""
+
+
+    test set_service_configuration-4.0 {
+        Verify set_service_configuration -interactive 1 option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -interactive 1
+    } -result ""
+
+    test set_service_configuration-4.1 {
+        Verify set_service_configuration -interactive 0 option
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        after 100
+        check_set_service_configuration -interactive 0
+    } -result ""
+
+    test set_service_configuration-5.0 {
+        Verify set_service_configuration -loadordergroup
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -loadordergroup "TWAPI [clock clicks]"
+    } -result ""
+
+    test set_service_configuration-6.0 {
+        Verify set_service_configuration -dependencies (one)
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -dependencies [list rpcss]
+    } -result ""
+
+    test set_service_configuration-6.1 {
+        Verify set_service_configuration -dependencies (multiple)
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -dependencies [list rpcss eventlog]
+    } -result ""
+
+    test set_service_configuration-7.0 {
+        Verify set_service_configuration -starttype auto_start
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -starttype auto_start
+    } -result ""
+
+    test set_service_configuration-7.1 {
+        Verify set_service_configuration -starttype boot_start
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD because cannot set driver to file that does not exist
+        # Service type must be driver
+        check_set_service_configuration -servicetype kernel_driver
+        check_set_service_configuration -starttype boot_start
+    } -result ""
+
+    test set_service_configuration-7.2 {
+        Verify set_service_configuration -starttype system_start
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+        TBD because cannot set driver to file that does not exist
+        # Service type must be driver
+        check_set_service_configuration -servicetype kernel_driver
+        check_set_service_configuration -starttype system_start
+    } -result ""
+
+    test set_service_configuration-7.3 {
+        Verify set_service_configuration -starttype demand_start
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -starttype demand_start
+    } -result ""
+    test set_service_configuration-7.4 {
+        Verify set_service_configuration -starttype disabled
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        check_set_service_configuration -starttype disabled
+    } -result ""
 
     test set_service_configuration-8.0 {
-        Verify set_service_configuration -starttype option
+        Verify set_service_configuration -command
     } -constraints {
         nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-starttype"
-        set optval "demand_start"
     } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
+        check_set_service_configuration -command [file join [tcltest::temporaryDirectory] [clock clicks].exe]
+    } -result ""
 
-    ###
 
-    test set_service_configuration-9.0 {
-        Verify set_service_configuration -command option
-    } -constraints {
-        nt systemmodificationok
-    } -setup {
-        twapi::create_service $service_internal_name c:\\nosuchexe
-        set opt    "-command"
-        set optval "c:\\newsvccmd"
-    } -body {
-        twapi::set_service_configuration $service_internal_name $opt $optval
-        set config [twapi::get_service_configuration $service_internal_name $opt]
-        expr {
-              [llength $config] == 2 &&
-              [lindex $config 0] == $opt &&
-              [lindex $config 1] == $optval
-          }
-    } -cleanup {
-        ensure_service_deleted $service_internal_name
-    } -result 1
+    # TBD  -account administrator but need to also specify password
 
     ################################################################
 
@@ -1139,7 +1166,7 @@ namespace eval twapi::services::test {
     } -result 1
 
     ################################################################
-
+        
     test interrogate_service-1.0 {
         Ask a service to update its status
     } -constraints {
@@ -1150,10 +1177,13 @@ namespace eval twapi::services::test {
         twapi::interrogate_service Schedule
     } -result ""
 
+    ################################################################
+
+    # TBD - tests for run_as_service
 
     ################################################################
 
-
+    ensure_service_deleted $service_internal_name
     ::tcltest::cleanupTests
 }
 
