@@ -1351,7 +1351,7 @@ twapi::class create ::twapi::IDispatchProxy {
                 ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
                 set params {}
                 set bindti [::twapi::make_interface_proxy $ifc]
-                trap {
+                ::twapi::trap {
                     set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
                 } finally {
                     $bindti Release
