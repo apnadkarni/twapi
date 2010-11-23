@@ -126,10 +126,10 @@ Specifies the service type and may have one of the following values:
 corresponds to the [const SERVICE_WIN32_OWN_PROCESS] in the Windows
 SDK documentation. This is the default if the option is not specified.
 
-[opt_def [const win32_shared_process]] Service that runs inside a
+[opt_def [const win32_share_process]] Service that runs inside a
 process shared
 with other services. This corresponds to the
-[const SERVICE_WIN32_SHARED_PROCESS] in the Windows SDK documentation.
+[const SERVICE_WIN32_SHARE_PROCESS] in the Windows SDK documentation.
 
 [opt_def [const file_system_driver]] File system driver. This
 corresponds to the
@@ -142,7 +142,7 @@ corresponds to the
 This option specifies whether the service should be allowed to interact
 with the desktop. This is only valid when [cmd -servicetype] is
 specified to be [const win32_own_process]
-or [const win32_shared_process]. The [cmd -account]
+or [const win32_share_process]. The [cmd -account]
 option must not be used with this option since interactive services must
 run under the
 [const LocalSystem] account.
