@@ -87,5 +87,4 @@ makefile: ../common.inc
 
 clean:
         -del *.*~
-        -del tcl_version.tcl
         -rmdir/s/q dist
