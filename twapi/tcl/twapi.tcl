@@ -9,7 +9,7 @@
 package require Tcl 8.4
 package require registry
 
-if {[lindex [string split $::tcl_platform(osVersion) .] 0] < 5} {
+if {[lindex [split $::tcl_platform(osVersion) .] 0] < 5} {
     error "This version of TWAPI requires Windows 2000 or later"
 }
 
