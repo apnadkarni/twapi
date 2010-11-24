@@ -403,6 +403,9 @@ namespace eval twapi::resource::test {
     } -setup {
         set reslibh [twapi::load_library $rctest_dll -datafile]
     } -body {
+        # NOTE: This test may fail on some systems where a resource
+        # for a different language is returned if one is not available
+        # for the specified language
         binary scan [twapi::read_resource $reslibh 9 101 1034] H* hex
         set hex
     } -cleanup {

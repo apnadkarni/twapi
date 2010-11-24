@@ -188,7 +188,7 @@ namespace eval twapi::shell::test {
         $ie -destroy
     } -body {
         $ie -default
-    } -result -match glob "* Internet Explorer"
+    } -result "* Internet Explorer" -match glob 
 
     ###
 
