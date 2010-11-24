@@ -22,8 +22,11 @@ namespace eval twapi::share::test {
     
     # Contains directory exported from server, will be mapped to a local device
     set testshares(export_dir_mapped) [tcltest::temporaryDirectory TWAPI_SHARE_MAPPED_[clock seconds]]
+    tcltest::makeFile "" [file join $testshares(export_dir_mapped) dummy]
+
     # Contains directory exported from server, but not mapped to local device
     set testshares(export_dir_unmapped) [tcltest::temporaryDirectory TWAPI_SHARE_UNMAPPED_[clock seconds]]
+    tcltest::makeFile "" [file join $testshares(export_dir_unmapped) dummy]
 
     # Name of exported share mapped to a device
     set testshares(export_name_mapped) "TWAPI_EXPORT_MAPPED"
@@ -195,7 +198,9 @@ namespace eval twapi::share::test {
         # as the parameter.
         set export_dir [file nativename $testshares(export_dir_$type)]
 
-        if {[export_exists $export_name]} {
+        if {[export_exists $export_name] &&
+            ![catch {twapi::get_share_info $export_name -name}]} {
+            # Share exists
             return $export_name
         }
 
@@ -223,10 +228,8 @@ namespace eval twapi::share::test {
         
         exec net use $testshares(client_device) $testshares(client_share_mapped)
 
-        # TBD - why do we try to create a file ? To ensure connectivity?
-        catch {
-            close [open [file join $testshares(client_device) twapi_dummy_client_file] w+]
-        }
+        # Force a session to be created
+        close [open [file join $testshares(client_device) dummy] r]
     }
 
     # Create a unmapped client share
@@ -237,6 +240,8 @@ namespace eval twapi::share::test {
             return
         }
         exec net use $testshares(client_share_unmapped)
+        # Force a session to be created
+        close [open [file join $testshares(client_share_unmapped) dummy] r]
     }
 
     proc delete_mapped_client_share {} {
@@ -270,7 +275,10 @@ namespace eval twapi::share::test {
                 foreach {local remote} $mapping break
                 if {[string equal -nocase $local $testshares(client_device)]} {
                     if {[equal_paths $remote $testshares(client_share_mapped)]} {
+                        # Force a session to be created
+                        close [open [file join $testshares(client_device) dummy] r]
                         return 1
+
                     } else {
                         # Device mapped but not where we expect
                         error "Local device $testshares(client_device) is already mapped to $remote. Cannot map to $testshares(client_share_mapped)."
@@ -297,6 +305,8 @@ namespace eval twapi::share::test {
             foreach mapping [twapi::get_client_shares] {
                 foreach {local remote} $mapping break
                 if {[equal_paths $remote $testshares(client_share_unmapped)]} {
+                    # Force a session to be created
+                    close [open [file join $testshares(client_share_unmapped) dummy] r]
                     return 1
                 }
             }
@@ -939,6 +949,9 @@ namespace eval twapi::share::test {
               [twapi::set_share_info $export_name -comment $comment] == "" &&
               [get_share_field $export_name -comment 1] == $comment
           }
+    } -cleanup {
+        # So further tests will not get confused by comment value
+        twapi::set_share_info $export_name -comment $testshares(export_comment_mapped)
     } -result 1
 
     ###
