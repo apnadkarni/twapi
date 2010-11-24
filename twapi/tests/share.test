@@ -188,7 +188,12 @@ namespace eval twapi::share::test {
         # type must be "mapped" or "unmapped"
         variable testshares
         upvar 0 testshares(export_name_$type) export_name
-        upvar 0 testshares(export_dir_$type) export_dir
+
+        # IMPORTANT to use native form. Else some matching functions
+        # within win32, like NetFileEnum's basepath parameter fail
+        # to match if export path does not use exactly same separators
+        # as the parameter.
+        set export_dir [file nativename $testshares(export_dir_$type)]
 
         if {[export_exists $export_name]} {
             return $export_name
@@ -246,28 +251,54 @@ namespace eval twapi::share::test {
 
     proc mapped_client_share_exists {} {
         variable testshares
-        foreach mapping [wmic_get Win32_MappedLogicalDisk {name providername}] {
-            array set amap $mapping
-            if {[string equal -nocase $amap(name) $testshares(client_device)]} {
-                if {[string equal -nocase $amap(providername) $testshares(client_share_mapped)]} {
-                    # Already mapped as desired
-                    return 1
-                } else {
-                    # Device mapped but not where we expect
-                    error "Local device $testshares(client_device) is already mapped to $amap(providername). Cannot map to $testshares(client_share_mapped)."
+        if {0} {
+            wmic is too slow
+            foreach mapping [wmic_get Win32_MappedLogicalDisk {name providername}] {
+                array set amap $mapping
+                if {[string equal -nocase $amap(name) $testshares(client_device)]} {
+                    if {[string equal -nocase $amap(providername) $testshares(client_share_mapped)]} {
+                        # Already mapped as desired
+                        return 1
+                    } else {
+                        # Device mapped but not where we expect
+                        error "Local device $testshares(client_device) is already mapped to $amap(providername). Cannot map to $testshares(client_share_mapped)."
+                    }
+                }
+            }
+        } else {
+            foreach mapping [twapi::get_client_shares] {
+                foreach {local remote} $mapping break
+                if {[string equal -nocase $local $testshares(client_device)]} {
+                    if {[equal_paths $remote $testshares(client_share_mapped)]} {
+                        return 1
+                    } else {
+                        # Device mapped but not where we expect
+                        error "Local device $testshares(client_device) is already mapped to $remote. Cannot map to $testshares(client_share_mapped)."
+                    }
                 }
             }
         }
+
         return 0
     }
 
     proc unmapped_client_share_exists {} {
         variable testshares
 
-        foreach mapping [wmic_get Win32_NetworkConnection {localname remotename}] {
-            array set amap $mapping
-            if {[string equal -nocase $amap(remotename) $testshares(client_share_unmapped)]} {
-                return 1
+        if {0} {
+            Too slow
+            foreach mapping [wmic_get Win32_NetworkConnection {localname remotename}] {
+                array set amap $mapping
+                if {[string equal -nocase $amap(remotename) $testshares(client_share_unmapped)]} {
+                    return 1
+                }
+            }
+        } else {
+            foreach mapping [twapi::get_client_shares] {
+                foreach {local remote} $mapping break
+                if {[equal_paths $remote $testshares(client_share_unmapped)]} {
+                    return 1
+                }
             }
         }
         return 0
@@ -1741,10 +1772,14 @@ namespace eval twapi::share::test {
         set subdir "find_lm_open_files-2.0"
         set fn find_lm_open_files-2.0-[clock clicks]
         tcltest::makeDirectory $subdir $testshares(export_dir_unmapped)
-        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $subdir $fn]
-        set fd [open [file join $testshares(client_share_unmapped) $subdir $fn] r]
+        set nativepath [file join $testshares(export_dir_unmapped) $subdir $fn]
+        tcltest::makeFile "" $nativepath
+        set sharepath [file join $testshares(client_share_unmapped) $subdir $fn]
+        set fd [open $sharepath r]
     } -body {
-        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath "$testshares(export_dir_unmapped)\\$subdir"] $lm_openfile_fields [list ] 1 1
+        set basepath [file nativename "$testshares(export_dir_unmapped)\\$subdir"]
+        set open_file_data [twapi::find_lm_open_files -all -basepath $basepath]
+        verify_lm_test_openfiles $open_file_data $lm_openfile_fields [list ] 1 1
     } -cleanup {
         close $fd
     } -result "" 
@@ -1757,11 +1792,16 @@ namespace eval twapi::share::test {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
-        set fn "find_lm_open_files-2.1"
-        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
-        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
+        set subdir "find_lm_open_files-2.0"
+        set fn find_lm_open_files-2.0-[clock clicks]
+        tcltest::makeDirectory $subdir $testshares(export_dir_unmapped)
+        set nativepath [file join $testshares(export_dir_unmapped) $subdir $fn]
+        tcltest::makeFile "" $nativepath
+        set sharepath [file join $testshares(client_share_unmapped) $subdir $fn]
+        set fd [open $sharepath r]
     } -body {
-        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath [file join $testshares(export_dir_unmapped) "find_lm_open_files-2"]] $lm_openfile_fields [list ] 1 1
+        set basepath [file join "$testshares(export_dir_unmapped)\\$subdir"]
+        verify_lm_test_openfiles [twapi::find_lm_open_files -all -basepath $basepath] $lm_openfile_fields [list ] 1 1
     } -cleanup {
         close $fd
     } -result "" 
