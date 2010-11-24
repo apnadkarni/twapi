@@ -22,7 +22,7 @@ foreach fpat {*.dll *.exe} {
 }
 
 foreach dirpat {dde* reg* tcl8* tk*} {
-    foreach dir [glob [file join $tcl_root lib $fpat]] {
+    foreach dir [glob [file join $tcl_root lib $dirpat]] {
         file copy $dir $target_libdir
     }
 }
