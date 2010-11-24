@@ -29,3 +29,5 @@ foreach dirpat {dde* reg* tcl8* tk*} {
 
 # Finally copy the testscripts
 file copy [file dirname [file normalize [info script]]] [file join $target tests]
+
+puts "Remember to copy appropriate twapi distribution"
