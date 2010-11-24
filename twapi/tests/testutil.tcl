@@ -360,11 +360,11 @@ proc wmic_get {obj fields {clause ""}} {
     # a read-only dir. So we have both versions here, with one or the other
     # commented out
     if {$clause eq ""} {
-        #set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
-        set lines [exec wmic path $obj get [join $fields ,] /format:csv]
+        set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
+        #set lines [exec wmic path $obj get [join $fields ,] /format:csv]
     } else {
-#        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
-        set lines [exec wmic path $obj where $clause get [join $fields ,] /format:csv]
+        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
+        #set lines [exec wmic path $obj where $clause get [join $fields ,] /format:csv]
     }
 
 
