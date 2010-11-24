@@ -81,7 +81,7 @@ namespace eval twapi::security::test {
     proc ensure_test_account {} {
         variable test_account_name
         variable test_account_password
-        if {![info exists test_account_password]} {
+        if {[catch {twapi::lookup_account_name $test_account_name}]} {
             set test_account_password [twapi::new_uuid]
             twapi::new_user $test_account_name -password $test_account_password
             twapi::add_account_rights $test_account_name {
