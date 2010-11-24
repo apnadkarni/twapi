@@ -9,8 +9,8 @@
 package require Tcl 8.4
 package require registry
 
-if {[string match 4* $::tcl_platform(osVersion)]} {
-    error "This version of TWAPI is not supported on Windows NT 4.0"
+if {[lindex [string split $::tcl_platform(osVersion) .] 0] < 5} {
+    error "This version of TWAPI requires Windows 2000 or later"
 }
 
 namespace eval twapi {
