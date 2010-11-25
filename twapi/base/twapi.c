@@ -87,6 +87,8 @@ int Twapi_Init(Tcl_Interp *interp)
     }
 #endif
 
+    TWAPI_ASSERT(0);
+    TWAPI_ASSERT(1);
 
     /* Init unless already done. */
     if (! TwapiDoOneTimeInit(&gTwapiInitialized, TwapiOneTimeInit, interp))
@@ -342,11 +344,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
 
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
-#ifdef TBD
-    Enable under debug
-    if (ticP->interp)
-        Tcl_Panic("TwapiInterpContext deleted with active interp");
-#endif
+    TWAPI_ASSERT(ticP->interp == NULL);
 
     /* TBD - does this need to be done only from the Tcl thread ? */
     if (ticP->async_handler)
