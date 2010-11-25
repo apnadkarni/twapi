@@ -48,7 +48,13 @@ void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP)
 
 void DebugOutput(char *s) {
     Tcl_Channel chan = Tcl_GetStdChannel(TCL_STDERR);
-    Tcl_WriteChars(chan, s, -1);
+    char buf[1024];
+    /* We want a terminating newline, but it has to go in a single write
+       so we cannot do two Tcl_WriteChars (output from multiple threads
+       gets jumbled - actual experience. So need a temp buffer.
+    */
+    StringCbPrintfA(buf, sizeof(buf), "%s\n", s);
+    Tcl_WriteChars(chan, buf, -1);
     Tcl_Flush(chan);
 }
 
