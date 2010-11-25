@@ -384,7 +384,6 @@ static void NPipeThreadPoolHandler(
 {
     LONG state;
 
-    TWAPI_ASSERT(TimerOrWaitFired == FALSE);
     TWAPI_ASSERT(HasOverlappedIoCompleted(&pcP->io[direction].ovl));
 
     state = pcP->io[direction].ovl.Internal == ERROR_SUCCESS
@@ -709,8 +708,7 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD bufsz)
     /* Must not be a pending read or error*/
     TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING && ioP->state != IOBUF_IO_COMPLETED_WITH_ERROR);
     /* Nonblocking pipes must have at least one byte data in read ahead */
-    TWAPI_ASSERT(ctxP->winerr == ERROR_SUCCESS);
-    TWAPI_ASSERT(buf_sz > 0);
+    TWAPI_ASSERT(bufsz > 0);
 
     if (ioP->state == IOBUF_IO_COMPLETED) {
         --bufsz;
@@ -845,7 +843,7 @@ static int NPipeInputProc(
         }
     }
 
-    TWAPI_ASSERT(pcP->state != IOBUF_IO_PENDING);
+    TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING);
 
     nread = NPipeReadData(pcP, bufP, buf_sz);
     /* Note nread may be 0 for non-blocking pipes and no data */

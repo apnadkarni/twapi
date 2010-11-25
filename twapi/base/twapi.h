@@ -76,8 +76,18 @@ typedef int TCL_RESULT;
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
 
-#ifdef TWAPI_ENABLE_ASSERT
-#define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#define MAKESTRINGLITERAL(s_) # s_
+ /*
+  * Stringifying special CPP symbols (__LINE__) needs another level of macro
+  */
+#define MAKESTRINGLITERAL2(s_) MAKESTRINGLITERAL(s_)
+
+#if TWAPI_ENABLE_ASSERT
+#  if TWAPI_ENABLE_ASSERT == 1
+#    define TWAPI_ASSERT(bool_) (void)( (bool_) || (DebugOutput("Assertion (" #bool_ ") failed at line " MAKESTRINGLITERAL2(__LINE__) " in file " __FILE__ "\n"), 0) )
+#  else
+#    define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#  endif
 #else
 #define TWAPI_ASSERT(bool_) ((void) 0)
 #endif
