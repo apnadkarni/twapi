@@ -462,9 +462,9 @@ static int NPipeEventProc(
      * nothing to do
      */
     if (NPIPE_CONNECTED(pcP) &&
-        ! (pcP->flags & (NPIPE_F_WATCHWRITE | NPIPE_F_WATCHREAD)))
+        ! (pcP->flags & (NPIPE_F_WATCHWRITE | NPIPE_F_WATCHREAD))) {
         return 1;               /* Not watching any reads or writes */
-
+    }
 
     /* Update channel state error if necessary */
     if (pcP->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
@@ -475,8 +475,9 @@ static int NPipeEventProc(
     }
 
     /* Now set the direction bits that are notifiable */
-    if ((pcP->flags & NPIPE_F_WATCHREAD) && NPIPE_READ_NOTIFIABLE(pcP))
+    if ((pcP->flags & NPIPE_F_WATCHREAD) && NPIPE_READ_NOTIFIABLE(pcP)) {
         event_mask |= TCL_READABLE;
+    }
 
     if (NPIPE_WRITE_NOTIFIABLE(pcP)) {
         /* This might be a connect complete */
@@ -499,8 +500,9 @@ static int NPipeEventProc(
                                IOBUF_IDLE,
                                IOBUF_IO_COMPLETED);
 
-    if (event_mask)
+    if (event_mask) {
         Tcl_NotifyChannel(pcP->channel, event_mask);
+    }
     /*
      * Do not do anything more here because the Tcl_NotifyChannel may invoke
      * a callback which calls back into us and changes state, for example
@@ -534,6 +536,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
      * Let it also follow the async path for simplicity.
      */
     if (pcP->io[READER].state != IOBUF_IO_PENDING) {
+        pcP->io[READER].state = IOBUF_IO_PENDING; /* Important to set this first since reader thread might run immediately */
         ZeroMemory(&pcP->io[READER].ovl, sizeof(pcP->io[READER].ovl));
         pcP->io[READER].ovl.hEvent = pcP->io[READER].hevent;
         if (! ReadFile(pcP->hpipe,
@@ -543,6 +546,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
                        &pcP->io[READER].ovl)) {
             WIN32_ERROR winerr = GetLastError();
             if (winerr != ERROR_IO_PENDING) {
+                pcP->io[READER].state = IOBUF_IDLE;
                 pcP->winerr = winerr;
                 return;
             }
@@ -569,7 +573,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
         }
 
     }
-    pcP->io[READER].state = IOBUF_IO_PENDING;
+
     return;
 }
 
@@ -707,7 +711,6 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD bufsz)
 
     /* Must not be a pending read or error*/
     TWAPI_ASSERT(ioP->state != IOBUF_IO_PENDING && ioP->state != IOBUF_IO_COMPLETED_WITH_ERROR);
-    /* Nonblocking pipes must have at least one byte data in read ahead */
     TWAPI_ASSERT(bufsz > 0);
 
     if (ioP->state == IOBUF_IO_COMPLETED) {
@@ -861,7 +864,7 @@ static int NPipeInputProc(
      * Note error, if any, from TwapiPipeEnableReadWatch ignored,
      * will be picked up on next call
      */
-    
+
     return nread;
 
 error_return:
