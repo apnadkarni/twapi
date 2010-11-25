@@ -87,9 +87,6 @@ int Twapi_Init(Tcl_Interp *interp)
     }
 #endif
 
-    TWAPI_ASSERT(0);
-    TWAPI_ASSERT(1);
-
     /* Init unless already done. */
     if (! TwapiDoOneTimeInit(&gTwapiInitialized, TwapiOneTimeInit, interp))
         return TCL_ERROR;
