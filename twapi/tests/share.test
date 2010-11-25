@@ -1120,10 +1120,11 @@ namespace eval twapi::share::test {
     test find_lm_sessions-3.0 {
         Find all Lan Manager sessions using -client specified as UNC
     } -constraints {
-        nt systemmodificationok
+        nt systemmodificationok TBD
     } -setup {
         create_unmapped_client_share
     } -body {
+        TBD because cannot control whether client address is in IP foramt or IPv6
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
     } -result ""
@@ -1133,10 +1134,11 @@ namespace eval twapi::share::test {
     test find_lm_sessions-3.1 {
         Find all Lan Manager sessions using -client specified as non-UNC
     } -constraints {
-        nt systemmodificationok
+        nt systemmodificationok TBD
     } -setup {
         create_unmapped_client_share
     } -body {
+        TBD because cannot control whether client address is in IP foramt or IPv6
         # Assumes we are only connected to ourselves on one session
         verify_lm_test_sessions [::twapi::find_lm_sessions -client 127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
     } -result ""
