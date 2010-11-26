@@ -2077,11 +2077,11 @@ namespace eval twapi::security::test {
           }
     } -cleanup {
         # Reset remembered p/w to new one
-        set $test_account_password $password
+        set test_account_password $password
     } -result 1
 
 
-    test set_user_password-1.2 {
+    test set_user_password-1.1 {
         Set a user account password using -system
     } -constraints {
         nt systemmodificationok
@@ -2096,7 +2096,7 @@ namespace eval twapi::security::test {
           }
     } -cleanup {
         # Reset remembered p/w to new one
-        set $test_account_password $password
+        set test_account_password $password
     } -result 1
 
     ################################################################
@@ -2457,6 +2457,8 @@ namespace eval twapi::security::test {
     } -body {
         twapi::disable_user $test_account_name
         wmic_value win32_useraccount Disabled name $test_account_name
+    } -cleanup {
+        twapi::enable_user $test_account_name
     } -result TRUE
 
     test disable_user-1.1 {
@@ -2472,6 +2474,8 @@ namespace eval twapi::security::test {
     } -body {
         twapi::disable_user $test_account_name -system $::env(COMPUTERNAME)
         wmic_value win32_useraccount Disabled name $test_account_name
+    } -cleanup {
+        twapi::enable_user $test_account_name
     } -result TRUE
 
 
@@ -3539,7 +3543,7 @@ namespace eval twapi::security::test {
         set check_rights $sym_rights 
         if {[twapi::min_os_version 6]} {
             lappend sym_rights process_query_limited_information
-            lappend check_rights specific_rights_all 0x00002000 0x00004000 0x00008000
+            lappend check_rights specific_rights_all process_query_limited_information 0x00002000 0x00004000 0x00008000
         }
         set ace [twapi::set_ace_rights $ace $sym_rights]
         setops::symdiff [twapi::get_ace_rights $ace -type process] $check_rights
@@ -4782,11 +4786,11 @@ namespace eval twapi::security::test {
         set tok [twapi::open_user_token $test_account_name $test_account_password -type interactive] 
     } -body {
         twapi::impersonate_token $tok
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::close_token $tok
         twapi::revert_to_self
-    } -result $::env(COMPUTERNAME)\\$test_account_name
+    } -result [string toupper $::env(COMPUTERNAME)\\$test_account_name]
 
     ################################################################
 
@@ -4798,10 +4802,10 @@ namespace eval twapi::security::test {
         ensure_test_account
     } -body {
         twapi::impersonate_user $test_account_name $test_account_password -type interactive
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::revert_to_self
-    } -result $::env(COMPUTERNAME)\\$test_account_name
+    } -result [string toupper $::env(COMPUTERNAME)\\$test_account_name]
 
     test impersonate_user-1.1 {
         Impersonate a user -type network
@@ -4811,10 +4815,10 @@ namespace eval twapi::security::test {
         ensure_test_account
     } -body {
         twapi::impersonate_user $test_account_name $test_account_password -type network
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::revert_to_self
-    } -result $::env(COMPUTERNAME)\\$test_account_name
+    } -result [string toupper $::env(COMPUTERNAME)\\$test_account_name]
 
     test impersonate_user-1.2 {
         Impersonate a user -type batch
@@ -4824,10 +4828,10 @@ namespace eval twapi::security::test {
         ensure_test_account
     } -body {
         twapi::impersonate_user $test_account_name $test_account_password -type batch
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::revert_to_self
-    } -result $::env(COMPUTERNAME)\\$test_account_name
+    } -result [string toupper $::env(COMPUTERNAME)\\$test_account_name]
 
     test impersonate_user-1.3 {
         Impersonate a user -type new_credentials
@@ -4839,10 +4843,10 @@ namespace eval twapi::security::test {
         TBD because need to clarify what new_credentials does. Seems
         the local creds are unchanged and only affects outgoing connections
         twapi::impersonate_user $test_account_name $test_account_password -type new_credentials
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::revert_to_self
-    } -result $::env(COMPUTERNAME)\\$test_account_name
+    } -result [string toupper $::env(COMPUTERNAME)\\$test_account_name]
 
     test impersonate_user-2.0 {
         Impersonate a user -domain
@@ -4852,7 +4856,7 @@ namespace eval twapi::security::test {
         ensure_test_account
     } -body {
         twapi::impersonate_user $test_account_name $test_account_password -type interactive -domain $::env(COMPUTERNAME)
-        twapi::get_current_user
+        string toupper [twapi::get_current_user]
     } -cleanup {
         twapi::revert_to_self
     } -result $::env(COMPUTERNAME)\\$test_account_name
