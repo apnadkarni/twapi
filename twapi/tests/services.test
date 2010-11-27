@@ -139,10 +139,10 @@ namespace eval twapi::services::test {
                 return
             }
             stopped {
-                exec net start [list $svcname]
+                exec net start $svcname
             }
             paused {
-                exec net continue [list $svcname]
+                exec net continue $svcname
             }
             default {
                 error "Don't know how to change state from $state to running"
@@ -159,8 +159,9 @@ namespace eval twapi::services::test {
     proc ensure_service_stopped {svcname} {
         # Check if service is already stopped
         switch -exact -- [set state [twapi::get_service_state $svcname]] {
+            start_pending -
             running {
-                exec net stop [list $svcname]
+                exec net stop $svcname
             }
             stopped {
                 # Nothing to do
@@ -168,9 +169,9 @@ namespace eval twapi::services::test {
             }
             paused {
                 catch {
-                    exec net continue [list $svcname]
+                    exec net continue $svcname
                 }
-                exec net stop [list $svcname]
+                exec net stop $svcname
             }
             default {
                 error "Don't know how to change state from $state to stopped"
@@ -188,7 +189,7 @@ namespace eval twapi::services::test {
     proc ensure_service_paused {svcname} {
         switch -exact -- [set state [twapi::get_service_state $svcname]] {
             running {
-                exec net pause [list $svcname]
+                exec net pause $svcname
             }
             paused {
                 # Nothing to do
@@ -214,6 +215,7 @@ namespace eval twapi::services::test {
     # Delete a service and wait until it is deleted
     proc ensure_service_deleted {svcname} {
         if {[twapi::service_exists $svcname]} {
+            ensure_service_stopped $svcname
             twapi::delete_service $svcname
         }
         after 10
@@ -228,7 +230,9 @@ namespace eval twapi::services::test {
         variable service_internal_name
 
         if {![twapi::service_exists $service_internal_name]} {
-            exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] install $service_internal_name
+            # We specify port at 0 as we are not actually going to connect
+            # to it.
+            exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] install $service_internal_name 0
         }
 
         if {$state ne ""} {
@@ -906,8 +910,8 @@ namespace eval twapi::services::test {
         # to clean up properly, the system will not fail to start!!
         check_set_service_configuration -errorcontrol severe -starttype disabled
     } -cleanup {
-        # For safety
-        check_set_service_configuration -errorcontrol ignore
+        # For safety and so we can use the service for later tests
+        check_set_service_configuration -errorcontrol ignore -starttype demand_start
     } -result ""
 
     test set_service_configuration-2.1 {
@@ -919,8 +923,8 @@ namespace eval twapi::services::test {
         # to clean up properly, the system will not fail to start!!
         check_set_service_configuration -errorcontrol critical -starttype disabled
     } -cleanup {
-        # For safety
-        check_set_service_configuration -errorcontrol ignore
+        # For safety and for further tests
+        check_set_service_configuration -errorcontrol ignore -starttype demand_start
     } -result ""
 
     test set_service_configuration-2.2 {
@@ -1054,12 +1058,16 @@ namespace eval twapi::services::test {
     } -body {
         check_set_service_configuration -starttype demand_start
     } -result ""
+
     test set_service_configuration-7.4 {
         Verify set_service_configuration -starttype disabled
     } -constraints {
         nt systemmodificationok
     } -body {
         check_set_service_configuration -starttype disabled
+    } -cleanup {
+        # For further test cases
+        check_set_service_configuration -starttype demand_start
     } -result ""
 
     test set_service_configuration-8.0 {
@@ -1068,6 +1076,9 @@ namespace eval twapi::services::test {
         nt systemmodificationok
     } -body {
         check_set_service_configuration -command [file join [tcltest::temporaryDirectory] [clock clicks].exe]
+    } -cleanup {
+        # Since we messed up the command path
+        ensure_service_deleted $service_internal_name
     } -result ""
 
 
@@ -1174,7 +1185,7 @@ namespace eval twapi::services::test {
     } -body {
         twapi::pause_service $service_internal_name
         after 100;                     # Wait to give it time
-        twapi::interrogate_service
+        twapi::interrogate_service $service_internal_name
         set status [twapi::get_service_state $service_internal_name]
         exec net continue $service_internal_name
         set status
@@ -1189,11 +1200,9 @@ namespace eval twapi::services::test {
     } -setup {
         ensure_test_service paused
     } -body {
-        set status [expr {[twapi::pause_service $service_internal_name] &&
-                          [string equal [twapi::get_service_state $service_internal_name] paused]}]
-        exec net continue $service_internal_name
-        set status
-    } -result 1
+        twapi::pause_service $service_internal_name
+        twapi::get_service_state $service_internal_name
+    } -result paused
 
     ###
 
@@ -1276,7 +1285,7 @@ namespace eval twapi::services::test {
             twapi::interrogate_service $echo_service_name
             if {[twapi::get_service_state $echo_service_name] eq "running"} {
                 set state "connecting"
-                set sock [socket 127.0.0.1 2008]
+                set sock [socket 127.0.0.1 2020]
                 set state "connected"
                 fconfigure $sock -buffering line
                 puts $sock "echo test"
@@ -1285,11 +1294,11 @@ namespace eval twapi::services::test {
                 } else {
                     # Pause the service
                     set state pausing
-                    twapi::pause_service $echo_service_name
+                    twapi::pause_service $echo_service_name -wait 1000
                     twapi::interrogate_service $echo_service_name
                     if {[twapi::get_service_state $echo_service_name] eq "paused"} {
                         set state continuing
-                        twapi::continue_service $echo_service_name
+                        twapi::continue_service $echo_service_name -wait 1000
                         twapi::interrogate_service $echo_service_name
                         if {[twapi::get_service_state $echo_service_name] eq "running"} {
                             # Good, now just stop the service
