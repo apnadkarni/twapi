@@ -5,8 +5,8 @@
 proc usage {} {
     puts stderr {
 Usage:
-     tclsh echoservice.tcl install SERVICENAME
-       -- installs the service as SERVICENAME
+     tclsh echoservice.tcl install SERVICENAME ?PORT?
+       -- installs the service as SERVICENAME listening on PORT
      tclsh echoservice.tcl uninstall SERVICENAME
        -- uninstalls the service
 Then start/stop the service using either "net start" or the services control
@@ -28,7 +28,6 @@ if {[file exists [file join $echo_script_dir tcl twapi.tcl]]} {
 # The echo_server code is almost verbatim from the Tcl Developers
 # Exchange samples.
 
-set echo(server_port) 2008;    # Port the echo server should listen on
 set echo(state) stopped;       # State of the server
 
 # echo_server --
@@ -40,7 +39,12 @@ set echo(state) stopped;       # State of the server
 
 proc echo_server {} {
     global echo
-    set echo(server_socket) [socket -server echo_accept $echo(server_port)]
+    if {[catch {
+        set echo(server_socket) [socket -server echo_accept $echo(server_port)]
+    } msg]} {
+        ::twapi::eventlog_log "Error binding to port $echo(server_port): $msg"
+        exit 1
+    }
 }
 
 # echo_accept --
@@ -204,11 +208,17 @@ proc service_control_handler {control {name ""} {seq 0} args} {
 # Main code
 
 # Parse arguments
-if {[llength $argv] != 2} {
+if {[llength $argv] < 2 || [llength $argv] > 3} {
     usage
 }
 
 set service_name [lindex $argv 1]
+if {[llength $argv] > 2} {
+    set echo(server_port) [lindex $argv 2]
+} else {
+    set echo(server_port) 2020
+}
+
 switch -exact -- [lindex $argv 0] {
     service {
         # We are running as a service
