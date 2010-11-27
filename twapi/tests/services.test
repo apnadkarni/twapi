@@ -32,6 +32,7 @@ namespace eval twapi::services::test {
     variable interactive_service
     variable noninteractive_service
 
+
     proc fill_services {{refresh 0}} {
         variable servicescheck
         if {$refresh || ![info exists servicescheck]} {
@@ -131,32 +132,78 @@ namespace eval twapi::services::test {
     }
 
     proc ensure_service_running {svcname} {
-        # Check if service is already running and start it if it isn't
-        if {[string compare [twapi::get_service_state $svcname] running]} {
-            exec net start [list $svcname]
-            if {[string compare [twapi::get_service_state $svcname] running]} {
-                error "Could not start service $svcname"
+        # Check if service is already running, 
+        switch -exact -- [set state [twapi::get_service_state $svcname]] {
+            running {
+                # Nothing to do
+                return
             }
+            stopped {
+                exec net start [list $svcname]
+            }
+            paused {
+                exec net continue [list $svcname]
+            }
+            default {
+                error "Don't know how to change state from $state to running"
+            }
+        }
+
+        # Verify service is actually running
+        twapi::interrogate_service $svcname
+        if {[string compare [twapi::get_service_state $svcname] running]} {
+            error "Could not change state of service $svcname to running."
         }
     }
 
     proc ensure_service_stopped {svcname} {
-        # Check if service is running and stop it if it is
-        if {[string compare [twapi::get_service_state $svcname] stopped]} {
-            exec net stop [list $svcname]
-            if {[string compare [twapi::get_service_state $svcname] stopped]} {
-                error "Could not stop service $svcname"
+        # Check if service is already stopped
+        switch -exact -- [set state [twapi::get_service_state $svcname]] {
+            running {
+                exec net stop [list $svcname]
             }
-        }        
+            stopped {
+                # Nothing to do
+                return
+            }
+            paused {
+                catch {
+                    exec net continue [list $svcname]
+                }
+                exec net stop [list $svcname]
+            }
+            default {
+                error "Don't know how to change state from $state to stopped"
+            }
+        }
+
+        if {[string compare [twapi::get_service_state $svcname] stopped]} {
+            after 200;          # Give it a bit of time
+            if {[string compare [twapi::get_service_state $svcname] stopped]} {
+                error "Could not change state of service $svcname to stopped."
+            }
+        }
     }
 
     proc ensure_service_paused {svcname} {
+        # Check if service is already stopped
+        switch -exact -- [set state [twapi::get_service_state $svcname]] {
+            running {
+                exec net pause [list $svcname]
+            }
+            paused {
+                exec net pause [list $svcname]
+            }
+            default {
+                error "Don't know how to change state from $state to stopped"
+            }
+        }
+
+        twapi::interrogate_service $svcname
         if {[string compare [twapi::get_service_state $svcname] paused]} {
-            ensure_service_running $svcname
-            # Now pause it
-            exec net pause [list $svcname]
+            after 200;          # Give it a bit of time
             if {[string compare [twapi::get_service_state $svcname] paused]} {
-                error "Could not pause service $svcname"
+                error "Could not change state of service $svcname to stopped."
             }
         }
     }
@@ -171,6 +218,20 @@ namespace eval twapi::services::test {
             error "Could not delete service $svcname"
         }
     }
+
+    proc ensure_test_service {{state ""}} {
+        variable service_internal_name
+
+        if {![twapi::service_exists $service_internal_name]} {
+            exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] install $service_internal_name
+        }
+
+        if {$state ne ""} {
+            ensure_service_$state $service_internal_name
+        }
+
+    }
+    
 
     # Compare two service values and return 1 if same
     proc service_configuration_value_same {field valA valB} {
