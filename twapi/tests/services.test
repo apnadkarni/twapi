@@ -219,6 +219,8 @@ namespace eval twapi::services::test {
         }
     }
 
+    # Make sure the test service exists, and optionally that it is 
+    # in a specified state
     proc ensure_test_service {{state ""}} {
         variable service_internal_name
 
@@ -249,9 +251,7 @@ namespace eval twapi::services::test {
     proc check_set_service_configuration {args} {
         variable service_internal_name
         array set newopts $args
-        if {![twapi::service_exists $service_internal_name]} {
-            twapi::create_service $service_internal_name [file join [tcltest::temporaryDirectory] nosuchfile.exe]
-        }
+        ensure_test_service
         array set orig [twapi::get_service_configuration $service_internal_name -all]
         eval [list twapi::set_service_configuration $service_internal_name] [array get newopts]
         # To verify that no fields other than that specified is changed,
@@ -298,7 +298,7 @@ namespace eval twapi::services::test {
     } -constraints {
         nt
     } -body {
-        twapi::service_exists "No such service"
+        twapi::service_exists "nosuchservice"
     } -result 0
 
     ################################################################
@@ -797,12 +797,13 @@ namespace eval twapi::services::test {
         catch {unset svcinfo}
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
     } -body {
-        twapi::create_service $service_internal_name $svccmd
+        set svcname TWAPISVC_[clock clicks]
+        twapi::create_service $svcname $svccmd
         # Verify it is what we expect
         set mismatches [list ]
-        array set svcinfo [twapi::get_service_configuration $service_internal_name -all]
+        array set svcinfo [twapi::get_service_configuration $svcname -all]
         foreach {opt expected} [list \
-                                    -displayname $service_internal_name  \
+                                    -displayname $svcname \
                                     -errorcontrol "normal" \
                                     -servicetype  "win32_own_process" \
                                     -interactive  0 \
@@ -818,7 +819,7 @@ namespace eval twapi::services::test {
         }
         concat [join $mismatches \n]
     } -cleanup {
-        ensure_service_deleted $service_internal_name
+        ensure_service_deleted $svcname
     } -result ""
 
     test create_service-1.1 {
@@ -830,8 +831,10 @@ namespace eval twapi::services::test {
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
     } -body {
         # TBD - need test -account
-        twapi::create_service $service_internal_name $svccmd \
-            -displayname  $service_display_name \
+        set svcname TWAPISVC_[clock clicks]
+        set svcdisplay "$svcname display string"
+        twapi::create_service $svcname $svccmd \
+            -displayname  $svcdisplay \
             -errorcontrol ignore \
             -servicetype  win32_share_process \
             -interactive  1 \
@@ -841,9 +844,9 @@ namespace eval twapi::services::test {
             
         # Verify it is what we expect
         set mismatches [list ]
-        array set svcinfo [twapi::get_service_configuration $service_internal_name -all]
+        array set svcinfo [twapi::get_service_configuration $svcname -all]
         foreach {opt expected} [list \
-                                    -displayname $service_display_name  \
+                                    -displayname $svcdisplay  \
                                     -errorcontrol "ignore" \
                                     -servicetype  "win32_share_process" \
                                     -interactive  1 \
@@ -859,7 +862,7 @@ namespace eval twapi::services::test {
         }
         concat [join $mismatches \n]
     } -cleanup {
-        ensure_service_deleted $service_internal_name
+        ensure_service_deleted $svcname
     } -result ""
 
     ################################################################
@@ -869,15 +872,16 @@ namespace eval twapi::services::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
+        set svcname TWAPISVC_[clock clicks]
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
-        twapi::create_service $service_internal_name $svccmd
-        if {![twapi::service_exists $service_internal_name]} {
+        twapi::create_service $svcname $svccmd
+        if {![twapi::service_exists $svcname]} {
             error "Could not create test service"
         }
     } -body {
-        twapi::delete_service $service_internal_name
+        twapi::delete_service $svcname
         after 10
-        twapi::service_exists $service_internal_name
+        twapi::service_exists $svcname
     } -result 0
 
     ################################################################
@@ -1072,11 +1076,12 @@ namespace eval twapi::services::test {
         Start a service that is not currently running
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service stopped
     } -body {
-        ensure_service_stopped Schedule
-        twapi::start_service Schedule
-        after 1000;                     # Wait to give it time
-        twapi::get_service_state Schedule
+        twapi::start_service $service_internal_name
+        after 100;                     # Wait to give it time
+        twapi::get_service_state $service_internal_name
     } -result running
 
     ###
@@ -1085,9 +1090,10 @@ namespace eval twapi::services::test {
         Start a service that is already running
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service running
     } -body {
-        ensure_service_running Schedule
-        twapi::start_service Schedule
+        twapi::start_service $service_internal_name
     } -result 1
 
     ###
@@ -1096,15 +1102,16 @@ namespace eval twapi::services::test {
         Start a service and wait for it to come up
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service stopped
     } -body {
-        ensure_service_stopped Schedule
         # Check that we come back before the timeout (ie only wait as long
         # as necessary), return value is 1 and state is running
         set before [clock seconds]
-        set status [twapi::start_service Schedule -wait 10000]
+        set status [twapi::start_service $service_internal_name -wait 10000]
         set after [clock seconds]
         expr {$status &&
-              [string equal [twapi::get_service_state Schedule] running] &&
+              [string equal [twapi::get_service_state $service_internal_name] running] &&
               (($after - $before) < 10000)}
     } -result 1
 
