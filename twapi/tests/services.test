@@ -186,13 +186,16 @@ namespace eval twapi::services::test {
     }
 
     proc ensure_service_paused {svcname} {
-        # Check if service is already stopped
         switch -exact -- [set state [twapi::get_service_state $svcname]] {
             running {
                 exec net pause [list $svcname]
             }
             paused {
-                exec net pause [list $svcname]
+                # Nothing to do
+            }
+            stopped {
+                ensure_service_running $svcname
+                exec net pause $svcname
             }
             default {
                 error "Don't know how to change state from $state to stopped"
@@ -1075,7 +1078,7 @@ namespace eval twapi::services::test {
     test start_service-1.0 {
         Start a service that is not currently running
     } -constraints {
-        nt
+        nt systemmodificationok
     } -setup {
         ensure_test_service stopped
     } -body {
@@ -1089,7 +1092,7 @@ namespace eval twapi::services::test {
     test start_service-1.1 {
         Start a service that is already running
     } -constraints {
-        nt
+        nt systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1101,7 +1104,7 @@ namespace eval twapi::services::test {
     test start_service-2.0 {
         Start a service and wait for it to come up
     } -constraints {
-        nt
+        nt systemmodificationok
     } -setup {
         ensure_test_service stopped
     } -body {
@@ -1120,12 +1123,13 @@ namespace eval twapi::services::test {
     test stop_service-1.0 {
         Stop a service
     } -constraints {
-        nt
+        nt systemmodificationok
+    } -setup {
+        ensure_test_service running
     } -body {
-        ensure_service_running Schedule
-        twapi::stop_service Schedule
-        after 1000;                     # Wait to give it time
-        twapi::get_service_state Schedule
+        twapi::stop_service $service_internal_name
+        after 100;                     # Wait to give it time
+        twapi::get_service_state $service_internal_name
     } -result stopped
 
     ###
@@ -1133,10 +1137,11 @@ namespace eval twapi::services::test {
     test stop_service-1.1 {
         Stop a service that is already stopped
     } -constraints {
-        nt
+        nt systemmodificationok
+    } -setup {
+        ensure_test_service stopped
     } -body {
-        ensure_service_stopped Schedule
-        twapi::stop_service Schedule
+        twapi::stop_service $service_internal_name
     } -result 1
 
     ###
@@ -1144,19 +1149,19 @@ namespace eval twapi::services::test {
     test stop_service-2.0 {
         Stop a service with -wait option
     } -constraints {
-        nt
+        nt systemmodificationok
+    } -setup {
+        ensure_test_service running
     } -body {
-        ensure_service_running Schedule
         # Check that we come back before the timeout (ie only wait as long
         # as necessary), return value is 1 and state is running
         set before [clock seconds]
-        set status [twapi::stop_service Schedule -wait 10000]
+        set status [twapi::stop_service $service_internal_name -wait 10000]
         set after [clock seconds]
         expr {$status &&
-              [string equal [twapi::get_service_state Schedule] stopped] &&
+              [string equal [twapi::get_service_state $service_internal_name] stopped] &&
               (($after - $before) < 10000)}
     } -result 1
-
 
     ################################################################
 
@@ -1164,12 +1169,14 @@ namespace eval twapi::services::test {
         Pause a service
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service running
     } -body {
-        ensure_service_running Schedule
-        twapi::pause_service Schedule
-        after 1000;                     # Wait to give it time
-        set status [twapi::get_service_state Schedule]
-        exec net continue Schedule
+        twapi::pause_service $service_internal_name
+        after 100;                     # Wait to give it time
+        twapi::interrogate_service
+        set status [twapi::get_service_state $service_internal_name]
+        exec net continue $service_internal_name
         set status
     } -result paused
 
@@ -1179,11 +1186,12 @@ namespace eval twapi::services::test {
         Pause a service that is already paused
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service paused
     } -body {
-        ensure_service_paused Schedule
-        set status [expr {[twapi::pause_service Schedule] &&
-                          [string equal [twapi::get_service_state Schedule] paused]}]
-        exec net continue Schedule
+        set status [expr {[twapi::pause_service $service_internal_name] &&
+                          [string equal [twapi::get_service_state $service_internal_name] paused]}]
+        exec net continue $service_internal_name
         set status
     } -result 1
 
@@ -1193,18 +1201,19 @@ namespace eval twapi::services::test {
         Pause a service with -wait option
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service running
     } -body {
-        ensure_service_running Schedule
         # Check that we come back before the timeout (ie only wait as long
         # as necessary), return value is 1 and state is running
         set before [clock seconds]
-        set status [twapi::pause_service Schedule -wait 10000]
+        set status [twapi::pause_service $service_internal_name -wait 10000]
         set after [clock seconds]
         set status [expr {$status &&
-                          [string equal [twapi::get_service_state Schedule] paused] &&
+                          [string equal [twapi::get_service_state $service_internal_name] paused] &&
                           (($after - $before) < 10000)
                       }]
-        exec net continue Schedule
+        exec net continue $service_internal_name
         set status
     } -result 1
 
@@ -1214,11 +1223,12 @@ namespace eval twapi::services::test {
         Continue a service that has been paused
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service paused
     } -body {
-        ensure_service_paused Schedule
-        twapi::continue_service Schedule
-        after 1000;                     # Wait for it to continue
-        twapi::get_service_state Schedule
+        twapi::continue_service $service_internal_name
+        after 100;                     # Wait for it to continue
+        twapi::get_service_state $service_internal_name
     } -result running
 
     ###
@@ -1227,11 +1237,12 @@ namespace eval twapi::services::test {
         Continue a service using the -wait option
     } -constraints {
         nt
+    } -setup {
+        ensure_test_service paused
     } -body {
-        ensure_service_paused Schedule
-        set status [twapi::continue_service Schedule -wait 10000]
+        set status [twapi::continue_service $service_internal_name -wait 10000]
         expr {$status &&
-              [string equal [twapi::get_service_state Schedule] running] &&
+              [string equal [twapi::get_service_state $service_internal_name] running] &&
               (($after - $before) < 10000)
           }
     } -result 1
@@ -1242,10 +1253,12 @@ namespace eval twapi::services::test {
         Ask a service to update its status
     } -constraints {
         nt
+    } -setup {
+        ensure_service_running $service_internal_name
     } -body {
         # No real way to verify. Just call and make sure it does
         # not raise an error
-        twapi::interrogate_service Schedule
+        twapi::interrogate_service $service_internal_name
     } -result ""
 
     ################################################################
