@@ -335,3 +335,19 @@ DWORD TwapiNTSTATUSToError(NTSTATUS status)
         return LsaNtStatusToWinError(status);
     }
 }
+
+
+/*
+ * Write a message to the event log. To be used only for errors that
+ * cannot be raised through the Tcl interpreter, for example, service
+ * startup errors
+ */
+void TwapiWriteEventLogError(const char *msg)
+{
+    HANDLE hevl;
+    hevl = RegisterEventSourceA(NULL, TWAPI_TCL_NAMESPACE);
+    if (hevl) {
+        (void) ReportEventA(hevl, EVENTLOG_ERROR_TYPE, 0, 0, NULL, 1, 0, &msg, NULL);
+        DeregisterEventSource(hevl);
+    }
+}
