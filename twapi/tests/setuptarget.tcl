@@ -21,9 +21,12 @@ foreach fpat {*.dll *.exe} {
     }
 }
 
+# Our distribution
 foreach dirpat {dde* reg* tcl8* tk*} {
-    foreach dir [glob [file join $tcl_root lib $dirpat]] {
-        file copy $dir $target_libdir
+    if {![catch {glob [file join $tcl_root lib $dirpat]} dirs]} {
+        foreach dir $dirs {
+            file copy $dir $target_libdir
+        }
     }
 }
 
