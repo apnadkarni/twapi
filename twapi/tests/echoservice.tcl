@@ -223,7 +223,11 @@ switch -exact -- [lindex $argv 0] {
     service {
         # We are running as a service
         if {[catch {
-            twapi::run_as_service [list [list $service_name ::service_control_handler]] -controls {stop pause_continue paramchange shutdown powerevent sessionchange}
+            set controls {stop pause_continue paramchange shutdown powerevent}
+            if {[twapi::min_os_version 5 1]} {
+                lappend controls sessionchange
+            }
+            twapi::run_as_service [list [list $service_name ::service_control_handler]] -controls $controls
         } msg]} {
             twapi::eventlog_log "Service error: $msg\n$::errorInfo"
         }
