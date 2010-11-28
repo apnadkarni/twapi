@@ -687,6 +687,12 @@ proc twapi::run_as_service {services args} {
     # are fixed for the duration of the process.
     # TBD - C code actually allows for per service controls. Expose?
     set service_state(controls) [_parse_service_accept_controls $opts(controls)]
+    if {![min_os_version 5 1]} {
+        # Not accepted on Win2k
+        if {$service_state(controls) & 0x80} {
+            error "Service control type 'sessionchange' is not valid on this platform"
+        }
+    }
 
     if {[llength $services] == 1} {
         set type 0x10;          # WIN32_OWN_PROCESS
