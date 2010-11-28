@@ -361,8 +361,10 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
     DWORD additional_info = 0;
     DWORD status;
 
-    if (service_index >= gNumServiceContexts)
-        return NO_ERROR; /* Should not happen. TBD - how to report error? */
+    if (service_index >= gNumServiceContexts) {
+        TwapiWriteEventLogError("TwapiServiceControlHandler: service_index is greater than number of service contexts. Ignoring.");
+        return NO_ERROR; /* Should not happen? */
+    }
 
     switch (ctrl) {
     case SERVICE_CONTROL_STOP:
@@ -480,8 +482,6 @@ static void WINAPI TwapiServiceThread(DWORD argc, WCHAR **argv)
 {
     int service_index;
 
-    /* TBD - figure out appropriate way to log errors here */
-
     /* If argc or argv are 0, assume we are starting the first service */
     if (argc == 0 || argv == 0 || argv[0] == 0)
         service_index = 0;
@@ -498,7 +498,7 @@ static void WINAPI TwapiServiceThread(DWORD argc, WCHAR **argv)
                                      TwapiServiceControlHandler,
                                      IntToPtr(service_index));
     if (gServiceContexts[service_index]->service_status_handle == 0) {
-        // TBD - how to report error?
+        TwapiWriteEventLogError("TwapiServiceThread: RegisterServiceCtrlHandlerExW returned NULL handle. Service will not be started.");
     } else {
         SERVICE_STATUS ss;
 
@@ -512,7 +512,7 @@ static void WINAPI TwapiServiceThread(DWORD argc, WCHAR **argv)
 
         if (!SetServiceStatus(gServiceContexts[service_index]->service_status_handle,
                               &ss)) {
-            // TBD - how to report error returns?
+            TwapiWriteEventLogError("TwapiServiceThread: SetServiceStatus failed. Service will not be started.");
         } else {
             TwapiServiceControlCallback *cbP;
 
