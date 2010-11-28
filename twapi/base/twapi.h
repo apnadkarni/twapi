@@ -913,6 +913,7 @@ int Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 #define Twapi_AppendSystemError(interp_, error_) \
     Twapi_AppendSystemError2(interp_, error_, NULL)
 int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
+void TwapiWriteEventLogError(const char *msg);
 
 
 /* Wrappers around saving/restoring Tcl state */
