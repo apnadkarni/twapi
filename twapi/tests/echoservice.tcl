@@ -28,7 +28,7 @@ if {[file exists [file join $echo_script_dir tcl twapi.tcl]]} {
 # The echo_server code is almost verbatim from the Tcl Developers
 # Exchange samples.
 
-set echo(state) stopped;       # State of the server
+set echo(server_state) stopped;       # State of the server
 
 # echo_server --
 #       Open the server listening socket
@@ -242,7 +242,7 @@ switch -exact -- [lindex $argv 0] {
 
         set exe [file nativename [file attributes [info nameofexecutable] -shortname]]
         set script [file nativename [file attributes [file normalize [info script]] -shortname]]
-        twapi::create_service $service_name "$exe $script service $service_name"
+        twapi::create_service $service_name "$exe $script service $service_name $echo(server_port)"
     }
     uninstall {
         if {[twapi::service_exists $service_name]} {

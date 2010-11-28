@@ -19,11 +19,11 @@ namespace eval twapi::services::test {
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     # Name to use for test service
-    variable service_internal_name "twapitestservice"
-    variable service_display_name  "Twapi Test Service"
+    variable service_internal_name "aaatwapitestservice"
+    variable service_display_name  "AAA Twapi Test Service"
 
     # Name for echo service
-    variable echo_service_name "twapiechoresponder"
+    variable echo_service_name "aaatwapiechoresponder"
 
     # List of services on the system
     variable servicescheck
@@ -425,7 +425,7 @@ namespace eval twapi::services::test {
         nt
     } -body {
         catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration seclogon -errorcontrol]
+        array set svcinfo [twapi::get_service_configuration winmgmt -errorcontrol]
         list -errorcontrol $svcinfo(-errorcontrol)
     } -result {-errorcontrol ignore}
 
@@ -489,7 +489,7 @@ namespace eval twapi::services::test {
         nt
     } -body {
         catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration Alerter -loadordergroup]
+        array set svcinfo [twapi::get_service_configuration winmgmt -loadordergroup]
         list -loadordergroup $svcinfo(-loadordergroup)
     } -result {-loadordergroup {}}
 
@@ -514,7 +514,7 @@ namespace eval twapi::services::test {
         nt
     } -body {
         catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration lanmanworkstation -dependencies]
+        array set svcinfo [twapi::get_service_configuration seclogon -dependencies]
         list -dependencies $svcinfo(-dependencies)
     } -result {-dependencies {}}
 
@@ -539,7 +539,7 @@ namespace eval twapi::services::test {
         nt
     } -body {
         catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration lanmanworkstation -account]
+        array set svcinfo [twapi::get_service_configuration seclogon -account]
         list -account $svcinfo(-account)
     } -result {-account LocalSystem}
 
@@ -775,7 +775,7 @@ namespace eval twapi::services::test {
             array set svcinfo $svc
             lappend result $svcinfo(name)
         }
-        setops::diff $result {RpcLocator Netlogon Messenger Browser BITS Alerter}
+        setops::diff $result {SessionEnv RpcLocator Netlogon Messenger Browser BITS Alerter}
     } -result ""
 
     ###
