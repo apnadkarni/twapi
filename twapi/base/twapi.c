@@ -76,7 +76,7 @@ int Twapi_Init(Tcl_Interp *interp)
 {
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
-    /* Make sure Winsock is initialized */
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
