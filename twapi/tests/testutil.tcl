@@ -341,6 +341,27 @@ proc equal_paths {p1 p2} {
     # Use file join to convert \ to /
     return [string equal -nocase [file join $p1] [file join $p2]]
 }
+tcltest::customMatch path equal_paths
+
+# Compare two sets (dup elements are treated as same)
+proc equal_sets {s1 s2} {
+    set s1 [lsort -unique $s1]
+    set s2 [lsort -unique $s2]
+    if {[llength $s1] != [llength $s2]} {
+        return 0
+    }
+
+    foreach e1 $s1 e2 $s2 {
+        if {[string compare $e1 $e2]} {
+            return 0
+        }
+    }
+
+    return 1
+}
+#
+# Custom proc for matching file paths
+tcltest::customMatch set equal_sets
 
 
 # Note - use single quotes, not double quotes to pass values to wmic from exec
@@ -656,6 +677,17 @@ proc tclsh_slave_wait {fd {ms 1000}} {
     }
 }
 
+# Used for matching results
+proc oneof {allowed_values value} {
+    return [expr {[lsearch -exact $allowed_values $value] >= 0}]
+}
+tcltest::customMatch oneof oneof
+
+proc inrange {range value} {
+    foreach {low high} $range break
+    expr {$value >= $low && $value <= $high}
+}
+tcltest::customMatch inrange inrange
 
 
 # Log a test debug message
