@@ -882,6 +882,7 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
     }
 }
 
+
 #
 proc twapi::_wmi_read_popups {} {
     set res {}
@@ -911,6 +912,28 @@ proc twapi::_wmi_read_popups_succint {} {
         lappend res [$event Message]
     }
     return $res
+}
+
+# Returns a list of records returned by WMI. The name of each field in
+# the record is in lower case to make it easier to extract without
+# worrying about case.
+proc twapi::_wmi_records {wmi_class} {
+    set wmi [twapi::_wmi]
+    set records [list ]
+    $wmi -with {{ExecQuery "select * from $wmi_class"}} -iterate elem {
+        set record {}
+        set propset [$elem Properties_]
+        $propset -iterate itemobj {
+            # Note how we get the default property
+            lappend record [string tolower [$itemobj Name]] [$itemobj -default]
+            $itemobj -destroy
+        }
+        $elem -destroy
+        $propset -destroy
+        lappend records $record
+    }
+    $wmi -destroy
+    return $records
 }
 
 #
