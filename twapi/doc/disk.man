@@ -491,9 +491,12 @@ a keyed list with the fields
 [nl]
 On Windows XP and newer operating systems, the [cmd -layout] field value
 is a keyed list with the fields, [cmd -partitioncount],
-[cmd -partitionstyle] and [cmd -partitions].
-The value of the [cmd -partitionstyle] field is one of the values
-[const mbr], [const gpt], [const raw] or [const unknown].
+[cmd -partitionstyle] and [cmd -partitions]. If the [cmd -partitionstyle]
+field is [const mbr], an additional field [cmd -signature] is present. If
+the [cmd -partitionstyle] is [const gpt], three additional fields
+[cmd -startingusableoffset], [cmd -usablelength] and [cmd -maxpartitioncount].
+Other possible value of [cmd -partitionstyle] are
+[const raw] or [const unknown] in which case there are no additional fields.
 The [cmd -partitions] field is a list each element of which
 is itself a keyed list containing information about each partition. Note
 that the number of elements of the [cmd -partitions] list may not match

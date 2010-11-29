@@ -254,6 +254,117 @@ namespace eval twapi::disk::test {
         return 1
     }
 
+    proc fill_physical_disks {{force 0}} {
+        variable physical_disks
+        if {[info exists physical_disks] && ! $force} {
+            return;             # Only fill once, assume will not change
+        }
+        foreach disk [twapi::_wmi_records Win32_DiskDrive] {
+            set id [twapi::kl_get $disk pnpdeviceid]
+            set physical_disks([string tolower $id]) $disk
+        }
+    }
+
+    proc verify_physical_disk {id {diskdata {}}} {
+        variable physical_disks
+        fill_physical_disks
+        set orig_id $id
+        set id [string tolower $id]
+        # Try and match id against known disk ids
+        if {![info exists physical_disks($id)]} {
+            # Strip of \\?\ if present
+            if {[string range $id 0 3] eq "\\\\?\\"} {
+                set id [string range $id 4 end]
+            }
+            if {![info exists physical_disks($id)]} {
+                # Still no match, convert "#" to \ and check
+                set id [string map [list # \\] $id]
+                if {![info exists physical_disks($id)]} {
+                    # Still no go, one last chance - strip the GUID
+                    if {(![regexp {^(.*)\\\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} $id _ id]) || ![info exists physical_disks($id)]} {
+                        return "Could not find disk $orig_id in physical disk table"
+                    }
+                }
+            }
+        }
+
+        # We use dicts below, for semi supported 8.4, don't bother checking
+        # field values. Only existence checked.
+        if {![package vsatisfies [info tclversion] 8.5]} {
+            return ""
+        }
+
+        # We have a match. Compare whatever fields we can
+        foreach {field wmifield} {
+            -sectorspertrack    sectorspertrack
+            -trackspercylinder  trackspercylinder 
+            -cylinders          totalcylinders
+            -bytespersector     bytespersector
+        } {
+            if {[dict exists $diskdata -geometry $field] &&
+                [dict get $diskdata -geometry $field] != [dict get $physical_disks($id) $wmifield]} {
+                return "Sectors per track does not match ([dict get $diskdata -geometry $field] != [dict get $physical_disks($id) $wmifield])"
+            }
+        }
+
+        if {[dict exists $diskdata -geometry -mediatype]} {
+            set value [dict get $diskdata -geometry -mediatype]
+            set wmivalue [dict get $physical_disks($id) mediatype]
+            # We use regexp because the wmi values have arbitrary whitespace/tabs!
+            switch -exact --  $value {
+                11 {
+                    if {![regexp {^Removable\s+media\s+other\s+than\s+floppy$} $wmivalue]} {
+                        return "Media type $value does not match $wmivalue."
+                    }
+                }
+                12 {
+                    if {![regexp {^Fixed\s+hard\s+disk\s+media$} $wmivalue]} {
+                        return "Media type $value does not match $wmivalue."
+                    }
+                }
+            }
+        }
+        # TBD - how to verify partition-specific info? wmi win32_diskpartition
+        # does not seem to return extended partition members
+
+        return ""
+    }
+
+    proc verify_physical_disk_layout_fields {layout} {
+        if {[twapi::min_os_version 5 1]} {
+            set part_fields {-partitionstyle -startingoffset -partitionlength -partitionnumber -rewritepartition}
+            set layout_fields {-partitions -partitioncount -partitionstyle}
+            switch -exact -- [twapi::kl_get $layout -partitionstyle] {
+                mbr {
+                    lappend layout_fields -signature
+                    lappend part_fields -hiddensectors -partitiontype -bootindicator -recognizedpartition
+                }
+                gpt {
+                    lappend layout_fields -startingusableoffset -usablelength -maxpartitioncount
+                    lappend part_fields -partitiontype -partitionif -attributes -name
+                }
+                raw -
+                unknown {
+                    # No additional fields
+                }
+                default {
+                    append result "Unknown partition type in partition <$part>"
+                }
+            }
+
+            verify_kl_fields $layout $layout_fields
+            set parts [twapi::kl_get $layout -partitions]
+            verify_list_kl_fields $parts $part_fields
+        } else {
+            verify_kl_fields $layout {
+                -partitions -partitioncount -signature
+            }
+            verify_list_kl_fields [twapi::kl_get $layout -partitions] {
+                -bootindicator -hiddensectors -partitionlength -partitionnumber -partitiontype -recognizedpartition -rewritepartition -startingoffset  
+            }
+        }
+    }
+
     ################################################################
 
     test get_logical_drives-1.0 {
@@ -535,7 +646,7 @@ namespace eval twapi::disk::test {
             foreach {drive oldlabel} [array get oldlabels] {
                 puts stderr "$drive $oldlabel"
             }
-            # TBD - should we call tcltest's cleanup here?
+            ::tcltest::cleanupTests
             exit 1
         }
         catch {unset oldlabels}
@@ -986,9 +1097,17 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -body {
-        # TBD - how to do better checking ? This only checks for complete fail
-        expr {[llength [twapi::find_physical_disks]] > 0}
-    } -result 1
+        set disks [twapi::find_physical_disks]
+        if {[llength $disks] == 0} {
+            set result "No disks found."
+        } else {
+            set result ""
+            foreach disk $disks {
+                append result [verify_physical_disk $disk {}]
+            }
+        }
+        set result
+    } -result ""
 
     ################################################################
     
@@ -1005,11 +1124,20 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -body {
-        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -geometry]
-        verify_kl_fields $vals [list -geometry]
-        verify_kl_fields [lindex $vals 1] {
-            -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -geometry]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -geometry]
+            verify_kl_fields [lindex $vals 1] {
+                -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+            }
+            append result [verify_physical_disk $disk $vals]
         }
+        set result
     } -result ""
 
     test get_physical_disk_info-3.0 {
@@ -1017,9 +1145,18 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -body {
-        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -layout]
-        verify_kl_fields $vals [list -layout]
-        # TBD - verify values - remember OS version dependent
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -layout]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -layout]
+            verify_physical_disk_layout_fields [lindex $vals 1]
+            append result [verify_physical_disk $disk $vals]
+        }
+        set result
     } -result ""
 
     test get_physical_disk_info-4.0 {
@@ -1027,12 +1164,21 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -body {
-        set vals [twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0] -all]
-        verify_kl_fields $vals [list -layout -geometry]
-        verify_kl_fields [twapi::kl_get $vals -geometry] {
-            -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -all]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -layout -geometry]
+            verify_kl_fields [twapi::kl_get $vals -geometry] {
+                -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+            }
+            verify_physical_disk_layout_fields [twapi::kl_get $vals -layout]
+            append result [verify_physical_disk $disk $vals]
         }
-        # TBD - verify -layout values - remember OS version dependent
+        set result
     } -result ""
 
 
