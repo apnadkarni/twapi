@@ -15,11 +15,6 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi
 
 #
-# Custom proc for matching file paths
-tcltest::customMatch path equal_paths
-tcltest::customMatch set equal_sets
-
-#
 # General definitions and procs used in the tests
 namespace eval ::twapi::process::test {
     namespace import ::tcltest::test
@@ -28,6 +23,15 @@ namespace eval ::twapi::process::test {
     ::tcltest::testConstraint wow64 [expr {$::tcl_platform(machine) eq "intel" && [info exists ::env(ProgramW6432)]}]
     # Constraint x64 is true if we are a 64-bit process
     ::tcltest::testConstraint x64 [expr {$::tcl_platform(machine) eq "amd64"}]
+
+    # Whether OS supports integrity
+    variable target_integrity
+    variable have_integrity [twapi::min_os_version 6]
+    if {$have_integrity} {
+        set target_integrity 4096
+    } else {
+        set target_integrity 8192
+    }
 
     # Verify pid $pid has name $name
     proc verify_pid_name {pid name {refresh 0}} {
@@ -186,23 +190,6 @@ namespace eval ::twapi::process::test {
         }
 
         return [concat [join $mismatches "\n"]]
-    }
-
-    # Compare two sets (dup elements are treated as same)
-    proc equal_sets {s1 s2} {
-        set s1 [lsort -unique $s1]
-        set s2 [lsort -unique $s2]
-        if {[llength $s1] != [llength $s2]} {
-            return 0
-        }
-
-        foreach e1 $s1 e2 $s2 {
-            if {[string compare $e1 $e2]} {
-                return 0
-            }
-        }
-
-        return 1
     }
 
 
@@ -1027,6 +1014,50 @@ namespace eval ::twapi::process::test {
     } -result ""
     
 
+    ###
+
+    test get_process_info-2.2 {
+        Verify retrieval of information for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_process_info 123 -name] 1
+    } -result "(no such process)"
+
+    ###
+
+    test get_process_info-2.3 {
+        Verify retrieval of -all for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        set values [twapi::get_process_info 123 -all]
+        verify_get_process_info_fieldnames $values
+        set bad [list ]
+        foreach {fld val} $values {
+            if {$fld eq "-pid"} {
+                if {$val != 123} {
+                    lappend bad $fld
+                }
+            } else {
+                if {$val ne "(no such process)"} {
+                    lappend bad $fld
+                }
+            }
+        }
+        set bad
+    } -result ""
+
+    ###
+
+    test get_process_info-2.4 {
+        Verify -noexist option when retrieving information for non-existent processes
+    } -constraints {
+        nt
+    } -body {
+        lindex [twapi::get_process_info 123 -name -noexist foobar ] 1
+    } -result "foobar"
+
     ## Option tests begin
 
     test get_process_info-3.0 {
@@ -1034,10 +1065,15 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        # TBD -need a way to verify these
-        twapi::get_process_info [get_explorer_pid] -toplevels
-        set xxx ""
-    } -result ""
+        set pid [get_explorer_pid]
+        set result 1
+        foreach win [lindex [twapi::get_process_info $pid -toplevels] 1] {
+            set result [expr {$result &&
+                              [twapi::get_window_process $win] == $pid
+                          }]
+        }
+        set result
+    } -result 1
 
     test get_process_info-4.0 {
         Verify get_process_info -logonsession for another process
@@ -1055,30 +1091,40 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt TBD
     } -body {
+        Note virtualization is not enabled when running under administrator ?
+        Would need to fire up a process a another user ?
         TBD
     } -result TBD
 
     test get_process_info-6.0 {
         Verify get_process_info -elevation for another process
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
     } -body {
-        TBD
-    } -result TBD
+        twapi::get_process_info $np_pid -elevation
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -match oneof -result {{-elevation default} {-elevation full} {-elevation limited}}
 
-    test get_process_info-6.0 {
+    test get_process_info-7.0 {
         Verify get_process_info -integrity for another process
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
     } -body {
-        TBD
-    } -result TBD
+        twapi::get_process_info $np_pid -integrity
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -match regexp -result {^-integrity\s+[[:digit:]]{1,5}$}
 
-    set testnum 8;                      # logonsession was 1
+    set testnum 8
 
     ### Option tests - path type fields
     foreach field {-name -path} {
-        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-${testnum}.0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1097,7 +1143,7 @@ namespace eval ::twapi::process::test {
     ### Option tests - numeric type fields - exact match
 
     foreach field {-basepriority -parent -pid -threadcount} {
-        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1123,7 +1169,7 @@ namespace eval ::twapi::process::test {
         -poolnonpagedbytes -poolpagedbytes
         -privatebytes
         -virtualbytes -virtualbytespeak -workingset -workingsetpeak} {
-        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1165,7 +1211,7 @@ namespace eval ::twapi::process::test {
         -userutilization       double
 
     } {
-        test get_process_info-3.$testnum "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1174,50 +1220,6 @@ namespace eval ::twapi::process::test {
         " -result 1
         incr testnum
     }
-
-    ###
-
-    test get_process_info-4.0 {
-        Verify retrieval of information for non-existent processes
-    } -constraints {
-        nt
-    } -body {
-        lindex [twapi::get_process_info 123 -name] 1
-    } -result "(no such process)"
-
-    ###
-
-    test get_process_info-4.1 {
-        Verify retrieval of -all for non-existent processes
-    } -constraints {
-        nt
-    } -body {
-        set values [twapi::get_process_info 123 -all]
-        verify_get_process_info_fieldnames $values
-        set bad [list ]
-        foreach {fld val} $values {
-            if {$fld eq "-pid"} {
-                if {$val != 123} {
-                    lappend bad $fld
-                }
-            } else {
-                if {$val ne "(no such process)"} {
-                    lappend bad $fld
-                }
-            }
-        }
-        set bad
-    } -result ""
-
-    ###
-
-    test get_process_info-4.2 {
-        Verify -noexist option when retrieving information for non-existent processes
-    } -constraints {
-        nt
-    } -body {
-        lindex [twapi::get_process_info 123 -name -noexist foobar ] 1
-    } -result "foobar"
 
     ################################################################
     
@@ -1870,12 +1872,13 @@ namespace eval ::twapi::process::test {
     ################################################################
 
     test set_process_virtualization-1.0 {
-        TBD - set_process_virtualization
+        Set current process virtualization
     } -constraints {
-        nt TBD
+        nt
     } -body {
-        TBD
-    } -result TBD
+        # This is really the only useful operation for this command
+        twapi::set_process_virtualization 0
+    } -result ""
 
     ################################################################
 
@@ -1896,42 +1899,245 @@ namespace eval ::twapi::process::test {
     ################################################################
 
     test get_process_elevation-1.0 {
-        TBD - get_process_elevation
+        Get current process elevation
     } -constraints {
-        nt TBD
+        nt
     } -body {
-        TBD
-    } -result TBD
+        twapi::get_process_elevation
+    } -match oneof -result {default full limited}
 
-    ################################################################
 
-    test set_process_elevation-1.0 {
-        TBD - set_process_elevation
+    test get_process_elevation-2.0 {
+        Get process elevation for another process
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        set np_pid [notepad_exec]
     } -body {
-        TBD
-    } -result TBD
+        twapi::get_process_elevation -pid $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -match oneof -result {default full limited}
+
+
+    test get_process_elevation-3.0 {
+        Get process elevation for another process using its process handle
+    } -constraints {
+        nt
+    } -setup {
+        set np_pid [start_program [file join $::env(SYSTEMROOT) System32 notepad.exe]]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::get_process_elevation -hprocess $np_hpid
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -match oneof -result {default full limited}
+
 
     ################################################################
 
     test get_process_integrity-1.0 {
-        TBD - get_process_integrity
+        Get current process integrity (numeric)
     } -constraints {
-        nt TBD
+        nt
     } -body {
-        TBD
-    } -result TBD
+        twapi::get_process_integrity
+    } -match inrange -result {0 65535}
+
+    test get_process_integrity-1.1 {
+        Get current process integrity (raw)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_integrity -raw
+    } -match regexp -result {S-1-16-[[:digit:]]{1,5}}
+
+    test get_process_integrity-1.2 {
+        Get current process integrity (label)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_process_integrity -label
+    } -match oneof -result {untrusted low medium high system}
+
+
+    test get_process_integrity-2.0 {
+        Get another process integrity using -pid
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -match inrange -result {0 65535}
+
+    test get_process_integrity-2.1 {
+        Get another process integrity using -pid (raw)
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::get_process_integrity -pid $np_pid -raw
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -match regexp -result {S-1-16-[[:digit:]]{1,5}}
+
+    test get_process_integrity-2.2 {
+        Get another process integrity using -pid (label)
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::get_process_integrity -pid $np_pid -label
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -match oneof -result {untrusted low medium high system}
+
+
+    test get_process_integrity-3.0 {
+        Get another process integrity using -hprocess
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::get_process_integrity -hprocess $np_hpid
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -match inrange -result {0 65535}
+
+    test get_process_integrity-3.1 {
+        Get another process integrity using -hprocess (raw)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::get_process_integrity -hprocess $np_hpid -raw
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -match regexp -result {S-1-16-[[:digit:]]{1,5}}
+
+    test get_process_integrity-3.2 {
+        Get another process integrity using -hprocess (label)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::get_process_integrity -hprocess $np_hpid -label
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -match oneof -result {untrusted low medium high system}
 
     ################################################################
 
     test set_process_integrity-1.0 {
-        TBD - set_process_integrity
+        Set current process integrity (numeric)
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        set integrity [twapi::get_process_integrity]
     } -body {
-        TBD
-    } -result TBD
+        # Don't want to change our own integrity so just checks 
+        # for error conditions
+        twapi::set_process_integrity $integrity
+        expr {[twapi::get_process_integrity] == $integrity}
+    } -result 1
+
+    test set_process_integrity-1.1 {
+        Set current process integrity (raw)
+    } -constraints {
+        nt
+    } -setup {
+        set integrity [twapi::get_process_integrity -raw]
+    } -body {
+        twapi::set_process_integrity $integrity
+        expr {[twapi::get_process_integrity -raw] == $integrity}
+    } -result 1
+
+    test set_process_integrity-1.2 {
+        Set current process integrity (label)
+    } -constraints {
+        nt
+    } -setup {
+        set integrity [twapi::get_process_integrity -label]
+    } -body {
+        twapi::set_process_integrity $integrity
+        expr {[twapi::get_process_integrity -label] == $integrity}
+    } -result 1
+
+    test set_process_integrity-2.0 {
+        Set another process integrity using -pid
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::set_process_integrity $target_integrity -pid $np_pid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
+    test set_process_integrity-2.1 {
+        Set another process integrity using -pid (raw)
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::set_process_integrity [expr {$have_integrity ? "S-1-16-4096" : "S-1-16-8192"}] -pid $np_pid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
+    test set_process_integrity-2.2 {
+        Set another process integrity using -pid (label)
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        twapi::set_process_integrity [expr {$have_integrity ? "low" : "medium"}] -pid $np_pid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
+    test set_process_integrity-3.0 {
+        Set another process integrity using -hprocess
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::set_process_integrity $target_integrity -hprocess $np_hpid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
+    test set_process_integrity-3.1 {
+        Set another process integrity using -hprocess (raw)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::set_process_integrity [expr {$have_integrity ? "S-1-16-4096" : "S-1-16-8192"}] -hprocess $np_hpid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
+    test set_process_integrity-3.2 {
+        Set another process integrity using -hprocess (label)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_hpid [twapi::get_process_handle $np_pid]
+    } -body {
+        twapi::set_process_integrity [expr {$have_integrity ? "low" : "medium"}] -hprocess $np_hpid
+        twapi::get_process_integrity -pid $np_pid
+    } -cleanup {
+        twapi::CloseHandle $np_hpid
+        twapi::end_process $np_pid
+    } -result $target_integrity
+
 
     ################################################################
 

@@ -344,7 +344,7 @@ proc twapi::get_token_integrity {tok args} {
 proc twapi::set_token_integrity {tok integrity} {
 
     if {![min_os_version 6]} {
-        if {$integrity ne "medium"} {
+        if {[_integrity_to_sid $integrity] ne "S-1-16-8192"} {
             error "Invalid integrity level value '$integrity' for this platform."
         }
         # Old platforms have a "default" of medium that cannot be changed.
