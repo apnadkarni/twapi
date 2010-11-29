@@ -374,6 +374,7 @@ proc wmic_get {obj fields {clause ""}} {
         if {$line eq ""} continue
         # Assumes no "," in content
         lappend data [split $line ,]
+        puts [llength [split $line ,]]:[split $line ,]
     }
 
     # First element is field names, not in same order as $fields. Also,
@@ -393,7 +394,13 @@ proc wmic_get {obj fields {clause ""}} {
 
     set result {}
     foreach values [lrange $data 1 end] {
-        lappend result [twapi::twine $fieldnames $values]
+        # wmic seems to html-encode when outputting in csv format
+        # We do minimal necessary for our test scripts
+        set decoded_values {}
+        foreach value $values {
+            lappend decoded_values [string map {&amp; &} $value]
+        }
+        lappend result [twapi::twine $fieldnames $decoded_values]
     }
 
     return $result
@@ -458,16 +465,18 @@ proc get_kl_field {kl field} {
 }
 
 #
-# Verify that a keyed list has the specified fields and no others
+# Verify that a keyed list has the specified fields
 # Raises an error otherwise
-proc verify_kl_fields {kl fields} {
+proc verify_kl_fields {kl fields {ignoreextra 0}} {
     array set data $kl
     foreach field $fields {
         if {![info exists data($field)]} {
-            puts stderr "Field $field not found keyed list"
-            error "Field $field not found keyed list"
+            error "Field $field not found keyed list <$kl>"
         }
         unset data($field)
+    }
+    if {$ignoreextra} {
+        return
     }
     set extra [array names data]
     if {[llength $extra]} {
@@ -479,11 +488,11 @@ proc verify_kl_fields {kl fields} {
 
 #
 # Verify that all elements in a list of keyed lists have
-# the specified fields and no others
+# the specified fields
 # Raises an error otherwise
-proc verify_list_kl_fields {l fields} {
+proc verify_list_kl_fields {l fields {ignoreextra 0}} {
     foreach kl $l {
-        verify_kl_fields $kl $fields
+        verify_kl_fields $kl $fields $ignoreextra
     }
 }
 
