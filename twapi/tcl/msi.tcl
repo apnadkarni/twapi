@@ -11,6 +11,16 @@ namespace eval twapi {
     variable msiprotos_installer
     variable msiprotos_database
     variable msiprotos_record
+    variable msi_guids
+    array set msi_guids {
+        installer {{000C1090-0000-0000-C000-000000000046}}
+        database {{000C109D-0000-0000-C000-000000000046}}
+        record {{000C1093-0000-0000-C000-000000000046}}
+        summaryinfo {{000C109B-0000-0000-C000-000000000046}}
+        stringlist {{000C1095-0000-0000-C000-000000000046}}
+        view {{000C109C-0000-0000-C000-000000000046}}
+            
+    }
 }
 
 # Initialize MSI module
@@ -182,9 +192,15 @@ proc twapi::load_msi_prototypes {obj type} {
 
     # Redefine ourselves so we don't call init_msi everytime
     proc ::twapi::load_msi_prototypes {obj type} {
-        variable msiprotos_[string tolower $type]
+        set type [string tolower $type]
+        variable msi_guids
+        variable msiprotos_$type
 
-        $obj -precache [array get msiprotos_[string tolower $type]]
+        # Tell the object it's type (guid)
+        $obj -interfaceguid $msi_guids($type)
+
+        # Load the prototypes in the cache
+        _dispatch_prototype_load $msi_guids($type) [array get msiprotos_[string tolower $type]]
     }
 
     # Call our new definition
