@@ -2474,7 +2474,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
-            hr = S_OK;
+            // hr = S_OK; -> Already set at top of function
             result.type = TRT_BOOL;
             result.value.bval = ifc.dispatchex->lpVtbl->DeleteMemberByName(
                 ifc.dispatchex, bstr1, dw1) == S_OK ? 1 : 0;
@@ -2483,7 +2483,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw1), ARGEND)
                 != TCL_OK)
                 goto ret_error;
-            hr = S_OK;
+            // hr = S_OK; -> Already set at top of function
             result.type = TRT_BOOL;
             result.value.bval = ifc.dispatchex->lpVtbl->DeleteMemberByDispID(
                 ifc.dispatchex, dw1) == S_OK ? 1 : 0;
@@ -3095,6 +3095,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (objc != 4)
                 goto badargs;
             s = ObjToLPWSTR_NULL_IF_EMPTY(objv[3]);
+            result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->SetTargetComputer(
                 ifc.taskscheduler, s);
             break;
@@ -3438,18 +3439,21 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 5307: // SetApplicationName
             if (objc != 4)
                 goto badargs;
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetApplicationName(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
         case 5308: // SetParameters
             if (objc != 4)
                 goto badargs;
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetParameters(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
         case 5309: // SetWorkingDirectory
             if (objc != 4)
                 goto badargs;
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetWorkingDirectory(
                 ifc.task, Tcl_GetUnicode(objv[3]));
             break;
@@ -3457,18 +3461,21 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetMaxRunTime(ifc.task, dw1);
             break;
         case 5311: // SetPriority
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetPriority(ifc.task, dw1);
             break;
         case 5312: // SetTaskFlags
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetTaskFlags(ifc.task, dw1);
             break;
         }
@@ -3538,6 +3545,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETWSTR(s), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
+            result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile, s, dw1);
             break;
         case 5504: // Save
@@ -3691,6 +3699,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.value.ival = hr;
     }
 
+    /* Note when hr == 0, result.type can be BADFUNCTION code! */
     tcl_status = TwapiSetResult(interp, &result);
 
 vamoose:
