@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006, Ashok P. Nadkarni
+# Copyright (c) 2006-2010, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -12,7 +12,7 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi
 
-namespace eval twapi::shell::test {
+namespace eval twapi::com::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
@@ -413,4 +413,4 @@ namespace eval twapi::shell::test {
     ::tcltest::cleanupTests
 }
 
-namespace delete ::twapi::shell::test
+namespace delete ::twapi::com::test
