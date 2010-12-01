@@ -953,6 +953,7 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
 
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
+int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
