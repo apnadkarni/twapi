@@ -1398,7 +1398,7 @@ twapi::class create ::twapi::IDispatchProxy {
                     debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                 }
             }
-        } onerror {
+        } onerror {} {
             # Ignore and retry with other LCID's below
         }
 
