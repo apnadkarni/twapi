@@ -1283,6 +1283,23 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
     return TCL_OK;
 }
 
+/* Converts a Tcl_Obj to a pointer of any of the specified types */
+int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types)
+{
+    int i;
+    if (ntypes == 0 || types == NULL)
+        return ObjToOpaque(interp, obj, pvP, NULL);
+
+    for (i = 0; i < ntypes; ++i) {
+        if (ObjToOpaque(interp, obj, pvP, types[i]) == TCL_OK) {
+            Tcl_ResetResult(interp); /* Clean up errors from any prev type attempts */
+            return TCL_OK;
+        }
+    }
+
+    return TCL_ERROR;
+}
+
 int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP) 
 {
     /*

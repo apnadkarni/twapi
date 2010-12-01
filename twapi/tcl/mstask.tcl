@@ -25,23 +25,23 @@ proc twapi::itaskscheduler_new {args} {
     trap {
         itaskscheduler_set_target_system $its $opts(system)
     } onerror {} {
-        iunknown_release $its
+        IUnknown_Release $its
         # Rethrow the original error
         error $errorResult $errorInfo $errorCode
     }
     return $its
 }
 
-interp alias {} ::twapi::itaskscheduler_release {} ::twapi::iunknown_release
+interp alias {} ::twapi::itaskscheduler_release {} ::twapi::IUnknown_Release
 
 # Return a new task interface
 proc twapi::itaskscheduler_new_itask {its taskname} {
     set iid_itask [name_to_iid ITask]
     set iunk [ITaskScheduler_NewWorkItem $its $taskname $twapi::CLSID_ITask $iid_itask]
     trap {
-        set itask [IUnknown_QueryInterface $iunk $iid_itask ITask]
+        set itask [Twapi_IUnknown_QueryInterface $iunk $iid_itask ITask]
     } finally {
-        iunknown_release $iunk
+        IUnknown_Release $iunk
     }
     return $itask
 }
@@ -51,9 +51,9 @@ proc twapi::itaskscheduler_get_itask {its taskname} {
     set iid_itask [name_to_iid ITask]
     set iunk [ITaskScheduler_Activate $its $taskname $iid_itask]
     trap {
-        set itask [IUnknown_QueryInterface $iunk $iid_itask ITask]
+        set itask [Twapi_IUnknown_QueryInterface $iunk $iid_itask ITask]
     } finally {
-        iunknown_release $iunk
+        IUnknown_Release $iunk
     }
     return $itask
 }
@@ -83,7 +83,7 @@ proc twapi::itaskscheduler_get_tasks {its} {
             set result [concat $result $items]
         }
     } finally {
-        iunknown_release $ienum
+        IUnknown_Release $ienum
     }
     return $result
 }
@@ -417,11 +417,11 @@ interp alias {} ::twapi::itask_end {} ::twapi::IScheduledWorkItem_Terminate
 
 # Saves the specified ITask
 proc twapi::itask_save {itask} {
-    set ipersist [iunknown_query_interface $itask IPersistFile]
+    set ipersist [Twapi_IUnknown_QueryInterface $itask [name_to_iid IPersistFile] IPersistFile]
     trap {
         IPersistFile_Save $ipersist "" 1
     } finally {
-        iunknown_release $ipersist
+        IUnknown_Release $ipersist
     }
     return
 }
@@ -442,7 +442,7 @@ interp alias {} ::twapi::itask_new_itasktrigger {} ::twapi::IScheduledWorkItem_C
 # Delete a trigger
 interp alias {} ::twapi::itask_delete_itasktrigger {} ::twapi::IScheduledWorkItem_DeleteTrigger
 
-interp alias {} ::twapi::itask_release {} ::twapi::iunknown_release
+interp alias {} ::twapi::itask_release {} ::twapi::IUnknown_Release
 
 # Get an existing trigger for the task
 proc twapi::itask_get_itasktrigger {itask index} {
@@ -631,7 +631,7 @@ proc twapi::itasktrigger_configure {itt args} {
     return
 }
 
-interp alias {} ::twapi::itasktrigger_release {} ::twapi::iunknown_release
+interp alias {} ::twapi::itasktrigger_release {} ::twapi::IUnknown_Release
 
 # Create a new task from scratch. Basically a wrapper around the
 # corresponding itaskscheduler, itask and itasktrigger calls
@@ -743,12 +743,12 @@ proc twapi::mstask_create {taskname args} {
         itask_save $itask
 
     } finally {
-        iunknown_release $its
+        IUnknown_Release $its
         if {[info exists itask]} {
-            iunknown_release $itask
+            IUnknown_Release $itask
         }
         if {[info exists itt]} {
-            iunknown_release $itt
+            IUnknown_Release $itt
         }
     }
     return
@@ -768,7 +768,7 @@ proc twapi::mstask_delete {taskname args} {
         }
         itaskscheduler_delete_task $its $taskname
     } finally {
-        iunknown_release $its
+        IUnknown_Release $its
     }
     return
 }

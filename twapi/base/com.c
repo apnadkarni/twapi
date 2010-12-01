@@ -3141,9 +3141,11 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return Twapi_IEnumWorkItems_Next(interp,ifc.enumworkitems,dw1);
         }
     } else if (func < 5300) {
-        /* IScheduledWorkItem */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.scheduledworkitem,
-                        "IScheduledWorkItem") != TCL_OK)
+        /* IScheduledWorkItem - ITask inherits from this and is also allowed */
+        char *allowed_types[] = {"ITask", "IScheduledWorkItem"};
+
+        if (ObjToOpaqueMulti(interp, objv[2], (void **)&ifc.scheduledworkitem,
+                             ARRAYSIZE(allowed_types), allowed_types) != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
