@@ -1115,6 +1115,14 @@ proc twapi::_dispatch_prototype_set {guid name lcid invkind proto} {
     set _dispatch_prototype_cache($guid,$name,$lcid,$invkind) $proto
 }
 
+# Explicitly set prototypes for a guid 
+# protolist is a list of alternating name and prototype pairs.
+# Each prototype must contain the LCID and invkind fields
+proc twapi::_dispatch_prototype_load {guid protolist} {
+    foreach {name proto} $protolist {
+        _dispatch_prototype_set $guid $name [lindex $proto 1] [lindex $proto 2] $proto
+    }
+}
 
 # Used to track when interface proxies are renamed/deleted
 proc twapi::_interface_proxy_tracer {ifc oldname newname op} {
@@ -1358,51 +1366,75 @@ twapi::class create ::twapi::IDispatchProxy {
         }
 
         # Not in cache, have to look for it
-
         # Get the ITypeComp for this interface if we do not
-        # already have it.
-        my @InitTypeCompAndGuid; # Inits _guid and _typecomp
-
-        set invkind [::twapi::_string_to_invkind $invkind]
-        set lhash   [::twapi::LHashValOfName $lcid $name]
-
+        # already have it. We trap any errors because we will retry with
+        # different LCID's below.
         set proto {}
-        if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
-            [llength $binddata]} {
-            foreach {type data ifc} $binddata break
-            if {$type eq "funcdesc" ||
-                ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
-                set params {}
-                set bindti [::twapi::make_interface_proxy $ifc]
-                ::twapi::trap {
-                    set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
-                } finally {
-                    $bindti Release
+        ::twapi::trap {
+            my @InitTypeCompAndGuid; # Inits _guid and _typecomp
+
+            set invkind [::twapi::_string_to_invkind $invkind]
+            set lhash   [::twapi::LHashValOfName $lcid $name]
+
+            if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
+                [llength $binddata]} {
+                foreach {type data ifc} $binddata break
+                if {$type eq "funcdesc" ||
+                    ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
+                    set params {}
+                    set bindti [::twapi::make_interface_proxy $ifc]
+                    ::twapi::trap {
+                        set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
+                    } finally {
+                        $bindti Release
+                    }
+                    set proto [list [::twapi::kl_get $data memid] \
+                                   $lcid \
+                                   $invkind \
+                                   [::twapi::kl_get $data elemdescFunc.tdesc] \
+                                   $params]
+                } else {
+                    ::twapi::IUnknown_Release $ifc; # Don't need this but must release
+                    debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                 }
-                set proto [list [::twapi::kl_get $data memid] \
-                               $lcid \
-                               $invkind \
-                               [::twapi::kl_get $data elemdescFunc.tdesc] \
-                               $params]
-            } else {
-                ::twapi::IUnknown_Release $ifc; # Don't need this but must release
-                debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
             }
+        } onerror {
+            # Ignore and retry with other LCID's below
         }
+
+        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+        if {[llength $proto]} {
+            return $proto
+        }
+
+        # Could not find a matching prototype from the typeinfo/typecomp.
+        # We are not done yet. We will try and fall back to other lcid's
+        # Note we do this AFTER setting the prototype in the cache. That
+        # way we prevent (infinite) mutual recursion between lcid fallbacks.
+        # The fallback sequence is $lcid -> 0 -> 1033
+        # (1033 is US English). Note lcid could itself be 1033
+        # default and land up being checked twice times but that's
+        # ok since that's a one-time thing, and not very expensive either
+        # since the second go-around will hit the cache (negative). 
+        # Note the time this is really useful is when the cache has
+        # been populated explicitly from a type library since in that
+        # case many interfaces land up with a US ENglish lcid (MSI being
+        # just one example)
+
+        if {$lcid == 0} {
+            # Note this call may further recurse and return either a
+            # proto or empty (fail)
+            set proto [my @Prototype $name $invkind 1033]
+        } else {
+            set proto [my @Prototype $name $invkind 0]
+        }
+        
+        # Store it as *original* lcid.
         ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
 
         return $proto
     }
 
-    # Load a list of prototypes provided by caller
-    method @DefinePrototypes {protolist} {
-        my variable  _guid
-
-        my @InitTypeCompAndGuid
-        foreach {name proto} $protolist {
-            ::twapi::_dispatch_prototype_set $_guid $name [lindex $proto 1] [lindex $proto 2] $proto
-        }
-    }
 
     # Initialize _typecomp and _guid. Not in constructor because may
     # not always be required. Raises error if not available
@@ -1439,6 +1471,30 @@ twapi::class create ::twapi::IDispatchProxy {
             $ti Release
         }
     }            
+
+    # Some COM objects like MSI do not have TypeInfo interfaces from
+    # where the GUID and TypeComp can be extracted. So we allow caller
+    # to explicitly set the GUID so we can look up methods in the
+    # dispatch prototype cache if it was populated directly by the
+    # application.
+    method @SetGuid {guid} {
+        my variable _guid
+        if {$guid ne ""} {
+            if {[info exists _guid]} {
+                if {[string compare -nocase $guid $_guid]} {
+                    error "Attempt to set the GUID to $guid when the dispatch proxy has already been initialized to $_guid"
+                }
+            } else {
+                set _guid $guid
+            }
+        } else {
+            if {![info exists _guid]} {
+                my @InitTypeCompAndGuid
+            }
+        }
+
+        return $_guid
+    }
 
     method @GetCoClassTypeInfo {{co_clsid ""}} {
         my variable _ifc
@@ -2447,16 +2503,6 @@ twapi::class create ::twapi::Automation {
         return false
     }
 
-    method -precache {protos} {
-        my variable _proxy
-        $_proxy @DefinePrototypes $protos
-    }
-
-    method -tlb {path} {
-        my variable _proxy
-        $_proxy @LoadPrototypes $path
-    }
-
     method -default {} {
         my variable _proxy
         return [::twapi::_variant_value [$_proxy Invoke ""]]
@@ -2473,6 +2519,12 @@ twapi::class create ::twapi::Automation {
     method -interface {} {
         my variable _proxy
         return [$_proxy @Interface]
+    }
+
+    # Set/return the GUID for the interface
+    method -interfaceguid {{guid ""}} {
+        my variable _proxy
+        return [$_proxy @SetGuid $guid]
     }
 
     # Prints methods in an interface

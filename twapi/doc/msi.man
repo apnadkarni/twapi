@@ -13,6 +13,8 @@ this module is that although the Installer provides a COM type library,
 its type library may not be available on the target system. This module
 provides the required type definitions for the various interfaces.
 
+[emph "This module is experimental."]
+
 [section "Creation and Destruction of MSI objects"]
 
 MSI objects are created through TWAPI's COM interface commands. The Installer
