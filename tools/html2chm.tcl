@@ -15,7 +15,9 @@
 #  (5) Copy tklib documentation into h2c\tklib_doc
 #  (6) Copy h2c-*.cfg files into the respective directories
 #  (7) tclwinhelp.thml to h2c directory
-#  (8) Compile with above command
+#  (8) For all above files you may need to use tidy to clean up the HTML
+#      to XHTML. Command: for %f in (*.html) do ..\..\tidy -m %f
+#  (9) Compile with above command
 
 package require Tcl 8.5
 package require cmdline
