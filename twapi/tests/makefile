@@ -33,6 +33,7 @@ TESTFILES=all.tcl \
 	shell.test \
 	try.test \
 	ui.test \
+	mstask.test \
 	npecho.tcl \
 	echoservice.tcl \
 	client_share.vbs \

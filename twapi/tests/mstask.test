@@ -37,27 +37,14 @@ namespace eval twapi::mstask::test {
         return [clock format $now -format %H:%M]
     }
 
-    test mstask_create-1.0 {
-        Create a MS Scheduler Task
-    } -constraints {
-        nt systemmodificationok
-    } -body {
-        set task_name TWAPITASK_[clock clicks]
-        twapi::mstask_create $task_name -application [info nameofexecutable] -begindate [tomorrow]
-        file exists [file join $::env(SYSTEMROOT) Tasks ${task_name}.job]
-    } -cleanup {
-        twapi::mstask_delete $task_name
-    } -result 1
+    proc setup_standard_mstask {v_taskstrings v_taskints v_taskbools v_triggerstrings v_triggerints v_triggerbools} {
+        upvar $v_taskstrings taskstrings
+        upvar $v_taskints taskints
+        upvar $v_taskbools taskbools
+        upvar $v_triggerstrings triggerstrings
+        upvar $v_triggerints triggerints
+        upvar $v_triggerbools triggerbools
 
-    test mstask_create-1.1 {
-        Create a MS Scheduler Task and verify its settings using defaults
-    } -constraints {
-        nt systemmodificationok
-    } -body {
-        # TBD - account is set to "". Instead create a test account and
-        # delete it afterwards
-        set task_name TWAPITASK_[clock clicks]
-        catch {unset taskopts}
         set taskstrings(-application) [file nativename [info nameofexecutable]]
         set taskstrings(-account) ""
         set taskstrings(-comment) "This is a TWAPI test task"
@@ -89,8 +76,9 @@ namespace eval twapi::mstask::test {
         set triggerstrings(-starttime) [nextminute]
         set triggerstrings(-type) daily
 
-        eval [list twapi::mstask_create $task_name -password doesnotmatter] [array get taskbools] [array get taskstrings] [array get taskints] [array get triggerstrings] [array get triggerints] [array get triggerbools]
+    }
 
+    proc verify_mstask_values {task_name v_taskstrings v_taskints v_taskbools v_triggerstrings v_triggerints v_triggerbools} {
         set itaskscheduler [twapi::itaskscheduler_new]
         twapi::trap {
             set itask [twapi::itaskscheduler_get_itask $itaskscheduler $task_name]
@@ -142,14 +130,44 @@ namespace eval twapi::mstask::test {
             }
         }
 
-        join $result \n
-        
+        return [join $result \n]
+    }
+
+    ################################################################
+
+
+    test mstask_create-1.0 {
+        Create a MS Scheduler Task
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set task_name TWAPITASK_[clock clicks]
+        twapi::mstask_create $task_name -application [info nameofexecutable] -begindate [tomorrow]
+        file exists [file join $::env(SYSTEMROOT) Tasks ${task_name}.job]
+    } -cleanup {
+        twapi::mstask_delete $task_name
+    } -result 1
+
+    test mstask_create-1.1 {
+        Create a MS Scheduler Task and verify its settings using defaults
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        # TBD - account is set to "". Instead create a test account and
+        # delete it afterwards
+        set task_name TWAPITASK_[clock clicks]
+
+        setup_standard_mstask taskstrings taskints taskbools triggerstrings triggerints triggerbools
+
+        eval [list twapi::mstask_create $task_name -password doesnotmatter] [array get taskbools] [array get taskstrings] [array get taskints] [array get triggerstrings] [array get triggerints] [array get triggerbools]
+
+        verify_mstask_values $task_name taskstrings taskints taskbools triggerstrings triggerints triggerbools
     } -cleanup {
         twapi::mstask_delete $task_name
     } -result ""
 
     test mstask_create-2.0 {
-        Create a MS Scheduler Task and verify that it is actually run
+        Create a MS Scheduler Task and verify that it is actually run as per schedule
     } -constraints {
         nt systemmodificationok
     } -body {
@@ -190,6 +208,67 @@ namespace eval twapi::mstask::test {
           }
     } -result 1
 
+    ################################################################
+
+    test itask_run-1.0 {
+        Run a task on demand
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set task_name TWAPITASK_[clock clicks]
+        set path [file attributes [tcltest::makeFile "" ${task_name}.tmp] -shortname]
+        twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [nextminute] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
+    } -body {
+        set its [twapi::itaskscheduler_new]
+        set itask [twapi::itaskscheduler_get_itask $its $task_name]
+        twapi::itask_run $itask
+        after 1000
+        file exists $path
+    } -cleanup {
+        twapi::itask_release $itask
+        twapi::itaskscheduler_release $its
+        twapi::mstask_delete $task_name
+    } -result 0
+
+    ################################################################
+
+    test itaskscheduler_get_tasks-1.0 {
+        Enumerate all tasks
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set task1 TWAPITASK_[clock clicks]
+        set task2 ${task1}_2
+        twapi::mstask_create $task1
+        twapi::mstask_create $task2
+    } -body {
+        set its [twapi::itaskscheduler_new]
+        set tasks [twapi::itaskscheduler_get_tasks $its]
+        expr {
+              [lsearch -exact $tasks $task1.job] >= 0 &&
+              [lsearch -exact $tasks $task2.job] >= 0
+          }
+    } -cleanup {
+        twapi::itaskscheduler_release $its
+        twapi::mstask_delete $task1
+        twapi::mstask_delete $task2
+    } -result 1
+
+    ################################################################
+
+    test itaskscheduler_get_target_system-1.0 {
+        Get the target system for a scheduler
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set its [twapi::itaskscheduler_new]
+    } -body {
+        twapi::itaskscheduler_get_target_system $its
+    } -cleanup {
+        twapi::itaskscheduler_release $its
+    } -result \\\\$::env(COMPUTERNAME)
+
+    ################################################################
 
     ::tcltest::cleanupTests
 }
