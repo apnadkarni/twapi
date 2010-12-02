@@ -1033,7 +1033,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALLCOM_(IScheduledWorkItem_EditWorkItem, 5203);
     CALLCOM_(IScheduledWorkItem_GetAccountInformation, 5204);
     CALLCOM_(IScheduledWorkItem_GetComment, 5205);
-    CALLCOM_(IScheduledWorkItem_Creator, 5206);
+    CALLCOM_(IScheduledWorkItem_GetCreator, 5206);
     CALLCOM_(IScheduledWorkItem_GetErrorRetryCount, 5207);
     CALLCOM_(IScheduledWorkItem_GetErrorRetryInterval, 5208);
     CALLCOM_(IScheduledWorkItem_GetExitCode, 5209);

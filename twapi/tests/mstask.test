@@ -1,0 +1,197 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the com.tcl
+
+# TBD - we have no way of checking whether options are set correctly
+# since wmi, vbscript etc. cannot deal with the TaskScheduler 1.0 API
+# And for some options we cannot run the tests to verify
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+namespace eval twapi::mstask::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    ################################################################
+
+    proc tomorrow {} {
+        return [clock format [clock scan tomorrow] -format %Y-%m-%d]
+    }
+
+    proc nextyear {} {
+        set year [clock format [clock seconds] -format %Y]
+        return ${year}-01-01
+    }
+
+    proc nextminute {} {
+        set now [clock seconds]
+        incr now 60
+        return [clock format $now -format %H:%M]
+    }
+
+    test mstask_create-1.0 {
+        Create a MS Scheduler Task
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set task_name TWAPITASK_[clock clicks]
+        twapi::mstask_create $task_name -application [info nameofexecutable] -begindate [tomorrow]
+        file exists [file join $::env(SYSTEMROOT) Tasks ${task_name}.job]
+    } -cleanup {
+        twapi::mstask_delete $task_name
+    } -result 1
+
+    test mstask_create-1.1 {
+        Create a MS Scheduler Task and verify its settings using defaults
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        # TBD - account is set to "". Instead create a test account and
+        # delete it afterwards
+        set task_name TWAPITASK_[clock clicks]
+        catch {unset taskopts}
+        set taskstrings(-application) [file nativename [info nameofexecutable]]
+        set taskstrings(-account) ""
+        set taskstrings(-comment) "This is a TWAPI test task"
+        set taskstrings(-creator) "Mr. Test"
+        set taskstrings(-data) [binary format c* {1 2 3}]
+        set taskbools(-deletewhendone) 1
+        set taskbools(-disabled) 1
+        set taskbools(-dontstartonbatteries) 1
+        set taskbools(-hidden) 0; # Else scheduler control panel does not show
+        set taskints(-idlewait) 10
+        set taskints(-idlewaitdeadline) 20
+        set taskbools(-killifonbatteries) 1
+        set taskints(-maxruntime) 100
+        set taskstrings(-params) "x y z"
+        set taskstrings(-priority) high
+        set taskbools(-resumesystem) 1
+        set taskbools(-restartonidleresume) true
+        set taskbools(-runonlyifloggedon) 1
+        set taskbools(-startonlyifidle) 1
+        set taskstrings(-workingdir) [tcltest::testsDirectory]
+
+        set triggerstrings(-begindate) [tomorrow]
+        set triggerbools(-disabled) 1
+        set triggerints(-duration) 15
+        set triggerstrings(-enddate) [nextyear]
+        set triggerints(-interval) 2
+        set triggerbools(-killatdurationend) true
+        set triggerints(-period) 5
+        set triggerstrings(-starttime) [nextminute]
+        set triggerstrings(-type) daily
+
+        eval [list twapi::mstask_create $task_name -password doesnotmatter] [array get taskbools] [array get taskstrings] [array get taskints] [array get triggerstrings] [array get triggerints] [array get triggerbools]
+
+        set itaskscheduler [twapi::itaskscheduler_new]
+        twapi::trap {
+            set itask [twapi::itaskscheduler_get_itask $itaskscheduler $task_name]
+            twapi::trap {
+                array set itaskinfo [twapi::itask_get_info $itask -all]
+                set itasktrigger [twapi::itask_get_itasktrigger $itask 0]
+                twapi::trap {
+                    array set itriggerinfo [twapi::itasktrigger_get_info $itasktrigger]
+                } finally {
+                    twapi::itasktrigger_release $itasktrigger
+                }
+            } finally {
+                twapi::itask_release $itask
+            }
+        } finally {
+            twapi::itaskscheduler_release $itaskscheduler
+        }
+
+        set result {}
+        foreach opt [array names taskstrings] {
+            if {[string compare -nocase $taskstrings($opt) $itaskinfo($opt)]} {
+                lappend result "Mismatch in option $opt: expected $taskstrings($opt), got $itaskinfo($opt)"
+            }
+        }
+        foreach opt [array names taskints] {
+            if {$taskints($opt) != $itaskinfo($opt)} {
+                lappend result "Mismatch in option $opt: expected $taskints($opt), got $itaskinfo($opt)"
+            }
+        }
+        foreach opt [array names taskbools] {
+            if {(! $taskbools($opt)) != (! $itaskinfo($opt))} {
+                lappend result "Mismatch in option $opt: expected $taskbools($opt), got $itaskinfo($opt)"
+            }
+        }
+
+        foreach opt [array names triggerstrings] {
+            if {[string compare -nocase $triggerstrings($opt) $itriggerinfo($opt)]} {
+                lappend result "Mismatch in option $opt: expected $triggerstrings($opt), got $itriggerinfo($opt)"
+            }
+        }
+        foreach opt [array names triggerints] {
+            if {$triggerints($opt) != $itriggerinfo($opt)} {
+                lappend result "Mismatch in option $opt: expected $triggerints($opt), got $itriggerinfo($opt)"
+            }
+        }
+        foreach opt [array names triggerbools] {
+            if {(! $triggerbools($opt)) != (! $itriggerinfo($opt))} {
+                lappend result "Mismatch in option $opt: expected $triggerbools($opt), got $itriggerinfo($opt)"
+            }
+        }
+
+        join $result \n
+        
+    } -cleanup {
+        twapi::mstask_delete $task_name
+    } -result ""
+
+    test mstask_create-2.0 {
+        Create a MS Scheduler Task and verify that it is actually run
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set task_name TWAPITASK_[clock clicks]
+        set path [file attributes [tcltest::makeFile "" ${task_name}.tmp] -shortname]
+        twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [nextminute] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
+        # Wait up to a minute for the task to run
+        set elapsed 0
+        while {[file exists $path] && $elapsed < 60000} {
+            after 500
+            incr elapsed 500
+        }
+        file exists $path
+    } -cleanup {
+        twapi::mstask_delete $task_name
+    } -result 0
+
+    test create_task-100.0 {
+        TBD - multiple triggers, different values for options that take
+        specific values, -system option
+    } -body {
+    } -result ""
+
+    ################################################################
+
+    test mstask_delete-1.0 {
+        Create a MS Scheduler Task
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set task_name TWAPITASK_[clock clicks]
+        twapi::mstask_create $task_name -application [info nameofexecutable] -begindate [tomorrow]
+        set jobpath [file join $::env(SYSTEMROOT) Tasks ${task_name}.job]
+        expr {
+              [file exists $jobpath]  &&
+              ([twapi::mstask_delete $task_name] eq "") &&
+              ![file exists $jobpath]
+          }
+    } -result 1
+
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::mstask::test

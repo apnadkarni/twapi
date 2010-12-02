@@ -814,3 +814,15 @@ proc ::setops::Intersect {A B} {
 }
 
 
+# If this is the first argument to the shell and there are more arguments
+# execute them
+if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]]} {
+    load_twapi
+    if {[catch {
+        foreach arg $argv {
+            eval $arg
+        }
+    } msg]} {
+        twapi::eventlog_log "testutil error: $msg"
+    }
+}
