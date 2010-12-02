@@ -113,7 +113,7 @@ proc twapi::itask_configure {itask args} {
         resumesystem.bool
         killonidleend.bool
         restartonidleresume.bool
-        donstartonbatteries.bool
+        dontstartonbatteries.bool
         killifonbatteries.bool
     } -maxleftover 0]
 
@@ -184,7 +184,7 @@ proc twapi::itask_configure {itask args} {
         [info exists opts(resumesystem)] ||
         [info exists opts(killonidleend)] ||
         [info exists opts(restartonidleresume)] ||
-        [info exists opts(donstartonbatteries)] ||
+        [info exists opts(dontstartonbatteries)] ||
         [info exists opts(killifonbatteries)]} {
 
         # First, get the current flags
@@ -199,7 +199,7 @@ proc twapi::itask_configure {itask args} {
             resumesystem        0x1000
             killonidleend       0x20
             restartonidleresume 0x800
-            donstartonbatteries 0x40
+            dontstartonbatteries 0x40
             killifonbatteries   0x80
         } {
             # Set / reset the bit if specified
@@ -245,7 +245,7 @@ proc twapi::itask_get_info {itask args} {
         resumesystem
         killonidleend
         restartonidleresume
-        donstartonbatteries
+        dontstartonbatteries
         killifonbatteries
         lastruntime
         nextruntime
@@ -327,18 +327,19 @@ proc twapi::itask_get_info {itask args} {
     }
 
 
-    if {$opts(idlewait) || $opts(idlewaitdeadline)} {
+    if {$opts(all) || $opts(idlewait) || $opts(idlewaitdeadline)} {
         foreach {idle dead} [IScheduledWorkItem_GetIdleWait $itask] break
-        if {$opts(idlewait)} {
+        if {$opts(all) || $opts(idlewait)} {
             lappend result -idlewait $idle
         }
-        if {$opts(idlewaitdeadline)} {
+        if {$opts(all) || $opts(idlewaitdeadline)} {
             lappend result -idlewaitdeadline $dead
         }
     }
 
     # Finally figure out and set the flags if needed
-    if {$opts(interactive) ||
+    if {$opts(all) ||
+        $opts(interactive) ||
         $opts(deletewhendone) ||
         $opts(disabled) ||
         $opts(hidden) ||
@@ -347,7 +348,7 @@ proc twapi::itask_get_info {itask args} {
         $opts(resumesystem) ||
         $opts(killonidleend) ||
         $opts(restartonidleresume) ||
-        $opts(donstartonbatteries) ||
+        $opts(dontstartonbatteries) ||
         $opts(killifonbatteries)} {
 
         # First, get the current flags
@@ -362,11 +363,11 @@ proc twapi::itask_get_info {itask args} {
             resumesystem        0x1000
             killonidleend       0x20
             restartonidleresume 0x800
-            donstartonbatteries 0x40
+            dontstartonbatteries 0x40
             killifonbatteries   0x80
         } {
-            if {$opts($opt)} {
-                lappend result $opt [expr {($flags & $val) ? true : false}]
+            if {$opts(all) || $opts($opt)} {
+                lappend result -$opt [expr {($flags & $val) ? true : false}]
             }
         }
     }
@@ -461,12 +462,12 @@ interp alias {} ::twapi::itask_get_itasktrigger_string {} ::twapi::IScheduledWor
 proc twapi::itasktrigger_get_info {itt} {
     array set data [ITaskTrigger_GetTrigger $itt]
 
-    set result(-begindate) "$data(wBeginYear)-$data(wBeginMonth)-$data(wBeginDay)"
+    set result(-begindate) [format %04d-%02d-%02d $data(wBeginYear) $data(wBeginMonth) $data(wBeginDay)]
 
-    set result(-starttime) "$data(wStartHour):$data(wStartMinute)"
+    set result(-starttime) [format %02d:%02d $data(wStartHour) $data(wStartMinute)]
 
     if {$data(rgFlags) & 1} {
-        set result(-enddate) "$data(wEndYear)-$data(wEndMonth)-$data(wEndDay)"
+        set result(-enddate) [format %04d-%02d-%02d $data(wEndYear) $data(wEndMonth) $data(wEndDay)]
     } else {
         set result(-enddate) ""
     }
@@ -662,7 +663,7 @@ proc twapi::mstask_create {taskname args} {
         resumesystem.bool
         killonidleend.bool
         restartonidleresume.bool
-        donstartonbatteries.bool
+        dontstartonbatteries.bool
         killifonbatteries.bool
         begindate.arg
         enddate.arg
@@ -708,7 +709,7 @@ proc twapi::mstask_create {taskname args} {
             resumesystem
             killonidleend
             restartonidleresume
-            donstartonbatteries
+            dontstartonbatteries
             killifonbatteries
         } {
             if {[info exists opts($opt)]} {
@@ -719,7 +720,7 @@ proc twapi::mstask_create {taskname args} {
 
         # Now get a trigger and configure it
         set itt [lindex [itask_new_itasktrigger $itask] 1]
-        set cmd [list itasktrigger_configure $itt -disabled false]
+        set cmd [list itasktrigger_configure $itt]
         foreach opt {
             begindate
             enddate
