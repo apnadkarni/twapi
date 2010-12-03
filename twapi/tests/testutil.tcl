@@ -395,7 +395,6 @@ proc wmic_get {obj fields {clause ""}} {
         if {$line eq ""} continue
         # Assumes no "," in content
         lappend data [split $line ,]
-        puts [llength [split $line ,]]:[split $line ,]
     }
 
     # First element is field names, not in same order as $fields. Also,
