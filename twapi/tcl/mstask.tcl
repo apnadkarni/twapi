@@ -639,7 +639,9 @@ interp alias {} ::twapi::itasktrigger_release {} ::twapi::IUnknown_Release
 proc twapi::mstask_create {taskname args} {
 
     # The options are a combination of itask_configure and
-    # itasktrigger_configure
+    # itasktrigger_configure.
+    # Note the disabled option default to false explicitly. This is because
+    # the task trigger will default to disabled unless specifically set.
     array set opts [parseargs args {
         system.arg
         application.arg
@@ -656,7 +658,7 @@ proc twapi::mstask_create {taskname args} {
         idlewaitdeadline.int
         interactive.bool
         deletewhendone.bool
-        disabled.bool
+        {disabled.bool false}
         hidden.bool
         runonlyifloggedon.bool
         startonlyifidle.bool
@@ -733,6 +735,7 @@ proc twapi::mstask_create {taskname args} {
             weekdays
             daysofmonth
             months
+            disabled
         } {
             if {[info exists opts($opt)]} {
                 lappend cmd -$opt $opts($opt)
