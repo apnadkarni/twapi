@@ -10,6 +10,8 @@ PACKAGEDIR=$(TWAPI_SRCROOT)\dist
 !endif
 
 TESTFILES=all.tcl \
+	echoservice.tcl \
+	npecho.tcl \
 	testutil.tcl \
 	base.test \
 	clipboard.test \
@@ -18,6 +20,7 @@ TESTFILES=all.tcl \
 	device.test \
 	disk.test \
 	eventlog.test \
+	mstask.test \
 	namedpipe.test \
 	network.test \
 	nls.test \
@@ -33,9 +36,6 @@ TESTFILES=all.tcl \
 	shell.test \
 	try.test \
 	ui.test \
-	mstask.test \
-	npecho.tcl \
-	echoservice.tcl \
 	client_share.vbs \
 	disk.vbs \
 	osinfo.vbs \
