@@ -170,13 +170,15 @@ namespace eval twapi::mstask::test {
         Create a MS Scheduler Task and verify that it is actually run as per schedule
     } -constraints {
         nt systemmodificationok
+    } -setup {
+        puts stderr "This test may take up to a minute to run"
     } -body {
         set task_name TWAPITASK_[clock clicks]
         set path [file attributes [tcltest::makeFile "" ${task_name}.tmp] -shortname]
         twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [nextminute] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
-        # Wait up to a minute for the task to run
+        # Wait up to a minute+ for the task to run
         set elapsed 0
-        while {[file exists $path] && $elapsed < 60000} {
+        while {[file exists $path] && $elapsed < 70000} {
             after 500
             incr elapsed 500
         }
