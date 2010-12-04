@@ -49,3 +49,4 @@ puts "Test environment: Tcl [info patchlevel], [expr {[info exists ::env(TWAPI_P
 
 eval tcltest::configure $argv
 tcltest::runAllTests
+puts "All done."

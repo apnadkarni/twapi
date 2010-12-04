@@ -503,9 +503,15 @@ namespace eval ::twapi::process::test {
                 set result "Wrong number of elements in -imagedata field"
                 break
             }
-            if {!([string is integer -strict [lindex $imagedata 0]] ||
-                  [string is integer -strict [lindex $imagedata 0]] ||
-                  [string is integer -strict [lindex $imagedata 0]])} {
+	    if {[info exists ::tcl_platform(pointerSize)] &&
+		$::tcl_platform(pointerSize) == 8} {
+		set size wide
+	    } else {
+		set size integer
+	    }
+            if {!([string is $size -strict [lindex $imagedata 0]] ||
+                  [string is $size -strict [lindex $imagedata 0]] ||
+                  [string is $size -strict [lindex $imagedata 0]])} {
                 set result "Non-integer image data field"
             }
         }

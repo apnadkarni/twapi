@@ -1810,7 +1810,7 @@ namespace eval twapi::security::test {
         nt systemmodificationok
     } -body {
         set username "${test_account_prefix}_[clock clicks]"
-        twapi::new_user $username
+        twapi::new_user $username -password [::twapi::new_uuid]
         array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
         expr {
               $userinfo(-comment) eq "" &&

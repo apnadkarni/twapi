@@ -500,7 +500,7 @@ namespace eval twapi::osinfo::test {
         set optval [twapi::get_memory_info -maxappaddr]
         verify_kl_fields $optval [list -maxappaddr]
         lindex $optval 1
-    } -result 0x7ffeffff
+    } -result 0x[format %lx [expr {$::tcl_platform(machine) eq "amd64" ? 0x7fffffeffff : 0x7ffeffff}]]
 
     ###
     test get_memory_info-7.0 {
@@ -561,93 +561,6 @@ namespace eval twapi::osinfo::test {
         verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
     } -result 1
 
-
-    ################################################################
-
-    test get_open_handles-1.0 {
-        Get list of all open handles in the system
-    } -constraints {
-        nt unsupported
-    } -body {
-        foreach elem [twapi::get_open_handles] {
-            verify_kl_fields $elem {-handle -name -pid -type}
-        }
-    } -result ""
-
-    ###
-    test get_open_handles-2.0 {
-        Get list of all open handles for a process
-    } -constraints {
-        nt unsupported
-    } -body {
-        set pid [get_explorer_pid]
-        set msg ""
-        foreach elem [twapi::get_open_handles -pid $pid] {
-            verify_kl_fields $elem {-handle -name -pid -type}
-            if {[get_kl_field $elem -pid] != $pid} {
-                set msg "Pid of handle does not match"
-                break
-            }
-        }
-        set msg
-    } -result ""
-
-    ###
-    set testnum -1
-    foreach type {
-        desktop directory event file iocompletion key mutant port process
-        section semaphore thread timer token windowstation
-    } {
-        # TBD - also need a test that the correct and complete
-        # information is returned
-        test get_open_handles-3.[incr testnum] "Get list of all open handles of type $type" -constraints {
-            nt unsupported
-        } -body {
-            set msg ""
-            foreach elem [twapi::get_open_handles -type $type] {
-                verify_kl_fields $elem {-handle -name -pid -type}
-                set handle_type [get_kl_field $elem -type]
-                if {$handle_type != $type} {
-                    set msg "Type of handle $handle_type does not match expected type $type"
-                    break
-                }
-            }
-            set msg
-        } -result ""
-    }
-
-    ################################################################
-
-    # TBD also try all these test with integer type specifiers
-    test get_open_handle_pids-1.0 {
-        Get list of processes that have an open handle (default type)
-    } -constraints {
-        nt unsupported
-    } -body {
-        set filename [file join $::env(USERPROFILE) "Start Menu"]
-        foreach {name pids} [twapi::get_open_handle_pids $filename] break
-        expr {[lsearch $pids [get_explorer_pid]] >= 0}
-    } -result 1
-
-    ###
-    set testnum 1
-    foreach {
-        type resourcename
-    } [list \
-           windowstation {\Windows\WindowStations\WinSta0} \
-           mutant        {\BaseNamedObjects\ExplorerIsShellMutex} \
-           key           {\REGISTRY\MACHINE\SOFTWARE\Classes\CLSID}  \
-           desktop       {\Default} \
-           file          [file join $::env(USERPROFILE) "Start Menu"] \
-          ] {
-
-        test get_open_handle_pids-[incr testnum].0 "Get list of processes that have an open handle ($type type)" -constraints {
-            nt unsupported
-        } -body {
-            foreach {name pids} [twapi::get_open_handle_pids $resourcename -type $type] break
-            expr {[lsearch $pids [get_explorer_pid]] >= 0}
-        } -result 1
-    }
 
     ################################################################
 
@@ -915,8 +828,12 @@ namespace eval twapi::osinfo::test {
     } -setup {
         catch {unset arr}
     } -body {
-        array set arr [twapi::read_inifile_section Windows]
-        info exists arr(Programs)
+        array set arr [twapi::read_inifile_section Mail]
+	expr {
+	      [info exists arr(Mapi)] ||
+	      [info exists arr(MAPI)] ||
+	      [info exists arr(mapi)]
+	  }
     } -result 1
 
     ###
@@ -928,8 +845,12 @@ namespace eval twapi::osinfo::test {
     } -setup {
         catch {unset arr}
     } -body {
-        array set arr [twapi::read_inifile_section Patterns -inifile control.ini]
-        info exists arr(Boxes)
+        array set arr [twapi::read_inifile_section drivers -inifile system.ini]
+	expr {
+	      [info exists arr(wave)] ||
+	      [info exists arr(Wave)] ||
+	      [info exists arr(WAVE)]
+	  }
     } -result 1
 
 
@@ -984,8 +905,8 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::read_inifile_key Patterns Boxes -inifile control.ini]
-    } -result 8
+        llength [twapi::read_inifile_key drivers wave -inifile system.ini]
+    } -result 1
 
     ###
 
@@ -994,8 +915,8 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::read_inifile_key paTteRns bOxeS -inifile control.ini]
-    } -result 8
+        llength [twapi::read_inifile_key dRiVeRs wAVe -inifile system.ini]
+    } -result 1
 
     ################################################################
 

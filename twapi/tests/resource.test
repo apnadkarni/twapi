@@ -128,7 +128,7 @@ namespace eval twapi::resource::test {
     } -returnCodes error -result "The specified resource type cannot be found in the image file."
 
     test delete_resource-1.1 {
-        Delete a non-existent resource
+        Delete a non-existent resource and make sure existing resources not modified
     } -constraints {
         nt
     } -setup {
@@ -136,8 +136,8 @@ namespace eval twapi::resource::test {
         file copy $rctest_dll $resfile
     } -body {
         set resh [twapi::begin_resource_update $resfile]
-        catch {twapi::delete_resource $resh 9 101 1034}
-        twapi::end_resource_update $resh
+	catch {twapi::delete_resource $resh 9 101 1034}
+	catch {twapi::end_resource_update $resh}
         set reslibh [twapi::load_library $resfile -datafile]
         binary scan [twapi::read_resource $reslibh 9 101 1033] H* hex
         set hex
