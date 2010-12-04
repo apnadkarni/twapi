@@ -179,7 +179,11 @@ namespace eval twapi::share::test {
         # type must be "mapped" or "unmapped"
         variable testshares
         upvar 0 testshares(export_name_$type) export_name
-        if {[catch {exec net share $export_name /delete} msg]} {
+
+        # We use delete_share, not "net share" because the latter
+        # prompts about open files and on at leat 64bit win28r2, the
+        # client keeps the directory open making the close fail.
+        if {[catch {twapi::delete_share $export_name} msg]} {
             if {![string match "This shared resource does not exist*" $msg]} {
                 error "Error while deleting share: $msg"
             }
