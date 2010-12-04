@@ -817,6 +817,12 @@ proc twapi::hostname_to_address {name args} {
         }
     } onerror {TWAPI_WIN32 11001} {
         # Ignore - 11001 -> no such host, so just return empty list
+    } onerror {TWAPI_WIN32 11002} {
+        # Ignore - 11002 -> no such host, non-authoritative
+    } onerror {TWAPI_WIN32 11003} {
+        # Ignore - 11001 -> no such host, non recoverable
+    } onerror {TWAPI_WIN32 11004} {
+        # Ignore - 11004 -> no such host, though valid syntax
     }
 
     set name2addr($name) $addrs
@@ -831,11 +837,21 @@ proc twapi::port_to_service {port} {
         return $port2name($port)
     }
 
+    set name ""
     trap {
         set name [lindex [twapi::getnameinfo [list 0.0.0.0 $port] 2] 1]
+	if {[string is integer $name] && $name == $port} {
+	    # Some platforms return the port itself if no name exists
+	    set name ""
+	}
+    } onerror {TWAPI_WIN32 11001} {
+        # Ignore - 11001 -> no such host, so just return empty list
+    } onerror {TWAPI_WIN32 11002} {
+        # Ignore - 11002 -> no such host, non-authoritative
+    } onerror {TWAPI_WIN32 11003} {
+        # Ignore - 11001 -> no such host, non recoverable
     } onerror {TWAPI_WIN32 11004} {
-        # Lookup failed
-        set name ""
+        # Ignore - 11004 -> no such host, though valid syntax
     }
 
     # If we did not get a name back, check for some well known names
