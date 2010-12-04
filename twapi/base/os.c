@@ -167,19 +167,20 @@ static int TwapiGetProfileSectionHelper(
 
     bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &bufsz);
     while (1) {
+        DWORD bufchars = bufsz/sizeof(WCHAR);
         if (lpAppName) {
             if (lpFileName)
                 numchars = GetPrivateProfileSectionW(lpAppName,
-                                                     bufP, bufsz,
+                                                     bufP, bufchars,
                                                      lpFileName);
             else
-                numchars = GetProfileSectionW(lpAppName, bufP, bufsz);
+                numchars = GetProfileSectionW(lpAppName, bufP, bufchars);
         } else {
             /* Get section names. Note lpFileName can be NULL */
-            numchars = GetPrivateProfileSectionNamesW(bufP, bufsz, lpFileName);
+            numchars = GetPrivateProfileSectionNamesW(bufP, bufchars, lpFileName);
         }
 
-        if (numchars >= (bufsz-2)) {
+        if (numchars >= (bufchars-2)) {
             /* Buffer not big enough */
             MemLifoPopFrame(&ticP->memlifo);
             bufsz = 2*bufsz;

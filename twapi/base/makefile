@@ -69,6 +69,7 @@ OBJS  = \
 	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\network.obj \
+	$(OBJDIR)\os.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
 	$(OBJDIR)\power.obj \
@@ -82,10 +83,9 @@ OBJS  = \
 	$(OBJDIR)\service.obj \
 	$(OBJDIR)\share.obj \
 	$(OBJDIR)\shell.obj \
-	$(OBJDIR)\system.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\threadpool.obj \
-	$(OBJDIR)\try.obj \
+	$(OBJDIR)\trap.obj \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
 	$(OBJDIR)\ui.obj \
