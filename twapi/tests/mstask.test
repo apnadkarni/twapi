@@ -37,6 +37,12 @@ namespace eval twapi::mstask::test {
         return [clock format $now -format %H:%M]
     }
 
+    proc onehourlater {} {
+        set now [clock seconds]
+        incr now 3600
+        return [clock format $now -format %H:%M]
+    }
+
     proc setup_standard_mstask {v_taskstrings v_taskints v_taskbools v_triggerstrings v_triggerints v_triggerbools} {
         upvar $v_taskstrings taskstrings
         upvar $v_taskints taskints
@@ -46,7 +52,6 @@ namespace eval twapi::mstask::test {
         upvar $v_triggerbools triggerbools
 
         set taskstrings(-application) [file nativename [info nameofexecutable]]
-        set taskstrings(-account) ""
         set taskstrings(-comment) "This is a TWAPI test task"
         set taskstrings(-creator) "Mr. Test"
         set taskstrings(-data) [binary format c* {1 2 3}]
@@ -174,7 +179,11 @@ namespace eval twapi::mstask::test {
         puts stderr "This test may take up to a minute to run"
     } -body {
         set task_name TWAPITASK_[clock clicks]
-        set path [file attributes [tcltest::makeFile "" ${task_name}.tmp] -shortname]
+	# We do not use tclTests::makeFile because we won't file to
+	# be left behind if the test fails.
+	set path [file join [tcltest::temporaryDirectory] ${task_name}.tmp]
+	close [open $path w+]
+        set path [file attributes $path -shortname]
         twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [nextminute] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
         # Wait up to a minute+ for the task to run
         set elapsed 0
@@ -187,9 +196,11 @@ namespace eval twapi::mstask::test {
         twapi::mstask_delete $task_name
     } -result 0
 
-    test create_task-100.0 {
-        TBD - multiple triggers, different values for options that take
+    test task-100.0 {
+        TBD - placeholder multiple triggers, different values for options with
         specific values, -system option
+    } -constraints {
+	TBD
     } -body {
     } -result ""
 
@@ -219,12 +230,17 @@ namespace eval twapi::mstask::test {
     } -setup {
         set task_name TWAPITASK_[clock clicks]
         set path [file attributes [tcltest::makeFile "" ${task_name}.tmp] -shortname]
-        twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [nextminute] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
+	# -account "" needed else fails on Win2kr8 (at least, maybe others)
+        twapi::mstask_create $task_name -account "" -application [info nameofexecutable] -starttime [onehourlater] -type once -workingdir [tcltest::testsDirectory] -params "testutil.tcl \"file delete $path\""
     } -body {
         set its [twapi::itaskscheduler_new]
         set itask [twapi::itaskscheduler_get_itask $its $task_name]
         twapi::itask_run $itask
-        after 1000
+	set elapsed 0
+        while {[file exists $path] && $elapsed < 5000} {
+            after 100
+            incr elapsed 100
+        }
         file exists $path
     } -cleanup {
         twapi::itask_release $itask
