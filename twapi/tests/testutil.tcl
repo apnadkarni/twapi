@@ -228,19 +228,18 @@ proc get_explorer_tid {} {
 }
 
 proc get_notepad_path {} {
-    set path [file join $::env(WINDIR) "notepad.exe"]
+    set path [auto_execok notepad.exe]
     return [string tolower [file nativename $path]]
 }
 
 proc get_cmd_path {} {
-    set path [file join $::env(WINDIR) system32 "cmd.exe"]
+    set path [auto_execok cmd.exe]
     return [string tolower [file nativename $path]]
 }
 
 proc get_temp_path {{name ""}} {
     return [file join $::tcltest::temporaryDirectory $name]
 }
-
 
 proc get_system_pid {} {
     global system_pid
