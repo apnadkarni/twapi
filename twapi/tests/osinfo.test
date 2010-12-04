@@ -847,9 +847,9 @@ namespace eval twapi::osinfo::test {
     } -body {
         array set arr [twapi::read_inifile_section drivers -inifile system.ini]
 	expr {
-	      [info exists arr(wave)] ||
-	      [info exists arr(Wave)] ||
-	      [info exists arr(WAVE)]
+	      [info exists arr(timer)] ||
+	      [info exists arr(Timer)] ||
+	      [info exists arr(TIMER)]
 	  }
     } -result 1
 
@@ -905,7 +905,7 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::read_inifile_key drivers wave -inifile system.ini]
+        llength [twapi::read_inifile_key drivers timer -inifile system.ini]
     } -result 1
 
     ###
@@ -915,7 +915,7 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::read_inifile_key dRiVeRs wAVe -inifile system.ini]
+        llength [twapi::read_inifile_key dRiVeRs tIMeR -inifile system.ini]
     } -result 1
 
     ################################################################
