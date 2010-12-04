@@ -226,7 +226,11 @@ namespace eval twapi::network::test {
         twapi::hostname_to_address xno.xsuch.xname.xcom -async {lappend ::hostname_to_address_result}
         vwait ::hostname_to_address_result
         foreach {hostname status ipaddrs} $::hostname_to_address_result break
-        expr {($hostname eq "xno.xsuch.xname.xcom") && ($status eq "success") && [llength $ipaddrs] == 0}
+        expr {
+	      $hostname eq "xno.xsuch.xname.xcom" &&
+	      ((($status eq "success") && [llength $ipaddrs] == 0) ||
+	       $status eq "fail")
+	   }
     } -result 1
 
     ###
@@ -238,6 +242,7 @@ namespace eval twapi::network::test {
     } -setup {
         # Prepopulate cache
         twapi::hostname_to_address [resolvable_hostname]
+	puts stderr "This test make take upto a minute"
     } -body {
         set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
         # Wait for 30 seconds since Windows also keep a cache and that
