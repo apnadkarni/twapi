@@ -246,7 +246,7 @@ namespace eval twapi::disk::test {
             if {[info exists ftime($opt)]} {
                 set secs [twapi::large_system_time_to_secs $ftime($opt)]
                 if {$secs != $fstat($tclopt)} {
-                    puts stderr "File $fn $opt field value $secs does not match the value $fstat($tclopt) returned by Tcl"
+                    puts "File $fn $opt field value $secs does not match the value $fstat($tclopt) returned by Tcl"
                     return 0
                 }
             }
@@ -641,10 +641,10 @@ namespace eval twapi::disk::test {
                 twapi::set_drive_label $drive $oldlabel
             }
         }]} {
-            puts stderr "ERROR: COULD NOT RESET DRIVE VOLUME NAMES"
-            puts stderr "Original volume names were as follows:"
+            puts "ERROR: COULD NOT RESET DRIVE VOLUME NAMES"
+            puts "Original volume names were as follows:"
             foreach {drive oldlabel} [array get oldlabels] {
-                puts stderr "$drive $oldlabel"
+                puts "$drive $oldlabel"
             }
             ::tcltest::cleanupTests
             exit 1

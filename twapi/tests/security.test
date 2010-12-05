@@ -4934,8 +4934,8 @@ namespace eval twapi::security::test {
         twapi::impersonate_user $test_account_name $test_account_password -type interactive
     } -body {
         twapi::revert_to_self
-        twapi::get_current_user
-    } -result $::env(COMPUTERNAME)\\$::env(USERNAME)
+        string tolower [twapi::get_current_user]
+    } -result [string tolower $::env(COMPUTERNAME)\\$::env(USERNAME)]
 
     ################################################################
 
