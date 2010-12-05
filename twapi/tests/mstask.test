@@ -176,7 +176,7 @@ namespace eval twapi::mstask::test {
     } -constraints {
         nt systemmodificationok
     } -setup {
-        puts stderr "This test may take up to a minute to run"
+        puts "This test may take up to a minute to run"
     } -body {
         set task_name TWAPITASK_[clock clicks]
 	# We do not use tclTests::makeFile because we won't file to
