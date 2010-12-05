@@ -41,12 +41,10 @@ namespace eval twapi::device::test {
     ################################################################
 
     test get_devinfoset_registry_properties-1.0 {
-        TBD
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -54,7 +52,7 @@ namespace eval twapi::device::test {
     } -constraints {
         nt TBD
     } -body {
-    } -result TBD
+    } -result ""
 
     test create_file-2.0 {
         Create a file with a specific integrity value

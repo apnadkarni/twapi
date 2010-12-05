@@ -173,11 +173,8 @@ namespace eval twapi::network::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -body {
-        TBD
     } -cleanup {
-        TBD
     } -result ""
 
     ################################################################
@@ -424,8 +421,7 @@ namespace eval twapi::network::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -458,8 +454,7 @@ namespace eval twapi::network::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -468,8 +463,7 @@ namespace eval twapi::network::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
     ################################################################

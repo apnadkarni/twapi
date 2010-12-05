@@ -1435,7 +1435,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD because do not know how to create an impersonation type token
+        We do not know how to create an impersonation type token
         twapi::get_token_type $tok
     } -cleanup {
     } -result "impersonation"
@@ -2486,8 +2486,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
 
     ################################################################
@@ -2598,8 +2597,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2608,8 +2606,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2618,8 +2615,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2628,8 +2624,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2638,8 +2633,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2672,9 +2666,9 @@ namespace eval twapi::security::test {
         nt TBD
     } -body {
         set l [twapi::get_local_group_members Administrators \
-                   -system TBD]
+                   -system ???]
         expr { [lsearch $l Administrator] >= 0 }
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2683,8 +2677,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
 
     ################################################################
@@ -2694,8 +2687,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2704,8 +2696,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -2714,8 +2705,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt systemmodificationok TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -4771,7 +4761,7 @@ namespace eval twapi::security::test {
     } -setup {
         ensure_test_account
     } -body {
-        TBD because I think a AD server is needed for this
+        I think a AD server is needed for this
         twapi::close_token [twapi::open_user_token $test_account_name $test_account_password -type interactive] 
     } -result ""
 
@@ -4840,7 +4830,7 @@ namespace eval twapi::security::test {
     } -setup {
         ensure_test_account
     } -body {
-        TBD because need to clarify what new_credentials does. Seems
+        because need to clarify what new_credentials does. Seems
         the local creds are unchanged and only affects outgoing connections
         twapi::impersonate_user $test_account_name $test_account_password -type new_credentials
         string toupper [twapi::get_current_user]
@@ -4897,7 +4887,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD because cannot open token once at anonymous level
+        because cannot open token once at anonymous level
         twapi::impersonate_self anonymous
         set tok [twapi::open_thread_token]
         set level [twapi::get_token_impersonation_level $tok]
@@ -4912,7 +4902,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD because do not seem to be able to open token after setting
+        because do not seem to be able to open token after setting
         level to identification
         twapi::impersonate_self identification
         set tok [twapi::open_thread_token]
@@ -4944,10 +4934,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -4956,10 +4944,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -4968,10 +4954,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -4980,10 +4964,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 

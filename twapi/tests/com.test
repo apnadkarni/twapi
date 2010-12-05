@@ -141,7 +141,6 @@ namespace eval twapi::com::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
     } -result ""
 
     ###
@@ -151,7 +150,6 @@ namespace eval twapi::com::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
     } -result ""
 
     ###
@@ -161,8 +159,8 @@ namespace eval twapi::com::test {
     } -constraints {
         TBD nt
     } -body {
-        TBD - need to find a COM object that supports this
-        [twapi::comobj TBD -nocustommarshal true] -destroy
+        need to find a COM object that supports this
+        [twapi::comobj PROGID -nocustommarshal true] -destroy
     } -result ""
 
     ###
@@ -242,11 +240,8 @@ namespace eval twapi::com::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -cleanup {
-        TBD
     } -body {
-        TBD
     } -result TBD
 
 

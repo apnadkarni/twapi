@@ -43,7 +43,6 @@ namespace eval twapi::console::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
     } -result 1
 
     ###
@@ -97,7 +96,7 @@ namespace eval twapi::console::test {
         nt TBD
     } -body {
         Need user interaction for this
-    } -result TBD
+    } -result ""
 
     ################################################################
 
@@ -162,7 +161,7 @@ namespace eval twapi::console::test {
         # writable if just -mode write is specified. Tested this
         # directly from C as well.
         set hbuf [twapi::create_console_screen_buffer -mode write]
-        # TBD - need a test that it is not readable
+        # TBD - eed a test that it is not readable
         set readonly [catch {twapi::write_console $hbuf "dummy string"} msg]
         twapi::close_handles $hbuf
         set readonly
