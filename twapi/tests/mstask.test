@@ -197,7 +197,7 @@ namespace eval twapi::mstask::test {
     } -result 0
 
     test task-100.0 {
-        TBD - placeholder multiple triggers, different values for options with
+        Placeholder multiple triggers, different values for options with
         specific values, -system option
     } -constraints {
 	TBD

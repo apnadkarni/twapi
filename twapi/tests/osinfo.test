@@ -659,12 +659,11 @@ namespace eval twapi::osinfo::test {
     ################################################################
 
     test set_system_parameters_info-1.0 {
-        set_system_parameters_info tests TBD
+        set_system_parameters_info tests 
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
 
     ################################################################
@@ -1081,12 +1080,10 @@ namespace eval twapi::osinfo::test {
     ################################################################
 
     test find_domain_controller-1.0 {
-        TBD
     } -constraints {
-        nt TBD
+        nt
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ################################################################
 
