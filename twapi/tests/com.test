@@ -359,12 +359,9 @@ namespace eval twapi::com::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -cleanup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
     ###
 
@@ -373,12 +370,9 @@ namespace eval twapi::com::test {
     } -constraints {
         nt TBD
     } -setup {
-        TBD
     } -cleanup {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result ""
 
 
     ################################################################

@@ -324,7 +324,6 @@ namespace eval twapi::console::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
     } -result 1
 
     ################################################################

@@ -1099,8 +1099,7 @@ namespace eval ::twapi::process::test {
     } -body {
         Note virtualization is not enabled when running under administrator ?
         Would need to fire up a process a another user ?
-        TBD
-    } -result TBD
+    } -result ""
 
     test get_process_info-6.0 {
         Verify get_process_info -elevation for another process
@@ -1848,8 +1847,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result 1
 
     ###
     test virtualized_process-3.0 {
@@ -1872,8 +1870,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result 1
 
     ################################################################
 
@@ -2148,12 +2145,11 @@ namespace eval ::twapi::process::test {
     ################################################################
 
     test process_in_administrators-1.0 {
-        TBD - process_in_administrators
+        process_in_administrators
     } -constraints {
         nt TBD
     } -body {
-        TBD
-    } -result TBD
+    } -result 1
 
     ################################################################
 
