@@ -96,7 +96,7 @@ proc system_drive_root {} {
 
 # Start notepad and wait till it's up and running.
 proc notepad_exec {args} {
-    set pid [eval [list exec notepad.exe] $args &]
+    set pid [eval [list exec [get_notepad_path]] $args &]
     if {![twapi::process_waiting_for_input $pid -wait 5000]} {
         error "Timeout waiting for notepad to be ready for input"
     }

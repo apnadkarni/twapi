@@ -1,3 +1,10 @@
+# Important constraints to be controlled from command line:
+# systemmodificationok - will run tests that modify system configuration
+#  such as file shares. They are supposed to clean up after themselves
+#  but that may itself fail after test failures
+# userInteraction - tcltest builtin - expect user to respond in some way
+#  for the test case to run
+
 package require Tcl
 package require tcltest 2.2
 source [file join [file dirname [info script]] testutil.tcl]
