@@ -1171,7 +1171,7 @@ proc twapi::register_hotkey {hotkey script args} {
         append
     } -maxleftover 0]
 
-    set script [lrange $script 0 end]; # Ensure a valid list
+#    set script [lrange $script 0 end]; # Ensure a valid list
 
     foreach {modifiers vk} [_hotkeysyms_to_vk $hotkey] break
     set hkid "twapi_hk_${vk}_$modifiers"
