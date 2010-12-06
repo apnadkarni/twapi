@@ -10,6 +10,9 @@ global twapi_test_dir
 set twapi_test_script_dir [file dirname [info script]]
 
 proc load_twapi {} {
+    if {[namespace exists ::twapi]} {
+        return
+    }
 
     # If in source dir, we load that twapi in preference to installed package
     if {[file exists ../tcl/twapi.tcl]} {
