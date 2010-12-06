@@ -22,6 +22,39 @@ namespace eval twapi::ui::test {
     # Offset from window edge to system menu or close buttons
     set button_edge_offset 5
 
+    proc hotkey_test {hk} {
+        set ::twapi_test_hotkey_result fail
+
+        set id [twapi::register_hotkey $hk "set ::twapi_test_hotkey_result success"]
+        twapi::trap {
+            set after_id [after 5000 "set ::twapi_test_hotkey_result timeout"]
+            puts "Please press [string toupper $hk] within 5 seconds"
+            vwait ::twapi_test_hotkey_result
+            after cancel $after_id
+        } finally {
+            twapi::unregister_hotkey $id
+        }
+        return $::twapi_test_hotkey_result
+    }
+
+    # script1 and script2  must set ::$globalvar !
+    proc hotkey_test_append {hk globalvar script1 script2 append} {
+        set id [twapi::register_hotkey $hk $script1]
+        twapi::trap {
+            if {$append eq "append"} {
+                twapi::register_hotkey $hk $script2 -append
+            } else {
+                twapi::register_hotkey $hk $script2
+            }
+            set after_id [after 5000 "set ::$globalvar timeout"]
+            puts "Please press [string toupper $hk] within 5 seconds"
+            vwait ::$globalvar
+            after cancel $after_id
+        } finally {
+            twapi::unregister_hotkey $id
+        }
+    }
+
    ################################################################
 
     test get_toplevel_windows-1.0 {
@@ -1082,12 +1115,12 @@ namespace eval twapi::ui::test {
     test get_shell_window-1.0 {
         Get shell window
     } -constraints {
-        nt TBD
-    } -setup {
+        nt
     } -body {
-        set x {What is a shell window? Always get "" on any system}
-    } -cleanup {
-    } -result ""
+        # Don't really know how to verify it is a shell window other than
+        # class ?
+        twapi::get_window_class [twapi::get_shell_window]
+    } -result Progman
 
     ################################################################
 
@@ -1357,22 +1390,36 @@ namespace eval twapi::ui::test {
     ################################################################
 
     test get_active_window_for_thread-1.0 {
+        Get the active window for a thread
     } -constraints {
-        nt TBD
+        nt
     } -setup {
+        set np_pid [notepad_exec]
+        set np_tid [lindex [lindex [twapi::get_process_info $np_pid -tids] 1] 0]
     } -body {
+        expr {
+              [twapi::get_active_window_for_thread $np_tid] eq [notepad_top $np_pid]
+          }
     } -cleanup {
-    } -result TBD
+        twapi::end_process $np_pid -wait $end_process_timeout
+    } -result 1
 
     ################################################################
 
     test get_focus_window_for_thread-1.0 {
+        Get the active window for a thread
     } -constraints {
-        nt TBD
+        nt
     } -setup {
+        set np_pid [notepad_exec]
+        set np_tid [lindex [lindex [twapi::get_process_info $np_pid -tids] 1] 0]
     } -body {
+        expr {
+              [twapi::get_parent_window [twapi::get_focus_window_for_thread $np_tid]] eq [notepad_top $np_pid]
+          }
     } -cleanup {
-    } -result TBD
+        twapi::end_process $np_pid -wait $end_process_timeout
+    } -result 1
 
     ################################################################
 
@@ -1552,7 +1599,7 @@ namespace eval twapi::ui::test {
     test set_window_zorder-5.0 {
         Set window zorder to the bottom most
     } -constraints {
-        nt TBD
+        nt
     } -setup {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
@@ -1560,7 +1607,7 @@ namespace eval twapi::ui::test {
         twapi::set_window_zorder $np_win bottomlayer
     } -cleanup {
         twapi::end_process $np_pid -wait $end_process_timeout
-    } -result "" -returnCodes {error}
+    } -result "" 
 
     ################################################################
 
@@ -2706,9 +2753,14 @@ namespace eval twapi::ui::test {
     test block_input-1.0 {
         Block input
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-        #twapi::block_input
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY."]
+        twapi::block_input
+        puts "Hit ENTER if characters were blocked, else any other key followed by ENTER"
+         after 5000 "twapi::end_process $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
+        vwait ::wait_over
+        gets stdin
     } -result ""
 
     ################################################################
@@ -2716,10 +2768,17 @@ namespace eval twapi::ui::test {
     test unblock_input-1.0 {
         Unblock input
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-        #twapi::unblock_input
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER A FEW SECONDS. WILL EXIT AUTOMATICALLY."]
+        twapi::block_input
+        puts "Hit ENTER if characters were INITIALLY blocked, then UNBLOCKED. Else enter any other key followed by ENTER"
+        after 3000 twapi::unblock_input
+        after 5000 "twapi::end_process $np_pid -force ; set ::wait_over 1"
+        vwait ::wait_over
+        gets stdin
     } -result ""
+
 
     ################################################################
 
@@ -2784,38 +2843,99 @@ namespace eval twapi::ui::test {
     ################################################################
 
     test register_hotkey-1.0 {
-        Register a hot key
+        Register a hot key using a ctrl seq
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-    } -result ""
+        hotkey_test ctrl-d
+    } -result success
+
+    test register_hotkey-1.1 {
+        Register a hot key using a ctrl-shift seq
+    } -constraints {
+        nt userInteraction
+    } -body {
+        hotkey_test ctrl-shift-h
+    } -result success
+
+    test register_hotkey-1.2 {
+        Register a hot key using a ctrl-alt seq
+    } -constraints {
+        nt userInteraction
+    } -body {
+        hotkey_test ctrl-alt-s
+    } -result success
+
+    test register_hotkey-1.3 {
+        Register a hot key using an alt seq
+    } -constraints {
+        nt userInteraction
+    } -body {
+        hotkey_test alt-f12
+    } -result success
+
+    test register_hotkey-1.5 {
+        Register a hot key using a ctrl-alt virtual key code
+    } -constraints {
+        nt userInteraction
+    } -body {
+        puts "NOTE: Virtual code 65 is the letter 'a'"
+        hotkey_test ctrl-alt-65
+    } -result success
+
 
     ###
 
     test register_hotkey-2.0 {
-        Register multiple scripts for a hot key with -append
+        Register multiple scripts for a hot key without -append
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-    } -result ""
-
-    ###
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1" "append ::twapi_test_hotkey_result script2" noappend
+        set ::twapi_test_hotkey_result
+    } -result "script2"
 
     test register_hotkey-2.1 {
-        Test break return from hot key scripts
+        Register multiple scripts for a hot key with -append
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-    } -result ""
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1" "append ::twapi_test_hotkey_result script2" append
+        set ::twapi_test_hotkey_result
+    } -result "script1script2"
+
+    test register_hotkey-2.2 {
+        Register multiple scripts for a hot key with -append and break
+    } -constraints {
+        nt userInteraction
+    } -body {
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1 ; break" "append ::twapi_test_hotkey_result script2" append
+        set ::twapi_test_hotkey_result
+    } -result "script1"
+
 
     ################################################################
 
     test unregister_hotkey-1.0 {
         Unregister a hot key
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-    } -result ""
+        # This registers and unregisters
+        if {[hotkey_test ctrl-alt-s] ne "success"} {
+            error "Did not succeed setting up hotkeys."
+        }
+        # Verify hotkey is not active any more
+        set after_id [after 5000 "set ::twapi_test_hotkey_result timeout"]
+        puts "Please press CTRL-ALT-S again within 5 seconds (to verify unregistration)"
+        vwait ::twapi_test_hotkey_result
+        after cancel $after_id
+        # Result should be timeout
+        set ::twapi_test_hotkey_result
+    } -result timeout
 
     ################################################################
 
@@ -3094,10 +3214,17 @@ namespace eval twapi::ui::test {
 
     test set_desktop_wallpaper-1.0 {
     } -constraints {
-        nt TBD
+        nt systemmodificationok userInteraction
+    } -setup {
+        set orig_path [twapi::get_desktop_wallpaper]
     } -body {
-        TBD
-    } -result TBD
+        twapi::set_desktop_wallpaper [file join $::env(WINDIR) "blue lace 16.bmp"]
+        puts -nonewline "Hit Enter if desktop changed. Type any other character and then Enter if desktop did not change:"
+        flush stdout
+        gets stdin
+    } -cleanup {
+        twapi::set_desktop_wallpaper $orig_path
+    } -result ""
 
     ################################################################
 
