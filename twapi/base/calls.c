@@ -4303,7 +4303,7 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
                 ? TRT_DWORD_PTR : TRT_GETLASTERROR;
             break;
         case 10004:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc-4, objv+4,
                              GETWSTR(s), GETNULLIFEMPTY(s2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
