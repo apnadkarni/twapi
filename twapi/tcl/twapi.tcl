@@ -1682,7 +1682,7 @@ proc twapi::_get_public_procs {} {
 
     # Init with C built-ins - there does not seem an easy auto way
     # of getting these. 
-    lappend public_procs kl_get parseargs recordarray twine win32_error trap
+    lappend public_procs kl_get parseargs recordarray twine trap
 
     # Also export aliases but not "try" as it conflicts
     # with 8.6 try
@@ -1715,7 +1715,7 @@ proc twapi::import_commands {} {
     export_public_commands
     uplevel namespace import twapi::*
 }
-
+q
 if {![info exists ::twapi::package_name]} {
     set ::twapi::package_name "twapi"
 }
