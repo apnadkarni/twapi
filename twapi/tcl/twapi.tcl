@@ -1715,7 +1715,7 @@ proc twapi::import_commands {} {
     export_public_commands
     uplevel namespace import twapi::*
 }
-q
+
 if {![info exists ::twapi::package_name]} {
     set ::twapi::package_name "twapi"
 }
