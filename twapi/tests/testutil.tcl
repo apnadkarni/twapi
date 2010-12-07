@@ -678,6 +678,37 @@ proc tclsh_slave_wait {fd {ms 1000}} {
     }
 }
 
+# Return expected path to the wish shell (assumed called from tclsh)
+proc wish_path {} {
+    set path [info nameofexecutable]
+    set fn [file tail $path]
+    if {![regsub {tclsh} $fn wish fn]} {
+        error "Could not locate wish."
+    }
+    set path [file join [file dirname $path] $fn]
+    if {![file exists $path]} {
+        error "Could not locate wish."
+    }
+    return $path
+}
+
+# Intended to be called as a separate wish process else allocate_console
+# will fail.
+proc allocate_console_in_wish {{title "wish dos console"}} {
+    twapi::allocate_console
+    twapi::set_console_title $title
+}
+
+# Intended to be called as a separate wish process else allocate_console
+# will fail.
+proc free_console_in_wish {{title "wish dos console"}} {
+    twapi::allocate_console
+    twapi::set_console_title $title
+    after 5000
+    twapi::free_console
+}
+
+
 # Used for matching results
 proc oneof {allowed_values value} {
     return [expr {[lsearch -exact $allowed_values $value] >= 0}]
