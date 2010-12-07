@@ -16,7 +16,7 @@ proc tcltest::test args {
     set i [lsearch -exact $args "-constraints"]
     if {$i >= 0} {
         if {[lsearch -exact [lindex $args [incr i]] "TBD"] >= 0} {
-            lappend ::placeholders $test_id
+            lappend ::placeholders "$test_id - [string trim [lindex $args 1]]"
         } else {
             incr ::implemented
         }
@@ -42,7 +42,7 @@ foreach cmd [twapi::_get_public_procs] {
 
 puts "Implemented tests: $implemented"
 puts "\nPlaceholders: [llength $placeholders]"
-puts [join [lsort $placeholders] \n]
+puts [join $placeholders \n];   # Don't sort - want in file order
 puts "\nMissing tests:[llength $::missing]"
 puts [join [lsort $missing] \n]
 

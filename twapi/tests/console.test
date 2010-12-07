@@ -36,13 +36,28 @@ namespace eval twapi::console::test {
         -bgwhite
     }
 
+    proc console_event_handler {event} {
+        set ::console_test_event $event
+        return 1
+    }
+
     ################################################################
 
     test allocate_console-1.0 {
         Allocate a console
     } -constraints {
-        nt TBD
+        nt 
     } -body {
+        set title "allocate_console-1.0"
+        set pid [exec [wish_path] testutil.tcl "allocate_console_in_wish $title" &]
+        after 100
+        if {[llength [twapi::find_windows -pids [list $pid] -text $title]] != 1} {
+            # Wait a bit more
+            after 1000
+        }
+        llength [twapi::find_windows -pids [list $pid] -text $title]
+    } -cleanup {
+        twapi::end_process $pid -force
     } -result 1
 
     ###
@@ -93,10 +108,11 @@ namespace eval twapi::console::test {
     test console_read-1.0 {
         Read the console
     } -constraints {
-        nt TBD
+        nt userInteraction
     } -body {
-        Need user interaction for this
-    } -result ""
+        puts "Type the following: 'twapi rules'"
+        twapi::console_read [twapi::get_console_handle stdin]
+    } -result "twapi rules\r\n"
 
     ################################################################
 
@@ -322,31 +338,99 @@ namespace eval twapi::console::test {
     test free_console-1.0 {
         Free a console
     } -constraints {
-        nt TBD
+        nt
     } -body {
-    } -result 1
+        set title "free_console-1.0"
+        set pid [exec [wish_path] testutil.tcl "free_console_in_wish $title" &]
+        after 100
+        if {[llength [twapi::find_windows -pids [list $pid] -text $title]] != 1} {
+            # Wait a bit more
+            after 1000
+        }
+        if {[llength [twapi::find_windows -pids [list $pid] -text $title]] != 1} {
+            error "Failure locating console window"
+        }
+        # Wait for target to close the console
+        after 3000
+        if {[llength [twapi::find_windows -pids [list $pid] -text $title]]} {
+            after 2000
+        }
+        llength [twapi::find_windows -pids [list $pid] -text $title]
+    } -cleanup {
+        twapi::end_process $pid -force
+    } -result 0
+
+    ################################################################
+
+    test set_console_control_handler-1.0 {
+        Handle a Ctrl-C event for the console
+    } -constraints {
+        nt userInteraction
+    } -body {
+        twapi::set_console_control_handler [namespace current]::console_event_handler
+        after 5000 {set ::console_test_event timeout}
+        puts "Please hit Ctrl-C"
+        vwait ::console_test_event
+        set ::console_test_event
+    } -cleanup {
+        twapi::set_console_control_handler ""
+    } -result ctrl-c
+
+    test set_console_control_handler-1.1 {
+        Handle a Ctrl-break event for the console
+    } -constraints {
+        nt userInteraction
+    } -body {
+        twapi::set_console_control_handler [namespace current]::console_event_handler
+        after 5000 {set ::console_test_event timeout}
+        puts "Please hit Ctrl-break"
+        vwait ::console_test_event
+        set ::console_test_event
+    } -cleanup {
+        twapi::set_console_control_handler ""
+    } -result ctrl-break
+
+    test set_console_control_handler-2.1 {
+        Reset the control handler for the console
+    } -constraints {
+        nt userInteraction TBD
+    } -body {
+        Not clear how to test console handler reset without exiting.
+    } -result ctrl-break
 
     ################################################################
 
     test generate_console_control_event-1.0 {
         Generate a Ctrl-C event for the console
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        twapi::set_console_control_handler [namespace current]::console_event_handler
     } -body {
-        # Unfortunately, this test will cause the tclsh to exit!
         twapi::generate_console_control_event ctrl-c
-    } -result 1
+        after 1000 {set ::console_test_event timeout}
+        vwait ::console_test_event
+        set ::console_test_event
+    } -cleanup {
+        twapi::set_console_control_handler ""
+    } -result ctrl-c
 
     ###
 
     test generate_console_control_event-1.1 {
-        Generate a Ctrl-break event for the console
+        Generate a Ctrl-Break event for the console
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        twapi::set_console_control_handler [namespace current]::console_event_handler
     } -body {
-        # Unfortunately, this test will cause the tclsh to exit!
         twapi::generate_console_control_event ctrl-break
-    } -result 1
+        after 1000 {set ::console_test_event timeout}
+        vwait ::console_test_event
+        set ::console_test_event
+    } -cleanup {
+        twapi::set_console_control_handler ""
+    } -result ctrl-break
 
     ###
 
