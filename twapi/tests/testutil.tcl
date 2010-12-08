@@ -539,6 +539,21 @@ proc verify_priv_list {privs} {
 }
 
 
+# Prompt the user
+proc yesno {question {default yes}} {
+    set answer ""
+    while {![string is boolean -strict $answer]} {
+        puts -nonewline "$question \[$default\] : "
+        flush stdout
+        set answer [string trim [gets stdin]]
+#        puts $answer
+        if {$answer eq ""} {
+            set answer $default
+        }
+    }
+    return [expr {!! $answer}]
+}
+
 # Read commands from standard input and execute them.
 # From Welch.
 proc start_commandline {} {
