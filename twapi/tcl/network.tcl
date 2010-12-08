@@ -708,7 +708,11 @@ proc twapi::terminate_tcp_connections {args} {
         }
         # Matching conditions fulfilled
         # 12 is "delete" code
-        SetTcpEntry [list 12 $aconn(-localaddr) $aconn(-localport) $aconn(-remoteaddr) $aconn(-remoteport)]
+        trap {
+            SetTcpEntry [list 12 $aconn(-localaddr) $aconn(-localport) $aconn(-remoteaddr) $aconn(-remoteport)]
+        } onerror {TWAPI_WIN32 87} {
+            # Ignore, the connection no longer exists
+        }
     }
 }
 
