@@ -17,6 +17,28 @@ namespace eval twapi::network::test {
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
+    variable get_tcp_connections_fields {
+        -state
+        -localaddr
+        -remoteaddr
+        -localport
+        -remoteport
+        -pid
+        -modulename
+        -modulepath
+        -bindtime
+    }
+
+    variable get_udp_connections_fields {
+            -localaddr
+            -localport
+            -pid
+            -modulename
+            -modulepath
+            -bindtime
+    }
+
+
     proc validate_netif_indices {indices} {
         foreach i $indices {
             if {![string is integer $i]} {return 0}
@@ -36,8 +58,16 @@ namespace eval twapi::network::test {
         return yahoo.com
     }
 
-    # Only validates fields that are present
-    proc validate_connection {conndata} {
+    # Validate a connection
+    # fields, if present, specifies fields that must be present
+    # matchdata, if present, specifies field values that must match
+    proc validate_connection [list conndata \
+                                  [list fields $get_tcp_connections_fields] \
+                                  [list matchdata {}]] {
+        if {[llength $fields]} {
+            verify_kl_fields $conndata $fields false
+        }
+        array set match $matchdata
         array set conn $conndata
         # state does not exist for UDP, only TCP
         if {[info exists conn(-state)]} {
@@ -84,9 +114,33 @@ namespace eval twapi::network::test {
             }
         }
 
-        # TBD - how and when to verify module modulepath etc.
+        # Verify any specified fields that should match
+        foreach {opt val} $matchdata {
+            if {![info exists conn($opt)]} {
+                return "Field $opt was expected to contain $val, but did not exist."
+            }
+            if {$val ne $conn($opt)} {
+                return "Field $opt value is '$conn($opt)', expected '$val'"
+            }
+        }
 
         return
+    }
+
+    proc validate_connections [list conns \
+                                   [list mincount 1] \
+                                   [list fields $get_tcp_connections_fields] \
+                                  [list matchdata {}]] {
+        if {[llength $conns] < $mincount} {
+            return "Connection list contains only [llength $conns] connections. Expected at least $mincount"
+        }
+        foreach conn $conns {
+            set msg [validate_connection $conn $fields $matchdata]
+            if {$msg ne ""} {
+                return $msg
+            }
+        }
+        return ""
     }
 
     ################################################################
@@ -394,79 +448,236 @@ namespace eval twapi::network::test {
     } -constraints {
         nt
     } -body {
-        set conns [twapi::get_tcp_connections -all]
-        verify_list_kl_fields $conns {
-            -state
-            -localaddr
-            -remoteaddr
-            -localport
-            -remoteport
-            -pid
-            -modulename
-            -modulepath
-            -bindtime
-        }
-        set msg ""
-        foreach conn $conns {
-            set msg [validate_connection $conn]
-            if {$msg ne ""} break;
-        }
-        set msg
+        validate_connections [twapi::get_tcp_connections -all] 1
     } -result ""
 
     ###
 
     test get_tcp_connections-2.0 {
-        Get TCP connections
-    } -constraints {
-        nt TBD
+        Get TCP connections -modulepath
+    } -setup {
+        # Make sure at least one connection established
+        set server_socket [socket -server [list set ::connection_establised 1] 9341]
+        set client_socket [socket 127.0.0.1 9341]
     } -body {
+        array set conns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
+        set conns(-modulepath)
+    } -cleanup {
+        close $client_socket
+        close $server_socket
+    } -result [info nameofexecutable] -match path
+
+    test get_tcp_connections-2.1 {
+        Get TCP connections -modulename
+    } -setup {
+        # Make sure at least one connection established
+        set server_socket [socket -server [list set ::connection_establised 1] 9341]
+        set client_socket [socket 127.0.0.1 9341]
+    } -body {
+        array set conns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
+        set conns(-modulename)
+    } -cleanup {
+        close $client_socket
+        close $server_socket
+    } -result [file tail [info nameofexecutable]] -match path
+
+    set testnum 1
+    foreach opt $get_tcp_connections_fields {
+        test get_tcp_connections-2.[incr testnum] "get_tcp_connections $opt" -body "validate_connections \[twapi::get_tcp_connections $opt\] 1 $opt" -result ""}
+
+    test get_tcp_connections-3.0 {
+        get_tcp_connections -matchstate listen
+    } -body {
+        validate_connections [twapi::get_tcp_connections -all -matchstate listen] 1 $get_tcp_connections_fields [list -state listen]
     } -result ""
+
+    test get_tcp_connections-3.1 {
+        get_tcp_connections -matchstate estab
+    } -setup {
+        # Make sure at least one connection established
+        set server_socket [socket -server [list set ::connection_establised 1] 9341]
+        set client_socket [socket 127.0.0.1 9341]
+    } -body {
+        validate_connections [twapi::get_tcp_connections -all -matchstate estab] 1 $get_tcp_connections_fields [list -state estab]
+    } -cleanup {
+        close $client_socket
+        close $server_socket
+    } -result ""
+
+    test get_tcp_connections-3.2 {
+        get_tcp_connections -matchstate close_wait
+    } -setup {
+        # Make sure at least one connection established
+        set server_socket [socket -server [list set ::connection_establised 1] 9342]
+        set client_socket [socket 127.0.0.1 9342]
+    } -body {
+        close $client_socket;   # Should put in close_wait state
+        validate_connections [twapi::get_tcp_connections -all -matchstate close_wait] 1 $get_tcp_connections_fields [list -state close_wait]
+    } -cleanup {
+        close $server_socket
+    } -result ""
+
+    # For the following, it's hard to guarantee connection state, so min
+    # value for number of connections is 0
+    set testnum 2
+    foreach state {closed syn_sent syn_rcvd fin_wait1 fin_wait2 closing last_ack time_wait delete_tcb} {
+        test get_tcp_connections-3.[incr testnum] "get_tcp_connections -all -matchstate $state" -body "validate_connections \[twapi::get_tcp_connections -all -matchstate $state\] 0 [list $get_tcp_connections_fields] {-state $state}" -result ""}
+
+    set testnum 3
+    foreach {matchopt opt val} [list \
+                                    -matchlocaladdr -localaddr 127.0.0.1 \
+                                    -matchremoteaddr -remoteaddr 127.0.0.1 \
+                                    -matchlocalport -localport 9341 \
+                                    -matchremoteport -remoteport 9341 \
+                                    -matchpid -pid  [pid]] {
+        test get_tcp_connections-[incr testnum].0 \
+            "get_tcp_connections -all $matchopt $val" \
+            -setup {
+                set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
+                set client_socket [socket 127.0.0.1 9341]
+            } -body "validate_connections \[twapi::get_tcp_connections -all $matchopt $val\] 1 [list $get_tcp_connections_fields] {$opt $val}" \
+            -cleanup {
+                close $client_socket
+                close $server_socket
+            } -result ""
+    }
+
 
     ################################################################
 
     test get_udp_connections-1.0 {
         Get UDP connections
-    } -constraints {
-        nt
     } -body {
-        set conns [twapi::get_udp_connections -all]
-        verify_list_kl_fields $conns {
-            -localaddr
-            -localport
-            -pid
-            -modulename
-            -modulepath
-            -bindtime
-        }
-        set msg ""
-        foreach conn $conns {
-            set msg [validate_connection $conn]
-            if {$msg ne ""} break;
-        }
-        set msg
+        validate_connections [twapi::get_udp_connections -all] 1 $get_udp_connections_fields
     } -result ""
-
-    ###
 
     test get_udp_connections-2.0 {
-        Get UDP connections
-    } -constraints {
-        nt TBD
+        Get UDP connections -modulepath
     } -body {
-    } -result ""
+        array set conns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        set conns(-modulepath)
+    } -result [file join $::env(WINDIR) system32 kernel32.dll] -match path
+
+    test get_udp_connections-2.1 {
+        Get UDP connections -modulename
+    } -body {
+        array set conns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        set conns(-modulename)
+    } -result kernel32.dll -match path
+
+    set testnum 1
+    foreach opt $get_udp_connections_fields {
+        test get_udp_connections-2.[incr testnum] "get_udp_connections $opt" -body "validate_connections \[twapi::get_tcp_connections $opt\] 1 $opt" -result ""}
+
+    set testnum 2
+    foreach {matchopt opt val} [list \
+                                    -matchlocaladdr -localaddr 127.0.0.1 \
+                                    -matchlocalport -localport 1900 \
+                                    -matchpid -pid  [lindex [lindex [twapi::get_udp_connections -pid -matchlocalport 123] 0] 1]] {
+        test get_udp_connections-[incr testnum].0 {
+            get_udp_connections -all $matchopt $val
+        } -body "validate_connections \[twapi::get_udp_connections -all $matchopt $val\] 1 [list $get_udp_connections_fields] {$opt $val}" \
+            -result ""
+    }
 
     ################################################################
 
     test terminate_tcp_connections-1.0 {
-        Terminate TCP connections
-    } -constraints {
-        nt TBD
+        Terminate TCP connections for a specific process (-matchpid)
+    } -setup {
+        set nconns [llength [twapi::get_tcp_connections -pid]]
+        set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
+        set client_socket [socket 127.0.0.1 9341]
+        set client_socket2 [socket 127.0.0.1 9341]
     } -body {
-    } -result ""
+        # Assumes no other extraneous connections are created on the system
+        twapi::terminate_tcp_connections -matchpid [pid]
+        set conns [twapi::get_tcp_connections -pid]
+        # Both active connections should be gone (server listen socket
+        # will still be present). This also verifies somewhat that
+        # we did not kill connections from other processes.
+        list [expr {[llength $conns]-$nconns}] \
+            [twapi::get_tcp_connections -pid -matchpid [pid]]
+    } -cleanup {
+        close $client_socket
+        close $client_socket2
+        close $server_socket
+    } -result [list 1 [list [list -pid [pid]]]]
 
-    ################################################################
-    ################################################################
+    test terminate_tcp_connections-2.0 {
+        Terminate TCP connections for a remote port (-matchremoteport)
+    } -setup {
+        set nconns [llength [twapi::get_tcp_connections -pid]]
+        set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
+        set server_socket2 [socket -server [list lappend ::connection_establised 1] 9342]
+        set client_socket [socket 127.0.0.1 9341]
+        set client_socket2 [socket 127.0.0.1 9342]
+    } -body {
+        # Assumes no other extraneous connections are created on the system
+        twapi::terminate_tcp_connections -matchremoteport 9342
+        set conns [twapi::get_tcp_connections -pid]
+        # One active connections should be gone (both server listen socket
+        # will still be present). This also verifies somewhat that
+        # we did not kill connections from other processes.
+        list [expr {[llength $conns]-$nconns}] \
+            [twapi::get_tcp_connections -pid -matchpid [pid]]
+    } -cleanup {
+        close $server_socket
+        close $server_socket2
+        close $client_socket
+        close $client_socket2
+    } -result [list 4 [list [list -pid [pid]] [list -pid [pid]] [list -pid [pid]] [list -pid [pid]]] ]
+
+    test terminate_tcp_connections-3.0 {
+        Terminate TCP connections for a remote address (-matchremoteaddress)
+    } -setup {
+        foreach {addrA addrB} [twapi::get_ip_addresses] break
+        set nconns [llength [twapi::get_tcp_connections -pid]]
+        set server_socket [socket -server [list lappend ::connection_establised 1] -myaddr $addrA 9341]
+        set server_socket2 [socket -server [list lappend ::connection_establised 1] -myaddr $addrB 9342]
+        set client_socket [socket $addrA 9341]
+        set client_socket2 [socket $addrB 9342]
+    } -body {
+        # Assumes no other extraneous connections are created on the system
+        twapi::terminate_tcp_connections -matchremoteaddr $addrA
+        set conns [twapi::get_tcp_connections -pid]
+        # One active connections should be gone (both server listen socket
+        # will still be present). This also verifies somewhat that
+        # we did not kill connections from other processes.
+        list [expr {[llength $conns]-$nconns}] \
+            [twapi::get_tcp_connections -pid -matchpid [pid]]
+    } -cleanup {
+        close $server_socket
+        close $server_socket2
+        close $client_socket
+        close $client_socket2
+    } -result [list 4 [list [list -pid [pid]] [list -pid [pid]] [list -pid [pid]] [list -pid [pid]]] ]
+
+    test terminate_tcp_connections-4.0 {
+        Terminate TCP connections for a local address (-matchlocaladdress)
+    } -setup {
+        foreach {addrA addrB} [twapi::get_ip_addresses] break
+        set nconns [llength [twapi::get_tcp_connections -pid]]
+        set server_socket [socket -server [list lappend ::connection_establised 1] -myaddr $addrA 9341]
+        set server_socket2 [socket -server [list lappend ::connection_establised 1] -myaddr $addrB 9342]
+        set client_socket [socket $addrA 9341]
+        set client_socket2 [socket $addrB 9342]
+    } -body {
+        # Assumes no other extraneous connections are created on the system
+        twapi::terminate_tcp_connections -matchlocaladdr $addrA
+        set conns [twapi::get_tcp_connections -pid]
+        # One active connections should be gone (both server listen socket
+        # will still be present). This also verifies somewhat that
+        # we did not kill connections from other processes.
+        list [expr {[llength $conns]-$nconns}] \
+            [twapi::get_tcp_connections -pid -matchpid [pid]]
+    } -cleanup {
+        close $server_socket
+        close $server_socket2
+        close $client_socket
+        close $client_socket2
+    } -result [list 4 [list [list -pid [pid]] [list -pid [pid]] [list -pid [pid]] [list -pid [pid]]] ]
+
     ################################################################
 
     ::tcltest::cleanupTests
