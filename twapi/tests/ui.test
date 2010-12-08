@@ -2757,11 +2757,10 @@ namespace eval twapi::ui::test {
     } -body {
         set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY."]
         twapi::block_input
-        puts "Hit ENTER if characters were blocked, else any other key followed by ENTER"
          after 5000 "twapi::end_process $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
         vwait ::wait_over
-        gets stdin
-    } -result ""
+        yesno "Were characters blocked?"
+    } -result 1
 
     ################################################################
 
@@ -2772,12 +2771,11 @@ namespace eval twapi::ui::test {
     } -body {
         set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER A FEW SECONDS. WILL EXIT AUTOMATICALLY."]
         twapi::block_input
-        puts "Hit ENTER if characters were INITIALLY blocked, then UNBLOCKED. Else enter any other key followed by ENTER"
         after 3000 twapi::unblock_input
         after 5000 "twapi::end_process $np_pid -force ; set ::wait_over 1"
         vwait ::wait_over
-        gets stdin
-    } -result ""
+        yesno "Were characters INITIALLY blocked, then UNBLOCKED?"
+    } -result 1
 
 
     ################################################################
@@ -3219,12 +3217,10 @@ namespace eval twapi::ui::test {
         set orig_path [twapi::get_desktop_wallpaper]
     } -body {
         twapi::set_desktop_wallpaper [file join $::env(WINDIR) "blue lace 16.bmp"]
-        puts -nonewline "Hit Enter if desktop changed. Type any other character and then Enter if desktop did not change:"
-        flush stdout
-        gets stdin
+        yesno "Did the desktop change?"
     } -cleanup {
         twapi::set_desktop_wallpaper $orig_path
-    } -result ""
+    } -result 1
 
     ################################################################
 
