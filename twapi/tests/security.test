@@ -4942,10 +4942,15 @@ namespace eval twapi::security::test {
     test lock_workstation-1.0 {
         Lock the workstation
     } -constraints {
-        nt TBD
-    } -setup {
+        userInteraction
     } -body {
-    } -result ""
+        if {[yesno "The work station will lock. You will need to log back in. Do you want to continue?"]} {
+            twapi::lock_workstation
+            yesno "Did the display get locked?"
+        } else {
+            lindex skipped
+        }
+    } -result 1
 
     ################################################################
 
