@@ -1875,9 +1875,9 @@ int TwapiMakeVariantParam(
             } else if (Tcl_GetDoubleFromObj(NULL, valueObj, &targetP->dblVal) == TCL_OK) {
                 targetP->vt = VT_R8;
             } else if (ObjToIDispatch(NULL, valueObj, &targetP->pdispVal) == TCL_OK) {
-                vt = VT_DISPATCH;
+                targetP->vt = VT_DISPATCH;
             } else if (ObjToIUnknown(NULL, valueObj, &targetP->punkVal) == TCL_OK) {
-                vt = VT_UNKNOWN;
+                targetP->vt = VT_UNKNOWN;
             } else {
                 /* Cannot guess type, just pass as a BSTR */
                 wcharP = Tcl_GetUnicodeFromObj(valueObj,&len);
