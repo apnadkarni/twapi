@@ -1601,7 +1601,7 @@ twapi::class create ::twapi::IDispatchExProxy {
             if {[llength $proto]} {
                 return $proto
             }
-            # Note negative results ignored, as new members may be added
+            # Note negative results ignored, as new members may be added/deleted
             # to an IDispatchEx at any time. We will try below another way.
 
         } onerror {} {
@@ -1609,53 +1609,48 @@ twapi::class create ::twapi::IDispatchExProxy {
         }
 
         # Not a simple dispatch interface method. Could be expando
-        # type which is dynamically created.
-
+        # type which is dynamically created. NOTE: The member is NOT
+        # created until the GetDispID call is made.
 
         # 10 -> case insensitive, create if required
         set dispid [my GetDispID $name 10]
 
+        # IMPORTANT : prototype retrieval results MUST NOT be cached since
+        # underlying object may add/delete members at any time.
+
         # No type information is available for dynamic members.
         # TBD - is that really true?
-        # Try at least getting the invocation type but even that is not
-        # supported by all objects
         
         # Invoke kind - 1 (method), 2 (propget), 4 (propput)
-        set invkinds [list 1 2 4];      # In case call below fails
-        
-        # We look for the following flags
-        #  0x1 - property get
-        #  0x4 - property put
-        #  0x10 - property putref
-        #  0x100 - method call
-        if {! [catch {set flags [my GetMemberProperties 0x115] }]} {
-            set invkinds [list ]
-            if {$flags & 0x100} {lappend invkinds 1}
-            if {$flags & 0x1} {lappend invkinds 2}
-            if {$flags & 0x14} {
-                # TBD - we are marking putref and put the same. Is that OK?
-                lappend invkinds 4
+        if {$invkind == 1} {
+            # method
+            set flags 0x100
+        } elseif {$invkind == 2} {
+            # propget
+            set flags 0x1
+        } elseif {$invkind == 4} {
+            # propput
+            set flags 0x4
+        } else {
+            # TBD - what about putref (flags 0x10)
+            error "Internal error: Invalid invkind value $invkind"
+        }
+
+        # Try at least getting the invocation type but even that is not
+        # supported by all objects in which case we assume it can be invoked.
+        # TBD - in that case, why even bother doing GetMemberProperties?
+        if {! [catch {
+            set flags [expr {[my GetMemberProperties 0x115] & $flags}]
+        }]} {
+            if {! $flags} {
+                return {};      # EMpty proto -> no valid name for this invkind
             }
         }
 
-        # Note - since we called the IDispatch @Prototype at least once,
-        # _typecomp and _guid are guaranteed to have been initialized
-        my variable  _guid
-
-        # Since we have retrieved them anyways, also remember the prototypes
-        # for invkinds other than what we asked for.
-        foreach i $invkinds {
-            # Note that the last element in prototype is missing indicating
-            # we do not have parameter information. Also, we assume return
-            # type of 8 (BSTR) (although the actual return type doesn't matter)
-            ::twapi::_dispatch_prototype_set $_guid $name $lcid $i [list $dispid $lcid $i 8]
-        }
-
-        if {[::twapi::_dispatch_prototype_get $_guid $name $lcid $invkind proto]} {
-            return $proto
-        } else {
-            return {}
-        }
+        # Valid invkind or object does not support GetMemberProperties
+        # Return type is 8 (BSTR) but does not really matter as 
+        # actual type will be set based on what is returned.
+        return [list $dispid $lcid $invkind 8]
     }
 }
 

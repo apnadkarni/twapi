@@ -399,6 +399,83 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test variant_param_passing-1.0 {
+        Test variant parameter of type int are passed correctly
+    } -setup {
+        set sh [twapi::comobj Shell.Application]
+    } -body {
+        # The param is a variant that may be a integer
+        # corresponding to a special folder or a string path
+        set fo [$sh NameSpace 36]
+        $fo Title
+    } -cleanup {
+        $fo -destroy
+        $sh -destroy
+    } -result WINDOWS
+
+    test variant_param_passing-1.1 {
+        Test variant parameter of type string are passed correctly
+    } -setup {
+        set sh [twapi::comobj Shell.Application]
+    } -body {
+        # The param is a variant that may be a integer
+        # corresponding to a special folder or a string path
+        set fo [$sh NameSpace [file nativename [pwd]]]
+        $fo Title
+    } -cleanup {
+        $fo -destroy
+        $sh -destroy
+    } -result [file tail [pwd]]
+
+    test variant_param_passing-1.2 {
+        Test variant parameter of type dispatch are passed correctly
+    } -setup {
+        set sh [twapi::comobj Shell.Application]
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set path [tcltest::makeFile "" [clock clicks]]; # Makes file in temp dir
+        set source_folder_obj [$sh NameSpace [file nativename [tcltest::temporaryDirectory]]]
+        set source_file_obj [$source_folder_obj ParseName [file tail $path]]
+        set ifc [$source_file_obj -interface]
+        set target_folder_obj [$sh NameSpace [file nativename $dir]]
+    } -body {
+        # The param is a variant that may be a integer
+        # corresponding to a special folder or a string path
+        # or (in this case) a folder object
+        $target_folder_obj CopyHere $ifc
+        file exists [file join $dir [file tail $path]]
+    } -cleanup {
+        twapi::IUnknown_Release $ifc
+        $source_file_obj -destroy
+        $source_folder_obj -destroy
+        $target_folder_obj -destroy
+        $sh -destroy
+    } -result 1
+
+    test variant_param_passing-2.0 {
+        Test variant parameter of type variant*
+    } -constraints {
+        userInteraction
+    } -setup {
+        set ie [twapi::comobj InternetExplorer.Application]
+    } -body {
+        # The first parameter is passed as bstr variant*
+        # The second parameter "1" is passed as int variant*
+        $ie Visible 1
+        $ie Navigate http://www.google.com 1
+        after 100;              # Give it a chance
+        yesno "Did you see two Internet Explorer windows, at least one to google (The google window *may* have to be closed manually) ?"
+    } -cleanup {
+        $ie Quit
+        $ie -destroy
+        # The second window remains so close it
+        set iewin [lindex [twapi::find_windows -text "Google*" -match glob -toplevel 1] 0]
+        if {$iewin ne ""} {
+            twapi::close_window $iewin
+        }
+    } -result 1
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
