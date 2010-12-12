@@ -541,6 +541,8 @@ proc verify_priv_list {privs} {
 
 # Prompt the user
 proc yesno {question {default yes}} {
+    # Make sure we are seen
+    twapi::set_foreground_window [twapi::get_console_window]
     set answer ""
     while {![string is boolean -strict $answer]} {
         puts -nonewline "$question \[$default\] : "
