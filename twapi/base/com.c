@@ -1761,22 +1761,6 @@ int TwapiMakeVariantParam(
         vt |= VT_BYREF;
         targetP = refvarP;
 #else
-        /* Types of VT_VARIANT (no BYREF) are passed as BSTR's
-         * unless they "look' integer or floating point. The above Google'ed
-         * method does not work with the Shell's InvokeVerb method
-         */
-        if (vt == VT_VARIANT) {
-            long ldummy;
-            double ddummy;
-            if (valueObj &&
-                Tcl_GetLongFromObj(NULL, valueObj, &ldummy) == TCL_OK) {
-                vt = VT_I4;
-            } else if (valueObj &&
-                       Tcl_GetDoubleFromObj(NULL, valueObj, &ddummy) == TCL_OK) {
-                vt = VT_R8;
-            } else
-                vt = VT_BSTR;
-        }
         targetP = varP;
 #endif
     } else {
@@ -1841,6 +1825,7 @@ int TwapiMakeVariantParam(
          * value will be stored. This will be refvarP if VT_BYREF is set
          * and varP otherwise.
          *
+         *
          */
         switch (vt & ~VT_BYREF) {
         case VT_I2:
@@ -1877,34 +1862,31 @@ int TwapiMakeVariantParam(
             break;
 
         case VT_VARIANT:
-            /* Only valid if VT_BYREF was set */
-            if (! (vt & VT_BYREF)) {
-                /*
-                 * Should not really happen since we would have set
-                 * to VT_BYREF|VT_VARIANT above
-                 */
-                TwapiInvalidVariantTypeMessage(interp, vt);
-                goto vamoose;
+            /* Value is VARIANT so we don't really know the type.
+             * Note VT_VARIANT is only valid in type descriptions and
+             * is not valid for VARIANTARG (ie. for
+             * the actual value). It has to be a concrete type.
+             * Just make a best guess. Note we pass NULL for interp
+             * when to GetLong and GetDouble as we don't want an
+             * error message left in the interp.
+             */
+            if (Tcl_GetLongFromObj(NULL, valueObj, &targetP->lVal) == TCL_OK) {
+                targetP->vt = VT_I4;
+            } else if (Tcl_GetDoubleFromObj(NULL, valueObj, &targetP->dblVal) == TCL_OK) {
+                targetP->vt = VT_R8;
+            } else if (ObjToIDispatch(NULL, valueObj, &targetP->pdispVal) == TCL_OK) {
+                vt = VT_DISPATCH;
+            } else if (ObjToIUnknown(NULL, valueObj, &targetP->punkVal) == TCL_OK) {
+                vt = VT_UNKNOWN;
             } else {
-                /* Value is VARIANT so we don't really know the type.
-                 * Just make a best guess. Note we pass NULL for interp
-                 * when to GetLong and GetDouble as we don't want an
-                 * error message left in the interp.
-                 */
-                if (Tcl_GetLongFromObj(NULL, valueObj, &targetP->lVal) == TCL_OK) {
-                    targetP->vt = VT_I4;
-                } else if (Tcl_GetDoubleFromObj(NULL, valueObj, &targetP->dblVal) == TCL_OK) {
-                    targetP->vt = VT_R8;
-                } else {
-                    /* Cannot guess type, just pass as a BSTR */
-                    wcharP = Tcl_GetUnicodeFromObj(valueObj,&len);
-                    targetP->bstrVal = SysAllocStringLen(wcharP, len);
-                    if (targetP->bstrVal == NULL) {
-                        Tcl_SetResult(interp, "Insufficient memory", TCL_STATIC);
-                        goto vamoose;
-                    }
-                    targetP->vt = VT_BSTR;
+                /* Cannot guess type, just pass as a BSTR */
+                wcharP = Tcl_GetUnicodeFromObj(valueObj,&len);
+                targetP->bstrVal = SysAllocStringLen(wcharP, len);
+                if (targetP->bstrVal == NULL) {
+                    Tcl_SetResult(interp, "Insufficient memory", TCL_STATIC);
+                    goto vamoose;
                 }
+                targetP->vt = VT_BSTR;
             }
             break;
 
@@ -1969,7 +1951,7 @@ int TwapiMakeVariantParam(
          * related type. An exception is for a byref VT_VARIANT
          */
         if ((vt & ~VT_BYREF)  != targetP->vt &&
-            vt != (VT_VARIANT | VT_BYREF)) {
+            (vt & ~VT_BYREF) != VT_VARIANT) {
             hr = VariantChangeType(targetP, targetP, 0, (VARTYPE)(vt & ~VT_BYREF));
             if (FAILED(hr)) {
                 Twapi_AppendSystemError(interp, hr);
