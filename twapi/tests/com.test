@@ -235,14 +235,71 @@ namespace eval twapi::com::test {
 
     ###
 
+    # Handler invoked when a process is started.
+    proc process_start_handler {wmi_event args} {
+        if {$wmi_event eq "OnObjectReady"} {
+            # First arg is a IDispatch interface of the event object
+            # Create a TWAPI COM object out of it
+            set ifc [lindex $args 0]
+            ::twapi::IUnknown_AddRef $ifc;   # Must hold ref before creating comobj
+            set event_obj [::twapi::comobj_idispatch $ifc]
+
+            set name [$event_obj ProcessName]
+            if {[string equal -nocase $name notepad.exe]} {
+                set ::comobj_process_starts_test \
+                    [list [$event_obj ProcessID] $name]
+            }
+
+            # Get rid of the event object
+            $event_obj -destroy
+
+        }
+    }
+
     test comobj-9.0 {
         Bind scripts to comobj events using -bind
-    } -constraints {
-        nt TBD
     } -setup {
+        set wmi [twapi::_wmi]
     } -cleanup {
+        $wmi -destroy
     } -body {
-    } -result TBD
+        # Create an WMI event sink
+        set process_event_sink [twapi::comobj wbemscripting.swbemsink]
+
+        # Attach our handler to it
+        set process_event_sink_id [$process_event_sink -bind [namespace current]::process_start_handler]
+
+        # Associate the sink with a query that polls every 1 sec for process
+        # starts.
+        set sink_ifc [$process_event_sink -interface]; # Does AddRef
+        twapi::trap {
+            $wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
+        } finally {
+            # WMI will internally do a AddRef, so we can release our AddRef on sink_ifc
+            twapi::IUnknown_Release $sink_ifc
+        }
+
+        # Wait for wmi
+        after 1000
+        set np_pid [notepad_exec]
+        after 5000 {set ::comobj_process_starts_test {}}
+        vwait ::comobj_process_starts_test
+        
+        # Cancel event notifications
+        $process_event_sink Cancel
+
+        # Unbind our callback
+        $process_event_sink -unbind $process_event_sink_id
+
+        # Get rid of all objects
+        $process_event_sink -destroy
+
+        twapi::end_process $np_pid -force true
+        expr {
+              [lindex $::comobj_process_starts_test 0] == $np_pid &&
+              [string equal -nocase [lindex $::comobj_process_starts_test 1] notepad.exe]
+          }
+    } -result 1
 
 
     ###
@@ -355,24 +412,76 @@ namespace eval twapi::com::test {
     ###
 
     test comobj-17.0 {
-        Unbind scripts from comobj events using -unbind
-    } -constraints {
-        nt TBD
+        Unbind from comobj events using -unbind
     } -setup {
-    } -cleanup {
+        set wmi [twapi::_wmi]
+        # Create an WMI event sink
+        set process_event_sink [twapi::comobj wbemscripting.swbemsink]
+
+        # Attach our handler to it
+        set process_event_sink_id [$process_event_sink -bind [namespace current]::process_start_handler]
+
+        # Associate the sink with a query that polls every 1 sec for process
+        # starts.
+        set sink_ifc [$process_event_sink -interface]; # Does AddRef
+        twapi::trap {
+            $wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
+        } finally {
+            # WMI will internally do a AddRef, so we can release our AddRef on sink_ifc
+            twapi::IUnknown_Release $sink_ifc
+        }
+
+        # Wait for wmi
+        after 1000
+        set np_pid [notepad_exec]
+        set after_id [after 5000 {set ::comobj_process_starts_test {}}]
+        vwait ::comobj_process_starts_test
+        after cancel $after_id
+        
+        twapi::end_process $np_pid -force true
+
+        if { [lindex $::comobj_process_starts_test 0] != $np_pid ||
+             [string compare -nocase [lindex $::comobj_process_starts_test 1] notepad.exe] } {
+            error "Could not set up bind for testing -unbind."
+        }
     } -body {
-    } -result ""
+        
+        # Cancel event notifications
+        $process_event_sink Cancel
+
+        # Unbind our callback
+        $process_event_sink -unbind $process_event_sink_id
+
+        # Should no longer receive events
+        set np_pid [notepad_exec]
+        after 5000 {set ::comobj_process_starts_test timeout}
+        vwait ::comobj_process_starts_test
+        
+        twapi::end_process $np_pid -force true
+
+        set ::comobj_process_starts_test
+    } -cleanup {
+
+        # Get rid of all objects
+        $process_event_sink -destroy
+
+        $wmi -destroy
+    } -result timeout
 
     ###
 
     test comobj-18.0 {
         Navigate comobj hierarchy using -with
-    } -constraints {
-        nt TBD
     } -setup {
+        set sh [twapi::comobj Shell.Application]
     } -cleanup {
+        $sh -destroy
     } -body {
-    } -result ""
+        $sh -with {
+            {NameSpace 36}
+            {ParseName system32}
+        } Path
+    } -result [file join $::env(WINDIR) system32] -match path
 
 
     ################################################################
@@ -472,6 +581,31 @@ namespace eval twapi::com::test {
         if {$iewin ne ""} {
             twapi::close_window $iewin
         }
+    } -result 1
+
+    ################################################################
+    
+    test idispatchex-1.0 {
+        Test expando members for IDispatchEx interfaces
+    } -setup {
+        set wmi [twapi::_wmi]
+    } -body {
+        set res [list ]
+        $wmi -with {
+        {ExecQuery "select * from Win32_NTLogEvent where LogFile='System' and SourceName='eventlog'"}
+        } -iterate event {
+            lappend res [$event SourceName]
+        }
+        # It is hoped there is more than one event since this test is also
+        # supposed to verify a previous bug is fixed where the prototype
+        # was cached (it should not be) resulting in failure when
+        # retrieving the second event.
+        expr {
+              [llength $res] > 1 &&
+              [string tolower [lindex $res 0]] eq "eventlog"
+          }
+    } -cleanup {
+        $wmi -destroy
     } -result 1
 
     ################################################################
