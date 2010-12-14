@@ -39,10 +39,12 @@ distribution:
         copy LICENSE $(PACKAGEDIR)
 	copy doc\announce.txt $(PACKAGEDIR)\RELNOTES.TXT
 	cd base && $(MAKE) MAKEFLAGS=$(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
+!IFDEF MULTIPLATFORM_DISTRIBUTION
 !IF "$(MACHINE)" != "AMD64"
 # Also copy the 64bit version
 	cd base && $(MAKE) MAKEFLAGS=$(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR) EMBED_SCRIPT=$(EMBED_SCRIPT) MACHINE=AMD64 distribution
 
+!ENDIF
 !ENDIF
 !IF "x$(EMBED_SCRIPT)" != "xlzma" && "x$(EMBED_SCRIPT)" != "xplain"
         cd tcl && $(MAKE) MAKEFLAGS=$(MAKEFLAGS)  PACKAGEDIR=$(PACKAGEDIR) distribution
