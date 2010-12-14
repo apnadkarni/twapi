@@ -17,6 +17,10 @@ load_twapi
 namespace eval twapi::console::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    # Some tests that generate and trap ^C 
+    ::tcltest::testConstraint singleproc [tcltest::configure -singleproc]
+
     set textattr_fields {
         -fgblue
         -fggreen
@@ -365,7 +369,7 @@ namespace eval twapi::console::test {
     test set_console_control_handler-1.0 {
         Handle a Ctrl-C event for the console
     } -constraints {
-        nt userInteraction
+        nt userInteraction singleproc
     } -body {
         twapi::set_console_control_handler [namespace current]::console_event_handler
         after 5000 {set ::console_test_event timeout}
@@ -379,7 +383,7 @@ namespace eval twapi::console::test {
     test set_console_control_handler-1.1 {
         Handle a Ctrl-break event for the console
     } -constraints {
-        nt userInteraction
+        nt userInteraction singleproc
     } -body {
         twapi::set_console_control_handler [namespace current]::console_event_handler
         after 5000 {set ::console_test_event timeout}
@@ -393,7 +397,7 @@ namespace eval twapi::console::test {
     test set_console_control_handler-2.1 {
         Reset the control handler for the console
     } -constraints {
-        nt userInteraction TBD
+        nt userInteraction singleproc TBD
     } -body {
         Not clear how to test console handler reset without exiting.
     } -result ctrl-break
@@ -403,7 +407,7 @@ namespace eval twapi::console::test {
     test generate_console_control_event-1.0 {
         Generate a Ctrl-C event for the console
     } -constraints {
-        nt
+        nt singleproc
     } -setup {
         twapi::set_console_control_handler [namespace current]::console_event_handler
     } -body {
@@ -420,7 +424,7 @@ namespace eval twapi::console::test {
     test generate_console_control_event-1.1 {
         Generate a Ctrl-Break event for the console
     } -constraints {
-        nt
+        nt singleproc
     } -setup {
         twapi::set_console_control_handler [namespace current]::console_event_handler
     } -body {
