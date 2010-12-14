@@ -35,7 +35,7 @@ TESTFILES=all.tcl \
 	services.test \
 	share.test \
 	shell.test \
-	try.test \
+	trap.test \
 	ui.test \
 	client_share.vbs \
 	disk.vbs \
