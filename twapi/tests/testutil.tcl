@@ -10,7 +10,8 @@ global twapi_test_dir
 set twapi_test_script_dir [file dirname [info script]]
 
 proc load_twapi {} {
-    if {[namespace exists ::twapi]} {
+    if {[llength [info commands ::twapi::get_build_config]]} {
+        # Already loaded. Note check for twapi namespace not sufficient
         return
     }
 
