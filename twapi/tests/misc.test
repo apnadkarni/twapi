@@ -1,0 +1,98 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for miscellaneous twapi commands
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::misc::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    ################################################################
+
+    test get_build_config-1.0 {
+        Get the build configuration
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_build_config] {
+            platform
+            build_id
+            embed_type
+            opts
+            compiler
+            compiler_version
+        }
+    } -result ""
+
+
+    test get_build_config-1.1 {
+        Get the build configuration (platform)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_build_config platform
+    } -result {x86 x64} -match oneof
+
+    test get_build_config-1.2 {
+        Get the build configuration (build_id)
+    } -constraints {
+        nt
+    } -body {
+        string is integer -strict [twapi::get_build_config build_id]
+    } -result 1
+
+    test get_build_config-1.3 {
+        Get the build configuration (embed_type)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_build_config embed_type
+    } -result {plain lzma none} -match oneof
+
+    test get_build_config-1.4 {
+        Get the build configuration (opts)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_build_config opts
+    } -result * -match glob
+
+    test get_build_config-1.5 {
+        Get the build configuration (compiler)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_build_config compiler
+    } -result {vc++ gcc} -match oneof
+
+    test get_build_config-1.6 {
+        Get the build configuration (compiler_version)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_build_config compiler_version
+    } -result {.+} -match regexp
+
+
+
+
+    ################################################################
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::misc::test

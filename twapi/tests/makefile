@@ -20,6 +20,7 @@ TESTFILES=all.tcl \
 	device.test \
 	disk.test \
 	eventlog.test \
+	misc.test \
 	mstask.test \
 	namedpipe.test \
 	network.test \
