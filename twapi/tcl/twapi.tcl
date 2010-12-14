@@ -125,7 +125,7 @@ proc load_twapi_dll {fallback_dirs} {
 }
 
 proc ::twapi::load_twapi {} {
-    if {[llength [info commands get_build_config]]} {
+    if {[llength [info commands GetTwapiBuildInfo]]} {
         return;                 # DLL already loaded or script embedded in dll
     }
 
@@ -170,12 +170,28 @@ proc ::twapi::load_twapi {} {
 
 twapi::load_twapi
 
+proc twapi::get_build_config {{key ""}} {
+    variable build_id
+    array set config [GetTwapiBuildInfo]
+    if {[info exists build_id]} {
+        set config(build_id) $build_id
+    } else {
+        set config(build_id) 0; # Running from source directory (development)
+    }
+    if {$key eq ""} {
+        return [array get config]
+    } else {
+        return $config($key)
+    }
+}
+
 # win32calls.tcl must be sourced early to make WIN32 APIs available right away
 # If this is a built .tm module or embedded, no need to source any files.
-if {([file extension [info script]] ne ".tm") &&
-    [llength [info commands twapi::get_build_info]]} {
+if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_type] eq "none"} {
     source [file join [file dirname [info script]] win32calls.tcl]
 }
+
+
 
 # Adds the specified Windows header defines into a global array
 # We will set a trace to do a lazy initialization on first read of array.
@@ -1606,7 +1622,14 @@ proc twapi::_log_timestamp {} {
 # If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
 # we expect all source files to have been appended to this file. So do not
 # source them.
-if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
+if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_type] eq "none"} {
+
+    # When running from the source dir (while developing), there is
+    # no buildid file but we do not really care
+    if {[file exists [file join [file dirname [info script]] twapi_buildid.tcl]]} {
+        source [file join [file dirname [info script]] twapi_buildid.tcl]
+    }
+
     # Source files based on build configuration
     # First, all the base files
     foreach ::twapi::_field_ {
@@ -1620,7 +1643,7 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
     }
 
     # Now the desktop files
-    if {[lsearch [::twapi::get_build_config] nodesktop] < 0} {
+    if {[lsearch [::twapi::get_build_config opts] nodesktop] < 0} {
         foreach ::twapi::_field_ {
             ui.tcl
             clipboard.tcl
@@ -1634,7 +1657,7 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
 
 
     # Now the server files
-    if {[lsearch [::twapi::get_build_config] noserver] < 0} {
+    if {[lsearch [::twapi::get_build_config opts] noserver] < 0} {
         foreach ::twapi::_field_ {
             services.tcl
             eventlog.tcl
@@ -1645,7 +1668,7 @@ if {([file extension [info script]] ne ".tm") && ! $twapi::embedded} {
 
 
     # Now the extras
-    if {[lsearch [::twapi::get_build_config] lean] < 0} {
+    if {[lsearch [::twapi::get_build_config opts] lean] < 0} {
         foreach ::twapi::_field_ {
             process2.tcl
             accounts.tcl
