@@ -35,12 +35,12 @@ nmake /s /nologo /a EMBED_SCRIPT=lzma
 
 rem Skip distribution in 64bit build - included in 32-bit builds
 IF "x%CPU%" == "xAMD64" goto singlefile
-nmake /s /nologo /a distribution
-nmake /s /nologo /a EMBED_SCRIPT=lzma distribution
+nmake /s /nologo /a MULTIPLATFORM_DISTRIBUTION=1 distribution 
+nmake /s /nologo /a EMBED_SCRIPT=lzma MULTIPLATFORM_DISTRIBUTION=1 distribution
 
 :singlefile
 nmake /s /nologo /a EMBED_SCRIPT=lzma tmdistribution
 nmake /s /nologo /a EMBED_SCRIPT=lzma dlldistribution
 
 rem Libraries
-cd base && nmake /s /nologo /a clean lib EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1
+cd base && nmake /s /nologo /a EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1 clean lib 

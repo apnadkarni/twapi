@@ -11,7 +11,7 @@ PACKAGEDIR=$(TWAPI_SRCROOT)\dist
 
 BUILDIDPATH="$(PACKAGEDIR)\twapi_buildid.tcl"
 
-# Mandatory files. win32calls.tcl and twapi.tcl must come first since this
+# Mandatory files. win32calls.tcl twapi.tcl must come first since this
 # is the order in which files are combined as well.
 BASE_TCLFILES=win32calls.tcl twapi.tcl metoo.tcl osinfo.tcl security.tcl process.tcl disk.tcl 
 
@@ -57,7 +57,7 @@ distribution: pkgIndex.tcl twapi_version.tcl $(BUILDIDPATH) $(TCLFILES)
 COMBINEFLAGS = -force -outfile $(COMBINEOUTPUT)
 !endif
 # Combines all Tcl scripts into one. Note pkgIndex.tcl is not included
-combine: twapi_version.tcl $(BUILDIDPATH) $(TCLFILES)
+combine: twapi_version.tcl twapi_buildid.tcl $(TCLFILES)
         -@mkdir "$(PACKAGEDIR)"
 	@for %f in (twapi_version.tcl $(TCLFILES)) do @xcopy /q /y %f "$(PACKAGEDIR)"
 	cd $(PACKAGEDIR) && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" $(COMBINEFLAGS) -compact $(PACKAGE) $(MODULEVERSION) $**

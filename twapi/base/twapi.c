@@ -23,6 +23,9 @@
  * Globals
  */
 HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
+
+#ifdef OBSOLETE
+
 /*
  * Linked to script level to indicate if twapi tcl scripts are embedded.
  * This is actually shared among all interpreters but since the vallue
@@ -30,6 +33,12 @@ HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
  */
 int gTwapiEmbedded;
 char *gTwapiEmbeddedVarName = "::twapi::embedded";
+
+#else
+
+static const char *gTwapiEmbedType = "none"; /* Must point to static string */
+
+#endif
 
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
@@ -142,7 +151,7 @@ int Twapi_Init(Tcl_Interp *interp)
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::recordarray", Twapi_RecordArrayObjCmd,
                          ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::get_build_config",
+    Tcl_CreateObjCommand(interp, "twapi::GetTwapiBuildInfo",
                          Twapi_GetTwapiBuildInfo, ticP, NULL);
 #ifndef TWAPI_NODESKTOP
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke", Twapi_IDispatch_InvokeObjCmd,
@@ -175,6 +184,7 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     HGLOBAL hglob;
     int result;
 
+#ifdef OBSOLETE
     /*
      * Set the variable to indicate that twapi is embedded.
      * This is checked by the script to not try and source files.
@@ -183,6 +193,7 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
      * would have really gone wrong.
      */
     Tcl_LinkVar(ticP->interp, gTwapiEmbeddedVarName, (char *) &gTwapiEmbedded, TCL_LINK_BOOLEAN | TCL_LINK_READ_ONLY);
+#endif
 
     /*
      * Locate the twapi resource and load it if found. First check for
@@ -201,6 +212,8 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     if (!hres)
         return Twapi_AppendSystemError(ticP->interp, GetLastError());
 
+    gTwapiEmbedType = compressed ? "lzma" : "plain";
+
     sz = SizeofResource(gTwapiModuleHandle, hres);
     hglob = LoadResource(gTwapiModuleHandle, hres);
     if (sz && hglob) {
@@ -213,9 +226,10 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
                     return TCL_ERROR; /* ticP->interp already has error */
             }
 
+#ifdef OBSOLETE
             gTwapiEmbedded = 1;
             Tcl_UpdateLinkedVar(ticP->interp, gTwapiEmbeddedVarName);
-
+#endif
             /* The resource is expected to be UTF-8 (actually strict ASCII) */
             /* TBD - double check use of GLOBAL and DIRECT */
             result = Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
@@ -237,34 +251,57 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_Obj *CONST objv[]
 )
 {
-    Tcl_Obj *objs[8];
-    int i = 0;
+    Tcl_Obj *objP;
+    Tcl_Obj *elemP;
 
     if (objc != 1)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
 
+    /* Return a keyed list */
+    
+    objP = Tcl_NewListObj(0, NULL);
+
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler"));
+#if defined(_MSC_VER)
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("vc++"));
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(_MSC_VER));
+#elif defined(__GNUC__)
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("gcc"));
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(__VERSION__, -1));
+#else
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
+#endif
+
+
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
+    elemP = Tcl_NewListObj(0, NULL);
 #ifdef TWAPI_NODESKTOP
-    objs[i++] = STRING_LITERAL_OBJ("nodesktop");
+    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nodesktop"));
 #endif
 #ifdef TWAPI_NOSERVER
-    objs[i++] = STRING_LITERAL_OBJ("noserver");
+    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("noserver"));
 #endif
 #ifdef TWAPI_LEAN
-    objs[i++] = STRING_LITERAL_OBJ("lean");
+    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("lean"));
 #endif
+    Tcl_ListObjAppendElement(interp, objP, elemP);
 
     /* Tcl 8.4 has no indication of 32/64 builds at Tcl level so we have to. */
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("platform"));
 #ifdef _WIN64
-    objs[i++] = STRING_LITERAL_OBJ("x64");
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("x64"));
 #else
-    objs[i++] = STRING_LITERAL_OBJ("x86");
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("x86"));
 #endif    
     
-    if (gTwapiEmbedded) {
-        objs[i++] = STRING_LITERAL_OBJ("embedded");
-    }
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("embed_type"));
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(gTwapiEmbedType, -1));
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(i, objs));
+    Tcl_SetObjResult(interp, objP);
     return TCL_OK;
 }
 
