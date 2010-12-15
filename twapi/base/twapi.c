@@ -24,21 +24,7 @@
  */
 HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 
-#ifdef OBSOLETE
-
-/*
- * Linked to script level to indicate if twapi tcl scripts are embedded.
- * This is actually shared among all interpreters but since the vallue
- * will be read-only, that's ok.
- */
-int gTwapiEmbedded;
-char *gTwapiEmbeddedVarName = "::twapi::embedded";
-
-#else
-
 static const char *gTwapiEmbedType = "none"; /* Must point to static string */
-
-#endif
 
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
@@ -184,17 +170,6 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     HGLOBAL hglob;
     int result;
 
-#ifdef OBSOLETE
-    /*
-     * Set the variable to indicate that twapi is embedded.
-     * This is checked by the script to not try and source files.
-     * Read only so OK to share global among multiple interps / threads.
-     * If the resource read succeeds for one but not the other, something
-     * would have really gone wrong.
-     */
-    Tcl_LinkVar(ticP->interp, gTwapiEmbeddedVarName, (char *) &gTwapiEmbedded, TCL_LINK_BOOLEAN | TCL_LINK_READ_ONLY);
-#endif
-
     /*
      * Locate the twapi resource and load it if found. First check for
      * uncompressed type. Then compressed.
@@ -226,10 +201,6 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
                     return TCL_ERROR; /* ticP->interp already has error */
             }
 
-#ifdef OBSOLETE
-            gTwapiEmbedded = 1;
-            Tcl_UpdateLinkedVar(ticP->interp, gTwapiEmbeddedVarName);
-#endif
             /* The resource is expected to be UTF-8 (actually strict ASCII) */
             /* TBD - double check use of GLOBAL and DIRECT */
             result = Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
@@ -300,6 +271,11 @@ int Twapi_GetTwapiBuildInfo(
     
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("embed_type"));
     Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(gTwapiEmbedType, -1));
+
+    /* Which Tcl did we build against ? (As opposed to run time) */
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(TCL_PATCH_LEVEL, -1));
+
 
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
@@ -479,6 +455,18 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
                    &gTclVersion.minor,
                    &gTclVersion.patchlevel,
                    &gTclVersion.reltype);
+
+    /*
+     * Check if running against an older Tcl version compared to what we 
+     * built against.
+     */
+    if (gTclVersion.major < TCL_MAJOR_VERSION ||
+        (gTclVersion.major == TCL_MAJOR_VERSION && gTclVersion.minor < TCL_MINOR_VERSION)) {
+        return TCL_ERROR;
+    }
+
+    /* Next check is for minimal supported version. Probably not necessary
+       given above check but ... */
     if (gTclVersion.major ==  TWAPI_TCL_MAJOR &&
         gTclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
         gTwapiOSVersionInfo.dwOSVersionInfoSize =
