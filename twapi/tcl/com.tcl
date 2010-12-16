@@ -465,13 +465,13 @@ proc twapi::_flatten_com_type {com_type_desc} {
 # Resolves typedefs
 proc twapi::_resolve_com_type_text {ti typedesc} {
     
-    set typedesc [_vttype_to_string $typedesc]
-
     switch -exact -- [lindex $typedesc 0] {
+        26 -
         ptr {
             # Recurse to resolve any inner types
             set typedesc [list ptr [_resolve_com_type_text $ti [lindex $typedesc 1]]]
         }
+        29 -
         userdefined {
             set hreftype [lindex $typedesc 1]
             set ti2 [$ti @GetRefTypeInfo $hreftype]
@@ -479,6 +479,7 @@ proc twapi::_resolve_com_type_text {ti typedesc} {
             $ti2 Release
         }
         default {
+            set typedesc [_vttype_to_string $typedesc]
         }
     }
 
@@ -496,6 +497,10 @@ proc twapi::_resolve_comtype {ti typedesc} {
         # If pointing to a UDT, convert to appropriate base type if possible
         set inner [_resolve_comtype $ti [lindex $typedesc 1]]
         if {[lindex $inner 0] == 29} {
+            # TBD - is this really correct / necessary ? For UDT, the
+            # second element is hreftype, not a vt_code so why are we
+            # checking in this manner. It should not even match since 
+            # the second element will not "dispatch" or "interface"
             switch -exact -- [lindex $inner 1] {
                 dispatch  {set typedesc [list 9]}
                 interface {set typedesc [list 13]}
@@ -1370,8 +1375,8 @@ twapi::class create ::twapi::IDispatchProxy {
         # already have it. We trap any errors because we will retry with
         # different LCID's below.
         set proto {}
+        my @InitTypeCompAndGuid; # Inits _guid and _typecomp
         ::twapi::trap {
-            my @InitTypeCompAndGuid; # Inits _guid and _typecomp
 
             set invkind [::twapi::_string_to_invkind $invkind]
             set lhash   [::twapi::LHashValOfName $lcid $name]
