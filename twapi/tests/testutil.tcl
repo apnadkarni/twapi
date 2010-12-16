@@ -23,6 +23,11 @@ proc load_twapi {} {
     }
 }
 
+proc read_file {path} {
+    set fd [open $path r]
+    return [read $fd][close $fd]
+}
+
 # From http://mini.net/tcl/460
 #
 # If you need to split string into list using some more complicated rule
