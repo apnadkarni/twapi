@@ -49,11 +49,31 @@ namespace eval twapi::device::test {
     ################################################################
 
     test create_file-1.0 {
+        create_file new with default options
     } -constraints {
-        nt TBD
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
     } -body {
-    } -result ""
+        twapi::close_handle [twapi::create_file $fn]
+        file exists $fn
+    } -cleanup {
+        file delete $fn
+    } -result 1
 
+    test create_file-1.1 {
+        create_file existing with default options
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-1.1" [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn]
+        # Content should not be modified/truncated
+        read_file $fn
+    } -result "create_file-1.1\n"
+
+    
     test create_file-2.0 {
         Create a file with a specific integrity value
     } -constraints {
@@ -64,6 +84,233 @@ namespace eval twapi::device::test {
         twapi::close_handle [twapi::create_file $fn -secd $secd]
         twapi::get_resource_integrity file $fn -label
     } -result {low system_mandatory_label_no_write_up}
+
+    test create_file-3.0 {
+        create_file new with -createdisposition create_always
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
+        read_file $fn
+    } -cleanup {
+        file delete $fn
+    } -result ""
+
+    test create_file-3.1 {
+        create_file existing with -createdisposition create_always
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-3.1" [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
+        # Content should be truncated
+        read_file $fn
+    } -result ""
+
+    test create_file-3.2 {
+        create_file new with -createdisposition create_new
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition create_new]
+        read_file $fn
+    } -cleanup {
+        file delete $fn
+    } -result ""
+
+    test create_file-3.3 {
+        create_file existing with -createdisposition create_new
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-3.3" [clock clicks]]
+    } -body {
+        list [catch {twapi::create_file $fn -createdisposition create_new}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1] \
+            [string trimright [read_file $fn]]
+    } -result {1 TWAPI_WIN32 80 create_file-3.3}
+
+    test create_file-3.4 {
+        create_file new with -createdisposition open_always
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
+        read_file $fn
+    } -cleanup {
+        file delete $fn
+    } -result ""
+
+    test create_file-3.5 {
+        create_file existing with -createdisposition open_always
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-3.5" [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
+        # Content should not be truncated
+        read_file $fn
+    } -result "create_file-3.5\n"
+
+    test create_file-3.6 {
+        create_file new with -createdisposition open_existing
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        list [catch {twapi::create_file $fn -createdisposition open_existing}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+    } -result {1 TWAPI_WIN32 2}
+
+    test create_file-3.7 {
+        create_file existing with -createdisposition open_existing
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition open_existing]
+        read_file $fn
+    } -result "create_file-3.7\n"
+
+    test create_file-3.8 {
+        create_file new with -createdisposition truncate_existing
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        list [catch {twapi::create_file $fn -createdisposition truncate_existing -access generic_write}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+    } -result {1 TWAPI_WIN32 2}
+
+    test create_file-3.9 {
+        create_file existing with -createdisposition truncate_existing
+    } -constraints {
+        nt
+    } -setup {
+        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -createdisposition truncate_existing -access generic_write]
+        read_file $fn
+    } -result ""
+
+    test create_file-4.0 {
+        create_file new file with -secd
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set secd [twapi::new_security_descriptor -dacl [twapi::new_restricted_dacl $::env(USERNAME) generic_all]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -secd $secd]
+        twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor file $fn]
+    } -cleanup {
+        file delete $fn
+    } -result [list 2 [list [list 0 0 2032127 [twapi::map_account_to_sid $::env(USERNAME)]]]]
+
+    test create_file-5.0 {
+        create_file new file with -flags 0x20 (archive)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x0]
+        twapi::close_handle [twapi::create_file $fn2 -flags 0x20]
+        list [file attributes $fn -archive] [file attributes $fn2 -archive]
+    } -cleanup {
+        file delete $fn
+        file delete $fn2
+    } -result [list 1 1]
+
+    test create_file-5.1 {
+        create_file new file with -flags 0x1 (readonly)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x0]
+        twapi::close_handle [twapi::create_file $fn2 -flags 0x1]
+        list [file attributes $fn -readonly] [file attributes $fn2 -readonly]
+    } -cleanup {
+        file delete $fn
+        file delete $fn2
+    } -result [list 0 1]
+
+    test create_file-5.2 {
+        create_file new file with -flags 0x4 (system)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x0]
+        twapi::close_handle [twapi::create_file $fn2 -flags 0x4]
+        list [file attributes $fn -system] [file attributes $fn2 -system]
+    } -cleanup {
+        file delete $fn
+        file delete $fn2
+    } -result [list 0 1]
+
+    test create_file-5.3 {
+        create_file new file with -flags 0x2 (hidden)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x0]
+        twapi::close_handle [twapi::create_file $fn2 -flags 0x2]
+        list [file attributes $fn -hidden] [file attributes $fn2 -hidden]
+    } -cleanup {
+        file delete $fn
+        file delete $fn2
+    } -result [list 0 1]
+
+    test create_file-5.4 {
+        create_file new file with -flags 0x80 (normal)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x80]
+        list [file attributes $fn -hidden] [file attributes $fn -system] [file attributes $fn -readonly]
+    } -cleanup {
+        file delete $fn
+    } -result [list 0 0 0]
+
+    test create_file-5.5 {
+        create_file new file with -flags 0x04000000 (delete on close)
+    } -constraints {
+        nt
+    } -setup {
+        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+    } -body {
+        twapi::close_handle [twapi::create_file $fn -flags 0x04000000]
+        file exists $fn
+    } -result 0
+
+
+    set testnum 5
+    foreach opt {-access -inherit -share -templatefile} {
+        test create_file-$testnum.0 "create_file with $opt" -constraints {TBD} -body {} -result ""
+    }
 
     ################################################################
 

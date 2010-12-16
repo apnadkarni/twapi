@@ -486,6 +486,79 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test comobj_object-1.0 {
+        Create a COM object based on a moniker display name
+    } -body {
+        set wmi [twapi::comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/cimv2"]
+        set records [list ]
+        $wmi -with {{ExecQuery "select * from Win32_ComputerSystem"}} -iterate elem {
+            set record {}
+            set propset [$elem Properties_]
+            $propset -iterate itemobj {
+                # Note how we get the default property
+                lappend record [string tolower [$itemobj Name]] [$itemobj -default]
+                $itemobj -destroy
+            }
+            $elem -destroy
+            $propset -destroy
+            lappend records $record
+        }
+        $wmi -destroy
+        verify_kl_fields [lindex $records 0] {
+            systemtype username status
+        } 1
+    } -result ""
+
+    # TBD - use ADSI or something else instead of repeating wmi
+    test comobj_object-1.1 {
+        Create a COM object based on a moniker display name (IDispatch)
+    } -body {
+        set wmi [twapi::comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/cimv2" -interface IDispatch]
+        set records [list ]
+        $wmi -with {{ExecQuery "select * from Win32_ComputerSystem"}} -iterate elem {
+            set record {}
+            set propset [$elem Properties_]
+            $propset -iterate itemobj {
+                # Note how we get the default property
+                lappend record [string tolower [$itemobj Name]] [$itemobj -default]
+                $itemobj -destroy
+            }
+            $elem -destroy
+            $propset -destroy
+            lappend records $record
+        }
+        $wmi -destroy
+        verify_kl_fields [lindex $records 0] {
+            systemtype username status
+        } 1
+    } -result ""
+
+    test comobj_object-1.2 {
+        Create a COM object based on a moniker display name (IDispatchEx)
+    } -body {
+        set wmi [twapi::comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/cimv2" -interface IDispatchEx]
+        set records [list ]
+        $wmi -with {{ExecQuery "select * from Win32_ComputerSystem"}} -iterate elem {
+            set record {}
+            set propset [$elem Properties_]
+            $propset -iterate itemobj {
+                # Note how we get the default property
+                lappend record [string tolower [$itemobj Name]] [$itemobj -default]
+                $itemobj -destroy
+            }
+            $elem -destroy
+            $propset -destroy
+            lappend records $record
+        }
+        $wmi -destroy
+        verify_kl_fields [lindex $records 0] {
+            systemtype username status
+        } 1
+    } -result ""
+
+
+    ################################################################
+
     test variant_time_to_timelist-1.0 {
         Convert variant time to a time list
     } -constraints {
