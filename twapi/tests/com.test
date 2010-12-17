@@ -316,6 +316,22 @@ namespace eval twapi::com::test {
         $wscript -call ExpandEnvironmentStrings %username%
     } -result $::env(username)
 
+    
+    test comobj-10.1 {
+        Invoke comobj method using -call when no type information is available
+    } -constraints {
+        nt systemmodificationok TBD
+    } -setup {
+        # ADSI does not support ITypeInfo so use it for the test
+        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+        What method can we call?
+    } -cleanup {
+        $adsi_user -destroy
+    } -body {
+        $wscript -call ExpandEnvironmentStrings %username%
+    } -result $::env(username)
+
+
     ###
 
     test comobj-11.0 {
@@ -341,6 +357,20 @@ namespace eval twapi::com::test {
     } -body {
         file normalize [$wscript -get CurrentDirectory]
     } -result [pwd]
+
+
+    test comobj-12.1 {
+        Get comobj property using explicit -get when no TypeInfo is available
+    } -constraints {
+        nt
+    } -setup {
+        # ADSI does not support ITypeInfo so use it for the test
+        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+    } -cleanup {
+        $adsi_user -destroy
+    } -body {
+        $adsi_user -get name
+    } -result $::env(username)
 
     ###
 
@@ -408,6 +438,20 @@ namespace eval twapi::com::test {
         $wscript -set CurrentDirectory c:/
         string tolower [pwd]
     } -result c:/
+
+    test comobj-16.1 {
+        Put comobj property using -put when no type information is available
+    } -constraints {
+        nt systemmodificationok TBD
+    } -setup {
+        # ADSI does not support ITypeInfo so use it for the test
+        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+    } -cleanup {
+        $adsi_user -destroy
+    } -body {
+        What property can we set ?
+    } -result $::env(username)
+
 
     ###
 
@@ -509,29 +553,14 @@ namespace eval twapi::com::test {
         } 1
     } -result ""
 
-    # TBD - use ADSI or something else instead of repeating wmi
     test comobj_object-1.1 {
         Create a COM object based on a moniker display name (IDispatch)
     } -body {
-        set wmi [twapi::comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/cimv2" -interface IDispatch]
-        set records [list ]
-        $wmi -with {{ExecQuery "select * from Win32_ComputerSystem"}} -iterate elem {
-            set record {}
-            set propset [$elem Properties_]
-            $propset -iterate itemobj {
-                # Note how we get the default property
-                lappend record [string tolower [$itemobj Name]] [$itemobj -default]
-                $itemobj -destroy
-            }
-            $elem -destroy
-            $propset -destroy
-            lappend records $record
-        }
-        $wmi -destroy
-        verify_kl_fields [lindex $records 0] {
-            systemtype username status
-        } 1
-    } -result ""
+        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+        $adsi_user Name
+    } -cleanup {
+        $adsi_user -destroy
+    } -result $::env(USERNAME)
 
     test comobj_object-1.2 {
         Create a COM object based on a moniker display name (IDispatchEx)
