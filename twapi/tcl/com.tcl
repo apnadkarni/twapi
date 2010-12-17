@@ -1299,7 +1299,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
     destructor {
         my variable _typecomp
-        if {[info exists _typecomp]} {
+        if {[info exists _typecomp] && $_typecomp ne ""} {
             $_typecomp Release
         }
         next
@@ -1311,9 +1311,15 @@ twapi::class create ::twapi::IDispatchProxy {
     }
 
     # names is list - method name followed by parameter names
+    # Returns list of name dispid pairs
     method GetIDsOfNames {names {lcid 0}} {
         my variable _ifc
-        return [::twapi::IDispatch_GetTypeIDsOfNames $names $lcid]
+        return [::twapi::IDispatch_GetIDsOfNames $_ifc $names $lcid]
+    }
+
+    # Get dispid of a method (without parameter names)
+    method @GetIDOfOneName {name {lcid 0}} {
+        return [lindex [my GetIDsOfNames [list $name] $lcid] 1]
     }
 
     method GetTypeInfo {{infotype 0} {lcid 0}} {
@@ -1365,7 +1371,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
         # If we have been through here before and have our guid,
         # check if a prototype exists and return it. 
-        if {[info exists _guid] &&
+        if {[info exists _guid] && $_guid ne "" &&
             [::twapi::_dispatch_prototype_get $_guid $name $lcid $invkind proto]} {
             return $proto
         }
@@ -1376,6 +1382,22 @@ twapi::class create ::twapi::IDispatchProxy {
         # different LCID's below.
         set proto {}
         my @InitTypeCompAndGuid; # Inits _guid and _typecomp
+        if {$_typecomp eq ""} {
+            # No typecomp / typeinfo available. We have to use the
+            # last resort of GetIDsOfNames
+            
+            set dispid [my @GetIDOfOneName [list $name] 0]
+            # TBD - should we cache result ?
+            if {$dispid eq ""} {
+                return {};      # No prototype
+            } else {
+                # Note we store as lcid = 0
+                # Note params field (last) is missing signifying we do not
+                # know prototypes
+                return [list $dispid 0 $invkind 8]
+            }
+        }
+
         ::twapi::trap {
 
             set invkind [::twapi::_string_to_invkind $invkind]
@@ -1450,7 +1472,16 @@ twapi::class create ::twapi::IDispatchProxy {
             return
         }
 
-        set ti [my @GetTypeInfo 0]
+        ::twapi::trap {
+            set ti [my @GetTypeInfo 0]
+        } onerror {TWAPI_WIN32 0x80004001} {
+            # Interface is not implemented. We do not raise an error because
+            # even without the _typecomp we can try invoking
+            # methods via IDispatch::GetIDsOfNames
+            set _guid ""
+            set _typecomp ""
+            return
+        }
 
         ::twapi::trap {
             # In case of dual interfaces, we need the typeinfo for the 
@@ -1485,7 +1516,7 @@ twapi::class create ::twapi::IDispatchProxy {
     method @SetGuid {guid} {
         my variable _guid
         if {$guid ne ""} {
-            if {[info exists _guid]} {
+            if {[info exists _guid] && $_guid ne ""} {
                 if {[string compare -nocase $guid $_guid]} {
                     error "Attempt to set the GUID to $guid when the dispatch proxy has already been initialized to $_guid"
                 }
@@ -2483,15 +2514,15 @@ twapi::class create ::twapi::Automation {
     }
 
     method -get {name args} {
-        return [my _invoke $name [list propget] $args]
+        return [my _invoke $name [list 2] $args]
     }
 
     method -set {name args} {
-        return [my _invoke $name [list propput] $args]
+        return [my _invoke $name [list 4] $args]
     }
 
     method -call {name args} {
-        return [my _invoke $name [list func] $args]
+        return [my _invoke $name [list 1] $args]
     }
 
     method -destroy {} {
