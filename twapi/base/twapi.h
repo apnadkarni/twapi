@@ -84,9 +84,13 @@ typedef int TCL_RESULT;
 
 #if TWAPI_ENABLE_ASSERT
 #  if TWAPI_ENABLE_ASSERT == 1
-#    define TWAPI_ASSERT(bool_) (void)( (bool_) || (DebugOutput("Assertion (" #bool_ ") failed at line " MAKESTRINGLITERAL2(__LINE__) " in file " __FILE__ "\n"), 0) )
-#  else
 #    define TWAPI_ASSERT(bool_) (void)( (bool_) || (Tcl_Panic("Assertion (%s) failed at line %d in file %s.", #bool_, __LINE__, __FILE__), 0) )
+#  elif TWAPI_ENABLE_ASSERT == 2
+#    define TWAPI_ASSERT(bool_) (void)( (bool_) || (DebugOutput("Assertion (" #bool_ ") failed at line " MAKESTRINGLITERAL2(__LINE__) " in file " __FILE__ "\n"), 0) )
+#  elif TWAPI_ENABLE_ASSERT == 3
+#    define TWAPI_ASSERT(bool_) do { if (! (bool_)) { __asm int 3 } } while (0)
+#  else
+#    error Invalid value for TWAPI_ENABLE_ASSERT
 #  endif
 #else
 #define TWAPI_ASSERT(bool_) ((void) 0)
