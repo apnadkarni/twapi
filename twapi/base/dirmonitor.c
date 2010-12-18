@@ -46,7 +46,7 @@ typedef struct _TwapiDirectoryMonitorBuffer {
  *   When the thread pool reads the directory changes, it places a callback
  * on the Tcl event queue. The callback contains a pointer to the dmc
  * and therefore the dmc's ref count is updated. The corresponding dmc
- * unref is done.When the event handler dispatches the callback.
+ * unref is done when the event handler dispatches the callback.
  *   Note that when an error is encountered by the thread pool thread
  * when reading directory changes, it queues a callback which results in
  * the script being notified, which will then close the notification.
@@ -76,7 +76,13 @@ typedef struct _TwapiDirectoryMonitorContext {
     HANDLE  completion_event;            /* Used for i/o signaling */
     ZLINK_DECL(TwapiDirectoryMonitorContext);
     ULONG volatile nrefs;              /* Ref count */
-    TwapiDirectoryMonitorBuffer *iobP; /* Used for actual reads */
+    TwapiDirectoryMonitorBuffer *iobP; /* Used for actual reads. IMPORTANT -
+                                          if not NULL, and iobP->ovl.hEvent
+                                          is not NULL, READ is in progress
+                                          and even when closing handle
+                                          we have to wait for event to be
+                                          signalled.
+                                       */
     WCHAR   *pathP;
     DWORD   filter;
     int     include_subtree;
@@ -290,6 +296,7 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     dmcP->pathP = (WCHAR *)((sizeof(WCHAR)-1 + (DWORD_PTR)cP) & ~ (sizeof(WCHAR)-1));
     CopyMemory(dmcP->pathP, pathP, sizeof(WCHAR)*path_len);
     dmcP->pathP[path_len] = 0;
+    dmcP->iobP = NULL;
     
     ZLINK_INIT(dmcP);
     return dmcP;
@@ -303,12 +310,14 @@ static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *dmc
 {
     TWAPI_ASSERT(dmcP->ticP == NULL);
     TWAPI_ASSERT(dmcP->nrefs <= 0);
-    TWAPI_ASSERT(dmcP->thread_pool_registry_handle == NULL);
+    TWAPI_ASSERT(dmcP->thread_pool_registry_handle == INVALID_HANDLE_VALUE);
     TWAPI_ASSERT(dmcP->directory_handle == INVALID_HANDLE_VALUE);
     TWAPI_ASSERT(dmcP->completion_event == NULL);
 
-    if (dmcP->iobP)
+    if (dmcP->iobP) {
+        TWAPI_ASSERT(dmcP->iobP->ovl.hEvent == NULL); /* Else I/O could be in progress */
         TwapiFree(dmcP->iobP);
+    }
 
     TwapiFree(dmcP);
 }
@@ -342,8 +351,22 @@ static DWORD TwapiDirectoryMonitorInitiateRead(
             &iobP->ovl,
             NULL))
         return ERROR_SUCCESS;
-    else
-        return GetLastError();
+    else {
+        DWORD winerr = GetLastError();
+        if (winerr == ERROR_IO_PENDING) {
+            /* Can this error even be returned ? */
+            return ERROR_SUCCESS;
+        }
+
+        /* Don't just hang on to memory. Also (iobP && iobP->ovl.hEvent) is
+           used as the flag to indicate I/O is pending so we need to make
+           sure that evaluates to false
+        */
+        TwapiFree(dmcP->iobP);
+        dmcP->iobP = NULL;
+
+        return winerr;
+    }
 }
 
 void TwapiDirectoryMonitorContextUnref(TwapiDirectoryMonitorContext *dcmP, int decr)
@@ -403,6 +426,8 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
      */
     iobP = dmcP->iobP;
     dmcP->iobP = NULL;
+    iobP->ovl.hEvent = NULL;    /* Just to make sure event not accessed from
+                                   this structure */
 
     cbP = TwapiCallbackNew(dmcP->ticP, TwapiDirectoryMonitorCallbackFn,
                                   sizeof(*cbP));
@@ -423,8 +448,11 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
 error_handler:
     /* Queue an error notification. winerr must hold error code */
     /* Do NOT COME HERE IF OVERLAPPED IO STILL IN PROGRESS AS THE IOBUF MAY BE FREED */
-    if (dmcP->iobP)
+    if (dmcP->iobP) {
         TwapiFree(dmcP->iobP);
+        dmcP->iobP = NULL;
+    }
+
     cbP = TwapiCallbackNew(dmcP->ticP, TwapiDirectoryMonitorCallbackFn,
                                   sizeof(*cbP));
     cbP->winerr = winerr;
@@ -469,6 +497,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         /* iobP may be NULL if error notification */
         if (iobP)
             TwapiFree(iobP);
+
         cbP->clientdata2 = 0;        /* iobP */
 
         if (dmcP->ticP) {
@@ -628,10 +657,12 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
     /* Matches Ref from when iobP was queued */
     TwapiDirectoryMonitorContextUnref(dmcP, 1);
-    dmcP = NULL;
     TwapiFree(iobP);
+    dmcP = NULL;
     iobP = NULL;
-    cbP->clientdata = 0;        /* iobP */
+
+    cbP->clientdata = 0;        /* dmcP */
+    cbP->clientdata2 = 0;        /* iobP */
 
     if (notify) {
         /* File or error notification */
@@ -691,11 +722,20 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
     }
 
     /* Third, now that handles are unregistered, close them. */
-    if (dmcP->directory_handle != INVALID_HANDLE_VALUE)
+    if (dmcP->directory_handle != INVALID_HANDLE_VALUE) {
         CloseHandle(dmcP->directory_handle);
-
-    if (dmcP->completion_event != NULL)
-        CloseHandle(dmcP->completion_event);
+        dmcP->directory_handle = INVALID_HANDLE_VALUE;
+    }
+    if (dmcP->completion_event != NULL) {
+        if (dmcP->iobP && dmcP->iobP->ovl.hEvent) {
+            /* Read was in progress. Wait for it to complete */
+            TWAPI_ASSERT(dmcP->iobP->ovl.hEvent == dmcP->completion_event);
+            WaitForSingleObject(dmcP->completion_event, 2000);
+            CloseHandle(dmcP->completion_event);
+            dmcP->iobP->ovl.hEvent = NULL;
+            dmcP->completion_event = NULL;
+        }
+    }
 
     if (unrefs)
         TwapiDirectoryMonitorContextUnref(dmcP, unrefs); /* May be GONE! */
