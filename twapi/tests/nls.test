@@ -811,8 +811,21 @@ namespace eval twapi::nls::test {
         twapi::map_code_page_to_name 123
     } -result "Code page 123"
 
+    ################################################################
 
+    test extract_primary_langid-1.0 {
+        Extract primary language id
+    } -body {
+        twapi::extract_primary_langid 1033
+    } -result 9
 
+    ################################################################
+
+    test extract_sublanguage_langid-1.0 {
+        Extract primary language id
+    } -body {
+        twapi::extract_sublanguage_langid 1033
+    } -result 1
 
     ################################################################
 

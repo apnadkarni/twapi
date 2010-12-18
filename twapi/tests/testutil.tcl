@@ -351,6 +351,27 @@ proc equal_paths {p1 p2} {
 }
 tcltest::customMatch path equal_paths
 
+# See if two files are the same
+proc same_file {fnA fnB} {
+    set fnA [file normalize $fnA]
+    set fnB [file normalize $fnB]
+
+    # Try to convert to full name. This works only if file exists
+    if {[file exists $fnA]} {
+        if {![file exists $fnB]} {
+            return 0
+        }
+        set fnA [file attributes $fnA -longname]
+        set fnB [file attributes $fnB -longname]
+    } else {
+        if {[file exists $fnB]} {
+            return 0
+        }
+    }
+
+    return [equal_paths $fnA $fnB]
+}
+
 # Compare two sets (dup elements are treated as same)
 proc equal_sets {s1 s2} {
     set s1 [lsort -unique $s1]
