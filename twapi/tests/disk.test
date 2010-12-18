@@ -1182,6 +1182,43 @@ namespace eval twapi::disk::test {
     } -result ""
 
 
+    ################################################################
+
+    proc filesystem_monitor_handler {expected_changes fn changes} {
+        foreach {type path} $changes {
+            if {[lsearch -exact $expected_changes $type] < 0 ||
+                ![equal_paths $fn $path] } {
+                # Failure
+                lappend ::filesystem_monitor_result [list $type $path]
+                return
+            }
+            # Mark as success only if some previous call (not this loop)
+            # had already set it
+            if {$::filesystem_monitor_result eq ""} {
+                set ::filesystem_monitor_result success
+            }
+        }
+    }
+
+    test begin_filesystem_monitor-1.0 {
+        Verify file writes are monitored when no options are specified
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler {added} $fn]]
+        set fd [open [file join $dir $fn] w]
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        close $fd
+        file delete [file join $dir $fn]
+    } -result success
+
 
     ################################################################
 

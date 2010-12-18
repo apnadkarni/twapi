@@ -1557,7 +1557,7 @@ int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
-int Twapi_AppendLog(TwapiInterpContext *ticP, WCHAR *msg);
+int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 
 int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
 

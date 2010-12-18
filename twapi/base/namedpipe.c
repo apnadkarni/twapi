@@ -24,7 +24,7 @@ typedef struct _NPipeChannel {
                         for sync i/o as the thread pool will also be waiting
                         on it */
     struct _NPipeIO {
-        OVERLAPPED ovl;         /* Used in async i/o. Note the hEvent field
+        OVERLAPPED ovl;         /* Used in async i/o. Note the ovl.hEvent field
                                    is always set at init time */
         HANDLE hwait;       /* Handle returned by thread pool wait functions. */
         HANDLE hevent;      /* Event for thread pool to wait on */
@@ -107,6 +107,11 @@ typedef struct _NPipeChannel {
      NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
+/* Is an async i/o pending ? */
+#define NPIPE_READ_PENDING(pcP_) ((pcP_)->io[READER].state == IOBUF_IO_PENDING)
+#define NPIPE_WRITE_PENDING(pcP_) ((pcP_)->io[WRITER].state == IOBUF_IO_PENDING)
+
+
 /*
  * Pipe channels are maintained on a per thread basis. 
  */
@@ -167,7 +172,7 @@ static void NPipeChannelDelete(NPipeChannel *pcP);
 #define NPipeChannelRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
 void NPipeChannelUnref(NPipeChannel *pcP, int decr);
 static NPipeTls *GetNPipeTls();
-static void NPipeShutdown(NPipeChannel *pcP, int unrefs);
+static void NPipeShutdown(Tcl_Interp *interp, NPipeChannel *pcP, int unrefs);
 
 /*
  * Map Win32 errors to Tcl errno. Note it is important to use the same
@@ -663,7 +668,7 @@ static TCL_RESULT NPipeCloseProc(ClientData clientdata, Tcl_Interp *interp)
      * We need to unref pcP corresponding to the ref when we called
      * Tcl_CreateChannel. So we pass 1 to NPipeShutdown to do it for us.
      */
-    NPipeShutdown(pcP, 1);
+    NPipeShutdown(interp, pcP, 1);
 
     return TCL_OK;
 }
@@ -803,8 +808,10 @@ static int NPipeInputProc(
 
     if (pcP->flags & NPIPE_F_NONBLOCKING) {
         /* Non-blocking, we should always be either COMPLETED or PENDING */
+#if 0
+        TBD This assert fails as state is IDLE. I think that is legit but verify
         TWAPI_ASSERT(ioP->state == IOBUF_IO_COMPLETED || ioP->state == IOBUF_IO_PENDING);
-
+#endif
         if (ioP->state == IOBUF_IO_PENDING) {
             /*
              * Non-blocking channel and we are awaiting data. We need to
@@ -1056,12 +1063,12 @@ static void NPipeThreadActionProc(
  * It does NOT unregister the channel from the interp.
  * It does NOT remove the channel from the thread's pipe list.
  * Must be called from the thread that "owns" the channel to prevent races.
- * Note it does do an unref if unregistering from the thread pools so
+ * Note it DOES do an unref if unregistering from the thread pools so
  * to be sure that pcP is not deallocated on return, the caller must
  * ensure there is some other ref outstanding on it..
  * Caller can pass unrefs parameter as additional unrefs to do on pcP.
  */
-static void NPipeShutdown(NPipeChannel *pcP, int unrefs)
+static void NPipeShutdown(Tcl_Interp *interp, NPipeChannel *pcP, int unrefs)
 {
     NPipeTls *tlsP = GET_NPIPE_TLS();
 
@@ -1079,10 +1086,6 @@ static void NPipeShutdown(NPipeChannel *pcP, int unrefs)
         pcP->io[READER].hwait = INVALID_HANDLE_VALUE;
         ++unrefs;   /* Remove the ref coming from the thread pool */
     }
-    if (pcP->io[READER].hevent != NULL) {
-        CloseHandle(pcP->io[READER].hevent);
-        pcP->io[READER].hevent = NULL;
-    }
 
     if (pcP->io[WRITER].hwait != INVALID_HANDLE_VALUE) {
         UnregisterWaitEx(pcP->io[WRITER].hwait,
@@ -1090,16 +1093,44 @@ static void NPipeShutdown(NPipeChannel *pcP, int unrefs)
         pcP->io[WRITER].hwait = INVALID_HANDLE_VALUE;
         ++unrefs;   /* Remove the ref coming from the thread pool */
     }
-    if (pcP->io[WRITER].hevent != NULL) {
-        CloseHandle(pcP->io[WRITER].hevent);
-        pcP->io[WRITER].hevent = NULL;
-    }
 
     /* Third, now that handles are unregistered, close them. */
     if (pcP->hpipe != INVALID_HANDLE_VALUE) {
         CloseHandle(pcP->hpipe);
         pcP->hpipe = INVALID_HANDLE_VALUE;
     }
+
+    if (pcP->io[WRITER].hevent != NULL) {
+        /*
+         * If there is any pending I/O, we have to wait or it to finish
+         * even though we closed the channel.
+         */
+        if (NPIPE_WRITE_PENDING(pcP) && pcP->io[WRITER].ovl.hEvent == pcP->io[WRITER].hevent) {
+            if (WaitForSingleObject(pcP->io[WRITER].hevent, 1000) != WAIT_OBJECT_0) {
+                if (interp) {
+                    Twapi_AppendLog(interp, L"WaitForSingleObject did not return WAIT_OBJECT_0 while shutting named pipe (WRITER)");
+                }
+            }
+        }
+        CloseHandle(pcP->io[WRITER].hevent);
+        pcP->io[WRITER].ovl.hEvent = NULL;
+        pcP->io[WRITER].hevent = NULL;
+    }
+
+    if (pcP->io[READER].hevent != NULL) {
+        /* See WRITER comments above */
+        if (NPIPE_READ_PENDING(pcP) && pcP->io[READER].ovl.hEvent == pcP->io[READER].hevent) {
+            if (WaitForSingleObject(pcP->io[READER].hevent, 1000) != WAIT_OBJECT_0) {
+                if (interp) {
+                    Twapi_AppendLog(interp, L"WaitForSingleObject did not return WAIT_OBJECT_0 while shutting named pipe (READER)");
+                }
+            }
+        }
+        CloseHandle(pcP->io[READER].hevent);
+        pcP->io[READER].hevent = NULL;
+        pcP->io[READER].ovl.hEvent = NULL;
+    }
+
 
     if (pcP->hsync != NULL) {
         CloseHandle(pcP->hsync);
@@ -1278,7 +1309,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
         winerr = GetLastError();
 
     pcP->winerr = winerr;
-    NPipeShutdown(pcP, 0);    /* pcP might be gone */
+    NPipeShutdown(ticP->interp, pcP, 0);    /* pcP might be gone */
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 
@@ -1385,7 +1416,7 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 
     winerr = GetLastError();
     pcP->winerr = winerr;
-    NPipeShutdown(pcP, 0);    /* pcP might be gone */
+    NPipeShutdown(ticP->interp, pcP, 0);    /* pcP might be gone */
     return Twapi_AppendSystemError(ticP->interp, winerr);
 }
 

@@ -431,11 +431,10 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
 }
 
 
-int Twapi_AppendLog(TwapiInterpContext *ticP, WCHAR *msg)
+int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
 {
     Tcl_Obj *var;
     int limit, len;
-    Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *msgObj;
 
     /* Check if the log variable exists. If not logging is disabled */

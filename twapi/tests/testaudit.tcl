@@ -35,6 +35,15 @@ foreach cmd [twapi::_get_public_procs] {
     # Skip internal commands
     if {[regexp {^(_|[A-Z]).*} $cmd]} continue
 
+    # Skip commands that are tested in tests whose test names do not match
+    if {[lsearch -exact {
+        class
+        eventlog_monitor_start
+        eventlog_monitor_stop
+    } $cmd {
+        continue
+    }
+
     if {[lsearch -glob $::tests ${cmd}-*] < 0} {
         lappend missing $cmd
     }

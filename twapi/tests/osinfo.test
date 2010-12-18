@@ -1087,6 +1087,33 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test expand_environment_strings-1.0 {
+        Expand a single environment string
+    } -body {
+        twapi::expand_environment_strings "%USERNAME%"
+    } -result $::env(USERNAME)
+
+    test expand_environment_strings-1.1 {
+        Expand a single embedded environment string
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y"
+    } -result x$::env(USERNAME)y
+
+    test expand_environment_strings-1.2 {
+        Expand multiple embedded environment strings
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y%COMPUTERNAME%"
+    } -result x$::env(USERNAME)y$::env(COMPUTERNAME)
+
+    test expand_environment_strings-2.0 {
+        Verify environment variables that are not defined are not modified
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y%XXX%z"
+    } -result x$::env(USERNAME)y%XXX%z
+
+
+    ################################################################
+
 
 
     ::tcltest::cleanupTests

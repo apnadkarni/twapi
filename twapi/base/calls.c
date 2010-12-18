@@ -2965,7 +2965,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 10:
             return Twapi_WNetGetUser(interp, arg);
         case 11:
-            return Twapi_AppendLog(ticP, arg);
+            return Twapi_AppendLog(interp, arg);
         case 12:
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
