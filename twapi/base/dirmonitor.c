@@ -690,6 +690,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 {
     int unrefs = 0;             /* How many times we need to unref  */
+    TwapiInterpContext *ticP;
 
     /*
      * We need to do things in a specific order.
@@ -699,11 +700,11 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
      *
      * Note all unrefs for the dmc are done at the end.
      */
-    if (dmcP->ticP) {
+    ticP = dmcP->ticP;
+    if (ticP) {
         ZLIST_REMOVE(&dmcP->ticP->directory_monitors, dmcP);
-        TwapiInterpContextUnref(dmcP->ticP, 1);
         dmcP->ticP = NULL;
-        ++unrefs;
+        ++unrefs;   /* Since directory_monitors no longer refs dmcP */
     }
 
     /*
@@ -730,12 +731,19 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
         if (dmcP->iobP && dmcP->iobP->ovl.hEvent) {
             /* Read was in progress. Wait for it to complete */
             TWAPI_ASSERT(dmcP->iobP->ovl.hEvent == dmcP->completion_event);
-            WaitForSingleObject(dmcP->completion_event, 2000);
+            if (WaitForSingleObject(dmcP->completion_event, 1000) != WAIT_OBJECT_0) {
+                if (ticP && ticP->interp) {
+                    Twapi_AppendLog(ticP->interp, L"WaitForSingleObject did not return WAIT_OBJECT_0 while shutting down a directory monitor");
+                }
+            }
             CloseHandle(dmcP->completion_event);
             dmcP->iobP->ovl.hEvent = NULL;
             dmcP->completion_event = NULL;
         }
     }
+
+    if (ticP)
+        TwapiInterpContextUnref(ticP, 1);
 
     if (unrefs)
         TwapiDirectoryMonitorContextUnref(dmcP, unrefs); /* May be GONE! */
