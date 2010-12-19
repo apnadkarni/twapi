@@ -1184,12 +1184,12 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
-    proc filesystem_monitor_handler {expected_changes fn changes} {
-        foreach {type path} $changes {
-            if {[lsearch -exact $expected_changes $type] < 0 ||
-                ![equal_paths $fn $path] } {
+    proc filesystem_monitor_handler {expected_changes id changes} {
+        puts $changes ; return
+        foreach {type name} $changes {
+            if {[lsearch -exact $expected_changes "$type $name"] < 0} {
                 # Failure
-                lappend ::filesystem_monitor_result [list $type $path]
+                lappend ::filesystem_monitor_result [list $type $name]
                 return
             }
             # Mark as success only if some previous call (not this loop)
@@ -1201,14 +1201,14 @@ namespace eval twapi::disk::test {
     }
 
     test begin_filesystem_monitor-1.0 {
-        Verify file writes are monitored when no options are specified
+        Verify file creates are monitored when no options are specified
     } -setup {
         set dir [tcltest::makeDirectory [clock clicks]]
         set fn [clock clicks]
     } -body {
         set ::filesystem_monitor_result ""
         set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
-        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler {added} $fn]]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list "added $fn"]]]
         set fd [open [file join $dir $fn] w]
         vwait ::filesystem_monitor_result
         after cancel $after_id
@@ -1218,6 +1218,71 @@ namespace eval twapi::disk::test {
         close $fd
         file delete [file join $dir $fn]
     } -result success
+
+    test begin_filesystem_monitor-1.1 {
+        Verify file writes are monitored when no options are specified
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set fd [open [file join $dir $fn] w]
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list "modified $fn"]]]
+        puts $fd "Test begin_filesystem_monitor-1.1"
+        flush $fd
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        close $fd
+        file delete [file join $dir $fn]
+    } -result success
+
+    test begin_filesystem_monitor-1.2 {
+        Verify file deletes are monitored when no options are specified
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set path [tcltest::makeFile "Test begin_filesystem_monitor-1.2" $fn $dir]
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list "removed $fn"]]]
+        file delete $path
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+    } -result success
+
+    test begin_filesystem_monitor-1.3 {
+        Verify file renames are monitored when no options are specified
+    } -setup {
+#        twapi::DebugBreak
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set fn2 s-${fn}
+        set fd [open [file join $dir $fn2] w+]
+        puts $fd "123"
+        flush $fd
+        close $fd
+    } -body {
+        set ::filesystem_monitor_result ""
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list "modified $fn"]]]
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        file rename [file join $dir $fn2] [file join $dir $fn]
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        file delete [file join $dir $fn]
+#        twapi::DebugBreak
+    } -result success
+
 
 
     ################################################################

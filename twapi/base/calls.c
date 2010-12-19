@@ -419,6 +419,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_PowerNotifyStop, Call, 72);
     CALL_(Twapi_StartConsoleEventNotifier, Call, 73);
     CALL_(TwapiId, Call, 74);
+    CALL_(DebugBreak, Call, 75);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1422,6 +1423,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 74:
             result.type = TRT_WIDE;
             result.value.wide = TWAPI_NEWID(ticP);
+            break;
+        case 75:
+            result.type = TRT_EMPTY;
+            DebugBreak();
             break;
         }
 

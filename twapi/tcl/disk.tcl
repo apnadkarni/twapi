@@ -195,10 +195,10 @@ proc twapi::unmap_drive_local {drive args} {
 
 
 # Callback from C code
-proc twapi::_filesystem_monitor_handler {id args} {
+proc twapi::_filesystem_monitor_handler {id changes} {
     variable _filesystem_monitor_scripts
     if {[info exists _filesystem_monitor_scripts($id)]} {
-        return [eval [concat $_filesystem_monitor_scripts($id) $args]]
+        return [eval $_filesystem_monitor_scripts($id) [list $id $changes]]
     } else {
         # Callback queued after close. Ignore
     }
