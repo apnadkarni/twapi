@@ -327,12 +327,13 @@ static DWORD TwapiDirectoryMonitorInitiateRead(
     )
 {
     TwapiDirectoryMonitorBuffer *iobP = dmcP->iobP;
+#define DIRMON_BUFSZ 8000
     if (iobP == NULL) {
         /* TBD - add config var for buffer size. Note larger buffer
          * potential waste as well as use up precious non-paged pool
          */
-        iobP = (TwapiDirectoryMonitorBuffer *)TwapiAlloc(sizeof(*iobP) + 4000);
-        iobP->buf_sz = 4000;
+        iobP = (TwapiDirectoryMonitorBuffer *)TwapiAlloc(sizeof(*iobP) + DIRMON_BUFSZ);
+        iobP->buf_sz = DIRMON_BUFSZ;
         dmcP->iobP = iobP;
     }
 
@@ -472,6 +473,7 @@ error_handler:
 static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *scriptObj;
+    Tcl_Obj *changesObj;
     Tcl_Obj *fnObj[2];
     Tcl_Obj *actionObj[6];
     int      notify;
@@ -482,6 +484,9 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
     Tcl_Interp *interp;
     TwapiDirectoryMonitorContext *dmcP;
     int        tcl_status;
+
+    fnObj[0] = NULL;
+    fnObj[1] = NULL;
 
     dmcP = (TwapiDirectoryMonitorContext *) cbP->clientdata;
     /*
@@ -520,15 +525,22 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
     interp = cbP->ticP->interp;
     notify = 0;
     // TBD - can iobP be null ?
+
+    /* The object that will hold the change list */
+    changesObj = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(changesObj);
+
+    /* Object containing the callback script */
     scriptObj = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(scriptObj);
     Tcl_ListObjAppendElement(interp, scriptObj, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_filesystem_monitor_handler"));
     Tcl_ListObjAppendElement(interp, scriptObj, ObjFromHANDLE(dmcP->directory_handle));
 
     if (cbP->winerr != ERROR_SUCCESS) {
         /* Error notification. Script should close the monitor */
-        fnObj[0] = STRING_LITERAL_OBJ("error");
-        fnObj[1] = Tcl_NewLongObj(cbP->winerr); /* Error code */
-        Tcl_ListObjAppendElement(interp, scriptObj, Tcl_NewListObj(2, fnObj));
+        Tcl_ListObjAppendElement(interp, changesObj, STRING_LITERAL_OBJ("error"));
+        Tcl_ListObjAppendElement(interp, changesObj,
+                                 Tcl_NewLongObj(cbP->winerr)); /* Error code */
         notify = 1;         /* So we notify script */
     } else {
         /* Collect the list of matching notifications */
@@ -541,7 +553,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         for (i=0; i < ARRAYSIZE(actionObj); ++i) {
             actionObj[i] = NULL;
         }
-        while ((endP - sizeof(FILE_NOTIFY_INFORMATION)) > (char *)fniP) {
+        while ((endP - offsetof(FILE_NOTIFY_INFORMATION,FileName)) > (char *)fniP) {
             if ((fniP->FileNameLength == 0) || (fniP->FileNameLength & 1)) {
                 /*
                  * Number of bytes should be positive and even. Ignore all
@@ -634,7 +646,8 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 fnObj[0] = actionObj[5];
                 break;
             }
-            Tcl_ListObjAppendElement(interp, scriptObj, Tcl_NewListObj(2, fnObj));
+            Tcl_ListObjAppendElement(interp, changesObj, fnObj[0]);
+            Tcl_ListObjAppendElement(interp, changesObj, fnObj[1]);
             fnObj[1] = NULL;           /* So we don't mistakenly reuse it */
             notify = 1;
 
@@ -668,14 +681,18 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         /* File or error notification */
         int objc;
         Tcl_Obj **objv;
+        Tcl_ListObjAppendElement(interp, scriptObj, changesObj);
         Tcl_ListObjGetElements(interp, scriptObj, &objc, &objv);
         tcl_status = TwapiEvalAndUpdateCallback(cbP, objc, objv, TRT_EMPTY);
+        if (tcl_status != TCL_OK)
+            Twapi_AppendLog(interp, L"CALLBACK FAIL");
     } else {
         /* No files matched and no error so no need to invoke callback */
         cbP->winerr = ERROR_SUCCESS;
         cbP->response.type = TRT_EMPTY;
         tcl_status = TCL_OK;
     }
+    Tcl_DecrRefCount(changesObj); /* Free up list elements */
     Tcl_DecrRefCount(scriptObj); /* Free up list elements */
     return tcl_status;
 
