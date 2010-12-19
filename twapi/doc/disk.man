@@ -98,7 +98,7 @@ allow retrieval and setting of the times associated with a file.
 Registers [arg SCRIPT] to be invoked when the specified types of changes
 occur in the directory of subtree matching [arg PATH].
 [nl]
-The command returns an identifier corresponding to the monitoring callback.
+The command returns an id corresponding to the monitoring callback.
 When no longer interested in the specified changes, the
 returned identifier should be passed to
 [uri \#cancel_filesystem_monitor [cmd cancel_filesystem_monitor]] to end
@@ -138,8 +138,10 @@ are present (either true or false),
 the command will monitor all types of changes.
 [nl]
 When a file system change is detected, the [arg SCRIPT] is invoked after
-being appended with a list each element of which is a pair consisting
-the notification type and the file or directory name 
+being appended with two additional parameters the first being
+the id that was returned by the command and the second
+being a list of alternating elements consisting of
+the notification type and the file or directory name
 (except when the type is [const error]). The type
 is one of the following values:
 [list_begin opt]
@@ -152,8 +154,8 @@ name is the old name.
 [opt_def [const renamenew]] The file or directory was renamed. The associated
 name is the new name.
 [opt_def [const error]] There was an error in the operation. In this case
-the second element is the identifier of the callback for which the
-error occurred and the third element an error message. On receiving
+the corresponding paired element is an error code.
+On receiving
 an error notification, the monitoring should generally be canceled
 by calling [uri #cancel_filesystem_monitor [cmd cancel_filesystem_monitor]].
 [list_end]
