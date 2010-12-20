@@ -1186,7 +1186,6 @@ namespace eval twapi::disk::test {
 
     proc filesystem_monitor_handler {expected_changes id changes} {
         variable filesystem_changes_seen
-
         foreach {type name} $changes {
             lappend filesystem_changes_seen($type) $name
             set found 0
@@ -1216,6 +1215,82 @@ namespace eval twapi::disk::test {
         # errors) are coming in
         after 500 set ::filesystem_monitor_result success
     }
+
+    # Triggers a bunch of file system operations. The file/dir must exist
+    proc trigger_filesystem_ops {path {type file}} {
+        if {![file exists $path]} {
+            if {$type eq "dir"} {
+                file mkdir $path
+            } else {
+                close [open $path w]
+            }
+        }
+        if {[file isdirectory $path]} {
+            # Any dir specific ops?
+        } else {
+            # Trigger a write
+            set fd [open $path w]
+            puts $fd "This is a TWAPI test"
+            flush $fd
+            close $fd
+        }
+        # Changing access time
+        twapi::set_file_times $path -atime [twapi::get_system_time]
+        # Changing create time
+        twapi::set_file_times $path -ctime [twapi::get_system_time]
+        # Setting security descriptor
+        set secd [twapi::get_resource_security_descriptor file $path]
+        twapi::set_resource_security_descriptor file $path $secd
+        # Changing attributes
+        file attributes $path -readonly 1
+    }
+
+    proc filesystem_monitor_tester {expected_changes_template options} {
+        # expected_changes_template is in the form added_file, added_dir,
+        # modified_file, modified_dir etc.
+
+        # Setup 
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set subdir [clock clicks]
+        set path [file join $dir $fn]
+        set subdirpath [file join $dir $subdir]
+        array unset filesystem_changes_seen
+        set ::filesystem_monitor_result ""
+
+        # Map expected changes
+        set expected_changes {}
+        foreach change_template $expected_changes_template {
+            switch -glob -- $change_template {
+                *_dir {
+                    lappend expected_changes [string range $change_template 0 end-4] $subdir
+                }
+                *_file {
+                    lappend expected_changes [string range $change_template 0 end-5] $fn
+                }
+                default {
+                    error "Unknown change template '$change_template'"
+                }
+            }
+        }
+
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [eval [list twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler $expected_changes]] $options]
+
+        trigger_filesystem_ops $path
+        trigger_filesystem_ops $subdirpath dir
+
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+
+        twapi::cancel_filesystem_monitor $monitor_id
+        file delete $path
+        file delete $subdirpath
+
+        return $::filesystem_monitor_result
+
+    }
+
 
     test begin_filesystem_monitor-1.0 {
         Verify file creates are monitored when no options are specified
@@ -1302,6 +1377,72 @@ namespace eval twapi::disk::test {
         file delete [file join $dir $fn]
     } -result success
 
+
+    test begin_filesystem_monitor-1.4 {
+        Verify directory creates are monitored when no options are specified
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        array unset filesystem_changes_seen
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list added $fn]]]
+        file mkdir [file join $dir $fn]
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        file delete [file join $dir $fn]
+    } -result success
+
+    test begin_filesystem_monitor-1.5 {
+        Verify file access time changes are monitored when no options are specified
+    } -setup {
+        array unset filesystem_changes_seen
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        close [open [file join $dir $fn] w]
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list modified $fn]]]
+        # We use explicit setting of file access time since just doing
+        # a read does not change it as NTFS delays updating access times
+        # by up to one hour
+        twapi::set_file_times [file join $dir $fn] -atime [twapi::get_system_time]
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        file delete [file join $dir $fn]
+    } -result success
+
+    test begin_filesystem_monitor-1.6 {
+        Verify file security descriptor writes are monitored when no options are specified
+    } -setup {
+        array unset filesystem_changes_seen
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set path [file join $dir $fn]
+        close [open [file join $dir $fn] w]
+        set secd [twapi::get_resource_security_descriptor file $path]
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list modified $fn]]]
+        twapi::set_resource_security_descriptor file $path $secd
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        file delete [file join $dir $fn]
+    } -result success
+
+
     test begin_filesystem_monitor-2.0 {
         Verify multiple file changes monitored for very short file names
     } -setup {
@@ -1322,6 +1463,56 @@ namespace eval twapi::disk::test {
         set ::filesystem_monitor_result
     } -cleanup {
         twapi::cancel_filesystem_monitor $monitor_id
+    } -result success
+
+    test begin_filesystem_monitor-3.0 {
+        Verify file system monitored when with -filename option
+    } -body {
+        filesystem_monitor_tester [list added_file] [list -filename true]
+    } -result success
+
+
+    test begin_filesystem_monitor-4.0 {
+        Verify file system monitored when with -dirname option (new dir)
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set fn [clock clicks]
+        set dirpath [file join $dir $fn]
+        set path [file join $dir [clock clicks]]
+        array unset filesystem_changes_seen
+    } -body {
+        set ::filesystem_monitor_result ""
+        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list added $fn]] -dirname true]
+        file mkdir $dirpath
+
+        # Verify other operations are not reported
+        # Creating and writing to the file
+        set fd [open $path w]
+        puts $fd "This is a test"
+        flush $fd
+        # Changing access time
+        twapi::set_file_times $dirpath -atime [twapi::get_system_time]
+        twapi::set_file_times $path -atime [twapi::get_system_time]
+        # Changing create time
+        twapi::set_file_times $dirpath -ctime [twapi::get_system_time]
+        twapi::set_file_times $path -ctime [twapi::get_system_time]
+        # Setting security descriptor
+        set secd [twapi::get_resource_security_descriptor file $dirpath]
+        twapi::set_resource_security_descriptor file $dirpath $secd
+        # Chaging attributes
+        file attributes $dirpath -readonly 1
+        file attributes $path -readonly 1
+
+        vwait ::filesystem_monitor_result
+        after cancel $after_id
+        set ::filesystem_monitor_result
+
+    } -cleanup {
+        twapi::cancel_filesystem_monitor $monitor_id
+        close $fd
+        file delete $dirpath
+        file delete $path
     } -result success
 
 
