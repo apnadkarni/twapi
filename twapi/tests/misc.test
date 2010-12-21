@@ -93,11 +93,77 @@ namespace eval twapi::misc::test {
         twapi::get_build_config tcl_header_version
     } -result {^8\.[4]\..+} -match regexp
 
+    ################################################################
 
+    test map_windows_error-1.0 {
+        Map Windows error
+    } -body {
+        twapi::map_windows_error 2
+    } -result "The system cannot find the file specified."
 
+    test map_windows_error-2.0 {
+        Map unmappable Windows error
+    } -body {
+        twapi::map_windows_error 2452345
+    } -result "Windows error: 2452345"
+
+    test map_windows_error-3.0 {
+        Map TWAPI Windows error
+    } -body {
+        twapi::map_windows_error [expr {0xE0000000 | (0xABC << 16) | 1}]
+    } -result "Invalid or badly formatted arguments specified."
+
+    test map_windows_error-4.0 {
+        Map LANMAN error
+    } -body {
+        twapi::map_windows_error [expr {2100+2}]
+    } -result "The workstation driver is not installed."
+
+    test map_windows_error-5.0 {
+        Map NTSTATUS error
+    } -body {
+        twapi::map_windows_error 0x40010003
+    } -result "Debugger terminated thread."
 
     ################################################################
 
+    test win32_error-1.0 {
+        Generate Windows error
+    } -body {
+        twapi::win32_error 2
+    } -result "The system cannot find the file specified." -returnCodes [list error]
+
+    test win32_error-2.0 {
+        Map unmappable Windows error
+    } -body {
+        twapi::win32_error 2452345
+    } -result "Windows error: 2452345" -returnCodes [list error]
+
+    test win32_error-3.0 {
+        Map TWAPI Windows error
+    } -body {
+        twapi::win32_error [expr {0xE0000000 | (0xABC << 16) | 1}]
+    } -result "Invalid or badly formatted arguments specified." -returnCodes [list error]
+
+    test win32_error-4.0 {
+        Map LANMAN error
+    } -body {
+        twapi::win32_error [expr {2100+2}]
+    } -result "The workstation driver is not installed." -returnCodes [list error]
+
+    test win32_error-5.0 {
+        Map NTSTATUS error
+    } -body {
+        twapi::win32_error 0x40010003
+    } -result "Debugger terminated thread." -returnCodes [list error]
+
+    test win32_error-6.0 {
+        Generate Windows error with appended message
+    } -body {
+        twapi::win32_error 2 "Additional information:"
+    } -result "Additional information: The system cannot find the file specified." -returnCodes [list error]
+
+    ################################################################
 
     #
     # Clean up
