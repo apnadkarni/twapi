@@ -712,24 +712,15 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
     /*
      * We need to do things in a specific order.
      *
-     * First, unlink the dmc and the tic, so no callbacks will access
-     * the interp/tic.
-     *
      * Note all unrefs for the dmc are done at the end.
      */
-    ticP = dmcP->ticP;
-    if (ticP) {
-        ZLIST_REMOVE(&dmcP->ticP->directory_monitors, dmcP);
-        dmcP->ticP = NULL;
-        ++unrefs;   /* Since directory_monitors no longer refs dmcP */
-    }
 
     /*
-     * Second, stop the thread pool for this dmc. We need to do that before
+     * Stop the thread pool for this dmc. We need to do that before
      * closing handles. Note the UnregisterWaitEx can result in thread pool
      * callbacks running while it is blocked. The callbacks might queue
-     * additional events to the interp thread. That's ok because we unlinked
-     * dmcP->ticP above.
+     * additional events to the interp thread. That's ok, they will be
+     * discarded when removed from the event queue.
      */
     if (dmcP->thread_pool_registry_handle != INVALID_HANDLE_VALUE) {
         UnregisterWaitEx(dmcP->thread_pool_registry_handle,
@@ -737,6 +728,14 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
             );
         dmcP->thread_pool_registry_handle = INVALID_HANDLE_VALUE;
         ++unrefs;               /* Remove the ref coming from the thread pool */
+    }
+
+    /* Now that threads have stopped, unlink the dmcP and ticP */
+    ticP = dmcP->ticP;
+    if (ticP) {
+        ZLIST_REMOVE(&dmcP->ticP->directory_monitors, dmcP);
+        dmcP->ticP = NULL;
+        ++unrefs;   /* Since directory_monitors no longer refs dmcP */
     }
 
     /* Third, now that handles are unregistered, close them. */
