@@ -301,13 +301,13 @@ proc twapi::_write_console {conh s args} {
         foreach {width height} $csbi(-size) break
 
         # Ensure line terminations are just \n
-        set s [string map "\r\n \n" $s]
+        set s [string map [list \r\n \n] $s]
 
         # Write out each line at ($x,$y)
         # Either \r or \n is considered a newline
         foreach line [split $s \r\n] {
             if {$y >= $height} break
-
+            set_console_cursor_position $conh [list $x $y]
             if {$x < $width} {
                 # Write the characters - do not write more than buffer width
                 set num_chars [expr {$width-$x}]
