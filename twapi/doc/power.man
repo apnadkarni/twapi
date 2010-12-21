@@ -50,7 +50,7 @@ power system. The list includes the fields in the table below.
 [opt_def [const -acstatus]] Indicates the state of the AC power. May
 have the values [const on], [const off] or [const unknown].
 [opt_def [const -batterystate]] Indicates the state of the battery charge.
-May be [const critical], [const low], [const high] or [const unknown].
+May be [const notpresent], [const critical], [const low], [const high] or [const unknown].
 [opt_def [const -batterycharging]] Indicates whether the battery is being
 charged. May have the values [const true], [const false] or [const unknown].
 [opt_def [const -batterylifepercent]] Indicates the percentage of the
