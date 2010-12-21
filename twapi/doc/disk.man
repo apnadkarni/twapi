@@ -214,7 +214,7 @@ will only monitor files in [const c:\\temp] with [const .exe] extensions.
 will monitor files in [const c:\\temp] with an extension beginning with
 [const .fo] except if the extension is [const .foo].
 
-[example "begin_filesystem_monitor c:/temp callback -patterns {+*.fo -*.foo}"]
+[example "begin_filesystem_monitor c:/temp callback -patterns {+*.fo* -*.foo}"]
 will monitor files in [const c:\\temp] with an extension beginning with
 [const .fo] [emph including] those with extension [const .foo]. The second pattern
 [const -*.foo] has no effect as the matching stops as soon as a match is found.
