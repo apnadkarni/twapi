@@ -268,10 +268,9 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
 
     sz += npatterns * sizeof(dmcP->patterns[0]); /* Space for patterns array */
     for (i=0; i < npatterns; ++i) {
-        bytelengths[i] = sizeof(WCHAR) * lstrlenW(patterns[i]) + 1;
+        bytelengths[i] = sizeof(WCHAR) * (lstrlenW(patterns[i]) + 1);
         sz += bytelengths[i];
     }
-    sz += sizeof(WCHAR);                /* Sufficient space for alignment pad */
     sz += sizeof(WCHAR) * (path_len+1); /* Space for path to be monitored */
 
     dmcP = (TwapiDirectoryMonitorContext *) TwapiAlloc(sz);
@@ -291,8 +290,8 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
         CopyMemory(cP, patterns[i], bytelengths[i]);
         cP += bytelengths[i];
     }
-    /* Align up to WCHAR boundary */
-    dmcP->pathP = (WCHAR *)((sizeof(WCHAR)-1 + (DWORD_PTR)cP) & ~ (sizeof(WCHAR)-1));
+    TWAPI_ASSERT((((DWORD_PTR)cP) & 1) == 0); /* Alignment check */
+    dmcP->pathP = (WCHAR *) cP;
     CopyMemory(dmcP->pathP, pathP, sizeof(WCHAR)*path_len);
     dmcP->pathP[path_len] = 0;
     dmcP->iobP = NULL;
@@ -781,6 +780,7 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
 {
     int include;
+
     /* Pattern can be prefixed with + or - to indicate inclusion/exclusion */
     if (pattern[0] == L'-') {
         include = -1;
