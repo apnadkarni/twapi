@@ -206,7 +206,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     
     /* Perhaps a TWAPI error ? */
     if (IS_TWAPI_WIN32_ERROR(error))
-        return TwapiGetErrorMsg(error);
+        return TwapiGetErrorMsg(TWAPI_WIN32_ERROR_TO_CODE(error));
 
     /* Just print out error code */
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
