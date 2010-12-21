@@ -92,8 +92,6 @@ typedef struct _TwapiDirectoryMonitorContext {
 } TwapiDirectoryMonitorContext;
 
 
-
-
 /*
  * Static prototypes
  */
@@ -110,6 +108,7 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
 );
 static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *p);
 static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *);
+static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern);
 
 int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
@@ -554,6 +553,8 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
             actionObj[i] = NULL;
         }
         while ((endP - offsetof(FILE_NOTIFY_INFORMATION,FileName)) > (char *)fniP) {
+            int pattern_matched;
+
             if ((fniP->FileNameLength == 0) || (fniP->FileNameLength & 1)) {
                 /*
                  * Number of bytes should be positive and even. Ignore all
@@ -581,75 +582,84 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 Tcl_SetUnicodeObj(fnObj[1], fniP->FileName, fniP->FileNameLength/2);
             } else 
                 fnObj[1] = Tcl_NewUnicodeObj(fniP->FileName, fniP->FileNameLength/2);
-            if (dmcP->npatterns) {
+            if (dmcP->npatterns == 0)
+                pattern_matched = 1; /* No pattern so match everything */
+            else {
                 /* Need to match on pattern */
                 int i;
                 for (i = 0; i < dmcP->npatterns; ++i) {
-                    if (Tcl_UniCharCaseMatch(Tcl_GetUnicode(fnObj[1]),
-                                             dmcP->patterns[i], 1))
+                    int matched = TwapiDirectoryMonitorPatternMatch(
+                        Tcl_GetUnicode(fnObj[1]),
+                        dmcP->patterns[i]);
+                    if (matched) {
+                        /* Matches can be inclusive or exclusive */
+                        pattern_matched = (matched > 0);
                         break;
+                    }
                 }
                 if (i == dmcP->npatterns) {
                     /*
                      * No match. Try next name. Note fnObj will be released
                      * later if necessary or reused in next iteration
                      */
-                    continue;
+                    pattern_matched = 0;
                 }
             }
 
-            /*
-             * We reuse the action names instead of allocating new ones. Much
-             * more efficient in space and time when many notifications.
-             */
-            switch (fniP->Action) {
-            case FILE_ACTION_ADDED:
-                if (actionObj[0] == NULL) {
-                    actionObj[0] = STRING_LITERAL_OBJ("added");
-                    Tcl_IncrRefCount(actionObj[0]);
+            if (pattern_matched) {
+                /*
+                 * We reuse the action names instead of allocating new ones. Much
+                 * more efficient in space and time when many notifications.
+                 */
+                switch (fniP->Action) {
+                case FILE_ACTION_ADDED:
+                    if (actionObj[0] == NULL) {
+                        actionObj[0] = STRING_LITERAL_OBJ("added");
+                        Tcl_IncrRefCount(actionObj[0]);
+                    }
+                    fnObj[0] = actionObj[0];
+                    break;
+                case FILE_ACTION_REMOVED:
+                    if (actionObj[1] == NULL) {
+                        actionObj[1] = STRING_LITERAL_OBJ("removed");
+                        Tcl_IncrRefCount(actionObj[1]);
+                    }
+                    fnObj[0] = actionObj[1];
+                    break;
+                case FILE_ACTION_MODIFIED:
+                    if (actionObj[2] == NULL) {
+                        actionObj[2] = STRING_LITERAL_OBJ("modified");
+                        Tcl_IncrRefCount(actionObj[2]);
+                    }
+                    fnObj[0] = actionObj[2];
+                    break;
+                case FILE_ACTION_RENAMED_OLD_NAME:
+                    if (actionObj[3] == NULL) {
+                        actionObj[3] = STRING_LITERAL_OBJ("renameold");
+                        Tcl_IncrRefCount(actionObj[3]);
+                    }
+                    fnObj[0] = actionObj[3];
+                    break;
+                case FILE_ACTION_RENAMED_NEW_NAME:
+                    if (actionObj[4] == NULL) {
+                        actionObj[4] = STRING_LITERAL_OBJ("renamenew");
+                        Tcl_IncrRefCount(actionObj[4]);
+                    }
+                    fnObj[0] = actionObj[4];
+                    break;
+                default:
+                    if (actionObj[5] == NULL) {
+                        actionObj[5] = STRING_LITERAL_OBJ("unknown");
+                        Tcl_IncrRefCount(actionObj[5]);
+                    }
+                    fnObj[0] = actionObj[5];
+                    break;
                 }
-                fnObj[0] = actionObj[0];
-                break;
-            case FILE_ACTION_REMOVED:
-                if (actionObj[1] == NULL) {
-                    actionObj[1] = STRING_LITERAL_OBJ("removed");
-                    Tcl_IncrRefCount(actionObj[1]);
-                }
-                fnObj[0] = actionObj[1];
-                break;
-            case FILE_ACTION_MODIFIED:
-                if (actionObj[2] == NULL) {
-                    actionObj[2] = STRING_LITERAL_OBJ("modified");
-                    Tcl_IncrRefCount(actionObj[2]);
-                }
-                fnObj[0] = actionObj[2];
-                break;
-            case FILE_ACTION_RENAMED_OLD_NAME:
-                if (actionObj[3] == NULL) {
-                    actionObj[3] = STRING_LITERAL_OBJ("renameold");
-                    Tcl_IncrRefCount(actionObj[3]);
-                }
-                fnObj[0] = actionObj[3];
-                break;
-            case FILE_ACTION_RENAMED_NEW_NAME:
-                if (actionObj[4] == NULL) {
-                    actionObj[4] = STRING_LITERAL_OBJ("renamenew");
-                    Tcl_IncrRefCount(actionObj[4]);
-                }
-                fnObj[0] = actionObj[4];
-                break;
-            default:
-                if (actionObj[5] == NULL) {
-                    actionObj[5] = STRING_LITERAL_OBJ("unknown");
-                    Tcl_IncrRefCount(actionObj[5]);
-                }
-                fnObj[0] = actionObj[5];
-                break;
+                Tcl_ListObjAppendElement(interp, changesObj, fnObj[0]);
+                Tcl_ListObjAppendElement(interp, changesObj, fnObj[1]);
+                fnObj[1] = NULL;           /* So we don't mistakenly reuse it */
+                notify = 1;
             }
-            Tcl_ListObjAppendElement(interp, changesObj, fnObj[0]);
-            Tcl_ListObjAppendElement(interp, changesObj, fnObj[1]);
-            fnObj[1] = NULL;           /* So we don't mistakenly reuse it */
-            notify = 1;
 
             if (fniP->NextEntryOffset == 0)
                 break;          // No more entries
@@ -767,3 +777,19 @@ static int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
     return TCL_OK;
 }
 
+/* Returns 0 if no match, 1 if inclusion match, -1 if exclusion match */
+static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
+{
+    int include;
+    /* Pattern can be prefixed with + or - to indicate inclusion/exclusion */
+    if (pattern[0] == L'-') {
+        include = -1;
+        ++pattern;
+    } else if (pattern[0] == L'+') {
+        include = 1;
+        ++pattern;
+    } else
+        include = 1;            /* Default is inclusive pattern */
+
+    return Tcl_UniCharCaseMatch(path, pattern, 1) ? include : 0;
+}
