@@ -19,7 +19,19 @@ namespace eval twapi::power::test {
 
     ################################################################
 
-    # TBD - add tests for all the power.tcl commands
+    test get_power_status-1.0 {
+        Get power status
+    } -body {
+        array set ps [twapi::get_power_status]
+        expr {
+              [oneof {on off unknown} $ps(-acstatus)] &&
+              [oneof {critical low high unknown notpresent} $ps(-batterystate)] &&
+              [oneof {true false unknown} $ps(-batterycharging)] &&
+              ($ps(-batterylifepercent) eq "unknown" || [string is integer -strict $ps(-batterylifepercent)]) &&
+              ($ps(-batterylifetime) eq "unknown" || [string is integer -strict $ps(-batterylifetime)]) &&
+              ($ps(-batteryfulllifetime) eq "unknown" || [string is integer -strict $ps(-batteryfulllifetime)])
+          }
+    } -result 1
 
     ################################################################
 

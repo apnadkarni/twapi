@@ -109,6 +109,80 @@ namespace eval twapi::console::test {
 
     ################################################################
 
+    test write_console-1.0 {
+        Write a string to the console
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::write_console stdout "Sample string\n"
+        yesno "Was the string 'Sample string' output to the console?"
+    } -result 1
+
+    test write_console-2.0 {
+        Write a string to the console at a given position and restore position
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "XXXXXXXXXXXXXXXXXXXXXXXXXX\r" -position [list 30 $ypos] -restoreposition true
+        yesno "\nWas a string of X's written somewhere in the middle of ths screen and this prompt appeared at *original* location?"
+    } -result 1
+
+    test write_console-3.0 {
+        Write a string to the console in column mode 
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "QQQQQ\nQQQQQ\nQQQQQ" -position [list 35 $ypos] -restoreposition true -newlinemode column
+        yesno "\nWas a BOX of Q's written at middle of screen and this prompt appeared at *original* location?"
+    } -result 1
+
+    test write_console-4.0 {
+        Write a string to the console with carraige returns
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "RRRRR\rRRRRR" -position [list 0 $ypos] -restoreposition true -newlinemode column
+        yesno "\nWere 2 lines of R's written at left-middle of screen and this prompt appeared at *original* location?"
+    } -result 1
+
+    test write_console-4.1 {
+        Write a string to the console with line feeds
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "LLLLL\nLLLLL" -position [list 0 $ypos] -restoreposition true -newlinemode column
+        yesno "\nWere 2 lines of L's written at left-middle of screen and this prompt appeared at *original* location?"
+    } -result 1
+
+    test write_console-4.2 {
+        Write a string to the console with CRLF
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "VVVVV\r\nVVVVV" -position [list 0 $ypos] -restoreposition true -newlinemode column
+        yesno "\nWere 2 lines of V's written at left-middle of screen WITHOUT INTEVENING BLANK LINE and this prompt appeared at *original* location?"
+    } -result 1
+
+
+
+
+    ################################################################
+
     test console_read-1.0 {
         Read the console
     } -constraints {

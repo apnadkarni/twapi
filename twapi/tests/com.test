@@ -23,6 +23,14 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test clsid_to_progid-1.0 {
+        Get the ProgId for a CLSID
+    } -body {
+        twapi::clsid_to_progid $shell_clsid
+    } -result {^Shell\.Application\.\d*$} -match regexp
+
+    ################################################################
+
     test comobj-1.0 {
         Create COM object using progid
     } -constraints {
@@ -527,6 +535,17 @@ namespace eval twapi::com::test {
         } Path
     } -result [file join $::env(WINDIR) system32] -match path
 
+    ###
+
+    test comobj-19.0 {
+        Check is comobj is null
+    } -body {
+        set sh [twapi::comobj $shell_clsid]
+        $sh -isnull
+    } -cleanup {
+        $sh -destroy
+    } -result 0 -match boolean
+
 
     ################################################################
 
@@ -585,6 +604,25 @@ namespace eval twapi::com::test {
         } 1
     } -result ""
 
+    ################################################################
+
+    test comobj_null-1.0 {
+        NULL comobj -isnull
+    } -body {
+        twapi::comobj_null -isnull
+    } -result 1 -match boolean
+
+    test comobj_null-1.1 {
+        NULL comobj -interface
+    } -body {
+        twapi::comobj_null -interface
+    } -result NULL
+
+    test comobj_null-1.2 {
+        NULL comobj -destroy
+    } -body {
+        twapi::comobj_null -destroy
+    } -result ""
 
     ################################################################
 
@@ -709,6 +747,9 @@ namespace eval twapi::com::test {
     } -cleanup {
         $wmi -destroy
     } -result 1
+
+    ################################################################
+    
 
     ################################################################
 

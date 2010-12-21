@@ -9,6 +9,11 @@ global thrdinfo;                  # Array storing thread informations
 global twapi_test_dir
 set twapi_test_script_dir [file dirname [info script]]
 
+proc equal_boolean {a b} {
+    return [expr {(! $a) == (! $b)}]
+}
+tcltest::customMatch boolean equal_boolean
+
 proc load_twapi {} {
     if {[llength [info commands ::twapi::get_build_config]]} {
         # Already loaded. Note check for twapi namespace not sufficient
