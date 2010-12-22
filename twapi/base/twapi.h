@@ -1354,6 +1354,8 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR sitenameP, ULONG flags);
 
 /* Network related */
+Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
+int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
 int Twapi_GetNetworkParams(TwapiInterpContext *ticP);
 int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP);
 int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP);
@@ -1364,7 +1366,7 @@ int Twapi_GetIpAddrTable(TwapiInterpContext *ticP, int sort);
 int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort);
 int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort);
 
-int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD addr, DWORD addr2);
+int Twapi_GetBestRoute(TwapiInterpContext *, int objc, Tcl_Obj *objv[]);
 int Twapi_AllocateAndGetTcpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
 int Twapi_AllocateAndGetUdpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
 int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
