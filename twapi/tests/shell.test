@@ -13,7 +13,8 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package
 
 namespace eval twapi::shell::test {
-    namespace import ::tcltest::test
+    namespace import ::tcltest::test ::tcltest::makeFile
+
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     proc check_csidl {csidl {allow_empty 0}} {
@@ -650,11 +651,53 @@ namespace eval twapi::shell::test {
     ################################################################
 
     test recycle_file-1.0 {
-        TBD - recycle_file tests
-    } -constraints {
-        TBD nt
+        Recycle a file
+    } -setup {
+        set path [makeFile "" [clock clicks]]
     } -body {
+        twapi::recycle_file $path
+        file exists $path
+    } -result 0
+
+    test recycle_file-2.0 {
+        Recycle a file with -confirm true
+    } -constraints {
+        userInteraction
+    } -setup {
+        set path [makeFile "" [clock clicks]]
+    } -body {
+        twapi::recycle_file $path -confirm true
+        yesno "Did you see a prompt for confirmation of file deletion ?"
     } -result 1
+
+    test recycle_file-2.1 {
+        Recycle a file with -confirm false
+    } -setup {
+        set path [makeFile "" [clock clicks]]
+    } -body {
+        twapi::recycle_file $path -confirm false
+        file exists $path
+    } -result 0
+
+    test recycle_file-3.0 {
+        Recycle a file with -showerror true
+    } -constraints {
+        userInteraction
+    } -body {
+        list [catch {twapi::recycle_file nosuchfile.noexist -showerror true}] \
+            [yesno "recycle_file-3.0: Did you see a ERROR dialog pertaining to file deletion ?"]
+    } -result {1 1}
+
+    test recycle_file-3.1 {
+        Recycle a file with -showerror false
+    } -constraints {
+        userInteraction
+    } -body {
+        list [catch {twapi::recycle_file nosuchfile.noexist -showerror false}] \
+            [yesno "recycle_file-3.1: Did you see a ERROR dialog pertaining to file deletion ?"]
+    } -result {1 0}
+
+
 
     ################################################################
 
@@ -664,6 +707,8 @@ namespace eval twapi::shell::test {
         TBD nt
     } -body {
     } -result 1
+
+
 
 
     ################################################################

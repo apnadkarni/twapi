@@ -2144,6 +2144,22 @@ namespace eval ::twapi::process::test {
 
     ################################################################
 
+    test get_command_line-1.0 {
+        Get the command line of the current process
+    } -body {
+        twapi::get_command_line
+    } -result "* $argv0 $argv" -match glob
+
+    ################################################################
+
+    test get_command_line_args-1.0 {
+        Get the command line of the current process
+    } -body {
+        twapi::get_command_line_args [twapi::get_command_line]
+    } -result "* $argv0 $argv" -match glob
+
+    ################################################################
+
     test process_in_administrators-1.0 {
         process_in_administrators
     } -constraints {

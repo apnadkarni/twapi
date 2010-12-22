@@ -58,6 +58,15 @@ namespace eval twapi::network::test {
         return yahoo.com
     }
 
+    proc our_ipaddr {} {
+        foreach ipaddr [twapi::get_ip_addresses] {
+            if {$ipaddr ne "127.0.0.1"} {
+                return $ipaddr
+            }
+        }
+        error "Could not find our IP address"
+    }
+
     # Validate a connection
     # fields, if present, specifies fields that must be present
     # matchdata, if present, specifies field values that must match
@@ -143,6 +152,41 @@ namespace eval twapi::network::test {
         return ""
     }
 
+    proc validate_route {routedata} {
+        verify_kl_fields $routedata {
+            -addr -ifindex -policy -protocol -nexthopas -mask -age -metric1 -nexthop -metric2 -metric3 -metric4 -metric5 -type
+        }
+
+        array set route $routedata
+
+        foreach fld {addr mask nexthop} {
+            if {![valid_ip_address $route(-$fld)]} {
+                return "Invalid -$fld field: $route(-$fld)"
+            }
+        }
+
+        if {[lsearch -exact [twapi::get_netif_indices] $route(-ifindex)] < 0} {
+            return "Field -ifindex ($route(-ifindex)) not found in list of network interface indices"
+        }
+
+        foreach fld {metric1 metric2 metric3 metric4 metric5 age nexthopas policy} {
+            if {![string is integer -strict $route(-$fld)]} {
+                return "Invalid -$fld field: $route(-$fld)"
+            }
+        }
+
+        if {![oneof {local remote other invalid} $route(-type)]} {
+            return "Invalid -type field: $route(-type)"
+        }
+
+        if {![oneof {local netmgmt icmp egp ggp hello rip is_is es_is cisco bbn ospf bgp other} $route(-protocol)]} {
+            return "Invalid -type field: $route(-type)"
+        }
+        
+        return ""
+
+    }
+
     ################################################################
 
     test get_ip_addresses-1.0 {
@@ -196,6 +240,139 @@ namespace eval twapi::network::test {
             # NT 4 - command should throw an error
             set result [catch {twapi::get_network_info -all} msg]
         }
+    } -result 1
+
+    ################################################################
+
+    test ipaddr_to_hwaddr-1.0 {
+        Get the hardware address for an IP address
+    } -body {
+        set dest [twapi::kl_get [twapi::get_route] -nexthop]
+        # Try to make sure ARP table populated
+        catch { close [socket $dest 1234] }
+        twapi::ipaddr_to_hwaddr $dest
+    } -result {^([[:xdigit:]]{2}-){5}[[:xdigit:]]{2}$} -match regexp
+
+    test ipaddr_to_hwaddr-1.1 {
+        Get the hardware address for an IP address in a variable
+    } -body {
+        set dest [twapi::kl_get [twapi::get_route] -nexthop]
+        # Try to make sure ARP table populated
+        catch { close [socket $dest 1234] }
+        list [twapi::ipaddr_to_hwaddr $dest hwaddr] $hwaddr
+    } -result {^1 ([[:xdigit:]]{2}-){5}[[:xdigit:]]{2}$} -match regexp
+
+    test ipaddr_to_hwaddr-2.0 {
+        Get the hardware address for a non-existing IP address
+    } -body {
+        twapi::ipaddr_to_hwaddr 127.0.0.2
+    } -result * -match glob -returnCodes error
+
+    test ipaddr_to_hwaddr-2.1 {
+        Get the hardware address for a loopback
+    } -body {
+        twapi::ipaddr_to_hwaddr 127.0.0.1
+    } -result * -match glob -returnCodes error
+
+    test ipaddr_to_hwaddr-2.2 {
+        Get the hardware address for a non-existing IP address
+    } -body {
+        set var unchanged
+        list [twapi::ipaddr_to_hwaddr 127.0.0.2 var] $var
+    } -result {0 unchanged}
+
+
+    ################################################################
+
+    test hwaddr_to_ipaddr-1.0 {
+        Get the IP address for an h/w address
+    } -body {
+        set dest [twapi::kl_get [twapi::get_route] -nexthop]
+        # Try to make sure ARP table populated
+        catch { close [socket $dest 1234] }
+        set hwaddr [twapi::ipaddr_to_hwaddr $dest]
+        string equal $dest [twapi::hwaddr_to_ipaddr $hwaddr]
+    } -result 1
+
+    test hwaddr_to_ipaddr-1.1 {
+        Get the IP address for an h/w address in a variable
+    } -body {
+        set dest [twapi::kl_get [twapi::get_route] -nexthop]
+        # Try to make sure ARP table populated
+        catch { close [socket $dest 1234] }
+        set hwaddr [twapi::ipaddr_to_hwaddr $dest]
+        list [twapi::hwaddr_to_ipaddr $hwaddr ipaddr] [string equal $dest $ipaddr]
+    } -result {1 1}
+    
+    test hwaddr_to_ipaddr-2.0 {
+        Get the IP address for a non-existing h/w address
+    } -body {
+        twapi::hwaddr_to_ipaddr 0a-0a-0a-0a-0a=0a
+    } -result * -match glob -returnCodes error
+
+    test hwaddr_to_ipaddr-2.1 {
+        Get the IP address for a non-existing h/w address using a variable
+    } -body {
+        set var unchanged
+        list [twapi::hwaddr_to_ipaddr 0a-0a-0a-0a-0a=0a var] $var
+    } -result {0 unchanged}
+
+
+    ################################################################
+    
+    test get_route-1.0 {
+        Get the default route
+    } -body {
+        validate_route [twapi::get_route]
+    } -result ""
+
+    test get_route-1.1 {
+        Get the route to a specific address
+    } -body {
+        validate_route [twapi::get_route -dest 8.8.8.8]
+    } -result ""
+
+    test get_route-1.2 {
+        Get the route to a specific address from a specific source address
+    } -body {
+        validate_route [twapi::get_route -dest 8.8.8.8 -source [our_ipaddr]]
+    } -result ""
+
+
+    ################################################################
+
+    test get_routing_table-1.0 {
+        Get the routing table
+    } -body {
+        set routes [twapi::get_routing_table]
+        set msg ""
+        if {[llength $routes] == 0} {
+            set msg "No routes found."
+        } else {
+            foreach route $routes {
+                append msg [validate_route $route]
+            }
+        }
+        set msg
+    } -result ""
+
+    ################################################################
+
+    test get_netif_count-1.0 {
+        Get network interface count
+    } -body {
+        expr {[twapi::get_netif_count] == [llength [twapi::get_netif_indices]]}
+    } -result 1
+
+
+    ################################################################
+
+    test get_outgoing_interface-1.0 {
+        Get the outgoing interface for a connection
+    } -body {
+        expr {
+              [lsearch -exact [twapi::get_netif_indices] [twapi::get_outgoing_interface 8.8.8.8]] >= 0
+          }
     } -result 1
 
     ################################################################

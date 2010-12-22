@@ -31,6 +31,14 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test progid_to_clsid-1.0 {
+        Get the CLSID for a ProgId
+    } -body {
+        twapi::progid_to_clsid Shell.Application
+    } -result $shell_clsid
+
+    ################################################################
+
     test name_to_iid-1.0 {
         Get IID for a predefined interface
     } -body {
@@ -45,6 +53,20 @@ namespace eval twapi::com::test {
         }
         twapi::name_to_iid IShellDispatch4
     } -result {{EFD84B2D-4BCF-4298-BE25-EB542A59FBDA}}
+
+    ################################################################
+
+    test iid_to_name-1.0 {
+        Convert dispatch guid to name
+    } -body {
+        twapi::iid_to_name {{00020400-0000-0000-C000-000000000046}}
+    } -result IDispatch
+
+    test iid_to_name-1.1 {
+        Convert dispatch guid to name
+    } -body {
+        twapi::iid_to_name {{EFD84B2D-4BCF-4298-BE25-EB542A59FBDA}}
+    } -result IShellDispatch4
 
 
     ################################################################

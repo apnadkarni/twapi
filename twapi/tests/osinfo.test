@@ -52,6 +52,14 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test get_processor_count-1.0 {
+        Get processor count
+    } -body {
+        string is integer -strict [twapi::get_processor_count]
+    } -result 1
+
+    ################################################################
+
     test get_os_version-1.0 {
         get operating system version
     } -constraints {
@@ -1075,6 +1083,22 @@ namespace eval twapi::osinfo::test {
     } -body {
         join [twapi::large_system_time_to_timelist 128121282305000000] ,
     } -result "2007,1,1,12,30,30,500"
+    
+    ################################################################
+
+    test get_system_time-1.0 {
+        Get system time in 100ns
+    } -body {
+        approx [twapi::large_system_time_to_secs_since_1970 [twapi::get_system_time]] [clock seconds]
+    } -result 1
+
+    ################################################################
+
+    test get_system_uptime-1.0 {
+        Get number of seconds since system booted
+    } -body {
+        string is integer -strict [twapi::get_system_uptime]
+    } -result 1
 
 
     ################################################################

@@ -634,6 +634,28 @@ namespace eval twapi::nls::test {
 
     ################################################################
 
+    test get_system_default_langid-1.0 {
+        Get the system default language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_system_default_langid
+    } -result 1033
+
+    ################################################################
+
+    test get_system_ui_langid-1.0 {
+        Get the system UI language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_system_ui_langid
+    } -result 1033
+
+    ################################################################
+
     test get_user_ui_langid-1.0 {
         Get the user UI language id
     } -constraints {
@@ -641,6 +663,17 @@ namespace eval twapi::nls::test {
     } -body {
         # TBD - assumes US English
         twapi::get_user_ui_langid
+    } -result 1033
+
+    ################################################################
+
+    test get_user_default_langid-1.0 {
+        Get the user default language id
+    } -constraints {
+        nt
+    } -body {
+        # TBD - assumes US English
+        twapi::get_user_default_langid
     } -result 1033
 
     ################################################################

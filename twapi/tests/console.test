@@ -682,7 +682,18 @@ namespace eval twapi::console::test {
     } -result ""
 
     ################################################################
+
+    test num_console_mouse_buttons-1.0 {
+        Get number of mouse buttons
+    } -body {
+        string is integer -strict [twapi::num_console_mouse_buttons]
+    } -result 1
+
     ################################################################
+
+    
+
+
     ################################################################
 
     ###
