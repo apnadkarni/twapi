@@ -427,6 +427,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(GetDeviceDriverBaseName, Call, 1005);
     CALL_(GetDeviceDriverFileName, Call, 1006);
+    CALL_(GetBestInterface, Call, 1007);
     CALL_(QuerySecurityContextToken, Call, 1008);
     CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
@@ -500,6 +501,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleInformation, Call, 10056);
     CALL_(Twapi_VerQueryValue_STRING, Call, 10057);
     CALL_(DsGetDcName, Call, 10058);
+    CALL_(GetBestRoute, Call, 10059);
     CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
     CALL_(SetupDiGetClassDevsEx, Call, 10061);
     CALL_(SetupDiEnumDeviceInfo, Call, 10062);
@@ -609,8 +611,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
     CALL_(Twapi_MemLifoInit, CallU, 37);
-    CALL_(GetBestInterface, CallU, 38);
-    CALL_(GlobalDeleteAtom, CallU, 39); // TBD - tcl interface
+    CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
     CALL_(Beep, CallU, 1002);
     CALL_(MapVirtualKey, CallU, 1003);
@@ -619,9 +620,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetLocaleInfo, CallU, 1006);
     CALL_(ExitWindowsEx, CallU, 1007);
     CALL_(GenerateConsoleCtrlEvent, CallU, 1008);
-    CALL_(GetBestRoute, CallU, 1009);
-    CALL_(AllocateAndGetTcpExTableFromStack, CallU, 1010);
-    CALL_(AllocateAndGetUdpExTableFromStack, CallU, 1011);
+    CALL_(AllocateAndGetTcpExTableFromStack, CallU, 1009);
+    CALL_(AllocateAndGetUdpExTableFromStack, CallU, 1010);
 
     CALL_(OpenProcess, CallU, 2001);
     CALL_(OpenThread, CallU, 2002);
@@ -1482,7 +1482,20 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             break;
 #endif
-//        case 1007: UNUSED
+        case 1007:
+            if (IPAddrObjToDWORD(interp, objv[2], &dw) == TCL_ERROR)
+                result.type = TRT_TCL_RESULT;
+            else {
+                result.value.ival = GetBestInterface(dw, &dw2);
+                if (result.value.ival)
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                else {
+                    result.value.ival = dw2;
+                    result.type = TRT_DWORD;
+                }
+            }
+            break;
+
         case 1008:
             if (ObjToSecHandle(interp, objv[2], &sech) != TCL_OK)
                 return TCL_ERROR;
@@ -1590,7 +1603,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
                 (interp, pv, dw, dw2);
-
         case 10002: // GetExtendedTcpTable
         case 10003: // GetExtendedUdpTable
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2125,7 +2137,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-//        case 10059: NOT USED
+        case 10059:
+            return Twapi_GetBestRoute(ticP, objc-2, objv+2);
 
 #ifndef TWAPI_LEAN
         case 10060: // SetupDiCreateDeviceInfoListExW
@@ -2762,15 +2775,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.type = TRT_EXCEPTION_ON_ERROR;
             break;
         case 38:
-            result.value.ival = GetBestInterface(dw, &dw2);
-            if (result.value.ival)
-                result.type = TRT_EXCEPTION_ON_ERROR;
-            else {
-                result.value.ival = dw2;
-                result.type = TRT_DWORD;
-            }
-            break;
-        case 39:
             SetLastError(0);    /* As per MSDN */
             GlobalDeleteAtom((WORD)dw);
             result.value.ival = GetLastError();
@@ -2829,10 +2833,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = GenerateConsoleCtrlEvent(dw, dw2);
             break;
         case 1009:
-            return Twapi_GetBestRoute(interp, dw, dw2);
-        case 1010:
             return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
-        case 1011:
+        case 1010:
             return Twapi_AllocateAndGetUdpExTableFromStack(ticP, dw, dw2);
         }
     } else if (func < 3000) {
