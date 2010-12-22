@@ -40,6 +40,7 @@ foreach cmd [twapi::_get_public_procs] {
         class
         eventlog_monitor_start
         eventlog_monitor_stop
+        large_system_time_to_secs
     } $cmd {
         continue
     }

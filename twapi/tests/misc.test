@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi
+load_twapi_package
 
 #
 # Set up system-specific constants that are used to match test results
@@ -162,6 +162,201 @@ namespace eval twapi::misc::test {
     } -body {
         twapi::win32_error 2 "Additional information:"
     } -result "Additional information: The system cannot find the file specified." -returnCodes [list error]
+
+    ################################################################
+
+    test twine-1.0 {
+        Twine empty lists
+    } -body {
+        twapi::twine {} {}
+    } -result {}
+
+    test twine-1.1 {
+        Twine one empty
+    } -body {
+        twapi::twine {a b} {}
+    } -result {a {} b {}}
+
+    test twine-1.2 {
+        Twine equal lists
+    } -body {
+        twapi::twine {a b c} {1 2 3}
+    } -result {a 1 b 2 c 3}
+
+    test twine-1.3 {
+        Twine unequal lists
+    } -body {
+        twapi::twine {a b} {1 2 3}
+    } -result {a 1 b 2 {} 3}
+
+    test twine-1.4 {
+        Twine unequal lists
+    } -body {
+        twapi::twine {a b c} {1 2}
+    } -result {a 1 b 2 c {}}
+
+    ################################################################
+
+    test kl_create-1.0 {
+        Create a keyed list
+    } -body {
+        twapi::kl_create a 1 b 2 c 3
+    } -result {a 1 b 2 c 3}
+
+    test kl_create-1.1 {
+        Create a badly formed keyed list
+    } -body {
+        twapi::kl_create a 1 b 2 c
+    } -result * -match glob -returnCodes error
+
+    test kl_create2-1.0 {
+        Create a keyed list
+    } -body {
+        twapi::kl_create2 {a b c} {1 2 3}
+    } -result {a 1 b 2 c 3}
+
+    test kl_get-1.0 {
+        Get a value from a keyed list (first)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] a
+    } -result 1
+
+    test kl_get-1.1 {
+        Get a value from a keyed list (last)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] c
+    } -result 3
+
+    test kl_get-1.2 {
+        Get a value from a keyed list (middle)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] b
+    } -result 2
+
+    test kl_get-2.0 {
+        Get a non-existent value from a keyed list with default
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] d 42
+    } -result 42
+
+    test kl_get-2.1 {
+        Get a non-existent value from a keyed list
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] d
+    } -result * -match glob -returnCodes error
+    
+    test kl_vget-1.0 {
+        Store a value from a keyed list into a variable
+    } -body {
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] c var]
+        list $status $var
+    } -result {1 3}
+
+    test kl_vget-1.1 {
+        Try to get a non-existing value from a keyed list 
+    } -body {
+        set var unchanged
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] d var]
+        list $status $var
+    } -result {0 unchanged}
+
+    test kl_vget-1.2 {
+        Try to get a non-existing value from a keyed list 
+    } -body {
+        catch {unset var}
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] d var]
+        list $status [info exists var]
+    } -result {0 0}
+
+    test kl_equal-1.0 {
+        Compare empty keyed lists
+    } -body {
+        twapi::kl_equal [twapi::kl_create] [twapi::kl_create2 {} {}]
+    } -result 1
+
+    test kl_equal-1.1 {
+        Compare empty keyed list with non-empty
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2] [twapi::kl_create2 {} {}]
+    } -result 0
+
+    test kl_equal-1.2 {
+        Compare keyed list (identical)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result 1
+
+    test kl_equal-1.3 {
+        Compare keyed list (out of order)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 c 3 b 2] [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result 1
+
+    test kl_equal-1.4 {
+        Compare keyed list (keys in order, different values)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 c 3 b 2] [twapi::kl_create a 1 b 2 c 4]
+    } -result 0
+
+    test kl_equal-1.5 {
+        Compare keyed list (different lengths)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create a 1 b 2]
+    } -result 0
+
+    test kl_fields-1.0 {
+        Get fields in a keyed list
+    } -body {
+        twapi::kl_fields [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result {a b c}
+
+    test kl_flattern-1.0 {
+        Flatten values in a list of keyed lists
+    } -body {
+        twapi::kl_flatten [list [twapi::kl_create a 1 b 2] [twapi::kl_create a 3 b 4]] a
+    } -result {1 3}
+
+    test kl_flattern-1.1 {
+        Flatten values in a list of keyed lists (multiple fields, multiple lists)
+    } -body {
+        twapi::kl_flatten [list [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create a 3 b 4 c 5] [twapi::kl_create a 6 b 7 c 8]] a c
+    } -result {1 3 3 5 6 8}
+
+    test kl_set-1.0 {
+        Set a non-existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_set [twapi::kl_create a 1 b 2] c 3] \
+            [twapi::kl_create a 1 b 2 c 3]
+    } -result 1
+
+    test kl_set-1.1 {
+        Set an existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_set [twapi::kl_create a 1 b 2 c 4] c 3] \
+            [twapi::kl_create a 1 b 2 c 3]
+    } -result 1
+
+    test kl_unset-1.0 {
+        Unset an existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_unset [twapi::kl_create a 1 b 2 c 3] b] \
+            [twapi::kl_create a 1 c 3]
+    } -result 1
+
+    test kl_unset-1.1 {
+        Unset a non-existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_unset [twapi::kl_create a 1 b 2 c 3] d] \
+            [twapi::kl_create a 1 c 3 b 2]
+    } -result 1
+
+    ################################################################
+
+    test list_raw_api-1.0 {
+        List the raw API
+    } -body {
+        expr {[llength [twapi::list_raw_api]] >= 500}
+    } -result 1
 
     ################################################################
 
