@@ -371,7 +371,7 @@ proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
                 array set netifinfo [get_netif_info $ifindex -ipaddresses -physicaladdress]
                 # Search list of ipaddresses
                 foreach elem $netifinfo(-ipaddresses) {
-                    if {[lindex $elem 0] eq $ipaddr} {
+                    if {[lindex $elem 0] eq $ipaddr && $netifinfo(-physicaladdress) ne ""} {
                         set result $netifinfo(-physicaladdress)
                         break
                     }
