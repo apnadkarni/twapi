@@ -19,7 +19,7 @@ typedef DWORD (WINAPI *GetOwnerModuleFromUdpEntry_t)(PVOID, int, PVOID, PDWORD);
 MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdpEntry, iphlpapi, GetOwnerModuleFromUdpEntry_t)
 
 /* Given a IP address as a DWORD, returns a Tcl string */
-static Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
+Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 {
     struct in_addr inaddr;
     inaddr.S_un.S_addr = addr;
@@ -27,7 +27,7 @@ static Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 }
 
 /* Given a string, return the IP address */
-static int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
+int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
 {
     DWORD addr;
     char *p = Tcl_GetString(objP);
@@ -1037,16 +1037,24 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     return TCL_OK;
 }
 
-int Twapi_GetBestRoute(Tcl_Interp *interp, DWORD dest, DWORD src)
+int Twapi_GetBestRoute(TwapiInterpContext *ticP, int objc, Tcl_Obj *objv[])
 {
     MIB_IPFORWARDROW route;
     int error;
+    DWORD dest, src;
+
+    if (TwapiGetArgs(ticP->interp, objc, objv,
+                     GETVAR(dest, IPAddrObjToDWORD),
+                     GETVAR(src, IPAddrObjToDWORD),
+                     ARGEND) != TCL_OK) {
+        return TCL_ERROR;
+    }
 
     error = GetBestRoute(dest, src, &route);
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(interp, ObjFromMIB_IPFORWARDROW(interp, &route));
+        Tcl_SetObjResult(ticP->interp, ObjFromMIB_IPFORWARDROW(ticP->interp, &route));
         return TCL_OK;
     } else {
-        return Twapi_AppendSystemError(interp, error);
+        return Twapi_AppendSystemError(ticP->interp, error);
     }
 }
