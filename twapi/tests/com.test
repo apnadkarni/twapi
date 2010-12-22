@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi
+load_twapi_package
 
 namespace eval twapi::com::test {
     namespace import ::tcltest::test
@@ -28,6 +28,24 @@ namespace eval twapi::com::test {
     } -body {
         twapi::clsid_to_progid $shell_clsid
     } -result {^Shell\.Application\.\d*$} -match regexp
+
+    ################################################################
+
+    test name_to_iid-1.0 {
+        Get IID for a predefined interface
+    } -body {
+        twapi::name_to_iid IDispatch
+    } -result {{00020400-0000-0000-C000-000000000046}}
+
+    test name_to_iid-1.1 {
+        Get IID for a interface
+    } -body {
+        if {[info exists twapi::_name_to_iid_cache(ishelldispatch4)]} {
+            error "Badly defined test - ishelldispatch4 is a predefined interface"
+        }
+        twapi::name_to_iid IShellDispatch4
+    } -result {{EFD84B2D-4BCF-4298-BE25-EB542A59FBDA}}
+
 
     ################################################################
 

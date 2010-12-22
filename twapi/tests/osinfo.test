@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi
+load_twapi_package
 
 #
 # Set up system-specific constants that are used to match test results
@@ -1030,7 +1030,7 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
-    test large_system_time_timelist-1.0 {
+    test large_system_time_to_timelist-1.0 {
         Convert system time epoch to timelist
     } -constraints {
         nt
@@ -1040,7 +1040,7 @@ namespace eval twapi::osinfo::test {
 
     ###
 
-    test large_system_time_timelist-1.1 {
+    test large_system_time_to_timelist-1.1 {
         Convert current system epoch to timelist
     } -constraints {
         nt
