@@ -41,7 +41,11 @@ foreach cmd [twapi::_get_public_procs] {
         eventlog_monitor_start
         eventlog_monitor_stop
         large_system_time_to_secs
-    } $cmd {
+        getaddrinfo
+        getnameinfo
+        import_commands
+        get_drive_info
+   } $cmd] >= 0} {
         continue
     }
 
