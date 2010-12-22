@@ -13,6 +13,9 @@ proc twapi::get_shell_folder {csidl args} {
 
     array set opts [parseargs args {create} -maxleftover 0]
 
+    # Following are left out because they refer to virtual folders
+    # and will return error if used here
+    #    CSIDL_BITBUCKET - 0xa
     if {![info exists csidl_lookup]} {
         array set csidl_lookup {
             CSIDL_ADMINTOOLS 0x30
