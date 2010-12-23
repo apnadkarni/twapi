@@ -552,10 +552,77 @@ namespace eval twapi::shell::test {
         string match -nocase *%systemroot%* $data(-path)
     } -result 1
 
+    test read_shortcut-3.1 {
+        Verify -shortnames option
+    } -setup {
+        set shortcut [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set path [tcltest::makeFile "" "This is a long file name with spaces.tmp"]
+        twapi::write_shortcut $shortcut -path $path
+    } -body {
+        array set data [twapi::read_shortcut $shortcut -shortnames]
+        expr {
+              [string first $data(-path) " "] < 0 &&
+              [equal_paths $data(-path) [file attributes $path -shortname]]
+           }
+    } -cleanup {
+        file delete $shortcut
+    } -result 1
+
+    test read_shortcut-3.2 {
+        Verify -noui option
+    } -constraints {
+        userInteraction
+    } -setup {
+        set shortcut [file join [tcltest::temporaryDirectory] [clock clicks]]
+        # File must not exist
+        set path [file join [tcltest::temporaryDirectory] nosuchfile]
+        twapi::write_shortcut $shortcut -path $path
+    } -body {
+        array set data [twapi::read_shortcut $shortcut -noui]
+        list [equal_paths $data(-path) $path] \
+            [yesno "read_shortcut-3.2: Did you see any shell prompt for searching for a path?"]
+    } -cleanup {
+        file delete $shortcut
+    } -result {1 0}
+
+    test read_shortcut-3.3 {
+        Verify -noui option with -timeout
+    } -constraints {
+        userInteraction
+    } -setup {
+        set shortcut [file join [tcltest::temporaryDirectory] [clock clicks]]
+        # File must not exist
+        set path [file join [tcltest::temporaryDirectory] nosuchfile]
+        twapi::write_shortcut $shortcut -path $path
+    } -body {
+        array set data [twapi::read_shortcut $shortcut -noui -timeout 10]
+        list [equal_paths $data(-path) $path] \
+            [yesno "read_shortcut-3.3: Did you see any shell prompt for searching for a path?"]
+    } -cleanup {
+        file delete $shortcut
+    } -result {1 0}
+
+    test read_shortcut-3.4 {
+        Verify -nosearch option
+    } -constraints {
+        userInteraction
+    } -setup {
+        set shortcut [file join [tcltest::temporaryDirectory] [clock clicks]]
+        # File must not exist
+        set path [file join [tcltest::temporaryDirectory] nosuchfile]
+        twapi::write_shortcut $shortcut -path $path
+    } -body {
+        array set data [twapi::read_shortcut $shortcut -nosearch]
+        list [equal_paths $data(-path) $path] \
+            [yesno "read_shortcut-3.4: Did you see a shell prompt stating file was not found and ASKING IF FILE SHOULD BE DELETED?"]
+    } -cleanup {
+        file delete $shortcut
+    } -result {1 1}
+
     ###
 
     test read_shortcut-4.0 {
-        Verify options
+        Verify options -hwin -install -nolinkinfo -notrack -uncpath
     } -constraints {
         TBD nt
     } -body {
@@ -565,11 +632,28 @@ namespace eval twapi::shell::test {
     ################################################################
 
     test write_shortcut-1.0 {
-        TBD - write_shortcut tests
+        Write a shortcut
     } -constraints {
-        TBD nt
+        userInteraction
     } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        set np_path [auto_execok notepad.exe]
+        set fn "twapi test file.txt"
+        twapi::write_shortcut $path -args $fn -desc "Invokes notepad" -iconpath $np_path -path $np_path -workdir [pwd] -showcmd normal
+        twapi::shell_execute -path $path
+        set pid [window_to_pid -text "Untitled*Notepad" -match glob]
+        yesno "Was a notepad window created prompting for file $fn ?"
+    } -cleanup {
+        twapi::end_process $pid -force
+        file delete $path
     } -result 1
+
+    test write_shortcut-2.0 {
+        Write a shortcut using a PIDL
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
 
     ################################################################
 
@@ -642,10 +726,32 @@ namespace eval twapi::shell::test {
     ################################################################
 
     test invoke_url_shortcut-1.0 {
-        TBD - invoke_url_shortcut tests
-    } -constraints {
-        TBD nt
+        Invoke a URL shortcut
+    } -setup {
+        set urlpath [file join [tcltest::temporaryDirectory] [clock clicks].url]
+        twapi::write_url_shortcut $urlpath http://www.google.com
     } -body {
+        twapi::invoke_url_shortcut $urlpath
+        set win [wait_for_window -text Google* -match glob]
+        expr {$win ne ""}
+    } -cleanup {
+        twapi::close_window $win
+        file delete $urlpath
+    } -result 1
+
+    test invoke_url_shortcut-1.1 {
+        Invoke a URL shortcut with -verb
+    } -setup {
+        set urlpath [file join [tcltest::temporaryDirectory] [clock clicks].url]
+        set path [tcltest::makeFile "" [clock clicks].txt]
+        twapi::write_url_shortcut $urlpath file:///[file join $path]
+    } -body {
+        twapi::invoke_url_shortcut $urlpath -verb edit
+        set pid [window_to_pid -text "[file tail $path]*Notepad" -match glob]
+        twapi::process_exists $pid
+    } -cleanup {
+        twapi::end_process $pid -force
+        file delete $urlpath
     } -result 1
 
     ################################################################
