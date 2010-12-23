@@ -2328,86 +2328,75 @@ namespace eval twapi::ui::test {
     test beep-1.0 {
         Beep
     } -constraints {
-        nt
+        userInteraction
     } -body {
         twapi::beep
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a beep?"
+    } -result 1
 
     test beep-2.0 {
         Beep at non-default frequency
     } -constraints {
-        nt
+        userInteraction
     } -body {
         twapi::beep -frequency 3000
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a higher pitch beep?"
+    } -result 1
 
     test beep-3.0 {
         Beep for non-default duration
     } -constraints {
-        nt
+        userInteraction
     } -body {
         set duration [lindex [time {twapi::beep -duration 500}] 0]
-        expr {$duration > 450000}
-    } -result 1
-
-    ################################################################
+        list [expr {$duration > 450000}] [yesno "Did you hear a long beep?"]
+    } -result {1 1}
 
     test beep-4.0 {
         Beep -type ok
     } -constraints {
-        nt
+        userInteraction
     } -body {
-        after 100;                      # Just so we hear sound clearly
         twapi::beep -type ok
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a 'ok' beep?"
+    } -result 1
 
     test beep-4.1 {
         Beep -type hand
     } -constraints {
-        nt
+        userInteraction
     } -body {
-        after 100;                      # Just so we hear sound clearly
         twapi::beep -type hand
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a 'hand' beep?"
+    } -result 1
 
     test beep-4.2 {
         Beep -type question
     } -constraints {
-        nt
+        userInteraction
     } -body {
-        after 100;                      # Just so we hear sound clearly
         twapi::beep -type question
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a 'question' beep?"
+    } -result 1
 
     test beep-4.3 {
         Beep -type exclaimation
     } -constraints {
-        nt
+        userInteraction
     } -body {
-        after 100;                      # Just so we hear sound clearly
         twapi::beep -type exclaimation
-    } -result ""
-
-    ################################################################
+        yesno "Did you hear a 'exclaimation' beep?"
+    } -result 1
 
     test beep-4.4 {
         Beep -type
     } -constraints {
-        nt
+        userInteraction
     } -body {
-        after 100;                      # Just so we hear sound clearly
         twapi::beep -type asterisk
-    } -result ""
+        yesno "Did you hear a 'asterisk' beep?"
+    } -result 1
+
 
     ################################################################
 
@@ -3068,101 +3057,77 @@ namespace eval twapi::ui::test {
     test play_sound-1.0 {
         Play a system sound
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
         twapi::play_sound SystemAsterisk -alias
+        yesno "play_sound-1.0: Did you hear the SystemAsterisk sound?"
     } -result 1
-
-    ################################################################
 
     test play_sound-2.0 {
         Play a WAV file
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
         twapi::play_sound chimes.wav
+        yesno "play_sound-2.0: Did you hear the chimes.wav?"
     } -result 1
-
-    ################################################################
 
     test play_sound-3.0 {
         Play a sound asynchronously
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
-        expr {[lindex [time {twapi::play_sound SystemHand -alias -async}] 0] < 100000}
-    } -result 1
-
-    ################################################################
+        list [expr {[lindex [time {twapi::play_sound SystemHand -alias -async}] 0] < 100000}] [yesno "play_sound-3.0: Did you hear a SystemHand sound?"]
+    } -result {1 1}
 
     test play_sound-4.0 {
         Play a default sound in place of non-existent sound
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
         twapi::play_sound nosuchfile.txt
+        yesno "play_sound-4.0: Did you hear a sound?"
     } -result 1
-
-    ################################################################
 
     test play_sound-4.1 {
         Do not play a default sound in place of non-existent sound
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
         twapi::play_sound nosuchfile.txt -nodefault
-    } -result 1
-
-    ################################################################
+        yesno "Did you hear a sound?"
+    } -result 0
 
     test play_sound-5.0 {
         Play a system sound (-wait)
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
         twapi::play_sound SystemAsterisk -alias -wait
+        yesno "Did you hear a SystemAsterisk?"
     } -result 1
-
-    ################################################################
 
     test play_sound-6.0 {
         Play a system sound without stopping ongoing sound
     } -constraints {
-        nt
+        userInteraction
     } -setup {
-        after 500;                      # Just so we hear sound clearly
-        twapi::play_sound chimes.wav -loop
-        after 1000
+        set pid [exec [info nameofexecutable] testutil.tcl "twapi::play_sound chimes.wav -loop ; vwait forever" &]
     } -body {
+        after 1000
         twapi::play_sound SystemAsterisk -alias -nostop
+        yesno "play_sound-6.0: Did you hear continuous chimes WITH a SystemAsterisk?"
     } -cleanup {
-        twapi::stop_sound
-    } -result 0
-
-    ################################################################
+        twapi::end_process $pid -force
+    } -result 1
 
     test play_sound-7.0 {
         Play a system sound continuosly
     } -constraints {
-        nt
-    } -setup {
-        after 500;                      # Just so we hear sound clearly
+        userInteraction
     } -body {
-        set played [twapi::play_sound chimes.wav -loop]
-        after 2000
-        set played
+        twapi::play_sound chimes.wav -loop
+        yesno "play_sound-7.0: Are you hearing continuous chimes?"
     } -cleanup {
         twapi::stop_sound
     } -result 1
@@ -3174,12 +3139,13 @@ namespace eval twapi::ui::test {
     } -constraints {
         nt
     } -setup {
-        after 500;                      # Just so we hear sound clearly
-        set played [twapi::play_sound chimes.wav -loop]
-        after 2000
-        set played
+        set played [twapi::play_sound SystemAsterisk -alias -loop]
     } -body {
+        if {![yesno "stop_sound-1.0: Are you hearing continuous SystemAsterisk?"]} {
+            error "Could not start sound"
+        }
         twapi::stop_sound
+        yesno "Has the sound now stopped?"
     } -result 1
 
     ################################################################
