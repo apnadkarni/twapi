@@ -1130,11 +1130,6 @@ proc twapi::resetbits {v_bits mask} {
     set bits [expr {int($bits) & int(~ $mask)}]
     return $bits
 }
-proc twapi::assignbits {v_bits value {mask -1}} {
-    upvar $v_bits bits
-    set bits [expr {(int($bits) & int(~ $mask)) | (int($value) & int($mask))}]
-    return $bits
-}
 
 # Return a bitmask corresponding to a list of symbolic and integer values
 # If symvals is a single item, it is an array else a list of sym bitmask pairs
