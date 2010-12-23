@@ -147,6 +147,30 @@ proc notepad_popup {np_pid} {
     return [twapi::find_windows -text Notepad -pids [list $np_pid] -single]
 }
 
+# Find the PID for a window with specified title 
+proc window_to_pid {args} {
+    return [twapi::get_window_process [eval wait_for_window $args]]
+}
+
+# Wait for a window to become visible and return it
+proc wait_for_window args {
+    set elapsed 0
+    while {$elapsed < 10000} {
+        set wins [eval twapi::find_windows $args]
+        if {[llength $wins] > 1} {
+            error "More than one matching window found for '$args'"
+        }
+
+        if {[llength $wins] == 1} {
+            return [lindex $wins 0]
+        }
+        
+        after 100
+        incr elapsed 100
+    }
+
+    error "No matching window found for '$args'"
+}
 
 proc get_processes {{refresh 0}} {
     global psinfo
@@ -572,7 +596,7 @@ proc verify_priv_list {privs} {
 
 
 # Prompt the user
-proc yesno {question {default yes}} {
+proc yesno {question {default "no default"}} {
     # Make sure we are seen
     twapi::set_foreground_window [twapi::get_console_window]
     set answer ""
@@ -898,12 +922,13 @@ proc ::setops::Intersect {A B} {
 # If this is the first argument to the shell and there are more arguments
 # execute them
 if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]]} {
-    load_twapi
+    load_twapi_package
     if {[catch {
         foreach arg $argv {
+            puts "testutil eval: $arg"
             eval $arg
         }
     } msg]} {
-        twapi::eventlog_log "testutil error: $msg"
+        twapi::eventlog_log "testutil error: $msg\n$::errorInfo"
     }
 }

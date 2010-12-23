@@ -431,8 +431,9 @@ Specifies that the shortcut should point to the object identified
 by the [uri \#itemidentifiers "item identifier list"] [arg IDL]. This is
 useful in cases where the target of the short cut is not a file.
 [opt_def [cmd -path] [arg TARGETPATH]]
-Specifies [arg TARGETPATH] as the file system path that the shortcut to
-which the shortcut points.
+Specifies [arg TARGETPATH] as the file system path to
+which the shortcut points. This must be a full absolute path else
+Windows will return an error.
 [opt_def [cmd -showcmd] [arg WINDOWSTATE]]
 Specifies the initial state of the window. [arg WINDOWSTATE] should be
 one of [const minimized], [const maximized] or [const normal].
