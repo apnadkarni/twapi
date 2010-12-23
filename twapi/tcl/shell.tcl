@@ -133,6 +133,16 @@ proc twapi::shell_object_properties_dialog {path args} {
         $opts(page)
 }
 
+# Show property dialog for a file
+proc twapi::file_properties_dialog {name args} {
+    array set opts [parseargs args {
+        {hwin.int 0}
+        {page.arg ""}
+    } -maxleftover 0]
+
+    shell_object_properties_dialog $name -type file -hwin $opts(hwin) -page $opts(page)
+}
+
 
 # Writes a shell shortcut
 proc twapi::write_shortcut {link args} {

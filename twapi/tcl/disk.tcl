@@ -354,15 +354,6 @@ proc twapi::volume_properties_dialog {name args} {
     shell_object_properties_dialog $name -type volume -hwin $opts(hwin) -page $opts(page)
 }
 
-# Show property dialog for a file
-proc twapi::file_properties_dialog {name args} {
-    array set opts [parseargs args {
-        {hwin.int 0}
-        {page.arg ""}
-    } -maxleftover 0]
-
-    shell_object_properties_dialog $name -type file -hwin $opts(hwin) -page $opts(page)
-}
 
 # Retrieve version info for a file
 proc twapi::get_file_version_resource {path args} {
