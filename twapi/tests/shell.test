@@ -1086,7 +1086,7 @@ namespace eval twapi::shell::test {
     
 
     set testnum 11
-    foreach opt {-asyncok class connect hicon hkeyclass hmonitor hotkey hwin idl logusage noconsole nozonechecks unicode wait waitforinputidle} {
+    foreach opt {-asyncok class connect hicon hkeyclass hmonitor hotkey hwin idl logusage noconsole nozonechecks unicode wait} {
         test shell_execute-[incr testnum].0 "Call shell_execute with -$opt" -constraints "TBD" -body {} -result {}
     }
 
