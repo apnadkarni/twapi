@@ -192,15 +192,15 @@ If [arg HWIN] is not specified, it defaults to the desktop window.
 
 The command returns the height of one row of icons.
 
-[call [cmd close_window] [arg HWIN] [opt [arg options]]]
-
-Closes the window specified by [arg HWIN] by sending it a WM_CLOSE message.
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -block]] If this option is specified, Windows will block the
-calling thread from processing any other requests until the command returns.
-[opt_def [cmd -wait] [arg TIMEOUT]] Specifies the number of milliseconds to
-wait for the window to process the message (default 10 milliseconds).
+[call [cmd close_window] [arg HWIN] [opt "[cmd -wait] [arg MILLISECONDS]"]]
+Closes the window specified by [arg HWIN].
+The option [cmd -wait] can be specified to indicate the command should
+wait for [arg MILLISECONDS] ms
+for the window to actually close. By default, the command will wait for
+10ms. Specify [arg MILLISECONDS] as 0 to return immediately without waiting.
+The command returns 1 if the window
+is closed and 0 otherwise. Note the latter is not an error as the window
+might have processed the close message yet.
 [list_end]
 
 [call [cmd configure_window_titlebar] [arg HWIN] [opt [arg options]]]

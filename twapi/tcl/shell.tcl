@@ -346,7 +346,7 @@ proc twapi::shell_execute args {
         substenv.bool
         unicode.bool
         verb.arg
-        wait.bool
+        {wait.bool true}
         waitforinputidle.bool
     } -maxleftover 0 -nulldefault]
 
