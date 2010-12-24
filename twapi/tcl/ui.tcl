@@ -229,7 +229,7 @@ proc twapi::find_windows {args} {
 
     set matches [list ]
     foreach win [concat $messageonly_candidates $ordinary_candidates] {
-
+        # Why are we not using a trap here instead of catch ? TBD
         set status [catch {
             if {[info exists toplevels]} {
                 # We do NOT want toplevels
@@ -298,8 +298,10 @@ proc twapi::find_windows {args} {
             1 {
                 # Error, see if error code is no window and if so, ignore
                 foreach {subsystem code msg} $::errorCode { break }
-                if {$subsystem == "TWAPI_WIN32" && $code == 2} {
+                if {$subsystem == "TWAPI_WIN32"} {
                     # Window has disappeared so just do not include it
+                    # Cannot just actual code since many different codes
+                    # might be returned in this case
                 } else {
                     error $result $::errorInfo $::errorCode
                 }
