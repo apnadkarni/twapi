@@ -139,6 +139,7 @@ proc notepad_exec_and_insert {{text "Some junk"}} {
 
 # Find the notepad window for a notepad process
 proc notepad_top {np_pid} {
+    return [wait_for_window -class Notepad -pids [list $np_pid]]
     return [twapi::find_windows -class Notepad -pids [list $np_pid] -single]
 }
 

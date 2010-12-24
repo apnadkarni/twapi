@@ -2169,6 +2169,155 @@ namespace eval ::twapi::process::test {
 
     ################################################################
 
+    test get_process_commandline-1.0 {
+        Get the command line of a process
+    } -setup {
+        set np_pid [exec notepad foo.txt &]
+    } -body {
+        twapi::get_process_commandline $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result "$::env(WINDIR)\\system32\\notepad.exe foo.txt" -match path
+
+    test get_process_commandline-2.0 {
+        Get the command line of a non-existent process
+    } -body {
+        twapi::get_process_commandline 12400
+    } -result "(no such process)"
+
+    test get_process_commandline-2.1 {
+        Get the command line of a non-existent process -noexist
+    } -body {
+        twapi::get_process_commandline 12400 -noexist "not found"
+    } -result "not found"
+
+    test get_process_commandline-3.0 {
+        Get the command line of a process without access
+    } -setup {
+        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+    } -body {
+        twapi::get_process_commandline $pid
+    } -result "(unknown)"
+
+    test get_process_commandline-3.1 {
+        Get the command line of a process without access (-noaccess)
+    } -setup {
+        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+    } -body {
+        twapi::get_process_commandline $pid -noaccess "not allowed"
+    } -result "not allowed"
+
+    ################################################################
+
+    test get_process_parent-1.0 {
+        Get the parent of a process
+    } -setup {
+        set np_pid [exec notepad foo.txt &]
+    } -body {
+        twapi::get_process_parent $np_pid
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result [pid]
+
+    test get_process_parent-2.0 {
+        Get the parent of a non-existent process
+    } -body {
+        twapi::get_process_parent 12400
+    } -result "(no such process)"
+
+    test get_process_parent-2.1 {
+        Get the parent of a non-existent process -noexist
+    } -body {
+        twapi::get_process_parent 12400 -noexist "not found"
+    } -result "not found"
+
+    test get_process_parent-3.0 {
+        Get the parent of a process without access
+    } -setup {
+        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+    } -body {
+        twapi::get_process_parent $pid
+    } -result "(unknown)"
+
+    test get_process_parent-3.1 {
+        Get the parent of a process without access (-noaccess)
+    } -setup {
+        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+    } -body {
+        twapi::get_process_parent $pid -noaccess "not allowed"
+    } -result "not allowed"
+
+    test get_process_parent-4.0 {
+        Get the parent of the system process
+    } -body {
+        twapi::get_process_parent 4
+    } -result ""
+
+    test get_process_parent-4.1 {
+        Get the parent of the system idle process
+    } -body {
+        twapi::get_process_parent 0
+    } -result ""
+
+
+    ################################################################
+
+    test get_process_exit_code-1.0 {
+        Get exit code of a process
+    } -setup {
+        set child_fd [open "| [info nameofexecutable]" w+]
+        fconfigure $child_fd -buffering line
+        set child_pid [pid $child_fd]
+    } -body {
+        set child_h [twapi::get_process_handle $child_pid -access {process_all_access synchronize}]
+        puts $child_fd "exit"
+        if {[set status [twapi::wait_on_handle $child_h 1000]] ne "signalled"} {
+            error "Child process wait ended with status $status"
+        }
+        twapi::get_process_exit_code $child_h
+    } -cleanup {
+        close $child_fd
+        twapi::close_handle $child_h
+    } -result 0
+
+    test get_process_exit_code-1.1 {
+        Get exit code of a process (non-default)
+    } -setup {
+        set child_fd [open "| [info nameofexecutable]" w+]
+        fconfigure $child_fd -buffering line
+        set child_pid [pid $child_fd]
+    } -body {
+        set child_h [twapi::get_process_handle $child_pid -access {process_all_access synchronize}]
+        puts $child_fd "exit 123"
+        if {[set status [twapi::wait_on_handle $child_h 1000]] ne "signalled"} {
+            error "Child process wait ended with status $status"
+        }
+        twapi::get_process_exit_code $child_h
+    } -cleanup {
+        catch {close $child_fd}; # Since child process exits with non-0
+        twapi::close_handle $child_h
+    } -result 123
+
+    test get_process_exit_code-1.2 {
+        Get exit code of a running process
+    } -setup {
+        set child_fd [open "| [info nameofexecutable]" w+]
+        fconfigure $child_fd -buffering line
+        set child_pid [pid $child_fd]
+    } -body {
+        set child_h [twapi::get_process_handle $child_pid -access {process_all_access synchronize}]
+        twapi::get_process_exit_code $child_h
+    } -cleanup {
+        puts $child_fd "exit"
+        if {[set status [twapi::wait_on_handle $child_h 1000]] ne "signalled"} {
+            error "Child process wait ended with status $status"
+        }
+        close $child_fd
+        twapi::close_handle $child_h
+    } -result ""
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 namespace delete ::twapi::process::test
