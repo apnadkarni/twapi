@@ -343,7 +343,7 @@ Returns a handle to standard input, output or error. This may correspond
 to the console or some other device if the standard devices have been
 redirected. If the process does not have associated standard handles,
 an exception is generated with [const errorCode] set to
-[const "WINDOWS 2 [arg ERRORMESSAGE]"].
+[const "TWAPI_WIN32 2 [arg ERRORMESSAGE]"].
 If the returned handle corresponds to a console device, it can be passed
 to the other console commands.
 [arg TYPE] is one of [const stdin], [const stdout], [const stderr].

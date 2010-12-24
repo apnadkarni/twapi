@@ -9,12 +9,12 @@ namespace eval twapi {
 
 proc twapi::enumerate_printers {args} {
     array set opts [parseargs args {
-        {location.arg all {local remote all any}}
+        {proximity.arg all {local remote all any}}
     } -maxleftover 0]
 
     set result [list ]
     foreach elem [Twapi_EnumPrinters_Level4 \
-                      [string map {all 6 any 6 local 2 remote 4} $opts(location)] \
+                      [string map {all 6 any 6 local 2 remote 4} $opts(proximity)] \
                      ] {
         lappend result [list \
                             name [kl_get $elem pPrinterName] \
