@@ -557,7 +557,6 @@ proc twapi::console_read {conh args} {
     }
 
 }
-interp alias {} twapi::console_gets {} twapi::_do_console_proc twapi::_console_gets stdin
 
 # Set up a console handler
 proc twapi::_console_ctrl_handler {ctrl} {
