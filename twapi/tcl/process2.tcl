@@ -1378,7 +1378,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
     array set opts [parseargs args {
         {noexist.arg "(no such process)"}
         {noaccess.arg "(unknown)"}
-    }]
+    } -maxleftover 0]
 
     if {![string is integer $pid]} {
         error "Invalid non-numeric pid $pid"
