@@ -187,6 +187,27 @@ namespace eval twapi::network::test {
 
     }
 
+    proc validate_arp_entry {arp} {
+        set msgs {}
+        foreach {netif hwaddr ipaddr type} $arp break
+        if {![oneof {dynamic static other invalid} $type]} {
+            lappend msgs "Invalid arp entry type $type"
+        }
+        if {[lsearch -exact [twapi::get_netif_indices] $netif] < 0} {
+            lappend msgs "Interface index $netif not valid."
+        }
+        if {![valid_ip_address $ipaddr]} {
+            lappend "Invalid IP address $ipaddr in ARP table"
+        }
+        if {![valid_ip_address $ipaddr]} {
+            lappend "Invalid IP address $ipaddr in ARP table"
+        }
+        if {![regexp {^[[:xdigit:]]{2}-{5}[[:xdigit:]]{2}$} $hwaddr]} {
+            lappend "Invalid h/w address $hwaddr in ARP table"
+        }
+        return $msgs
+    }
+
     ################################################################
 
     test get_ip_addresses-1.0 {
@@ -854,6 +875,66 @@ namespace eval twapi::network::test {
         close $client_socket
         close $client_socket2
     } -result [list 4 [list [list -pid [pid]] [list -pid [pid]] [list -pid [pid]] [list -pid [pid]]] ]
+
+    ################################################################
+
+    test get_arp_table-1.0 {
+        Get the ARP table
+    } -body {
+        set msgs ""
+        foreach arp [twapi::get_arp_table] {
+            set msgs [concat $msgs [validate_arp_entry $arp]]
+        }
+        join $msgs \n
+    } -result ""
+
+    test get_arp_table-1.1 {
+        Get the ARP table for an interface
+    } -body {
+        set msgs ""
+        foreach netif [twapi::get_netif_indices] {
+            foreach arp [twapi::get_arp_table -ifindex $netif] {
+                set msgs [concat $msgs [validate_arp_entry $arp]]
+                if {[lindex $arp 0] != $netif} {
+                    lappend msgs "Netif index [lindex $arp 0] is not $netif"
+                }
+            }
+        }
+        join $msgs \n
+    } -result ""
+
+    test get_arp_table-1.2 {
+        Get sorted ARP table 
+    } -body {
+        set msgs ""
+        set last 0
+        foreach arp [twapi::get_arp_table -sort] {
+            set msgs [concat $msgs [validate_arp_entry $arp]]
+            set ipaddr 0
+            foreach part [split [lindex $arp 2] .] {
+                set ipaddr [expr {(256 * $ipaddr) + $part}]
+            }
+            if {$ipaddr < $last} {
+                lappend msgs "IP addr not sorted."
+            }
+            set last $ipaddr
+        }
+        join $msgs \n
+    } -result ""
+
+    test get_arp_table-1.3 {
+        Get the ARP table for an interface
+    } -body {
+        set msgs ""
+        foreach arp [twapi::get_arp_table -validonly] {
+            set msgs [concat $msgs [validate_arp_entry $arp]]
+            if {[lindex $arp 3] eq "invalid"} {
+                lappend msgs "Entry $arp is not valid"
+            }
+        }
+        join $msgs \n
+    } -result ""
+
 
     ################################################################
 

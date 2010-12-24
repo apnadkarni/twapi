@@ -1138,7 +1138,53 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test load_library-1.0 {
+        Load a library
+    } -body {
+        set libh [twapi::load_library rctest.dll]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
 
+    test load_library-1.1 {
+        Load a library as a data file
+    } -body {
+        set libh [twapi::load_library rctest.dll -datafile]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
+
+    test load_library-1.2 {
+        Load a library without resolving references
+    } -body {
+        set libh [twapi::load_library rctest.dll -dontresolverefs]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
+        
+    ################################################################
+
+    test free_library-1.0 {
+        Free a library
+    } -body {
+        twapi::free_library [twapi::load_library rctest.dll]
+    } -result ""
+
+    ################################################################
+
+    test get_active_processor_mask-1.0 {
+        Get mask of active processors
+    } -body {
+        set mask [twapi::get_active_processor_mask]
+        switch -glob -- [string tolower $::env(COMPUTERNAME)] {
+            luna { expr {$mask == 1 } }
+            sol* { expr {$mask == 3 } }
+            default { string is integer -strict $mask }
+        }
+    } -result 1
+            
+
+    ################################################################
 
     ::tcltest::cleanupTests
 }

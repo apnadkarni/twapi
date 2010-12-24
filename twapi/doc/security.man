@@ -70,7 +70,8 @@ evaluates a script after enabling specified
 privileges.
 [para]
 The command [uri \#get_privilege_description [cmd get_privilege_description]]
-returns a description of a privilege.
+returns a description of a privilege. An empty string is returned if
+the specified privilege is not a known privilege.
 
 [para]
 The commands [uri \#get_token_type [cmd get_token_type]]

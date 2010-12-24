@@ -30,24 +30,27 @@ foreach fn [glob *.test] {
     source $fn
 }
 
+# What we are skipping and why
+array set do_not_test {
+    class "Covered by COM"
+    eventlog_monitor_start eventlog_monitor
+    eventlog_monitor_stop  eventlog_monitor
+    large_system_time_to_secs deprecated_alias
+    getaddrinfo               hostname_to_address
+    getnameinfo               address_to_hostname
+    get_drive_info            deprecated_alias
+    get_logical_drives        deprecated_alias
+    control_service           "stop_service and friends"
+    get_lcid                  deprecated_alias
+    get_process_handle        get_process_info
+}
 set missing {}
 foreach cmd [twapi::_get_public_procs] {
     # Skip internal commands
     if {[regexp {^(_|[A-Z]).*} $cmd]} continue
 
     # Skip commands that are tested in tests whose test names do not match
-    if {[lsearch -exact {
-        class
-        eventlog_monitor_start
-        eventlog_monitor_stop
-        large_system_time_to_secs
-        getaddrinfo
-        getnameinfo
-        import_commands
-        get_drive_info
-   } $cmd] >= 0} {
-        continue
-    }
+    if {[info exists do_not_test($cmd)]} continue
 
     if {[lsearch -glob $::tests ${cmd}-*] < 0} {
         lappend missing $cmd

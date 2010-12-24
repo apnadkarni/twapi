@@ -345,6 +345,10 @@ Returns the scheduling priority class of the process with id [arg PID].
 Returns the command line with which the process with id [arg PID] was invoked.
 The following options may be specified with the command.
 [list_begin opt]
+[opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
+command returns the string [const "\"(no such process)\""]. This option may
+be used to specify a different string to be returned for non-existent
+processes.
 [opt_def [cmd -noaccess] [arg DEFAULTVALUE]] If a process exists but cannot
 be accessed to retrieve the name, the
 command normally returns the string [const "\"(unknown)\""]. This option may
@@ -640,7 +644,8 @@ be used to specify a different string to be returned in such cases.
 [call [cmd get_process_parent] [arg PID]]
 
 Returns the PID of the process from whom the process with id [arg PID]
-inherited handles and environment.
+inherited handles and environment. An empty string is returned if [arg PID]
+corresponds to the System or the System Idle Process.
 The following options may be specified to with the command:
 [list_begin opt]
 [opt_def [cmd -noexist] [arg DEFAULTVALUE]] If a process does not exist, the
@@ -652,6 +657,7 @@ be accessed to retrieve the parent, the
 command normally returns the string [const "\"(unknown)\""]. This option may
 be used to specify a different string to be returned in such cases.
 [list_end]
+
 
 [call [cmd get_process_path] [arg PID]]
 

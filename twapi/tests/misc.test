@@ -374,6 +374,16 @@ namespace eval twapi::misc::test {
 
     ################################################################
 
+    test add_defines-1.0 {
+        Verify add_defines adds a define to windefs
+    } -body {
+        twapi::add_defines {TWAPI_TEST_DEFINE 1234}
+        set ::twapi::windefs(TWAPI_TEST_DEFINE)
+    } -result 1234
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

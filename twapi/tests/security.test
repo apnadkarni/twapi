@@ -5443,6 +5443,20 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_privilege_description-1.0 {
+        Get text description of privilege
+    } -body {
+        twapi::get_privilege_description SeDebugPrivilege
+    } -result "Debug programs"
+
+    test get_privilege_description-1.1 {
+        Get text description of non-existing privilege
+    } -body {
+        twapi::get_privilege_description NoSuchPriv
+    } -result ""
+
+    ################################################################
+
 
     if {![catch {twapi::lookup_account_name $test_account_name}]} {
         ::twapi::delete_user $test_account_name

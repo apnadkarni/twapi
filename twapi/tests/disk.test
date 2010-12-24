@@ -170,7 +170,7 @@ namespace eval twapi::disk::test {
     # Function to verify a particular option
     proc verify_drvinfo_option {option check_proc} {
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             eval set [twapi::get_volume_info $drive $option]
             twapi::try {
@@ -197,7 +197,7 @@ namespace eval twapi::disk::test {
     proc verify_userspace_avail {incr retval} {
         fill_drivecheck 1
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             twapi::try {
                 set freespace [get_volume_freespace $drive]
@@ -367,16 +367,16 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
-    test get_logical_drives-1.0 {
+    test find_logical_drives-1.0 {
         Get list of all drives
     } -constraints {
         nt
     } -body {
-        string equal [twapi::get_logical_drives] [get_volume_ids]
+        string equal [twapi::find_logical_drives] [get_volume_ids]
     } -result 1
 
     ###
-    test get_logical_drives-1.1 {
+    test find_logical_drives-1.1 {
         Get list of all drives of a given type
     } -constraints {
         nt
@@ -387,7 +387,7 @@ namespace eval twapi::disk::test {
             lappend drivetypes($type) $drive
         }
         foreach type {unknown removable fixed remote cdrom ramdisk} {
-            set drives [twapi::get_logical_drives -type $type]
+            set drives [twapi::find_logical_drives -type $type]
             if {! [info exists drivetypes($type)]} {
                 set drivetypes($type) ""
             }
@@ -405,7 +405,7 @@ namespace eval twapi::disk::test {
         nt
     } -body {
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             twapi::try {
                 array set drvinfo [twapi::get_volume_info [lindex $drive 0] -all]
@@ -426,7 +426,7 @@ namespace eval twapi::disk::test {
         nt
     } -body {
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             twapi::try {
                 array set drvinfo [twapi::get_volume_info $drive -all]
@@ -447,7 +447,7 @@ namespace eval twapi::disk::test {
         nt
     } -body {
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             twapi::try {
                 array set drvinfo [twapi::get_volume_info ${drive}/ -all]
@@ -466,7 +466,7 @@ namespace eval twapi::disk::test {
         nt
     } -body {
         set result ""
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             twapi::try {
                 array set drvinfo [twapi::get_volume_info ${drive}\\ -all]
@@ -596,7 +596,7 @@ namespace eval twapi::disk::test {
         nt
     } -body {
         set result [list ]
-        foreach drive [twapi::get_logical_drives] {
+        foreach drive [twapi::find_logical_drives] {
             if {[string compare [twapi::get_drive_type $drive] [get_volume_type $drive]]} {
                 lappend result "Type mismatch for drive $drive"
             }
@@ -616,7 +616,7 @@ namespace eval twapi::disk::test {
         array set oldlabels {}
     } -body {
 
-        set fixed_drives [twapi::get_logical_drives -type fixed]
+        set fixed_drives [twapi::find_logical_drives -type fixed]
         set error [catch {
             # try modifying labels of fixed disks only
             set xxx ""
@@ -1672,6 +1672,21 @@ namespace eval twapi::disk::test {
     } -cleanup {
         file delete $path
     } -result timeout
+
+    ################################################################
+
+    test find_volumes-1.0 {
+        Find volumes on the system
+    } -body {
+        set match 1
+        foreach vol [twapi::find_volumes] {
+            set match [expr {
+                             $match &&
+                             [regexp {^\\\\\?\\Volume\{[-[:xdigit:]]+} $vol]
+                         }]
+        }
+        set match
+    } -result 1
 
     ################################################################
 
