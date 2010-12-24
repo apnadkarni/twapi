@@ -843,7 +843,252 @@ namespace eval twapi::shell::test {
         twapi::close_window $w
     } -result {* HWND} -match glob
 
+    test shell_execute-2.0 {
+        Call shell_execute with -path
+    } -body {
+        twapi::shell_execute -path [pwd]
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
 
+    test shell_execute-2.1 {
+        Call shell_execute with -path and -verb
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::shell_execute -path [pwd] -verb explore
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        yesno "Did you see an Explorer window for [file tail [pwd]] displaying AN EXPLORE view (file tree in left pane)?"
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-2.2 {
+        Call shell_execute with -path for a URL
+    } -body {
+        twapi::shell_execute -path http://www.google.com
+        set w [wait_for_window -text Google* -match glob -toplevel true]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
+
+    test shell_execute-3.0 {
+        Call shell_execute with PIDL
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test shell_execute-4.0 {
+        Call shell_execute with -dir
+    } -body {
+        set dir [file dirname [pwd]]
+        twapi::shell_execute -path cmd.exe -dir $dir -params "/k title $dir"
+        set w [wait_for_window -text $dir]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
+
+    test shell_execute-5.0 {
+        Call shell_execute with -getprocesshandle
+    } -body {
+        set dir [file dirname [pwd]]
+        set hproc [twapi::shell_execute -path cmd.exe -dir $dir -getprocesshandle true]
+        set pid [twapi::get_pid_from_handle $hproc]
+        twapi::close_handle $hproc
+        twapi::get_process_info $pid -name
+    } -cleanup {
+        twapi::end_process $pid
+    } -result {-name cmd.exe}
+        
+    test shell_execute-6.0 {
+        Call shell_execute with -invokeidlist for dynamic actions
+    } -body {
+        twapi::shell_execute -path notepad.exe -verb properties -invokeidlist true
+        set w [wait_for_window -text "notepad.exe Properties"]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
+
+    test shell_execute-6.1 {
+        Call shell_execute with -invokeidlist false for dynamic actions
+    } -body {
+        twapi::shell_execute -path notepad.exe -verb properties -invokeidlist false -noui true
+    } -result [twapi::map_windows_error 1155] -returnCodes error
+
+    test shell_execute-7.0 {
+        Call shell_execute with -show not specified
+    } -body {
+        twapi::shell_execute 
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        # Note "normal" remembers the last position and so may be maximized
+        # or minimized
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {\d+ HWND} -match regexp
+
+    test shell_execute-7.1 {
+        Call shell_execute with -show normal
+    } -body {
+        twapi::shell_execute -show normal
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        # Note "normal" remembers the last position and so may be maximized
+        # or minimized
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {\d+ HWND} -match regexp
+
+    test shell_execute-7.2 {
+        Call shell_execute with -show minimize
+    } -body {
+        twapi::shell_execute -show minimize
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        twapi::window_minimized $w
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-7.3 {
+        Call shell_execute with -show showminimized
+    } -body {
+        twapi::shell_execute -show showminimized
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        twapi::window_minimized $w
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-7.4 {
+        Call shell_execute with -show showminnoactive
+    } -body {
+        twapi::shell_execute -show showminnoactive
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        twapi::window_minimized $w
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-7.5 {
+        Call shell_execute with -show maximize
+    } -body {
+        twapi::shell_execute -show maximize
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        twapi::window_maximized $w
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-7.6 {
+        Call shell_execute with -show showmaximized
+    } -body {
+        twapi::shell_execute -show showmaximized
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        twapi::window_maximized $w
+    } -cleanup {
+        twapi::close_window $w
+    } -result 1
+
+    test shell_execute-7.7 {
+        Call shell_execute with -show show
+    } -body {
+        twapi::shell_execute -show show
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        after 10; # Needed because it takes a bit after creation to be min/maxed
+        expr {
+              [twapi::window_maximized $w] ||
+              [twapi::window_minimized $w]
+          }
+    } -cleanup {
+        twapi::close_window $w
+    } -result 0
+
+    test shell_execute-8.0 {
+        Call shell_execute with -params
+    } -body {
+        set dir [file dirname [pwd]]
+        twapi::shell_execute -path cmd.exe -dir $dir -params "/k title $dir"
+        set w [wait_for_window -text $dir]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
+
+    test shell_execute-9.0 {
+        Call shell_execute with -noui false
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "You should see an error dialog saying file 'nosuchfile' was not found. Please click OK on it."
+        list [catch {twapi::shell_execute -path nosuchfile -noui false}] \
+            [yesno "Did you see such a dialog?"]
+    } -result {1 1}
+
+    test shell_execute-9.1 {
+        Call shell_execute with -noui true
+    } -body {
+        twapi::shell_execute -path nosuchfile -noui true
+    } -returnCodes error -result [twapi::map_windows_error 2]
+
+    test shell_execute-10.0 {
+        Call shell_execute with -substenv not specified
+    } -body {
+        twapi::shell_execute -path %HOMEDRIVE%\\%HOMEPATH% -noui true
+    } -returnCodes error -result [twapi::map_windows_error 2]
+
+    test shell_execute-10.1 {
+        Call shell_execute with -substenv false
+    } -body {
+        twapi::shell_execute -path %HOMEDRIVE%\\%HOMEPATH% -noui true -substenv false
+    } -returnCodes error -result [twapi::map_windows_error 2]
+
+    test shell_execute-10.2 {
+        Call shell_execute with -substenv true
+    } -body {
+        twapi::shell_execute -path %HOMEDRIVE%\\%HOMEPATH% -noui true -substenv true
+        set w [wait_for_window -text [file tail $::env(HOMEPATH)]]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
+
+    test shell_execute-11.0 {
+        Call shell_execute with -waitforinputidle false
+    } -body {
+        set np_path [auto_execok notepad.exe]
+        twapi::shell_execute -path $np_path -waitforinputidle false
+        set w [wait_for_window -text "Untitled - Notepad" -toplevel true]
+    } -cleanup {
+        twapi::close_window $w
+    } -result {\d+ HWND} -match regexp
+
+
+    test shell_execute-11.1 {
+        Call shell_execute with -waitforinputidle true
+    } -body {
+        set np_path [auto_execok notepad.exe]
+        twapi::shell_execute -path $np_path -waitforinputidle true
+        set w [wait_for_window -text "Untitled - Notepad" -toplevel true]
+    } -cleanup {
+        twapi::close_window $w
+    } -result {\d+ HWND} -match regexp
+    
+
+    set testnum 11
+    foreach opt {-asyncok class connect hicon hkeyclass hmonitor hotkey hwin idl logusage noconsole nozonechecks unicode wait waitforinputidle} {
+        test shell_execute-[incr testnum].0 "Call shell_execute with -$opt" -constraints "TBD" -body {} -result {}
+    }
 
 
     ################################################################
