@@ -474,7 +474,11 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
         if (GetVersionEx(&gTwapiOSVersionInfo)) {
             /* Sockets */
             if (WSAStartup(ws_ver, &ws_data) == 0) {
-                /* Single-threaded COM model - TBD */
+                /*
+                 * Single-threaded COM model - note some Shell extensions
+                 * require this if functions such as ShellExecute are
+                 * invoked.
+                 */
                 hr = CoInitializeEx(
                     NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
                 if (hr == S_OK || hr == S_FALSE) {
