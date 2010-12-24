@@ -20,7 +20,7 @@ displays the shell property sheet dialog for a printer.
 [section Commands]
 
 [list_begin definitions]
-[call [cmd enumerate_printers] [opt "[cmd -location] [arg LOCATION]"]]
+[call [cmd enumerate_printers] [opt "[cmd -proximity] [arg PROXIMITY]"]]
 Returns information about the printers on the system.
 The data is returned as a list of sublists. Each sublist corresponds
 to a printer and is a keyed list with the following fields:
@@ -38,7 +38,7 @@ the printer. This is a list of zero or more symbols from the following list:
 Refer to the Windows SDK documentation for the meaning of these attributes.
 [list_end]
 
-[arg LOCATION] may be one of [const all] (default), [const local]
+[arg PROXIMITY] may be one of [const all] (default), [const local]
 or [const remote] depending on whether all printers, local printers
 or remote printers are to be included in the returned list.
 
