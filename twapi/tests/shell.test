@@ -834,11 +834,14 @@ namespace eval twapi::shell::test {
     ################################################################
 
     test shell_execute-1.0 {
-        TBD - shell_execute tests
-    } -constraints {
-        TBD nt
+        Call shell_execute with no arguments
     } -body {
-    } -result 1
+        twapi::shell_execute 
+        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        set w
+    } -cleanup {
+        twapi::close_window $w
+    } -result {* HWND} -match glob
 
 
 

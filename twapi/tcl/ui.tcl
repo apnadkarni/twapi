@@ -684,24 +684,39 @@ proc twapi::close_window {hwin args} {
     array set opts [parseargs args {
         block
         {wait.int 10}
-    }]
+    } -maxleftover 0]
 
-    if {$opts(block)} {
-        set block 3; #SMTO_BLOCK|SMTO_ABORTIFHUNG
+    if {0} {
+        Cannot close Explorer windows using SendMessage*
+        if {$opts(block)} {
+            set block 3; #SMTO_BLOCK|SMTO_ABORTIFHUNG
+        } else {
+            set block 2; #SMTO_NORMAL|SMTO_ABORTIFHUNG
+        }
+
+        # WM_CLOSE -> 0x10
+        if {[catch {SendMessageTimeout $hwin 0x10 0 0 $block $opts(wait)} msg]} {
+            # Do no treat timeout as an error
+            set erCode $::errorCode
+            set erInfo $::errorInfo
+            if {[lindex $erCode 0] != "TWAPI_WIN32" ||
+                ([lindex $erCode 1] != 0 && [lindex $erCode 1] != 1460)} {
+                error $msg $erInfo $erCode
+            }
+        }
     } else {
-        set block 2; #SMTO_NORMAL|SMTO_ABORTIFHUNG
-    }
+        # Implement using PostMessage since that allows closing of
+        # Explorer windows
 
-    # WM_CLOSE -> 0x10
-    if {[catch {SendMessageTimeout $hwin 0x10 0 0 $block $opts(wait)} msg]} {
-        # Do no treat timeout as an error
-        set erCode $::errorCode
-        set erInfo $::errorInfo
-        if {[lindex $erCode 0] != "TWAPI_WIN32" ||
-            ([lindex $erCode 1] != 0 && [lindex $erCode 1] != 1460)} {
-            error $msg $erInfo $erCode
+        # Note - opts(block) is ignored here
+
+        # 0x10 -> WM_CLOSE
+        PostMessage $hwin 0x10 0 0
+        if {$opts(wait)} {
+            wait [list ::twapi::window_exists $hwin] 0 $opts(wait)
         }
     }
+    return [twapi::window_exists $hwin]
 }
 
 # CHeck if window is minimized
