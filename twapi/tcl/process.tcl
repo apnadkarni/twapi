@@ -25,7 +25,9 @@ proc twapi::get_current_thread_id {} {
 
 # Wait until the process is ready
 proc twapi::process_waiting_for_input {pid args} {
-    array set opts [parseargs args {{wait.int 0}}]
+    array set opts [parseargs args {
+        {wait.int 0}
+    } -maxleftover 0]
 
     if {$pid == [pid]} {
         variable my_process_handle
@@ -77,7 +79,7 @@ proc twapi::create_process {path args} {
                              [list stdhandles.arg ""] \
                              [list stdchannels.arg ""] \
                              [list returnhandles.bool 0]\
-                            ]]
+                            ] -maxleftover 0]
 
     set process_sec_attr [_make_secattr $opts(childprocesssecd) $opts(inheritablechildprocess)]
     set thread_sec_attr [_make_secattr $opts(childthreadsecd) $opts(inheritablechildthread)]
@@ -272,7 +274,7 @@ proc twapi::get_process_handle {pid args} {
     array set opts [parseargs args {
         {access.arg process_query_information}
         {inherit.bool 0}
-    }]
+    } -maxleftover 0]
     return [OpenProcess [_access_rights_to_mask $opts(access)] $opts(inherit) $pid]
 }
 
