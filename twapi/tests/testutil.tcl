@@ -613,6 +613,16 @@ proc yesno {question {default "no default"}} {
     return [expr {!! $answer}]
 }
 
+# Pause to allow reader to read a message
+proc pause {message} {
+    # Make sure we are seen
+    twapi::set_foreground_window [twapi::get_console_window]
+    puts -nonewline "$message Hit Return to continue..."
+    flush stdout
+    gets stdin
+    return
+}
+
 # Read commands from standard input and execute them.
 # From Welch.
 proc start_commandline {} {
