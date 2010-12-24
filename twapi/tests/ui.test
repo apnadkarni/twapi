@@ -3439,6 +3439,84 @@ namespace eval twapi::ui::test {
 
     ################################################################
 
+    test configure_window_titlebar-1.0 {
+        Configure title bar visiblity
+    } -constraints {
+        userInteraction
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::configure_window_titlebar $np_win -visible 0
+        after 100;               # Let change take place
+        set invisible [yesno "Is the notepad title bar HIDDEN?"]
+        twapi::configure_window_titlebar $np_win -visible 1
+        after 100;               # Let change take place
+        set visible [yesno "Is the notepad title bar VISIBLE?"]
+        list $invisible $visible
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result {1 1}
+
+    test configure_window_titlebar-2.0 {
+        Configure title bar system menu
+    } -constraints {
+        userInteraction
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::configure_window_titlebar $np_win -sysmenu 0
+        after 100;               # Let change take place
+        set invisible [yesno "Is the notepad system menu HIDDEN?"]
+        twapi::configure_window_titlebar $np_win -sysmenu 1
+        after 100;               # Let change take place
+        set visible [yesno "Is the notepad system menu VISIBLE?"]
+        list $invisible $visible
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result {1 1}
+
+    test configure_window_titlebar-3.0 {
+        Configure title bar minimize box
+    } -constraints {
+        userInteraction
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::configure_window_titlebar $np_win -minimizebox 0
+        after 100;               # Let change take place
+        set invisible [yesno "Is the notepad window minimize box HIDDEN or DISABLED?"]
+        twapi::configure_window_titlebar $np_win -minimizebox 1
+        after 100;               # Let change take place
+        set visible [yesno "Is the notepad window minimize box VISIBLE?"]
+        list $invisible $visible
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result {1 1}
+
+    test configure_window_titlebar-4.0 {
+        Configure title bar maximize box
+    } -constraints {
+        userInteraction
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::configure_window_titlebar $np_win -maximizebox 0
+        after 100;               # Let change take place
+        set invisible [yesno "Is the notepad window maximize box HIDDEN or DISABLED?"]
+        twapi::configure_window_titlebar $np_win -maximizebox 1
+        after 100;               # Let change take place
+        set visible [yesno "Is the notepad window maximize box VISIBLE?"]
+        list $invisible $visible
+    } -cleanup {
+        twapi::end_process $np_pid
+    } -result {1 1}
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 

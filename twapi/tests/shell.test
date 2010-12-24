@@ -804,6 +804,32 @@ namespace eval twapi::shell::test {
     } -result {1 0}
 
 
+    ################################################################
+
+    test file_properties_dialog-1.0 {
+        Show the file properties dialog
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::file_properties_dialog [info nameofexecutable]
+        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
+        yesno "Did you see a file properties dialog for the tclsh executable?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test file_properties_dialog-1.1 {
+        Show the file properties dialog on a specific tab
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::file_properties_dialog [info nameofexecutable] -page version
+        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
+        yesno "Did you see THE VERSION TAB of the file properties dialog for the tclsh executable?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
 
     ################################################################
 
