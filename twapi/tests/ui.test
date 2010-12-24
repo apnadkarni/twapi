@@ -1951,8 +1951,6 @@ namespace eval twapi::ui::test {
         twapi::end_process $np_pid -wait $end_process_timeout
     } -result 0
 
-    ################################################################
-
     test close_window-1.0 {
         Close a window
     } -constraints {
@@ -1966,34 +1964,43 @@ namespace eval twapi::ui::test {
         twapi::process_exists $np_pid
     } -result 0
 
-    ################################################################
-
     test close_window-2.0 {
-        Close a window synchronously (-block)
+        Close a window asynchronously (-wait 0)
     } -constraints {
         nt
     } -setup {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
-        twapi::close_window $np_win -block
+        twapi::close_window $np_win -wait 0
         after 50
         twapi::process_exists $np_pid
     } -result 0
 
-    ################################################################
-
     test close_window-3.0 {
-        Close a window (-wait)
+        Close a window synchronously (-wait)
     } -constraints {
         nt
     } -setup {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
-        twapi::close_window $np_win  -wait 100
-        after 50
+        twapi::close_window $np_win  -wait 500
         twapi::process_exists $np_pid
+    } -result 0
+
+    test close_window-4.0 {
+        Close an Explorer window
+    } -constraints {
+        nt
+    } -setup {
+        twapi::shell_execute;   # Shows current folder
+        set win [wait_for_window -text [file tail [pwd]]* -match glob -pids [list [get_explorer_pid]]]
+    } -body {
+        # This test specifically tests Explorer window because
+        # the old 2.2 method of SendMessage did not work for Explorer
+        twapi::close_window $win  -wait 500
+        twapi::window_exists $win
     } -result 0
 
     ################################################################

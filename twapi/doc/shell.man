@@ -278,7 +278,7 @@ the command returns a handle to the process, if any, that was created
 by the shell to handle the request. If no such process was required to
 be created, or was already running, an empty string is returned. If
 a non-empty handle is returned, it must be closed by calling
-[uri handles.html#close_handles [cmd close_handles]].
+[uri handles.html#close_handle [cmd close_handle]].
 [opt_def [cmd -hicon] [arg HANDLE]] TBD.
 [opt_def [cmd -hkeyclass] [arg BOOLEAN]] TBD.
 [opt_def [cmd -hmonitor] [arg HANDLE]]
@@ -304,7 +304,7 @@ If [const true], the current process is not used for any processes
 created for the operation. A new console window is created if required.
 Default is [const false].
 [opt_def [cmd -noui] [arg BOOLEAN]]
-If [const true], any user interaction, such as error display is done.
+If [const true], no user interaction, such as error display is done.
 Default is [const false].
 [opt_def [cmd -nozonechecks] [arg BOOLEAN]] TBD.
 [opt_def [cmd -params] [arg STRING]]
