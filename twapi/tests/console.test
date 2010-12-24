@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, Ashok P. Nadkarni
+# Copyright (c) 2005-2010, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -114,24 +114,57 @@ namespace eval twapi::console::test {
     } -constraints {
         userInteraction
     } -body {
-        twapi::write_console stdout "Sample string\n"
-        yesno "Was the string 'Sample string' output to the console?"
+        twapi::write_console stdout "Sample string" 
+        yesno "    -- Does this line begin with the string 'Sample string'?"
     } -result 1
 
-    test write_console-2.0 {
-        Write a string to the console at a given position and restore position
+    test write_console-1.1 {
+        Write a string to the console to verify default is column mode 
     } -constraints {
         userInteraction
     } -body {
         twapi::clear_console
         array set info [twapi::get_console_screen_buffer_info stdout -all]
         set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
-        twapi::write_console stdout "XXXXXXXXXXXXXXXXXXXXXXXXXX\r" -position [list 30 $ypos] -restoreposition true
-        yesno "\nWas a string of X's written somewhere in the middle of ths screen and this prompt appeared at *original* location?"
+        twapi::write_console stdout "QQQQQ\nQQQQQ\nQQQQQ" -position [list 35 $ypos] -restoreposition true
+        yesno "\nWas a BOX of Q's written at middle of screen and this prompt appeared at *original* location?"
     } -result 1
 
+
+    test write_console-2.0 {
+        Write a string to the console at a given position and -restoreposition true
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "XXXXXXX," -position [list 30 $ypos]
+        twapi::write_console stdout "OOOOOOO" -restoreposition true
+        twapi::write_console stdout "YYYYYYY"
+
+        yesno "\nWas a string of X followed by a string of Y's written somewhere in the middle of ths screen?"
+    } -result 1
+
+    test write_console-2.1 {
+        Write a string to the console at a given position and -restoreposition false
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "XXXXXXX," -position [list 30 $ypos]
+        twapi::write_console stdout "OOOOOOO," -restoreposition false
+        twapi::write_console stdout "YYYYYYY"
+
+        yesno "\nWas a string of X followed by a string of O's, then Y's written somewhere in the middle of ths screen?"
+    } -result 1
+
+
+
     test write_console-3.0 {
-        Write a string to the console in column mode 
+        Write a string to the console with -newlinemode column 
     } -constraints {
         userInteraction
     } -body {
@@ -140,6 +173,18 @@ namespace eval twapi::console::test {
         set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
         twapi::write_console stdout "QQQQQ\nQQQQQ\nQQQQQ" -position [list 35 $ypos] -restoreposition true -newlinemode column
         yesno "\nWas a BOX of Q's written at middle of screen and this prompt appeared at *original* location?"
+    } -result 1
+
+    test write_console-3.1 {
+        Write a string to the console with -newlinemode line
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::clear_console
+        array set info [twapi::get_console_screen_buffer_info stdout -all]
+        set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
+        twapi::write_console stdout "ZZZZZ\nZZZZZ" -position [list 35 $ypos] -restoreposition true -newlinemode line
+        yesno "\nWas a line of Z's written at middle of screen FOLLOWED BY A LINE STARTING AT COLUMN 0?"
     } -result 1
 
     test write_console-4.0 {
@@ -691,12 +736,23 @@ namespace eval twapi::console::test {
 
     ################################################################
 
-    
+    test get_standard_handle-1.0 {
+        Get standard output handle
+    } -constraints {
+        userInteraction
+    } -body {
+        set conh [twapi::get_standard_handle stdout]
+        set str "Testing get_standard_handle-1.0"
+        twapi::write_console $conh $str\n
+        yesno "Did you see the string '$str' written to the console?"
+    } -result 1
 
-
-    ################################################################
-
-    ###
+    test get_standard_handle-1.1 {
+        Get standard input handle
+    } -body {
+        # Tclsh redirects so cannot actually read from this
+        set conh [twapi::get_standard_handle stdin]
+    } -result {\d+ HANDLE} -match regexp
 
 
     ################################################################

@@ -32,6 +32,7 @@ foreach fn [glob *.test] {
 
 # What we are skipping and why
 array set do_not_test {
+    load_twapi                fundamental
     class "Covered by COM"
     eventlog_monitor_start eventlog_monitor
     eventlog_monitor_stop  eventlog_monitor

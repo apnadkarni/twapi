@@ -1,0 +1,154 @@
+#
+# Copyright (c) 2005-2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from nls.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::printer::test {
+    namespace import ::tcltest::test
+
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    ::tcltest::testConstraint haveprinter [llength [twapi::enumerate_printers]]
+    
+
+    proc load_printers {} {
+        variable printers
+        if {[info exists printers]} {
+            return
+        }
+
+        foreach printer [twapi::_wmi_records Win32_Printer] {
+            set printers([twapi::kl_get $printer name]) $printer
+        }
+
+    }
+
+    proc validate_printer {rec v_msgs {proximity ""}} {
+        variable printers
+        upvar $v_msgs msgs
+
+        load_printers
+
+        array set printer $rec
+        
+        set name $printer(name)
+        if {![info exists printers($name)]} {
+            lappend msgs "Printer $name not found"
+            return
+        }
+
+        array set wmiprinter $printers($name)
+
+        if {[string compare -nocase $printer(server) $wmiprinter(servername)]} {
+            lappend msgs "Server name '$wmiprinter(servername)' does not match, expected $printer(server)."
+        }
+
+        switch -exact -- $proximity {
+            local {
+                if {! $wmiprinter(local)} {
+                    lappend msgs "Remote printer $name was returned even though local printers requested."
+                }
+            }
+            remote {
+                if {$wmiprinter(local)} {
+                    lappend msgs "Local printer $name was returned even though remote printers requested."
+                }
+            }
+        }
+    }
+
+    test enumerate_printers-1.0 {
+        Enumerate printers
+    } -body {
+        set msgs {}
+        foreach printer [twapi::enumerate_printers] {
+            validate_printer $printer msgs
+        }
+        join $msgs \n
+    } -result ""
+
+    test enumerate_printers-1.1 {
+        Enumerate printers -all
+    } -body {
+        set msgs {}
+        foreach printer [twapi::enumerate_printers -proximity all] {
+            validate_printer $printer msgs
+        }
+        join $msgs \n
+    } -result ""
+
+    test enumerate_printers-1.2 {
+        Enumerate printers -local
+    } -body {
+        set msgs {}
+        foreach printer [twapi::enumerate_printers -proximity local] {
+            validate_printer $printer msgs local
+        }
+        join $msgs \n
+    } -result ""
+
+    test enumerate_printers-1.3 {
+        Enumerate printers -remote
+    } -body {
+        set msgs {}
+        foreach printer [twapi::enumerate_printers -proximity remote] {
+            validate_printer $printer msgs remote
+        }
+        join $msgs \n
+    } -result ""
+
+    ################################################################
+
+    test printer_properties_dialog-1.0 {
+        Show the printer properties dialog
+    } -constraints {
+        userInteraction haveprinter
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::printer_properties_dialog $printer
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see a printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test printer_properties_dialog-1.1 {
+        Show the printer properties dialog on a specific tab
+    } -constraints {
+        userInteraction
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::printer_properties_dialog $printer -page Sharing
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see the Shareing TAB of the printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    ################################################################
+
+    
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::printer::test
