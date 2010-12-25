@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007 Ashok P. Nadkarni
+# Copyright (c) 2007-2010 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -29,10 +29,10 @@ proc twapi::init_msi {} {
     # Load all the prototypes
     
     # Installer object
-    foreach {name proto} {
+    set ::twapi::msiprotos_installer {
         AddSource            {43  0 1 void {bstr bstr bstr}}
-        ApplyPatch           TBD
-        ApplyMultiplePatches TBD
+        ApplyPatch           {22  0 1 void {bstr bstr i4 bstr}}
+        ApplyMultiplePatches {51  0 1 void {bstr bstr bstr}}
         ClearSourceList      {44  0 1 void      {bstr bstr}}
         CollectUserInfo      {21  0 1 void      {bstr}}
         ComponentClients     {38  0 1 idispatch {bstr}}
@@ -51,28 +51,28 @@ proc twapi::init_msi {} {
         FeatureState         {24  0 2 i4        {bstr bstr}}
         FeatureUsageCount    {26  0 2 i4        {bstr bstr}}
         FeatureUsageDate     {27  0 2 date      {bstr bstr}}
-        FileAttributes       {13  0 2 i4        {bstr}}
-        FileHash             TBD
-        FileSignatureInfo    TBD
+        FileAttributes       {13  0 1 i4        {bstr}}
+        FileHash             {47  0 1 idispatch {bstr i4}}
+        FileSignatureInfo    {48  0 1 {safearray ui1} {bstr i4 i4}}
         FileSize             {15  0 1 i4       {bstr}}
         FileVersion          {16  0 1 bstr     {bstr {bool {in 0}}}}
-        ForceSourceListResolution TBD
+        ForceSourceListResolution {45 0 1 void {bstr bstr}}
         InstallProduct       {8   0 1 void      {bstr bstr}}
         LastErrorRecord      {10  0 1 idispatch {}}
         OpenPackage          {2   0 1 idispatch {bstr i4}}
         OpenDatabase         {4   0 1 idispatch {bstr i4}}
         OpenProduct          {3   0 1 idispatch {bstr}}
+        PatchInfo            {41  0 2 bstr      {bstr bstr}}
         Patches              {39  0 2 idispatch {bstr}}
         PatchesEx            {55  0 2 idispatch {bstr bstr i4 i4}}
-        PatchInfo            TBD
-        PatchTransforms      TBD
+        PatchTransforms      {42  0 2 bstr      {bstr bstr}}
         ProductInfo          {18  0 2 bstr      {bstr bstr}}
         ProductsEx           {52  0 2 idispatch {bstr bstr i4}}
         Products             {35  0 2 idispatch {}}
         ProductState         {17  0 2 bstr      {bstr}}
         ProvideComponent     {30  0 1 bstr      {bstr bstr bstr i4}}
-        ProvideQualifiedComponent     TBD
-        QualifierDescription TBD
+        ProvideQualifiedComponent {32 0 1 bstr  {bstr bstr i4}}
+	QualifierDescription {33  0 2 bstr      {bstr bstr}}
         RegistryValue        {11  0 1 bstr      {bstr bstr bstr}}
         ReinstallFeature     {29  0 1 void      {bstr bstr bstr}}
         ReinstallProduct     {20  0 1 void      {bstr bstr}}
@@ -84,37 +84,27 @@ proc twapi::init_msi {} {
         UILevel              {6   0 4 void      {bstr}}
         UseFeature           {25  0 1 void      {bstr bstr bstr}}
         Version              {9   0 2 bstr      {}}
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_installer($name) $proto
-        }
     }
 
     # Database object
-    foreach {name proto} {
+    set ::twapi::msiprotos_database {
         ApplyTransform       {10  0 1 void      {bstr i4}}
         Commit               {4   0 1 void      {}}
-        CreateTransformSummaryInfo TBD-13
+        CreateTransformSummaryInfo {13 0 1 void {idispatch bstr i4 i4}}
         DatabaseState        {1   0 2 i4        {}}
         EnableUIPreview      {11  0 1 void      {}}
         Export               {7   0 1 void      {bstr bstr bstr}}
-        GenerateTransform    TBD-9
+        GenerateTransform    {9   0 1 bool      {idispatch {bstr 0}}}
         Import               {6   0 1 void      {bstr bstr}}
-        Merge                TBD-8
+        Merge                {8   0 1 bool      {idispatch {bstr 0}}}
         OpenView             {3   0 1 idispatch  {bstr}}
         PrimaryKeys          {5   0 2 idispatch {bstr}}
         SummaryInformation   {2   0 2 idispatch {i4}}
         TablePersistent      {12  0 2 i4       {bstr}}
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_database($name) $proto
-        }
     }
 
     # Record object
-    foreach {name proto} {
+    set ::twapi::msiprotos_record {
         ClearData    {7   0 1 void      {}}
         DataSize     {5   0 2 i4        {}}
         FieldCount   {0   0 2 i4        {}}
@@ -126,51 +116,31 @@ proc twapi::init_msi {} {
         SetStream    {3   0 1 void      {i4 bstr}}
         StringData   {1   0 2 bstr      {i4}}
         StringData   {1   0 4 void      {i4 bstr}}
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_record($name) $proto
-        }
     }
 
     # SummaryInfo
-    foreach {name proto} {
+    set ::twapi::msiprotos_summaryinfo {
         Persist    {3   0 1 void      {}}   
         Property   {1   0 2 bstr      {i4}}
         Property   {1   0 4 bstr      {i4}}
         PropertyCount {2   0 2 i4     {}}
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_summaryinfo($name) $proto
-        }
     }
 
     # StringList
-    foreach {name proto} {
+    set ::twapi::msiprotos_stringlist {
         Count  {1  0 2 i4   {}}
         Item   {0  0 2 bstr {i4}} 
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_stringlist($name) $proto
-        }
     }
 
     # View
     # Flags - 0x11 for Exectute indicate optional,in parameter
-    foreach {name proto} {
+    set ::twapi::msiprotos_view {
         Close      {4   0 1 void      {}}
         ColumnInfo {5   0 2 idispatch {i4}}
         Execute    {1   0 1 void      {{9 {0x11}}}}
         Fetch      {2   0 1 idispatch {}}
         GetError   {6   0 1 void      {}}
         Modify     {3   0 1 void      {i4 idispatch}}
-    } {
-        # We skip TBD's
-        if {[llength $proto] > 1} {
-            set ::twapi::msiprotos_view($name) $proto
-        }
     }
 }
 
@@ -200,7 +170,7 @@ proc twapi::load_msi_prototypes {obj type} {
         $obj -interfaceguid $msi_guids($type)
 
         # Load the prototypes in the cache
-        _dispatch_prototype_load $msi_guids($type) [array get msiprotos_[string tolower $type]]
+        _dispatch_prototype_load $msi_guids($type) [set msiprotos_$type]
     }
 
     # Call our new definition
