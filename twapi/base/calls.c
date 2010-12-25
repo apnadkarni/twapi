@@ -439,6 +439,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
+    CALL_(Twapi_IsValidGUID, Call, 1019);
     CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
 
@@ -1579,8 +1580,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
             break;
-//        case 1019: UNUSED
+        case 1019: // Twapi_IsValidGUID
+            result.type = TRT_BOOL;
+            result.value.bval = (ObjToGUID(NULL, objv[2], &guid) == TCL_OK);
+            break;
+
 //        case 1020: UNUSED
+
         case 1021:
             return TwapiGetThemeDefine(interp, Tcl_GetString(objv[2]));
         case 1022: // free
