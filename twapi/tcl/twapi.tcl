@@ -37,6 +37,11 @@ proc twapi::debuglog {args} {
     }
 }
 
+proc twapi::debuglog_clear {} {
+    variable log_messages
+    set log_messages {}
+}
+
 # Given a proc, wraps some initialization code around it
 proc twapi::init_wrapper {procname initcode} {
     set procname [uplevel 1 [list namespace which -command $procname]]
