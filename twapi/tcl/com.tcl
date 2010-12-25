@@ -1351,17 +1351,47 @@ twapi::class create ::twapi::IDispatchProxy {
             return [uplevel 1 [list [self] Invoke {}] $params]
         } else {
             set nparams [llength $params]
+
+            # We will try for each invkind to match. matches can be of
+            # different degrees, in descending priority -
+            # - prototype has parameter info and num params match exactly
+            # - prototype has parameter info and num params is greater
+            #   than supplied arguments (assumes others have defaults)
+            # - prototype has no parameter information
+            # Within these classes, the order of invkinds determines
+            # priority
+
             foreach invkind $invkinds {
                 set proto [my @Prototype $name $invkind $lcid]
-                # For a prototype to match, number of supplied params must
-                # not be more than number in prototype. They can be less
-                # assuming the prototypes contain default
-                if {$proto ne "" && [llength [lindex $proto 4]] >= $nparams} {
-                    # Need uplevel so by-ref param vars are resolved correctly
-                    return [uplevel 1 [list [self] Invoke $proto] $params]
+                if {[llength $proto]} {
+                    if {[llength $proto] < 5} {
+                        # No parameter information
+                        lappend class3 $proto
+                    } else {
+                        if {[llength [lindex $proto 4]] == $nparams} {
+                            lappend class1 $proto
+                        } elseif {[llength [lindex $proto 4]] > $nparams} {
+                            lappend class2 $proto
+                        } else {
+                            # Ignore - proto has fewer than supplied params
+                            # Could not be a match
+                        }
+                    }
                 }
             }
-            win32_error 0x80020003 "No property or method found with name '$name'."
+
+            if {[info exists class1]} {
+                set proto [lindex $class1 0]
+            } elseif {[info exists class2]} {
+                set proto [lindex $class2 0]
+            } elseif {[info exists class3]} {
+                set proto [lindex $class3 0]
+            } else {
+                twapi::win32_error 0x80020003 "No property or method found with name '$name'."
+            }
+
+            # Need uplevel so by-ref param vars are resolved correctly
+            return [uplevel 1 [list [self] Invoke $proto] $params]
         }
     }
 
@@ -1382,84 +1412,87 @@ twapi::class create ::twapi::IDispatchProxy {
         # different LCID's below.
         set proto {}
         my @InitTypeCompAndGuid; # Inits _guid and _typecomp
-        if {$_typecomp eq ""} {
-            # No typecomp / typeinfo available. We have to use the
-            # last resort of GetIDsOfNames
-            
-            set dispid [my @GetIDOfOneName [list $name] 0]
-            # TBD - should we cache result ?
-            if {$dispid eq ""} {
-                return {};      # No prototype
-            } else {
-                # Note we store as lcid = 0
-                # Note params field (last) is missing signifying we do not
-                # know prototypes
-                return [list $dispid 0 $invkind 8]
-            }
-        }
+        if {$_typecomp ne ""} {
+            ::twapi::trap {
 
-        ::twapi::trap {
+                set invkind [::twapi::_string_to_invkind $invkind]
+                set lhash   [::twapi::LHashValOfName $lcid $name]
 
-            set invkind [::twapi::_string_to_invkind $invkind]
-            set lhash   [::twapi::LHashValOfName $lcid $name]
-
-            if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
-                [llength $binddata]} {
-                foreach {type data ifc} $binddata break
-                if {$type eq "funcdesc" ||
-                    ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
-                    set params {}
-                    set bindti [::twapi::make_interface_proxy $ifc]
-                    ::twapi::trap {
-                        set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
-                    } finally {
-                        $bindti Release
+                if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
+                    [llength $binddata]} {
+                    foreach {type data ifc} $binddata break
+                    if {$type eq "funcdesc" ||
+                        ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
+                        set params {}
+                        set bindti [::twapi::make_interface_proxy $ifc]
+                        ::twapi::trap {
+                            set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
+                        } finally {
+                            $bindti Release
+                        }
+                        set proto [list [::twapi::kl_get $data memid] \
+                                       $lcid \
+                                       $invkind \
+                                       [::twapi::kl_get $data elemdescFunc.tdesc] \
+                                       $params]
+                    } else {
+                        ::twapi::IUnknown_Release $ifc; # Don't need this but must release
+                        debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                     }
-                    set proto [list [::twapi::kl_get $data memid] \
-                                   $lcid \
-                                   $invkind \
-                                   [::twapi::kl_get $data elemdescFunc.tdesc] \
-                                   $params]
-                } else {
-                    ::twapi::IUnknown_Release $ifc; # Don't need this but must release
-                    debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                 }
+            } onerror {} {
+                # Ignore and retry with other LCID's below
             }
-        } onerror {} {
-            # Ignore and retry with other LCID's below
+
+            ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+            if {[llength $proto]} {
+                return $proto
+            }
+
+            # Could not find a matching prototype from the typeinfo/typecomp.
+            # We are not done yet. We will try and fall back to other lcid's
+            # Note we do this AFTER setting the prototype in the cache. That
+            # way we prevent (infinite) mutual recursion between lcid fallbacks.
+            # The fallback sequence is $lcid -> 0 -> 1033
+            # (1033 is US English). Note lcid could itself be 1033
+            # default and land up being checked twice times but that's
+            # ok since that's a one-time thing, and not very expensive either
+            # since the second go-around will hit the cache (negative). 
+            # Note the time this is really useful is when the cache has
+            # been populated explicitly from a type library since in that
+            # case many interfaces land up with a US ENglish lcid (MSI being
+            # just one example)
+
+            if {$lcid == 0} {
+                # Note this call may further recurse and return either a
+                # proto or empty (fail)
+                set proto [my @Prototype $name $invkind 1033]
+            } else {
+                set proto [my @Prototype $name $invkind 0]
+            }
+            
+            # Store it as *original* lcid.
+            ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+
+            if {[llength $proto]} {
+                return $proto
+            }
+
         }
 
-        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
-        if {[llength $proto]} {
-            return $proto
-        }
-
-        # Could not find a matching prototype from the typeinfo/typecomp.
-        # We are not done yet. We will try and fall back to other lcid's
-        # Note we do this AFTER setting the prototype in the cache. That
-        # way we prevent (infinite) mutual recursion between lcid fallbacks.
-        # The fallback sequence is $lcid -> 0 -> 1033
-        # (1033 is US English). Note lcid could itself be 1033
-        # default and land up being checked twice times but that's
-        # ok since that's a one-time thing, and not very expensive either
-        # since the second go-around will hit the cache (negative). 
-        # Note the time this is really useful is when the cache has
-        # been populated explicitly from a type library since in that
-        # case many interfaces land up with a US ENglish lcid (MSI being
-        # just one example)
-
-        if {$lcid == 0} {
-            # Note this call may further recurse and return either a
-            # proto or empty (fail)
-            set proto [my @Prototype $name $invkind 1033]
+        # No typecomp / typeinfo available. No lcid worked.
+        # We have to use the last resort of GetIDsOfNames
+            
+        set dispid [my @GetIDOfOneName [list $name] 0]
+        # TBD - should we cache result ? Probably not.
+        if {$dispid eq ""} {
+            return {};      # No prototype
         } else {
-            set proto [my @Prototype $name $invkind 0]
+            # Note we store as lcid = 0
+            # Note params field (last) is missing signifying we do not
+            # know prototypes
+            return [list $dispid 0 $invkind 8]
         }
-        
-        # Store it as *original* lcid.
-        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
-
-        return $proto
     }
 
 
@@ -1476,6 +1509,13 @@ twapi::class create ::twapi::IDispatchProxy {
             set ti [my @GetTypeInfo 0]
         } onerror {TWAPI_WIN32 0x80004001} {
             # Interface is not implemented. We do not raise an error because
+            # even without the _typecomp we can try invoking
+            # methods via IDispatch::GetIDsOfNames
+            set _guid ""
+            set _typecomp ""
+            return
+        } onerror {TWAPI_WIN32 0x80004002} {
+            # Interface is supported. We do not raise an error because
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
             set _guid ""
