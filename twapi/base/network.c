@@ -1037,7 +1037,7 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     return TCL_OK;
 }
 
-int Twapi_GetBestRoute(TwapiInterpContext *ticP, int objc, Tcl_Obj *objv[])
+int Twapi_GetBestRoute(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     MIB_IPFORWARDROW route;
     int error;
