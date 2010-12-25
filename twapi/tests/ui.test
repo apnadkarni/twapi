@@ -3524,6 +3524,21 @@ namespace eval twapi::ui::test {
 
     ################################################################
 
+    test get_color_depth-1.0 {
+        Get color depth of screen
+    } -body {
+        twapi::get_color_depth
+    } -match oneof -result {8 16 24 32}
+
+    test get_color_depth-1.1 {
+        Get color depth of window
+    } -body {
+        twapi::get_color_depth [twapi::get_console_window]
+    } -match oneof -result {8 16 24 32}
+
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 

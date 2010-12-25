@@ -30,6 +30,34 @@ namespace eval twapi::msi::test {
         $msi -destroy
     } -result {^\d\.\d\.\d+\.\d+$} -match regexp
 
+    test msi_sql_query-1.0 {
+        Test exec ing a SQL query on an MSI package
+    } -setup {
+        set msi [twapi::comobj WindowsInstaller.Installer]
+        # Instead of using load_msi_prototypes, we will use
+        # the type library
+        set tl [twapi::ITypeLibProxy_from_path [file join $::env(WINDIR) system32 msi.dll]]
+        $tl @LoadDispatchPrototypes
+        $tl Release
+    } -body {
+        $msi -interfaceguid Installer
+        set db [$msi OpenDatabase [file join [file dirname [info script]] sample.msi] 0]
+        $db -interfaceguid Database
+        set view [$db -call OpenView "select Title, Description from Feature where Feature='Complete'"]
+        $view -interfaceguid View
+        $view -call Execute
+        set rec [$view -call Fetch]
+        $rec -interfaceguid Record
+        list [$rec -get FieldCount] [$rec -get StringData 1] [$rec -get StringData 2]
+    } -cleanup {
+        $rec destroy
+        $view destroy
+        $db destroy
+        $msi destroy
+    } -result {2 {Windows Inspection Tool Set} {Complete package.}}
+
+    
+
     #
     # Clean up
     ::tcltest::cleanupTests
