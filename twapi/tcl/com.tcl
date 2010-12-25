@@ -260,16 +260,24 @@ proc twapi::name_to_iid {iname} {
     }
 
     # Look up the registry
+    set iids {}
     foreach iid [registry keys HKEY_CLASSES_ROOT\\Interface] {
         if {![catch {
             set val [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]
         }]} {
             if {[string equal -nocase $iname $val]} {
-                return [set ::twapi::_name_to_iid_cache($iname) $iid]
+                lappend iids $iid
             }
         }
     }
-    return [set ::twapi::_name_to_iid_cache($iname) ""]
+
+    if {[llength $iids] == 1} {
+        return [set ::twapi::_name_to_iid_cache($iname) [lindex $iids 0]]
+    } elseif {[llength $iids]} {
+        error "Multiple interfaces found matching name $iname: [join $iids ,]"
+    } else {
+        return [set ::twapi::_name_to_iid_cache($iname) ""]
+    }
 }
 
 
@@ -1387,7 +1395,17 @@ twapi::class create ::twapi::IDispatchProxy {
             } elseif {[info exists class3]} {
                 set proto [lindex $class3 0]
             } else {
-                twapi::win32_error 0x80020003 "No property or method found with name '$name'."
+                # No prototype via typecomp / typeinfo available. No lcid worked.
+                # We have to use the last resort of GetIDsOfNames
+                set dispid [my @GetIDOfOneName [list $name] 0]
+                # TBD - should we cache result ? Probably not.
+                if {$dispid ne ""} {
+                    # Note params field (last) is missing signifying we do not
+                    # know prototypes
+                    set proto [list $dispid 0 [lindex $invkinds 0] 8]
+                } else {
+                    twapi::win32_error 0x80020003 "No property or method found with name '$name'."
+                }
             }
 
             # Need uplevel so by-ref param vars are resolved correctly
@@ -1443,56 +1461,51 @@ twapi::class create ::twapi::IDispatchProxy {
             } onerror {} {
                 # Ignore and retry with other LCID's below
             }
-
-            ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
-            if {[llength $proto]} {
-                return $proto
-            }
-
-            # Could not find a matching prototype from the typeinfo/typecomp.
-            # We are not done yet. We will try and fall back to other lcid's
-            # Note we do this AFTER setting the prototype in the cache. That
-            # way we prevent (infinite) mutual recursion between lcid fallbacks.
-            # The fallback sequence is $lcid -> 0 -> 1033
-            # (1033 is US English). Note lcid could itself be 1033
-            # default and land up being checked twice times but that's
-            # ok since that's a one-time thing, and not very expensive either
-            # since the second go-around will hit the cache (negative). 
-            # Note the time this is really useful is when the cache has
-            # been populated explicitly from a type library since in that
-            # case many interfaces land up with a US ENglish lcid (MSI being
-            # just one example)
-
-            if {$lcid == 0} {
-                # Note this call may further recurse and return either a
-                # proto or empty (fail)
-                set proto [my @Prototype $name $invkind 1033]
-            } else {
-                set proto [my @Prototype $name $invkind 0]
-            }
-            
-            # Store it as *original* lcid.
-            ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
-
-            if {[llength $proto]} {
-                return $proto
-            }
-
         }
 
-        # No typecomp / typeinfo available. No lcid worked.
-        # We have to use the last resort of GetIDsOfNames
-            
-        set dispid [my @GetIDOfOneName [list $name] 0]
-        # TBD - should we cache result ? Probably not.
-        if {$dispid eq ""} {
-            return {};      # No prototype
+
+        # If we do not have a guid return because even if we do not
+        # have a proto yet,  falling through to try another lcid will not
+        # help and in fact will cause infinite recursion.
+        
+        if {$_guid eq ""} {
+            return $proto
+        }
+
+        # We do have a guid, store the proto in cache (even if negative)
+        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+
+        # If we have the proto return it
+        if {[llength $proto]} {
+            return $proto
+        }
+
+        # Could not find a matching prototype from the typeinfo/typecomp.
+        # We are not done yet. We will try and fall back to other lcid's
+        # Note we do this AFTER setting the prototype in the cache. That
+        # way we prevent (infinite) mutual recursion between lcid fallbacks.
+        # The fallback sequence is $lcid -> 0 -> 1033
+        # (1033 is US English). Note lcid could itself be 1033
+        # default and land up being checked twice times but that's
+        # ok since that's a one-time thing, and not very expensive either
+        # since the second go-around will hit the cache (negative). 
+        # Note the time this is really useful is when the cache has
+        # been populated explicitly from a type library since in that
+        # case many interfaces land up with a US ENglish lcid (MSI being
+        # just one example)
+
+        if {$lcid == 0} {
+            # Note this call may further recurse and return either a
+            # proto or empty (fail)
+            set proto [my @Prototype $name $invkind 1033]
         } else {
-            # Note we store as lcid = 0
-            # Note params field (last) is missing signifying we do not
-            # know prototypes
-            return [list $dispid 0 $invkind 8]
+            set proto [my @Prototype $name $invkind 0]
         }
+        
+        # Store it as *original* lcid.
+        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+        
+        return $proto
     }
 
 
@@ -1511,14 +1524,20 @@ twapi::class create ::twapi::IDispatchProxy {
             # Interface is not implemented. We do not raise an error because
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
-            set _guid ""
+            if {![info exists _guid]} {
+                # Do not overwrite if set thru @SetGuid
+                set _guid ""
+            }
             set _typecomp ""
             return
         } onerror {TWAPI_WIN32 0x80004002} {
             # Interface is supported. We do not raise an error because
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
-            set _guid ""
+            if {![info exists _guid]} {
+                # Do not overwrite if set thru @SetGuid
+                set _guid ""
+            }
             set _typecomp ""
             return
         }
