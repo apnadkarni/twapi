@@ -237,7 +237,8 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
  * to return after an error.
  */
 int Twapi_AppendSystemError2(
-    Tcl_Interp *interp,	/* Current interpreter. If NULL, this is a NO-OP */
+    Tcl_Interp *interp,	/* Current interpreter. If NULL, this is a NO-OP
+                           except for return value */
     DWORD error,	/* Result code from error. */
     Tcl_Obj *extra      /* Additional argument to be tacked on to
                            errorCode object, may be NULL */
