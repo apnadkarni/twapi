@@ -128,6 +128,10 @@ namespace eval metoo::define {
     proc destructor {class_ns body} {
         method $class_ns destructor {} $body
     }
+    proc export {args} {
+        # Nothing to do, all methods are exported anyways
+        # Command is here for compatibility only
+    }
 }
 
 # Namespace in which commands used in objects methods are defined
