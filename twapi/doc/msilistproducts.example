@@ -3,7 +3,7 @@
 # error handling as such.
 
 # MSI related stuff requires at least V2.0
-package require twapi 2.0
+package require twapi
 
 # Array to map product state codes to display strings
 array set product_state_map {
