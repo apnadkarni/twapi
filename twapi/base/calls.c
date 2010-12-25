@@ -2281,8 +2281,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
             /* Only look at select bits from dwFlags as others are used when
                formatting from string */
-            dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
-            dw |= FORMAT_MESSAGE_FROM_HMODULE | FORMAT_MESSAGE_ARGUMENT_ARRAY;
+            dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_FROM_HMODULE;
+            dw |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
             return TwapiFormatMessageHelper(interp, dw, h, dw2, dw3, dw4, u.wargv);
         case 10074: // Twapi_FormatMessageFromString
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2293,8 +2293,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
             /* Only look at select bits from dwFlags as others are used when
                formatting from module */
-            dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK;
-            dw |= FORMAT_MESSAGE_FROM_STRING | FORMAT_MESSAGE_ARGUMENT_ARRAY;
+            dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_FROM_STRING;
+            dw |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
             return TwapiFormatMessageHelper(interp, dw, s, 0, 0, dw4, u.wargv);
         case 10075: // WritePrivateProfileString
             if (TwapiGetArgs(interp, objc-2, objv+2,
