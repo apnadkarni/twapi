@@ -1196,7 +1196,7 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
 
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
-    if (objc > argc) {
+    if ((objc+1) > argc) {
         return TwapiReturnTwapiError(interp,
                                      "Number of strings in list exceeds size of argument array.",
                                      TWAPI_INTERNAL_LIMIT);
@@ -1204,6 +1204,7 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
 
     for (i = 0; i < objc; ++i)
         argv[i] = Tcl_GetString(objv[i]);
+    argv[i] = NULL;
     *argcP = objc;
     return TCL_OK;
 }
@@ -1215,7 +1216,7 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
 
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
-    if (objc > argc) {
+    if ((objc+1) > argc) {
         return TwapiReturnTwapiError(interp,
                                      "Number of strings in list exceeds size of argument array.",
                                      TWAPI_INTERNAL_LIMIT);
@@ -1223,6 +1224,7 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
 
     for (i = 0; i < objc; ++i)
         argv[i] = Tcl_GetUnicode(objv[i]);
+    argv[i] = NULL;
     *argcP = objc;
     return TCL_OK;
 }
