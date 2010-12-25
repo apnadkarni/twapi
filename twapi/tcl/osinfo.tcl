@@ -1280,7 +1280,7 @@ proc twapi::_unsafe_format_message {args} {
         includesystem
         ignoreinserts
         width.int
-    } -nulldefault]
+    } -nulldefault -maxleftover 0]
 
     set flags 0
 

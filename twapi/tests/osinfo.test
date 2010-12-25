@@ -1186,6 +1186,63 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test format_message-1.0 {
+        Format a message from the system
+    } -body {
+        string trim [twapi::format_message -messageid 5]
+    } -result [twapi::map_windows_error 5]
+
+
+    test format_message-2.0 {
+        Format a message from a string with no inserts
+    } -body {
+        twapi::format_message -fmtstring "This is a string"
+    } -result "This is a string"
+
+    test format_message-2.1 {
+        Format a message from a string with inserts
+    } -body {
+        set fmts {}
+        set result {}
+        for {set i 1} {$i < 100} {incr i} {
+            set fmts [linsert $fmts 0 %$i]; # Reverse order
+            set result [linsert $result 0 $i]; # Reverse order
+            lappend params $i
+        }
+
+        expr {
+              [twapi::format_message -fmtstring $fmts -params $params] eq $result
+          }
+    } -result 1
+
+    test format_message-2.2 {
+        Format a message from a string with -ignoreinserts
+    } -body {
+        twapi::format_message -fmtstring "%1 %2" -params {a b} -ignoreinserts
+    } -result "%1 %2"
+
+    test format_message-2.3 {
+        Format a message from a string with missing insert parameters
+    } -body {
+        twapi::format_message -fmtstring "Missing %1 %2"
+    } -result "Missing (null) (null)"
+
+    test format_message-3.0 {
+        Format a message from a string with -width
+    } -body {
+        twapi::format_message -fmtstring "123456789" -width 3
+    } -result "123\r\n456\r\n789\r\n"
+
+    test format_message-3.1 {
+        Format a message from a string with -width -1 and %n
+    } -body {
+        twapi::format_message -fmtstring "123\r\n456%n789" -width -1
+    } -result "123 456\r\n789"
+
+ 
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
