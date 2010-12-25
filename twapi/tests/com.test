@@ -517,7 +517,7 @@ namespace eval twapi::com::test {
         # starts.
         set sink_ifc [$process_event_sink -interface]; # Does AddRef
         twapi::trap {
-            $wmi ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
+            $wmi -call ExecNotificationQueryAsync $sink_ifc "select * from Win32_ProcessStartTrace"
         } finally {
             # WMI will internally do a AddRef, so we can release our AddRef on sink_ifc
             twapi::IUnknown_Release $sink_ifc
