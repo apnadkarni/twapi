@@ -1106,8 +1106,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     int func;
     union {
         WCHAR buf[MAX_PATH+1];
-        char *argv[50];
-        LPCWSTR wargv[50];
+        LPCWSTR wargv[100];     /* FormatMessage accepts up to 99 params + 1 for NULL */
         FLASHWINFO flashw;
         LASTINPUTINFO lastin;
         double d;
