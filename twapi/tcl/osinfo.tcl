@@ -1288,7 +1288,7 @@ proc twapi::_unsafe_format_message {args} {
         if {$opts(fmtstring) == ""} {
             # If neither -module nor -fmtstring specified, message is formatted
             # from the system
-            set opts(module) null
+            set opts(module) NULL
             setbits flags 0x1000;       # FORMAT_MESSAGE_FROM_SYSTEM
         } else {
             setbits flags 0x400;        # FORMAT_MESSAGE_FROM_STRING

@@ -757,6 +757,15 @@ namespace eval twapi::console::test {
 
     ################################################################
 
+    test get_console_output_codepage-1.0 {
+        Get console output codepage
+    } -body {
+        twapi::get_console_output_codepage
+    } -result 437
+
+
+    ################################################################
+
 
     #
     # Clean up

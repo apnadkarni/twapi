@@ -1,0 +1,38 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from nls.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::msi::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    test load_msi_prototypes-1.0 {
+        Load MSI prototypes
+    } -setup {
+        set msi [twapi::comobj WindowsInstaller.Installer]
+    } -body {
+        twapi::load_msi_prototypes $msi Installer
+        # Verify that protos were actually loaded
+        $msi Version
+    } -cleanup {
+        $msi -destroy
+    } -result {^\d\.\d\.\d+\.\d+$} -match regexp
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::msi::test
