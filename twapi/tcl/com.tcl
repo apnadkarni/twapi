@@ -1512,20 +1512,29 @@ twapi::class create ::twapi::IDispatchProxy {
     # where the GUID and TypeComp can be extracted. So we allow caller
     # to explicitly set the GUID so we can look up methods in the
     # dispatch prototype cache if it was populated directly by the
-    # application.
+    # application. If guid is not a valid GUID, an attempt is made
+    # to look it up as an IID name.
     method @SetGuid {guid} {
         my variable _guid
-        if {$guid ne ""} {
+        if {$guid eq ""} {
+            if {![info exists _guid]} {
+                my @InitTypeCompAndGuid
+            }
+        } else {
+            if {![::twapi::Twapi_IsValidGUID $guid]} {
+                set resolved_guid [::twapi::name_to_iid $guid]
+                if {$resolved_guid eq ""} {
+                    error "Could not resolve $guid to a Interface GUID."
+                }
+                set guid $resolved_guid
+            }
+
             if {[info exists _guid] && $_guid ne ""} {
                 if {[string compare -nocase $guid $_guid]} {
                     error "Attempt to set the GUID to $guid when the dispatch proxy has already been initialized to $_guid"
                 }
             } else {
                 set _guid $guid
-            }
-        } else {
-            if {![info exists _guid]} {
-                my @InitTypeCompAndGuid
             }
         }
 
