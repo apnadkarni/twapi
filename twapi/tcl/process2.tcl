@@ -987,7 +987,7 @@ proc twapi::get_thread_handle {tid args} {
 
 # Suspend a thread
 proc twapi::suspend_thread {tid} {
-    set htid [get_thread_handle $tid -access thread_suspend_resume)]
+    set htid [get_thread_handle $tid -access thread_suspend_resume]
     trap {
         set status [SuspendThread $htid]
     } finally {
@@ -998,7 +998,7 @@ proc twapi::suspend_thread {tid} {
 
 # Resume a thread
 proc twapi::resume_thread {tid} {
-    set htid [get_thread_handle $tid -access thread_suspend_resume)]
+    set htid [get_thread_handle $tid -access thread_suspend_resume]
     trap {
         set status [ResumeThread $htid]
     } finally {

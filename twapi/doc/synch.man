@@ -156,6 +156,10 @@ The default is [const -1] which indicates no timeout.
 [opt_def [cmd -async] [arg SCRIPT]] If specified, the command
 returns immediately. [arg SCRIPT] is then invoked when the handle
 is signalled or the timeout specified through [cmd -wait] has elapsed.
+Note that if a timeout is specified with the [cmd -wait] option, the
+timeout does not cancel the wait and the script is invoked repeatedly
+every [arg MILLISECONDS] if the handle is not signalled.
+[nl]
 Two additional arguments are appended to [arg SCRIPT] - [arg HANDLE]
 and the return value ([const signalled] etc.). Once a handle is registered
 for asynchronous notification, it must not be used for synchronous

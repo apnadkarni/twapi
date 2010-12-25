@@ -5,7 +5,6 @@
 # See the file LICENSE for license
 
 # This file contains tests for commands from the process.tcl
-# TBD - get_process_handle, get_thread_handle, suspend_thread, resume_thread
 
 
 package require tcltest
@@ -2315,6 +2314,48 @@ namespace eval ::twapi::process::test {
         close $child_fd
         twapi::close_handle $child_h
     } -result ""
+
+    ################################################################
+
+    test suspend_thread-1.0 {
+        Suspend a thread
+    } -setup {
+        set pid [notepad_exec]
+        set tids [lindex [twapi::get_process_info $pid -tids] 1]
+        if {[llength $tids] != 1} {
+            error "Found [llength $tids] threads in notepad. Expected 1"
+        }
+    } -body {
+        twapi::suspend_thread [lindex $tids 0]
+        twapi::end_process $pid -wait 100
+        twapi::process_exists $pid;    # SHould still exist (since suspended, cannot process WM_CLOSE)
+    } -cleanup {
+        twapi::resume_thread [lindex $tids 0]
+        catch { twapi::end_process $pid -force }
+    } -result 1
+
+    ################################################################
+
+    test resume_thread-1.0 {
+        Resume a thread
+    } -setup {
+        set pid [notepad_exec]
+        set tids [lindex [twapi::get_process_info $pid -tids] 1]
+        if {[llength $tids] != 1} {
+            error "Found [llength $tids] threads in notepad. Expected 1"
+        }
+    } -body {
+        twapi::suspend_thread [lindex $tids 0]
+        if {[twapi::end_process $pid -wait 100]} {
+            error "Could not suspend notepad."
+        }
+        # Now resume. It should exit since WM_QUIT will be picked up
+        twapi::resume_thread [lindex $tids 0]
+        after 50
+        twapi::process_exists $pid
+    } -result 0
+
+
 
     ################################################################
 
