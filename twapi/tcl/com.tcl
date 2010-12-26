@@ -1378,6 +1378,7 @@ twapi::class create ::twapi::IDispatchProxy {
                     } else {
                         if {[llength [lindex $proto 4]] == $nparams} {
                             lappend class1 $proto
+                            break; # Class 1 match, no need to try others
                         } elseif {[llength [lindex $proto 4]] > $nparams} {
                             lappend class2 $proto
                         } else {
