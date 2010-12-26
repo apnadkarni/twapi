@@ -330,8 +330,9 @@ namespace eval twapi::com::test {
         # Wait for wmi
         after 1000
         set np_pid [notepad_exec]
-        after 5000 {set ::comobj_process_starts_test {}}
+        set after_id [after 5000 {set ::comobj_process_starts_test {}}]
         vwait ::comobj_process_starts_test
+        after cancel $after_id
         
         # Cancel event notifications
         $process_event_sink Cancel
@@ -546,8 +547,9 @@ namespace eval twapi::com::test {
 
         # Should no longer receive events
         set np_pid [notepad_exec]
-        after 5000 {set ::comobj_process_starts_test timeout}
+        set after_id [after 5000 {set ::comobj_process_starts_test timeout}]
         vwait ::comobj_process_starts_test
+        after cancel $after_id
         
         twapi::end_process $np_pid -force true
 
