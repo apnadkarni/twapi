@@ -201,7 +201,6 @@ for the window to actually close. By default, the command will wait for
 The command returns 1 if the window
 is closed and 0 otherwise. Note the latter is not an error as the window
 might have processed the close message yet.
-[list_end]
 
 [call [cmd configure_window_titlebar] [arg HWIN] [opt [arg options]]]
 Configures the title bar of the specified window to show or hide specific
