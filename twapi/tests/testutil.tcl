@@ -6,9 +6,6 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
-global twapi_test_dir
-set twapi_test_script_dir [file dirname [info script]]
-
 proc equal_boolean {a b} {
     return [expr {(! $a) == (! $b)}]
 }
@@ -79,6 +76,12 @@ proc validate_ip_addresses {addrlist} {
 proc valid_handle {h} {
     return [twapi::Twapi_IsPtr $h]
 }
+
+proc valid_typed_handle {type h} {
+    return [twapi::Twapi_IsPtr $h $type]
+}
+tcltest::customMatch handle valid_typed_handle
+
 
 # Validate SIDs
 proc valid_sids {sids} {
@@ -817,6 +820,41 @@ proc testlog {msg} {
 }
 
 
+# Used for synch testing. Lock the mutex and signal the event_out and
+# then wait for event_in
+proc lock_mutex_and_signal_event {mutex event_out event_in} {
+    set hmutex [twapi::open_mutex $mutex]
+    set hev_in [twapi::create_event -name $event_in]
+    set hev_out [twapi::create_event -name $event_out]
+    twapi::lock_mutex $hmutex
+    twapi::set_event $hev_out
+    twapi::wait_on_handle $hev_in
+    twapi::unlock_mutex $hmutex
+    twapi::close_handle $hev_in
+    twapi::close_handle $hev_out
+    twapi::close_handle $hmutex
+
+}
+
+proc attempt_lock_mutex {mutex open_call} {
+    if {[catch {
+        if {$open_call eq "open_mutex"} {
+            set hmutex [twapi::open_mutex $mutex]
+        } else {
+            set hmutex [twapi::create_mutex -name $mutex]
+        }
+    }]} {
+        puts "error $::errorCode"
+        return
+    }
+    set result [twapi::lock_mutex $hmutex -wait 0]
+    puts $result
+    if {$result eq "signalled"} {
+        twapi::unlock_mutex $hmutex
+    }
+    twapi::close_handle $hmutex
+}
+
 
 #####
 #
@@ -936,7 +974,6 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
     load_twapi_package
     if {[catch {
         foreach arg $argv {
-            puts "testutil eval: $arg"
             eval $arg
         }
     } msg]} {

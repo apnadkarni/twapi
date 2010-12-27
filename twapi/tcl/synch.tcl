@@ -34,7 +34,7 @@ proc twapi::open_mutex {name args} {
     array set opts [parseargs args {
         {inherit.bool 0}
         {access.arg {mutex_all_access}}
-    }]
+    } -maxleftover 0]
     
     return [OpenMutex [_access_rights_to_mask $opts(access)] $opts(inherit) $name]
 }
