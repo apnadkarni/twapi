@@ -55,8 +55,9 @@ so as to avoid unnecessary lookups. The result is normally returned from here
 if available. However, if the [cmd -flushcache] option is specified, the
 cache entry is deleted and an explicit lookup up is done.
 
-[call [cmd flush_arp_table] [arg INTERFACEINDEX]]
-Flushes the ARP table associated with the specified network interface.
+[call [cmd flush_arp_tables] [opt "[arg INTERFACEINDEX]..."]]
+Flushes the ARP tables associated with the specified network interfaces.
+If no arguments are specified, all interfaces are flushed.
 
 [call [cmd get_arp_table] [opt [arg options]]]
 
