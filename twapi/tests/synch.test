@@ -1,0 +1,298 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from nls.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::synch::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    test create_event-1.0 {
+        Create an unnamed event
+    } -body {
+        set evh [twapi::create_event]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result HANDLE -match handle
+
+    test create_event-2.0 {
+        Verify a created event is unsignalled by default
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result timeout
+
+    test create_event-2.1 {
+        Verify a created event with -signalled false
+    } -body {
+        set evh [twapi::create_event -signalled false]
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result timeout
+
+    test create_event-2.2 {
+        Verify a created event with -signalled true
+    } -body {
+        set evh [twapi::create_event -signalled true]
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result signalled
+
+    test create_event-3.0 {
+        Create a named event
+    } -body {
+        set name [clock clicks]
+        set evh [twapi::create_event -name $name]
+        set evh2 [twapi::create_event -name $name]
+        twapi::set_event $evh2
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::close_handle $evh
+        twapi::close_handle $evh2
+    } -result signalled
+
+    test create_event-4.0 {
+        Verify created event is manual reset by default
+    } -body {
+        set evh [twapi::create_event -signalled true]
+        list [twapi::wait_on_handle $evh -wait 0] [twapi::wait_on_handle $evh -wait 0]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result {signalled timeout}
+
+    test create_event-4.1 {
+        Verify created event with -manualreset false
+    } -body {
+        set evh [twapi::create_event -signalled true -manualreset false]
+        list [twapi::wait_on_handle $evh -wait 0] [twapi::wait_on_handle $evh -wait 0]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result {signalled timeout}
+
+    test create_event-4.2 {
+        Verify created event with -manualreset true
+    } -body {
+        set evh [twapi::create_event -signalled true -manualreset true]
+        list [twapi::wait_on_handle $evh -wait 0] [twapi::wait_on_handle $evh -wait 0]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result {signalled signalled}
+
+    test create_event-5.0 {
+        Verify create_event with -secd
+    } -body {
+        set name [clock clicks]
+        set secd [twapi::new_security_descriptor -dacl [twapi::new_acl]]
+        set evh [twapi::create_event -name $name -secd $secd]
+        set evh2 [twapi::create_event -name $name]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result [twapi::map_windows_error 5] -returnCodes error
+        
+    test create_event-6.0 {
+        Verify create_event with -inherit
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    ################################################################
+
+    # Note other tests test set_event so just rudimentary tests here
+    test set_event-1.0 {
+        Set event
+    } -setup {
+        set evh [twapi::create_event -signalled false]
+    } -body {
+        list [twapi::wait_on_handle $evh -wait 0] \
+            [twapi::set_event $evh] \
+            [twapi::wait_on_handle $evh -wait 0]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result {timeout {} signalled}
+
+
+    ################################################################
+
+    test reset_event-1.0 {
+        Reset event
+    } -setup {
+        set evh [twapi::create_event -signalled true -manualreset false]
+    } -body {
+        twapi::reset_event $evh
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result timeout
+
+    test reset_event-2.0 {
+        Reset event
+    } -setup {
+        set evh [twapi::create_event -signalled true -manualreset true]
+    } -body {
+        list [twapi::wait_on_handle $evh -wait 0] \
+            [twapi::reset_event $evh] \
+            [twapi::wait_on_handle $evh -wait 0]
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result {signalled {} timeout}
+    
+
+    ################################################################
+
+    test create_mutex-1.0 {
+        Create an unnamed mutex
+    } -body {
+        set mutexh [twapi::create_mutex]
+    } -cleanup {
+        twapi::close_handle $mutexh
+    } -result HANDLE -match handle
+
+    test create_mutex-2.0 {
+        Verify synchronizaion using named mutex
+    } -body {
+        set mutex_name [clock clicks]
+        set event_out evout_$mutex_name
+        set event_in evin_$mutex_name
+        set mutexh [twapi::create_mutex -name $mutex_name]
+        set event_outh [twapi::create_event -name $event_out]
+        set event_inh [twapi::create_event -name $event_in]
+
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "lock_mutex_and_signal_event $mutex_name $event_out $event_in" &
+        if {[twapi::wait_on_handle $event_outh -wait 5000] ne "signalled"} {
+            error "Timeout waiting on incoming signal event"
+        }
+        # Once event is signalled, we expect mutex to be locked.
+        if {[twapi::lock_mutex $mutexh -wait 0] eq "timeout"} {
+            set lock_fail 1
+        } else {
+            set lock_fail 0
+        }
+        # Let child move on 
+        twapi::set_event $event_inh
+        # Confirm we can lock it now
+        if {[twapi::lock_mutex $mutexh -wait 5000] eq "signalled"} {
+            set lock_success 1
+        } else {
+            set lock_success 0
+        }
+
+        list $lock_fail $lock_success
+        
+    } -cleanup {
+        twapi::close_handle $mutexh
+        twapi::close_handle $event_inh
+        twapi::close_handle $event_outh
+    } -result {1 1}
+
+    test create_mutex-2.1 {
+        Verify attempt to lock unlocked mutex succeeds
+    } -body {
+        set mutex_name [clock clicks]
+        set mutexh [twapi::create_mutex -name $mutex_name -lock false]
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name open_mutex"
+    } -cleanup {
+        twapi::close_handle $mutexh
+    } -result signalled
+
+    test create_mutex-2.2 {
+        Verify attempt to lock locked mutex fails
+    } -body {
+        set mutex_name [clock clicks]
+        set mutexh [twapi::create_mutex -name $mutex_name]
+        twapi::lock_mutex $mutexh
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name create_mutex"
+    } -cleanup {
+        twapi::unlock_mutex $mutexh
+        twapi::close_handle $mutexh
+    } -result timeout
+
+    test create_mutex-3.0 {
+        Verify create_mutex with -secd
+    } -body {
+        set mutex_name [clock clicks]
+        set secd [twapi::new_security_descriptor -dacl [twapi::new_acl]]
+        set mutexh [twapi::create_mutex -name $mutex_name -secd $secd]
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name open_mutex"
+    } -cleanup {
+        twapi::close_handle $mutexh
+    } -result [list error TWAPI_WIN32 5 [twapi::map_windows_error 5]]
+        
+    test create_mutex-4.0 {
+        Verify create_mutex with -inherit
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    ################################################################
+
+    # Sparse tests because the create_mutex* cases take care of testing locks
+    test lock_mutex-1.0 {
+        Verify locking of a mutex
+    } -body {
+        set mutexh [twapi::create_mutex]
+        twapi::lock_mutex $mutexh
+    } -cleanup {
+        twapi::unlock_mutex $mutexh
+        twapi::close_handle $mutexh
+    } -result signalled
+        
+    ################################################################
+
+    # Sparse tests because the create_mutex* cases take care of testing locks
+    test unlock_mutex-1.0 {
+        Verify unlocking of a mutex
+    } -body {
+        set mutex_name [clock clicks]
+        set mutexh [twapi::create_mutex -name $mutex_name]
+        twapi::lock_mutex $mutexh
+        set locked [exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name open_mutex"]
+        twapi::unlock_mutex $mutexh
+        set unlocked [exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name open_mutex"]
+        list $locked $unlocked
+    } -cleanup {
+        twapi::close_handle $mutexh
+    } -result {timeout signalled}
+        
+    ################################################################
+
+    test open_mutex-1.0 {
+        Open a mutex
+    } -body {
+        set mutex_name [clock clicks]
+        set mutexh [twapi::create_mutex -name $mutex_name -lock false]
+        exec [info nameofexecutable] [file join [tcltest::testsDirectory] testutil.tcl] "attempt_lock_mutex $mutex_name open_mutex"
+    } -cleanup {
+        twapi::close_handle $mutexh
+    } -result signalled
+
+    test open_mutex-1.1 {
+        Open a non-existent mutex
+    } -body {
+        set mutexh [twapi::open_mutex nosuchmutex]
+    } -result [twapi::map_windows_error 2] -returnCodes error
+
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::synch::test
