@@ -443,13 +443,18 @@ proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
     }
 }
 
-
-
 # Flush the arp table for a given interface
-proc twapi::flush_arp_table {if_index} {
-    FlushIpNetTable $if_index
+proc twapi::flush_arp_tables {args} {
+    if {[llength $args] == 0} {
+        set args [get_netif_indices]
+    }
+    foreach ix $args {
+        if {[lindex [get_netif_info $ix -type] 1] ne "loopback"} {
+            FlushIpNetTable $ix
+        }
+    }
 }
-
+interp alias {} twapi::flush_arp_table {} twapi::flush_arp_tables
 
 # Return the list of TCP connections
 proc twapi::get_tcp_connections {args} {

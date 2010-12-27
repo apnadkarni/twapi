@@ -935,6 +935,22 @@ namespace eval twapi::network::test {
         join $msgs \n
     } -result ""
 
+    ################################################################
+
+    test flush_arp_tables-1.0 {
+        Flush all arp tables
+    } -setup {
+        set dest [twapi::kl_get [twapi::get_route] -nexthop]
+        # Try to make sure ARP table populated
+        catch { close [socket $dest 1234] }
+    } -body {
+        set countA [llength [twapi::get_arp_table]]
+        twapi::flush_arp_tables
+        set countB [llength [twapi::get_arp_table]]
+        expr {
+              $countA > 0 && $countB == 0
+          }
+    } -result 1
 
     ################################################################
 
