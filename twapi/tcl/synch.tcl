@@ -71,80 +71,14 @@ proc twapi::create_event {args} {
         error "Option -signalled must not be specified as true if event is named."
     }
 
-    return [CreateEvent [_make_secattr $opts(secd) $opts(inherit)] $opts(manualreset) $opts(signalled) $opts(name)]
+    set h [CreateEvent [_make_secattr $opts(secd) $opts(inherit)] $opts(manualreset) $opts(signalled) $opts(name)]
+    if {$opts(manualreset)} {
+        # We want to catch attempts to wait on manual reset handles
+        return [cast_handle $h HANDLE_MANUALRESETEVENT]
+    }
+    return $h
 }
 
 interp alias {} twapi::set_event {} twapi::SetEvent
 interp alias {} twapi::reset_event {} twapi::ResetEvent
 
-#
-# Wait on a handle
-proc twapi::wait_on_handle {h args} {
-    variable _wait_handles
-
-    array set opts [parseargs args {
-        {wait.int -1}
-        async.arg
-        {executeonce.bool false}
-    }]
-
-    if {![info exists opts(async)]} {
-        if {[info exists _wait_handles($h)]} {
-            error "Attempt to synchronously wait on handle that is registered for an asynchronous wait."
-        }
-
-        set ret [WaitForSingleObject $h $opts(wait)]
-        if {$ret == 0x80} {
-            return abandoned
-        } elseif {$ret == 0} {
-            return signalled
-        } elseif {$ret == 0x102} {
-            return timeout
-        } else {
-            error "Unexpected value $ret returned from WaitForSingleObject"
-        }
-    }
-
-    # async option specified
-
-    # If already registered, only the callback script is replaced.
-    # Wait time and -singlewait settings are not changed
-    if {[info exists _wait_handles($h)]} {
-        set _wait_handles($h) $opts(async)
-        return
-    }
-
-    # New registration.
-    set flags 0
-    if {$opts(executeonce)} {
-        set flags 0x00000008;   # WT_EXECUTEONCEONLY
-    }
-    Twapi_RegisterWaitOnHandle $h $opts(wait) $flags
-
-    # Set now that successfully registered
-    set _wait_handles($h) $opts(async)
-
-    return
-}
-
-#
-# Cancel an async wait on a handle
-proc twapi::cancel_wait_on_handle {h} {
-    variable _wait_handles
-    if {[info exists _wait_handles($h)]} {
-        Twapi_UnregisterWaitOnHandle $h
-        unset _wait_handles($h)
-    }
-}
-
-#
-# Called from C when a handle is signalled or times out
-proc twapi::_wait_handler {h event} {
-    variable _wait_handles
-
-    if {[info exists _wait_handles($h)]} {
-        eval $_wait_handles($h) [list $h $event]
-    }
-
-    return
-}

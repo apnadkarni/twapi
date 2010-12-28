@@ -1,0 +1,225 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from nls.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::handle::test {
+    namespace import ::tcltest::test
+
+    test wait_on_handle-1.0 {
+        Wait on a handle that is not set
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result timeout
+
+    test wait_on_handle-1.1 {
+        Wait on a handle that is set
+    } -body {
+        set evh [twapi::create_event -signalled true]
+        twapi::wait_on_handle $evh -wait 0
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result signalled
+
+    test wait_on_handle-1.2 {
+        Wait on a handle with a timeout
+    } -body {
+        set evh [twapi::create_event]
+        set elapsed [time {set wait_result [twapi::wait_on_handle $evh -wait 100]}]
+        list $wait_result [approx [lindex $elapsed 0] 100000]
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result {timeout 1}
+
+
+    test wait_on_handle-2.0 {
+        Async wait on a handle without a timeout
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed"
+        twapi::set_event $evh
+        vwait ::wait_completed
+        expr {
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "signalled"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-3.0 {
+        Async wait on a handle with a timeout
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        update
+        update idletasks
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 1000
+        twapi::set_event $evh
+        vwait ::wait_completed
+        expr {
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "signalled"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-3.1 {
+        Async wait on a handle with a timeout (time out case)
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
+        vwait ::wait_completed
+        expr {
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "timeout"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-3.2 {
+        Async wait on a handle with a timeout (multiple time out case)
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
+        after 250
+        update idletasks
+        expr {
+              [llength $::wait_completed] == 4 &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "timeout" &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 2]] &&
+              [lindex $::wait_completed 3] eq "timeout"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-4.0 {
+        Wait on a manual reset handle
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event -manualreset false]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
+        twapi::set_event $evh
+        after 50;              # Wait for twice the wait interval
+        update idletasks
+        expr {
+              [llength $::wait_completed] == 2 &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "signalled"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-4.1 {
+        Wait on a manual reset handle (-manualreset true)
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event -manualreset true]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed"
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result "A handle to a manual reset event cannot be waited on asynchronously unless -executeonce is specified." -returnCodes error
+
+    test wait_on_handle-5.0 {
+        Wait on a manual reset handle (-executeonce true)
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event -manualreset true]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100 -executeonce true
+        twapi::set_event $evh
+        vwait ::wait_completed
+        # Should receive only one event
+        expr {
+              [llength $::wait_completed] == 2 &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "signalled"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-5.1 {
+        Wait on a manual reset handle and timeout (-executeonce true)
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 50 -executeonce true
+        after 300
+        update 
+
+        # Should receive only one event
+        expr {
+              [llength $::wait_completed] == 2 &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "timeout"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+    test wait_on_handle-5.2 {
+        Async wait on a handle with a timeout (multiple time out case)
+    } -body {
+        set ::wait_completedx ""
+        set evh [twapi::create_event]
+        twapi::wait_on_handle $evh -async "lappend ::wait_completedx" -wait 100 -executeonce 1
+        after 250
+        update idletasks
+        expr {
+              [llength $::wait_completedx] == 2 &&
+              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completedx 0]] &&
+              [lindex $::wait_completedx 1] eq "timeout"
+          }
+    } -cleanup {
+        twapi::cancel_wait_on_handle $evh
+        twapi::close_handle $evh
+    } -result 1
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::handle::test

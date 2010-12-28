@@ -288,7 +288,7 @@ namespace eval twapi::synch::test {
         set mutexh [twapi::open_mutex nosuchmutex]
     } -result [twapi::map_windows_error 2] -returnCodes error
 
-
+    ################################################################
 
     #
     # Clean up

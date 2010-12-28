@@ -32,12 +32,27 @@ The command [uri \#close_handle [cmd close_handle]]
 closes a operating system handle and
 frees resources associated with it.
 
+[para]
+An application can wait on a handle to be signalled using the
+[uri #wait_on_handle [cmd wait_on_handle]] command. The wait can be
+cancelled by calling
+[uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]] command.
+
+
 [section Commands]
 [list_begin definitions]
 
+[call [cmd cancel_wait_on_handle] [arg HANDLE]]
+Cancels any previously registered asynchronous wait on a handle that
+was registered using [uri #wait_on_handle [cmd wait_on_handle]].
+
 [call [cmd close_handle] [arg HANDLE]]
 
-Closes the operating system handle [arg HANDLE].
+Closes the operating system handle [arg HANDLE]. If the handle has been
+registered for asynchronous notifications via
+[uri #wait_on_handle [cmd wait_on_handle]], the notifications are
+canceled (via 
+[uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
 
 [call [cmd create_file] [arg PATH] [opt [arg options]]]
 This is a thin wrapper around the Win32 [cmd CreateFile] function that returns
@@ -118,6 +133,48 @@ Returns the operating system handle corresponding to a Tcl channel identifier
 (for example, returned by the Tcl [cmd open] command). If [arg DIRECTION]
 is [const write], the write-side handle is returned, otherwise the read-side
 handle is returned. (For many channel types, the two are identical.)
+
+[call [cmd wait_on_handle] [arg HANDLE] [opt [arg options]]]
+The command waits on the specified [arg HANDLE] until it is either
+signalled or a timeout expires. The command can also be used for
+non-blocking asynchronous notification. [arg HANDLE] may be any
+operating system handle for which Windows supports the
+[cmd WaitForSingleObject] API.
+[nl]
+The command may return one of the following values if the
+[cmd -async] option is not specified: [const signalled], [const timeout],
+[const abandoned]. If [cmd -async] is specified, the command
+returns an empty string and the result is passed to the callback script
+instead.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -wait] [arg MILLISECS]] Specifies the number of 
+number of milliseconds to wait for the handle to be signalled.
+The default is [const -1] which indicates no timeout.
+[opt_def [cmd -async] [arg SCRIPT]] If specified, the command
+returns immediately. [arg SCRIPT] is then invoked when the handle
+is signalled or the timeout specified through [cmd -wait] has elapsed.
+Note that if a timeout is specified with the [cmd -wait] option, the
+timeout does not cancel the wait and the script is invoked repeatedly
+every [arg MILLISECONDS] if the handle is not signalled.
+[nl]
+Two additional arguments are appended to [arg SCRIPT] - [arg HANDLE]
+and the return value ([const signalled] etc.). Once a handle is registered
+for asynchronous notification, it must not be used for synchronous
+notification unless the asynchronous notification is first canceled through
+the [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]] command.
+If the handle was already registered for asynchronous notification,
+the previously registered script is replaced with [arg SCRIPT].
+[opt_def [cmd -executeonce] [arg BOOLEAN]]
+If this option is specified as [const true], the [arg SCRIPT] is
+executed only once, even if the object [arg HANDLE] stays in a signalled
+state. Default is [const false].
+This option is ignored if [cmd -async] is not specified.
+[list_end]
+
+
+
 [list_end]
 
 [keywords "channel handle" "operating system handles" "handles"]
