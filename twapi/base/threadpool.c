@@ -25,6 +25,7 @@ static int TwapiThreadPoolRegistrationCallback(TwapiCallback *cbP)
     TwapiThreadPoolRegistration *tprP;
     TwapiInterpContext *ticP = cbP->ticP;
     HANDLE h;
+    TwapiId id;
     
     TWAPI_ASSERT(ticP);
 
@@ -34,14 +35,14 @@ static int TwapiThreadPoolRegistrationCallback(TwapiCallback *cbP)
         return TCL_ERROR;
     }
 
-    h = (HANDLE)cbP->clientdata;
-    ZLIST_LOCATE(tprP, &ticP->threadpool_registrations, handle, h);
+    id = (TwapiId) cbP->clientdata;
+    ZLIST_LOCATE(tprP, &ticP->threadpool_registrations, id, id);
     if (tprP == NULL) {
-        return TCL_OK;                 /* Stale but ok */
+        return TCL_OK;                 /* Stale is not an error */
     }
 
     /* Signal the event. Result is ignored */
-    tprP->signal_handler(ticP, h, (DWORD) cbP->clientdata2);
+    tprP->signal_handler(ticP, id, tprP->handle, (DWORD) cbP->clientdata2);
     return TCL_OK;
 }
 
@@ -56,12 +57,20 @@ static VOID CALLBACK TwapiThreadPoolRegistrationProc(
         (TwapiThreadPoolRegistration *) lpParameter;
     TwapiCallback *cbP;
 
+    /*
+     * Note - tprP is guaranteed to not have disappeared as it is ref counted
+     * and not unref'ed until the handle is unregistered from the thread pool
+     */
     cbP = TwapiCallbackNew(tprP->ticP,
                            TwapiThreadPoolRegistrationCallback,
                            sizeof(*cbP));
 
-    /* Note we do not directly pass tprP. If we did would need to Ref it */
-    cbP->clientdata = (DWORD_PTR) tprP->handle;
+    /*
+     * Even though tprP is valid at this point, it may not be valid
+     * when the the callback is invoked. So we do not pass tprP directly,
+     * but instead pass its id so it will looked up in the call back.
+     */
+    cbP->clientdata = (DWORD_PTR) tprP->id;
     cbP->clientdata2 = (DWORD_PTR) TimerOrWaitFired;
     cbP->winerr = ERROR_SUCCESS;
     TwapiEnqueueCallback(tprP->ticP, cbP,
@@ -93,7 +102,7 @@ void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP)
      * indicator.
      */
     if (tprP->unregistration_handler && tprP->handle != INVALID_HANDLE_VALUE)
-        tprP->unregistration_handler(tprP->ticP, tprP->handle);
+        tprP->unregistration_handler(tprP->ticP, tprP->id, tprP->handle);
     tprP->handle = INVALID_HANDLE_VALUE;
 
     tprP->tp_handle = INVALID_HANDLE_VALUE;
@@ -110,18 +119,19 @@ void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP)
 }
 
 
-WIN32_ERROR TwapiThreadPoolRegister(
+TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
     HANDLE h,
     ULONG wait_ms,
     DWORD  flags,
-    void (*signal_handler)(TwapiInterpContext *ticP, HANDLE, DWORD),
-    void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE)
+    void (*signal_handler)(TwapiInterpContext *ticP, TwapiId, HANDLE, DWORD),
+    void (*unregistration_handler)(TwapiInterpContext *ticP, TwapiId, HANDLE)
     )
 {
     TwapiThreadPoolRegistration *tprP = TwapiAlloc(sizeof(*tprP));
 
     tprP->handle = h;
+    tprP->id = TWAPI_NEWID(ticP);
     tprP->signal_handler = signal_handler;
     tprP->unregistration_handler = unregistration_handler;
 
@@ -146,26 +156,28 @@ WIN32_ERROR TwapiThreadPoolRegister(
                                     tprP,
                                     wait_ms,
                                     flags)) {
-        return ERROR_SUCCESS;
+        
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(tprP->id));
+        return TCL_OK;
     } else {
         tprP->tp_handle = INVALID_HANDLE_VALUE; /* Just to be sure */
         /* Back out the ref for thread pool since it failed */
         TwapiThreadPoolRegistrationUnref(tprP, 1);
-
         TwapiThreadPoolRegistrationShutdown(tprP);
-        return TWAPI_ERROR_TO_WIN32(TWAPI_REGISTER_WAIT_FAILED);
+
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_REGISTER_WAIT_FAILED);
     }
 }
     
                                        
 void TwapiThreadPoolUnregister(
     TwapiInterpContext *ticP,
-    HANDLE h
+    TwapiId id
     )
 {
     TwapiThreadPoolRegistration *tprP;
     
-    ZLIST_LOCATE(tprP, &ticP->threadpool_registrations, handle, h);
+    ZLIST_LOCATE(tprP, &ticP->threadpool_registrations, id, id);
     if (tprP == NULL)
         return;                 /* Stale? */
 
@@ -176,17 +188,18 @@ void TwapiThreadPoolUnregister(
 
 
 /* The callback that invokes the user level script for async handle waits */
-void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, HANDLE h, DWORD timeout)
+void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE h, DWORD timeout)
 {
-    Tcl_Obj *objs[3];
+    Tcl_Obj *objs[4];
     int i;
 
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_wait_handler", -1);
-    objs[1] = ObjFromHANDLE(h);
+    objs[1] = ObjFromTwapiId(id);
+    objs[2] = ObjFromHANDLE(h);
     if (timeout) 
-        objs[2] = STRING_LITERAL_OBJ("timeout");
+        objs[3] = STRING_LITERAL_OBJ("timeout");
     else
-        objs[2] = STRING_LITERAL_OBJ("signalled");
+        objs[3] = STRING_LITERAL_OBJ("signalled");
 
     for (i = 0; i < ARRAYSIZE(objs); ++i) {
         Tcl_IncrRefCount(objs[i]);

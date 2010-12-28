@@ -1017,41 +1017,6 @@ proc twapi::list_raw_api {} {
 }
 
 
-interp alias {} twapi::close_handle {} twapi::CloseHandle
-
-# Close multiple handles. In case of errors, collects them but keeps
-# closing remaining handles and only raises the error at the end.
-proc twapi::close_handles {args} {
-    # The original definition for this was broken in that it would
-    # gracefully accept non list parameters as a list of one. In 3.0
-    # the handle format has changed so this does not happen
-    # naturally. We have to try and decipher whether it is a list
-    # of handles or a single handle.
-
-    foreach arg $args {
-        if {[Twapi_IsPtr $arg]} {
-            # Looks like a single handle
-            if {[catch {CloseHandle $arg} msg]} {
-                set erinfo $::errorInfo
-                set ercode $::errorCode
-                set ermsg $msg
-            }
-        } else {
-            # Assume a list of handles
-            foreach h $arg {
-                if {[catch {CloseHandle $h} msg]} {
-                    set erinfo $::errorInfo
-                    set ercode $::errorCode
-                    set ermsg $msg
-                }
-            }
-        }
-    }
-
-    if {[info exists erinfo]} {
-        error $msg $erinfo $ercode
-    }
-}
 
 # Get the handle for a Tcl channel
 proc twapi::get_tcl_channel_handle {chan direction} {
@@ -1633,6 +1598,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
     # Source files based on build configuration
     # First, all the base files
     foreach ::twapi::_field_ {
+        handle.tcl
         metoo.tcl
         osinfo.tcl
         security.tcl

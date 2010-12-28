@@ -440,6 +440,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
     CALL_(Twapi_IsValidGUID, Call, 1019);
+    CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
 
@@ -741,7 +742,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
-    CALL_(Twapi_UnregisterWaitOnHandle, CallH, 65);
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(Twapi_EnumResourceTypes, CallH, 68);
@@ -1128,6 +1128,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         MIB_TCPROW tcprow;
         struct sockaddr_in sinaddr;
         SYSTEM_POWER_STATUS power_status;
+        TwapiId twapi_id;
     } u;
     DWORD_PTR dwp;
     COORD coord;
@@ -1584,9 +1585,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = (ObjToGUID(NULL, objv[2], &guid) == TCL_OK);
             break;
-
-//        case 1020: UNUSED
-
+        case 1020:
+            if (ObjToTwapiId(interp, objv[2], &u.twapi_id) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EMPTY;
+            TwapiThreadPoolUnregister(ticP, u.twapi_id);
+            break;
         case 1021:
             return TwapiGetThemeDefine(interp, Tcl_GetString(objv[2]));
         case 1022: // free
@@ -3436,10 +3440,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ImpersonateNamedPipeClient(h);
             break;
-        case 65:
-            result.type = TRT_EMPTY;
-            TwapiThreadPoolUnregister(ticP, h);
-            break;
+//        case 65: UNUSED
         case 66:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetEvent(h);
@@ -3592,10 +3593,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.pv = MemLifoResizeLast(h, dw, dw2);
             break;
         case 2011:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = TwapiThreadPoolRegister(
+            return TwapiThreadPoolRegister(
                 ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
-            break;
         }
     } else {
         /* Arbitrary additional arguments */
