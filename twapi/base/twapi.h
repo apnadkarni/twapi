@@ -416,11 +416,13 @@ extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
  */
 typedef DWORD_PTR TwapiId;
 #define ObjFromTwapiId ObjFromDWORD_PTR
+#define ObjToTwapiId ObjToDWORD_PTR
 #ifdef _WIN64
 #define TWAPI_NEWID(ticP_) InterlockedIncrement64(&gIdGenerator)
 #else
 #define TWAPI_NEWID(ticP_) InterlockedIncrement(&gIdGenerator)
 #endif
+#define INVALID_TwapiId    0
 
 /* Used to maintain context for common NetEnum* interfaces */
 typedef struct _TwapiEnumCtx {
@@ -661,13 +663,20 @@ typedef struct _TwapiThreadPoolRegistration {
     ZLINK_DECL(TwapiThreadPoolRegistration); /* Link for tracking list */
 
     /* To be called when a HANDLE is signalled */
-    void (*signal_handler) (TwapiInterpContext *ticP, HANDLE h, DWORD);
+    void (*signal_handler) (TwapiInterpContext *ticP, TwapiId id, HANDLE h, DWORD);
 
     /*
      * To be called when handle wait is being unregistered. Routine should
      * take care to handle the case where ticP, ticP->interp and/or h is NULL.
      */
-    void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE h);
+    void (*unregistration_handler)(TwapiInterpContext *ticP, TwapiId id, HANDLE h);
+
+    TwapiId id;                 /* We need an id because OS handles can be
+                                   reused and therefore cannot be used
+                                   to filter stale events that have been
+                                   queued for older handles with same value
+                                   that have since been closed.
+                                 */
 
     /* Only accessed from Interp thread so no locking */
     ULONG nrefs;
@@ -890,19 +899,19 @@ int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmt, ...);
 
 /* Thread pool handle registration */
-WIN32_ERROR TwapiThreadPoolRegister(
+TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
     HANDLE h,
     ULONG timeout,
     DWORD flags,
-    void (*signal_handler)(TwapiInterpContext *ticP, HANDLE, DWORD),
-    void (*unregistration_handler)(TwapiInterpContext *ticP, HANDLE)
+    void (*signal_handler)(TwapiInterpContext *ticP, TwapiId, HANDLE, DWORD),
+    void (*unregistration_handler)(TwapiInterpContext *ticP, TwapiId, HANDLE)
     );
 void TwapiThreadPoolUnregister(
     TwapiInterpContext *ticP,
-    HANDLE h
+    TwapiId id
     );
-void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, HANDLE h, DWORD timeout);
+void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE h, DWORD timeout);
 void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP);
 
 
