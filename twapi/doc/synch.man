@@ -45,6 +45,10 @@ Creates an event object with the specified options and returns a
 handle to it. The following options control the event properties:
 
 [list_begin opt]
+[opt_def [cmd -existvar] [arg VARNAME]]
+If specified, the command will set the variable [arg VARNAME] in the
+caller's context to [const 0] if the event was newly created and to [const 1]
+if the event already existed.
 [opt_def [cmd -inherit] [arg BOOLEAN]] If specified as [const true],
 the handle will be inherited by child processes (default [const false]).
 [opt_def [cmd -manualreset] [arg BOOLEAN]] By default, events are

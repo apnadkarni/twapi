@@ -98,7 +98,11 @@ network interface or a name identifying the interface.
 [nl]
 The information returned
 depends on the options specified and is in the form of a flat list of
-the form "[arg option1] [arg value1] ...". The following options may be
+the form "[arg option1] [arg value1] ...". If a specific option is not
+valid or relevant for the interface, it is omitted from the returned fields.
+
+[nl]
+The following options may be
 specified:
 [list_begin opt]
 [opt_def [cmd -adapterdescription]]Returns a description of the adapter

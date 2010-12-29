@@ -5457,6 +5457,21 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test new_restricted_dacl-1.0 {
+        Make a restricted dacl
+    } -body {
+        twapi::new_restricted_dacl $::env(USERNAME) generic_all
+    } -result [list 2 [list [list 0 0 268435456 [twapi::map_account_to_sid $::env(USERNAME)]]]]
+
+    test new_restricted_dacl-1.1 {
+        Make a restricted dacl
+    } -body {
+        twapi::new_restricted_dacl Administrators process_all_access
+    } -result {2 {{0 0 2035711 S-1-5-32-544}}}
+
+
+    ################################################################
+
 
     if {![catch {twapi::lookup_account_name $test_account_name}]} {
         ::twapi::delete_user $test_account_name

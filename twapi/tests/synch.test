@@ -97,6 +97,7 @@ namespace eval twapi::synch::test {
         Verify create_event with -secd
     } -body {
         set name [clock clicks]
+        # Empty dacl will deny all further opens on the event
         set secd [twapi::new_security_descriptor -dacl [twapi::new_acl]]
         set evh [twapi::create_event -name $name -secd $secd]
         set evh2 [twapi::create_event -name $name]
@@ -105,6 +106,18 @@ namespace eval twapi::synch::test {
     } -result [twapi::map_windows_error 5] -returnCodes error
         
     test create_event-6.0 {
+        Verify create_event with -existvar
+    } -body {
+        set name [clock clicks]
+        set evh [twapi::create_event -name $name -existvar x]
+        set evh2 [twapi::create_event -name $name -existvar y]
+        list $x $y
+    } -cleanup {
+        twapi::close_handle $evh
+        twapi::close_handle $evh2
+    } -result {0 1}
+        
+    test create_event-7.0 {
         Verify create_event with -inherit
     } -constraints {
         TBD
