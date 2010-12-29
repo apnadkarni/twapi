@@ -169,18 +169,22 @@ Closes a security context constructed through
 [uri #sspi_server_new_context [cmd sspi_server_new_context]] or
 and frees any associated resources.
 
-[call [cmd sspi_decrypt] [arg CONTEXT] [arg DATA] [arg SIGNATURE] [arg PADDING] [opt [arg options]]]
-[emph TBD]
+[call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
+Returns the decrypted data. 
 
-[call [cmd sspi_encrypt] [arg CONTEXT] [arg DATA] [opt [arg options]]]
-[emph TBD]
+[call [cmd sspi_encrypt] [arg CONTEXT] [arg PLAINTEXT] [opt [arg options]]]
+Encrypts [arg PLAINTEXT] based on the specified security context. Returns
+a list of three elements - the encryption token, the encrypted data
+and padding. These must be passed to [uri #sspi_decrypt] for decryption
+to be successful.
 
 [call [cmd sspi_enumerate_packages]]
 Returns a list of the names of the security provider packages available
 on the system.
 
 [call [cmd sspi_generate_signature] [arg CONTEXT] [arg DATA] [opt [arg options]]]
-[emph TBD]
+Generates a signature for [arg DATA] based on the supplied security context.
+Returns a list containing the generated signature and [arg DATA].
 
 [call [cmd sspi_get_security_context_features] [arg CONTEXT]]
 After a security context is established, this command may be
@@ -383,8 +387,9 @@ When a security context is no longer required, it should be released
 by calling
 [uri #sspi_close_security_context [cmd sspi_close_security_context]].
 
-[call [cmd sspi_verify_signature] [arg CONTEXT] [arg DATA] [arg SIGNATURE] [opt [arg options]]]
-[emph TBD]
+[call [cmd sspi_verify_signature] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
+Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
+is valid. Generates a Tcl error if the signature is not valid.
 
 [list_end]
 

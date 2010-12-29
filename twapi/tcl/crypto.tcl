@@ -301,7 +301,7 @@ proc twapi::sspi_generate_signature {ctx data args} {
 }
 
 # Verify signature
-proc twapi::sspi_verify_signature {ctx data sig args} {
+proc twapi::sspi_verify_signature {ctx sig data args} {
     array set opts [parseargs args {
         {seqnum.int 0}
     } -maxleftover 0]
@@ -329,7 +329,7 @@ proc twapi::sspi_encrypt {ctx data args} {
 }
 
 # Decrypts a message
-proc twapi::sspi_decrypt {ctx data sig padding args} {
+proc twapi::sspi_decrypt {ctx sig data padding args} {
     array set opts [parseargs args {
         {seqnum.int 0}
     } -maxleftover 0]
@@ -340,7 +340,8 @@ proc twapi::sspi_decrypt {ctx data sig padding args} {
                        [list [list 2 $sig] [list 1 $data] [list 9 $padding]] \
                        $opts(seqnum)]
     set plaintext ""
-    foreach buf [lindex $decrypted 0] {
+    # Pick out only the data buffers, ignoring pad buffers and signature
+    foreach buf $decrypted {
         if {[lindex $buf 0] == 1} {
             append plaintext [lindex $buf 1]
         }
