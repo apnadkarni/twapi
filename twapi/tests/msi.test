@@ -4,7 +4,7 @@
 #
 # See the file LICENSE for license
 
-# This file contains tests for commands from nls.tcl
+# This file contains tests for commands from msi.tcl
 
 package require tcltest
 eval tcltest::configure $argv
