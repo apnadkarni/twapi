@@ -24,7 +24,6 @@ static int TwapiThreadPoolRegistrationCallback(TwapiCallback *cbP)
 {
     TwapiThreadPoolRegistration *tprP;
     TwapiInterpContext *ticP = cbP->ticP;
-    HANDLE h;
     TwapiId id;
     
     TWAPI_ASSERT(ticP);
