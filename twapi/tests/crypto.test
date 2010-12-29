@@ -76,13 +76,23 @@ namespace eval twapi::crypto::test {
         foreach {sig data} [twapi::sspi_generate_signature $cctx 1234] break
         set flags2 [twapi::sspi_verify_signature $sctx $sig $data]
         list $flags1 $flags2
-      } -cleanup {
+    } -cleanup {
         twapi::sspi_close_security_context $sctx
         twapi::sspi_close_security_context $cctx
-      } -result [list 524288 524288]
+    } -result [list 524288 524288]
         
-        
-
+    test sspi_enumerate_packages-1.0 {
+        Enumerate SSPI providers
+    } -body {
+        set packages [twapi::sspi_enumerate_packages]
+        expr {
+              [lsearch -exact $packages NTLM] >= 0 &&
+              [lsearch -exact $packages Kerberos] >= 0 &&
+              [lsearch -exact $packages Schannel] >= 0 &&
+              [lsearch -exact $packages Digest] >= 0 &&
+              [lsearch -exact $packages Negotiate] >= 0
+          }
+    } -result 1
 
     #
     # Clean up
