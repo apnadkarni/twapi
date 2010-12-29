@@ -199,13 +199,65 @@ namespace eval twapi::network::test {
         if {![valid_ip_address $ipaddr]} {
             lappend "Invalid IP address $ipaddr in ARP table"
         }
-        if {![valid_ip_address $ipaddr]} {
-            lappend "Invalid IP address $ipaddr in ARP table"
-        }
         if {![regexp {^[[:xdigit:]]{2}-{5}[[:xdigit:]]{2}$} $hwaddr]} {
-            lappend "Invalid h/w address $hwaddr in ARP table"
+            lappend msgs "Invalid h/w address $hwaddr in ARP table"
         }
         return $msgs
+    }
+
+    proc validate_netif {netifdata msgs} {
+        array set netif $netifdata
+
+        if {[info exists netif(-adapterindex)] &&
+            [lsearch -exact [twapi::get_netif_indices] $netif(-adapterindex)] < 0} {
+            lappend msgs "Adapter index $netif(-adapterindex) not found"
+        }
+        if {[info exists netif(-physicaladdress)] &&
+            $netif(-physicaladdress) ne ""} {
+            if {![regexp {^[[:xdigit:]]{2}-{5}[[:xdigit:]]{2}$} $netif(-physicaladdress)]} {
+                lappend msgs "Invalid h/w address $netif(-physicaladdress)."
+            }
+        }
+
+        foreach opt {
+            -defaultgateway -dhcpserver
+        } {
+            if {[info exists netif($opt)] &&
+                (! [valid_ip_address $netif($opt)])} {
+                lappend msgs "Invalid IP address '$netif($opt)' for $opt."
+            }
+        }
+
+        foreach opt {
+            -dnsservers -ipaddresses
+        } {
+            if {[info exists netif($opt)] &&
+                ! [validate_ip_addresses $netif($opt)]} {
+                lappend msgs "Invalid IP addresses '$netif($opt)' for $opt."
+            }
+        }
+
+        foreach opt {
+            -adminstatus -autoconfigactive -autoconfigenabled -dhcpenabled
+            -havewins } {
+            if {[info exists netif($opt)] &&
+                ! [string is boolean -strict $netif($opt)]} {
+                lappend msgs "Invalid non-boolean value '$netif($opt)' for $opt."
+            }
+        }
+
+        foreach opt {
+            -dhcpleaseend -dhcpleasestart -ifindex -inbytes -indiscards
+            -inerrors -innonunicastpkts -inunknownprotocols -laststatuschange
+            -mtu -outbytes -outdiscards -outerrors -outnonunicastpkts -outqlen
+            -outunicastpkts -reassemblysize -speed
+        } {
+            if {[info exists netif($opt)] &&
+                ! [string is integer -strict $netif($opt)]} {
+                lappend msgs "Invalid non-integer value '$netif($opt)' for $opt."
+            }
+        }
+
     }
 
     ################################################################
@@ -423,10 +475,21 @@ namespace eval twapi::network::test {
 
     test get_netif_info-1.0 {
     } -constraints {
-        nt TBD
-    } -setup {
+        nt
     } -body {
-    } -cleanup {
+        set msgs ""
+        foreach ind [twapi::get_netif_indices] {
+            set netif [twapi::get_netif_info $ind -all]
+            set fields {
+                -physicaladdress -innonunicastpkts -inunknownprotocols -inerrors -adminstatus -outdiscards -inbytes -laststatuschange -outbytes -ifindex -outqlen -inunicastpkts -outunicastpkts -autoconfigenabled -autoconfigactive -indiscards -description -outnonunicastpkts -outerrors -mtu -dnsservers -ipaddresses -ifname -speed -reassemblysize -type -operstatus
+            }
+            if {[twapi::kl_get $netif -type] ne "loopback"} {
+                lappend fields -adapterdescription -defaultgateway -dhcpleaseend -secondarywins -dhcpenabled -adaptername -primarywins -havewins -dhcpserver -dhcpleasestart -adapterindex
+            }
+            verify_kl_fields $netif $fields
+            validate_netif $netif msgs
+        }
+        join $msgs \n
     } -result ""
 
     ################################################################

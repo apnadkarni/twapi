@@ -2567,8 +2567,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETBOOL(dw), GETBOOL(dw2),
                              GETNULLIFEMPTY(s),
                              ARGEND) == TCL_OK) {
-                result.type = TRT_HANDLE;
-                result.value.hval = CreateEventW(secattrP, dw, dw2, s);
+                h = CreateEventW(secattrP, dw, dw2, s);
+                if (h) {
+                    objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS); /* Do this before any other call */
+                    objs[0] = ObjFromHANDLE(h);
+                    result.type = TRT_OBJV;
+                    result.value.objv.objPP = objs;
+                    result.value.objv.nobj = 2;
+                } else {
+                    result.type = TRT_GETLASTERROR;
+                }
             } else {
                 result.type = TRT_TCL_RESULT;
                 result.value.ival = TCL_ERROR;
