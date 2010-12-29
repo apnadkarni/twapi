@@ -1,0 +1,92 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from crypto.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+proc setup_contexts {} {
+    set ccred [twapi::sspi_new_credentials -usage outbound]
+    set scred [twapi::sspi_new_credentials -usage inbound]
+    set cctx [twapi::sspi_client_new_context $ccred -target LUNA -confidentiality true -connection true]
+    foreach {step data cctx} [twapi::sspi_security_context_next $cctx] break
+    set sctx [twapi::sspi_server_new_context $scred $data]
+    foreach {step data sctx} [twapi::sspi_security_context_next $sctx] break
+    foreach {step data cctx} [twapi::sspi_security_context_next $cctx $data] break
+    foreach {step data sctx} [twapi::sspi_security_context_next $sctx $data] break
+    twapi::sspi_free_credentials $scred
+    twapi::sspi_free_credentials $ccred
+    return [list $cctx $sctx]
+}
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::crypto::test {
+    namespace import ::tcltest::test
+    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    test encrypt-1.0 {
+        Verify basic encryption and decryption
+    } -setup {
+        foreach {cctx sctx} [setup_contexts] break
+    } -body {
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx abc] break
+        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx 123 -seqnum 1] break
+        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] break
+        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        list $data1 $data2 $data3
+    } -cleanup {
+        twapi::sspi_close_security_context $sctx
+        twapi::sspi_close_security_context $cctx
+    } -result [list abc 123 \001\002\003]
+
+    test encrypt-1.1 {
+        Verify basic encryption and decryption without explicit seqnum
+    } -setup {
+        foreach {cctx sctx} [setup_contexts] break
+    } -body {
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx abc] break
+        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx 123] break
+        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        foreach {sig data padding} [twapi::sspi_encrypt $cctx \001\002\003] break
+        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        list $data1 $data2 $data3
+    } -cleanup {
+        twapi::sspi_close_security_context $sctx
+        twapi::sspi_close_security_context $cctx
+    } -result [list abc 123 \001\002\003]
+        
+    test sign-1.0 {
+        Verify basic signing and verification
+    } -setup {
+        foreach {cctx sctx} [setup_contexts] break
+    } -body {
+        foreach {sig data} [twapi::sspi_generate_signature $cctx abcd] break
+        set flags1 [twapi::sspi_verify_signature $sctx $sig $data]
+        foreach {sig data} [twapi::sspi_generate_signature $cctx 1234] break
+        set flags2 [twapi::sspi_verify_signature $sctx $sig $data]
+        list $flags1 $flags2
+      } -cleanup {
+        twapi::sspi_close_security_context $sctx
+        twapi::sspi_close_security_context $cctx
+      } -result [list 524288 524288]
+        
+        
+
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::crypto::test
