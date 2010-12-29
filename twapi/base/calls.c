@@ -1743,16 +1743,17 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETVAR(sech2P, ObjToSecHandle_NULL),
                              GETWSTR(s),
                              GETINT(dw),
-                             ARGSKIP,
                              GETINT(dw2),
+                             GETINT(dw3),
                              GETVAR(sbd, ObjToSecBufferDescRO),
+                             GETINT(dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             sbdP = sbd.cBuffers ? &sbd : NULL;
             result.type = TRT_TCL_RESULT;
             result.value.ival = Twapi_InitializeSecurityContext(
-                interp, &sech, sech2P, Tcl_GetUnicode(objv[4]),
-                dw, 0, dw2, sbdP, 0);
+                interp, &sech, sech2P, s,
+                dw, dw2, dw3, sbdP, dw4);
             TwapiFreeSecBufferDesc(sbdP);
             break;
 
