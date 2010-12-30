@@ -19,13 +19,12 @@ namespace eval twapi::share::test {
     #
     # We need server-side and client-side shares for testing
     variable testshares
-    
     # Contains directory exported from server, will be mapped to a local device
-    set testshares(export_dir_mapped) [tcltest::temporaryDirectory TWAPI_SHARE_MAPPED_[clock seconds]]
+    set testshares(export_dir_mapped) [tcltest::makeDirectory TWAPI_SHARE_MAPPED_[clock seconds]]
     tcltest::makeFile "" [file join $testshares(export_dir_mapped) dummy]
 
     # Contains directory exported from server, but not mapped to local device
-    set testshares(export_dir_unmapped) [tcltest::temporaryDirectory TWAPI_SHARE_UNMAPPED_[clock seconds]]
+    set testshares(export_dir_unmapped) [tcltest::makeDirectory TWAPI_SHARE_UNMAPPED_[clock seconds]]
     tcltest::makeFile "" [file join $testshares(export_dir_unmapped) dummy]
 
     # Name of exported share mapped to a device
