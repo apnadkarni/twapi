@@ -9,7 +9,7 @@ package require Tcl
 package require tcltest 2.2
 source [file join [file dirname [info script]] testutil.tcl]
 
-load_twapi
+load_twapi_package
 
 # Test configuration options that may be set are:
 #  systemmodificationok - will include tests that modify the system

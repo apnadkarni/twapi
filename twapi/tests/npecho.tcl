@@ -1,11 +1,11 @@
 # Named pipe test routines
 
-if {[llength [info commands load_twapi]] == 0} {
+if {[llength [info commands load_twapi_package]] == 0} {
     source [file join [file dirname [info script]] testutil.tcl]
 }
 
 if {[llength [info commands ::twapi::get_version]] == 0} {
-    load_twapi
+    load_twapi_package
 }
 
 proc np_echo_usage {} {
