@@ -27,8 +27,8 @@ namespace eval twapi::ui::test {
 
         set id [twapi::register_hotkey $hk "set ::twapi_test_hotkey_result success"]
         twapi::trap {
-            set after_id [after 5000 "set ::twapi_test_hotkey_result timeout"]
-            puts "Please press [string toupper $hk] within 5 seconds"
+            set after_id [after 15000 "set ::twapi_test_hotkey_result timeout"]
+            puts "Please press [string toupper $hk] within 15 seconds"
             vwait ::twapi_test_hotkey_result
             after cancel $after_id
         } finally {
@@ -46,8 +46,8 @@ namespace eval twapi::ui::test {
             } else {
                 twapi::register_hotkey $hk $script2
             }
-            set after_id [after 5000 "set ::$globalvar timeout"]
-            puts "Please press [string toupper $hk] within 5 seconds"
+            set after_id [after 15000 "set ::$globalvar timeout"]
+            puts "Please press [string toupper $hk] within 15 seconds"
             vwait ::$globalvar
             after cancel $after_id
         } finally {

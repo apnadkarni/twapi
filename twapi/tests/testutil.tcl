@@ -159,7 +159,7 @@ proc window_to_pid {args} {
 # Wait for a window to become visible and return it
 proc wait_for_window args {
     set elapsed 0
-    while {$elapsed < 10000} {
+    while {$elapsed < 15000} {
         set wins [eval twapi::find_windows $args]
         if {[llength $wins] > 1} {
             error "More than one matching window found for '$args'"

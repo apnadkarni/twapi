@@ -744,7 +744,7 @@ namespace eval twapi::console::test {
         set conh [twapi::get_standard_handle stdout]
         set str "Testing get_standard_handle-1.0"
         twapi::write_console $conh $str\n
-        yesno "Did you see the string '$str' written to the console?"
+        yesno " -- Did you see the string '$str' written to the console?"
     } -result 1
 
     test get_standard_handle-1.1 {
