@@ -605,7 +605,12 @@ proc yesno {question {default "no default"}} {
     twapi::set_foreground_window [twapi::get_console_window]
     set answer ""
     while {![string is boolean -strict $answer]} {
-        puts -nonewline "$question \[$default\] : "
+        # We would have liked to use -nonewline here but that
+        # causes output not to be displayed when running from 
+        # tcltest::runAllTests. I believe this is the same 
+        # bug Tcl seems to have with pipes and new lines
+        # flushing on Windows (SF buf whatever)
+        puts stdout "$question Type Y/N followed by Enter \[$default\] : "
         flush stdout
         set answer [string trim [gets stdin]]
 #        puts $answer
@@ -620,7 +625,8 @@ proc yesno {question {default "no default"}} {
 proc pause {message} {
     # Make sure we are seen
     twapi::set_foreground_window [twapi::get_console_window]
-    puts -nonewline "$message Hit Return to continue..."
+    # Would like -nonewline here but see comments in proc yesno
+    puts "$message Hit Return to continue..."
     flush stdout
     gets stdin
     return
@@ -670,7 +676,7 @@ proc tclsh_slave_verify_started {fd} {
     # not output result unless it is a tty.
     tclsh_slave_puts $fd {
         source testutil.tcl
-        load_twapi
+        load_twapi_package
         if {[catch {
             fconfigure stdout -buffering line -encoding utf-8
             fconfigure stdin -buffering line -encoding utf-8 -eofchar {}
