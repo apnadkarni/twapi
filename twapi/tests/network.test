@@ -199,7 +199,7 @@ namespace eval twapi::network::test {
         if {![valid_ip_address $ipaddr]} {
             lappend "Invalid IP address $ipaddr in ARP table"
         }
-        if {![regexp {^[[:xdigit:]]{2}-{5}[[:xdigit:]]{2}$} $hwaddr]} {
+        if {![regexp {^([[:xdigit:]]{2}-){5}[[:xdigit:]]{2}$} $hwaddr]} {
             lappend msgs "Invalid h/w address $hwaddr in ARP table"
         }
         return $msgs

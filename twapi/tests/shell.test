@@ -732,7 +732,7 @@ namespace eval twapi::shell::test {
         twapi::write_url_shortcut $urlpath http://www.google.com
     } -body {
         twapi::invoke_url_shortcut $urlpath
-        set win [wait_for_window -text Google* -match glob]
+        set win [wait_for_window -text Google* -match glob -toplevel true]
         expr {$win ne ""}
     } -cleanup {
         twapi::close_window $win
