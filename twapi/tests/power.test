@@ -12,6 +12,13 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package
 
+if {[tcltest::testConstraint userInteraction] &&
+    [twapi::kl_get [twapi::get_power_status] -batterystate] ne "unknown" &&
+    ! [tcltest::testConstraint powertests]
+} {
+    tcltest::testConstraint powertests [yesno "Do you want to run the power tests on this system?"]
+}
+
 #
 # Set up system-specific constants that are used to match test results
 namespace eval twapi::power::test {
@@ -33,8 +40,128 @@ namespace eval twapi::power::test {
           }
     } -result 1
 
+    
     ################################################################
 
+    test start_power_monitor-1.0 {
+        Monitor power changes - apmpowerstatuschange
+    } -constraints {
+        userInteraction powertests
+    } -body {
+        set ::power_notification ""
+        set hpower [twapi::start_power_monitor "lappend ::power_notification"]
+        set after_id [after 15000 "set ::power_notification timeout"]
+        pause "Please turn off A/C power and hit return."
+        vwait ::power_notification
+        after cancel $after_id
+        twapi::stop_power_monitor $hpower
+        pause "Turn on A/C power and hit return."
+        lindex $::power_notification 0
+    } -result apmpowerstatuschange
+
+    proc suspend_handler {event args} {
+        lappend ::power_notification_state $event
+        if {[llength $::power_notification_state] == 4} {
+            set ::power_notification $::power_notification_state
+        }
+        return 1
+    }
+
+    proc suspend_abort_handler {event args} {
+        set ::power_notification $event
+        if {$event eq "apmquerysuspend"} {
+            return 0
+        } else {
+            return 1
+        }
+    }
+
+    test start_power_monitor-2.0 {
+        Monitor power changes - suspend / resume sequence
+    } -constraints {
+        userInteraction powertests
+    } -body {
+        if {![yesno "This test requires the system to be placed in standby. Do you want to run the test?"]} {
+            error "Test skipped as per user instruction."
+        }
+        set ::power_notification ""
+        set ::power_notification_state {}
+        set hpower [twapi::start_power_monitor [namespace current]::suspend_handler]
+        set after_id [after 30000 "set ::power_notification timeout"]
+        puts "Please suspend and resume the system."
+        vwait ::power_notification
+        after cancel $after_id
+        twapi::stop_power_monitor $hpower
+        set ::power_notification_state
+    } -result {apmquerysuspend apmsuspend apmresumeautomatic apmresumesuspend}
+
+
+    ################################################################
+
+    test stop_power_monitor-1.0 {
+        Stop monitor power changes
+    } -constraints {
+        userInteraction powertests
+    } -setup {
+        set ::power_notification ""
+        set hpower [twapi::start_power_monitor "lappend ::power_notification"]
+        set after_id [after 15000 "set ::power_notification timeout"]
+        pause "Please turn OFF A/C power. (Do NOT turn it back ON.)"
+        vwait ::power_notification
+        after cancel $after_id
+        twapi::stop_power_monitor $hpower
+        if {$::power_notification eq "timeout"} {
+            error "Could not set up power notifications."
+        }
+    } -body {
+        set after_id [after 10000 "set ::power_notification timeout"]
+        pause "Please turn ON A/C power."
+        vwait ::power_notification
+        after cancel $after_id
+        set ::power_notification
+    } -result timeout
+
+    ################################################################
+
+    test suspend_system-1.0 {
+        Suspend the system
+    } -constraints {
+        userInteraction powertests
+    } -body {
+        if {![yesno "This test requires the system to be placed in standby. Do you want to run the test?"]} {
+            error "Test skipped as per user instruction."
+        }
+        pause "The system will be placed in a standby state. Please manually resume it."
+        twapi::suspend_system
+        yesno "Was the system successfully placed in standby?"
+    } -result 1
+
+    test suspend_system-1.1 {
+        Suspend the system (-state standby)
+    } -constraints {
+        userInteraction powertests
+    } -body {
+        if {![yesno "This test requires the system to be placed in standby. Do you want to run the test?"]} {
+            error "Test skipped as per user instruction."
+        }
+        pause "The system will be placed in a standby state. Please manually resume it."
+        twapi::suspend_system -state standby
+        yesno "Was the system successfully placed in standby?"
+    } -result 1
+
+    test suspend_system-1.2 {
+        Suspend the system (-state hibernate)
+    } -constraints {
+        userInteraction powertests
+    } -setup {
+        if {! [yesno "This test requires the system to be placed in hibernation. Do you want to run the test?"]} {
+            error "Test skipped as per user instruction."
+        }
+        pause "The system will be placed in hibernation. Please manually resume it."
+        twapi::suspend_system -state hibernate
+        yesno "Was the system placed into hibernation successfully?"
+    } -result 1
+        
     #
     # Clean up
     ::tcltest::cleanupTests
