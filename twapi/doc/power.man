@@ -101,6 +101,8 @@ normal operation after a suspension.
 [opt_def [const apmsuspend]] Indicates the system is about to be suspended
 and applications should save state and data if necessary.
 [list_end]
+The callback may be invoked with other values for the event indicator. These
+should be ignored.
 [nl]
 The second argument passed to the callback is only meaningful when
 the event is [const apmoemevent]. The value of the argument is an
@@ -119,7 +121,7 @@ Places the system in a stand by or hibernate state. The command takes
 the following options:
 [list_begin opt]
 [opt_def [cmd -state] [arg STATE]] [arg STATE] must be one of [const standby]
-(default) or [const hibernate] depending on whether the state into which
+(default) or [const hibernate] depending on the state into which
 the system is to be placed.
 [opt_def [cmd -force] [arg BOOLEAN]]
 If [const false] (default), the system sends a PBT_ATMQUERYSUSPEND
