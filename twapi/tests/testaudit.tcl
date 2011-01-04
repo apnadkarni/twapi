@@ -6,7 +6,7 @@ package require tcltest
 
 ::tcltest::testConstraint systemmodificationok 1
 ::tcltest::testConstraint userInteraction 1
-
+::tcltest::testConstraint powertests 1
 
 set implemented 0
 set placeholders {}
