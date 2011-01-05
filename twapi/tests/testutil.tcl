@@ -1003,6 +1003,11 @@ proc ::setops::Intersect {A B} {
     set res
 }
 
+proc setops::equal {A B} {
+    return [empty [symdiff $A $B]]
+}
+tcltest::customMatch set setops::equal
+
 
 # If this is the first argument to the shell and there are more arguments
 # execute them

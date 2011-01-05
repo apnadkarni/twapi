@@ -314,6 +314,17 @@ namespace eval twapi::device::test {
 
     ################################################################
 
+    test device_ioctl-1.0 {
+        Test a device ioctl
+    } -body {
+        # This uses device_ioctl
+        verify_kl_fields [twapi::get_volume_info $::env(HOMEDRIVE) -extents] {-extents}
+    } -result ""
+
+
+    ################################################################
+
+
     ::tcltest::cleanupTests
 }
 

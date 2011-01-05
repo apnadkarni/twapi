@@ -872,7 +872,7 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
 
     if {[lsearch -exact $tests wmi] >= 0} {
         puts "WMI BIOS test"
-        puts [get_bios_info]
+        puts [_get_bios_info]
         puts "WMI BIOS done."
 
         puts "------------------------------------------"
@@ -961,7 +961,7 @@ proc twapi::_wmi_get_autostart_services {} {
     return $res
 }
 
-proc twapi::get_bios_info {} {
+proc twapi::_get_bios_info {} {
     set wmi [twapi::_wmi]
     set entries [list ]
     $wmi -with {{ExecQuery "select * from Win32_BIOS"}} -iterate elem {

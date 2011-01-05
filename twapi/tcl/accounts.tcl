@@ -272,7 +272,7 @@ proc twapi::get_user_account_info {account args} {
         set result(sid) [lookup_account_name $account -system $opts(system)]
     }
 
-    return [get_array_as_options result]
+    return [_get_array_as_options result]
 }
 
 proc twapi::get_user_local_groups_recursive {account args} {
