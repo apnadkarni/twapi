@@ -5472,6 +5472,72 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test add_account_rights-1.0 {
+        Add a right to an account
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set username "${test_account_prefix}_[clock clicks]"
+        twapi::new_user $username -password [::twapi::new_uuid]
+        set existing_rights [twapi::get_account_rights $username]
+        if {[lsearch -exact $existing_rights SeBackupPrivilege] >= 0} {
+            error "Test account already has SeBackupPrivilege right."
+        }
+    } -body {
+        twapi::add_account_rights $username SeBackupPrivilege
+        # Verify the right was added and nothing else was changed
+        setops::symdiff [twapi::get_account_rights $username] $existing_rights
+    } -cleanup {
+        twapi::delete_user $username
+    } -result SeBackupPrivilege
+
+    test add_account_rights-1.1 {
+        Add multiple rights to an account
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set username "${test_account_prefix}_[clock clicks]"
+        twapi::new_user $username -password [::twapi::new_uuid]
+        set existing_rights [twapi::get_account_rights $username]
+        if {[lsearch -exact $existing_rights SeBackupPrivilege] >= 0 ||
+            [lsearch -exact $existing_rights SeServiceLogonRight] >= 0
+        } {
+            error "Test account already has SeBackupPrivilege or SeServiceLogonRight right."
+        }
+    } -body {
+        set rights {SeBackupPrivilege SeServiceLogonRight}
+        # Include one existing right
+        lappend rights [lindex $existing_rights 0]
+        twapi::add_account_rights $username $rights
+        # Verify the rights were added and nothing else was changed
+        setops::symdiff [twapi::get_account_rights $username] $existing_rights
+    } -cleanup {
+        twapi::delete_user $username
+    } -result {SeBackupPrivilege SeServiceLogonRight} -match set
+
+
+    test add_account_rights-2.0 {
+        Add a right to an account on another system
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set username "${test_account_prefix}_[clock clicks]"
+        twapi::new_user $username -password [::twapi::new_uuid]
+        set existing_rights [twapi::get_account_rights $username]
+        if {[lsearch -exact $existing_rights SeBackupPrivilege] >= 0} {
+            error "Test account already has SeBackupPrivilege right."
+        }
+    } -body {
+        twapi::add_account_rights $username SeBackupPrivilege -system $::env(COMPUTERNAME)
+        # Verify the right was added and nothing else was changed
+        setops::symdiff [twapi::get_account_rights $username] $existing_rights
+    } -cleanup {
+        twapi::delete_user $username
+    } -result SeBackupPrivilege
+
+
+    ################################################################
+
 
     if {![catch {twapi::lookup_account_name $test_account_name}]} {
         ::twapi::delete_user $test_account_name

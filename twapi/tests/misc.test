@@ -384,6 +384,28 @@ namespace eval twapi::misc::test {
 
     ################################################################
 
+    test debuglog-1.0 {
+        Verify debug log messages
+    } -body {
+        twapi::debuglog "Test message 1"
+        twapi::debuglog "Test message 2"
+        lrange [twapi::debuglog] end-1 end
+    } -result {{Test message 1} {Test message 2}}
+
+    ################################################################
+
+    test debuglog_clear-1.0 {
+        Clear debug log messages
+    } -body {
+        twapi::debuglog "Test message 1"
+        twapi::debuglog "Test message 2"
+        twapi::debuglog_clear
+        llength [twapi::debuglog]
+    } -result 0
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

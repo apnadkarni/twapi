@@ -29,10 +29,10 @@ and associated resources.
 Closes a window station handle that was previously returned by a call
 to [uri desktop.html\#get_window_station_handle get_window_station_handle].
 
-[call [cmd find_desktops] [opt "[cmd -winsta] [arg HWINSTA]"]]
+[call [cmd find_desktops] [opt "[cmd -winsta] [arg WINSTA]"]]
 Returns a list of desktops. By default, the desktops from the current
 window station are returned. The [cmd -winsta] option may be used to
-specify a different window station.
+specify a different window station whose id is [arg WINSTA].
 
 [call [cmd find_window_stations]]
 Returns a list of identifiers for all window stations in the system for which
