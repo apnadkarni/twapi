@@ -20,11 +20,38 @@ struct OptionDescriptor {
 #define OPT_SWITCH 3
 };
 
-static Tcl_Obj *TwapiParseargsBadValue (
-    const char *error_type,
-    Tcl_Obj *value,
-    const char *opt_name,
-    int opt_name_len);
+static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
+                                    Tcl_Obj *value,
+                                    const char *opt_name, int opt_name_len)
+{
+    Tcl_Obj *resultObj = Tcl_NewStringObj("", 0);
+    Tcl_AppendStringsToObj(resultObj, error_type, " value '", Tcl_GetString(value),
+                           "' specified for option '-", NULL);
+    Tcl_AppendToObj(resultObj, opt_name, opt_name_len);
+    Tcl_AppendToObj(resultObj, "'", 1);
+    return resultObj;
+}
+
+static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct OptionDescriptor *opts, int nopts)
+{
+    int j;
+    Tcl_DString ds;
+    char *sep = "-";
+
+    Tcl_DStringInit(&ds);
+    Tcl_DStringAppend(&ds, "Invalid option '", -1);
+    Tcl_DStringAppend(&ds, badopt, -1);
+    Tcl_DStringAppend(&ds, "'. Must be one of ", -1);
+    for (j = 0; j < nopts; ++j) {
+        Tcl_DStringAppend(&ds, sep, -1);
+        Tcl_DStringAppend(&ds, opts[j].name, opts[j].name_len);
+        sep = ", -";
+    }
+    
+    Tcl_DStringResult(interp, &ds);
+    Tcl_DStringFree(&ds);
+}
+
 
 /*
  * Argument parsing command
@@ -193,7 +220,7 @@ int Twapi_ParseargsObjCmd(
         else {
             /* Does not match any option. */
             if (! ignoreunknown) {
-                Tcl_AppendResult(interp, "Unknown option '", argp, "'", NULL);
+                TwapiParseargsUnknownOption(interp, argp, opts, nopts);
                 Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
                 goto error_return;
             }
@@ -374,14 +401,3 @@ error_return:
 }
 
 
-static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
-                                    Tcl_Obj *value,
-                                    const char *opt_name, int opt_name_len)
-{
-    Tcl_Obj *resultObj = Tcl_NewStringObj("", 0);
-    Tcl_AppendStringsToObj(resultObj, error_type, " value '", Tcl_GetString(value),
-                           "' specified for option '-", NULL);
-    Tcl_AppendToObj(resultObj, opt_name, opt_name_len);
-    Tcl_AppendToObj(resultObj, "'", 1);
-    return resultObj;
-}
