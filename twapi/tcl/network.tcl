@@ -684,7 +684,7 @@ proc twapi::terminate_tcp_connections {args} {
     }
 
     # Get connection list and go through matching on each
-    foreach conn [eval get_tcp_connections [get_array_as_options opts]] {
+    foreach conn [eval get_tcp_connections [_get_array_as_options opts]] {
         array set aconn $conn
         # TBD - should we handle integer values of opts(state) ?
         if {[info exists opts(matchstate)] &&

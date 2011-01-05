@@ -1295,7 +1295,7 @@ proc twapi::kl_print {kl args} {
 
 
 # Return an array as a list of -index value pairs
-proc twapi::get_array_as_options {v_arr} {
+proc twapi::_get_array_as_options {v_arr} {
     upvar $v_arr arr
     set result [list ]
     foreach {index value} [array get arr] {

@@ -4,7 +4,7 @@
 #
 # See the file LICENSE for license
 
-# This file contains tests for commands from nls.tcl
+# This file contains tests for commands from handle.tcl
 
 package require tcltest
 eval tcltest::configure $argv
@@ -216,6 +216,80 @@ namespace eval twapi::handle::test {
         twapi::close_handle $evh
     } -result 1
 
+
+    ################################################################
+    
+    test cancel_wait_on_handle-1.0 {
+        Cancel wait on a handle
+    } -setup {
+        set ::wait_completed ""
+    } -body {
+        set evh [twapi::create_event]
+        set ::wait_completed {}
+        after 2000 lappend ::wait_completed timeout
+        twapi::wait_on_handle $evh -async "lappend ::wait_completed"
+        twapi::set_event $evh
+        vwait ::wait_completed
+        twapi::cancel_wait_on_handle $evh
+        twapi::set_event $evh
+        vwait ::wait_completed
+        set ::wait_completed
+        expr {
+              [llength $::wait_completed] == 3 &&
+              [twapi::Twapi_IsPtr [lindex $::wait_completed 0]] &&
+              [lindex $::wait_completed 1] eq "signalled" &&
+              [lindex $::wait_completed 2] eq "timeout"
+          }
+    } -cleanup {
+        twapi::close_handle $evh
+    } -result 1
+
+    ################################################################
+
+    test cast_handle-1.0 {
+        Cast a handle
+    } -body {
+        twapi::cast_handle {400 BAR} FOO
+    } -result {400 FOO}
+
+    test cast_handle-2.0 {
+        Cast a NULL handle
+    } -body {
+        twapi::cast_handle NULL FOO
+    } -result NULL
+
+    ################################################################
+
+    test get_tcl_channel_handle-1.0 {
+        Get the write OS handle for a channel
+    } -setup {
+        set path [tcltest::makeFile "" [clock clicks]]
+        set fd [open $path w+]
+        puts $fd "Testing";     # Make sure writable
+    } -body {
+        set h [twapi::get_tcl_channel_handle $fd write]
+        twapi::close_handle $h
+        puts $fd "This write will fail"
+        flush $fd
+    } -cleanup {
+        catch {close $fd}
+    } -returnCodes error -result "*bad file number" -match glob
+
+    test get_tcl_channel_handle-2.0 {
+        Get the read OS handle for a channel
+    } -setup {
+        set path [tcltest::makeFile "line 1\nline 2\n" [clock clicks]]
+        set fd [open $path r]
+    } -body {
+        set h [twapi::get_tcl_channel_handle $fd read]
+        twapi::close_handle $h
+        gets $fd
+    } -cleanup {
+        catch {close $fd}
+    } -returnCodes error -result "*bad file number" -match glob
+
+
+    ################################################################
 
     #
     # Clean up
