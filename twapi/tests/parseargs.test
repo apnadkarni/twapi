@@ -567,8 +567,8 @@ namespace eval twapi::parseargs::test {
     } -body {
         unset -nocomplain opts
         set vargs {-a 1 -b 2 extraarg}
-        array set opts [twapi::parseargs vargs {{b.arg}}]
-    } -returnCodes {error} -result "Unknown option '-a'"
+        array set opts [twapi::parseargs vargs {b.arg c.int}]
+    } -returnCodes {error} -result "Invalid option '-a'. Must be one of -b, -c"
 
     ###
 
