@@ -50,6 +50,96 @@ namespace eval twapi::osinfo::test {
         }
     }
 
+    # Validate primary domain information
+    proc validate_primary_domain {domdata v_msgs} {
+        upvar 1 $v_msgs msgs
+
+        array set dominfo $domdata
+
+        # Are we in a domain or workgroup ? Base it on env
+        if {[info exists ::env(USERDNSDOMAIN)] ||
+            [string compare -nocase \\\\$::env(COMPUTERNAME) $::env(LOGONSERVER)]} {
+            # We are in a domain
+            set type domain
+        } else {
+            set type workgroup
+        }
+
+        if {[info exists dominfo(-name)]} {
+            if {$type eq "domain"} {
+                if {[string compare -nocase $dominfo(-name) $::env(USERDOMAIN)]} {
+                    lappend msgs "Field -name does not match. Was $dominfo(-name), expected $::env(USERDOMAIN)"
+                }
+            } else {
+                # For workgroup env(USERDOMAIN) contains computer name, not
+                # workgroup so cannot compare with dominfo(-name)
+                # Just do an empirical check
+                if {[lsearch -exact {HOME TWAPI TEST} [string toupper $dominfo(-name)]] < 0} {
+                    lappend msgs "Field -name does not match. Was $dominfo(-name), expected one of TWAPI, TEST or HOME"
+                }
+            }
+        }
+
+        if {[info exists dominfo(-dnsdomainname)]} {
+            if {$type eq "domain"} {
+                if {[string compare -nocase $dominfo(-dnsdomainname) $::env(USERDNSDOMAIN)]} {
+                    lappend msgs "Field -dnsdomainname does not match. Was $dominfo(-dnsdomainname), expected $::env(USERDNSDOMAIN)"
+                }
+            } else {
+                if {$dominfo(-dnsdomainname) ne ""} {
+                    lappend msgs "Field -dnsdomainname does not match. Was $dominfo(-dnsdomainname), expected ''"
+                }
+            }
+        }
+
+        # In our test environ, there is a single domain, so domain == forest
+        if {[info exists dominfo(-dnsforestname)]} {
+            if {$type eq "domain"} {
+                if {[string compare -nocase $dominfo(-dnsforestname) $::env(USERDNSDOMAIN)]} {
+                    lappend msgs "Field -dnsforestname does not match. Was $dominfo(-dnsforestname), expected $::env(USERDNSDOMAIN)"
+                }
+            } else {
+                if {$dominfo(-dnsforestname) ne ""} {
+                    lappend msgs "Field -dnsforestname does not match. Was $dominfo(-dnsforestname), expected ''"
+                }
+            }
+        }
+
+        if {[info exists dominfo(-type)] &&
+            $dominfo(-type) ne $type} {
+            lappend msgs "Field -type does not match. Was $dominfo(-type), expected $type"
+        }
+
+        if {[info exists dominfo(-sid)]} {
+            if {$type eq "domain"} {
+                array set accinfo [twapi::lookup_account_sid $dominfo(-sid) -all]
+                if {$accinfo(-type) ne "domain" ||
+                    [string compare -nocase $accinfo(-domain) $::env(USERDOMAIN)] ||
+                    $accinfo(-name) ne ""} {
+                    lappend msgs "Field -sid value $dominfo(-sid) lookup does not match expected."
+                }
+            } else {
+                if {$dominfo(-sid) ne ""} {
+                    lappend msgs "Field -sid does not match. Was $dominfo(-sid), expected ''"
+                }
+            }
+        }
+
+        if {[info exists dominfo(-guid)]} {
+            if {$type eq "domain"} {
+                if {[catch {twapi::_validate_guid $dominfo(-guid)}]} {
+                    lappend msgs "Field -guid $dominfo(-guid) not a valid GUID"
+                }
+            } else {
+                if {$dominfo(-guid) ne ""} {
+                    lappend msgs "Field -guid does not match. Was $dominfo(-guid), expected ''"
+                }
+            }
+        }
+
+        return
+    }
+
     ################################################################
 
     test get_processor_count-1.0 {
@@ -1239,7 +1329,93 @@ namespace eval twapi::osinfo::test {
         twapi::format_message -fmtstring "123\r\n456%n789" -width -1
     } -result "123 456\r\n789"
 
- 
+    ################################################################
+
+    test get_primary_domain_info-1.0 {
+        Get primary domain info with no options
+    } -body {
+        twapi::get_primary_domain_info
+    } -result {}
+
+    test get_primary_domain_info-2.0 {
+        Get primary domain info -all
+    } -body {
+        set domdata [twapi::get_primary_domain_info -all]
+        verify_kl_fields $domdata {
+            -name -dnsdomainname -dnsforestname -domainguid -sid -type
+        }
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.1 {
+        Get primary domain info -name
+    } -body {
+        set domdata [twapi::get_primary_domain_info -name]
+        verify_kl_fields $domdata [list -name]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.2 {
+        Get primary domain info -type
+    } -body {
+        set domdata [twapi::get_primary_domain_info -type]
+        verify_kl_fields $domdata [list -type]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.3 {
+        Get primary domain info -dnsdomainname
+    } -body {
+        set domdata [twapi::get_primary_domain_info -dnsdomainname]
+        verify_kl_fields $domdata [list -dnsdomainname]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.4 {
+        Get primary domain info -dnsforestname
+    } -body {
+        set domdata [twapi::get_primary_domain_info -dnsforestname]
+        verify_kl_fields $domdata [list -dnsforestname]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.5 {
+        Get primary domain info -domainguid
+    } -body {
+        set domdata [twapi::get_primary_domain_info -domainguid]
+        verify_kl_fields $domdata [list -domainguid]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    test get_primary_domain_info-2.6 {
+        Get primary domain info -sid
+    } -body {
+        set domdata [twapi::get_primary_domain_info -sid]
+        verify_kl_fields $domdata [list -sid]
+        set msgs {}
+        validate_primary_domain $domdata msgs
+        join $msgs \n
+    } -result ""
+
+    ################################################################
+
+    test get_primary_domain_controller-1.0 {
+        Get the primary domain controller
+    } -body {
+        
+    } -result ""
 
     ################################################################
 
