@@ -725,14 +725,26 @@ int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP)
     /* NOTE UUID and GUID have same binary format but are formatted
        differently based on the component. */
 
-    RPC_STATUS status = UuidFromStringA(Tcl_GetString(objP), uuidP);
-    if (status == RPC_S_OK)
-        return TCL_OK;
-
-    Twapi_AppendSystemError(interp, status);
-    return TCL_ERROR;
+    if (objP) {
+        RPC_STATUS status = UuidFromStringA(Tcl_GetString(objP), uuidP);
+        if (status != RPC_S_OK) {
+            Twapi_AppendSystemError(interp, status);
+            return TCL_ERROR;
+        }
+    } else {
+        ZeroMemory(uuidP, sizeof(*uuidP));
+    }
+    return TCL_OK;
 }
 
+int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP)
+{
+    if (Tcl_GetCharLength(objP) == 0) {
+        *uuidPP = NULL;
+        return TCL_OK;
+    } else 
+        return ObjToUUID(interp, objP, *uuidPP);
+}
 
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP)
 {

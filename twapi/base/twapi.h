@@ -1062,6 +1062,7 @@ int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
 Tcl_Obj *ObjFromUUID (UUID *uuidP);
 int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
+int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
 Tcl_Obj *ObjFromLUID (const LUID *luidP);
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
@@ -1359,7 +1360,7 @@ int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP);
 
 /* ADSI related */
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
-                      LPCWSTR domainnameP, GUID *guidP,
+                      LPCWSTR domainnameP, UUID *guidP,
                       LPCWSTR sitenameP, ULONG flags);
 
 /* Network related */
