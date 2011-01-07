@@ -705,10 +705,6 @@ proc twapi::delete_inifile_section {section args} {
 # Get the primary domain controller
 proc twapi::get_primary_domain_controller {args} {
     array set opts [parseargs args {system.arg domain.arg} -nulldefault -maxleftover 0]
-    if {[string length $opts(system)]} {
-        # Win NT requires \\ preceding the name
-        set opts(system) "\\\\[string trimleft \\]"
-    }
     return [NetGetDCName $opts(system) $opts(domain)]
 }
 
@@ -725,8 +721,8 @@ proc twapi::find_domain_controller {args} {
         require.arg
         prefer.arg
         justldap.bool
-        {inputnameformat.arg any {dns flat any}}
-        {outputnameformat.arg any {dns flat any}}
+        {inputnameformat.arg any {dns flat netbios any}}
+        {outputnameformat.arg any {dns flat netbios any}}
         {outputaddrformat.arg any {ip netbios any}}
         getdetails
     } -maxleftover 0 -nulldefault]
@@ -801,6 +797,7 @@ proc twapi::find_domain_controller {args} {
 
     switch -exact -- $opts(inputnameformat) {
         any  { }
+        netbios -
         flat { setbits flags 0x10000 }
         dns  { setbits flags 0x20000 }
         default {
@@ -810,6 +807,7 @@ proc twapi::find_domain_controller {args} {
 
     switch -exact -- $opts(outputnameformat) {
         any  { }
+        netbios -
         flat { setbits flags 0x80000000 }
         dns  { setbits flags 0x40000000 }
         default {
