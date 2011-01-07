@@ -30,6 +30,51 @@ namespace eval twapi::osinfo::test {
         -idletime
     }
 
+    variable test_domain
+    set test_domain(name) "TEST"
+    set test_domain(dnsname) "test.twapi"
+
+    # Returns if current system is part of domain
+    proc indomain {} {
+        if {[info exists ::env(USERDNSDOMAIN)] ||
+            [string compare -nocase \\\\$::env(COMPUTERNAME) $::env(LOGONSERVER)]} {
+            return 1
+        } else {
+            return 0
+        }
+    }
+
+    tcltest::testConstraint domain [indomain]
+
+    # Returns name of domain controller if there is one on the network
+    # Name of domain controller on network. Used even if current system
+    # is not in the domain
+    proc test_dc {} {
+        variable domaincontroller
+
+        if {! [info exists domaincontroller]} {
+            if {[indomain]} {
+                set domaincontroller [string trimleft $::env(LOGONSERVER) \\]
+            } else {
+                # Not in domain, try to find one on network
+                set dc win2k8-adserver
+                catch {set dc $::env(TWAPI_TEST_ADSERVER)}
+                if {[catch {
+                    exec ping $dc -n 1
+                }]} {
+                    set domaincontroller ""
+                } else {
+                    set domaincontroller $dc
+                }
+            }
+        }
+
+        return $domaincontroller
+    }
+
+    tcltest::testConstraint dcexists [expr {[test_dc] ne ""}]
+    
+
     # Get the build number
     proc get_os_build {} {
         set verstr [exec cmd /c ver]
@@ -50,23 +95,15 @@ namespace eval twapi::osinfo::test {
         }
     }
 
+
     # Validate primary domain information
     proc validate_primary_domain {domdata v_msgs} {
         upvar 1 $v_msgs msgs
 
         array set dominfo $domdata
 
-        # Are we in a domain or workgroup ? Base it on env
-        if {[info exists ::env(USERDNSDOMAIN)] ||
-            [string compare -nocase \\\\$::env(COMPUTERNAME) $::env(LOGONSERVER)]} {
-            # We are in a domain
-            set type domain
-        } else {
-            set type workgroup
-        }
-
         if {[info exists dominfo(-name)]} {
-            if {$type eq "domain"} {
+            if {[indomain]} {
                 if {[string compare -nocase $dominfo(-name) $::env(USERDOMAIN)]} {
                     lappend msgs "Field -name does not match. Was $dominfo(-name), expected $::env(USERDOMAIN)"
                 }
@@ -81,7 +118,7 @@ namespace eval twapi::osinfo::test {
         }
 
         if {[info exists dominfo(-dnsdomainname)]} {
-            if {$type eq "domain"} {
+            if {[indomain]} {
                 if {[string compare -nocase $dominfo(-dnsdomainname) $::env(USERDNSDOMAIN)]} {
                     lappend msgs "Field -dnsdomainname does not match. Was $dominfo(-dnsdomainname), expected $::env(USERDNSDOMAIN)"
                 }
@@ -94,7 +131,7 @@ namespace eval twapi::osinfo::test {
 
         # In our test environ, there is a single domain, so domain == forest
         if {[info exists dominfo(-dnsforestname)]} {
-            if {$type eq "domain"} {
+            if {[indomain]} {
                 if {[string compare -nocase $dominfo(-dnsforestname) $::env(USERDNSDOMAIN)]} {
                     lappend msgs "Field -dnsforestname does not match. Was $dominfo(-dnsforestname), expected $::env(USERDNSDOMAIN)"
                 }
@@ -105,13 +142,14 @@ namespace eval twapi::osinfo::test {
             }
         }
 
-        if {[info exists dominfo(-type)] &&
-            $dominfo(-type) ne $type} {
-            lappend msgs "Field -type does not match. Was $dominfo(-type), expected $type"
+        if {[info exists dominfo(-type)]} {
+            if {($dominfo(-type) eq "domain" && ![indomain]) || [indomain]} {
+                lappend msgs "Field -type does not match. Was $dominfo(-type)."
+            }
         }
 
         if {[info exists dominfo(-sid)]} {
-            if {$type eq "domain"} {
+            if {[indomain]} {
                 array set accinfo [twapi::lookup_account_sid $dominfo(-sid) -all]
                 if {$accinfo(-type) ne "domain" ||
                     [string compare -nocase $accinfo(-domain) $::env(USERDOMAIN)] ||
@@ -126,7 +164,7 @@ namespace eval twapi::osinfo::test {
         }
 
         if {[info exists dominfo(-guid)]} {
-            if {$type eq "domain"} {
+            if {[indomain]} {
                 if {[catch {twapi::_validate_guid $dominfo(-guid)}]} {
                     lappend msgs "Field -guid $dominfo(-guid) not a valid GUID"
                 }
@@ -135,6 +173,91 @@ namespace eval twapi::osinfo::test {
                     lappend msgs "Field -guid does not match. Was $dominfo(-guid), expected ''"
                 }
             }
+        }
+
+        return
+    }
+
+
+    proc validate_dc_details {details nameformat addrformat v_msgs} {
+        variable test_domain
+
+        upvar 1 $v_msgs msgs
+
+        array set dc $details
+
+        if {$dc(-clientsite) ne "Default-First-Site-Name"} {
+            lappend msgs "Field -clientsite value '$dc(-clientsite)' does not match expected value 'Default-First-Site-Name'"
+        }
+
+        if {$dc(-dcsite) ne "Default-First-Site-Name"} {
+            lappend msgs "Field -dcsite value '$dc(-dcsite)' does not match expected value 'Default-First-Site-Name'"
+        }
+
+        foreach fld {-dcnameformat -domainformat} {
+            if {$nameformat ne "any" && $dc($fld) ne $nameformat} {
+                lappend msgs "Field $fld value is $dc($fld), expected $nameformat"
+            }
+        }
+
+        if {$dc(-dcnameformat) eq "dns"} {
+            if {[string compare -nocase $dc(-dcname) "\\\\[test_dc].$test_domain(dnsname)"]} {
+                lappend msgs "Field -dcname value '$dc(-dcname)' does not match expected value '[test_dc].$test_domain(dnsname)'"
+            }
+        } else {
+            if {[string compare -nocase $dc(-dcname) "\\\\[test_dc]"]} {
+                lappend msgs "Field -dcname value '$dc(-dcname)' does not match expected value '[test_dc]'"
+            }
+        }
+
+        if {![oneof {ip netbios} $dc(-dcaddrformat)]} {
+            lappend msgs "Field -dcaddrformat value '$dc(-dcaddrformat)' is not one ip or netbios"
+        }
+
+        if {$dc(-dcaddrformat) eq "ip"} {
+            if {![valid_ip_address $dc(-dcaddr)]} {
+                lappend msgs "Field -dcaddr value '$dc(-dcaddr)' is not a valid IP address."
+            }
+        } else {
+            if {$dc(-dcaddr) ne [test_dc]} {
+                lappend msgs "Field -dcaddr value '$dc(-dcaddr)' does not match expected value '[test_dc]'"
+            }
+        }
+        
+        if {$dc(-dnsforestformat) eq "dns"} {
+            if {$dc(-dnsforest) ne $test_domain(dnsname)} {
+                lappend msgs "Field -dnsforest value '$dc(-dnsforest)' does not match expected value '$test_domain(dnsname)'"
+            }
+        } else {
+            if {$dc(-dnsforest) ne $test_domain(name)} {
+                lappend msgs "Field -dnsforest value '$dc(-dnsforest)' does not match expected value '$test_domain(name)'"
+            }
+        }
+        
+        if {$dc(-domainformat) eq "dns"} {
+            if {$dc(-domain) ne $test_domain(dnsname)} {
+                lappend msgs "Field -domain value '$dc(-domain)' does not match expected value '$test_domain(dnsname)'"
+            }
+        } else {
+            if {$dc(-domain) ne $test_domain(name)} {
+                lappend msgs "Field -domain value '$dc(-domain)' does not match expected value '$test_domain(name)'"
+            }
+        }
+        
+        if {[catch {twapi::_validate_uuid $dc(-domainguid)}]} {
+            lappend msgs "Field -domainguid $dc(-domainguid) not a valid UUID"
+        }
+
+        set features {
+            closest directoryservice globalcatalog pdc kdc timeserver
+            goodtimeserver writable ldap
+        }
+        if {[llength [setops::diff $dc(-features) $features]]} {
+            lappend msgs "Field -feature '$dc(-features)' contains invalid values [join [setops::diff $dc(-features) $features] ,]"
+        }
+
+        if {[llength [setops::diff $features $dc(-features)]]} {
+            lappend msgs "Field -feature '$dc(-features)' does not contain all expected values."
         }
 
         return
@@ -1193,14 +1316,6 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
-    test find_domain_controller-1.0 {
-    } -constraints {
-        nt TBD
-    } -body {
-    } -result ""
-
-    ################################################################
-
     test expand_environment_strings-1.0 {
         Expand a single environment string
     } -body {
@@ -1414,8 +1529,284 @@ namespace eval twapi::osinfo::test {
     test get_primary_domain_controller-1.0 {
         Get the primary domain controller
     } -body {
-        
+        if {[indomain]} {
+            string equal [twapi::get_primary_domain_controller] $::env(LOGONSERVER)
+        } else {
+            catch {twapi::get_primary_domain_controller}
+        }
+    } -result 1
+
+    test get_primary_domain_controller-2.0 {
+        Get the primary domain controller -domain
+    } -constraints {
+        domain
+    } -body {
+        twapi::get_primary_domain_controller -domain $::env(USERDOMAIN)
+    } -result $::env(LOGONSERVER)
+
+    test get_primary_domain_controller-3.0 {
+        Get the primary domain controller -system (without leading \\)
+    } -constraints {
+        domain
+    } -body {
+        twapi::get_primary_domain_controller -system [string trimleft $::env(COMPUTERNAME) \\]
+    } -result $::env(LOGONSERVER)
+
+    test get_primary_domain_controller-3.1 {
+        Get the primary domain controller -system (with leading \\)
+    } -constraints {
+        domain
+    } -body {
+        twapi::get_primary_domain_controller -system \\\\[string trimleft $::env(COMPUTERNAME) \\]
+    } -result $::env(LOGONSERVER)
+
+    ################################################################
+
+    test find_domain_controller-1.0 {
+        Find domain controller (defaults)
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-2.0 {
+        Find domain controller -allowstale false
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -allowstale false] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-2.1 {
+        Find domain controller -allowstale true
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -allowstale true] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-3.0 {
+        Find domain controller -avoidself false
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -avoidself false] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-3.1 {
+        Find domain controller -avoidself true
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -avoidself true] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-4.0 {
+        Find domain controller -domain (LANMAN format)
+    } -constraints {
+        dcexists
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain $test_domain(name)] \\\\[test_dc]
+    } -result 1
+
+    test find_domain_controller-4.1 {
+        Find domain controller -domain (DNS format)
+    } -constraints {
+        dcexists
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain $test_domain(dnsname)] \\\\[test_dc].$test_domain(dnsname)
+    } -result 1
+
+    test find_domain_controller-5.0 {
+        Find domain controller -inputnameformat flat
+    } -constraints {
+        dcexists
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain $test_domain(name) -inputnameformat flat] \\\\[test_dc]
+    } -result 1
+
+    test find_domain_controller-5.1 {
+        Find domain controller -inputnameformat flat with DNS name
+    } -constraints {
+        dcexists
+    } -body {
+        twapi::find_domain_controller -domain $test_domain(dnsname) -inputnameformat flat
+    } -result [twapi::map_windows_error 1355] -returnCodes error
+
+    test find_domain_controller-5.2 {
+        Find domain controller -inputnameformat dns
+    } -constraints {
+        dcexists
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain $test_domain(dnsname) -inputnameformat dns] \\\\[test_dc].$test_domain(dnsname)
+    } -result 1
+
+    test find_domain_controller-5.3 {
+        Find domain controller -inputnameformat dns with flat name
+    } -constraints {
+        dcexists
+    } -body {
+        twapi::find_domain_controller -domain $test_domain(name) -inputnameformat dns
+    } -result [twapi::map_windows_error 1212] -returnCodes error
+
+    test find_domain_controller-6.0 {
+        Find domain controller using GUID
+    } -constraints {
+        domain
+    } -setup {
+        set dc_guid [twapi::kl_get [twapi::get_primary_domain_info -all] -domainguid]
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain nosuchdomain -domainguid $dc_guid -system [test_dc]] \\\\[test_dc].$test_domain(dnsname)
+    } -result 1
+
+    test find_domain_controller-6.1 {
+        Find domain controller using bogus GUID
+    } -constraints {
+        domain
+    } -setup {
+        set dc_guid [twapi::kl_get [twapi::get_primary_domain_info -all] -domainguid]
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain nosuchdomain -domainguid 00[string range $dc_guid 2 end] -system [test_dc]] \\\\[test_dc].$test_domain(dnsname)
+    } -returnCodes error -result [twapi::map_windows_error 1355]
+
+    test find_domain_controller-7.0 {
+        Find domain controller with details
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails] any any msgs
+        join $msgs \n
     } -result ""
+
+    test find_domain_controller-7.1 {
+        Find domain controller details with -outputnameformat dns
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails -outputnameformat dns] dns any msgs
+        join $msgs \n
+    } -result ""
+
+    test find_domain_controller-7.2 {
+        Find domain controller details with -outputnameformat netbios
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails -outputnameformat netbios] netbios any msgs
+        join $msgs \n
+    } -result ""
+
+    test find_domain_controller-7.3 {
+        Find domain controller details with -outputnameformat flat
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails -outputnameformat flat] netbios any msgs
+        join $msgs \n
+    } -result ""
+
+    test find_domain_controller-7.4 {
+        Find domain controller details with -outputnameformat any
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails -outputnameformat any] any any msgs
+        join $msgs \n
+    } -result ""
+
+
+    test find_domain_controller-8.0 {
+        Find domain controller -justldap false
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -justldap false] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-8.1 {
+        Find domain controller -justldap true
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -justldap true] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-9.0 {
+        Find domain controller -rediscover false
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -rediscover false] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-9.1 {
+        Find domain controller -rediscover true
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -rediscover true] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
 
     ################################################################
 
