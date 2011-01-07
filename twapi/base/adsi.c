@@ -11,7 +11,7 @@ int Twapi_DsGetDcName(
     Tcl_Interp *interp,
     LPCWSTR     systemnameP,
     LPCWSTR     domainnameP,
-    GUID       *guidP,
+    UUID       *uuidP,
     LPCWSTR     sitenameP,
     ULONG       flags
     )
@@ -19,7 +19,7 @@ int Twapi_DsGetDcName(
     DWORD   status;
     PDOMAIN_CONTROLLER_INFOW dcP;
 
-    status = DsGetDcNameW(systemnameP, domainnameP, guidP, sitenameP, flags, &dcP);
+    status = DsGetDcNameW(systemnameP, domainnameP, uuidP, sitenameP, flags, &dcP);
     if (status != ERROR_SUCCESS) {
         return Twapi_AppendSystemError(interp, status);
     }
@@ -33,7 +33,7 @@ int Twapi_DsGetDcName(
         objv[4] = STRING_LITERAL_OBJ("DomainControllerAddressType");
         objv[5] = Tcl_NewLongObj(dcP->DomainControllerAddressType);
         objv[6] = STRING_LITERAL_OBJ("DomainGuid");
-        objv[7] = ObjFromGUID(&dcP->DomainGuid);
+        objv[7] = ObjFromUUID(&dcP->DomainGuid);
         objv[8] = STRING_LITERAL_OBJ("DomainName");
         objv[9] = Tcl_NewUnicodeObj(dcP->DomainName, -1);
         objv[10] = STRING_LITERAL_OBJ("DnsForestName");

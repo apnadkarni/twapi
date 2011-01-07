@@ -2142,7 +2142,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
-                             GETVAR(guidP, ObjToGUID_NULL),
+                             GETVAR(guidP, ObjToUUID_NULL),
                              GETNULLIFEMPTY(s3), GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
