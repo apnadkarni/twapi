@@ -105,7 +105,9 @@ of the computer.
 [opt_def [cmd -domainguid] [arg GUID]]
 If the domain specified by the [cmd -domain] option or the primary
 domain of system cannot be found, the command will attempt to return
-the domain controller for the domain with the specified GUID.
+the domain controller for the domain with the specified GUID. Note
+this option may require [cmd -system] to specify a system that knows
+about the specified domain GUID.
 [opt_def [cmd -getdetails]]
 By default, the command returns the name of the domain controller.
 If this option is specified, the command returns detailed information
@@ -180,7 +182,7 @@ field is in IP address format, or [const netbios] if it is a Netbios address.
 [opt_def [cmd -dcsite]] The name of the site containing the domain controller.
 [opt_def [cmd -dnsforest]] Name of the domain that is at the root of the
 directory service tree.
-[opt_def [cmd -dnsforestformat]] Either [const dns] if the [cmd -dnsforestformat]
+[opt_def [cmd -dnsforestformat]] Either [const dns] if the [cmd -dnsforest]
 field is in DNS format, or [const netbios] if it is a Netbios name.
 [opt_def [cmd -domainguid]] GUID of the domain.
 [opt_def [cmd -domain]] Name of the domain.
@@ -188,7 +190,9 @@ field is in DNS format, or [const netbios] if it is a Netbios name.
 field is in DNS format, or [const netbios] if it is a Netbios name.
 [opt_def [cmd -features]] Contains a list describing domain controller
 features. This list may contain zero or more of the following:
+[const closest] (domain controller is closest site to client),
 [const directoryservice] (Active Directory support),
+[const ldap] (supports LDAP access),
 [const globalcatalog] (global catalog server for the forest rooted by this
 domain),
 [const pdc] (primary domain controller for this domain),

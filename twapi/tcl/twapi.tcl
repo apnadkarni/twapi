@@ -1446,6 +1446,13 @@ proc twapi::_validate_guid {guid} {
     }
 }
 
+# Validate uuid syntax
+proc twapi::_validate_uuid {uuid} {
+    if {![regexp {^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$} $uuid]} {
+        error "Invalid UUID syntax: '$uuid'"
+    }
+}
+
 # Extract a UCS-16 string from a binary. Cannot directly use
 # encoding convertfrom because that will not stop at the terminating
 # null. The UCS-16 assumed to be little endian.

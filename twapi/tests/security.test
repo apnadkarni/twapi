@@ -2540,7 +2540,7 @@ namespace eval twapi::security::test {
     test get_global_groups-1.0 {
         Get global groups
     } -constraints {
-        nt
+        nt TBD
     } -body {
         twapi::get_global_groups
         # TBD how to verify
@@ -2552,7 +2552,7 @@ namespace eval twapi::security::test {
     test get_global_groups-2.0 {
         Get global groups (-system)
     } -constraints {
-        nt
+        nt TBD
     } -body {
         twapi::get_global_groups -system $::env(COMPUTERNAME)
         # TBD how to verify
