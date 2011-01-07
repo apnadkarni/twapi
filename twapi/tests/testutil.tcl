@@ -662,6 +662,10 @@ proc pause {message} {
     return
 }
 
+proc patience {test} {
+    puts "Test $test may take a little while, patience please..."
+}
+
 # Read commands from standard input and execute them.
 # From Welch.
 proc start_commandline {} {

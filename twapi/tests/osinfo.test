@@ -1750,6 +1750,16 @@ namespace eval twapi::osinfo::test {
         join $msgs \n
     } -result ""
 
+    test find_domain_controller-7.5 {
+        Find domain controller details with -outputaddrformat ip
+    } -constraints {
+        domain
+    } -body {
+        set msgs {}
+        validate_dc_details [twapi::find_domain_controller -getdetails -outputaddrformat ip] any ip msgs
+        join $msgs \n
+    } -result ""
+
 
     test find_domain_controller-8.0 {
         Find domain controller -justldap false
@@ -1807,6 +1817,83 @@ namespace eval twapi::osinfo::test {
         }
     } -result 1
 
+    test find_domain_controller-10.0 {
+        Find domain controller -prefer
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -prefer {timeserver}] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-10.1 {
+        Find domain controller -prefer
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -prefer {directoryservice}] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+
+    test find_domain_controller-11.0 {
+        Find domain controller -require
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -require {directoryservice timeserver  pdc}] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-12.0 {
+        Find domain controller -site
+    } -body {
+        if {[indomain]} {
+            string equal -nocase [twapi::find_domain_controller -site Default-First-Site-Name] "$::env(LOGONSERVER).$::env(USERDNSDOMAIN)"
+        } else {
+            expr {
+                  [catch {twapi::find_domain_controller}] &&
+                  [lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                  [lindex $::errorCode 1] == 1355
+              }
+        }
+    } -result 1
+
+    test find_domain_controller-12.1 {
+        Find domain controller -site (fail)
+    } -constraints {
+        domain
+    } -setup {
+        patience find_domain_controller-12.1
+    } -body {
+        twapi::find_domain_controller -site nosuchsite
+    } -result [twapi::map_windows_error 1355] -returnCodes error
+
+    test find_domain_controller-13.0 {
+        Find domain controller using -system
+    } -constraints {
+        domain
+    } -setup {
+        set dc_guid [twapi::kl_get [twapi::get_primary_domain_info -all] -domainguid]
+    } -body {
+        string equal -nocase [twapi::find_domain_controller -domain nosuchdomain -domainguid $dc_guid -system [test_dc]] \\\\[test_dc].$test_domain(dnsname)
+    } -result 1
+    
 
     ################################################################
 
