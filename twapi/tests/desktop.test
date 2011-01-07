@@ -1,0 +1,52 @@
+#
+# Copyright (c) 2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from desktop.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::desktop::test {
+    namespace import ::tcltest::test
+
+    ################################################################
+
+    test find_desktops-1.0 {
+        Find all desktops
+    } -body {
+        setops::diff {Default Winlogon} [twapi::find_desktops]
+    } -result {}
+
+    test find_desktops-2.0 {
+        Find desktops on another window station using -winsta
+    } -constraints {
+        TBD
+    } -body {
+
+    } -result ""
+
+
+    ################################################################
+
+    test find_window_stations-1.0 {
+        Find window stations
+    } -body {
+        setops::diff {WinSta0} [twapi::find_window_stations]
+    } -result {}
+
+    ################################################################
+
+    #
+    # Clean up
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::desktop::test
