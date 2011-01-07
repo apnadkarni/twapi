@@ -39,6 +39,7 @@ namespace eval twapi::eventlog::test {
     } -constraints {
         nt
     } -setup {
+        patience eventlog_monitor-1.0
         set hevl [twapi::eventlog_open]
     } -body {
         # Note this test may sometimes fail because event log service
