@@ -115,7 +115,7 @@ whose format is described below.
 [opt_def [cmd -inputnameformat] [arg NAMEFORMAT]]
 Specifies the format of the specified domain name.
 [arg NAMEFORMAT] may be one of [const dns], which implies DNS format,
-[const flat] which implies flat Netbios format, or [const any] (default)
+[const netbios] which implies flat Netbios format, or [const any] (default)
 which results in the command searching both namespaces.
 [opt_def [cmd -justldap] [arg BOOLEAN]]
 If specified as [const true], the command searches for a LDAP server
@@ -132,14 +132,14 @@ If [arg ADDRFORMAT] is specified as [const ip], the
 Specifies the format in which the domain controller and domain names
 should be returned.
 [arg NAMEFORMAT] may be one of [const dns], which implies DNS format,
-[const flat] which implies flat Netbios format, or [const any] (default).
+[const netbios] which implies flat Netbios format, or [const any] (default).
 The command will raise an error if the name is not available in the
 specified format.
-[opt_def [cmd -prefer] [arg FEATURELIST]]
+[opt_def [cmd -prefer] [arg FEATURE]]
 Indicates that the domain controller that support
 the specified features and services is returned in preference
-to one that does not. [arg FEATURELIST] is a list of zero or more elements
-from [const directoryservice] and [const timeserver] (see below).
+to one that does not. [arg FEATURE] is either
+[const directoryservice] or [const timeserver] (see below).
 [opt_def [cmd -require] [arg FEATURELIST]]
 Indicates that the domain controller to be returned must support
 the specified features and services. [arg FEATURELIST] is a list of
