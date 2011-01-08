@@ -2489,26 +2489,54 @@ namespace eval twapi::security::test {
     ################################################################
 
     test get_global_groups-1.0 {
-        Get global groups
+        Get global groups locally
     } -constraints {
-        nt TBD
+        nt
     } -body {
         twapi::get_global_groups
-        # TBD how to verify
-        set x TBD
-    } -result TBD
+    } -result None
 
-    ###
 
     test get_global_groups-2.0 {
         Get global groups (-system)
     } -constraints {
-        nt TBD
+        nt
     } -body {
         twapi::get_global_groups -system $::env(COMPUTERNAME)
-        # TBD how to verify
-        set x TBD
-    } -result TBD
+    } -result None
+
+    test get_global_groups-2.1 {
+        Get global groups (-system domain controller)
+    } -constraints {
+        nt domain
+    } -body {
+        set groups [twapi::get_global_groups -system [testconfig domain_controller]]
+        expr {
+              [lsearch -exact $groups "Domain Admins"] >= 0 &&
+              [lsearch -exact $groups "Domain Users"] >= 0
+          }
+    } -result 1
+
+    test get_global_groups-3.0 {
+        Get global groups with -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_global_groups-4.0 {
+        Get global groups with -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_global_groups-5.0 {
+        Get global groups with -level and -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
 
     ################################################################
 
@@ -2525,7 +2553,6 @@ namespace eval twapi::security::test {
           }
     } -result 1
 
-    ###
 
     test get_local_groups-2.0 {
         Get local groups (-system)
@@ -2540,42 +2567,234 @@ namespace eval twapi::security::test {
           }
     } -result 1
 
+    
+    test get_local_groups-2.1 {
+        Get local groups (-system)
+    } -constraints {
+        nt domain
+    } -body {
+        set l [twapi::get_local_groups -system [testconfig domain_controller]]
+        expr {
+              [lsearch $l Administrators] >= 0 &&
+              [lsearch $l Guests] >= 0
+          }
+    } -result 1
+
+    test get_local_groups-3.0 {
+        Get local groups with -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_local_groups-4.0 {
+        Get local groups with -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_local_groups-5.0 {
+        Get local groups with -level and -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
 
     ################################################################
 
     test new_global_group-1.0 {
         Create a new global group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok
     } -body {
-    } -result ""
+        set gname TWAPI_GLOBAL_GROUP_[clock clicks]
+        twapi::new_global_group $gname
+    } -result [twapi::map_windows_error 5] -returnCodes error
+
+    test new_global_group-2.0 {
+        Create a new global group on a domain controller (-system)
+    } -constraints {
+        nt systemmodificationok domain
+    } -body {
+        set gname TWAPI_GLOBAL_GROUP_[clock clicks]
+        set dc [testconfig domain_controller]
+        twapi::new_global_group $gname -system $dc
+        array set group [twapi::get_global_group_info $gname -all -system $dc]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq ""
+          }
+    } -cleanup {
+        twapi::delete_global_group $gname -system $dc
+    } -result 1
+
+    test new_global_group-3.0 {
+        Create a new global group with -comment
+    } -constraints {
+        nt systemmodificationok domain
+    } -body {
+        set gname TWAPI_GLOBAL_GROUP_[clock clicks]
+        set dc [testconfig domain_controller]
+        twapi::new_global_group $gname -system $dc -comment "TWAPI global group"
+        array set group [twapi::get_global_group_info $gname -all -system $dc]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq "TWAPI global group"
+          }
+    } -cleanup {
+        twapi::delete_global_group $gname -system $dc
+    } -result 1
 
     ################################################################
 
     test new_local_group-1.0 {
         Create a new local group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok
     } -body {
-    } -result ""
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        twapi::new_local_group $gname
+        array set group [twapi::get_local_group_info $gname -all]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq ""
+          }
+    } -cleanup {
+        twapi::delete_local_group $gname
+    } -result 1
+
+    test new_local_group-2.0 {
+        Create a new local group (-system)
+    } -constraints {
+        nt systemmodificationok 
+    } -body {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        twapi::new_local_group $gname -system $::env(COMPUTERNAME)
+        array set group [twapi::get_local_group_info $gname -all -system $::env(COMPUTERNAME)]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq ""
+          }
+    } -cleanup {
+        twapi::delete_local_group $gname -system $::env(COMPUTERNAME)
+    } -result 1
+
+    test new_local_group-2.1 {
+        Create a new local group on a domain controller (-system)
+    } -constraints {
+        nt systemmodificationok domain
+    } -body {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        set dc [testconfig domain_controller]
+        twapi::new_local_group $gname -system $dc
+        array set group [twapi::get_local_group_info $gname -all -system $dc]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq ""
+          }
+    } -cleanup {
+        twapi::delete_local_group $gname -system $dc
+    } -result 1
+
+    test new_local_group-3.0 {
+        Create a new local group with -comment
+    } -constraints {
+        nt systemmodificationok
+    } -body {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        twapi::new_local_group $gname -comment "TWAPI local group"
+        array set group [twapi::get_local_group_info $gname -all]
+        expr {
+              $group(-name) eq $gname &&
+              $group(-comment) eq "TWAPI local group"
+          }
+    } -cleanup {
+        twapi::delete_local_group $gname
+    } -result 1
+
 
     ################################################################
 
     test delete_global_group-1.0 {
         Delete a global group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok
     } -body {
-    } -result ""
+        twapi::delete_global_group None
+    } -result [twapi::map_windows_error 2234] -returnCodes error
+
+    test delete_global_group-2.0 {
+        Delete a global group on a domain controller (-system)
+    } -constraints {
+        nt systemmodificationok domain
+    } -setup {
+        set gname TWAPI_GLOBAL_GROUP_[clock clicks]
+        set dc [testconfig domain_controller]
+        twapi::new_global_group $gname -system $dc
+        # Verify it exists (will generate exception if not)
+        array set group [twapi::get_global_group_info $gname -all -system $dc]
+    } -body {
+        list [catch {twapi::delete_global_group $gname -system $dc}]  \
+            [catch {twapi::delete_global_group $gname -system $dc}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+        
+    } -result {0 1 TWAPI_WIN32 2220}
+
 
     ################################################################
 
     test delete_local_group-1.0 {
         Delete a local group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok
+    } -setup {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        twapi::new_local_group $gname
+        # Verify it exists (will generate exception if not)
+        array set group [twapi::get_local_group_info $gname -all]
     } -body {
-    } -result ""
+        list [catch {twapi::delete_local_group $gname}]  \
+            [catch {twapi::delete_local_group $gname}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+        
+    } -result {0 1 TWAPI_WIN32 2220}
+
+    test delete_local_group-2.0 {
+        Delete a local group (-system)
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        set dc $::env(COMPUTERNAME)
+        twapi::new_local_group $gname -system $dc
+        # Verify it exists (will generate exception if not)
+        array set group [twapi::get_local_group_info $gname -all -system $dc]
+    } -body {
+        list [catch {twapi::delete_local_group $gname -system $dc}]  \
+            [catch {twapi::delete_local_group $gname -system $dc}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+        
+    } -result {0 1 TWAPI_WIN32 2220}
+
+    test delete_local_group-2.1 {
+        Delete a new local group on a domain controller (-system)
+    } -constraints {
+        nt systemmodificationok domain
+    } -setup {
+        set gname TWAPI_LOCAL_GROUP_[clock clicks]
+        set dc [testconfig domain_controller]
+        twapi::new_local_group $gname -system $dc
+        # Verify it exists (will generate exception if not)
+        array set group [twapi::get_local_group_info $gname -all -system $dc]
+    } -body {
+        list [catch {twapi::delete_local_group $gname -system $dc}]  \
+            [catch {twapi::delete_local_group $gname -system $dc}] \
+            [lindex $::errorCode 0] [lindex $::errorCode 1]
+        
+    } -result {0 1 TWAPI_WIN32 2220}
+
 
     ################################################################
 
