@@ -2936,7 +2936,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         WCHAR buf[MAX_PATH+1];
     } u;
     int func;                   /* What function to call */
-    DWORD dw, dw2;
+    DWORD dw, dw2, dw3;
     SECURITY_DESCRIPTOR *secdP;
     LSA_OBJECT_ATTRIBUTES lsa_oattr;
     LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
@@ -3123,10 +3123,31 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 1003:
             NULLIFY_EMPTY(arg);
             return Twapi_NetFileGetInfo(interp, arg, dw, dw2);
-#ifndef TWAPI_LEAN
         case 1004:
             return Twapi_GetNamedSecurityInfo(interp, arg, dw, dw2);
-#endif
+        case 1005:
+            bufP = u.buf;
+            dw3 = ARRAYSIZE(u.buf);
+            if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
+                if (GetLastError() == 0) {
+                    /* Retry with larger buffer */
+                    DWORD sz;
+                    bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
+                                            &sz);
+                    if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
+                        result.type = TRT_XXX;
+                        result.value.ival = GetLastError();
+                        MemLifoPopFrame(&ticP->memlifo);
+                        break;
+                    }
+                }
+            }
+
+            TBD - set result
+            if (bufP != u.buf)
+                MemLifoPopFrame(&ticP->memlifo);
+            break;
+
         }
     }
 
