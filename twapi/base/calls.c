@@ -3131,7 +3131,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             dw3 = ARRAYSIZE(u.buf);
             if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
                 result.value.ival = GetLastError();
-                if (result.value.ival != 0) {
+                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
                     result.type = TRT_EXCEPTION_ON_ERROR;
                     result.value.ival = GetLastError();
                     MemLifoPopFrame(&ticP->memlifo);
