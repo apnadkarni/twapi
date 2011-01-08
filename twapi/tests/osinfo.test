@@ -31,49 +31,13 @@ namespace eval twapi::osinfo::test {
     }
 
     variable test_domain
-    set test_domain(name) "TEST"
-    set test_domain(dnsname) "test.twapi"
+    set test_domain(name) [testconfig domain_name]
+    set test_domain(dnsname)  [testconfig domain_dnsname]
 
-    # Returns if current system is part of domain
-    proc indomain {} {
-        if {[info exists ::env(USERDNSDOMAIN)] ||
-            [string compare -nocase \\\\$::env(COMPUTERNAME) $::env(LOGONSERVER)]} {
-            return 1
-        } else {
-            return 0
-        }
-    }
 
-    tcltest::testConstraint domain [indomain]
-
-    # Returns name of domain controller if there is one on the network
-    # Name of domain controller on network. Used even if current system
-    # is not in the domain
     proc test_dc {} {
-        variable domaincontroller
-
-        if {! [info exists domaincontroller]} {
-            if {[indomain]} {
-                set domaincontroller [string trimleft $::env(LOGONSERVER) \\]
-            } else {
-                # Not in domain, try to find one on network
-                set dc win2k8-adserver
-                catch {set dc $::env(TWAPI_TEST_ADSERVER)}
-                if {[catch {
-                    exec ping $dc -n 1
-                }]} {
-                    set domaincontroller ""
-                } else {
-                    set domaincontroller $dc
-                }
-            }
-        }
-
-        return $domaincontroller
+        return [testconfig domain_controller]
     }
-
-    tcltest::testConstraint dcexists [expr {[test_dc] ne ""}]
-    
 
     # Get the build number
     proc get_os_build {} {
