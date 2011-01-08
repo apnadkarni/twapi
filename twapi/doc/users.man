@@ -56,7 +56,6 @@ through the following set of functions:
 [uri \#set_user_country_code [cmd set_user_country_code]],
 [uri \#set_user_profile [cmd set_user_profile]],
 [uri \#set_user_home_dir_drive [cmd set_user_home_dir_drive]],
-[uri \#set_user_priv_level [cmd set_user_priv_level]],
 [uri \#set_user_expiration [cmd set_user_expiration]].
 
 [para]
@@ -712,10 +711,6 @@ account.
 [opt_def [cmd -home_dir] [arg PATH]] Sets the account's home directory path.
 [opt_def [cmd -script_path] [arg PATH]] Sets the path to the
 logon script for the account.
-[opt_def [cmd -priv] [arg PRIVLEVEL]] Sets the privilege level for the account.
-[arg PRIVLEVEL] should be
-one of the values [const admin], [const user] or [const guest]. If unspecified,
-this defaults to [const user].
 [opt_def [cmd -password] [arg STRING]] Sets the password for the account.
 [list_end]
 [uri adduser.example "Example: Create a new user account"]
@@ -773,9 +768,6 @@ for valid formats for [arg DATETIME].
 the name of the account.
 [opt_def [cmd -script_path] [arg PATH]] Sets the path to the
 logon script for the account.
-[opt_def [cmd -priv] [arg PRIVLEVEL]] Sets the privilege level for the account.
-[arg PRIVLEVEL] should be
-one of the values [const admin], [const user] or [const guest].
 [opt_def [cmd -profile] [arg PATH]] Sets the path to the account's profile.
 [list_end]
 
@@ -829,14 +821,6 @@ may be used to specify a system as described in [sectref "Standard Options"].
 [call [cmd set_user_password] [arg USERNAME] [arg PASSWORD] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
 Sets the password of the specified user account to [arg PASSWORD].
-The option [cmd -system]
-may be used to specify a system as described in [sectref "Standard Options"].
-
-[call [cmd set_user_priv_level] [arg USERNAME] [arg PRIVLEVEL] [opt "[cmd -system] [arg SYSTEMNAME]"]]
-
-Sets the privilege level of the specified user account to [arg PRIVLEVEL].
-[arg PRIVLEVEL] should be
-one of the values [const admin], [const user] or [const guest].
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 

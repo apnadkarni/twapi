@@ -19,19 +19,29 @@ proc twapi::new_user {username args} {
                                        ] \
                         -nulldefault]
 
-    # NetUserAdd requires the $priv level to be 1 (USER). We change it below
-    # using the NetUserSetInfo call
+    if {$opts(priv) ne "user"} {
+        error "Option -priv is deprecated and values other than 'user' are not allowed"
+    }
+
+    # 1 -> priv level 'user'. NetUserAdd mandates this as only allowed value
     NetUserAdd $opts(system) $username $opts(password) 1 \
         $opts(home_dir) $opts(comment) 0 $opts(script_path)
 
-    trap {
-        set_user_priv_level $username $opts(priv) -system $opts(system)
-    } onerror {} {
-        # Remove the previously created user account
-        set ecode $errorCode
-        set einfo $errorInfo
-        catch {delete_user $username -system $opts(system)}
-        error $errorResult $einfo $ecode
+
+    # Backward compatibility - add to 'Users' local group
+    # but only if -system is local
+    if {$opts(system) eq "" ||
+        ([info exists ::env(COMPUTERNAME)] &&
+         [string equal -nocase $opts(system) $::env(COMPUTERNAME)])} {
+        trap {
+            _set_user_priv_level $username $opts(priv) -system $opts(system)
+        } onerror {} {
+            # Remove the previously created user account
+            set ecode $errorCode
+            set einfo $errorInfo
+            catch {delete_user $username -system $opts(system)}
+            error $errorResult $einfo $ecode
+        }
     }
 }
 
@@ -66,56 +76,6 @@ foreach twapi::_field_ {
         Twapi_NetUserSetInfo[lindex $::twapi::_field_ 1] [lindex $::twapi::_field_ 2] \$opts(system) \$username \$fieldval"
 }
 unset twapi::_field_
-
-# Set user privilege level
-proc twapi::set_user_priv_level {username priv_level args} {
-    eval set [parseargs args {system.arg} -nulldefault]
-
-    if {0} {
-        # FOr some reason NetUserSetInfo cannot change priv level
-        # Tried it separately with a simple C program. So this code
-        # is commented out and we use group membership to achieve
-        # the desired result
-        if {![info exists twapi::priv_level_map($priv_level)]} {
-            error "Invalid privilege level value '$priv_level' specified. Must be one of [join [array names twapi::priv_level_map] ,]"
-        }
-        set priv $twapi::priv_level_map($priv_level)
-
-        Twapi_NetUserSetInfo_priv $system $username $priv
-    } else {
-        # Don't hardcode group names - reverse map SID's instead for 
-        # non-English systems. Also note that since
-        # we might be lowering privilege level, we have to also
-        # remove from higher privileged groups
-        variable builtin_account_sids
-        switch -exact -- $priv_level {
-            guest {
-                set outgroups {administrators users}
-                set ingroup guests
-            }
-            user  {
-                set outgroups {administrators}
-                set ingroup users
-            }
-            admin {
-                set outgroups {}
-                set ingroup administrators
-            }
-            default {error "Invalid privilege level '$priv_level'. Must be one of 'guest', 'user' or 'admin'"}
-        }
-        # Remove from higher priv groups
-        foreach outgroup $outgroups {
-            # Get the potentially localized name of the group
-            set group [lookup_account_sid $builtin_account_sids($outgroup) -system $system]
-            # Catch since may not be member of that group
-            catch {remove_member_from_local_group $group $username -system $system}
-        }
-
-        # Get the potentially localized name of the group to be added
-        set group [lookup_account_sid $builtin_account_sids($ingroup) -system $system]
-        add_member_to_local_group $group $username -system $system
-    }
-}
 
 # Set account expiry time
 proc twapi::set_user_expiration {username time args} {
@@ -301,9 +261,10 @@ proc twapi::set_user_account_info {account args} {
         acct_expires.arg
         name.arg
         script_path.arg
-        priv.arg
         profile.arg
     }]
+
+    # TBD - rewrite this to be atomic
 
     if {[info exists opts(comment)]} {
         set_user_comment $account $opts(comment) -system $opts(system)
@@ -335,10 +296,6 @@ proc twapi::set_user_account_info {account args} {
 
     if {[info exists opts(script_path)]} {
         set_user_script_path $account $opts(script_path) -system $opts(system)
-    }
-
-    if {[info exists opts(priv)]} {
-        set_user_priv_level $account $opts(priv) -system $opts(system)
     }
 
     if {[info exists opts(profile)]} {
@@ -938,3 +895,53 @@ proc twapi::_logon_session_type_symbol {code} {
     }
 }
 
+proc twapi::_set_user_priv_level {username priv_level args} {
+
+    eval set [parseargs args {system.arg} -nulldefault]
+
+    if {0} {
+        # FOr some reason NetUserSetInfo cannot change priv level
+        # Tried it separately with a simple C program. So this code
+        # is commented out and we use group membership to achieve
+        # the desired result
+        # Note: - latest MSDN confirms above
+        if {![info exists twapi::priv_level_map($priv_level)]} {
+            error "Invalid privilege level value '$priv_level' specified. Must be one of [join [array names twapi::priv_level_map] ,]"
+        }
+        set priv $twapi::priv_level_map($priv_level)
+
+        Twapi_NetUserSetInfo_priv $system $username $priv
+    } else {
+        # Don't hardcode group names - reverse map SID's instead for 
+        # non-English systems. Also note that since
+        # we might be lowering privilege level, we have to also
+        # remove from higher privileged groups
+        variable builtin_account_sids
+        switch -exact -- $priv_level {
+            guest {
+                set outgroups {administrators users}
+                set ingroup guests
+            }
+            user  {
+                set outgroups {administrators}
+                set ingroup users
+            }
+            admin {
+                set outgroups {}
+                set ingroup administrators
+            }
+            default {error "Invalid privilege level '$priv_level'. Must be one of 'guest', 'user' or 'admin'"}
+        }
+        # Remove from higher priv groups
+        foreach outgroup $outgroups {
+            # Get the potentially localized name of the group
+            set group [lookup_account_sid $builtin_account_sids($outgroup) -system $system]
+            # Catch since may not be member of that group
+            catch {remove_member_from_local_group $group $username -system $system}
+        }
+
+        # Get the potentially localized name of the group to be added
+        set group [lookup_account_sid $builtin_account_sids($ingroup) -system $system]
+        add_member_to_local_group $group $username -system $system
+    }
+}
