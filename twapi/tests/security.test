@@ -2672,7 +2672,7 @@ namespace eval twapi::security::test {
 
     ################################################################
 
-    test add_user_tO_global_group-1.0 {
+    test add_user_to_global_group-1.0 {
         Add user to a global group
     } -constraints {
         nt systemmodificationok TBD
