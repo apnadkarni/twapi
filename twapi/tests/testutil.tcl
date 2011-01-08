@@ -6,6 +6,65 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
+
+proc getenv {envvar {default ""}} {
+    if {[info exists ::env($envvar)]} {
+        return $::env($envvar)
+    } else {
+        return $default
+    }
+}
+
+# Returns if current system is part of domain
+proc indomain {} {
+    if {[info exists ::env(USERDNSDOMAIN)] ||
+        [string compare -nocase \\\\$::env(COMPUTERNAME) $::env(LOGONSERVER)]} {
+        return 1
+    } else {
+        return 0
+    }
+}
+
+tcltest::testConstraint domain [indomain]
+
+
+proc testconfig {item} {
+    global testconfig
+    if {![info exists testconfig($item)]} {
+        switch -exact -- $item {
+            domain_name     {
+                set testconfig($item) [getenv TWAPI_TEST_DOMAIN TEST]
+            }
+            domain_dnsname  {
+                set testconfig($item) [getenv TWAPI_TEST_DNSDOMAIN [string tolower [testconfig domain_name]].twapi]
+            }
+            domain_controller {
+                # Returns name of domain controller if there is one on the
+                # network. Used even if current system is not in the domain
+
+                if {[indomain]} {
+                    set testconfig($item) [string trimleft $::env(LOGONSERVER) \\]
+                } else {
+                    # Not in domain, try to find one on network
+                    set dc [getenv TWAPI_TEST_DOMAINCONTROLLER win2k8-adserver]
+                    if {[catch {
+                        exec ping $dc -n 1
+                    }]} {
+                        set testconfig($item) ""
+                    } else {
+                        set testconfig($item) $dc
+                    }
+                }
+            }
+            default { error "Unknown config item '$item'" }
+        }
+    }
+    return $testconfig($item)
+}
+
+tcltest::testConstraint dcexists [expr {[testconfig domain_controller] ne ""}]
+
+
 proc equal_boolean {a b} {
     return [expr {(! $a) == (! $b)}]
 }

@@ -7,25 +7,17 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 3.0 Alpha"]
+[section "Version 3.0 Beta"]
 [list_begin bullet]
+
+[bullet] Note the list of [emph "IMCOMPATIBLE CHANGES"] at the end
+of this section.
 
 [bullet]
 Added support for 64-bit versions of Windows.
 
 [bullet]
 Added support for loading into multiple interpreters and multithreading.
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"] This version supports Windows XP or later versions
-of Windows and version 8.5 or later of Tcl. It has also been tested 
-on Windows 2000 and Tcl 8.4 but any bugs specific to these platforms 
-will not be fixed.
-
-[bullet]
-[emph "INCOMPATIBLE CHANGE"] This version does not support
-the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI
-and does not provide a Tclkit format distribution.
 
 [bullet]
 Added [uri installation.html "single-file DLL"] distribution that replaces
@@ -122,6 +114,9 @@ to allow multiple scripts to register for the same hotkey.
 [uri try.man#trap [cmd trap]] and aliased it to prevent conflicts
 with Tcl 8.6 [cmd try].
 
+[bullet] Added [uri errors.html#debuglog debuglog] command to log debug
+and trace messages.
+
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
 lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
@@ -153,9 +148,23 @@ as have the formats accepted by
 and
 [uri users.html#set_user_expiration [cmd set_user_expiration]].
 
+[bullet]
+[emph "INCOMPATIBLE CHANGE"] This version supports Windows XP or later versions
+of Windows and version 8.5 or later of Tcl. It has also been tested 
+on Windows 2000 and Tcl 8.4 but any bugs specific to these platforms 
+will not be fixed.
 
-[bullet] Added [uri errors.html#debuglog debuglog] command to log debug
-and trace messages.
+[bullet]
+[emph "INCOMPATIBLE CHANGE"] This version does not support
+the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI
+and does not provide a Tclkit format distribution.
+
+[bullet] [emph "INCOMPATIBLE CHANGE"] 
+The command [cmd set_user_priv_level] and the
+[cmd -priv] option to the [uri users.html#set_user_account_info [cmd set_user_account_info]]
+and [uri users.html#new_user [cmd new_user]] commands have been removed
+as their use was suitable in domain environments. Use specific group
+membership instead to control privileges.
 
 [list_end]
 
