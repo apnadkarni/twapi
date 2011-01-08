@@ -410,10 +410,10 @@ proc twapi::new_local_group {grpname args} {
 
 # Delete a global group
 proc twapi::delete_global_group {grpname args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     # Remove the group from the LSA rights database.
-    _delete_rights $grpname $system
+    _delete_rights $grpname $opts(system)
 
     NetGroupDel $opts(system) $grpname
 }
