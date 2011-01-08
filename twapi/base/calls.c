@@ -675,6 +675,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WNetCancelConnection2, CallS, 1002);
     CALL_(NetFileGetInfo, CallS, 1003);
     CALL_(GetNamedSecurityInfo, CallS, 1004);
+    CALL_(TranslateName, CallS, 1005);
 
 
     // CallH - function(HANDLE)
@@ -3129,25 +3130,31 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             bufP = u.buf;
             dw3 = ARRAYSIZE(u.buf);
             if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
-                if (GetLastError() == 0) {
-                    /* Retry with larger buffer */
-                    DWORD sz;
-                    bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
-                                            &sz);
-                    if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
-                        result.type = TRT_XXX;
-                        result.value.ival = GetLastError();
-                        MemLifoPopFrame(&ticP->memlifo);
-                        break;
-                    }
+                result.value.ival = GetLastError();
+                if (result.value.ival != 0) {
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                    result.value.ival = GetLastError();
+                    MemLifoPopFrame(&ticP->memlifo);
+                    break;
+                }
+                /* Retry with larger buffer */
+                bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
+                                        &dw3);
+                dw3 /= sizeof(WCHAR);
+                if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                    result.value.ival = GetLastError();
+                    MemLifoPopFrame(&ticP->memlifo);
+                    break;
                 }
             }
 
-            TBD - set result
+            result.value.unicode.str = bufP;
+            result.value.unicode.len = dw3 - 1 ;
+            result.type = TRT_UNICODE;
             if (bufP != u.buf)
                 MemLifoPopFrame(&ticP->memlifo);
             break;
-
         }
     }
 
