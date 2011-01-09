@@ -575,6 +575,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_EnumResourceLanguages, Call, 10128);
     CALL_(Twapi_SplitStringResource, Call, 10129);
     CALL_(Twapi_GetProcessList, Call, 10130);
+    CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2611,7 +2612,23 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10130:
             return Twapi_GetProcessList(ticP, objc-2, objv+2);
 #endif
-
+        case 10131: // TWapi_SetNetEnumBufSize - replace with generic TWAPI configuration TBD
+            if (objc > 2) {
+                result.value.ival = Tcl_GetIntFromObj(interp, objv[2], &dw);
+                if (result.value.ival != TCL_OK) {
+                    result.type = TRT_TCL_RESULT;
+                    break;
+                }    
+                if (dw < 4000 || dw > MAX_PREFERRED_LENGTH) {
+                    result.type = TRT_TWAPI_ERROR;
+                    result.value.ival = TWAPI_OUT_OF_RANGE;
+                    break;
+                }
+                twapi_netenum_bufsize = dw;
+            }
+            result.value.ival = twapi_netenum_bufsize;
+            result.type = TRT_DWORD;
+            break;
         }
     }
 
@@ -2782,7 +2799,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
                 : TRT_GETLASTERROR;
             break;
-//        case 36: // UNUSED
+//        case 36: UNUSED
         case 37:
             u.lifoP = TwapiAlloc(sizeof(MemLifo));
             result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
