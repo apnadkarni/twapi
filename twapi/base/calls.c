@@ -2619,7 +2619,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                     result.type = TRT_TCL_RESULT;
                     break;
                 }    
-                if (dw < 4000 || dw > MAX_PREFERRED_LENGTH) {
+                if (dw != MAX_PREFERRED_LENGTH && dw < 4000) {
                     result.type = TRT_TWAPI_ERROR;
                     result.value.ival = TWAPI_OUT_OF_RANGE;
                     break;
