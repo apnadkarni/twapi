@@ -89,6 +89,56 @@ proc read_file {path} {
     return [read $fd][close $fd]
 }
 
+# Populate users on a system
+# Returns base name used for accounts
+proc populate_accounts {{system ""}} {
+    variable populated_accounts
+
+    if {[info exists populated_accounts($system)]} {
+        return
+    }
+
+    patience "account creation"
+    set uname TWAPI_[clock seconds]
+    set gname ${uname}_GROUP
+    twapi::new_local_group $gname -system $system
+    lappend populated_accounts($system) $gname
+
+    for {set i 0} {$i < 1000} {incr i} {
+        set u ${uname}_$i
+        # Sometimes the password will be rejected because it contains
+        # a substring of the user name
+        twapi::trap {
+            twapi::new_user $u -password [twapi::new_uuid] -system $system
+        } onerror {TWAPI_WIN32 2245} {
+            incr i -1;          # Repeat creation
+            continue
+        }
+        twapi::add_member_to_local_group $gname $u -system $system
+        lappend populated_accounts($system) $u
+    }
+
+    return
+}
+
+proc cleanup_accounts {} {
+    variable populated_accounts
+    
+    set failures 0
+    foreach {system accounts} [array get populated_accounts] {
+        # First elem is group, remaining user accounts
+        foreach uname [lrange $accounts 1 end] {
+            incr failures [catch {twapi::delete_user $uname}]
+        }
+        incr failures [catch {twapi::delete_local_group [lindex $accounts 0]}]
+        unset populated_accounts($system)
+    }
+
+    unset populated_accounts
+}
+
+
+
 # From http://mini.net/tcl/460
 #
 # If you need to split string into list using some more complicated rule
