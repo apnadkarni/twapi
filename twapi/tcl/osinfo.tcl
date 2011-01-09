@@ -1381,7 +1381,11 @@ proc twapi::_net_enum_helper {function args} {
     set moredata 1
     set result {}
     while {$moredata} {
-        foreach {moredata resumehandle totalentries groups} [eval [list $function $opts(system)] $opts(preargs) [list $level] $opts(postargs) [list $resumehandle]] break
+        if {[info exists opts(filter)]} {
+            foreach {moredata resumehandle totalentries groups} [eval [list $function $opts(system)] $opts(preargs) [list $level $opts(filter)] $opts(postargs) [list $resumehandle]] break
+        } else {
+            foreach {moredata resumehandle totalentries groups} [eval [list $function $opts(system)] $opts(preargs) [list $level] $opts(postargs) [list $resumehandle]] break
+        }
         # If caller does not want all data in one lump stop here
         if {[info exists opts(resume)]} {
             if {[info exists opts(level)]} {

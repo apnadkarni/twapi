@@ -494,10 +494,6 @@ Returns a value of 1 if the account password has expired, and 0 otherwise.
 [opt_def [cmd -primary_group_id]] Returns the
 the RID (relative id component of a SID) of the primary
 global group for the account.
-[opt_def [cmd -priv]]
-Returns one of the values
-[const admin], [const user] or [const guest] corresponding
-to the privilege level for the account.
 [opt_def [cmd -profile]]
 Returns the full path to the user's profile.
 [opt_def [cmd -script_path]]
@@ -549,13 +545,15 @@ Returns account information in incremental mode.
 See [sectref "Enumerating Accounts"].
 [list_end]
 The valid values for [arg LEVEL] and the corresponding fields are shown
-in the following table:
+in the table below. Note that there may be additional fields returned that
+are not listed below. These should be considered internal and their values
+not relied on.
 [list_begin opt]
 [opt_def [const 0]]
 [cmd name]
 [opt_def [const 1]]
 [const comment], [const flags], [const home_dir], [const name],
-[const password], [const password_age], [const priv], [const script_path].
+[const password], [const password_age], [const script_path].
 [opt_def [const 2]]
 [const acct_expires],
 [const auth_flags],
@@ -576,7 +574,6 @@ in the following table:
 [const parms],
 [const password],
 [const password_age],
-[const priv],
 [const script_path],
 [const units_per_week],
 [const usr_comment],
@@ -604,7 +601,6 @@ in the following table:
 [const password_age],
 [const password_expired],
 [const primary_group_id],
-[const priv],
 [const profile],
 [const script_path],
 [const units_per_week],

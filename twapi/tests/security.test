@@ -102,6 +102,7 @@ namespace eval twapi::security::test {
         }
     }
 
+
     ################################################################
 
     test lookup_account_name-1.0 {
@@ -1776,8 +1777,6 @@ namespace eval twapi::security::test {
 
     test get_users-1.0 {
         Get list of users
-    } -constraints {
-        nt
     } -body {
         expr { [lsearch [twapi::get_users] Administrator] >= 0 }
     } -result 1
@@ -1786,8 +1785,6 @@ namespace eval twapi::security::test {
 
     test get_users-2.0 {
         Get list of users (-system)
-    } -constraints {
-        nt
     } -body {
         expr { [lsearch [twapi::get_users -system $::env(COMPUTERNAME)] Administrator] >= 0 }
     } -result 1
@@ -1796,11 +1793,72 @@ namespace eval twapi::security::test {
 
     test get_users-2.1 {
         Get list of users (-system, remote)
-    } -constraints {
-        nt
     } -body {
         expr { [lsearch [twapi::get_users -system \\\\127.0.0.1] Administrator] >= 0 }
     } -result 1
+
+    test get_users-3.0 {
+        Get users -level 0
+    } -body {
+        set kl [twapi::get_users -level 0]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_users-3.1 {
+        Get users -level 1
+    } -body {
+        set kl [twapi::get_users -level 1]
+        # NOte field 'priv' is intentionally undocumented
+        verify_list_kl_fields $kl {comment flags home_dir name password password_age priv script_path }
+        expr {
+              [valid_account_names [twapi::kl_flatten $kl name]] &&
+              [verify_list_elements [twapi::kl_flatten $kl flags password_age] {string is integer -strict}]
+          }
+    } -result 1
+
+    test get_users-3.2 {
+        Get users -level 2
+    } -body {
+        set kl [twapi::get_users -level 2]
+        # NOte field 'priv' is intentionally undocumented
+        verify_list_kl_fields $kl {
+            acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age priv script_path units_per_week usr_comment workstations
+        }
+        expr {
+              [valid_account_names [twapi::kl_flatten $kl name]] &&
+              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags] {string is integer -strict}]
+          }
+    } -result 1
+
+    test get_users-3.3 {
+        Get users -level 3
+    } -body {
+        set kl [twapi::get_users -level 3]
+        # NOte field 'priv' is intentionally undocumented
+        verify_list_kl_fields $kl {
+acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir home_dir_drive last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age password_expired primary_group_id priv profile script_path units_per_week user_id usr_comment workstations
+        }
+        expr {
+              [valid_account_names [twapi::kl_flatten $kl name]] &&
+              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags user_id primary_group_id] {string is integer -strict}]
+          }
+    } -result 1
+
+
+    test get_users-4.0 {
+        Get users -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_users-5.0 {
+        Get users -resume, -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
 
     ################################################################
 
@@ -2805,40 +2863,77 @@ namespace eval twapi::security::test {
     } -body {
     } -result ""
 
+    test get_global_group_members-3.0 {
+        Get members of a global group -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_global_group_members-4.0 {
+        Get members of a global group -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_global_group_members-5.0 {
+        Get members of a global group -resume, -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
     ################################################################
 
     test get_local_group_members-1.0 {
         Get members of a local group
-    } -constraints {
-        nt
     } -body {
         set l [twapi::get_local_group_members Guests]
         expr { [lsearch -glob $l *Guest] >= 0 }
     } -result 1
 
-    ###
 
     test get_local_group_members-2.0 {
         Get members of a local group (-system)
-    } -constraints {
-        nt
     } -body {
         set l [twapi::get_local_group_members Guests \
                    -system $::env(COMPUTERNAME)]
         expr { [lsearch -glob $l *Guest] >= 0 }
     } -result 1
 
-    ###
 
     test get_local_group_members-2.1 {
         Get members of a local group (-system, remote)
     } -constraints {
-        nt TBD
+        domain
     } -body {
         set l [twapi::get_local_group_members Administrators \
-                   -system ???]
+                   -system [testconfig domain_controller]]
         expr { [lsearch $l Administrator] >= 0 }
+    } -result 1
+
+    test get_local_group_members-3.0 {
+        Get members of a local group -level 0,2
+    } -constraints {
+        TBD
+    } -body {
     } -result ""
+
+    test get_local_group_members-4.0 {
+        Get members of a local group -resume
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test get_local_group_members-5.0 {
+        Get members of a local group -resume, -level
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
 
     ################################################################
 

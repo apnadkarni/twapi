@@ -161,9 +161,11 @@ and does not provide a Tclkit format distribution.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] 
 The command [cmd set_user_priv_level] and the
-[cmd -priv] option to the [uri users.html#set_user_account_info [cmd set_user_account_info]]
+[cmd -priv] option to the 
+[uri users.html#get_user_account_info [cmd get_user_account_info]],
+[uri users.html#set_user_account_info [cmd set_user_account_info]]
 and [uri users.html#new_user [cmd new_user]] commands have been removed
-as their use was suitable in domain environments. Use specific group
+as their use was unsuitable for domain environments. Use specific group
 membership instead to control privileges.
 
 [list_end]

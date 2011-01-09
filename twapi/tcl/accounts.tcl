@@ -140,7 +140,6 @@ proc twapi::get_user_account_info {account args} {
         last_logoff 2
         name 0
         script_path 1
-        priv 1
         profile 3
         max_storage 2
     }
@@ -211,13 +210,6 @@ proc twapi::get_user_account_info {account args} {
             }
         }
     
-        if {[info exists result(priv)]} {
-            switch -exact -- [expr {$result(priv) & 3}] {
-                0 { set result(priv) "guest" }
-                1 { set result(priv) "user" }
-                2 { set result(priv) "admin" }
-            }
-        }
     }
 
     if {$opts(local_groups)} {
@@ -371,7 +363,7 @@ proc twapi::get_local_group_info {name args} {
 
 # Get list of users on a system
 proc twapi::get_users {args} {
-    lappend args -preargs [list 0]; # Filter. TBD -allow user to specify filter
+    lappend args -filter 0; # Filter. TBD -allow user to specify filter
     return [_net_enum_helper NetUserEnum $args]
 }
 
