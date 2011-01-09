@@ -253,6 +253,9 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_BADFUNCTIONCODE:
         return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
 
+    case TRT_TWAPI_ERROR:
+        return TwapiReturnTwapiError(interp, NULL, resultP->value.ival);
+
     default:
         Tcl_SetResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult", TCL_STATIC);
         return TCL_ERROR;

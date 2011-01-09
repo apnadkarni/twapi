@@ -232,6 +232,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_SYSTEM_ERROR  10
 #define TWAPI_REGISTER_WAIT_FAILED 11
 #define TWAPI_BUG_INVALID_STATE_FOR_OP 12
+#define TWAPI_OUT_OF_RANGE 13
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -516,6 +517,7 @@ typedef enum {
     TRT_PIDL = 46,              /* Freed using CoTaskMemFree */
     TRT_WIDE = 47,              /* Tcl_WideInt */
     TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
+    TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
 } TwapiResultType;
 
 typedef struct {
