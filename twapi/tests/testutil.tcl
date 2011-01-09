@@ -679,9 +679,12 @@ proc verify_kl_fields {kl fields {ignoreextra 0}} {
 
 #
 # Verify that all elements in a list of keyed lists have
-# the specified fields
+# the specified fields and list is not empty
 # Raises an error otherwise
 proc verify_list_kl_fields {l fields {ignoreextra 0}} {
+    if {[llength $l] == 0} {
+        error "List is empty."
+    }
     foreach kl $l {
         verify_kl_fields $kl $fields $ignoreextra
     }
@@ -707,6 +710,15 @@ proc verify_priv_list {privs} {
     return $match
 }
 
+# Verify evey element satisfies a condition
+proc verify_list_elements {l cond} {
+    foreach elem $l {
+        if {! [eval $cond [list $elem]]} {
+            return 0
+        }
+    }
+    return 1
+}
 
 # Prompt the user
 proc yesno {question {default "no default"}} {
