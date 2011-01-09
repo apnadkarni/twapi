@@ -94,36 +94,37 @@ proc read_file {path} {
 proc populate_accounts {{system ""}} {
     variable populated_accounts
 
-    if {[info exists populated_accounts($system)]} {
-        return
-    }
+    if {! [info exists populated_accounts($system)]} {
+        patience "Creating test accounts"
+        set uname TWAPI_[clock seconds]
+        set gname ${uname}_GROUP
+        twapi::new_local_group $gname -system $system
+        lappend populated_accounts($system) $gname
 
-    patience "account creation"
-    set uname TWAPI_[clock seconds]
-    set gname ${uname}_GROUP
-    twapi::new_local_group $gname -system $system
-    lappend populated_accounts($system) $gname
-
-    for {set i 0} {$i < 1000} {incr i} {
-        set u ${uname}_$i
-        # Sometimes the password will be rejected because it contains
-        # a substring of the user name
-        twapi::trap {
-            twapi::new_user $u -password [twapi::new_uuid] -system $system
-        } onerror {TWAPI_WIN32 2245} {
-            incr i -1;          # Repeat creation
-            continue
+        for {set i 0} {$i < 500} {incr i} {
+            set u ${uname}_$i
+            # Sometimes the password will be rejected because it contains
+            # a substring of the user name
+            twapi::trap {
+                twapi::new_user $u -password [twapi::new_uuid] -system $system
+            } onerror {TWAPI_WIN32 2245} {
+                incr i -1;          # Repeat creation
+                continue
+            }
+            twapi::add_member_to_local_group $gname $u -system $system
+            lappend populated_accounts($system) $u
         }
-        twapi::add_member_to_local_group $gname $u -system $system
-        lappend populated_accounts($system) $u
     }
 
-    return
+    # Return number of accounts (first elem is group name)
+    return [expr {[llength $populated_accounts($system)] - 1}]
 }
 
-proc cleanup_accounts {} {
+proc cleanup_populated_accounts {} {
     variable populated_accounts
     
+    patience "Cleaning up test accounts"
+
     set failures 0
     foreach {system accounts} [array get populated_accounts] {
         # First elem is group, remaining user accounts
@@ -134,7 +135,7 @@ proc cleanup_accounts {} {
         unset populated_accounts($system)
     }
 
-    unset populated_accounts
+    catch {unset populated_accounts}
 }
 
 
@@ -202,9 +203,9 @@ proc valid_sids {sids} {
     return 1
 }
 
-proc valid_account_names {names} {
+proc valid_account_names {names {system ""}} {
     foreach name $names {
-        if {[catch {twapi::lookup_account_name $name}]} {
+        if {[catch {twapi::lookup_account_name $name -system $system}]} {
             if {$name ne "Logon SID"} {
                 return 0
             }
@@ -783,8 +784,8 @@ proc pause {message} {
     return
 }
 
-proc patience {test} {
-    puts "Test $test may take a little while, patience please..."
+proc patience {task} {
+    puts "$task may take a little while, patience please..."
 }
 
 # Read commands from standard input and execute them.
