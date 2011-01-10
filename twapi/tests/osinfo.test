@@ -1861,6 +1861,17 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test adsi_translate_name-1. {
+        Translate an active object name to 
+    } -constraints {
+        domain TBD
+    } -body {
+    } -result {
+    }
+
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
