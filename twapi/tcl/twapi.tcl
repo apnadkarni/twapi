@@ -1643,6 +1643,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
     # Now the extras
     if {[lsearch [::twapi::get_build_config opts] lean] < 0} {
         foreach ::twapi::_field_ {
+            adsi.tcl
             process2.tcl
             accounts.tcl
             pdh.tcl
