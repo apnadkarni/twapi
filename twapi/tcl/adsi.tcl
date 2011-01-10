@@ -7,7 +7,7 @@
 # ADSI routines
 
 # TBD - document
-proc adsi_translate_name {name to {from 0}} {
+proc twapi::adsi_translate_name {name to {from 0}} {
     if {! [string is integer -strict $to]} {
         switch -exact -- $to {
             fqdn          { set to 1 }
@@ -39,7 +39,7 @@ proc adsi_translate_name {name to {from 0}} {
             serviceprincipal {set from 10 }
             dnsdomain     { set from 12 }
             default {
-                error "Invalid target format specifier '$from'"
+                error "Invalid source format specifier '$from'"
             }
         }
     }

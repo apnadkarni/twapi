@@ -1861,13 +1861,200 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
-    test adsi_translate_name-1. {
-        Translate an active object name to 
+    test adsi_translate_name-1.0 {
+        Translate an ADSI object dns name to format 1
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] 1
+    } -result "CN=*,CN=Users,DC=[join [split [testconfig domain_dnsname] .] ,DC=]" -match glob
+
+    test adsi_translate_name-1.1 {
+        Translate an ADSI LANMAN name to format fqdn
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] fqdn
+    } -result "CN=*,CN=Users,DC=[join [split [testconfig domain_dnsname] .] ,DC=]" -match glob
+
+    test adsi_translate_name-1.2 {
+        Translate an ADSI name in dns format to format 2
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] 2
+    } -result [testconfig domain_name]\\[testconfig domain_user]
+
+    test adsi_translate_name-1.3 {
+        Translate an ADSI name in dns format to format samcompatible
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] fqdn] samcompatible
+    } -result [testconfig domain_name]\\[testconfig domain_user]
+
+    test adsi_translate_name-1.4 {
+        Translate an ADSI name in dns format to format 3
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] 3
+    } -result * -match glob
+
+    test adsi_translate_name-1.5 {
+        Translate an ADSI name in samcompatible format to format display
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] display
+    } -result * -match glob
+
+    test adsi_translate_name-1.6 {
+        Translate an ADSI name in dns format to format 6
+    } -constraints {
+        domain
+    } -body {
+        valid_guid [twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] 6]
+    } -result 1
+
+    test adsi_translate_name-1.7 {
+        Translate an ADSI name in samcompatible format to format uniqueid
+    } -constraints {
+        domain
+    } -body {
+        valid_guid [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] uniqueid]
+    } -result 1
+
+    test adsi_translate_name-1.8 {
+        Translate an ADSI name in uniqueid format to format 7
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name  [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] uniqueid] 7
+    } -result [testconfig domain_dnsname]/Users/* -match glob
+
+    test adsi_translate_name-1.9 {
+        Translate an ADSI name in samcompatible format to format canonical
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] canonical
+    } -result [testconfig domain_dnsname]/Users/* -match glob
+
+    test adsi_translate_name-1.10 {
+        Translate an ADSI name in samcompatible format to format 8
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] 8
+    } -result [testconfig domain_user]@[testconfig domain_dnsname]
+
+    test adsi_translate_name-1.11 {
+        Translate an ADSI name in canonical format to format userprincipal
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] canonical] userprincipal
+    } -result [testconfig domain_user]@[testconfig domain_dnsname]
+
+    test adsi_translate_name-1.12 {
+        Translate an ADSI name in uniqueid format to format 9
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name  [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] uniqueid] 9
+    } -result [testconfig domain_dnsname]/Users\n* -match glob
+
+    test adsi_translate_name-1.13 {
+        Translate an ADSI name in samcompatible format to format canonicalex
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] canonicalex
+    } -result [testconfig domain_dnsname]/Users\n* -match glob
+
+    test adsi_translate_name-1.14 {
+        Translate ADSI names to serviceprincipal and dnsdomain
     } -constraints {
         domain TBD
     } -body {
-    } -result {
-    }
+        # Returns errors on XP, try on newer OS'es
+    } -result unknown
+
+    test adsi_translate_name-1.15 {
+        Translate ADSI names to dnsdomain
+    } -constraints {
+        domain TBD
+    } -body {
+        # Returns errors on XP, try on newer OS'es
+    } -result [testconfig domain_dnsname]\\[testconfig domain_user]
+
+
+    test adsi_translate_name-2.0 {
+        Translate an ADSI object dns name specifying userprincipal source format
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] fqdn userprincipal
+    } -result "CN=*,CN=Users,DC=[join [split [testconfig domain_dnsname] .] ,DC=]" -match glob
+
+    test adsi_translate_name-2.1 {
+        Translate an ADSI object dns name specifying source format 8
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] fqdn 8
+    } -result "CN=*,CN=Users,DC=[join [split [testconfig domain_dnsname] .] ,DC=]" -match glob
+
+    test adsi_translate_name-2.2 {
+        Translate an ADSI object dns name specifying source format 2 (fail)
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] fqdn 2
+    } -returnCodes error -result [twapi::map_windows_error 1317]
+
+    test adsi_translate_name-2.3 {
+        Translate an ADSI name specifying source format 2
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] fqdn 2
+    } -result "CN=*,CN=Users,DC=[join [split [testconfig domain_dnsname] .] ,DC=]" -match glob
+
+    test adsi_translate_name-2.4 {
+        Translate an ADSI name specifying source format samcompatible
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] userprincipal samcompatible
+    } -result [testconfig domain_user]@[testconfig domain_dnsname]
+
+    test adsi_translate_name-2.5 {
+        Translate an ADSI name specifying source format samcompatible (fail)
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name [testconfig domain_user]@[testconfig domain_dnsname] userprincipal samcompatible
+    } -returnCodes error -result [twapi::map_windows_error 1317]
+
+    test adsi_translate_name-2.6 {
+        Translate an ADSI name specifying source format 6
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name  [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] uniqueid] 7 6
+    } -result [testconfig domain_dnsname]/Users/* -match glob
+
+    test adsi_translate_name-2.7 {
+        Translate an ADSI name specifying source format uniqueid
+    } -constraints {
+        domain
+    } -body {
+        twapi::adsi_translate_name  [twapi::adsi_translate_name [testconfig domain_name]\\[testconfig domain_user] uniqueid] userprincipal uniqueid
+    } -result [testconfig domain_user]@[testconfig domain_dnsname]
+
+
 
 
     ################################################################
