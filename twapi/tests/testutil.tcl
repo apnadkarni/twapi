@@ -32,6 +32,9 @@ proc testconfig {item} {
     global testconfig
     if {![info exists testconfig($item)]} {
         switch -exact -- $item {
+            domain_user {
+                set testconfig($item) [getenv TWAPI_TEST_DOMAIN_USER aduser]
+            }
             domain_name     {
                 set testconfig($item) [getenv TWAPI_TEST_DOMAIN TEST]
             }
@@ -534,6 +537,10 @@ proc equal_sets {s1 s2} {
 #
 # Custom proc for matching file paths
 tcltest::customMatch set equal_sets
+
+proc valid_guid {guid} {
+     return [regexp {^\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} $guid]
+}
 
 
 # Note - use single quotes, not double quotes to pass values to wmic from exec
