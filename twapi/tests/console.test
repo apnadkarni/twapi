@@ -474,9 +474,9 @@ namespace eval twapi::console::test {
             error "Failure locating console window"
         }
         # Wait for target to close the console
-        after 3000
+        after 2000
         if {[llength [twapi::find_windows -pids [list $pid] -text $title]]} {
-            after 2000
+            after 3000
         }
         llength [twapi::find_windows -pids [list $pid] -text $title]
     } -cleanup {
@@ -625,15 +625,30 @@ namespace eval twapi::console::test {
         string is integer [twapi::get_console_pending_input_count stdin]
     } -result 1
 
-    ###
+    ################################################################
+
+    test get_console_screen_buffer_info-1.0 {
+        Get the console screen buffer info (no options)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_console_screen_buffer_info stdout
+    } -result ""
 
     test get_console_screen_buffer_info-2.0 {
         Get the console screen buffer default text attributes
     } -constraints {
         nt
+    } -setup {
+        set orig_attrs [twapi::get_console_screen_buffer_info stdout -textattr]
+        twapi::set_console_default_attr stdout -fgred 1 -bggreen 1
     } -body {
-        verify_kl_fields [twapi::get_console_screen_buffer_info stdout -textattr] $textattr_fields
-    } -result ""
+        set attrs [twapi::get_console_screen_buffer_info stdout -textattr]
+        verify_kl_fields $attrs {-textattr}
+        lindex $attrs 1
+    } -cleanup {
+        eval twapi::set_console_default_attr stdout [lindex $orig_attrs 1]
+    } -result {-fgred 1 -bggreen 1} -match set
 
     ###
 
@@ -694,6 +709,17 @@ namespace eval twapi::console::test {
         verify_kl_fields $l [list -windowsize]
         verify_integer_pair [lindex $l 1]
     } -result ""
+
+    test get_console_screen_buffer_info-8.0 {
+        Get the console screen buffer info -all
+    } -constraints {
+        nt
+    } -body {
+        verify_kl_fields [twapi::get_console_screen_buffer_info stdout -all] {
+            -cursorpos -size -textattr -maxwindowsize -windowsize -windowpos
+        }
+    } -result ""
+
 
     ################################################################
 
