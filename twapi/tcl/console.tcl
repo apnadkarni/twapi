@@ -111,10 +111,47 @@ array set twapi::_console_output_attr_syms {
     -bggreen 32
     -bgturquoise 48
     -bgred 64
+    -bgpurple 80
     -bgyellow 96
+    -bggray 112
     -bgbright 128
     -bgwhite 240
 }
+
+proc twapi::_console_output_attr_to_flags {attrs} {
+    variable _console_output_attr_syms
+    set flags 0
+    foreach {attr bool} $attrs {
+        if {$bool} {
+            set flags [expr {$flags | $_console_output_attr_syms($attr)}]
+        }
+    }
+    return $flags
+}
+
+proc twapi::_flags_to_console_output_attr {flags} {
+    variable _console_output_attr_syms
+
+    # Check for multiple bit attributes first, in order
+    set attrs {}
+    foreach attr {
+        -fgwhite -bgwhite -fggray -bggray
+        -fgturquoise -bgturquoise -fgpurple -bgpurple -fgyellow -bgyellow
+        -fgred -bgred -fggreen -bggreen -fgblue -bgblue
+        -fgbright -bgbright
+    } {
+        if {($flags & $_console_output_attr_syms($attr)) == $_console_output_attr_syms($attr)} {
+            lappend attrs $attr 1
+            set flags [expr {$flags & ~ $_console_output_attr_syms($attr)}]
+            if {$flags == 0} {
+                break
+            }
+        }
+    }
+        
+    return $attrs
+}
+
 
 # Get the current mode settings for the console
 proc twapi::_get_console_input_mode {conh} {
@@ -248,7 +285,7 @@ proc twapi::_get_console_screen_buffer_info {conh args} {
     }
 
     if {$opts(textattr) || $opts(all)} {
-        set result [concat $result [_bitmask_to_switches $textattr twapi::_console_output_attr_syms]]
+        lappend result -textattr [_flags_to_console_output_attr $textattr]
     }
 
     return $result
@@ -350,7 +387,7 @@ proc twapi::_fill_console {conh args} {
     } -ignoreunknown]
 
     # args will now contain attribute switches if any
-    set attr [_switches_to_bitmask $args twapi::_console_output_attr_syms]
+    set attr [_console_output_attr_to_flags $args]
 
     # Get screen buffer info for window and size of buffer
     array set csbi [get_console_screen_buffer_info $conh -windowpos -windowsize -size]
@@ -508,7 +545,7 @@ interp alias {} twapi::set_console_screen_buffer_size {} twapi::_do_console_proc
 
 # Set the default text attribute
 proc twapi::_set_console_default_attr {conh args} {
-    SetConsoleTextAttribute $conh [_switches_to_bitmask $args twapi::_console_output_attr_syms]
+    SetConsoleTextAttribute $conh [_console_output_attr_to_flags $args]
 }
 interp alias {} twapi::set_console_default_attr {} twapi::_do_console_proc twapi::_set_console_default_attr stdout
 

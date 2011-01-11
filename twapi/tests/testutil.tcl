@@ -25,8 +25,6 @@ proc indomain {} {
     }
 }
 
-tcltest::testConstraint domain [indomain]
-
 
 proc testconfig {item} {
     global testconfig
@@ -64,9 +62,6 @@ proc testconfig {item} {
     }
     return $testconfig($item)
 }
-
-tcltest::testConstraint dcexists [expr {[testconfig domain_controller] ne ""}]
-
 
 proc equal_boolean {a b} {
     return [expr {(! $a) == (! $b)}]
@@ -960,7 +955,10 @@ proc allocate_console_in_wish {{title "wish dos console"}} {
 proc free_console_in_wish {{title "wish dos console"}} {
     twapi::allocate_console
     twapi::set_console_title $title
-    after 5000
+    # For some inexplicable reason, the patent tclsh does not return
+    # from exec until the event loop is run here so do "update"
+    update
+    after 3000
     twapi::free_console
 }
 
@@ -1144,6 +1142,7 @@ tcltest::customMatch set setops::equal
 
 # If this is the first argument to the shell and there are more arguments
 # execute them
+
 if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]]} {
     load_twapi_package
     if {[catch {
@@ -1153,4 +1152,9 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
     } msg]} {
         twapi::eventlog_log "testutil error: $msg\n$::errorInfo"
     }
+} else {
+    # Only define these if running inside a test script else
+    # wish errors out
+    tcltest::testConstraint domain [indomain]
+    tcltest::testConstraint dcexists [expr {[testconfig domain_controller] ne ""}]
 }
