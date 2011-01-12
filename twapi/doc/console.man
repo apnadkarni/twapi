@@ -61,7 +61,7 @@ A console may have one or more screen buffers only one of which is active
 and visible at a time.  A screen buffer is a two dimensional
 array of cells with each cell containing a character and an attribute that
 controls how the character is displayed. Screen buffers can be written to with
-the [uri \#write_console [cmd write_console]] command.
+the [uri \#console_write [cmd console_write]] command.
 The code page used for output can be retrieved
 and set through the
 [uri \#get_console_output_codepage [cmd get_console_output_codepage]] and
@@ -106,28 +106,29 @@ when entered and displayed.
 [para]
 Characters typed into a console window may be handled differently based on
 the input mode of the console. The commands
-[uri \#get_console_input_mode [cmd get_console_input_mode]],
-[uri \#set_console_input_mode [cmd set_console_input_mode]] and
+[uri \#get_console_input_mode [cmd get_console_input_mode]], and
 [uri \#modify_console_input_mode [cmd modify_console_input_mode]] allow
 retrieval and setting of the input mode. The various mode settings are
 specified as arguments to these functions and may contain
 zero or more of the following elements:
 
 [list_begin opt]
-[opt_def [cmd -autoposition] [arg BOOL]]
-If true, position of console windows is determined by the
-operating system when the windows are opened.
 [opt_def [cmd -echoinput] [arg BOOL]]
 If true, characters are echoed as they are read in.
 This is only valid if the [cmd -lineinput] mode is true.
 [opt_def [cmd -extendedmode] [arg BOOL]]
-Must be set if [cmd -quickeditmode] or [cmd -insertmode] are specified.
+This is automatically set if [cmd -quickeditmode] or [cmd -insertmode] are specified.
 [opt_def [cmd -insertmode] [arg BOOL]]
 If true, characters are inserted as they entered
 and do not overwrite the characters at the current cursor position.
 [opt_def [cmd -lineinput] [arg BOOL]]
 If true, calls to read input only return when a
-carriage return character is read.
+carriage return character is read. If false, input is returned without
+a carraige return character required. Note when multiple characters
+are typed, they may be returned in a single read or require multiple 
+reads. If this option is specified as false, the [cmd -echoinput] option
+must also be specified to be false or be already set to false in
+the console input mode.
 [opt_def [cmd -mouseinput] [arg BOOL]]
 If true, mouse events are placed in the input queue
 when the console window has focus and the mouse is within the
@@ -145,8 +146,7 @@ reported through the input queue.
 [list_end]
 In a similar fashion, the characters written to a screen buffer may be
 displayed differently depending on the output mode of the console. The
-commands [uri \#get_console_output_mode [cmd get_console_output_mode]],
-[uri \#set_console_output_mode [cmd set_console_output_mode]] and
+commands [uri \#get_console_output_mode [cmd get_console_output_mode]], and
 [uri \#modify_console_output_mode [cmd modify_console_output_mode]] allow
 retrieval and setting of the input mode. The various mode settings are
 specified as arguments to these functions and may contain
@@ -210,6 +210,33 @@ the console even if standard input has been redirected. [arg options]
 specify the input mode to use and
 are passed to [uri \#modify_console_input_mode [cmd modify_console_input_mode]]
 before input is read. The original mode is restored before returning.
+
+[call [cmd console_write] [arg CONOUTH] [arg STRING] [opt [arg options]]]
+Writes the sequence of characters in [arg STRING] to the screen buffer
+identified by [arg CONOUTH]. The characters are always written to
+the screen buffer in raw mode, i.e. as if the [const -processedoutput] mode
+(see [sectref "Console Modes"]) was off. The original mode setting is
+restored after the write is completed. Note however, that newline characters
+are treated specially.
+[nl]
+In addition, the following options
+may be specified to alter the behavour of the write.
+
+[list_begin opt]
+[opt_def [cmd -newlinemode] [const line|column]]
+If the [cmd -newlinemode] is set to [const column] (default), a
+newline character in [arg STRING] causes further characters to be written
+at the original starting column position on the next line. If the option
+is specified as [const line], characters after the newline character
+are written starting at the first column on the next line.
+[opt_def [cmd -position] [arg COORD]]
+By default, the characters are written starting at the current cursor
+position. This option may be specified to change the location at which
+the characters are written. [arg COORD] is a list of two integers containing
+the column and row coordinates of the starting location.
+[opt_def [cmd -restoreposition] [arg BOOL]]
+[list_end]
+
 
 [call [cmd create_console_screen_buffer] [opt [arg options]]]
 Creates a new console screen buffer and returns a handle to it. The following
@@ -359,8 +386,6 @@ according to the mode options specified. [arg MODEOPTIONS] must
 correspond to the input mode options described in [sectref "Console Modes"].
 Any options not specified are unchanged.
 The command returns the previous input modes of the console.
-[nl]
-Also see [uri \#set_console_input_mode [cmd set_console_input_mode]].
 
 [call [cmd modify_console_output_mode] [arg CONOUTH] [arg MODEOPTIONS...]]
 Modifies the output modes for the console identified by [arg CONOUTH]
@@ -368,8 +393,6 @@ according to the mode options specified. [arg MODEOPTIONS] must correspond
 to the output mode options described in [sectref "Console Modes"].
 Any options not specified are unchanged.
 The command returns the previous output modes of the console.
-[nl]
-Also see [uri \#set_console_output_mode [cmd set_console_output_mode]].
 
 [call [cmd num_console_mouse_buttons]]
 Returns the number of console mouse buttons.
@@ -428,46 +451,8 @@ options.
 [call [cmd set_console_input_codepage] [arg CODEPAGE]]
 Sets the input code page of the console.
 
-[call [cmd set_console_input_mode] [arg CONINH] [arg MODEOPTIONS...]]
-Sets the input mode for the console identified by [arg CONINH] according
-to the mode options specified. [arg MODEOPTIONS] must correspond to the
-input mode options described in [sectref "Console Modes"]. Any options not
-specified are assumed to be false. To change the input mode for specific
-options without affecting others, use
-[uri \#modify_console_input_mode [cmd modify_console_input_mode]].
-For example,
-[example {
-    set_console_input_mode stdin -echoinput 0 -lineinput 1
-}]
-will set the console input to only have mode [const -lineinput] set.
-[const -echoinput] as well as unspecified modes will be reset.
-On the other hand,
-[example {
-    modify_console_input_mode stdin -echoinput 0 -lineinput 1
-}]
-will turn off [const -echoinput] mode, turn on [const -lineinput] mode
-but will leave others unchanged.
-
 [call [cmd set_console_output_codepage] [arg CODEPAGE]]
 Sets the output code page of the console.
-
-[call [cmd set_console_output_mode] [arg CONOUTH] [arg MODEOPTIONS...]]
-Sets the output modes for the console identified by [arg CONOUTH] according
-to the modes specified. [arg MODEOPTIONS] must correspond to the
-output modes described in [sectref "Console Modes"]. Any modes not
-specified are reset. To change the output modes for specific
-options without affecting others, use
-[uri \#modify_console_output_mode [cmd modify_console_output_mode]].
-For example,
-[example {
-    set_console_output_mode stdout -processedoutput 0
-}]
-will set the console output to only have mode [const -processedoutput] set.
-On the other hand,
-[example {
-    modify_console_output_mode stdout -processedoutput 0
-}]
-will turn off [const -processedoutput] mode but leave others unchanged.
 
 [call [cmd set_console_screen_buffer_size] [arg CONOUTH] [arg SCRSIZE]]
 Sets the size of the specified console screen buffer. [arg SCRSIZE]
@@ -489,32 +474,6 @@ they are relative to the current window coordinates.
 Redirects standard input, output or error to the specified [arg HANDLE].
 [arg TYPE] is one of [const stdin], [const stdout], [const stderr].
 [arg HANDLE] may be any handle to a device.
-
-[call [cmd write_console] [arg CONOUTH] [arg STRING] [opt [arg options]]]
-Writes the sequence of characters in [arg STRING] to the screen buffer
-identified by [arg CONOUTH]. The characters are always written to
-the screen buffer in raw mode, i.e. as if the [const -processedoutput] mode
-(see [sectref "Console Modes"]) was off. The original mode setting is
-restored after the write is completed. Note however, that newline characters
-are treated specially.
-[nl]
-In addition, the following options
-may be specified to alter the behavour of the write.
-
-[list_begin opt]
-[opt_def [cmd -newlinemode] [const line|column]]
-If the [cmd -newlinemode] is set to [const column] (default), a
-newline character in [arg STRING] causes further characters to be written
-at the original starting column position on the next line. If the option
-is specified as [const line], characters after the newline character
-are written starting at the first column on the next line.
-[opt_def [cmd -position] [arg COORD]]
-By default, the characters are written starting at the current cursor
-position. This option may be specified to change the location at which
-the characters are written. [arg COORD] is a list of two integers containing
-the column and row coordinates of the starting location.
-[opt_def [cmd -restoreposition] [arg BOOL]]
-[list_end]
 
 
 [list_end]
