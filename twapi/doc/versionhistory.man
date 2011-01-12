@@ -168,6 +168,14 @@ and [uri users.html#new_user [cmd new_user]] commands have been removed
 as their use was unsuitable for domain environments. Use specific group
 membership instead to control privileges.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+[cmd set_console_input_mode] and [cmd set_console_output_mode]
+are deprecated. Use
+[uri console.html#modify_console_input_mode [cmd modify_console_input_mode]]
+and
+[uri console.html#modify_console_output_mode [cmd modify_console_output_mode]]
+instead.
+
 [list_end]
 
 [section "Version 2.2"]

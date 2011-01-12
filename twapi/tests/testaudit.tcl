@@ -52,6 +52,8 @@ array set do_not_test {
     get_process_handle        get_process_info
     get_connected_shares      deprecated_alias
     kl_get_default            deprecated_alias
+    set_console_output_mode   deprecated_alias
+    set_console_input_mode   deprecated_alias
 }
 set missing {}
 foreach cmd [twapi::_get_public_procs] {

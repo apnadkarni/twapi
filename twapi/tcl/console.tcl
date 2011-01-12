@@ -299,7 +299,7 @@ proc twapi::_set_console_cursor_position {conh pos} {
 interp alias {} twapi::set_console_cursor_position {} twapi::_do_console_proc twapi::_set_console_cursor_position stdout
 
 # Write the specified string to the console
-proc twapi::_write_console {conh s args} {
+proc twapi::_console_write {conh s args} {
     # Note writes are always in raw mode, 
     # TBD - support for  scrolling
     # TBD - support for attributes
@@ -373,7 +373,8 @@ proc twapi::_write_console {conh s args} {
 
     return
 }
-interp alias {} twapi::write_console {} twapi::_do_console_proc twapi::_write_console stdout
+interp alias {} twapi::write_console {} twapi::_do_console_proc twapi::_console_write stdout
+interp alias {} twapi::console_write {} twapi::_do_console_proc twapi::_console_write stdout
 
 # Fill an area of the console with the specified attribute
 proc twapi::_fill_console {conh args} {
@@ -580,7 +581,7 @@ proc twapi::set_console_input_codepage {cp} {
 }
 
 # Read a line of input
-proc twapi::console_read {conh args} {
+proc twapi::_console_read {conh args} {
     if {[llength $args]} {
         set oldmode \
             [eval modify_console_input_mode [list $conh] $args]
@@ -589,11 +590,13 @@ proc twapi::console_read {conh args} {
         return [ReadConsole $conh 1024]
     } finally {
         if {[info exists oldmode]} {
-            eval set_console_input_mode $conh $oldmode
+            eval [list set_console_input_mode $conh] $oldmode
         }
     }
-
 }
+
+interp alias {} twapi::console_read {} twapi::_do_console_proc twapi::_console_read stdin
+interp alias {} twapi::read_console {} twapi::_do_console_proc twapi::_console_read stdin
 
 # Set up a console handler
 proc twapi::_console_ctrl_handler {ctrl} {
@@ -626,7 +629,7 @@ proc twapi::set_console_control_handler {script} {
 # mapping. The handle is closed after calling the proc. The first
 # arg in $args must be the console handle i $args is not an empty list
 proc twapi::_do_console_proc {proc default args} {
-    if {![llength $args]} {
+    if {[llength $args] == 0} {
         set args [list $default]
     }
     set conh [lindex $args 0]
