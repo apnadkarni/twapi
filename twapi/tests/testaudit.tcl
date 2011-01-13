@@ -54,6 +54,8 @@ array set do_not_test {
     kl_get_default            deprecated_alias
     set_console_output_mode   deprecated_alias
     set_console_input_mode   deprecated_alias
+    read_console             deprecated_alias
+    write_console            deprecated_alias
 }
 set missing {}
 foreach cmd [twapi::_get_public_procs] {
