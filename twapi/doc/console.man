@@ -78,9 +78,10 @@ The size of the buffer can be controlled through the
 command.
 [para]
 The console window is the portion of the screen buffer that is actually visible
-on the display. The command
+on the display. The commands
+[uri \#get_console_window_location [cmd get_console_window_location]] and
 [uri \#set_console_window_location [cmd set_console_window_location]] can
-be used to control the location of this window into the screen buffer.
+be used to retrieve and set the location of this window into the screen buffer.
 The window handle of the console window can be obtained
 through the [uri \#get_console_window [cmd get_console_window]] command. The
 maximum possible size of the window that can fit on the display given the
@@ -98,6 +99,10 @@ or a portion of it and can optionally fill it with a specific character.
 Characteristics of the screen buffer such as buffer size, cursor
 position, window coordinates can be obtained through
 [uri \#get_console_screen_buffer_info [cmd get_console_screen_buffer_info]].
+The position of the cursor can be retrived or set through the commands
+[uri #get_console_cursor_position [cmd get_console_cursor_position]] and
+[uri #set_console_cursor_position [cmd set_console_cursor_position]]
+respectively.
 
 [section "Console Modes"]
 
@@ -254,7 +259,7 @@ Specifies whether the buffer is not shared or
 can be shared for read, write or both (default).
 [list_end]
 The allocated screen buffer handle should be closed by calling
-[uri handles.html\#close_handles [cmd close_handles]] when no longer
+[uri handles.html\#close_handle [cmd close_handle]] when no longer
 needed.
 [call [cmd fill_console] [arg CONOUTH] [opt [arg options]]]
 Sets the text attribute of cells in specified area of the screen buffer.
@@ -298,6 +303,12 @@ Sends a control event to a process group. [arg EVENT] should be one
 of [const ctrl-c] or [const ctrl-break]. [arg PROCESSGROUP] indicates the
 console process group to which the event should be sent. By default, the
 event is sent to all processes sharing the console of the caller.
+
+[call [cmd get_console_cursor_position] [arg CONOUTH]]
+Returns the cursor position in a screen buffer as a list of two integers
+specifying the column and row that the cursor is to be positioned at.
+[arg CONOUTH] is the handle to the buffer and [arg XY] is a list of 
+two integers.
 
 [call [cmd get_console_handle] [arg TYPE]]
 Returns a handle to console input, output or error. Note if input and
@@ -356,6 +367,11 @@ Returns the title of the window of the currently attached console.
 
 [call [cmd get_console_window]]
 Returns the handle to the window displaying the currently attached console.
+
+[call [cmd get_console_window_location] [arg CONOUTH]]
+Returns a list of four integers containing
+the left column position, the top row position, the right column position
+and the bottom row position of the window within the screen buffer.
 
 [call [cmd get_console_window_maxsize]]
 Returns the maximum size of a console window given the current display size
@@ -437,10 +453,9 @@ Only one Tcl interp should register a console control handler. Behaviour
 with multiple registrations is undefined.
 
 
-
-[call [cmd set_console_cursor_position] [arg CONOUTH] [arg {X Y}]]
+[call [cmd set_console_cursor_position] [arg CONOUTH] [arg XY]]
 Sets the cursor position in a screen buffer. [arg CONOUTH] is the
-handle to the buffer and [arg {X Y}] is a list of two integers specifying
+handle to the buffer and [arg XY] is a list of two integers specifying
 the column and row that the cursor is to be positioned at.
 
 [call [cmd set_console_default_attr] [arg CONOUTH] [opt [arg options]]]

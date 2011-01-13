@@ -262,25 +262,26 @@ proc twapi::_get_console_screen_buffer_info {conh args} {
         cursorpos
         maxwindowsize
         size
+        windowlocation
         windowpos
         windowsize
     } -maxleftover 0]
 
-    foreach {size cursorpos textattr windowrect maxwindowsize} [GetConsoleScreenBufferInfo $conh] break
+    foreach {size cursorpos textattr windowlocation maxwindowsize} [GetConsoleScreenBufferInfo $conh] break
 
     set result [list ]
-    foreach opt {size cursorpos maxwindowsize} {
+    foreach opt {size cursorpos maxwindowsize windowlocation} {
         if {$opts($opt) || $opts(all)} {
             lappend result -$opt [set $opt]
         }
     }
 
     if {$opts(windowpos) || $opts(all)} {
-        lappend result -windowpos [lrange $windowrect 0 1]
+        lappend result -windowpos [lrange $windowlocation 0 1]
     }
 
     if {$opts(windowsize) || $opts(all)} {
-        foreach {left top right bot} $windowrect break
+        foreach {left top right bot} $windowlocation break
         lappend result -windowsize [list [expr {$right-$left+1}] [expr {$bot-$top+1}]]
     }
 
@@ -297,6 +298,11 @@ proc twapi::_set_console_cursor_position {conh pos} {
     SetConsoleCursorPosition $conh $pos
 }
 interp alias {} twapi::set_console_cursor_position {} twapi::_do_console_proc twapi::_set_console_cursor_position stdout
+
+# Get the cursor position
+proc twapi::get_console_cursor_position {conh} {
+    return [lindex [get_console_screen_buffer_info $conh -cursorpos] 1]
+}
 
 # Write the specified string to the console
 proc twapi::_console_write {conh s args} {
@@ -559,6 +565,10 @@ proc twapi::_set_console_window_location {conh rect args} {
     SetConsoleWindowInfo $conh $opts(absolute) $rect
 }
 interp alias {} twapi::set_console_window_location {} twapi::_do_console_proc twapi::_set_console_window_location stdout
+
+proc twapi::get_console_window_location {conh} {
+    return [lindex [get_console_screen_buffer_info $conh -windowlocation] 1]
+}
 
 # Get the console code page
 proc twapi::get_console_output_codepage {} {

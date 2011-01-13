@@ -290,7 +290,7 @@ namespace eval twapi::console::test {
     } -body {
         set hbuf [twapi::create_console_screen_buffer]
         twapi::console_write $hbuf "dummy string";# To make sure it is valid
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -303,7 +303,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -inherit true]
         # TBD - How to check it is inheritable
         twapi::console_write $hbuf "dummy string";# To make sure it is valid
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -316,7 +316,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -inherit false]
         # TBD - How to check it is not inheritable
         twapi::console_write $hbuf "dummy string";# To make sure it is valid
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -329,7 +329,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -mode read]
         # TBD - need a test that it is readable
         set readonly [catch {twapi::console_write $hbuf "dummy string"} msg]
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
         set readonly
     } -result 1
 
@@ -346,7 +346,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -mode write]
         # TBD - eed a test that it is not readable
         set readonly [catch {twapi::console_write $hbuf "dummy string"} msg]
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
         set readonly
     } -result 0
 
@@ -361,7 +361,7 @@ namespace eval twapi::console::test {
         # TBD - need a test that it is readable
         set readable 1
         set readonly [catch {twapi::console_write $hbuf "dummy string"} msg]
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
         expr {$readable && !$readonly}
     } -result 1
 
@@ -375,7 +375,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -secd ""]
         # TBD - need a test for the security descriptor
         twapi::console_write $hbuf "dummy string"
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -388,7 +388,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -share none]
         # TBD - need a test that it is not shared
         twapi::console_write $hbuf "dummy string"
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -401,7 +401,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -share read]
         # TBD - need a test that it is shared for reading
         twapi::console_write $hbuf "dummy string"
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -414,7 +414,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -share write]
         # TBD - need a test that it is shared for writing
         twapi::console_write $hbuf "dummy string"
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ###
@@ -427,7 +427,7 @@ namespace eval twapi::console::test {
         set hbuf [twapi::create_console_screen_buffer -share readwrite]
         # TBD - need a test that it is shared for reading and writing
         twapi::console_write $hbuf "dummy string"
-        twapi::close_handles $hbuf
+        twapi::close_handle $hbuf
     } -result ""
 
     ################################################################
@@ -636,7 +636,7 @@ namespace eval twapi::console::test {
     } -constraints {
         nt
     } -body {
-        twapi::close_handles [twapi::get_console_handle stdin]
+        twapi::close_handle [twapi::get_console_handle stdin]
     } -result ""
 
     ###
@@ -646,7 +646,7 @@ namespace eval twapi::console::test {
     } -constraints {
         nt
     } -body {
-        twapi::close_handles [twapi::get_console_handle stdout]
+        twapi::close_handle [twapi::get_console_handle stdout]
     } -result ""
 
     ################################################################
@@ -781,10 +781,17 @@ namespace eval twapi::console::test {
         nt
     } -body {
         verify_kl_fields [twapi::get_console_screen_buffer_info stdout -all] {
-            -cursorpos -size -textattr -maxwindowsize -windowsize -windowpos
+            -cursorpos -size -textattr -maxwindowsize -windowsize -windowpos -windowlocation
         }
     } -result ""
 
+    test get_console_screen_buffer_info-9.0 {
+        Get the console screen buffer window position
+    } -body {
+        set l [twapi::get_console_screen_buffer_info stdout -windowlocation]
+        verify_kl_fields $l [list -windowlocation]
+        lindex $l 1
+    } -result {\d+ \d+ \d+ \d+} -match regexp
 
     ################################################################
 
@@ -1068,13 +1075,197 @@ namespace eval twapi::console::test {
         eval [list twapi::modify_console_output_mode stdin] $orig
     } -result {1 0 1}
 
+    ################################################################
+
+    test set_console_title-1.0 {
+        Set title of console window
+    } -setup {
+        set orig_title [twapi::get_console_title]
+    } -body {
+        set title "Testing TWAPI"
+        twapi::set_console_title $title
+        string equal $title [twapi::get_window_text [twapi::get_console_window]]
+    } -cleanup {
+        twapi::set_console_title $orig_title
+    } -result 1
+
+    ################################################################
+
+    test set_console_window_location-1.0 {
+        Set the absolute location of the console window
+    } -setup {
+        set orig_loc [twapi::get_console_window_location stdout]
+    } -body {
+        twapi::set_console_window_location stdout {0 0 20 20}
+        twapi::get_console_window_location stdout
+    } -cleanup {
+        twapi::set_console_window_location stdout $orig_loc
+    } -result {0 0 20 20}
+
+    test set_console_window_location-2.0 {
+        Set the absolute location of the console window -absolute true
+    } -setup {
+        set orig_loc [twapi::get_console_window_location stdout]
+    } -body {
+        twapi::set_console_window_location stdout {0 0 20 20} -absolute true
+        twapi::get_console_window_location stdout
+    } -cleanup {
+        twapi::set_console_window_location stdout $orig_loc
+    } -result {0 0 20 20}
+
+    test set_console_window_location-2.1 {
+        Set the absolute location of the console window -absolute false
+    } -setup {
+        set orig_loc [twapi::get_console_window_location stdout]
+    } -body {
+        twapi::set_console_window_location stdout {10 -10 -20 -20} -absolute false
+        foreach {lcol trow rcol brow} [twapi::get_console_window_location stdout] break
+        expr {
+              ($lcol - 10) == [lindex $orig_loc 0] &&
+              ($trow + 10) == [lindex $orig_loc 1] &&
+              ($rcol + 20) == [lindex $orig_loc 2] &&
+              ($brow + 20) == [lindex $orig_loc 3]
+          }
+    } -cleanup {
+        twapi::set_console_window_location stdout $orig_loc
+    } -result 1
+
+    ################################################################
+
+    test get_console_window_location-1.0 {
+        Get location of window within console buffer
+    } -body {
+        twapi::get_console_window_location stdout
+    } -result {\d+ \d+ \d+ \d+} -match regexp
+
+    test get_console_window_location-1.1 {
+        Get location of window within console buffer with explicit handle
+    } -setup {
+        set conh [twapi::get_console_handle stdout]
+    } -body {
+        twapi::get_console_window_location $conh
+    } -cleanup {
+        twapi::close_handle $conh
+    } -result {\d+ \d+ \d+ \d+} -match regexp
 
 
     ################################################################
 
+    test get_console_cursor_position-1.0 {
+        Get location of cursor in console buffer
+    } -body {
+        twapi::get_console_cursor_position stdout
+    } -result {\d+ \d+} -match regexp
 
+    test get_console_cursor_position-1.1 {
+        Get location of cursor in console buffer with explicit handle
+    } -setup {
+        set conh [twapi::get_console_handle stdout]
+    } -body {
+        twapi::get_console_cursor_position $conh
+    } -cleanup {
+        twapi::close_handle $conh
+    } -result {\d+ \d+} -match regexp
+    
 
+    ################################################################
 
+    test set_console_cursor_position-1.0 {
+        Set location of cursor in console buffer
+    } -setup {
+        set curpos [twapi::get_console_cursor_position stdout]
+    } -body {
+        twapi::set_console_cursor_position stdout {10 20}
+        twapi::get_console_cursor_position stdout
+    } -cleanup {
+        twapi::set_console_cursor_position stdout $curpos
+    } -result {10 20}
+
+    test set_console_cursor_position-1.1 {
+        Set location of cursor in console buffer using explicit handle
+    } -setup {
+        set conh [twapi::get_console_handle stdout]
+        set curpos [twapi::get_console_cursor_position $conh]
+    } -body {
+        twapi::set_console_cursor_position $conh {15 25}
+        twapi::get_console_cursor_position $conh
+    } -cleanup {
+        twapi::set_console_cursor_position $conh $curpos
+        twapi::close_handle $conh
+    } -result {15 25}
+
+    ################################################################
+
+    test set_console_input_codepage-1.0 {
+        Set input code page
+    } -setup {
+        set cp [twapi::get_console_input_codepage]
+    } -body {
+        twapi::set_console_input_codepage 1252
+        twapi::get_console_input_codepage
+    } -cleanup {
+        twapi::set_console_input_codepage $cp
+    } -result 1252
+
+    ################################################################
+
+    test set_console_output_codepage-1.0 {
+        Set output code page
+    } -setup {
+        set cp [twapi::get_console_output_codepage]
+    } -body {
+        twapi::set_console_output_codepage 1252
+        twapi::get_console_output_codepage
+    } -cleanup {
+        twapi::set_console_output_codepage $cp
+    } -result 1252
+
+    ################################################################
+
+    test set_console_screen_buffer_size-1.0 {
+        Set screen buffer size
+    } -setup {
+        set sz [lindex [twapi::get_console_screen_buffer_info stdout -size] 1]
+    } -body {
+        twapi::set_console_screen_buffer_size stdout {85 305}
+        lindex [twapi::get_console_screen_buffer_info stdout -size] 1
+    } -cleanup {
+        twapi::set_console_screen_buffer_size stdout $sz
+    } -result {85 305}
+
+    test set_console_screen_buffer_size-1.1 {
+        Set screen buffer size with explicit handle
+    } -setup {
+        set conh [twapi::get_console_handle stdout]
+        set sz [lindex [twapi::get_console_screen_buffer_info $conh -size] 1]
+    } -body {
+        twapi::set_console_screen_buffer_size $conh {90 310}
+        lindex [twapi::get_console_screen_buffer_info $conh -size] 1
+    } -cleanup {
+        twapi::set_console_screen_buffer_size $conh $sz
+        twapi::close_handle $conh
+    } -result {90 310}
+
+    ################################################################
+
+    test set_console_active_screen_buffer-1.0 {
+        Set the active screen buffer
+    } -constraints {
+        userInteraction
+    } -setup {
+        set newbuf [twapi::create_console_screen_buffer -mode readwrite]
+        set origbuf [twapi::get_console_handle stdout]
+    } -body {
+        twapi::console_write $newbuf "This new empty screen buffer will be displayed for 5 seconds."
+        twapi::set_console_active_screen_buffer $newbuf
+        after 3000
+        twapi::set_console_active_screen_buffer $origbuf
+        yesno "Did you see the new screen buffer for a few seconds?"
+    } -cleanup {
+        twapi::close_handle $newbuf
+    } -result 1
+
+    ################################################################
 
     #
     # Clean up
