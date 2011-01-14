@@ -488,6 +488,30 @@ namespace eval twapi::device::test {
         twapi::delete_share $share
     } -result {}
 
+    test start_device_notifier-4.0 {
+        Start a device notifier for a handle
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Check the -handle option
+    } -result {}
+
+    test start_device_notifier-4.1 {
+        Start a device notifier for a handle (devicequeryremove allow)
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Check the -handle option
+    } -result {}
+
+
+    test start_device_notifier-4.2 {
+        Start a device notifier for a handle (devicequeryremove deny)
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Check the -handle option
+    } -result {}
 
 
     ################################################################

@@ -56,6 +56,7 @@ array set do_not_test {
     set_console_input_mode   deprecated_alias
     read_console             deprecated_alias
     write_console            deprecated_alias
+    update_service_status    run_as_service
 }
 set missing {}
 foreach cmd [twapi::_get_public_procs] {
