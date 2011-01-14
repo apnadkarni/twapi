@@ -324,6 +324,192 @@ namespace eval twapi::device::test {
 
     ################################################################
 
+    proc device_notifier_test_handler {id event args} {
+        lappend ::device_test_notifications [linsert $args 0 $id $event]
+    }
+
+    proc device_arrival_removal_handler {id event args} {
+        lappend ::device_test_notifications [linsert $args 0 $id $event]
+        if {$event eq "deviceremovecomplete"} {
+            set ::device_notifications_done 1
+        }
+    }
+
+
+    test start_device_notifier-1.0 {
+        Start a device notifier
+    } -constraints {
+        userInteraction
+    } -body {
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier "lappend ::device_test_notifications"]
+        pause "Please insert a USB device."
+        set after_id [after 2000 set ::device_notifications_done 1]
+        vwait ::device_notifications_done
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        pause "Please remove the USB device before continuing."
+        expr {[llength $::device_test_notifications] > 0}
+    } -result 1
+
+
+    test start_device_notifier-2.0 {
+        Start a device notifier for a specific interface
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        set ::device_test_notifications {}
+        #        set id [twapi::start_device_notifier [namespace current]::device_notifier_test_handler]
+        set id [twapi::start_device_notifier [namespace current]::device_notifier_test_handler -deviceinterface TBD_WHAT_INTERFACEGUID_TO_USE?]
+        pause "Please insert a USB device."
+        set after_id [after 2000 set ::device_notifications_done 1]
+        vwait ::device_notifications_done
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        pause "Please remove the USB device before continuing."
+        expr {[llength $::device_test_notifications] > 0}
+    } -result 1
+
+    # Verify new drive arrival and removal
+    proc verify_device_notifications { notifications id ifc attrs v_msgs} {
+        upvar 1 $v_msgs msgs
+
+        set found_arrival 0
+        set found_removal 0
+        foreach notif $notifications {
+            set notif_id    [lindex $notif 0]
+            set notif_event [lindex $notif 1]
+            if {$notif_id ne $id} {
+                lappend msgs "Invalid notification id '$notif_id'. Expected '$id'"
+                continue
+            }
+            if {$notif_event eq "devnodes_changed"} {
+                continue
+            }
+            if {[lsearch -exact {devicearrival deviceremovecomplete} $notif_event] < 0} {
+                lappend msgs "Unexpected event '$notif_event'"
+                continue
+            }            
+
+            if {[lindex $notif 2] ne "volume"} {
+                continue
+            }
+
+            if {$notif_event eq "devicearrival"} {
+                set found_arrival 1
+            } else {
+                set found_removal 1
+            }
+            
+            set notif_drives [lindex $notif 3]
+            set notif_attrs  [lindex $notif 4]
+            if {![equal_sets $attrs $notif_attrs]} {
+                lappend msgs "Attributes do not match, got '[join $notif_attrs ,]', expected '[join $attrs ,]'"
+            }
+            # Verify the drives
+            if {[llength $notif_drives] == 0} {
+                lappend msgs "No drives listed in volume notification."
+            } else {
+                foreach drive $notif_drives {
+                    if {! [regexp {^[A-Z]:$} $drive]} {
+                        lappend msgs "Invalid drive '$drive'  listed in volume devicearrival notification."
+                    }
+                }
+            }
+        }
+        
+        if {! $found_arrival} {
+            lappend msgs "No devicearrival event encountered."
+        }
+
+        if {! $found_removal} {
+            lappend msgs "No deviceremovecomplete event encountered."
+        }
+    }
+
+    test start_device_notifier-2.1 {
+        Start a device notifier for volumes (USB device)
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Please remove the test USB device if currently inserted."
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier [namespace current]::device_arrival_removal_handler -deviceinterface volume]
+        pause "Please insert and then remove the test USB device."
+        set after_id [after 15000 set ::device_notifications_done timeout]
+        vwait ::device_notifications_done
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        set msgs {}
+        verify_device_notifications $::device_test_notifications $id volume {} msgs
+        join $msgs \n
+    } -result {}
+
+    test start_device_notifier-2.2 {
+        Start a device notifier for volumes (CD mediachange)
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Please make sure CD-ROM tray is empty"
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier [namespace current]::device_arrival_removal_handler -deviceinterface volume]
+        pause "Please insert a CD-ROM, wait for it to be recognized, then eject it."
+        set after_id [after 30000 set ::device_notifications_done timeout]
+        vwait ::device_notifications_done
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        set msgs {}
+        verify_device_notifications $::device_test_notifications $id volume {mediachange} msgs
+        join $msgs \n
+    } -result {}
+
+    test start_device_notifier-2.3 {
+        Start a device notifier for volumes (device arrival networkvolume)
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set share TWAPI_EXPORT_[clock clicks]
+        twapi::new_share $share [file nativename $dir]
+    } -body {
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier [namespace current]::device_arrival_removal_handler -deviceinterface volume]
+        # Note - notifications are only generated if mapped to local device
+        set drive [twapi::connect_share \\\\127.0.0.1\\$share -localdevice *]
+        set after_id [after 15000 set ::device_notifications_done timeout]
+        twapi::disconnect_share $drive
+        vwait ::device_notifications_done
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        set msgs {}
+        verify_device_notifications  $::device_test_notifications $id volume {networkvolume} msgs
+        join $msgs \n
+    } -cleanup {
+        twapi::delete_share $share
+    } -result {}
+
+
+    test start_device_notifier-3.1 {
+        Start a device notifier for volumes (device removeal mediachange)
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Please make sure there is a CD inserted"
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier [list [namespace current]::device_notifier_test_handler2 deviceremoval] -deviceinterface volume]
+        pause "Please eject the CD"
+        set after_id [after 30000 set ::device_test_notifications timeout]
+        vwait ::device_test_notifications
+        after cancel $after_id
+        twapi::stop_device_notifier $id
+        set msgs {}
+        verify_device_notifications deviceremoval $::device_test_notifications $id volume {mediachange} msgs
+        join $msgs \n
+    } -result {}
+
+
+    ################################################################
+
 
     ::tcltest::cleanupTests
 }
