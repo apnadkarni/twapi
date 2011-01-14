@@ -775,7 +775,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSecurityInfo, CallH, 2004);
     CALL_(OpenThreadToken, CallH, 2005);
     CALL_(ReadEventLog, CallH, 2006);
-    CALL_(SetHandleInformation, CallH, 2007);
+    CALL_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
     CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
