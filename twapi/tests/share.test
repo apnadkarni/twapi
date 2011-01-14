@@ -1045,9 +1045,9 @@ namespace eval twapi::share::test {
             error "Client share exists and could not be deleted"
         }
     } -body {
-        ::twapi::connect_share $testshares(client_share_unmapped)
-        unmapped_client_share_exists
-    } -result 1
+        set path [::twapi::connect_share $testshares(client_share_unmapped)]
+        list [unmapped_client_share_exists] [equal_paths $path $testshares(client_share_unmapped)]
+    } -result {1 1}
 
     ###
 
@@ -1063,9 +1063,28 @@ namespace eval twapi::share::test {
             error "Client share exists and could not be deleted"
         }
     } -body {
-        ::twapi::connect_share $testshares(client_share_mapped) -localdevice $testshares(client_device)
-        mapped_client_share_exists
-    } -result 1
+        set drive [::twapi::connect_share $testshares(client_share_mapped) -localdevice $testshares(client_device)]
+        list [mapped_client_share_exists] $drive
+    } -result [list 1 $testshares(client_device)]
+
+    
+    test connect_share-2.1 {
+        Connect a network share to a local device *
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        make_test_export mapped
+        # Make sure no client share
+        delete_mapped_client_share
+        if {[mapped_client_share_exists]} {
+            error "Client share exists and could not be deleted"
+        }
+    } -body {
+        set drive [::twapi::connect_share $testshares(client_share_mapped) -localdevice *]
+        twapi::get_drive_type $drive
+    } -cleanup {
+        twapi::disconnect_share $drive
+    } -result remote
 
     ################################################################
 
