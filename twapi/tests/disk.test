@@ -1690,6 +1690,25 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
+    test find_volume_mount_points-1.0 {
+        Find all volume mount points in the system
+    } -body {
+        foreach vol [twapi::find_volumes] {
+            # TBD - need a means of verification
+            twapi::find_volume_mount_points $vol
+        }
+    } -result ""
+
+    test find_volume_mount_points-2.0 {
+        Verify volume mount points for a volume
+    } -constraints {
+        TBD
+    } -body {
+        Need to create a mount point and verify it
+    } -result ""
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
