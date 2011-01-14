@@ -489,24 +489,38 @@ namespace eval twapi::device::test {
     } -result {}
 
 
-    test start_device_notifier-3.1 {
-        Start a device notifier for volumes (device removeal mediachange)
-    } -constraints {
-        userInteraction
-    } -body {
-        pause "Please make sure there is a CD inserted"
-        set ::device_test_notifications {}
-        set id [twapi::start_device_notifier [list [namespace current]::device_notifier_test_handler2 deviceremoval] -deviceinterface volume]
-        pause "Please eject the CD"
-        set after_id [after 30000 set ::device_test_notifications timeout]
-        vwait ::device_test_notifications
-        after cancel $after_id
-        twapi::stop_device_notifier $id
-        set msgs {}
-        verify_device_notifications deviceremoval $::device_test_notifications $id volume {mediachange} msgs
-        join $msgs \n
-    } -result {}
 
+    ################################################################
+
+    test stop_device_notifier-1.0 {
+        Stop a device notifier
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set dir [tcltest::makeDirectory [clock clicks]]
+        set share TWAPI_EXPORT_[clock clicks]
+        twapi::new_share $share [file nativename $dir]
+    } -body {
+        patience stop_device_notifier-1.0
+        set ::device_test_notifications {}
+        set id [twapi::start_device_notifier [namespace current]::device_notifier_test_handler -deviceinterface volume]
+        set drive [twapi::connect_share \\\\127.0.0.1\\$share -localdevice *]
+        set after_id [after 1000 set ::device_notifications_done 1]
+        vwait ::device_notifications_done
+        after cancel $after_id
+
+        # Now stop notifications
+        set after_id [after 10000 set ::device_notifications_done 1]
+        twapi::disconnect_share $drive
+        twapi::stop_device_notifier $id
+        vwait ::device_notifications_done
+        after cancel $after_id
+        set msgs {}
+        verify_device_notifications  $::device_test_notifications $id volume {networkvolume} msgs
+        join $msgs \n
+    } -cleanup {
+        twapi::delete_share $share
+    } -result "No deviceremovecomplete event encountered."
 
     ################################################################
 
