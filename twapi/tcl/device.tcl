@@ -21,25 +21,25 @@ proc twapi::_device_notification_handler {id args} {
 
     # For volume notifications, change drive bitmask to
     # list of drives before passing back to script
-    set event [lindex $args 1]
-    if {[lindex $args 2] eq "volume" &&
+    set event [lindex $args 0]
+    if {[lindex $args 1] eq "volume" &&
         ($event eq "deviceremovecomplete" || $event eq "devicearrival")} {
-        set args [lreplace $args 3 3 [_drivemask_to_drivelist [lindex $args 3]]]
+        set args [lreplace $args 2 2 [_drivemask_to_drivelist [lindex $args 2]]]
 
         # Also indicate whether network volume and whether change is a media
         # change or physical change
         set attrs [list ]
-        set flags [lindex $args 4]
+        set flags [lindex $args 3]
         if {$flags & 1} {
             lappend attrs mediachange
         }
         if {$flags & 2} {
             lappend attrs networkvolume
         }
-        set args [lreplace $args 4 4 $attrs]
+        set args [lreplace $args 3 3 $attrs]
     }
 
-    return [eval $script $args]
+    return [eval $script [list $idstr] $args]
 }
 
 proc twapi::start_device_notifier {script args} {

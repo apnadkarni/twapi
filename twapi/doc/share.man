@@ -105,7 +105,14 @@ is to be executed. By default, this is the local system.
 
 Establishes a new connection to a network share, optionally mapping it
 to a local device. [arg SERVERSHARE] is of the form [arg \\\\SERVERNAME\\SHARE]
-and is the name of the share to connect to. The following options may
+and is the name of the share to connect to.
+[nl]
+The command returns the path through which the share should be accessed.
+If the [cmd -localdevice] option (see below) is specified,
+this is the local device the share is mapped to. Otherwise, it is the
+UNC share path.
+[nl]
+The following options may
 be specified to control the connection characterisics:
 
 [list_begin opt]
@@ -117,7 +124,8 @@ Specifies the type of network share. This must be one of
 By default, the command establishes a connection to [arg SERVERSHARE]
 but does not map it to a local device. Specifying this option
 maps the network share connection to a local device, for example
-a drive letter or printer port.
+a drive letter or printer port. [arg DEVICENAME] may also be specified
+as [const *] in which case the system will choose a drive letter to be mapped.
 [nl]
 Note that if this option is specified, the [cmd -type] option must also
 be specified with a value of [const disk] or [const printer].
