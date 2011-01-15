@@ -63,6 +63,15 @@ proc testconfig {item} {
     return $testconfig($item)
 }
 
+proc find_unused_drive {} {
+    foreach drv [split klmnopqrstuvwxyzabcdefghij ""] {
+        if {[twapi::get_drive_type $drv] eq "invalid"} {
+            return ${drv}:
+        }
+    }
+    error "No free drive letters found."
+}
+
 proc equal_boolean {a b} {
     return [expr {(! $a) == (! $b)}]
 }
