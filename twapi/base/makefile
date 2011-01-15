@@ -223,7 +223,9 @@ CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT=$(ENABLE_ASSERTS)
 
 INCFLAGS       =  -I. -I$(TCLDIR)\include
 
-CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
+TWAPI_WIN_HEADER_VERSION = 0x0500
+
+CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
 !endif
@@ -317,12 +319,12 @@ distribution:
 printioctl: printioctl.exe
 
 printioctl.exe: printioctl.c makefile
-        $(CC) -D_WIN32_WINNT=0x0500 -nologo $(INCFLAGS) printioctl.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
+        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printioctl.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
 
 printdevices: printdevices.exe
 
 printdevices.exe: printdevices.c makefile
-        $(CC) -D_WIN32_WINNT=0x0500 -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
+        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
 
 makefile: ../common.inc
 
