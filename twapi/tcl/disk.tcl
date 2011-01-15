@@ -181,13 +181,13 @@ proc twapi::unmap_drive_local {drive args} {
     array set opts [parseargs args {
         path.arg
         raw
-    }]
+    } -nulldefault]
 
     set drive [string range [_drive_rootpath $drive] 0 1]
 
     set flags [expr {$opts(raw) ? 0x1 : 0}]
     setbits flags 0x2;                  # DDD_REMOVE_DEFINITION
-    if {[info exists opts(path)]} {
+    if {$opts(path) ne ""} {
         setbits flags 0x4;              # DDD_EXACT_MATCH_ON_REMOVE
     }
     DefineDosDevice $flags $drive [file nativename $opts(path)]

@@ -1709,6 +1709,92 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
+    test map_drive_local-1.0 {
+        Map a local path to a drive letter
+    } -body {
+        set drv [find_unused_drive]
+        twapi::map_drive_local $drv [tcltest::testsDirectory]
+        file exists ${drv}
+    } -cleanup {
+        exec subst $drv /D
+    } -result 1
+
+    test map_drive_local-1.1 {
+        Map a local path to a drive letter
+    } -constraints {
+        TBD
+    } -body {
+        set rawpath [Need to find raw path to tests directory]
+        set drv [find_unused_drive]
+        twapi::map_drive_local $drv $rawpath -raw
+        file exists ${drv}
+    } -cleanup {
+        exec subst $drv /D
+    } -result 1
+
+    ################################################################
+
+    test unmap_drive_local-1.0 {
+        Unmap a local drive
+    } -setup {
+        set drv [find_unused_drive]
+        exec subst $drv [file nativename [tcltest::testsDirectory]]
+        if {![file exists ${drv}/disk.test]} {
+            error "Could not map drive $drv"
+        }
+    } -body {
+        twapi::unmap_drive_local $drv
+        file exists $drv
+    } -result 0
+
+    test unmap_drive_local-2.0 {
+        Unmap a local drive with -raw path
+    } -constraints {
+        TBD
+    } -setup {
+        Need to find how to get a raw path
+        set drv [find_unused_drive]
+        exec subst $drv [file nativename [tcltest::testsDirectory]]
+        if {![file exists ${drv}/disk.test]} {
+            error "Could not map drive $drv"
+        }
+    } -body {
+        twapi::unmap_drive_local $drv
+        file exists $drv
+    } -result 0
+
+    test unmap_drive_local-3.0 {
+        Unmap a local drive using -path
+    } -setup {
+        set drv [find_unused_drive]
+        set path [tcltest::testsDirectory]
+        exec subst $drv [file nativename $path]
+        if {![file exists ${drv}/disk.test]} {
+            error "Could not map drive $drv"
+        }
+    } -body {
+        twapi::unmap_drive_local $drv -path $path
+        file exists $drv
+    } -result 0
+
+    test unmap_drive_local-3.1 {
+        Unmap a local drive using -path (non-matching)
+    } -setup {
+        set drv [find_unused_drive]
+        set path [tcltest::testsDirectory]
+        exec subst $drv [file nativename $path]
+        if {![file exists ${drv}/disk.test]} {
+            error "Could not map drive $drv"
+        }
+    } -body {
+        twapi::unmap_drive_local $drv -path [file dirname $path]
+    } -cleanup {
+        twapi::unmap_drive_local $drv -path $path
+    } -returnCodes error -result [twapi::map_windows_error 2]
+
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
