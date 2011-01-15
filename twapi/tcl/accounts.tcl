@@ -310,7 +310,7 @@ proc twapi::get_global_group_info {name args} {
     set result [list ]
     if {$opts(all) || $opts(sid)} {
         # Level 3 in NetGroupGetInfo would get us the SID as well but
-        # sadly, Win2K does not support level 3
+        # sadly, Win2K does not support level 3 - TBD
         lappend result -sid [lookup_account_name $name -system $opts(system)]
     }
     if {$opts(all) || $opts(comment) || $opts(name) || $opts(attributes)} {
