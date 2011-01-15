@@ -87,13 +87,26 @@ proc read_file {path} {
     return [read $fd][close $fd]
 }
 
+# Create a new user with a random password
+proc create_user_with_password {uname {system ""}} {
+    # Sometimes the password will be rejected because it contains
+    # a substring of the user name
+    while {1} {
+        twapi::trap {
+            twapi::new_user $uname -password [twapi::new_uuid] -system $system
+            break
+        } onerror {TWAPI_WIN32 2245} {
+            # Loop and retry
+        }
+    }
+}
+
 # Populate users on a system
-# Returns base name used for accounts
 proc populate_accounts {{system ""}} {
     variable populated_accounts
 
     if {! [info exists populated_accounts($system)]} {
-        patience "Creating test accounts"
+        patience "Creation of test accounts"
         set uname TWAPI_[clock seconds]
         set gname ${uname}_GROUP
         twapi::new_local_group $gname -system $system
@@ -101,14 +114,7 @@ proc populate_accounts {{system ""}} {
 
         for {set i 0} {$i < 500} {incr i} {
             set u ${uname}_$i
-            # Sometimes the password will be rejected because it contains
-            # a substring of the user name
-            twapi::trap {
-                twapi::new_user $u -password [twapi::new_uuid] -system $system
-            } onerror {TWAPI_WIN32 2245} {
-                incr i -1;          # Repeat creation
-                continue
-            }
+            create_user_with_password $u $system
             twapi::add_member_to_local_group $gname $u -system $system
             lappend populated_accounts($system) $u
         }
@@ -118,8 +124,47 @@ proc populate_accounts {{system ""}} {
     return [expr {[llength $populated_accounts($system)] - 1}]
 }
 
-proc cleanup_populated_accounts {} {
+# Populate global groups on a system
+proc populate_global_groups {{system ""}} {
+    variable populated_global_groups
+
+    if {! [info exists populated_global_groups($system)]} {
+        patience "Creation of test global groups"
+        set gname TWAPI_[clock seconds]
+        for {set i 0} {$i < 500} {incr i} {
+            set g ${gname}_$i
+            twapi::new_global_group $g -system $system -comment "TwAPI Test group $g"
+            lappend populated_global_groups($system) $g
+        }
+    }
+
+    # Return number of groups created
+    return [llength $populated_global_groups($system)]
+}
+
+
+# Populate local groups on a system
+proc populate_local_groups {{system ""}} {
+    variable populated_local_groups
+
+    if {! [info exists populated_local_groups($system)]} {
+        patience "Creation of test local groups"
+        set gname TWAPI_[clock seconds]
+        for {set i 0} {$i < 500} {incr i} {
+            set g ${gname}_$i
+            twapi::new_local_group $g -system $system -comment "TwAPI Test group $g"
+            lappend populated_local_groups($system) $g
+        }
+    }
+
+    # Return number of groups created
+    return [llength $populated_local_groups($system)]
+}
+
+proc cleanup_populated_accounts_and_groups {} {
     variable populated_accounts
+    variable populated_local_groups
+    variable populated_global_groups
     
     patience "Cleaning up test accounts"
 
@@ -127,13 +172,35 @@ proc cleanup_populated_accounts {} {
     foreach {system accounts} [array get populated_accounts] {
         # First elem is group, remaining user accounts
         foreach uname [lrange $accounts 1 end] {
-            incr failures [catch {twapi::delete_user $uname}]
+            incr failures [catch {twapi::delete_user $uname -system $system}]
         }
-        incr failures [catch {twapi::delete_local_group [lindex $accounts 0]}]
+        incr failures [catch {twapi::delete_local_group [lindex $accounts 0] -system $system}]
         unset populated_accounts($system)
     }
 
+    foreach {system groups} [array get populated_local_groups] {
+        foreach gname $groups {
+            incr failures [catch {twapi::delete_local_group $gname -system $system}]
+        }
+        unset populated_local_groups($system)
+    }
+
+    foreach {system groups} [array get populated_global_groups] {
+        foreach gname $groups {
+            incr failures [catch {twapi::delete_global_group $gname -system $system}]
+        }
+        unset populated_global_groups($system)
+    }
+
+
     catch {unset populated_accounts}
+    catch {unset populated_local_groups}
+    catch {unset populated_global_groups}
+
+    if {$failures} {
+        error "$failures failures cleaning up test accounts"
+    }
+
 }
 
 
@@ -202,11 +269,26 @@ proc valid_sids {sids} {
 }
 
 proc valid_account_names {names {system ""}} {
+    if {[llength $names] == 0} {
+        error "List of accounts passed in is empty."
+    }
     foreach name $names {
         if {[catch {twapi::lookup_account_name $name -system $system}]} {
             if {$name ne "Logon SID"} {
                 return 0
             }
+        }
+    }
+    return 1
+}
+
+proc valid_account_sids {sids {system ""}} {
+    if {[llength $sids] == 0} {
+        error "List of accounts passed in is empty."
+    }
+    foreach sid $sids {
+        if {[catch {twapi::lookup_account_sid $sid -system $system}]} {
+            return 0
         }
     }
     return 1
