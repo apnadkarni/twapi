@@ -1847,6 +1847,21 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
           }
     } -result 1
 
+    test get_users-3.4 {
+        Get users -level 3 remote
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_users -level 3 -system [testconfig domain_controller]]
+        # NOte field 'priv' is intentionally undocumented
+        verify_list_kl_fields $kl {
+acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir home_dir_drive last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age password_expired primary_group_id priv profile script_path units_per_week user_id usr_comment workstations
+        }
+        expr {
+              [valid_account_names [twapi::kl_flatten $kl name]] &&
+              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags user_id primary_group_id] {string is integer -strict}]
+          }
+    } -result 1
 
     test get_users-4.0 {
         Get users -resume
@@ -2615,8 +2630,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_global_groups-1.0 {
         Get global groups locally
-    } -constraints {
-        nt
     } -body {
         twapi::get_global_groups
     } -result None
@@ -2624,8 +2637,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_global_groups-2.0 {
         Get global groups (-system)
-    } -constraints {
-        nt
     } -body {
         twapi::get_global_groups -system $::env(COMPUTERNAME)
     } -result None
@@ -2633,7 +2644,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_global_groups-2.1 {
         Get global groups (-system domain controller)
     } -constraints {
-        nt domain
+        domain
     } -body {
         set groups [twapi::get_global_groups -system [testconfig domain_controller]]
         expr {
@@ -2643,25 +2654,126 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -result 1
 
     test get_global_groups-3.0 {
-        Get global groups with -resume
+        Get global groups with -level 0
+    } -body {
+        set kl [twapi::get_global_groups -level 0]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_global_groups-3.1 {
+        Get global groups with -level 0 (domain)
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_global_groups -level 0 -system [testconfig domain_controller]]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
+
+    test get_global_groups-3.2 {
+        Get global groups with -level 1
+    } -body {
+        set kl [twapi::get_global_groups -level 1]
+        verify_list_kl_fields $kl {name comment}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_global_groups-3.3 {
+        Get global groups with -level 1 (domain)
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_global_groups -level 1 -system [testconfig domain_controller]]
+        verify_list_kl_fields $kl {name comment}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
+
+    test get_global_groups-3.4 {
+        Get global groups with -level 2
+    } -body {
+        set kl [twapi::get_global_groups -level 2]
+        verify_list_kl_fields $kl {name comment attributes group_id}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_global_groups-3.5 {
+        Get global groups with -level 2 (domain)
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_global_groups -level 2 -system [testconfig domain_controller]]
+        verify_list_kl_fields $kl {name comment attributes group_id}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
+
+    test get_global_groups-3.6 {
+        Get global groups with -level 3
     } -constraints {
         TBD
     } -body {
-    } -result ""
+        Cannot get level 3 to work on any system, even with a separate C
+        test program
+        set kl [twapi::get_global_groups -level 3]
+        verify_list_kl_fields $kl {name comment attributes group_sid}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
 
     test get_global_groups-4.0 {
-        Get global groups with -level
+        Get global groups -resume with -system
     } -constraints {
-        TBD
+        systemmodificationok domain
+    } -setup {
+        set remote [testconfig domain_controller]
+        set ngroups [populate_global_groups $remote]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_groups 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count groups} [twapi::get_global_groups -resume $resumehandle -system $remote] break
+            incr iters
+            incr total [llength $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names $groups $remote]}]
+        }
+        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+    } -cleanup {
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+        # Groups are cleaned up globally
+    } -result {1 1 1}
 
     test get_global_groups-5.0 {
-        Get global groups with -level and -resume
+        Get global groups -resume, -system and -level
     } -constraints {
-        TBD
+        systemmodificationok domain
+    } -setup {
+        set remote [testconfig domain_controller]
+        set ngroups [populate_global_groups $remote]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_groups 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count groups} [twapi::get_global_groups -resume $resumehandle -level 2 -system $remote] break
+            verify_list_kl_fields $groups {name comment attributes group_id}
+            incr iters
+            incr total [llength $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names [twapi::kl_flatten $groups name] $remote]}]
+        }
+        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+    } -cleanup {
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+        # Groups are cleaned up locally
+    } -result {1 1 1}
+
 
     ################################################################
 
@@ -2706,25 +2818,121 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -result 1
 
     test get_local_groups-3.0 {
-        Get local groups with -resume
-    } -constraints {
-        TBD
+        Get local groups with -level 0
     } -body {
-    } -result ""
+        set kl [twapi::get_local_groups -level 0]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_local_groups-3.1 {
+        Get local groups with -level 0 -system
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_local_groups -level 0 -system [testconfig domain_controller]]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
+
+    test get_local_groups-3.2 {
+        Get local groups with -level 1
+    } -body {
+        set kl [twapi::get_local_groups -level 1]
+        verify_list_kl_fields $kl {name comment}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_local_groups-3.3 {
+        Get local groups with -level 1 -system
+    } -constraints {
+        domain
+    } -body {
+        set kl [twapi::get_local_groups -level 1 -system [testconfig domain_controller]]
+        verify_list_kl_fields $kl {name comment}
+        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+    } -result 1
 
     test get_local_groups-4.0 {
-        Get local groups with -level
+        Get local groups -resume
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set ngroups [populate_local_groups]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_groups 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count groups} [twapi::get_local_groups -resume $resumehandle] break
+            incr iters
+            incr total [llength $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names $groups]}]
+        }
+        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+    } -cleanup {
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+        # Groups are cleaned up locally
+    } -result {1 1 1}
+
+    test get_local_groups-4.1 {
+        Get local groups -resume with -system
+    } -constraints {
+        systemmodificationok domain
+    } -setup {
+        set remote [testconfig domain_controller]
+        set ngroups [populate_local_groups $remote]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
+    } -body {
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_groups 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count groups} [twapi::get_local_groups -resume $resumehandle -system $remote] break
+            incr iters
+            incr total [llength $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names $groups $remote]}]
+        }
+        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+    } -cleanup {
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+        # Groups are cleaned up locally
+    } -result {1 1 1}
+
 
     test get_local_groups-5.0 {
-        Get local groups with -level and -resume
+        Get local groups -resume and -level
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set ngroups [populate_local_groups]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_groups 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count groups} [twapi::get_local_groups -resume $resumehandle -level 1] break
+            verify_list_kl_fields $groups {name comment}
+            incr iters
+            incr total [llength $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names [twapi::kl_flatten $groups name]]}]
+        }
+        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+    } -cleanup {
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+        # Groups are cleaned up locally
+    } -result {1 1 1}
 
 
     ################################################################
@@ -2981,25 +3189,93 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -result 1
 
     test get_local_group_members-3.0 {
-        Get members of a local group -level 0,2
-    } -constraints {
-        TBD
+        Get members of a local group -level 0
     } -body {
-    } -result ""
+        set kl [twapi::get_local_group_members Guests -level 0]
+        verify_list_kl_fields $kl {sid}
+        valid_account_sids [twapi::kl_flatten $kl sid]
+    } -result 1
+
+    test get_local_group_members-3.1 {
+        Get members of a local group -level 1
+    } -body {
+        set kl [twapi::get_local_group_members Guests -level 1]
+        verify_list_kl_fields $kl {sid name sidusage}
+        list [valid_account_sids [twapi::kl_flatten $kl sid]] \
+            [valid_account_names [twapi::kl_flatten $kl name]]
+    } -result {1 1}
+
+    test get_local_group_members-3.2 {
+        Get members of a local group -level 2
+    } -body {
+        set kl [twapi::get_local_group_members Guests -level 2]
+        verify_list_kl_fields $kl {sid domainandname sidusage}
+        list [valid_account_sids [twapi::kl_flatten $kl sid]] \
+            [valid_account_names [twapi::kl_flatten $kl domainandname]]
+    } -result {1 1}
+
+    test get_local_group_members-3.3 {
+        Get members of a local group -level 3
+    } -body {
+        set kl [twapi::get_local_group_members Guests -level 3]
+        verify_list_kl_fields $kl {domainandname}
+        valid_account_names [twapi::kl_flatten $kl domainandname]
+    } -result 1
 
     test get_local_group_members-4.0 {
         Get members of a local group -resume
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set naccounts [populate_accounts]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_accounts 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count accounts} [twapi::get_local_group_members Users -resume $resumehandle] break
+            incr iters
+            incr total [llength $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names $accounts]}]
+        }
+        list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
+
+    } -cleanup {
+        # User accounts deleted in general cleanup
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+    } -result {1 1 1} 
 
     test get_local_group_members-5.0 {
-        Get members of a local group -resume, -level
+        Get members of a local group -resume -level
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set naccounts [populate_accounts]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_accounts 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count accounts} [twapi::get_local_group_members Users -resume $resumehandle -level 2] break
+            verify_list_kl_fields $accounts {sid domainandname sidusage}
+            incr iters
+            incr total [llength $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::kl_flatten $accounts domainandname]]}]
+        }
+        list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
+    } -cleanup {
+        # User accounts deleted in general cleanup
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+    } -result {1 1 1} 
+
 
 
     ################################################################
@@ -3007,19 +3283,92 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test add_user_to_global_group-1.0 {
         Add user to a global group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok domain
+    } -setup {
+        set dc [testconfig domain_controller]
+        set uname TWAPI_[clock clicks]
+        create_user_with_password $uname $dc
     } -body {
-    } -result ""
+        twapi::add_user_to_global_group "Domain Guests" $uname -system $dc
+        expr {
+              [lsearch -exact [twapi::get_global_group_members "Domain Guests" -system $dc] $uname] >= 0
+          }
+    } -cleanup {
+        twapi::remove_user_from_global_group "Domain Guests" $uname -system $dc
+        twapi::delete_user $uname -system $dc
+    } -result 1
 
 
     ################################################################
 
     test add_member_to_local_group-1.0 {
-        Add a member to a local group
+        Add a local account to a local group
     } -constraints {
-        nt systemmodificationok TBD
+        nt systemmodificationok
+    } -setup {
+        set uname TWAPI_[clock clicks]
+        create_user_with_password $uname
     } -body {
-    } -result ""
+        twapi::add_member_to_local_group Guests $uname
+        expr {
+              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+          }
+    } -cleanup {
+        twapi::remove_member_from_local_group Guests $uname
+        twapi::delete_user $uname
+    } -result 1
+
+    test add_member_to_local_group-1.1 {
+        Add a local account to a local group with -system
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set uname TWAPI_[clock clicks]
+        create_user_with_password $uname
+    } -body {
+        twapi::add_member_to_local_group Guests $uname -system 127.0.0.1
+        expr {
+              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+          }
+    } -cleanup {
+        twapi::remove_member_from_local_group Guests $uname
+        twapi::delete_user $uname
+    } -result 1
+
+    test add_member_to_local_group-2.0 {
+        Add a domain account to a local group
+    } -constraints {
+        nt systemmodificationok domain
+    } -setup {
+        set dom [testconfig domain_name]
+        set dc [testconfig domain_controller]
+        set uname TWAPI_[clock clicks]
+        create_user_with_password $uname $dc
+    } -body {
+        twapi::add_member_to_local_group Guests $dom\\$uname
+        expr {
+              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+          }
+    } -cleanup {
+        twapi::remove_member_from_local_group Guests $uname
+        twapi::delete_user $uname -system $dc
+    } -result 1
+
+    test add_member_to_local_group-2.1 {
+        Add a domain group to a local group
+    } -constraints {
+        nt systemmodificationok domain
+    } -setup {
+        set dom [testconfig domain_name]
+        set dc [testconfig domain_controller]
+    } -body {
+        twapi::add_member_to_local_group Guests "$dom\\Domain Guests"
+        expr {
+              [lsearch -exact [twapi::get_local_group_members Guests] "Domain Guests"] >= 0
+          }
+    } -cleanup {
+        twapi::remove_member_from_local_group Guests "Domain Guests"
+    } -result 1
 
     ################################################################
 
@@ -5870,7 +6219,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     ################################################################
 
-    cleanup_populated_accounts
+    cleanup_populated_accounts_and_groups
 
     if {![catch {twapi::lookup_account_name $test_account_name}]} {
         ::twapi::delete_user $test_account_name

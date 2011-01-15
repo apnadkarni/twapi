@@ -266,7 +266,7 @@ Returns the name of the group.
 [opt_def [cmd -members]] Returns the members of the group.
 [list_end]
 
-[call [cmd get_global_group_members] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd get_global_group_members] [arg GROUPNAME] [arg [opt options]]]
 If no options are specified,
 returns a list of user accounts that are members of the
 global group [arg GROUPNAME].
@@ -296,7 +296,7 @@ in the following table:
 [nl]
 [uri listusersingroup.example "Example: List the users in a group"]
 
-[call [cmd get_global_groups] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd get_global_groups] [arg [opt options]]]
 If no options are specified,
 returns the list of global groups on the system.
 [nl]
@@ -351,7 +351,7 @@ Returns the name of the group.
 [opt_def [cmd -members]] Returns the members of the group.
 [list_end]
 
-[call [cmd get_local_group_members] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd get_local_group_members] [arg GROUPNAME] [arg [opt options]]]
 If no options are specified,
 returns a list of user accounts that are members of the
 local group [arg GROUPNAME].
@@ -389,7 +389,7 @@ The meanings of the fields should be self-evident.
 [nl]
 [uri listusersingroup.example "Example: List the users in a group"]
 
-[call [cmd get_local_groups] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd get_local_groups] [arg [opt options]]]
 If no options are specified, returns the list of local groups on the system.
 [nl]
 The following options may be specified to modify the behaviour of the command.
