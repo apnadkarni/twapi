@@ -291,6 +291,101 @@ namespace eval twapi::handle::test {
 
     ################################################################
 
+    test close_handle-1.0 {
+        Close a file handle
+    } -setup {
+        set path [tcltest::makeFile "line 1\nline 2\n" [clock clicks]]
+        set fd [open $path r]
+        set h [twapi::get_tcl_channel_handle $fd read]
+    } -body {
+        twapi::close_handle $h
+        gets $fd
+    } -cleanup {
+        catch {close $fd}
+    } -returnCodes error -result "*bad file number" -match glob
+
+    test close_handle-1.1 {
+        Close a process handle
+    } -setup {
+        set h [twapi::get_process_handle [pid]]
+    } -body {
+        twapi::close_handle $h
+        twapi::GetPriorityClass $h
+    } -returnCodes error -result [twapi::map_windows_error 6]
+
+    test close_handle-1.2 {
+        Close a event handle
+    } -setup {
+        set h [twapi::create_event]
+    } -body {
+        twapi::close_handle $h
+        twapi::wait_on_handle $h -wait 0
+    } -returnCodes error -result [twapi::map_windows_error 6]
+
+    test close_handle-1.3 {
+        Close a mutex handle
+    } -setup {
+        set h [twapi::create_mutex]
+    } -body {
+        twapi::close_handle $h
+        twapi::lock_mutex $h
+    } -returnCodes error -result [twapi::map_windows_error 6]
+
+    test close_handle-2.0 {
+        Close a event handle and verify waits are canceled
+    } -setup {
+        set h [twapi::create_event]
+    } -body {
+        # Expect to get "wait timer" callbacks
+        twapi::wait_on_handle $h -async "lappend ::wait_completed" -wait 1000
+        twapi::close_handle $h; # This should cancel the above wait also
+        set after_id [after 3000 "set ::wait_completed timeout"]
+        vwait ::wait_completed
+        set ::wait_completed
+    } -result timeout
+
+
+    ################################################################
+
+    test close_handles-1.0 {
+        Close a single handle
+    } -setup {
+        set h [twapi::get_process_handle [pid]]
+    } -body {
+        twapi::close_handles $h
+        twapi::GetPriorityClass $h
+    } -returnCodes error -result [twapi::map_windows_error 6]
+
+    test close_handles-1.1 {
+        Close a single handle as a list
+    } -setup {
+        set h [twapi::get_process_handle [pid]]
+    } -body {
+        twapi::close_handles [list $h]
+        twapi::GetPriorityClass $h
+    } -returnCodes error -result [twapi::map_windows_error 6]
+
+    test close_handles-1.2 {
+        Close a multiple handles
+    } -setup {
+        set h [twapi::get_process_handle [pid]]
+        set h2 [twapi::get_process_handle [pid]]
+    } -body {
+        twapi::close_handles $h $h2
+        list [catch {twapi::GetPriorityClass $h}] [catch {twapi::GetPriorityClass $h2}]
+    } -result {1 1}
+
+    test close_handles-1.3 {
+        Close a multiple handles as a single list
+    } -setup {
+        set h [twapi::get_process_handle [pid]]
+        set h2 [twapi::get_process_handle [pid]]
+    } -body {
+        twapi::close_handles [list $h $h2]
+        list [catch {twapi::GetPriorityClass $h}] [catch {twapi::GetPriorityClass $h2}]
+    } -result {1 1}
+
+    ################################################################
     #
     # Clean up
     ::tcltest::cleanupTests
