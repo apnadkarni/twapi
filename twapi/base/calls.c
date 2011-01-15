@@ -636,7 +636,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LHashValOfName, CallU, 10002);
     CALL_(SetClipboardData, CallU, 10003);
     CALL_(SetStdHandle, CallU, 10004);
-    CALL_(CreateConsoleScreenBuffer, CallU, 10006);
+    CALL_(CreateConsoleScreenBuffer, CallU, 10005);
 
     // CallS - function(LPWSTR)
     CALL_(RegisterClipboardFormat, CallS, 1);
@@ -2927,8 +2927,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetStdHandle(dw, u.h);
             break;
-        case 10005: // UNUSED
-        case 10006: // CreateConsoleScreenBuffer
+        case 10005: // CreateConsoleScreenBuffer
             if (TwapiGetArgs(interp, objc-3, objv+3,
                              GETINT(dw2),
                              GETVAR(u.secattrP, ObjToPSECURITY_ATTRIBUTES),
@@ -3972,6 +3971,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 42:
         result.type = TRT_EXCEPTION_ON_FALSE;
         // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
+        NULLIFY_EMPTY(s3);
         result.value.ival = DefineDosDeviceW(dw, s2, s3);
         break;
     case 43:
