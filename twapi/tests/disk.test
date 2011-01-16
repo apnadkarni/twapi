@@ -1692,20 +1692,44 @@ namespace eval twapi::disk::test {
 
     test find_volume_mount_points-1.0 {
         Find all volume mount points in the system
-    } -body {
-        foreach vol [twapi::find_volumes] {
-            # TBD - need a means of verification
-            twapi::find_volume_mount_points $vol
-        }
-    } -result ""
-
-    test find_volume_mount_points-2.0 {
-        Verify volume mount points for a volume
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set mntdir [tcltest::makeDirectory TWAPI_MNT_[clock clicks]]
+        twapi::mount_volume $mntdir [twapi::get_mounted_volume_name $::env(SystemDrive)]
     } -body {
-        Need to create a mount point and verify it
-    } -result ""
+        set root [twapi::get_volume_mount_point_for_path [file dirname $mntdir]]
+        set found 0
+        foreach mp [twapi::find_volume_mount_points $root] {
+            if {[equal_paths $mntdir [file join $root $mp]]} {
+                set found 1
+            }
+        }
+        set found
+    } -cleanup {
+        twapi::unmount_volume $mntdir
+    } -result 1
+
+    ################################################################
+
+    test get_volume_mount_point_for_path-1.0 {
+        Get the volume mount point for a path
+    } -body {
+        twapi::get_volume_mount_point_for_path $::env(WINDIR)
+    } -result $::env(SYSTEMDRIVE)\\
+
+    test get_volume_mount_point_for_path-1.1 {
+        Get the volume mount point for a path
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set mntdir [tcltest::makeDirectory TWAPI_MNT_[clock clicks]]
+        twapi::mount_volume $mntdir [twapi::get_mounted_volume_name $::env(SystemDrive)]
+    } -body {
+        equal_paths [twapi::get_volume_mount_point_for_path [file join $mntdir x]] $mntdir
+    } -cleanup {
+        twapi::unmount_volume $mntdir
+    } -result 1
 
     ################################################################
 
@@ -1792,6 +1816,58 @@ namespace eval twapi::disk::test {
         twapi::unmap_drive_local $drv -path $path
     } -returnCodes error -result [twapi::map_windows_error 2]
 
+
+    ################################################################
+
+    test get_mounted_volume_name-1.0 {
+        Get volume name of a mounted volume
+    } -body {
+        twapi::get_mounted_volume_name $::env(SystemDrive)
+    } -result {^\\\\\?\\Volume\{[-[:xdigit:]]+} -match regexp
+
+    test get_mounted_volume_name-1.1 {
+        Get volume name of a mounted volume on a mount volume point
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set mntdir [tcltest::makeDirectory TWAPI_MNT_[clock clicks]]
+        twapi::mount_volume $mntdir [twapi::get_mounted_volume_name $::env(SystemDrive)]
+    } -body {
+        twapi::get_mounted_volume_name $mntdir
+    } -cleanup {
+        twapi::unmount_volume $mntdir
+    } -result {^\\\\\?\\Volume\{[-[:xdigit:]]+} -match regexp
+
+
+    ################################################################
+
+    test mount_volume-1.0 {
+        Mount a volume
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set mntdir [tcltest::makeDirectory TWAPI_MNT_[clock clicks]]
+    } -body {
+        twapi::mount_volume $mntdir [twapi::get_mounted_volume_name $::env(SystemDrive)]
+        file exists [file join $mntdir windows]
+    } -cleanup {
+        twapi::unmount_volume $mntdir
+    } -result 1
+
+    ################################################################
+
+    test unmount_volume-1.0 {
+        Unmount a volume
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set mntdir [tcltest::makeDirectory TWAPI_MNT_[clock clicks]]
+        twapi::mount_volume $mntdir [twapi::get_mounted_volume_name $::env(SystemDrive)]
+    } -body {
+        list [file exists [file join $mntdir windows]] \
+            [twapi::unmount_volume $mntdir] \
+            [file exists [file join $mntdir windows]]
+    } -result [list 1 "" 0]
 
     ################################################################
 
