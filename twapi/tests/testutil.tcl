@@ -1060,6 +1060,17 @@ proc oneof {allowed_values value} {
 }
 tcltest::customMatch oneof oneof
 
+# Result is a superset
+proc superset {subset result} {
+    foreach elem $subset {
+        if {[lsearch -exact $result $elem] < 0} {
+            return 0
+        }
+    }
+    return 1
+}
+tcltest::customMatch superset superset
+
 proc inrange {range value} {
     foreach {low high} $range break
     expr {$value >= $low && $value <= $high}
@@ -1248,4 +1259,5 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
     # wish errors out
     tcltest::testConstraint domain [indomain]
     tcltest::testConstraint dcexists [expr {[testconfig domain_controller] ne ""}]
+
 }
