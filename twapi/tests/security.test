@@ -3133,31 +3133,97 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_global_group_members-1.0 {
         Get members of a global group
-    } -constraints {
-        nt TBD
     } -body {
-    } -result ""
+        twapi::get_global_group_members None
+    } -result [list Guest $::env(USERNAME)] -match superset
+
+
+    test get_global_group_members-2.0 {
+        Get members of a global group (-system)
+    } -body {
+        twapi::get_global_group_members None -system 127.0.0.1
+    } -result [list Guest $::env(USERNAME)] -match superset
+
+
+    test get_global_group_members-2.1 {
+        Get members of a global group (-system, remote)
+    } -constraints {
+        domain
+    } -body {
+        twapi::get_global_group_members "Domain Admins" -system [testconfig domain_controller]
+    } -result [list Administator] -match superset
 
     test get_global_group_members-3.0 {
-        Get members of a global group -level
-    } -constraints {
-        TBD
+        Get members of a global group -level 0
     } -body {
-    } -result ""
+        set kl [twapi::get_global_group_members None -level 0]
+        verify_list_kl_fields $kl {name}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
+    test get_global_group_members-3.1 {
+        Get members of a global group -level 1
+    } -body {
+        set kl [twapi::get_global_group_members None -level 1]
+        verify_list_kl_fields $kl {name attributes}
+        valid_account_names [twapi::kl_flatten $kl name]
+    } -result 1
+
 
     test get_global_group_members-4.0 {
         Get members of a global group -resume
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set naccounts [populate_accounts]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_accounts 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count accounts} [twapi::get_global_group_members Users -resume $resumehandle] break
+            incr iters
+            incr total [llength $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names $accounts]}]
+        }
+        list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
+
+    } -cleanup {
+        # User accounts deleted in general cleanup
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+    } -result {1 1 1} 
 
     test get_global_group_members-5.0 {
-        Get members of a global group -resume, -level
+        Get members of a global group -resume -level
     } -constraints {
-        TBD
+        systemmodificationok
+    } -setup {
+        set naccounts [populate_accounts]
+        # Reduce buffer size so more than one iteration is required
+        twapi::Twapi_SetNetEnumBufSize 8000
     } -body {
-    } -result ""
+        set iters 0
+        set more 1
+        set resumehandle 0
+        set valid_accounts 1
+        set total 0
+        while {$more} {
+            foreach {more resumehandle count accounts} [twapi::get_global_group_members Users -resume $resumehandle -level 2] break
+            verify_list_kl_fields $accounts {sid domainandname sidusage}
+            incr iters
+            incr total [llength $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::kl_flatten $accounts domainandname]]}]
+        }
+        list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
+    } -cleanup {
+        # User accounts deleted in general cleanup
+        twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
+    } -result {1 1 1} 
+
 
     ################################################################
 
