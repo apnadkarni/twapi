@@ -2985,15 +2985,19 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteVolumeMountPointW(arg);
             break;
-        case 5:
+        case 5: // GetVolumeNameForVolumeMountPointW
+        case 6: // GetVolumePathName
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = GetVolumeNameForVolumeMountPointW(
-                arg, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
-            break;
-        case 6:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = GetVolumePathNameW(
-                arg, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
+            result.value.ival =
+                (func == 5
+                 ? GetVolumeNameForVolumeMountPointW
+                 : GetVolumePathNameW)
+                (arg, u.buf, ARRAYSIZE(u.buf));
+            if (result.value.ival) {
+                result.value.unicode.str = u.buf;
+                result.value.unicode.len = -1;
+                result.type = TRT_UNICODE;
+            }
             break;
         case 7:
             result.type = GetAdapterIndex((LPWSTR)arg, &result.value.ival)
