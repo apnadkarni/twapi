@@ -1,42 +1,30 @@
-Development version 3.0.21 (Beta) of the Tcl Windows API (TWAPI)
+Official version 3.0.25 of the Tcl Windows API (TWAPI)
 extension has been released.
 
 Project home page, including documentation, download links and 
 examples, is at http://twapi.magicsplat.com
 
-Changes since previous 3.0 beta release:
----------------------------------------
-
-  * COM support has been enhanced to support passing of interfaces
-    as parameters.
-  * The callback arguments to begin_filesystem_monitor have changed
-    in INCOMPATIBLE fashion
-  9 Bug fixes
-
-
 V3.0 Changes
 ------------
 
 Following is a summary of the major changes in 3.0 over 2.2.
-or a complete list see http://twapi.magicsplat.com/versionhistory.html
+For a complete list, including INCOMPATIBLE CHANGES, see 
+http://twapi.magicsplat.com/versionhistory.html
 
   * Version 3.0 has been completely rearchitected. SWIG and C++
-    has been eliminated resulting in easier deployment, a smaller
+    have been eliminated resulting in easier deployment, a smaller
     disk and memory footprint and faster execution
   * Support for loading into multiple interpreters and threads
   * 64-bit version for Windows 2003+ and Tcl 8.5+
   * New single-file deployment options that do not depend 
     on TclVFS/Starkit support in Tcl
-  * Support for named pipe channels, including authentication 
-    of remote clients  
+  * Support for named pipe channels
   * Enhanced COM support
   * New Vista and Windows 7 security functions including UAC
   * Device management API's
-  * Synchronization commands (3.0.3)
-  * Manipulation of Windows resources (icons etc.)
+  * Synchronization commands
+  * Manipulation of Windows file resources
   * Enhancements to many existing components
-    and of course
-  * new and improved bugs!
 
 
 Distributions
