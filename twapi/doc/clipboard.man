@@ -103,9 +103,6 @@ opened.
 Closes the clipboard which must have been
 previously opened with [uri \#open_clipboard [cmd open_clipboard]].
 
-[nl]
-[uri putclipboard.example "Example: Copy standard input to the clipboard"]
-
 [call [cmd empty_clipboard]]
 
 Empties the clipboard and claims ownership for further writes.
@@ -116,8 +113,6 @@ command must be called before any writes to the clipboard.
 [call [cmd get_clipboard_formats]]
 Returns a list of the formats currently available in the clipboard. The
 clipboard must have been opened before this function is called.
-[nl]
-[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
 
 [call [cmd get_registered_clipboard_format_name] [arg FORMAT]]
 Returns the name associated with a registered clipboard format. [arg FORMAT]
@@ -131,9 +126,6 @@ Opens the clipboard for reading or writing. Most clipboard operations
 require the clipboard to have been previously opened. The clipboard must
 be closed once the operations are done by calling
 [uri \#close_clipboard [cmd close_clipboard]].
-
-[nl]
-[uri putclipboard.example "Example: Copy standard input to the clipboard"]
 
 [call [cmd read_clipboard] [arg FORMAT]]
 
@@ -149,9 +141,6 @@ thrown.
 contents of the clipboard in binary format. Callers will need to
 use Tcl commands such as [cmd binary] and [cmd encoding] to parse the data.
 
-[nl]
-[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
-
 [call [cmd read_clipboard_text] [opt [cmd -raw]]]
 
 Retrieves the content of the clipboard as text. The clipboard must have been
@@ -163,8 +152,6 @@ thrown.
 Normally the command converts CR-LF line terminators in clipboard content
 to LF line terminators. If the [cmd -raw] option is specified, the command
 does no conversion of the clipboard data.
-[nl]
-[uri getclipboard.example "Example: Copy clipboard contents to standard output"]
 
 [call [cmd register_clipboard_format] [arg FORMATNAME]]
 
@@ -174,9 +161,6 @@ associated with the format. The command returns an integer format identifier
 that may be used in calls to read and write data. If the format name
 is already registered, the same integer format value is returned.
 This command does not require the clipboard to be open.
-
-[nl]
-[uri gethtmlfromclipboard.example "Example: Get HTML format data from the clipboard"]
 
 [call [cmd start_clipboard_monitor] [arg SCRIPT]]
 Begins monitoring of clipboard contents.
@@ -229,8 +213,6 @@ The clipboard remains open when the command returns except in the case of
 any Tcl exceptions. In these cases, the clipboard is closed before 
 the exception is thrown. This ensures other applications are not locked
 out of the clipboard on errors.
-[nl]
-[uri putclipboard.example "Example: Copy standard input to the clipboard"]
 
 [list_end]
 

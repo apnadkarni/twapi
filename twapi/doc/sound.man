@@ -36,7 +36,6 @@ produce the corresponding sounds configured in the Windows control panel.
 If this option is specified, the options
 [cmd -duration] and [cmd -frequency] are ignored.
 [list_end]
-[uri beep.example "Example: Generate a continuous tone"]
 
 [call [cmd play_sound] [arg NAME] [opt [arg options]]]
 
@@ -79,19 +78,11 @@ the current sound.
 right away. If this option is specified, the command will wait for the driver
 to become available.
 [list_end]
-[uri playsystemsound.example "Example: Play a system sound"]
-[nl]
-[uri continuoussystemsound.example "Example: Play a continous system sound"]
-[nl]
-[uri playwavfile.example "Example: Play a WAV file"]
 
 [call [cmd stop_sound]]
 Stops all currently playing sounds that have been started by the current
 task.
 Returns [const 1] if successful, else [const 0].
-[nl]
-[uri continuoussystemsound.example "Example: Play a continous system sound"]
-[nl]
 
 [list_end]
 

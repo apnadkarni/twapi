@@ -236,11 +236,6 @@ whose type is in [arg DRIVETYPELIST] are returned.
 [arg DRIVETYPELIST] must be a subset of the
 values returned by the [uri \#get_drive_type [cmd get_drive_type]] command.
 
-[nl]
-[uri listdrives.example "Example: List all drives on a system"]
-[nl]
-[uri listremotedrives.example "Example: List the remote drives on a system"]
-
 [call [cmd find_physical_disks]]
 Returns the list of physical disks in the system. The returned paths
 can be passed to [cmd CreateFile] or
@@ -584,10 +579,6 @@ Returns the total size of the unused space on the drive that is available
 for the caller. This may be less than the [const freespace] field if quotas are
 in effect.
 [list_end]
-[uri listfulldrives.example "Example: List drives that are almost full"]
-[nl]
-[uri checkunicodefilenames.example "Example: Check if the given drive supports unicode filenames"]
-[nl]
 
 [call [cmd get_volume_mount_point_for_path] [arg PATH]]
 Returns the volume mount point below which the file specified by [arg PATH]
@@ -619,10 +610,6 @@ unmounted before the new mount is performed.
 Sets the volume name for the specified drive.
 [arg NAME] may be an empty string
 in which case the drive label is removed.
-
-[nl]
-[uri changedrivelabel.example "Example: Change the label of a drive"]
-
 
 [call [cmd set_file_times] [arg FILE] [opt [arg options]]]
 Sets the creation, access or modification timestamps for a file.
@@ -672,9 +659,6 @@ Returns 1 if the given drive has at least [arg space] bytes free, and
 0 otherwise. Note that [arg space] is compared to the free bytes
 available to the caller as opposed to total free bytes on the drive. The
 former may be smaller if disk quotas are being enforced on the drive.
-[nl]
-[uri checkavailablespace.example "Example: Check available disk space"]
-[nl]
 
 [call [cmd volume_properties_dialog] [arg VOLUME] [opt [arg options]]]
 Displays the shell property dialog for the specified volume.

@@ -979,8 +979,6 @@ Returns the type of the token: either [const primary], or
 Returns the SID of the user account associated with the token. If [cmd -name]
 is specified, returns the name of the account instead of its SID.
 
-[uri showprocessowners.example "Example: Show the user account for each process"]
-
 [call [cmd get_token_virtualization] [arg TOKEN]]
 Returns true if the token indicates a virtualized process where the system
 redirects writes to protected file and registry locations and false otherwise.
@@ -1180,8 +1178,6 @@ in the Windows SDK for a description of each of these.
 [nl]
 When no longer required, this token must be passed to
 [uri \#close_token [cmd close_token]].
-[nl]
-[uri showprocessowners.example "Example: Show the user account for each process"]
 
 [call [cmd open_thread_token] [opt "[cmd -tid] [arg TID] | [cmd -hthread] [arg HTHREAD]"] [opt "[cmd -access] [arg DESIREDACCESS]"] [opt "[cmd -self] [arg BOOLEAN]"]]
 Returns a thread access token that can passed to other functions for querying
