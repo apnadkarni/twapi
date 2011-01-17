@@ -17,10 +17,14 @@ TESTFILES=all.tcl \
 	clipboard.test \
 	com.test \
 	console.test \
+	crypto.test \
+	desktop.test \
 	device.test \
 	disk.test \
 	eventlog.test \
+	handle.test \
 	misc.test \
+	msi.test \
 	mstask.test \
 	namedpipe.test \
 	network.test \
@@ -29,12 +33,14 @@ TESTFILES=all.tcl \
 	parseargs.test \
 	pdh.test \
 	power.test \
+	printer.test \
 	process.test \
 	resource.test \
 	security.test \
 	services.test \
 	share.test \
 	shell.test \
+	synch.test \
 	trap.test \
 	ui.test \
 	client_share.vbs \
