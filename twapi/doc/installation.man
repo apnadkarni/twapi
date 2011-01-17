@@ -45,24 +45,6 @@ be directly loaded into Tcl. This is also platform specific.
 [list_end]
 
 [para]
-To install either ZIP distribution,
-unzip it into a directory that is included in the path contained
-in your Tcl [cmd auto_path] variable. The ZIP distributions can
-be used by both 32-bit and 64-bit Tcl from the same location.
-
-[para]
-The Tcl module distributions can be used with Tcl 8.5 or later.
-To install,
-copy the file into one of the directories returned by
-Tcl's [cmd "::tcl::tm::path list"] command and rename it to
-twapi-[arg VERSION].tm (i.e. remove the [arg PLATFORM] string).
-
-[para]
-The standalone DLL distributions are self-contained and may be placed
-anywhere. However, they are not discoverable by Tcl's package mechanism
-and must be explicitly loaded through Tcl's [cmd load] command.
-
-[para]
 Some factors to consider in choosing the distribution:
 [list_begin bullet]
 
@@ -101,7 +83,28 @@ in earlier versions of TWAPI. It has the advantage over the Starkit
 distribution in that it does not require starkit and vfs support
 in the core Tcl and in addition loads significantly faster than
 the Starkit.
+
 [list_end]
+
+[section "Installing TWAPI"]
+[para]
+To install either ZIP distribution,
+unzip it into a directory that is included in the path contained
+in your Tcl [cmd auto_path] variable. The ZIP distributions can
+be used by both 32-bit and 64-bit Tcl from the same location.
+
+[para]
+The Tcl module distributions can be used with Tcl 8.5 or later.
+To install,
+copy the file into one of the directories returned by
+Tcl's [cmd "::tcl::tm::path list"] command and rename it to
+twapi-[arg VERSION].tm (i.e. remove the [arg PLATFORM] string).
+
+[para]
+The standalone DLL distributions are self-contained and may be placed
+anywhere. However, they are not discoverable by Tcl's package mechanism
+and must be explicitly loaded through Tcl's [cmd load] command.
+
 
 [section "Loading TWAPI"]
 Once installed, all distributions, except the standalone DLL,

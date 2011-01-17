@@ -183,9 +183,6 @@ group and may include a domain in the form [arg {domainname\username}].
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
-[nl]
-[uri addusertolocalgroup.example "Example: Add a user to a local group"]
-
 [call [cmd delete_global_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
 Deletes a global group [arg GROUPNAME]. Also, deletes any rights associated
@@ -200,17 +197,12 @@ with the account in the LSA rights database.
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
-[nl]
-[uri deletelocalgroup.example "Example: Delete a local group"]
-
 [call [cmd delete_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
 Delete the specified user account. Also, deletes any rights associated
 with the account in the LSA rights database.
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
-[nl]
-[uri deleteuser.example "Example: Delete a user account"]
 
 [call [cmd disable_user] [arg USERNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
@@ -292,9 +284,6 @@ in the following table:
 [const attributes],
 [const name]
 [list_end]
-
-[nl]
-[uri listusersingroup.example "Example: List the users in a group"]
 
 [call [cmd get_global_groups] [arg [opt options]]]
 If no options are specified,
@@ -385,9 +374,6 @@ in the following table:
 [const domainandname]
 [list_end]
 The meanings of the fields should be self-evident.
-
-[nl]
-[uri listusersingroup.example "Example: List the users in a group"]
 
 [call [cmd get_local_groups] [arg [opt options]]]
 If no options are specified, returns the list of local groups on the system.
@@ -512,9 +498,6 @@ Returns RID component of the user's SID.
 Returns a comma-separated list of upto eight workstations from which
 the user can log in.
 [list_end]
-[uri listgroupsforuser.example "Example: List the group membership for a user"]
-[nl]
-[uri showuser.example "Example: Show user account settings"]
 
 [call [cmd get_user_local_groups_recursive] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 Returns the local groups in which the given user account is a member either
@@ -610,8 +593,6 @@ not relied on.
 [list_end]
 Refer to [uri #get_user_account_info [cmd get_user_account_info]] for
 the meaning of these fields.
-[nl]
-[uri listusers.example "Example: List the user accounts on a system"]
 
 [call [cmd lookup_account_name] [arg name] [opt [arg options]]]
 [arg name] specifies the name of the account and may be fully qualified
@@ -691,9 +672,6 @@ allows a comment to be associated with the group.
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
-[nl]
-[uri addlocalgroup.example "Example: Create a local group"]
-
 [call [cmd new_user] [arg USERNAME] [opt [arg options]]]
 
 Creates a new user account. The following options may be specified to
@@ -709,7 +687,6 @@ account.
 logon script for the account.
 [opt_def [cmd -password] [arg STRING]] Sets the password for the account.
 [list_end]
-[uri adduser.example "Example: Create a new user account"]
 
 [call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
@@ -719,10 +696,6 @@ account in the form [arg domainname\\username].
 [nl]
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
-
-[nl]
-[uri removeuserfromlocalgroup.example "Example: Remove a user from a local group"]
-
 
 [call [cmd remove_account_rights] [arg ACCOUNTNAME] [arg RIGHTS] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 Removes the privileges and account rights listed in [arg RIGHTS]

@@ -300,9 +300,6 @@ default. Depending on the application being terminated,
 this may not be the actual exit code returned on application exit.
 Caller should not rely on this.
 [list_end]
-[uri exitprograms.example "Example: Gracefully exit all programs with a given name or path"]
-[nl]
-[uri killprograms.example "Example: Forcibly kill all programs with a given name or path"]
 
 [call [cmd free_library] [arg HMODULE]]
 Frees a loaded module. [arg HMODULE] must be a handle previously
@@ -414,9 +411,6 @@ If this option is specified, the returned list only includes those
 processes running under the specified account. [arg ACCOUNT] may
 be either a user name or its SID.
 [list_end]
-[uri minimizeapp.example "Example: Minimize all windows for an application"]
-[nl]
-[uri exitprograms.example "Example: Exit all programs with a given name or path"]
 
 [call [cmd get_process_info] [arg PID] [opt [arg options]]]
 
@@ -619,7 +613,6 @@ name portion of the path.
 module is loaded, the size of the module in memory and the address of
 the entry point to the module as a sublist for each module.
 [list_end]
-[uri showprocessmodules.example "Example: Show the DLL's loaded in a process"]
 
 [call [cmd get_process_name] [arg PID]]
 
@@ -638,8 +631,6 @@ be accessed to retrieve the name, the
 command normally returns the string [const "\"(unknown)\""]. This option may
 be used to specify a different string to be returned in such cases.
 [list_end]
-[uri showprocessowners.example "Example: Show the user account for each process"]
-
 
 [call [cmd get_process_parent] [arg PID]]
 

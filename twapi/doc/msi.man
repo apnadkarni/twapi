@@ -34,10 +34,6 @@ by calling [cmd load_msi_prototypes] with the object command and the
 object type.
 [example "twapi::load_msi_prototypes \$msiobj Installer"]
 
-[para]
-[uri msilistproducts.example "Example: List installed products"]
-
-
 [list_begin definitions]
 [call [cmd load_msi_prototypes] [arg MSICOMOBJ] [arg MSITYPE]]
 Loads the type information corresponding to the MSI type [arg MSITYPE] into

@@ -56,9 +56,6 @@ Generates input to simulate clicking the specified mouse button. [arg BUTTON]
 may have one of the values [const left], [const right], [const middle],
 [const x1] or [const x2] to specify the button that was clicked.
 
-[nl]
-[uri opensysmenuwithmouse.example "Example: Open the system menu with the mouse"]
-
 [call [cmd get_input_idle_time]]
 Returns the elapsed time in milliseconds since the last keyboard or mouse
 input event.
@@ -73,9 +70,6 @@ X and Y screen coordinates in pixels.
 Generates input to simulate mouse movement. Movement is in absolute mouse
 coordinates unless the option [cmd -relative] is specified. See description
 of [uri \#send_input [cmd send_input]] for more details.
-
-[nl]
-[uri opensysmenuwithmouse.example "Example: Move mouse to system menu"]
 
 [call [cmd register_hotkey] [arg HOTKEY] [arg SCRIPT] [opt [cmd -append]]]
 
@@ -105,9 +99,6 @@ or the actual virtual key code itself. Examples are
 The command returns an identifier corresponding to the specified hotkey
 registration. It should be deregistered when no longer needed by calling
 the [uri \#unregister_hotkey [cmd unregister_hotkey]] function.
-
-[nl]
-[uri hotkey.example "Example: Start a program when a hotkey is pressed"]
 
 [call [cmd send_input] [arg INPUTLIST]]
 
@@ -212,15 +203,9 @@ The commands [uri \#move_mouse [cmd move_mouse]],
 [uri \#turn_mouse_wheel [cmd turn_mouse_wheel]]
 may be more convenient for common cases.
 
-[nl]
-[uri sendmouseinput.example "Example: Draw a square in MS Paint using the mouse"]
-
-
 [call [cmd send_input_text] [arg TEXT]]
 
 Simulates user input by generating keyboard events corresponding to [arg TEXT].
-[nl]
-[uri sendtext.example "Example: Send a text string to a specified window"]
 
 [call [cmd send_keys] [arg KEYSEQUENCE]]
 
@@ -410,9 +395,6 @@ where the [const SHIFT] key is pressed and released [emph before] the
 in a key sequence where the [const SHIFT] key is released [emph after]
 the [const a] is pressed and released.
 
-[nl]
-[uri sendmenuexit.example "Example: Send an exit command using menu shortcuts"]
-
 [call [cmd turn_mouse_wheel] [arg WHEELUNITS]]
 
 Generates input to simulate turning the wheel. A positive value of
@@ -430,9 +412,6 @@ Unregisters a hot key that was previously registered. [arg HOTKEY_ID] should
 be a hotkey identifer returned by a previous call to
 [uri \#register_hotkey [cmd register_hotkey]]. All scripts associated with
 the hotkey are unregistered.
-
-[nl]
-[uri hotkey.example "Example: Start a program when a hotkey is pressed"]
 
 [list_end]
 

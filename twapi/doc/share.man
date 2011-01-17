@@ -168,7 +168,6 @@ owner window for any password dialogs that are displayed.
 If this option is specified, the user's profile is updated so that the
 network share connection will be reestablished every time the user logs in.
 [list_end]
-[uri connectfileshare.example "Example: Map a drive to a network share"]
 
 [call [cmd delete_share] [arg SHARENAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 Deletes a share. By default the share is assumed to be on the local system
@@ -364,9 +363,6 @@ Refer to
 [uri \#get_client_share_info [cmd get_client_share_info]] for
 a description of these fields.
 
-[nl]
-[uri listconnectedshares.example "Example: List connected shares"]
-
 [call [cmd get_mapped_share_info] [arg SHAREPATH] [opt [arg options]]]
 [emph "This command is no longer available. Use [uri \#get_client_share_info [cmd get_client_share_info]] instead."]
 
@@ -395,7 +391,6 @@ no limit.
 to the share.
 [opt_def [cmd -secd]] Returns the security descriptor attached to the share.
 [list_end]
-[uri listexportedshares.example "Example: List shares exported from a system"]
 
 [call [cmd get_shares] [opt [arg options]]]
 This command enumerates all the shares exported on a system. The following
@@ -425,8 +420,6 @@ depend on [arg LEVEL] as follows:
 [const max_uses], [const netname], [const passwd], [const path],
 [const permissions], [const remark], [const type].
 [list_end]
-
-[uri listexportedshares.example "Example: List shares exported from a system"]
 
 [call [cmd get_lm_open_file_info] [arg FILEID] [opt [arg options]]]
 Returns a list of field values pairs containing data
@@ -525,7 +518,6 @@ Windows Explorer.
 [opt_def [cmd -type] [arg SHARETYPE]] Specifies the type of the share.
 See [sectref "Share Types"] for details. This defaults to a file share.
 [list_end]
-[uri exportfileshare.example "Example: Export a network share"]
 
 [call [cmd set_share_info] [arg SHARENAME] [opt [arg options]]]
 

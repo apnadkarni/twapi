@@ -86,8 +86,6 @@ Returns the number of network interfaces in the system.
 
 Network interfaces in the system are identified by integer indices. This
 command retrieves the list of network interfaces in the system.
-[nl]
-[uri showinterfaces.example "Example: Show network interface information"]
 
 [call [cmd get_netif_info] [arg NETWORKINTERFACE] [opt [arg options]]]
 
@@ -192,12 +190,6 @@ per second.
 of [const ethernet], [const tokenring], [const fddi],
 [const ppp], [const loopback], [const slip] or [const other].
 [list_end]
-
-[nl]
-[uri showinterfaces.example "Example: Show network interface information"]
-[nl]
-[uri shownetworkstats.example "Example: Show network statistics"]
-[nl]
 
 [call [cmd get_network_info] [opt [arg options]]]
 
@@ -458,10 +450,6 @@ variable.
 
 If [arg VARNAME] is not specified, the command returns the hardware
 address if a mapping is found and generates a Tcl exception otherwise.
-
-[nl]
-[uri showphysicaladdress.example "Example: Map an IP address to a physical address"]
-[nl]
 
 [call [cmd port_to_service] [arg PORTNUMBER]]
 Returns the service name (e.g. [const http]) corresponding to the

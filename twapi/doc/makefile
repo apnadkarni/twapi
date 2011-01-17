@@ -64,7 +64,6 @@ MANFILES= \
 	power.man \
 	errors.man \
 	misc.man \
-	examples.man \
 	versionhistory.man 
 !endif
 
@@ -98,7 +97,7 @@ $(CHMDIR)\twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_contents.tcl meta.tmp > twapi.hhc
 	$(SILENT)xcopy /q /y styleschm.css $(CHMDIR)
 	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f $(CHMDIR)
-	$(SILENT)xcopy /q /y *.example $(CHMDIR)
+#	$(SILENT)xcopy /q /y *.example $(CHMDIR)
 # HHC always seems to return exit code 1!!
 	@echo Generating CHM file...
 	-$(SILENT)cd $(CHMDIR) && $(SILENT)$(HHC) twapi.hhp
@@ -134,7 +133,7 @@ website.zip : $(MANFILES) styles.css index.htf generate_web_page.tcl generate_ww
 	@echo Copying files...
 	$(SILENT)xcopy /q /y styles.css website
 	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f website
-	$(SILENT)xcopy /q /y *.example website
+#	$(SILENT)xcopy /q /y *.example website
 	@echo Zipping distribution...
 	$(SILENT)zip -q -r twapi-website.zip website
 

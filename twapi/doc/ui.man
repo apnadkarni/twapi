@@ -304,9 +304,6 @@ depending on whether [arg BOOLEAN] is true or false.
 [opt_def [cmd -visible] [arg BOOLEAN]] The window must be visible if
 [arg BOOLEAN] is true and hidden if it is false.
 [list_end]
-[uri minimizeapp.example "Example: Find all windows for an application"]
-[nl]
-[uri movewindowtoorigin.example "Example: Find all windows with a given title"]
 
 [call [cmd flash_window] [arg HWIN] [opt [arg options]]]
 
@@ -617,8 +614,6 @@ the width and height in pixels of the client area of the window.
 Returns the screen coordinates of the window as a list of four integers
 corresponding to the left, top, right and bottom sides
 of the window.
-[nl]
-[uri opensysmenuwithmouse.example "Example: Move mouse to system menu"]
 
 [call [cmd get_window_id] [arg HWIN]]
 
@@ -768,8 +763,6 @@ return.
 [nl]
 Returns 1 if the window was previously visible, else 0. The return value is
 valid only if the [cmd -sync] option is specified.
-[nl]
-[uri hidewindows.example "Example: Hide all windows for an application"]
 
 [call [cmd invalidate_screen_region] [opt [arg options]]]
 
@@ -815,8 +808,6 @@ activated.
 [list_end]
 The command returns 1 if the window was previously visible, else 0.
 The return value is valid only if the [cmd -sync] option is specified.
-[nl]
-[uri minimizeapp.example "Example: Minimize all windows for an application"]
 
 [call [cmd move_window] [arg HWIN] [arg X] [arg Y] [opt [cmd -sync]]]
 
@@ -825,9 +816,6 @@ and its top side is at position [arg Y].
 The window is moved asynchronously unless the [cmd -sync]
 option is specified. Note that in this case,
 the command will never return if the target window is hung.
-
-[nl]
-[uri movewindowtoorigin.example "Example: Move a window to top left corner of the screen"]
 
 [call [cmd redraw_window] [arg HWIN] [opt [cmd -force]]]
 
@@ -898,8 +886,6 @@ activated. The command returns the window that previously had the focus.
 Sets the specified window to be the foreground window. Returns
 [const 1] if successful,
 and [const 0] otherwise.
-[nl]
-[uri bringtoforeground.example "Example: Bring a window to the foreground"]
 
 [call [cmd set_window_long] [arg HWIN] [arg INDEX] [arg VALUE]]
 
@@ -912,15 +898,11 @@ and provide more straightforward access to the values set by this function.
 Sets the style and extended style bits for the specified window.
 [arg style] and [arg exstyle] are bitmasks. Refer
 to the Windows SDK documentation for details.
-[nl]
-[uri removetitlebar.example "Example: Remove the title bar from a window"]
 
 [call [cmd set_window_text] [arg HWIN] [arg TEXT]]
 
 Sets the title of a window or the text associated with a control. In the latter
 case, the control must belong to the same application.
-[nl]
-[uri changewindowcaption.example "Example: Change the title bar of a window"]
 
 [call [cmd set_window_userdata] [arg HWIN] [arg INTEGER]]
 
@@ -943,7 +925,6 @@ the documentation of the function [cmd SetWindowsPos] in the Windows SDK.
 [opt_def [const bottomlayer]] Refer to explanation of HWND_NOTOPMOST in
 the documentation of the function [cmd SetWindowsPos] in the Windows SDK.
 [list_end]
-[uri keepontop.example "Example: Keep a window on top"]
 
 [call [cmd show_caret]]
 
@@ -983,9 +964,6 @@ it to its original position.
 If both [cmd -normal] and [cmd -startup] are specified, [cmd -startup] takes
 precedence. If neither is specified, the window is shown in its current form,
 which may be minimized, maximized or normal.
-
-[nl]
-[uri showwindows.example "Example: Show all windows for an application"]
 
 [call [cmd window_exists] [arg HWIN]]
 Returns 1 if the specified window exists, else 0.
