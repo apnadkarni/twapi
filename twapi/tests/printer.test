@@ -110,40 +110,6 @@ namespace eval twapi::printer::test {
 
     ################################################################
 
-    test printer_properties_dialog-1.0 {
-        Show the printer properties dialog
-    } -constraints {
-        userInteraction haveprinter
-    } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
-    } -body {
-        twapi::printer_properties_dialog $printer
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
-        yesno "Did you see a printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
-    } -result 1
-
-    test printer_properties_dialog-1.1 {
-        Show the printer properties dialog on a specific tab
-    } -constraints {
-        userInteraction
-    } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
-    } -body {
-        twapi::printer_properties_dialog $printer -page Sharing
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
-        yesno "Did you see the Shareing TAB of the printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
-    } -result 1
-
-    ################################################################
-
     
 
     #
