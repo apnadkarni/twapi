@@ -830,6 +830,135 @@ namespace eval twapi::shell::test {
         twapi::close_window $win
     } -result 1
 
+    ################################################################
+
+    test volume_properties_dialog-1.0 {
+        Show the volume properties dialog
+    } -constraints {
+        userInteraction
+    } -body {
+        # Volume propety dialog block the caller
+        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
+        twapi::volume_properties_dialog $::env(SYSTEMDRIVE)
+        yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE)?"
+    } -result 1
+
+    test volume_properties_dialog-1.1 {
+        Show the volume properties dialog on a specific tab
+    } -constraints {
+        userInteraction
+    } -body {
+        # Volume propety dialog block the caller
+        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
+        twapi::volume_properties_dialog $::env(SYSTEMDRIVE) -page Tools
+        yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE) opened on the Tools page?"
+    } -result 1
+
+
+    ################################################################
+
+    test printer_properties_dialog-1.0 {
+        Show the printer properties dialog
+    } -constraints {
+        userInteraction haveprinter
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::printer_properties_dialog $printer
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see a printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test printer_properties_dialog-1.1 {
+        Show the printer properties dialog on a specific tab
+    } -constraints {
+        userInteraction
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::printer_properties_dialog $printer -page Sharing
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see the Shareing TAB of the printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    ################################################################
+
+    test shell_object_properties_dialog-1.0 {
+        Show the shell object (file) dialog without type
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::shell_object_properties_dialog [info nameofexecutable]
+        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
+        yesno "Did you see a file properties dialog for the tclsh executable?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test shell_object_properties_dialog-1.1 {
+        Show the shell object dialog -type file
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::shell_object_properties_dialog [info nameofexecutable] -type file
+        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
+        yesno "Did you see a file properties dialog for the tclsh executable?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test shell_object_properties_dialog-2.0 {
+        Show the shell object (printer) properties dialog
+    } -constraints {
+        userInteraction haveprinter
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::shell_object_properties_dialog $printer
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see a printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test shell_object_properties_dialog-2.1 {
+        Show the shell object (printer) properties dialog -type printer
+    } -constraints {
+        userInteraction haveprinter
+    } -setup {
+        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+    } -body {
+        twapi::shell_object_properties_dialog $printer -type printer
+        # In case it is a share, only get last part
+        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
+        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
+        yesno "Did you see a printer properties dialog for $printer?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
+    test shell_object_properties_dialog-3.0 {
+        Show the shell object properties dialog on a specific tab
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::shell_object_properties_dialog [info nameofexecutable] -page version -type file
+        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
+        yesno "Did you see THE VERSION TAB of the file properties dialog for the tclsh executable?"
+    } -cleanup {
+        twapi::close_window $win
+    } -result 1
+
 
     ################################################################
 
