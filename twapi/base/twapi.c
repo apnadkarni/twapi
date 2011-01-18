@@ -247,6 +247,13 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
 #endif
 
+    /* Are we building with TEA ? */
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
+#if defined(HAVE_SYS_TYPES_H)
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(1));
+#else
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(0));
+#endif
 
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
     elemP = Tcl_NewListObj(0, NULL);
@@ -275,7 +282,6 @@ int Twapi_GetTwapiBuildInfo(
     /* Which Tcl did we build against ? (As opposed to run time) */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
     Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(TCL_PATCH_LEVEL, -1));
-
 
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
