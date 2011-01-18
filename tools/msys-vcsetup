@@ -1,0 +1,17 @@
+# . this into the shell to set up the build environment for VC++
+# Paths are hardcoded for SDK 2003 and VC++ 6
+# Build with something like
+#   cd build-area
+#   CC=cl sh /src/twapi-sf/configure --with-tcl=/src/tcl-tk/build-area/8.5.8
+#   make
+#   make install
+
+SDKPATHW=`cmd /c "for %F in (\"%PROGRAMFILES%/microsoft platform sdk\") do @echo %~sF"`
+VSPATHW=`cmd /c "for %F in  (\"%PROGRAMFILES%/microsoft visual studio\") do @echo %~sF"`
+
+SDKPATHU=`echo $SDKPATHW | sed 's_\\\_/_g' | sed 's_\(.\):_/\1_'`
+VSPATHU=`echo $VSPATHW | sed 's_\\\_/_g' | sed 's_\(.\):_/\1_'`
+
+export INCLUDE="$SDKPATHW\\Include\;$VSPATHW\\VC98\\INCLUDE"
+export LIB="$SDKPATHW\\Lib\;$VSPATHW\\VC98\\Lib"
+PATH=$VSPATHU/Common/msdev98/BIN:$VSPATHU/VC98/Bin:$PATH
