@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi], [3.0.25])
+AC_INIT([twapi], [3.0.26])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -91,7 +91,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/twapi/base)\"])
 
-    TEA_ADD_CFLAGS([-DWINVER=0x0500 -D_WIN32_WINNT=0x0500])
+    TEA_ADD_CFLAGS([-DWINVER=0x0500 -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1])
 
     TEA_ADD_SOURCES([twapi/base/adsi.c twapi/base/async.c twapi/base/calls.c twapi/base/clipboard.c twapi/base/com.c
  twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/eventlog.c
