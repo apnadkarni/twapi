@@ -131,13 +131,17 @@ namespace eval twapi::security::test {
     } -body {
         array unset unameinfo
         array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -all]
-        expr {
-              [llength [setops::symdiff [array names unameinfo] {-domain -type -sid}]] == 0 &&
-              [twapi::is_valid_sid_syntax $unameinfo(-sid)] &&
-              $unameinfo(-type) == "user" &&
-              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
-          }
-    } -result 1
+        if {[indomain]} {
+            set dom [testconfig domain_name]
+        } else {
+            set dom $::env(COMPUTERNAME)
+        }
+
+        list [setops::symdiff [array names unameinfo] {-domain -type -sid}] \
+            [twapi::is_valid_sid_syntax $unameinfo(-sid)] \
+            $unameinfo(-type) \
+            [string equal -nocase $unameinfo(-domain) $dom]
+    } -result {{} 1 user 1} -match list
 
     ###
 
@@ -148,12 +152,11 @@ namespace eval twapi::security::test {
     } -body {
         array unset unameinfo
         array set unameinfo [twapi::lookup_account_name administrators -all]
-        expr {
-              [llength [setops::symdiff [array names unameinfo] {-domain -type -sid}]] == 0 &&
-              $unameinfo(-sid) == "S-1-5-32-544" &&
-              $unameinfo(-type) == "alias"
-          }
-    } -result 1
+        list \
+            [setops::symdiff [array names unameinfo] {-domain -type -sid}] \
+            $unameinfo(-sid)  \
+            $unameinfo(-type)
+    } -result {{} S-1-5-32-544 alias} -match list
 
     ###
 
@@ -606,7 +609,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         set uname [string tolower [twapi::get_current_user]]
-    } -result [string tolower $::env(COMPUTERNAME)\\$::env(USERNAME)]
+    } -result [string tolower [expr {[indomain] ? [testconfig domain_name] : $::env(COMPUTERNAME)}]\\$::env(USERNAME)]
 
     ###
 
@@ -5672,7 +5675,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         twapi::revert_to_self
         string tolower [twapi::get_current_user]
-    } -result [string tolower $::env(COMPUTERNAME)\\$::env(USERNAME)]
+    } -result [string tolower [expr {[indomain] ? [testconfig domain_name] : $::env(COMPUTERNAME)}]\\$::env(USERNAME)]
 
     ################################################################
 
@@ -5824,8 +5827,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         # TBD - need to test this with nested groups - need a domain
         # for that. Also need a more robust test expression
-        set groups [twapi::get_user_local_groups_recursive $::env(username)]
-        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(username) -local_groups] 1]]}
+        set groups [twapi::get_user_local_groups_recursive [twapi::get_current_user]]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
     } -result 1
 
     ################################################################
@@ -5858,29 +5861,33 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     ###
 
-    set testnum -1
+    test find_logon_sessions-3.0 {
+        Find logon interactive sessions (at least one must exist)
+    } -body {
+        concat [twapi::find_logon_sessions -type interactive] [twapi::find_logon_sessions -type cachedinteractive]
+    } -match listregexp -result [list {^[[:xdigit:]]{8}-[[:xdigit:]]{8}$} 1]
+
+
+    set testnum 0
     # Test each type. For the regexp differs based on whether empty
     # list is allowed
-    foreach {type regexp} {
-        interactive {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*\s*$}
-        network {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        batch {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        service {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        proxy {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        unlockworkstation {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        networkclear {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        newcredentials {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        remoteinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        cachedinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        cachedremoteinteractive {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        cachedunlockworkstation {^\s*(|[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*)\s*$}
-        {interactive service} {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})*\s*$}
+    foreach type {
+        interactive
+        network
+        batch
+        service
+        proxy
+        unlockworkstation
+        networkclear
+        newcredentials
+        remoteinteractive
+        cachedinteractive
+        cachedremoteinteractive
+        cachedunlockworkstation
+        {interactive service}
     } {        
-        test find_logon_sessions-3.[incr testnum] "Get list of logon sessions of type $type" \
-            -constraints {
-                win2k
-            } -body "twapi::find_logon_sessions -type \[list $type\]" \
-            -result $regexp -match regexp
+        test find_logon_sessions-3.[incr testnum] "Get list of logon sessions of type $type"  -body "twapi::find_logon_sessions -type \[list $type\]" \
+            -match listregexp -result [list {^[[:xdigit:]]{8}-[[:xdigit:]]{8}$}]
     }
 
     ###
@@ -5923,8 +5930,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         win2k
     } -body {
-        twapi::get_logon_session_info [current_logon_session] -authpackage
-    } -result [list -authpackage NTLM]
+        set sess [twapi::get_logon_session_info [current_logon_session] -authpackage]
+        verify_kl_fields $sess [list -authpackage]
+        lindex $sess 1
+    } -match oneof -result {NTLM Kerberos}
 
     ###
 
@@ -5994,8 +6003,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         win2k
     } -body {
-        twapi::get_logon_session_info [current_logon_session] -type
-    } -result [list -type interactive]
+        set sess [twapi::get_logon_session_info [current_logon_session] -type]
+        verify_kl_fields $sess [list -type]
+        lindex $sess 1
+    } -match oneof -result {interactive cachedinteractive}
 
     ###
 
@@ -6253,8 +6264,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         }
     } -body {
         set rights {SeBackupPrivilege SeServiceLogonRight}
-        # Include one existing right
-        lappend rights [lindex $existing_rights 0]
+        # Include one existing right if there is one
+        if {[llength $existing_rights]} {
+            lappend rights [lindex $existing_rights 0]
+        }
         twapi::add_account_rights $username $rights
         # Verify the rights were added and nothing else was changed
         setops::symdiff [twapi::get_account_rights $username] $existing_rights
