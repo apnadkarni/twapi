@@ -48,10 +48,6 @@ if {[info exists ::env(TWAPI_PACKAGE)]} {
     }
 }
 
-if {[llength [info commands ::chan]] == 0} {
-    tcltest::configure -notfile { pipe.test }
-}
-
 puts "Test environment: Tcl [info patchlevel], [expr {[info exists ::env(TWAPI_PACKAGE)] ? $::env(TWAPI_PACKAGE) : "twapi" }] [twapi::get_version -patchlevel]"
 
 eval tcltest::configure $argv

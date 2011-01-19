@@ -814,6 +814,20 @@ proc verify_list_elements {l cond} {
     return 1
 }
 
+# Verify two lists are equal
+proc equal_lists {l1 l2} {
+    if {[llength $l1] != [llength $l2]} {
+        return 0
+    }
+    foreach e1 $l1 e2 $l2 {
+        if {$e1 ne $e2} {
+            return 0
+        }
+    }
+    return 1
+}
+tcltest::customMatch list equal_lists
+
 # Prompt the user
 proc yesno {question {default "no default"}} {
     # Make sure we are seen

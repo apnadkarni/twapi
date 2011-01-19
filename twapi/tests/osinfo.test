@@ -107,7 +107,8 @@ namespace eval twapi::osinfo::test {
         }
 
         if {[info exists dominfo(-type)]} {
-            if {($dominfo(-type) eq "domain" && ![indomain]) || [indomain]} {
+            if {($dominfo(-type) eq "domain" && ![indomain]) ||
+                ($dominfo(-type) ne "domain" && [indomain])} {
                 lappend msgs "Field -type does not match. Was $dominfo(-type)."
             }
         }
