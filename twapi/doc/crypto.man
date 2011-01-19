@@ -389,7 +389,9 @@ by calling
 
 [call [cmd sspi_verify_signature] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
 Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
-is valid. Generates a Tcl error if the signature is not valid.
+is valid. Generates a Tcl error if the signature is not valid else
+returns an integer mask that indicates the level of protection (provider
+dependent).
 
 [list_end]
 

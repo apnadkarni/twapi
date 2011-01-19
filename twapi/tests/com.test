@@ -414,12 +414,12 @@ namespace eval twapi::com::test {
         nt
     } -setup {
         # ADSI does not support ITypeInfo so use it for the test
-        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+        set adsi_user [twapi::comobj_object "WinNT://./Administrator,user"]
     } -cleanup {
         $adsi_user -destroy
     } -body {
         $adsi_user -get name
-    } -result $::env(username)
+    } -result Administrator
 
     ###
 
@@ -617,11 +617,11 @@ namespace eval twapi::com::test {
     test comobj_object-1.1 {
         Create a COM object based on a moniker display name (IDispatch)
     } -body {
-        set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
+        set adsi_user [twapi::comobj_object "WinNT://./Administrator,user"]
         $adsi_user Name
     } -cleanup {
         $adsi_user -destroy
-    } -result $::env(USERNAME)
+    } -result Administrator
 
     test comobj_object-1.2 {
         Create a COM object based on a moniker display name (IDispatchEx)

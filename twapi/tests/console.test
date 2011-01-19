@@ -837,8 +837,10 @@ namespace eval twapi::console::test {
     test get_standard_handle-1.0 {
         Get standard output handle
     } -constraints {
-        userInteraction
+        userInteraction singleproc
     } -body {
+        # Note: singleproc constraint is present because otherwise
+        # stdout is a pipe, not a console
         set conh [twapi::get_standard_handle stdout]
         set str "Testing get_standard_handle-1.0"
         twapi::console_write $conh $str\n
@@ -879,7 +881,7 @@ namespace eval twapi::console::test {
         }
         foreach {fg bg} $colors {
             twapi::set_console_default_attr stdout $fg true $bg true
-            puts "[string totitle [string range $fg 3 end]] on [string range $bg 3 end]"
+            twapi::console_write stdout "[string totitle [string range $fg 3 end]] on [string range $bg 3 end]\r\n" -newlinemode line
         }
         twapi::set_console_default_attr stdout -fggray 1
         yesno "Are the colors above displayed correctly AND this line is gray on black?"
@@ -901,7 +903,7 @@ namespace eval twapi::console::test {
         }
         foreach {fg bg} $colors {
             twapi::set_console_default_attr stdout $fg true $bg true -fgwhite 0 -bgwhite 0
-            puts "[string totitle [string range $fg 3 end]] on [string range $bg 3 end]"
+            twapi::console_write stdout "[string totitle [string range $fg 3 end]] on [string range $bg 3 end]\r\n" -newlinemode line
         }
         twapi::set_console_default_attr stdout -fggray 1
         yesno "Are the colors above displayed correctly AND this line is gray (or dim white) on black?"
@@ -911,9 +913,9 @@ namespace eval twapi::console::test {
         Set console default attribute intensity
     } -body {
         twapi::set_console_default_attr stdout -fgyellow 1 -bgblue 1
-        puts "Yellow on blue (low intensity)"
+        twapi::console_write stdout "Yellow on blue (low intensity)\r\n" -newlinemode line
         twapi::set_console_default_attr stdout -fgyellow 1 -bgblue 1 -fgbright 1 -bgbright 1
-        puts "Yellow on blue (high intensity)"
+        twapi::console_write stdout "Yellow on blue (high intensity)" -newlinemode line
         twapi::set_console_default_attr stdout -fggray 1
         yesno "Are two lines displayed, one low intensity and one high?"
     } -result 1
