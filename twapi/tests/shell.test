@@ -580,7 +580,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
-        pause "If you see a shell dialog after hitting Return, please dismiss it"
+        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -noui]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.2: Did you see any shell prompt for searching for a path?"]
@@ -598,6 +598,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
+        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -noui -timeout 10]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.3: Did you see any shell prompt for searching for a path?"]
@@ -615,6 +616,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
+        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -nosearch]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.4: Did you see a shell prompt stating file was not found and ASKING IF FILE SHOULD BE DELETED?"]
@@ -670,8 +672,6 @@ namespace eval twapi::shell::test {
             set path [lindex [glob [file join [twapi::get_shell_folder favorites] links *.url]] 0]
         }
     } -body {
-        puts path:$path
-        puts url:[twapi::read_url_shortcut $path]
         string match -nocase http*://* [twapi::read_url_shortcut $path]
     } -result 1
 
@@ -781,6 +781,7 @@ namespace eval twapi::shell::test {
     } -setup {
         set path [makeFile "" [clock clicks]]
     } -body {
+        pause "After hitting Return, you MAY see a shell dialog prompt for recycle confirmation. Please Select YES."
         twapi::recycle_file $path -confirm true
         yesno "Did you see a prompt for confirmation of file deletion ?"
     } -result 1
@@ -799,8 +800,9 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        pause "After hitting Return, you MAY see a shell ERROR dialog for deletion error."
         list [catch {twapi::recycle_file nosuchfile.noexist -showerror true}] \
-            [yesno "recycle_file-3.0: Did you see a ERROR dialog pertaining to file deletion ?"]
+            [yesno "recycle_file-3.0: Did you see a ERROR dialog pertaining to file deletion error?"]
     } -result {1 1}
 
     test recycle_file-3.1 {
@@ -808,6 +810,7 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        pause "After hitting Return, you MAY see a shell ERROR dialog for deletion error."
         list [catch {twapi::recycle_file nosuchfile.noexist -showerror false}] \
             [yesno "recycle_file-3.1: Did you see a ERROR dialog pertaining to file deletion ?"]
     } -result {1 0}
@@ -848,7 +851,7 @@ namespace eval twapi::shell::test {
         userInteraction
     } -body {
         # Volume propety dialog block the caller
-        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
+        pause "After hitting Return, you should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
         twapi::volume_properties_dialog $::env(SYSTEMDRIVE)
         yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE)?"
     } -result 1
@@ -859,7 +862,7 @@ namespace eval twapi::shell::test {
         userInteraction
     } -body {
         # Volume propety dialog block the caller
-        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
+        pause "After hitting Return, you should see a volume properties dialog for $::env(SYSTEMDRIVE). MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
         twapi::volume_properties_dialog $::env(SYSTEMDRIVE) -page Tools
         yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE) opened on the Tools page?"
     } -result 1
@@ -988,11 +991,12 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        pause "After hitting Return, you MAY see an Explorer window. Note the view and the path and then close it."
         twapi::shell_execute -path [pwd] -verb explore
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         yesno "Did you see an Explorer window for [file tail [pwd]] displaying AN EXPLORE view (file tree in left pane)?"
     } -cleanup {
-        twapi::close_window $w
+        if {[twapi::window_exists $w]} {twapi::close_window $w}
     } -result 1
 
     test shell_execute-2.2 {

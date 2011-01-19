@@ -22,6 +22,8 @@ namespace eval twapi::desktop::test {
     test find_desktops-1.0 {
         Find all desktops
     } -body {
+        #NOTE: if not running as admin, this will fail as Winlogon
+        # desktop will not be returned
         setops::diff {Default Winlogon} [twapi::find_desktops]
     } -result {}
 

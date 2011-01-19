@@ -554,7 +554,7 @@ namespace eval twapi::network::test {
     } -setup {
         # Prepopulate cache
         twapi::hostname_to_address [resolvable_hostname]
-	puts "This test make take upto a minute"
+	patience hostname_to_address-3.0
     } -body {
         set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
         # Wait for 30 seconds since Windows also keep a cache and that

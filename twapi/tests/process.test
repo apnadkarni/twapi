@@ -2232,7 +2232,7 @@ namespace eval ::twapi::process::test {
 
     test get_process_parent-3.0 {
         Get the parent of a process without access
-    } -constraint {
+    } -constraints {
         TBD
     } -setup {
         set pid [what process has no access?]
@@ -2242,7 +2242,7 @@ namespace eval ::twapi::process::test {
 
     test get_process_parent-3.1 {
         Get the parent of a process without access (-noaccess)
-    } -constraint {
+    } -constraints {
         TBD
     } -setup {
         set pid [what process has no access?]
