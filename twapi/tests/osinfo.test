@@ -50,7 +50,11 @@ namespace eval twapi::osinfo::test {
 
     # Get memory number from wmi
     proc verify_wmic_memory_value {field value {cmp exact}} {
-        array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
+        if {0} {
+            array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
+        } else {
+            array set mem [lindex [twapi::_wmi_records CIM_OperatingSystem] 0]
+        }
         set wmic_val [expr {wide(1024)*$mem($field)}]
         if {$cmp eq "approx"} {
             return [approx $value $wmic_val]

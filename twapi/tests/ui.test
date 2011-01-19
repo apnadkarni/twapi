@@ -2751,9 +2751,9 @@ namespace eval twapi::ui::test {
     } -constraints {
         nt userInteraction
     } -body {
-        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY."]
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY AFTER 15 SECONDS."]
         twapi::block_input
-         after 5000 "twapi::end_process $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
+        after 15000 "twapi::end_process $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
         vwait ::wait_over
         yesno "Were characters blocked?"
     } -result 1
@@ -2765,9 +2765,9 @@ namespace eval twapi::ui::test {
     } -constraints {
         nt userInteraction
     } -body {
-        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER A FEW SECONDS. WILL EXIT AUTOMATICALLY."]
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER ABOUT 10 SECONDS. WILL EXIT AUTOMATICALLY."]
         twapi::block_input
-        after 3000 twapi::unblock_input
+        after 10000 twapi::unblock_input
         after 5000 "twapi::end_process $np_pid -force ; set ::wait_over 1"
         vwait ::wait_over
         yesno "Were characters INITIALLY blocked, then UNBLOCKED?"

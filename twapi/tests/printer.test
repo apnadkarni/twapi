@@ -20,8 +20,6 @@ namespace eval twapi::printer::test {
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     ::tcltest::testConstraint haveprinter [llength [twapi::enumerate_printers]]
-    
-
     proc load_printers {} {
         variable printers
         if {[info exists printers]} {
