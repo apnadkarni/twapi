@@ -814,6 +814,22 @@ proc verify_list_elements {l cond} {
     return 1
 }
 
+# Verify min list count and every list element matches a regexp
+proc verify_list_match_regexp {cond l} {
+    foreach {r min max} $cond break
+    if {$min ne "" &&
+        [llength $l] < $min} {
+        return 0
+    }
+    if {$max ne "" &&
+        [llength $l] > $max} {
+        return 0
+    }
+    return [verify_list_elements $l [list regexp $r]]
+}
+tcltest::customMatch listregexp verify_list_match_regexp
+
+
 # Verify two lists are equal
 proc equal_lists {l1 l2} {
     if {[llength $l1] != [llength $l2]} {
@@ -885,7 +901,7 @@ proc pause {message} {
     # Make sure we are seen
     twapi::set_foreground_window [twapi::get_console_window]
     # Would like -nonewline here but see comments in proc yesno
-    puts "$message Hit Return to continue..."
+    puts "\n$message Hit Return to continue..."
     flush stdout
     gets stdin
     return
@@ -1273,5 +1289,4 @@ if {[string equal -nocase [file normalize $argv0] [file normalize [info script]]
     # wish errors out
     tcltest::testConstraint domain [indomain]
     tcltest::testConstraint dcexists [expr {[testconfig domain_controller] ne ""}]
-
 }

@@ -17,6 +17,8 @@ namespace eval twapi::shell::test {
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
+    ::tcltest::testConstraint haveprinter [llength [twapi::enumerate_printers]]
+
     proc check_csidl {csidl {allow_empty 0}} {
         set path [twapi::get_shell_folder $csidl]
 
@@ -578,6 +580,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
+        pause "If you see a shell dialog after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -noui]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.2: Did you see any shell prompt for searching for a path?"]
@@ -661,9 +664,15 @@ namespace eval twapi::shell::test {
         Read url shortcut
     } -constraints {
         nt
+    } -setup {
+        set path [lindex [glob -nocomplain [file join [twapi::get_shell_folder favorites] *.url]] 0]
+        if {$path eq ""} {
+            set path [lindex [glob [file join [twapi::get_shell_folder favorites] links *.url]] 0]
+        }
     } -body {
-        set path [lindex [glob [file join [twapi::get_shell_folder favorites] *.url]] 0]
-        string match -nocase http://* [twapi::read_url_shortcut $path]
+        puts path:$path
+        puts url:[twapi::read_url_shortcut $path]
+        string match -nocase http*://* [twapi::read_url_shortcut $path]
     } -result 1
 
     ################################################################
@@ -747,7 +756,7 @@ namespace eval twapi::shell::test {
         twapi::write_url_shortcut $urlpath file:///[file join $path]
     } -body {
         twapi::invoke_url_shortcut $urlpath -verb edit
-        set pid [window_to_pid -text "[file tail $path]*Notepad" -match glob]
+        set pid [window_to_pid -text "[file rootname [file tail $path]]*Notepad" -match glob]
         twapi::process_exists $pid
     } -cleanup {
         twapi::end_process $pid -force
@@ -811,24 +820,25 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::file_properties_dialog [info nameofexecutable]
-        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
         yesno "Did you see a file properties dialog for the tclsh executable?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test file_properties_dialog-1.1 {
-        Show the file properties dialog on a specific tab
+        Show the file properties dialog on a specific TAB
     } -constraints {
         userInteraction
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it AFTER NOTING THE PROPERTY PAGE DISPLAYED."
+        after 100
         twapi::file_properties_dialog [info nameofexecutable] -page version
-        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
         yesno "Did you see THE VERSION TAB of the file properties dialog for the tclsh executable?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
+
 
     ################################################################
 
@@ -849,11 +859,10 @@ namespace eval twapi::shell::test {
         userInteraction
     } -body {
         # Volume propety dialog block the caller
-        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
+        pause "You should see a volume properties dialog for $::env(SYSTEMDRIVE). MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
         twapi::volume_properties_dialog $::env(SYSTEMDRIVE) -page Tools
         yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE) opened on the Tools page?"
     } -result 1
-
 
     ################################################################
 
@@ -864,29 +873,25 @@ namespace eval twapi::shell::test {
     } -setup {
         set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::printer_properties_dialog $printer
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
         yesno "Did you see a printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test printer_properties_dialog-1.1 {
         Show the printer properties dialog on a specific tab
     } -constraints {
-        userInteraction
+        userInteraction haveprinter
     } -setup {
         set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
+        after 100
         twapi::printer_properties_dialog $printer -page Sharing
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
-        yesno "Did you see the Shareing TAB of the printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
+        yesno "Did you see the Sharing TAB of the printer properties dialog for $printer?"
     } -result 1
 
     ################################################################
@@ -896,11 +901,11 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::shell_object_properties_dialog [info nameofexecutable]
-        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
         yesno "Did you see a file properties dialog for the tclsh executable?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test shell_object_properties_dialog-1.1 {
@@ -908,11 +913,11 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::shell_object_properties_dialog [info nameofexecutable] -type file
-        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
         yesno "Did you see a file properties dialog for the tclsh executable?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test shell_object_properties_dialog-2.0 {
@@ -922,13 +927,11 @@ namespace eval twapi::shell::test {
     } -setup {
         set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::shell_object_properties_dialog $printer
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
         yesno "Did you see a printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test shell_object_properties_dialog-2.1 {
@@ -938,13 +941,11 @@ namespace eval twapi::shell::test {
     } -setup {
         set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
+        after 100
         twapi::shell_object_properties_dialog $printer -type printer
-        # In case it is a share, only get last part
-        set tail [lindex [split $printer \\] end]; # Cannot use file tail if just share portion
-        set win [wait_for_window -text [file tail ${tail}]* -match glob -toplevel true]
         yesno "Did you see a printer properties dialog for $printer?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
     test shell_object_properties_dialog-3.0 {
@@ -952,11 +953,11 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction
     } -body {
+        # Property dialogs can block the caller
+        pause "After hitting Return, you should see a shell properties dialog. Make a note of the page and then Cancel it."
+        after 100
         twapi::shell_object_properties_dialog [info nameofexecutable] -page version -type file
-        set win [wait_for_window -text [file tail [info nameofexecutable]]* -match glob -toplevel true]
         yesno "Did you see THE VERSION TAB of the file properties dialog for the tclsh executable?"
-    } -cleanup {
-        twapi::close_window $win
     } -result 1
 
 
