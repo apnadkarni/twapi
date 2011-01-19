@@ -79,7 +79,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::sspi_close_security_context $sctx
         twapi::sspi_close_security_context $cctx
-    } -result [list 524288 524288]
+    } -result [list 1 1]
         
     test sspi_enumerate_packages-1.0 {
         Enumerate SSPI providers
@@ -89,7 +89,6 @@ namespace eval twapi::crypto::test {
               [lsearch -exact $packages NTLM] >= 0 &&
               [lsearch -exact $packages Kerberos] >= 0 &&
               [lsearch -exact $packages Schannel] >= 0 &&
-              [lsearch -exact $packages Digest] >= 0 &&
               [lsearch -exact $packages Negotiate] >= 0
           }
     } -result 1

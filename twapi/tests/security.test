@@ -1971,12 +1971,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -system $::env(COMPUTERNAME) -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq "" &&
               $userinfo(-home_dir) eq "" &&
-              $userinfo(-script_path) eq "" &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq ""
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2001,12 +2000,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set username "${test_account_prefix}_[clock clicks]"
         set comment "Create [clock clicks]"
         twapi::new_user $username -comment $comment -home_dir [pwd] -script_path [pwd] -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq $comment &&
               $userinfo(-home_dir) eq [pwd] &&
-              $userinfo(-script_path) eq [pwd] &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq [pwd] 
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2022,12 +2020,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set username "${test_account_prefix}_[clock clicks]"
         set comment "Create [clock clicks]"
         twapi::new_user $username -comment $comment -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq $comment &&
               $userinfo(-home_dir) eq "" &&
-              $userinfo(-script_path) eq "" &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq ""
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2042,12 +2039,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -home_dir [pwd] -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq "" &&
               $userinfo(-home_dir) eq [pwd] &&
-              $userinfo(-script_path) eq "" &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq ""
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2061,12 +2057,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -script_path [pwd] -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq "" &&
               $userinfo(-home_dir) eq "" &&
-              $userinfo(-script_path) eq [pwd] &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq [pwd]
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2080,12 +2075,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set username "${test_account_prefix}_[clock clicks]"
         twapi::new_user $username -priv user -password [twapi::new_uuid]
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq "" &&
               $userinfo(-home_dir) eq "" &&
-              $userinfo(-script_path) eq "" &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq ""
           }
     } -cleanup {
         twapi::delete_user $username
@@ -2118,12 +2112,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set username "${test_account_prefix}_[clock clicks]"
         set password [twapi::new_uuid]
         twapi::new_user $username -password $password
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path]
         expr {
               $userinfo(-comment) eq "" &&
               $userinfo(-home_dir) eq "" &&
               $userinfo(-script_path) eq "" &&
-              $userinfo(-priv) eq "user" &&
               [check_password $username $password]
           }
     } -cleanup {
@@ -2140,12 +2133,11 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set comment "Create [clock clicks]"
         set dc [testconfig domain_controller]
         twapi::new_user $username -comment $comment -home_dir [pwd] -script_path [pwd]  -password [twapi::new_uuid] -system $dc
-        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -priv -system $dc]
+        array set userinfo [twapi::get_user_account_info $username -comment -home_dir -script_path -system $dc]
         expr {
               $userinfo(-comment) eq $comment &&
               $userinfo(-home_dir) eq [pwd] &&
-              $userinfo(-script_path) eq [pwd] &&
-              $userinfo(-priv) eq "user"
+              $userinfo(-script_path) eq [pwd]
           }
     } -cleanup {
         twapi::delete_user $username -system $dc
@@ -2601,7 +2593,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
               $uinfo(-code_page) == 0 &&
               [llength $uinfo(-global_groups)] == 1 &&
               $uinfo(-country_code) == 0 &&
-              $uinfo(-priv) == "admin" &&
               [string equal -nocase $uinfo(-name) administrator] &&
               $uinfo(-password_expired) == 0 &&
               [string match -nocase "*built-in*" $uinfo(-comment)] &&
@@ -6225,8 +6216,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Make a restricted dacl
     } -body {
         twapi::new_restricted_dacl Administrators process_all_access
-    } -result {2 {{0 0 2035711 S-1-5-32-544}}}
-
+    } -result [list 2 [list [list 0 0 [expr {[twapi::min_os_version 6] ? 2097151 : 2035711}] S-1-5-32-544]]]
 
     ################################################################
 
