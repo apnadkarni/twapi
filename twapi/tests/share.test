@@ -36,10 +36,11 @@ namespace eval twapi::share::test {
     set testshares(export_limit_mapped) 5
     set testshares(export_limit_unmapped) unlimited
 
-    # Client side share
-    set testshares(client_share_mapped) "\\\\$::env(COMPUTERNAME)\\$testshares(export_name_mapped)"
-    set testshares(client_share_unmapped) "\\\\$::env(COMPUTERNAME)\\$testshares(export_name_unmapped)"
-    set testshares(client_device) "V:"
+    # Client side share. Use 127.0.0.1 else IPv6 connections are set up
+    # if env(COMPUTERNAME) is used - TBD
+    set testshares(client_share_mapped) "\\\\127.0.0.1\\$testshares(export_name_mapped)"
+    set testshares(client_share_unmapped) "\\\\127.0.0.1\\$testshares(export_name_unmapped)"
+    set testshares(client_device) [find_unused_drive]
     
 
     variable shares
@@ -1431,7 +1432,8 @@ namespace eval twapi::share::test {
     } -setup {
         create_unmapped_client_share
     } -body {
-        ::twapi::get_lm_session_info \\\\127.0.0.1 $env(USERNAME)
+        puts $::env(USERNAME)
+        ::twapi::get_lm_session_info \\\\127.0.0.1 $::env(USERNAME)
     } -result ""
 
     ###
