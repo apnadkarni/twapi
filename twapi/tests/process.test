@@ -2146,8 +2146,8 @@ namespace eval ::twapi::process::test {
     test get_command_line-1.0 {
         Get the command line of the current process
     } -body {
-        twapi::get_command_line
-    } -result "* $argv0 $argv" -match glob
+        lrange [twapi::get_command_line] 1 end
+    } -result [linsert $argv 0 $argv0] -match list
 
     ################################################################
 
@@ -2232,16 +2232,20 @@ namespace eval ::twapi::process::test {
 
     test get_process_parent-3.0 {
         Get the parent of a process without access
+    } -constraint {
+        TBD
     } -setup {
-        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+        set pid [what process has no access?]
     } -body {
         twapi::get_process_parent $pid
     } -result "(unknown)"
 
     test get_process_parent-3.1 {
         Get the parent of a process without access (-noaccess)
+    } -constraint {
+        TBD
     } -setup {
-        set pid [lindex [twapi::get_process_ids -name csrss.exe] 0]
+        set pid [what process has no access?]
     } -body {
         twapi::get_process_parent $pid -noaccess "not allowed"
     } -result "not allowed"

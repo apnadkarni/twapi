@@ -75,7 +75,7 @@ namespace eval twapi::crypto::test {
         set flags1 [twapi::sspi_verify_signature $sctx $sig $data]
         foreach {sig data} [twapi::sspi_generate_signature $cctx 1234] break
         set flags2 [twapi::sspi_verify_signature $sctx $sig $data]
-        list $flags1 $flags2
+        list [string is integer -strict $flags1] [string is integer -strict $flags2]
     } -cleanup {
         twapi::sspi_close_security_context $sctx
         twapi::sspi_close_security_context $cctx
