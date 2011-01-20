@@ -221,7 +221,7 @@ namespace eval twapi::console::test {
         array set info [twapi::get_console_screen_buffer_info stdout -all]
         set ypos [expr {[lindex $info(-windowpos) 1] + [lindex $info(-windowsize) 1] / 2}]
         twapi::console_write stdout "VVVVV\r\nVVVVV" -position [list 0 $ypos] -restoreposition true -newlinemode column
-        yesno "\nWere 2 lines of V's written at left-middle of screen WITHOUT INTEVENING BLANK LINE and this prompt appeared at *original* location?"
+        yesno "\nWere 2 lines of V's written at left-middle of screen WITHOUT INTERVENING BLANK LINE and this prompt appeared at *original* location?"
     } -result 1
 
 
@@ -257,11 +257,11 @@ namespace eval twapi::console::test {
     } -setup {
         set conh [twapi::get_console_handle stdin]
     } -body {
-        puts "Type the following: 'twapi rules'"
+        puts "Type the following: 'twapi rules again'"
         twapi::console_read $conh
     } -cleanup {
         twapi::close_handle $conh
-    } -result "twapi rules\r\n"
+    } -result "twapi rules again\r\n"
 
     test console_read-2.0 {
         Read the console with options
@@ -988,16 +988,16 @@ namespace eval twapi::console::test {
     } -body {
         puts "Testing echoing of console lineinput mode"
         twapi::modify_console_input_mode stdin -lineinput false -echoinput false
-        puts "Please type the single char X. Do NOT hit RETURN"
+        puts "Please type the single char 'x'. Do NOT hit RETURN"
         set x [twapi::console_read]
         twapi::modify_console_input_mode stdin -lineinput true -echoinput true
-        puts "Now type the characters ABC followed by Return"
+        puts "Now type the characters 'abc' followed by Return"
         set y [twapi::console_read]
         puts [string length $y]
         list $x $y
     } -cleanup {
         eval [list twapi::set_console_input_mode stdin] $orig
-    } -result [list X ABC\r\n]
+    } -result [list x abc\r\n]
     
     test modify_console_input_mode-5.0 {
         Modify console input mode -quickeditmode

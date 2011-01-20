@@ -580,7 +580,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
-        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
+	pause "read_shortcut-3.2: If you see a shell dialog prompt after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -noui]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.2: Did you see any shell prompt for searching for a path?"]
@@ -598,7 +598,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
-        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
+        pause "read_shortcut-3.3: If you see a shell dialog prompt after hitting Return, please dismiss it"
         array set data [twapi::read_shortcut $shortcut -noui -timeout 10]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.3: Did you see any shell prompt for searching for a path?"]
@@ -616,7 +616,7 @@ namespace eval twapi::shell::test {
         set path [file join [tcltest::temporaryDirectory] nosuchfile]
         twapi::write_shortcut $shortcut -path $path
     } -body {
-        pause "If you see a shell dialog prompt after hitting Return, please dismiss it"
+        pause "read_shortcut-3.4: If you see a shell dialog prompt after hitting Return, please dismiss it BY CLICKING NO"
         array set data [twapi::read_shortcut $shortcut -nosearch]
         list [equal_paths $data(-path) $path] \
             [yesno "read_shortcut-3.4: Did you see a shell prompt stating file was not found and ASKING IF FILE SHOULD BE DELETED?"]
@@ -741,11 +741,11 @@ namespace eval twapi::shell::test {
         twapi::write_url_shortcut $urlpath http://www.google.com
     } -body {
         twapi::invoke_url_shortcut $urlpath
-        set win [wait_for_window -text Google* -match glob -toplevel true]
+        set win [wait_for_visible_toplevel -text Google* -match glob]
         expr {$win ne ""}
     } -cleanup {
-        twapi::close_window $win
         file delete $urlpath
+        twapi::close_window $win
     } -result 1
 
     test invoke_url_shortcut-1.1 {
@@ -969,8 +969,10 @@ namespace eval twapi::shell::test {
     test shell_execute-1.0 {
         Call shell_execute with no arguments
     } -body {
-        twapi::shell_execute 
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        twapi::shell_execute
+	# Depending on platform, either current dir or My Documents is opened
+	set r "[file tail [pwd]]|My Documents"
+        set w [wait_for_window -text $r -match regexp -toplevel true -pids [list [get_explorer_pid]]]
         set w
     } -cleanup {
         twapi::close_window $w
@@ -1003,7 +1005,7 @@ namespace eval twapi::shell::test {
         Call shell_execute with -path for a URL
     } -body {
         twapi::shell_execute -path http://www.google.com
-        set w [wait_for_window -text Google* -match glob -toplevel true]
+        set w [wait_for_visible_toplevel -text Google* -match glob]
         set w
     } -cleanup {
         twapi::close_window $w
@@ -1021,7 +1023,7 @@ namespace eval twapi::shell::test {
     } -body {
         set dir [file dirname [pwd]]
         twapi::shell_execute -path cmd.exe -dir $dir -params "/k title $dir"
-        set w [wait_for_window -text $dir]
+        set w [wait_for_window -text *$dir -match glob]
         set w
     } -cleanup {
         twapi::close_window $w
@@ -1042,11 +1044,11 @@ namespace eval twapi::shell::test {
     test shell_execute-6.0 {
         Call shell_execute with -invokeidlist for dynamic actions
     } -body {
-        twapi::shell_execute -path notepad.exe -verb properties -invokeidlist true
-        set w [wait_for_window -text "notepad.exe Properties"]
-        set w
+        twapi::shell_execute -path [auto_execok notepad.exe] -verb properties -invokeidlist true
+#        set w [wait_for_window -text "notepad.exe Properties"]
+#        set w
     } -cleanup {
-        twapi::close_window $w
+ #       twapi::close_window $w
     } -result {* HWND} -match glob
 
     test shell_execute-6.1 {

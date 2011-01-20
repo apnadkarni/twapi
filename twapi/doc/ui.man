@@ -869,12 +869,16 @@ be a list of two integers specifying the caret's coordinates.
 
 [call [cmd set_desktop_wallpaper] [arg PATH] [opt [cmd -persist]]]
 Sets the desktop wallpaper to that specified by the file [arg PATH].
-The file must be in BMP format. If [arg PATH] is specified as an
+On Vista and later systems, the file may be in BMP or JPG format. Older
+Windows systems only support BMP format.
+[nl]
+If [arg PATH] is specified as an
 empty string or [const none], no wallpaper is displayed on the desktop.
 If [arg PATH] is [const default], the default wallpaper is restored to
 the desktop. If the option [cmd -persist] is specified, the new setting
-is written to the user's profile.
-
+is written to the user's profile. Note that if the system is not
+currently configured to display a wallpaper, the desktop is not
+updated immediately unless the [cmd -persist] flag is also specified.
 
 [call [cmd set_focus] [arg HWIN]]
 
