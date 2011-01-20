@@ -2586,24 +2586,39 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         verify_kl_fields [array get uinfo] [array names get_user_account_info_fields]
 
         # TBD - need more validation
-        expr {
-              $uinfo(-user_id) == 500 &&
-              [string is integer $uinfo(-bad_pw_count)] &&
-              [regexp {^[01]{168}$} $uinfo(-logon_hours)] &&
-              $uinfo(-code_page) == 0 &&
-              [llength $uinfo(-global_groups)] == 1 &&
-              $uinfo(-country_code) == 0 &&
-              [string equal -nocase $uinfo(-name) administrator] &&
-              $uinfo(-password_expired) == 0 &&
-              [string match -nocase "*built-in*" $uinfo(-comment)] &&
-              $uinfo(-units_per_week) == 168 &&
-              $uinfo(-primary_group_id) == 513 &&
-              ($uinfo(-status) == "enabled" || $uinfo(-status) == "disabled") &&
-              $uinfo(-logon_server) == "\\\\*" &&
-              [lsearch $uinfo(-local_groups) "Administrators"] >= 0 &&
-              $uinfo(-acct_expires) == "never"
-          }
-    } -result 1
+	list \
+	    $uinfo(-user_id) \
+	    [string is integer $uinfo(-bad_pw_count)] \
+	    [regexp {^[01]{168}$} $uinfo(-logon_hours)] \
+	    $uinfo(-code_page) \
+	    $uinfo(-global_groups) \
+	    $uinfo(-country_code) \
+	    $uinfo(-name) \
+	    $uinfo(-password_expired) \
+	    [string match -nocase "*built-in*" $uinfo(-comment)] \
+	    $uinfo(-units_per_week) \
+	    $uinfo(-primary_group_id) \
+	    $uinfo(-status) \
+	    $uinfo(-logon_server) \
+	    $uinfo(-local_groups) \
+	    $uinfo(-acct_expires)
+    } -match list -result {
+	500
+	1
+	1
+	0
+	None
+	0
+	Administrator
+	0
+	1
+	168
+	513
+	enabled
+	\\\\*
+	Administrators
+	never
+    }
 
     set testnum 1
 
