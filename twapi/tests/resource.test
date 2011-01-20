@@ -18,7 +18,11 @@ namespace eval twapi::resource::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
-    set rctest_dll "rctest.dll"
+    if {$::tcl_platform(machine) eq "amd64"} {
+        set rctest_dll "rctest64.dll"
+    } else {
+        set rctest_dll "rctest.dll"
+    }
 
     ################################################################
 
