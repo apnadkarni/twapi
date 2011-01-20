@@ -698,7 +698,7 @@ namespace eval twapi::com::test {
         # The param is a variant that may be a integer
         # corresponding to a special folder or a string path
         set fo [$sh NameSpace 36]
-        $fo Title
+        [string toupper [$fo Title]]
     } -cleanup {
         $fo -destroy
         $sh -destroy

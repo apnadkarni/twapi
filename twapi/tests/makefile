@@ -51,6 +51,7 @@ TESTFILES=all.tcl \
 	share.vbs \
 	thread.vbs \
 	rctest.dll \
+	rctest64.dll \
 	rctest\bitmap.bmp
 
 distribution: $(TESTFILES)

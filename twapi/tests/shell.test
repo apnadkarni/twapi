@@ -1045,10 +1045,10 @@ namespace eval twapi::shell::test {
         Call shell_execute with -invokeidlist for dynamic actions
     } -body {
         twapi::shell_execute -path [auto_execok notepad.exe] -verb properties -invokeidlist true
-#        set w [wait_for_window -text "notepad.exe Properties"]
-#        set w
+        set w [wait_for_window -text "notepad.exe Properties"]
+        set w
     } -cleanup {
- #       twapi::close_window $w
+        twapi::close_window $w
     } -result {* HWND} -match glob
 
     test shell_execute-6.1 {
