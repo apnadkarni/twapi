@@ -3184,15 +3184,39 @@ namespace eval twapi::ui::test {
     ################################################################
 
     test set_desktop_wallpaper-1.0 {
+	Set desktop wallpaper
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        set orig_path [twapi::get_desktop_wallpaper]
+    } -body {
+	# Note we do not ask user if wallpaper changed, because
+	# windows will not change it immediately, if -persist is not
+	# specified and originally desktop had no wallpaper at all
+	set path [file join [tcltest::testsDirectory] bitmap.bmp]
+	if {![file exists $path]} {
+	    set path [file join [tcltest::testsDirectory] rctest bitmap.bmp]
+	}
+        twapi::set_desktop_wallpaper $path
+	equal_paths $path [twapi::get_desktop_wallpaper]
+    } -cleanup {
+        twapi::set_desktop_wallpaper $orig_path
+    } -result 1
+
+    test set_desktop_wallpaper-1.1 {
     } -constraints {
         nt systemmodificationok userInteraction
     } -setup {
         set orig_path [twapi::get_desktop_wallpaper]
     } -body {
-        twapi::set_desktop_wallpaper [file join $::env(WINDIR) "blue lace 16.bmp"]
+	set path [file join [tcltest::testsDirectory] bitmap.bmp]
+	if {![file exists $path]} {
+	    set path [file join [tcltest::testsDirectory] rctest bitmap.bmp]
+	}
+        twapi::set_desktop_wallpaper $path -persist
         yesno "Did the desktop change?"
     } -cleanup {
-        twapi::set_desktop_wallpaper $orig_path
+        twapi::set_desktop_wallpaper $orig_path -persist
     } -result 1
 
     ################################################################

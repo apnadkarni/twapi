@@ -375,6 +375,10 @@ proc wait_for_window args {
     error "No matching window found for '$args'"
 }
 
+proc wait_for_visible_toplevel args {
+    return [eval [list wait_for_window -toplevel 1 -visible 1] $args]
+}
+
 proc get_processes {{refresh 0}} {
     global psinfo
     

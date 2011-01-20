@@ -64,14 +64,17 @@ If no arguments are specified, all interfaces are flushed.
 Returns the entries in the system's ARP table. Each entry is a sublist
 consisting of four elements - the interface index, the hardware address,
 the IP address and the type. The type is one of [const dynamic],
-[const static], [const other]  or [const invalid].
+[const static], [const other]  or [const invalid]. Note the hardware
+address may be empty, for example when the associated interface is
+the loopback adapter.
 [nl]
 The following options control the returned data:
 [list_begin opt]
 [opt_def [cmd -ifindex] [arg INTERFACEINDEX]]Limits the returned entries
 to those in the ARP table for the specified network interface with index
 [arg INTERFACEINDEX].
-[opt_def [cmd -sort]]Returns the entries sorted by IP address.
+[opt_def [cmd -sort]]Returns the entries sorted by interface index, then 
+IP address.
 [opt_def [cmd -validonly]]Skips entries that are marked invalid.
 [list_end]
 

@@ -16,7 +16,6 @@ namespace eval twapi::network::test {
     namespace import ::tcltest::test
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
-
     variable get_tcp_connections_fields {
         -state
         -localaddr
@@ -28,7 +27,6 @@ namespace eval twapi::network::test {
         -modulepath
         -bindtime
     }
-
     variable get_udp_connections_fields {
             -localaddr
             -localport
@@ -37,27 +35,21 @@ namespace eval twapi::network::test {
             -modulepath
             -bindtime
     }
-
-
     proc validate_netif_indices {indices} {
         foreach i $indices {
             if {![string is integer $i]} {return 0}
         }
         return 1
     }
-
     proc resolvable_hostname {} {
         return www.yahoo.com
     }
-
     proc resolvable_address {} {
         return 209.131.36.158;          # A yahoo address
     }
-
     proc resolvable_address_domain {} {
         return yahoo.com
     }
-
     proc our_ipaddr {} {
         foreach ipaddr [twapi::get_ip_addresses] {
             if {$ipaddr ne "127.0.0.1"} {
@@ -199,8 +191,9 @@ namespace eval twapi::network::test {
         if {![valid_ip_address $ipaddr]} {
             lappend "Invalid IP address $ipaddr in ARP table"
         }
-        if {![regexp {^([[:xdigit:]]{2}-){5}[[:xdigit:]]{2}$} $hwaddr]} {
-            lappend msgs "Invalid h/w address $hwaddr in ARP table"
+        if {[string length $hwaddr] &&
+	    ![regexp {^([[:xdigit:]]{2}-){5}[[:xdigit:]]{2}$} $hwaddr]} {
+            lappend msgs "Invalid h/w address $hwaddr in ARP table for ip '$ipaddr'"
         }
         return $msgs
     }
@@ -971,16 +964,22 @@ namespace eval twapi::network::test {
     } -body {
         set msgs ""
         set last 0
+	set last_ip_str ""
+	set last_adapter_index 0
         foreach arp [twapi::get_arp_table -sort] {
             set msgs [concat $msgs [validate_arp_entry $arp]]
             set ipaddr 0
-            foreach part [split [lindex $arp 2] .] {
+	    set adapter_index [lindex $arp 0]
+	    set ip_str [lindex $arp 2]
+            foreach part [split $ip_str .] {
                 set ipaddr [expr {(256 * $ipaddr) + $part}]
             }
-            if {$ipaddr < $last} {
-                lappend msgs "IP addr not sorted."
+            if {$ipaddr < $last && $adapter_index <= $last_adapter_index} {
+                lappend msgs "IP addr not sorted ('$ipaddr/$ip_str' < '$last/$last_ip_str')."
             }
             set last $ipaddr
+	    set last_ip_str $ip_str
+	    set last_adapter_index $adapter_index
         }
         join $msgs \n
     } -result ""

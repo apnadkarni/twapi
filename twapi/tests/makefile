@@ -50,7 +50,8 @@ TESTFILES=all.tcl \
 	services.vbs \
 	share.vbs \
 	thread.vbs \
-	rctest.dll
+	rctest.dll \
+	rctest\bitmap.bmp
 
 distribution: $(TESTFILES)
 	-mkdir "$(PACKAGEDIR)\tests\rctest"
