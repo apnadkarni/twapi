@@ -1045,7 +1045,7 @@ namespace eval twapi::shell::test {
         Call shell_execute with -invokeidlist for dynamic actions
     } -body {
         twapi::shell_execute -path [auto_execok notepad.exe] -verb properties -invokeidlist true
-        set w [wait_for_window -text "notepad.exe Properties"]
+        set w [wait_for_window -text "notepad* Properties" -match glob]
         set w
     } -cleanup {
         twapi::close_window $w
@@ -1060,7 +1060,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.0 {
         Call shell_execute with -show not specified
     } -body {
-        twapi::shell_execute 
+        twapi::shell_execute -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
@@ -1072,7 +1072,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.1 {
         Call shell_execute with -show normal
     } -body {
-        twapi::shell_execute -show normal
+        twapi::shell_execute -show normal -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
@@ -1084,7 +1084,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.2 {
         Call shell_execute with -show minimize
     } -body {
-        twapi::shell_execute -show minimize
+        twapi::shell_execute -show minimize -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         after 10; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
@@ -1095,7 +1095,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.3 {
         Call shell_execute with -show showminimized
     } -body {
-        twapi::shell_execute -show showminimized
+        twapi::shell_execute -show showminimized -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         after 10; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
@@ -1106,7 +1106,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.4 {
         Call shell_execute with -show showminnoactive
     } -body {
-        twapi::shell_execute -show showminnoactive
+        twapi::shell_execute -show showminnoactive -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         after 10; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
@@ -1117,7 +1117,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.5 {
         Call shell_execute with -show maximize
     } -body {
-        twapi::shell_execute -show maximize
+        twapi::shell_execute -show maximize -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         after 10; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
@@ -1128,7 +1128,7 @@ namespace eval twapi::shell::test {
     test shell_execute-7.6 {
         Call shell_execute with -show showmaximized
     } -body {
-        twapi::shell_execute -show showmaximized
+        twapi::shell_execute -show showmaximized -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         after 10; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
@@ -1139,16 +1139,11 @@ namespace eval twapi::shell::test {
     test shell_execute-7.7 {
         Call shell_execute with -show show
     } -body {
-        twapi::shell_execute -show show
+        twapi::shell_execute -show show -path [pwd]
         set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
-        expr {
-              [twapi::window_maximized $w] ||
-              [twapi::window_minimized $w]
-          }
     } -cleanup {
         twapi::close_window $w
-    } -result 0
+    } -result HWND -match handle
 
     test shell_execute-8.0 {
         Call shell_execute with -params
