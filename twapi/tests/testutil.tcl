@@ -368,7 +368,13 @@ proc wait_for_window args {
             return [lindex $wins 0]
         }
         
-        after 100
+        # When waiting for some windows, like those created through
+        # shell_execute, the event loop must be running so that window
+        # messages can be processed (COM dispatching for shell controls
+        # for instance)
+        set after_id [after 100 "set ::wait_for_window_flag 1"]
+        vwait ::wait_for_window_flag
+        after cancel $after_id; # Probably no need but ...
         incr elapsed 100
     }
 
@@ -720,7 +726,7 @@ proc wmic_value {obj field key keyval} {
     return $rec($field)
 }
 
-# Return true if $a is close to $b (within 5%)
+# Return true if $a is close to $b (within 10%)
 proc approx {a b {adjust 0}} {
     set max [expr {$a > $b ? $a : $b}]; # Tcl 8.4 does not have a max() func
     if {[expr {abs($b-$a) < ($max/20)}]} {
@@ -739,7 +745,7 @@ proc approx {a b {adjust 0}} {
 
     # See if they match up after adjustment
     set max [expr {$a > $b ? $a : $b}]; # Tcl 8.4 does not have a max() func
-    return [expr {abs($b-$a) < ($max/20)}]
+    return [expr {abs($b-$a) < ($max/10)}]
 }
 
 
