@@ -1175,8 +1175,8 @@ namespace eval twapi::shell::test {
 	# Make a separate path so as to not interfere with previous
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
-        twapi::shell_execute -path cmd.exe -dir $dir -params "/k title $dir"
-        set w [wait_for_window -text $dir]
+        twapi::shell_execute -path cmd.exe -dir $dir -params "/k title [file tail $dir]"
+        set w [wait_for_window -text *[file tail $dir] -match glob]
         set w
     } -cleanup {
         twapi::close_window $w
