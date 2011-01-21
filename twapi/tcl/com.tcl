@@ -1521,18 +1521,8 @@ twapi::class create ::twapi::IDispatchProxy {
 
         ::twapi::trap {
             set ti [my @GetTypeInfo 0]
-        } onerror {TWAPI_WIN32 0x80004001} {
-            # Interface is not implemented. We do not raise an error because
-            # even without the _typecomp we can try invoking
-            # methods via IDispatch::GetIDsOfNames
-            if {![info exists _guid]} {
-                # Do not overwrite if set thru @SetGuid
-                set _guid ""
-            }
-            set _typecomp ""
-            return
-        } onerror {TWAPI_WIN32 0x80004002} {
-            # Interface is supported. We do not raise an error because
+        } onerror {} {
+            # We do not raise an error because
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
             if {![info exists _guid]} {
