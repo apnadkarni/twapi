@@ -1349,6 +1349,10 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
         set opts(sacl) null
     }
 
+    if {$mask == 0} {
+	error "Must specify at least one of the options -all, -dacl, -sacl, -owner, -group or -mandatory_label"
+    }
+
     if {$opts(handle)} {
         set restype [_map_resource_symbol_to_type $restype false]
         if {$restype == 5} {
