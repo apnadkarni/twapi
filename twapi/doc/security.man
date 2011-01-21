@@ -1315,7 +1315,11 @@ a file unless option [cmd -handle] is specified in which case it is the
 handle to the resource.
 [nl]
 The fields of the resource's security descriptor are modified based
-on the contents of [arg SECD]. The specific fields modified
+on the contents of [arg SECD]. At lease one of the options
+[cmd -all], [cmd -owner], [cmd -group], [cmd -dacl],
+[cmd -sacl] or [cmd -mandatory_label]
+must be specified.
+The specific fields modified
 depend on the options specified:
 
 [list_begin opt]

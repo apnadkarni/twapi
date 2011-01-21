@@ -88,6 +88,7 @@ namespace eval twapi::security::test {
                 SeBatchLogonRight
             }
         }
+	return $test_account_name
     }
 
     # Check password
@@ -5137,7 +5138,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -setup {
-        set fn "twapi-test-set_resource_security_descriptor-7.0"
+        set fn "twapi-test-get_resource_security_descriptor-7.0"
         tcltest::makeFile "" $fn
     } -body {
         set path [file join [tcltest::temporaryDirectory] $fn]
@@ -5182,10 +5183,17 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         tcltest::makeDirectory $fn
     } -body {
         set path [file join [tcltest::temporaryDirectory] $fn]
-        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl [make_acl]] -dacl -owner
+	set current_owner [twapi::map_account_to_name [lindex [twapi::get_resource_security_descriptor file $path -owner] 1]]
+	if {[string equal -nocase $current_owner "Administrators"]} {
+	    set uname $::env(USERNAME)
+	} else {
+	    set uname Administrators
+	}
+
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner $uname -dacl [make_acl]] -dacl -owner
         set secd [twapi::get_resource_security_descriptor file $path]
         expr { [twapi::_is_valid_security_descriptor $secd] &&
-               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid "Administrators"]}
+               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid $uname]}
     } -result 1
 
     ###
@@ -5271,6 +5279,17 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -cleanup {
         twapi::close_handles $h
     } -result 1
+
+    test set_resource_security_descriptor-6.0 {
+        Set the security descriptor for a resource (no options specified)
+    } -setup {
+        set fn "twapi-test-set_resource_security_descriptor-1.0"
+        tcltest::makeDirectory $fn
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] $fn]
+	set secd [twapi::new_security_descriptor]
+        twapi::set_resource_security_descriptor file $path $secd
+    } -returnCodes error -result "Must specify at least one of the options -all, -dacl, -sacl, -owner, -group or -mandatory_label"
 
     ################################################################
     
