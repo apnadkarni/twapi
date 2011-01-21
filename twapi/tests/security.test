@@ -23,9 +23,14 @@ namespace eval twapi::security::test {
     variable test_account_prefix "TWAPI"
     variable test_account_name "${test_account_prefix}_[clock clicks]"
 
+    variable guest_account_name [get_localized_account guest]
+    variable guest_account_name [get_localized_account guest]
+    variable administrator_account_name [get_localized_account administrator]
+    variable administrators_account_name [get_localized_account administrators]
+
     # SID for the account the process is running under
     variable my_sid [twapi::lookup_account_name $::env(USERNAME)]
-    variable guest_sid [twapi::lookup_account_name Guest]
+    variable guest_sid [twapi::lookup_account_name $guest_account_name]
 
     # Define expected values for various get_user_account_info fields
     # assuming [string match -nocase comparison] and Administrator account
@@ -182,7 +187,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         array unset unameinfo
-        array set unameinfo [twapi::lookup_account_name guest -domain]
+        array set unameinfo [twapi::lookup_account_name $guest_account_name -domain]
         expr {
               [array size unameinfo] == 1 &&
               [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
@@ -310,7 +315,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::lookup_account_sid S-1-5-32-544
-    } -result Administrators
+    } -result $administrators_account_name
 
     ###
 
@@ -339,7 +344,7 @@ namespace eval twapi::security::test {
         array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -all]
         expr {
               [llength [setops::symdiff [array names unameinfo] {-domain -type -name}]] == 0 &&
-              $unameinfo(-name) == "Administrators" &&
+              $unameinfo(-name) == "$administrators_account_name" &&
               $unameinfo(-type) == "alias"
           }
     } -result 1
@@ -458,7 +463,7 @@ namespace eval twapi::security::test {
         array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -name]
         expr {
               [array size unameinfo] == 1 &&
-              $unameinfo(-name) ==  "Administrators"
+              $unameinfo(-name) ==  "$administrators_account_name"
           }
     } -result 1
 
@@ -484,7 +489,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        twapi::map_account_to_sid Guest
+        twapi::map_account_to_sid $guest_account_name
     } -result $guest_sid
 
     ###
@@ -525,7 +530,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::map_account_to_name $guest_sid
-    } -result Guest
+    } -result $guest_account_name
 
     ###
 
@@ -534,8 +539,8 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        twapi::map_account_to_name Guest
-    } -result Guest
+        twapi::map_account_to_name $guest_account_name
+    } -result $guest_account_name
 
     ###
 
@@ -545,7 +550,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::map_account_to_name $guest_sid -system \\\\127.0.0.1
-    } -result Guest
+    } -result $guest_account_name
 
     ###
 
@@ -555,7 +560,7 @@ namespace eval twapi::security::test {
         nt
     } -body {
         twapi::map_account_to_name $guest_sid -system 127.0.0.1
-    } -result Guest
+    } -result $guest_account_name
 
 
     ################################################################
@@ -565,7 +570,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        expr {[lsearch -exact [twapi::get_account_rights administrators] SeInteractiveLogonRight] >= 0}
+        expr {[lsearch -exact [twapi::get_account_rights $administrators_account_name] SeInteractiveLogonRight] >= 0}
     } -result 1
 
     test get_account_rights-1.1 {
@@ -573,7 +578,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        expr {[lsearch -exact [twapi::get_account_rights administrators -system $::env(COMPUTERNAME)] SeInteractiveLogonRight] >= 0}
+        expr {[lsearch -exact [twapi::get_account_rights $administrators_account_name -system $::env(COMPUTERNAME)] SeInteractiveLogonRight] >= 0}
     } -result 1
 
     ################################################################
@@ -599,7 +604,7 @@ namespace eval twapi::security::test {
     } -constraints {
         nt
     } -body {
-        expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -name] Administrators] >= 0}
+        expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -name] $administrators_account_name] >= 0}
     } -result 1
 
     ################################################################
@@ -1781,7 +1786,7 @@ namespace eval twapi::security::test {
     test get_users-1.0 {
         Get list of users
     } -body {
-        expr { [lsearch [twapi::get_users] Administrator] >= 0 }
+        expr { [lsearch [twapi::get_users] $administrator_account_name] >= 0 }
     } -result 1
 
     ###
@@ -1789,7 +1794,7 @@ namespace eval twapi::security::test {
     test get_users-2.0 {
         Get list of users (-system)
     } -body {
-        expr { [lsearch [twapi::get_users -system $::env(COMPUTERNAME)] Administrator] >= 0 }
+        expr { [lsearch [twapi::get_users -system $::env(COMPUTERNAME)] $administrator_account_name] >= 0 }
     } -result 1
 
     ###
@@ -1799,7 +1804,7 @@ namespace eval twapi::security::test {
     } -constraints {
         domain
     } -body {
-        expr { [lsearch [twapi::get_users -system [testconfig domain_controller]] Administrator] >= 0 }
+        expr { [lsearch [twapi::get_users -system [testconfig domain_controller]] $administrator_account_name] >= 0 }
     } -result 1
 
     test get_users-3.0 {
@@ -2583,7 +2588,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -setup {
         catch {unset uinfo}
     } -body {
-        array set uinfo [twapi::get_user_account_info Administrator -all]
+        array set uinfo [twapi::get_user_account_info $administrator_account_name -all]
         verify_kl_fields [array get uinfo] [array names get_user_account_info_fields]
 
         # TBD - need more validation
@@ -2603,23 +2608,23 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 	    $uinfo(-logon_server) \
 	    $uinfo(-local_groups) \
 	    $uinfo(-acct_expires)
-    } -match list -result {
-	500
-	1
-	1
-	0
-	None
-	0
-	Administrator
-	0
-	1
-	168
-	513
-	enabled
-	\\\\*
-	Administrators
-	never
-    }
+    } -match list -result [list \
+                               500 \
+                               1 \
+                               1 \
+                               0 \
+                               None \
+                               0 \
+                               $administrator_account_name \
+                               0 \
+                               1 \
+                               168 \
+                               513 \
+                               enabled \
+                               \\\\* \
+                               $administrators_account_name \
+                               never \
+                               ]
 
     set testnum 1
 
@@ -2629,7 +2634,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
             -setup {
                 catch {unset uinfo}
             } -body " 
-                array set uinfo \[twapi::get_user_account_info Administrator $field \]
+                array set uinfo \[twapi::get_user_account_info $administrator_account_name $field \]
                 string match -nocase $pat \$uinfo($field)
             " -result 1
     }
@@ -2792,9 +2797,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set l [twapi::get_local_groups]
         expr {
-              [lsearch $l Administrators] >= 0 &&
-              [lsearch $l Guests] >= 0 &&
-              [lsearch $l "Power Users"] >= 0
+              [lsearch $l $administrators_account_name] >= 0 &&
+              [lsearch $l $guests_account_name] >= 0
           }
     } -result 1
 
@@ -2806,9 +2810,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set l [twapi::get_local_groups -system $::env(COMPUTERNAME)]
         expr {
-              [lsearch $l Administrators] >= 0 &&
-              [lsearch $l Guests] >= 0 &&
-              [lsearch $l "Power Users"] >= 0
+              [lsearch $l $admnistrators_account_name] >= 0 &&
+              [lsearch $l $guests_account_name] >= 0 
           }
     } -result 1
 
@@ -2820,8 +2823,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set l [twapi::get_local_groups -system [testconfig domain_controller]]
         expr {
-              [lsearch $l Administrators] >= 0 &&
-              [lsearch $l Guests] >= 0
+              [lsearch $l $administrators_account_name] >= 0 &&
+              [lsearch $l $guests_account_name] >= 0
           }
     } -result 1
 
@@ -3143,14 +3146,14 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Get members of a global group
     } -body {
         twapi::get_global_group_members None
-    } -result [list Guest Administrator] -match superset
+    } -result [list $guest_account_name $administrator_account_name] -match superset
 
 
     test get_global_group_members-2.0 {
         Get members of a global group (-system)
     } -body {
         twapi::get_global_group_members None -system 127.0.0.1
-    } -result [list Guest Administrator] -match superset
+    } -result [list $guest_account_name $administrator_account_name] -match superset
 
 
     test get_global_group_members-2.1 {
@@ -3159,7 +3162,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         twapi::get_global_group_members "Domain Admins" -system [testconfig domain_controller]
-    } -result [list Administrator] -match superset
+    } -result [list $administrator_account_name] -match superset
 
     test get_global_group_members-3.0 {
         Get members of a global group -level 0
@@ -3240,17 +3243,17 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_local_group_members-1.0 {
         Get members of a local group
     } -body {
-        set l [twapi::get_local_group_members Guests]
-        expr { [lsearch -glob $l *Guest] >= 0 }
+        set l [twapi::get_local_group_members $guests_account_name]
+        expr { [lsearch -glob $l *$guest_account_name] >= 0 }
     } -result 1
 
 
     test get_local_group_members-2.0 {
         Get members of a local group (-system)
     } -body {
-        set l [twapi::get_local_group_members Guests \
+        set l [twapi::get_local_group_members $guests_account_name \
                    -system $::env(COMPUTERNAME)]
-        expr { [lsearch -glob $l *Guest] >= 0 }
+        expr { [lsearch -glob $l *$guest_account_name] >= 0 }
     } -result 1
 
 
@@ -3261,13 +3264,13 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set l [twapi::get_local_group_members Administrators \
                    -system [testconfig domain_controller]]
-        expr { [lsearch $l Administrator] >= 0 }
+        expr { [lsearch $l $administrator_account_name] >= 0 }
     } -result 1
 
     test get_local_group_members-3.0 {
         Get members of a local group -level 0
     } -body {
-        set kl [twapi::get_local_group_members Guests -level 0]
+        set kl [twapi::get_local_group_members $guests_account_name -level 0]
         verify_list_kl_fields $kl {sid}
         valid_account_sids [twapi::kl_flatten $kl sid]
     } -result 1
@@ -3275,7 +3278,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_local_group_members-3.1 {
         Get members of a local group -level 1
     } -body {
-        set kl [twapi::get_local_group_members Guests -level 1]
+        set kl [twapi::get_local_group_members $guests_account_name -level 1]
         verify_list_kl_fields $kl {sid name sidusage}
         list [valid_account_sids [twapi::kl_flatten $kl sid]] \
             [valid_account_names [twapi::kl_flatten $kl name]]
@@ -3284,7 +3287,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_local_group_members-3.2 {
         Get members of a local group -level 2
     } -body {
-        set kl [twapi::get_local_group_members Guests -level 2]
+        set kl [twapi::get_local_group_members $guests_account_name -level 2]
         verify_list_kl_fields $kl {sid domainandname sidusage}
         list [valid_account_sids [twapi::kl_flatten $kl sid]] \
             [valid_account_names [twapi::kl_flatten $kl domainandname]]
@@ -3293,7 +3296,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_local_group_members-3.3 {
         Get members of a local group -level 3
     } -body {
-        set kl [twapi::get_local_group_members Guests -level 3]
+        set kl [twapi::get_local_group_members $guests_account_name -level 3]
         verify_list_kl_fields $kl {domainandname}
         valid_account_names [twapi::kl_flatten $kl domainandname]
     } -result 1
@@ -3385,12 +3388,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set uname TWAPI_[clock clicks]
         create_user_with_password $uname
     } -body {
-        twapi::add_member_to_local_group Guests $uname
+        twapi::add_member_to_local_group $guests_account_name $uname
         expr {
-              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+              [lsearch -exact [twapi::get_local_group_members $guests_account_name] $uname] >= 0
           }
     } -cleanup {
-        twapi::remove_member_from_local_group Guests $uname
+        twapi::remove_member_from_local_group $guests_account_name $uname
         twapi::delete_user $uname
     } -result 1
 
@@ -3402,12 +3405,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set uname TWAPI_[clock clicks]
         create_user_with_password $uname
     } -body {
-        twapi::add_member_to_local_group Guests $uname -system 127.0.0.1
+        twapi::add_member_to_local_group $guests_account_name $uname -system 127.0.0.1
         expr {
-              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+              [lsearch -exact [twapi::get_local_group_members $guests_account_name] $uname] >= 0
           }
     } -cleanup {
-        twapi::remove_member_from_local_group Guests $uname
+        twapi::remove_member_from_local_group $guests_account_name $uname
         twapi::delete_user $uname
     } -result 1
 
@@ -3421,12 +3424,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set uname TWAPI_[clock clicks]
         create_user_with_password $uname $dc
     } -body {
-        twapi::add_member_to_local_group Guests $dom\\$uname
+        twapi::add_member_to_local_group $guests_account_name $dom\\$uname
         expr {
-              [lsearch -exact [twapi::get_local_group_members Guests] $uname] >= 0
+              [lsearch -exact [twapi::get_local_group_members $guests_account_name] $uname] >= 0
           }
     } -cleanup {
-        twapi::remove_member_from_local_group Guests $uname
+        twapi::remove_member_from_local_group $guests_account_name $uname
         twapi::delete_user $uname -system $dc
     } -result 1
 
@@ -3438,12 +3441,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set dom [testconfig domain_name]
         set dc [testconfig domain_controller]
     } -body {
-        twapi::add_member_to_local_group Guests "$dom\\Domain Guests"
+        twapi::add_member_to_local_group $guests_account_name "$dom\\Domain Guests"
         expr {
-              [lsearch -exact [twapi::get_local_group_members Guests] "Domain Guests"] >= 0
+              [lsearch -exact [twapi::get_local_group_members $guests_account_name] "Domain Guests"] >= 0
           }
     } -cleanup {
-        twapi::remove_member_from_local_group Guests "Domain Guests"
+        twapi::remove_member_from_local_group $guests_account_name "Domain Guests"
     } -result 1
 
     ################################################################
@@ -4447,7 +4450,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test set_ace_sid-1.0 {
         Set the SID for an ACE
     } -setup {
-        set ace [twapi::new_ace allow Guest generic_read]
+        set ace [twapi::new_ace allow $guest_account_name generic_read]
     } -body {
         set ace [twapi::set_ace_sid $ace $my_sid]
         # Make sure other fields are not changed
@@ -4469,7 +4472,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test set_ace_sid-1.1 {
         Set the account for an ACE
     } -setup {
-        set ace [twapi::new_ace deny Guest generic_read]
+        set ace [twapi::new_ace deny $guest_account_name generic_read]
     } -body {
         set ace [twapi::set_ace_sid $ace $::env(USERNAME)]
         # Make sure other fields are not changed
@@ -4491,7 +4494,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test get_ace_inheritance-1.0 {
         Get inheritance settings for an ACE
     } -setup {
-        set ace [twapi::new_ace deny Guest generic_read]
+        set ace [twapi::new_ace deny $guest_account_name generic_read]
         catch {unset aceinheritance}
     } -body {
         array set aceinheritance [twapi::get_ace_inheritance $ace]
@@ -4815,12 +4818,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set secd [twapi::new_security_descriptor \
                       -owner $::env(USERNAME) \
-                      -group Administrators \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
         expr {
               [twapi::get_security_descriptor_owner $secd] == $my_sid &&
-              [twapi::get_security_descriptor_group $secd] == [twapi::lookup_account_name Administrators] &&
+              [twapi::get_security_descriptor_group $secd] == [twapi::lookup_account_name $administrators_account_name] &&
               [twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_dacl $secd]] 0]] == "deny" &&
               [twapi::get_ace_type [lindex [twapi::get_acl_aces [twapi::get_security_descriptor_sacl $secd]] 0]] == "audit"
           }
@@ -4835,7 +4838,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
                       -owner $::env(USERNAME) \
-                      -group Administrators \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4852,12 +4855,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
                       -owner $::env(USERNAME) \
-                      -group Administrators \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
         twapi::get_security_descriptor_group $secd
-    } -result [twapi::lookup_account_name Administrators]
+    } -result [twapi::lookup_account_name $administrators_account_name]
 
 
     ################################################################
@@ -4869,7 +4872,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
                       -owner $::env(USERNAME) \
-                      -group Administrators \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4885,7 +4888,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
                       -owner $::env(USERNAME) \
-                      -group Administrators \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4929,8 +4932,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4945,8 +4948,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4969,8 +4972,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -4985,8 +4988,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
@@ -5008,8 +5011,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -setup {
         set sacl [twapi::new_acl [list [twapi::new_ace audit $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl null \
                       -sacl $sacl]
     } -body {
@@ -5041,8 +5044,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -setup {
         set dacl [twapi::new_acl [list [twapi::new_ace deny $::env(USERNAME) generic_read]]]
         set secd [twapi::new_security_descriptor \
-                      -owner Administrator \
-                      -group Administrators \
+                      -owner $administrator_account_name \
+                      -group $administrators_account_name \
                       -dacl $dacl \
                       -sacl null]
     } -body {
@@ -5119,7 +5122,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         nt
     } -body {
         twapi::map_account_to_name [::twapi::get_security_descriptor_owner [::twapi::get_resource_security_descriptor file $::env(TEMP) -owner]]
-    }  -match regexp -result "$::env(USERNAME)|Administrators"
+    }  -match regexp -result "$::env(USERNAME)|$administrators_account_name"
 
     ###
 
@@ -5184,10 +5187,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set path [file join [tcltest::temporaryDirectory] $fn]
 	set current_owner [twapi::map_account_to_name [lindex [twapi::get_resource_security_descriptor file $path -owner] 1]]
-	if {[string equal -nocase $current_owner "Administrators"]} {
+	if {[string equal -nocase $current_owner "$administrators_account_name"]} {
 	    set uname $::env(USERNAME)
 	} else {
-	    set uname Administrators
+	    set uname $administrators_account_name
 	}
 
         twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner $uname -dacl [make_acl]] -dacl -owner
@@ -5207,7 +5210,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         tcltest::makeDirectory $fn
     } -body {
         set path [file join [tcltest::temporaryDirectory] $fn]
-        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl null] -dacl -owner
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner $administrators_account_name -dacl null] -dacl -owner
         twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor file $path]
     } -result null
 
@@ -5243,7 +5246,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         # We set an ACL that does not allow access. Because
         # it is protected, it will not inherit allow access from its
         # ancestors and because it is empty it will deny delete access
-        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner Administrators -dacl [twapi::new_acl]] -dacl -owner -protect_dacl
+        twapi::set_resource_security_descriptor file $path [twapi::new_security_descriptor -owner $administrators_account_name -dacl [twapi::new_acl]] -dacl -owner -protect_dacl
         catch {tcltest::removeDirectory $fn}
     } -cleanup {
         # Reset the ACL and remove the file
@@ -5272,10 +5275,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
                    0 \
                    NULL]
 
-        twapi::set_resource_security_descriptor file $h [twapi::new_security_descriptor -owner Administrators -dacl null] -dacl -owner -handle
+        twapi::set_resource_security_descriptor file $h [twapi::new_security_descriptor -owner $administrators_account_name -dacl null] -dacl -owner -handle
         set secd [twapi::get_resource_security_descriptor file $path]
         expr { [twapi::_is_valid_security_descriptor $secd] &&
-               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid "Administrators"]}
+               [twapi::get_security_descriptor_owner $secd] eq [twapi::map_account_to_sid "$administrators_account_name"]}
     } -cleanup {
         twapi::close_handles $h
     } -result 1
@@ -5811,10 +5814,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         twapi::get_security_descriptor_text \
             [twapi::new_security_descriptor \
                  -owner $::env(username) \
-                 -group Administrators \
+                 -group $administrators_account_name \
                  -dacl null \
                  -sacl null]
-    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*null.*SACL Rev:\\s*null" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*null.*SACL Rev:\\s*null" -match regexp
 
     ###
 
@@ -5824,10 +5827,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         twapi::get_security_descriptor_text \
             [twapi::new_security_descriptor \
                  -owner $::env(username) \
-                 -group Administrators \
+                 -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null]
-    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
     ###
 
     test get_security_descriptor_text-1.1 {
@@ -5838,10 +5841,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         twapi::get_security_descriptor_text \
             [twapi::new_security_descriptor \
                  -owner $::env(username) \
-                 -group Administrators \
+                 -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null] -resourcetype file
-    } -result "Owner:\\s*$::env(username).*Group:\\s*Administrators.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
 
     ################################################################
 
@@ -6147,7 +6150,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -body {
-        twapi::get_local_group_info Administrators
+        twapi::get_local_group_info $administrators_account_name
     } -result ""
 
     ###
@@ -6157,7 +6160,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -body {
-        verify_kl_fields [twapi::get_local_group_info Administrators -all] {
+        verify_kl_fields [twapi::get_local_group_info $administrators_account_name -all] {
             -comment -name -sid -members
         }
     } -result ""
@@ -6169,7 +6172,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -body {
-        twapi::get_local_group_info Administrators -comment
+        twapi::get_local_group_info $administrators_account_name -comment
     } -result "^-comment\\s+.*" -match regexp
 
     ###
@@ -6181,7 +6184,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         # Note lower case "administrators"
         twapi::get_local_group_info administrators -name
-    } -result [list -name Administrators]
+    } -result [list -name $administrators_account_name]
 
     ###
 
@@ -6190,7 +6193,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -body {
-        twapi::get_local_group_info Administrators -sid
+        twapi::get_local_group_info $administrators_account_name -sid
     } -result "^-sid\\s+S-1-.*" -match regexp
 
 
@@ -6201,7 +6204,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -constraints {
         nt
     } -body {
-        twapi::get_local_group_info Administrators -members
+        twapi::get_local_group_info $administrators_account_name -members
     } -result "^-members\\s.*" -match regexp
 
     ################################################################
@@ -6249,7 +6252,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test new_restricted_dacl-1.1 {
         Make a restricted dacl
     } -body {
-        twapi::new_restricted_dacl Administrators process_all_access
+        twapi::new_restricted_dacl $administrators_account_name process_all_access
     } -result [list 2 [list [list 0 0 [expr {[twapi::min_os_version 6] ? 2097151 : 2035711}] S-1-5-32-544]]]
 
     ################################################################
