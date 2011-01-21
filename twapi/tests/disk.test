@@ -1244,7 +1244,7 @@ namespace eval twapi::disk::test {
         twapi::set_file_times $path -ctime [twapi::get_system_time]
         # Setting security descriptor
         set secd [twapi::get_resource_security_descriptor file $path]
-        twapi::set_resource_security_descriptor file $path $secd
+        twapi::set_resource_security_descriptor file $path $secd -dacl
         # Changing attributes
         file attributes $path -readonly 1
 
@@ -1380,16 +1380,15 @@ namespace eval twapi::disk::test {
         set fd [open [file join $dir $fn] w]
     } -body {
         set ::filesystem_monitor_result ""
-        set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
+        set after_id [after 5000 "set ::filesystem_monitor_result timeout"]
         set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list modified $fn]]]
         puts $fd "Test begin_filesystem_monitor-1.1"
-        flush $fd
+        close $fd; # Close, not flush to ensure Windows really wriets to disk
         vwait ::filesystem_monitor_result
         after cancel $after_id
         set ::filesystem_monitor_result
     } -cleanup {
         twapi::cancel_filesystem_monitor $monitor_id
-        close $fd
         file delete [file join $dir $fn]
     } -result success
 
@@ -1492,7 +1491,7 @@ namespace eval twapi::disk::test {
         set ::filesystem_monitor_result ""
         set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
         set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list modified $fn]]]
-        twapi::set_resource_security_descriptor file $path $secd
+        twapi::set_resource_security_descriptor file $path $secd -dacl
         vwait ::filesystem_monitor_result
         after cancel $after_id
         set ::filesystem_monitor_result

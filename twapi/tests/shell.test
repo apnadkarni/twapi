@@ -1060,8 +1060,11 @@ namespace eval twapi::shell::test {
     test shell_execute-7.0 {
         Call shell_execute with -show not specified
     } -body {
-        twapi::shell_execute -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
         set w
@@ -1072,8 +1075,11 @@ namespace eval twapi::shell::test {
     test shell_execute-7.1 {
         Call shell_execute with -show normal
     } -body {
-        twapi::shell_execute -show normal -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show normal -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
         set w
@@ -1084,9 +1090,12 @@ namespace eval twapi::shell::test {
     test shell_execute-7.2 {
         Call shell_execute with -show minimize
     } -body {
-        twapi::shell_execute -show minimize -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show minimize -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1095,9 +1104,12 @@ namespace eval twapi::shell::test {
     test shell_execute-7.3 {
         Call shell_execute with -show showminimized
     } -body {
-        twapi::shell_execute -show showminimized -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show showminimized -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1106,9 +1118,12 @@ namespace eval twapi::shell::test {
     test shell_execute-7.4 {
         Call shell_execute with -show showminnoactive
     } -body {
-        twapi::shell_execute -show showminnoactive -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show showminnoactive -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1117,9 +1132,12 @@ namespace eval twapi::shell::test {
     test shell_execute-7.5 {
         Call shell_execute with -show maximize
     } -body {
-        twapi::shell_execute -show maximize -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show maximize -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
         twapi::close_window $w
@@ -1128,9 +1146,12 @@ namespace eval twapi::shell::test {
     test shell_execute-7.6 {
         Call shell_execute with -show showmaximized
     } -body {
-        twapi::shell_execute -show showmaximized -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
-        after 10; # Needed because it takes a bit after creation to be min/maxed
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show showmaximized -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
         twapi::close_window $w
@@ -1139,8 +1160,11 @@ namespace eval twapi::shell::test {
     test shell_execute-7.7 {
         Call shell_execute with -show show
     } -body {
-        twapi::shell_execute -show show -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
+        twapi::shell_execute -show show -path $dir
+        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
     } -cleanup {
         twapi::close_window $w
     } -result HWND -match handle
@@ -1148,7 +1172,9 @@ namespace eval twapi::shell::test {
     test shell_execute-8.0 {
         Call shell_execute with -params
     } -body {
-        set dir [file dirname [pwd]]
+	# Make a separate path so as to not interfere with previous
+	# and later tests that bring up a window
+	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -path cmd.exe -dir $dir -params "/k title $dir"
         set w [wait_for_window -text $dir]
         set w
