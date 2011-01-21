@@ -110,6 +110,21 @@ proc create_user_with_password {uname {system ""}} {
     }
 }
 
+# Get the localized account name for a well known account
+proc get_localized_account {name} {
+    switch -exact -- [string tolower $name] {
+        administrator {set sddl "O:LA"}
+        administrators {set sddl "O:BA"}
+        guest {set sddl "O:LG"}
+        guests {set sddl "O:BG"}
+        default {
+            error "Do not know how to localize account $name"
+        }
+    }
+
+    return [twapi::map_account_to_name [twapi::get_security_descriptor_owner [twapi::sddl_to_security_descriptor $sddl]]]
+}
+
 # Populate users on a system
 proc populate_accounts {{system ""}} {
     variable populated_accounts
