@@ -4830,6 +4830,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 201: 
             return Twapi_PdhParseCounterPath(ticP, s, dw);
         case 202: 
+            NULLIFY_EMPTY(s);
             return Twapi_PdhLookupPerfNameByIndex(interp, s, dw);
         case 203:
             NULLIFY_EMPTY(s);
