@@ -24,7 +24,7 @@ namespace eval twapi::security::test {
     variable test_account_name "${test_account_prefix}_[clock clicks]"
 
     variable guest_account_name [get_localized_account guest]
-    variable guest_account_name [get_localized_account guest]
+    variable guests_account_name [get_localized_account guests]
     variable administrator_account_name [get_localized_account administrator]
     variable administrators_account_name [get_localized_account administrators]
 
@@ -2810,7 +2810,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set l [twapi::get_local_groups -system $::env(COMPUTERNAME)]
         expr {
-              [lsearch $l $admnistrators_account_name] >= 0 &&
+              [lsearch $l $administrators_account_name] >= 0 &&
               [lsearch $l $guests_account_name] >= 0 
           }
     } -result 1

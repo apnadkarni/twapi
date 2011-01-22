@@ -490,6 +490,11 @@ Only matches those connections whose state is one those specified in
 valid values.
 [list_end]
 
+The system attempts to terminate the specified connections but no error
+is raised if the connection cannot be terminated. Caller should retrieve
+the list of connections to check if the termination was successful.
+
+
 [list_end]
 
 [keywords "network information" addresses "Internet addresses" "IP addresses" "network statistics" "ARP table" "Address resolution protocol" "TCP" "UDP" "IP" "ICMP" "DHCP information" "network interface configuration" "network adapters" "DNS server addresses" "WINS servers addresses" "network address" "physical address" "netstat" "connections" "terminate connections" "FQDN" "name resolution" "DNS lookup" "address resolution" routing "network routes"]
