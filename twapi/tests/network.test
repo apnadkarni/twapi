@@ -917,8 +917,8 @@ namespace eval twapi::network::test {
         set client_socket [socket $addrA 9341]
         set client_socket2 [socket $addrB 9342]
     } -body {
-        # Assumes no other extraneous connections are created on the system
-        twapi::terminate_tcp_connections -matchlocaladdr $addrA
+        # We specify -matchpid else other connections on system are torn down
+        twapi::terminate_tcp_connections -matchlocaladdr $addrA -matchpid [pid]
         set conns [twapi::get_tcp_connections -pid]
         # One active connections should be gone (both server listen socket
         # will still be present). This also verifies somewhat that
