@@ -662,7 +662,7 @@ proc twapi::get_udp_connections {args} {
 # does not exist
 proc twapi::terminate_tcp_connections {args} {
     array set opts [parseargs args {
-        matchstate.int
+        matchstate.arg
         matchlocaladdr.arg
         matchremoteaddr.arg
         matchlocalport.int
@@ -679,7 +679,9 @@ proc twapi::terminate_tcp_connections {args} {
         [info exists opts(matchremoteaddr)] && [info exists opts(matchremoteport)] &&
         ! [info exists opts(matchpid)]} {
         # 12 is "delete" code
-        SetTcpEntry [list 12 $opts(matchlocaladdr) $opts(matchlocalport) $opts(matchremoteaddr) $opts(matchremoteport)]
+        catch {
+            SetTcpEntry [list 12 $opts(matchlocaladdr) $opts(matchlocalport) $opts(matchremoteaddr) $opts(matchremoteport)]
+        }
         return
     }
 
@@ -713,12 +715,11 @@ proc twapi::terminate_tcp_connections {args} {
         }
         # Matching conditions fulfilled
         # 12 is "delete" code
-        trap {
+        catch {
             SetTcpEntry [list 12 $aconn(-localaddr) $aconn(-localport) $aconn(-remoteaddr) $aconn(-remoteport)]
-        } onerror {TWAPI_WIN32 87} {
-            # Ignore, the connection no longer exists
         }
     }
+    return
 }
 
 
