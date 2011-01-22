@@ -29,7 +29,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 3.0.27 -match regexp
+    } -result 3.0.28 -match regexp
 
     ################################################################
 

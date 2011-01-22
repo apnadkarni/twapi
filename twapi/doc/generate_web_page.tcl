@@ -120,7 +120,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     puts $outfd "Tcl Windows API $::twapi_version"
     puts $outfd {
         <div class='copyright'>
-          &copy; 2002-2010 Ashok P. Nadkarni
+          &copy; 2002-2011 Ashok P. Nadkarni
         </div>
         <a href='http://www.magicsplat.com/privacy.html'>Privacy policy</a>
     }
