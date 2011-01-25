@@ -249,9 +249,6 @@ The following options may be specified:
 [opt_def [cmd -hwin] [arg HWIN]]
 If specified, [arg HWIN] is the handle to the window to be used as
 the parent for the dialog.
-[opt_def [cmd -page] [arg PAGENAME]]
-Specifies the name of the property sheet page to be displayed. If unspecified,
-the default page is displayed.
 [list_end]
 
 [call [cmd find_volumes]]
@@ -667,9 +664,6 @@ The following options may be specified:
 [opt_def [cmd -hwin] [arg HWIN]]
 If specified, [arg HWIN] is the handle to the window to be used as
 the parent for the dialog.
-[opt_def [cmd -page] [arg PAGENAME]]
-Specifies the name of the property sheet page to be displayed. If unspecified,
-the default page is displayed.
 [list_end]
 
 [list_end]

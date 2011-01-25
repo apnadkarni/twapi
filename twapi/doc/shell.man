@@ -394,9 +394,6 @@ may be specified:
 [opt_def [cmd -hwin] [arg HWIN]]
 If specified, [arg HWIN] is the handle to the window to be used as
 the parent for the dialog.
-[opt_def [cmd -page] [arg PAGENAME]]
-Specifies the name of the property sheet page to be displayed. If unspecified,
-the default page is displayed.
 [opt_def [cmd -type] [const "file|printer|volume"]]
 Specifies the type of the object identified by [arg OBJECTPATH]. If
 this option is not specified, the command will attempt to figure out
