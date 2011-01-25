@@ -1,6 +1,10 @@
 # A sample Windows service implemented in Tcl using TWAPI's windows
 # services module.
 #
+# A sample client session looks like this
+#   set s [echo_client localhost 2020]
+#   puts $s "Hello!"
+#   gets $s line
 
 proc usage {} {
     puts stderr {
@@ -18,7 +22,7 @@ manager GUI.
 # If in source dir, we load that twapi in preference to installed package
 set echo_script_dir [file dirname [file dirname [file normalize [info script]]]]
 if {[file exists [file join $echo_script_dir tcl twapi.tcl]]} {
-    uplevel #0 source [file join $echo_script_dir tcl twapi.tcl]
+    uplevel #0 [list source [file join $echo_script_dir tcl twapi.tcl]]
 } else {
     uplevel #0 package require twapi
 }
@@ -130,24 +134,9 @@ proc echo_bcast {msg} {
 
 
 
-#
-# A client of the echo service.
-#
-
-proc echo_client {host port} {
-    set s [socket $host $port]
-    fconfigure $s -buffering line
-    return $s
-}
-
-# A sample client session looks like this
-#   set s [echo_client localhost 2540]
-#   puts $s "Hello!"
-#   gets $s line
 
 ################################################################
 # The actual service related code
-package require twapi
 
 #
 # Update the SCM with our state
