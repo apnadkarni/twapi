@@ -870,10 +870,10 @@ proc equal_lists {l1 l2} {
 tcltest::customMatch list equal_lists
 
 # Prompt the user
-proc yesno {question {default "no default"}} {
+proc yesno {question {default "Y"}} {
+    set answer ""
     # Make sure we are seen
     twapi::set_foreground_window [twapi::get_console_window]
-    set answer ""
     while {![string is boolean -strict $answer]} {
         # We would have liked to use -nonewline here but that
         # causes output not to be displayed when running from 
@@ -891,35 +891,6 @@ proc yesno {question {default "no default"}} {
     return [expr {!! $answer}]
 }
 
-# Prompt the user
-proc yesnoskip {question {default "no default"}} {
-    # Make sure we are seen
-    twapi::set_foreground_window [twapi::get_console_window]
-    set answer ""
-    while {1} {
-        if {[string is boolean -strict $answer]} {
-            return [expr {!! $answer}]
-        }
-
-        if {[string equal -nocase $answer "s"]} {
-            return S
-        }
-
-        # We would have liked to use -nonewline here but that
-        # causes output not to be displayed when running from 
-        # tcltest::runAllTests. I believe this is the same 
-        # bug Tcl seems to have with pipes and new lines
-        # flushing on Windows (SF buf whatever)
-        puts stdout "$question Type Y/N/S followed by Enter \[$default\] : "
-        flush stdout
-        set answer [string trim [gets stdin]]
-#        puts $answer
-        if {$answer eq ""} {
-            set answer $default
-        }
-    }
-
-}
 
 # Pause to allow reader to read a message
 proc pause {message} {

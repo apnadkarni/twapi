@@ -1593,10 +1593,15 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_elevation $tok
+        set elev [twapi::get_token_elevation $tok]
+        if {[twapi::min_os_version 6]} {
+            expr {[string equal -nocase $::env(USERNAME) Administrator] ? ? "default" : "full"}
+        } else {
+            expr {$elev eq "default"}
+        }
     } -cleanup {
         twapi::close_token $tok
-    } -result [expr {[twapi::min_os_version 6] ? "full" : "default"}]
+    } -result 1
 
     ################################################################
 

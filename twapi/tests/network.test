@@ -545,9 +545,9 @@ namespace eval twapi::network::test {
     } -constraints {
         nt
     } -setup {
+	patience hostname_to_address-3.0
         # Prepopulate cache
         twapi::hostname_to_address [resolvable_hostname]
-	patience hostname_to_address-3.0
     } -body {
         set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
         # Wait for 30 seconds since Windows also keep a cache and that
@@ -632,6 +632,7 @@ namespace eval twapi::network::test {
         # Prepopulate cache
         twapi::address_to_hostname [resolvable_address]
     } -body {
+        patience "address_to_hostname-3.0"
         set addr [resolvable_address]
         set cache_lookup [time {twapi::address_to_hostname $addr}]
         # Wait for 30 seconds since Windows also keep a cache and that
@@ -714,8 +715,8 @@ namespace eval twapi::network::test {
         set server_socket [socket -server [list set ::connection_establised 1] 9341]
         set client_socket [socket 127.0.0.1 9341]
     } -body {
-        array set conns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
-        set conns(-modulepath)
+        array set aconns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
+        set aconns(-modulepath)
     } -cleanup {
         close $client_socket
         close $server_socket
@@ -728,8 +729,8 @@ namespace eval twapi::network::test {
         set server_socket [socket -server [list set ::connection_establised 1] 9341]
         set client_socket [socket 127.0.0.1 9341]
     } -body {
-        array set conns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
-        set conns(-modulename)
+        array set aconns [lindex [twapi::get_tcp_connections -all -matchlocalport 9341] 0]
+        set aconns(-modulename)
     } -cleanup {
         close $client_socket
         close $server_socket
@@ -808,16 +809,16 @@ namespace eval twapi::network::test {
     test get_udp_connections-2.0 {
         Get UDP connections -modulepath
     } -body {
-        array set conns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
-        set conns(-modulepath)
-    } -result [file join $::env(WINDIR) system32 kernel32.dll] -match path
+        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        file dirname [set aconns(-modulepath)]
+    } -result [file join $::env(WINDIR) system32] -match path
 
     test get_udp_connections-2.1 {
         Get UDP connections -modulename
     } -body {
-        array set conns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
-        set conns(-modulename)
-    } -result kernel32.dll -match path
+        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        file exists [file join $::env(WINDIR) system32 $aconns(-modulename)]
+    } -result 1
 
     set testnum 1
     foreach opt $get_udp_connections_fields {

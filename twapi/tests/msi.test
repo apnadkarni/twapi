@@ -33,15 +33,19 @@ namespace eval twapi::msi::test {
     test msi_sql_query-1.0 {
         Test exec ing a SQL query on an MSI package
     } -setup {
+        set msifile [file join [file dirname [info script]] sample.msi]
+        if {![file exists $msifile]} {
+            error "File $msifile not found. Please copy it to test dir."
+        }
         set msi [twapi::comobj WindowsInstaller.Installer]
         # Instead of using load_msi_prototypes, we will use
-        # the type library
+        # the type library - TBD (we are not actually using that in the body)
         set tl [twapi::ITypeLibProxy_from_path [file join $::env(WINDIR) system32 msi.dll]]
         $tl @LoadDispatchPrototypes
         $tl Release
     } -body {
         twapi::load_msi_prototypes $msi Installer
-        set db [$msi OpenDatabase [file join [file dirname [info script]] sample.msi] 0]
+        set db [$msi OpenDatabase $msifile 0]
         twapi::load_msi_prototypes $db Database
         set view [$db OpenView "select Title, Description from Feature where Feature='Complete'"]
         twapi::load_msi_prototypes $view View
