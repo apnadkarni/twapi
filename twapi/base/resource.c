@@ -269,14 +269,14 @@ TCL_RESULT Twapi_SplitStringResource(
     
     while (len >= 2) {
         WORD slen = *wP++;
-        if (slen > len) {
+        if (slen > (sizeof(WCHAR)*len)) {
             /* Should not happen */
             break;
         }
         Tcl_ListObjAppendElement(interp, objP,
                                  Tcl_NewUnicodeObj(wP, slen));
         wP += slen;
-        len -= 1+slen;
+        len -= sizeof(WCHAR)*(1+slen);
     }
 
     Tcl_SetObjResult(interp, objP);
