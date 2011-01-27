@@ -1,5 +1,4 @@
-Official version 3.0.25 of the Tcl Windows API (TWAPI)
-extension has been released.
+Version 3.0.29 of the Tcl Windows API (TWAPI) extension has been released.
 
 Project home page, including documentation, download links and 
 examples, is at http://twapi.magicsplat.com
@@ -14,7 +13,7 @@ http://twapi.magicsplat.com/versionhistory.html
   * Version 3.0 has been completely rearchitected. SWIG and C++
     have been eliminated resulting in easier deployment, a smaller
     disk and memory footprint and faster execution
-  * Support for loading into multiple interpreters and threads
+  * Support for loading into multiple interpreters
   * 64-bit version for Windows 2003+ and Tcl 8.5+
   * New single-file deployment options that do not depend 
     on TclVFS/Starkit support in Tcl
