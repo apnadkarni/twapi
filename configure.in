@@ -91,7 +91,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_INCLUDES([-I\"$(${CYGPATH} ${srcdir}/twapi/base)\"])
 
-    TEA_ADD_CFLAGS([-DWINVER=0x0500 -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1])
+    TEA_ADD_CFLAGS([-DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1])
 
     TEA_ADD_SOURCES([twapi/base/adsi.c twapi/base/async.c twapi/base/calls.c twapi/base/clipboard.c twapi/base/com.c
  twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/eventlog.c
@@ -108,7 +108,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
  rpcrt4.lib gdi32.lib psapi.lib netapi32.lib pdh.lib winmm.lib
  mpr.lib ws2_32.lib ole32.lib oleaut32.lib shell32.lib
  winspool.lib version.lib iphlpapi.lib powrprof.lib secur32.lib
- userenv.lib wtsapi32.lib setupapi.lib strsafe.lib])
+ userenv.lib wtsapi32.lib setupapi.lib uxtheme.lib strsafe.lib])
 
 # NOTE: This is the full build, using the mandatory, server, desktop,
 # and full files (in this order). Separated over four commands to
