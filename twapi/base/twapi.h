@@ -1178,11 +1178,7 @@ BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
 int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
-HTHEME Twapi_OpenThemeData(HWND win, LPCWSTR classes);
-BOOL Twapi_IsThemeActive(void);
-BOOL Twapi_IsAppThemed(void);
 int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
-void Twapi_CloseThemeData(HTHEME themeH);
 int Twapi_GetShellVersion(Tcl_Interp *interp);
 int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);

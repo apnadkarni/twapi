@@ -4835,7 +4835,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
 
 
-    PKG_CFLAGS="$PKG_CFLAGS -DWINVER=0x0500 -D_WIN32_WINNT=0x0500 -DPSAPI_VERSION=1"
+    PKG_CFLAGS="$PKG_CFLAGS -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1"
 
 
 
@@ -4899,7 +4899,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
  rpcrt4.lib gdi32.lib psapi.lib netapi32.lib pdh.lib winmm.lib
  mpr.lib ws2_32.lib ole32.lib oleaut32.lib shell32.lib
  winspool.lib version.lib iphlpapi.lib powrprof.lib secur32.lib
- userenv.lib wtsapi32.lib setupapi.lib strsafe.lib"
+ userenv.lib wtsapi32.lib setupapi.lib uxtheme.lib strsafe.lib"
     for i in $vars; do
 	if test "${TEA_PLATFORM}" = "windows" -a "$GCC" = "yes" ; then
 	    # Convert foo.lib to -lfoo for GCC.  No-op if not *.lib
