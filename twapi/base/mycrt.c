@@ -7,10 +7,13 @@
 
 #include "twapi.h"
 
+#if defined(TWAPI_REPLACE_CRT)
+int _fltused;
+#endif
+
 #if defined(TWAPI_MINIMIZE_CRT) || defined(TWAPI_REPLACE_CRT)
 
-int _fltused;
-
+#ifdef OBSOLETE
 void * __cdecl malloc(size_t sz)
 {
     return TwapiAlloc(sz);
@@ -31,6 +34,6 @@ char *  __cdecl strncpy(char *dst, const char *src, size_t sz)
     StringCchCopyNExA(dst, sz, src, sz, NULL, NULL, STRSAFE_FILL_BEHIND_NULL);
     return dst;
 }
-
+#endif
 
 #endif /* TWAPI_MINIMIZE_CRT */
