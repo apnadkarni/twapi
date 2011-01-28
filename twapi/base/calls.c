@@ -1361,11 +1361,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_EnumerateSecurityPackages(interp);
         case 54:
             result.type = TRT_BOOL;
-            result.value.bval = Twapi_IsThemeActive();
+            result.value.bval = IsThemeActive();
             break;
         case 55:
             result.type = TRT_BOOL;
-            result.value.bval = Twapi_IsAppThemed();
+            result.value.bval = IsAppThemed();
             break;
         case 56:
             return Twapi_GetCurrentThemeName(interp);
@@ -3346,7 +3346,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 30:
             result.type = TRT_EMPTY;
-            Twapi_CloseThemeData(h);
+            CloseThemeData(h);
             break;
         case 31:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -4243,7 +4243,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         break;
     case 1008:
         result.type = TRT_HANDLE;
-        result.value.hval = Twapi_OpenThemeData(hwnd, Tcl_GetUnicode(objv[3]));
+        result.value.hval = OpenThemeData(hwnd, Tcl_GetUnicode(objv[3]));
         break;
     }
 

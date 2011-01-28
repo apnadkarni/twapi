@@ -191,7 +191,8 @@ WINLIB        = \
 	$(SDKLIB)secur32.lib \
 	$(SDKLIB)userenv.lib \
 	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)setupapi.lib
+	$(SDKLIB)setupapi.lib \
+	$(SDKLIB)uxtheme.lib
 # Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 
 !if $(VCVER) > 6

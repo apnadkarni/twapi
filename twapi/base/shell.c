@@ -1161,53 +1161,15 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 }
 
 
-MAKE_DYNLOAD_FUNC(OpenThemeData, uxtheme, FARPROC)
-HTHEME Twapi_OpenThemeData(HWND win, LPCWSTR classes)
-{
-    FARPROC fn;
-
-    fn = Twapi_GetProc_OpenThemeData();
-    return fn ? (HTHEME) (*fn)(win, classes) : NULL;
-}
-
-MAKE_DYNLOAD_FUNC(CloseThemeData, uxtheme, FARPROC)
-void Twapi_CloseThemeData(HTHEME themeH)
-{
-    FARPROC fn = Twapi_GetProc_CloseThemeData();
-    if (fn)
-        (void) (*fn)(themeH);
-}
-
-MAKE_DYNLOAD_FUNC(IsThemeActive, uxtheme, FARPROC_BOOL)
-BOOL Twapi_IsThemeActive(void)
-{
-    FARPROC_BOOL fn = Twapi_GetProc_IsThemeActive();
-    return fn ? (*fn)() : FALSE;
-}
-
-MAKE_DYNLOAD_FUNC(IsAppThemed, uxtheme, FARPROC_BOOL)
-BOOL Twapi_IsAppThemed(void)
-{
-    FARPROC_BOOL fn = Twapi_GetProc_IsAppThemed();
-    return fn ? (*fn)() : FALSE;
-}
-
-typedef HRESULT (WINAPI *GetCurrentThemeName_t)(LPWSTR, int, LPWSTR, int, LPWSTR, int);
-MAKE_DYNLOAD_FUNC(GetCurrentThemeName, uxtheme, GetCurrentThemeName_t)
 int Twapi_GetCurrentThemeName(Tcl_Interp *interp)
 {
     WCHAR filename[MAX_PATH];
     WCHAR color[256];
     WCHAR size[256];
-    GetCurrentThemeName_t fn = Twapi_GetProc_GetCurrentThemeName();
     HRESULT status;
     Tcl_Obj *objv[3];
 
-    if (fn == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-    }
-
-    status = (*fn)(filename, ARRAYSIZE(filename),
+    status = GetCurrentThemeName(filename, ARRAYSIZE(filename),
                    color, ARRAYSIZE(color),
                    size, ARRAYSIZE(size));
 
@@ -1222,8 +1184,6 @@ int Twapi_GetCurrentThemeName(Tcl_Interp *interp)
     return TCL_OK;
 }
 
-typedef HRESULT (WINAPI *GetThemeColor_t)(HTHEME, int, int, int, COLORREF *);
-MAKE_DYNLOAD_FUNC(GetThemeColor, uxtheme, GetThemeColor_t)
 int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HTHEME hTheme;
@@ -1231,12 +1191,8 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int iStateId;
     int iPropId;
 
-    GetThemeColor_t fn = Twapi_GetProc_GetThemeColor();
     HRESULT status;
     COLORREF color;
-
-    if (fn == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hTheme), GETINT(iPartId), GETINT(iStateId),
@@ -1244,7 +1200,7 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    status =  (*fn)(hTheme, iPartId, iStateId, iPropId, &color);
+    status =  GetThemeColor(hTheme, iPartId, iStateId, iPropId, &color);
     if (status != S_OK)
         return Twapi_AppendSystemError(interp, status);
 
@@ -1257,8 +1213,6 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 }
 
 
-typedef HRESULT (WINAPI *GetThemeFont_t)(HTHEME, HDC, int, int, int, LOGFONTW *);
-MAKE_DYNLOAD_FUNC(GetThemeFont, uxtheme, GetThemeFont_t)
 int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HTHEME hTheme;
@@ -1270,13 +1224,6 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     LOGFONTW lf;
     HRESULT hr;
 
-    GetThemeFont_t fn = Twapi_GetProc_GetThemeFont();
-
-    /* NOTE GetThemeFont ExPECTS LOGFONTW although the documentation
-     * mentions LOGFONT
-     */
-    if (fn == NULL)
-        return ERROR_PROC_NOT_FOUND;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hTheme),  GETHANDLE(hdc),
@@ -1284,7 +1231,10 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    hr =  (*fn)(hTheme, hdc, iPartId, iStateId, iPropId, &lf);
+    /* NOTE GetThemeFont ExPECTS LOGFONTW although the documentation/header
+     * mentions LOGFONT
+     */
+    hr =  GetThemeFont(hTheme, hdc, iPartId, iStateId, iPropId, (LOGFONT*)&lf);
     if (hr != S_OK)
         return Twapi_AppendSystemError(interp, hr);
 
