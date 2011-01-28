@@ -1139,7 +1139,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
     LPWSTR s, s2, s3, s4;
-    unsigned char *cP;
+    unsigned char *cP, cP2;
     LUID luid;
     LUID *luidP;
     void *pv, *pv2, *pv3;
@@ -2136,10 +2136,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10057: // VerQueryValue_STRING
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETPTR(pv, TWAPI_FILEVERINFO),
-                             GETWSTR(s), GETWSTR(s2),
+                             GETASTR(cP), GETASTR(cP2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_VerQueryValue_STRING(interp, pv, s, s2);
+            return Twapi_VerQueryValue_STRING(interp, pv, (char*) cP, (char*) cP2);
         case 10058: // DsGetDcName
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -4908,7 +4908,9 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
        value of GetLastError() */
     dw = TwapiSetResult(interp, &result);
 
+#if (TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 5)
     TwapiPdhRestoreLocale();
+#endif
 
     return dw;
 }

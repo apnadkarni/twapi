@@ -9,6 +9,7 @@
 
 /* Define interfaces to the PDH performance monitoring library */
 
+#if (TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 5)
 /* Reset locale back to C if necessary. */
 void TwapiPdhRestoreLocale()
 {
@@ -29,6 +30,7 @@ void TwapiPdhRestoreLocale()
 
     setlocale(LC_ALL, "C");
 }
+#endif
 
 int Twapi_PdhLookupPerfNameByIndex(
     Tcl_Interp *interp,
@@ -277,17 +279,15 @@ int Twapi_PdhGetFormattedCounterValue(
     DWORD                value_type;
     DWORD                counter_type;
     PDH_FMT_COUNTERVALUE counter_value;
-    Tcl_Obj             *objs[3]; /* Holds type and value, result list */
-    char                 buf[100];
-    int                  i;
+    Tcl_Obj             *objs[2]; /* Holds type and value, result list */
     
     pdh_status = PdhGetFormattedCounterValue(hCounter, dwFormat,
                                              &counter_type, &counter_value);
 
     if ((pdh_status != ERROR_SUCCESS)
         || (counter_value.CStatus != ERROR_SUCCESS)) {
-        StringCbPrintfA(buf, sizeof(buf), "Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus);
-        Tcl_SetResult(interp, buf, TCL_VOLATILE);
+        Tcl_SetObjResult(interp,
+                         Tcl_ObjPrintf("Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus));
         return Twapi_AppendSystemError(interp,
                                        (counter_value.CStatus != ERROR_SUCCESS ?
                                         counter_value.CStatus : pdh_status));
@@ -295,7 +295,6 @@ int Twapi_PdhGetFormattedCounterValue(
 
     objs[0] = NULL;
     objs[1] = NULL;
-    objs[2] = NULL;
 
     value_type = dwFormat & (PDH_FMT_LARGE | PDH_FMT_DOUBLE | PDH_FMT_LONG);
     switch (value_type) {
@@ -312,34 +311,17 @@ int Twapi_PdhGetFormattedCounterValue(
         break;
 
     default:
-        StringCbPrintfA(buf, sizeof(buf), "0x%x", dwFormat);
-        Tcl_ResetResult(interp);
-        Tcl_AppendResult(interp, "Invalid PDH counter format value ", buf, NULL);
+        Tcl_SetObjResult(interp,
+                         Tcl_ObjPrintf("Invalid PDH counter format value 0x%x",
+                                       dwFormat));
         return  TCL_ERROR;
     }
     
-    if (objs[0] == NULL)
-        goto fail;
-
-    StringCbPrintfA(buf, sizeof(buf), "0x%x", counter_type);
-    objs[1] = Tcl_NewStringObj(buf, -1);
-    if (objs[1] == NULL)
-        goto fail;
+    objs[1] = Tcl_ObjPrintf("0x%x", counter_type);
 
     /* Create the result list consisting of type and value */
-    objs[2] = Tcl_NewListObj(2, objs);
-    if (objs[2] == NULL)
-        goto fail;
-
-    Tcl_SetObjResult(interp, objs[2]);
+    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
     return TCL_OK;
-
- fail:
-    for (i = 0; i < (sizeof(objs)/sizeof(objs[0])); ++i) {
-        if (objs[i])
-            Twapi_FreeNewTclObj(objs[i]);
-    }
-    return TCL_ERROR;
 }
 
 
