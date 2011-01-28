@@ -148,11 +148,7 @@ LIBTOOL       = lib.exe
 # TCL resources. By default, we will use 8.5 for 64-bit builds and 8.4
 # for 32-bit builds.
 !if "x$(TCLVER)" == "x"
-!if "$(MACHINE)" == "AMD64"
 TCLVER        = 85
-!else
-TCLVER        = 84
-!endif
 !endif
 !if "x$(TCLDIR)" == "x"
 TCLDIR        = "$(TWAPI_SRCROOT)\..\tcl-tk\$(TCLVER)"
@@ -195,8 +191,8 @@ WINLIB        = \
 	$(SDKLIB)secur32.lib \
 	$(SDKLIB)userenv.lib \
 	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)setupapi.lib \
-	$(SDKLIB)strsafe.lib
+	$(SDKLIB)setupapi.lib
+# Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 
 !if $(VCVER) > 6
 WINLIB = $(WINLIB) bufferoverflowU.lib
@@ -224,10 +220,10 @@ CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT=$(ENABLE_ASSERTS)
 INCFLAGS       =  -I. -I$(TCLDIR)\include
 
 !ifndef TWAPI_WIN_HEADER_VERSION
-TWAPI_WIN_HEADER_VERSION = 0x0500
+TWAPI_WIN_HEADER_VERSION = 0x0501
 !endif
 
-CFLAGS    = $(CDEBUG) /c /nologo $(CRUNTIME) /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS)
+CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS) 
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
 !endif
