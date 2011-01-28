@@ -46,6 +46,7 @@ int TwapiFormatMessageHelper(
        itself. Disabling inserts disables too much functionality, eg.
        parsing event log messages.
     */
+
     __try {
         if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
             Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
@@ -56,7 +57,6 @@ int TwapiFormatMessageHelper(
         }
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         DWORD code;
-        char  buf[80];
         switch (code = GetExceptionCode()) {
         case EXCEPTION_ACCESS_VIOLATION:
             Tcl_SetErrno(EFAULT);
@@ -64,12 +64,12 @@ int TwapiFormatMessageHelper(
             Tcl_SetResult(interp, "Access violation in FormatMessage. Most likely, number of supplied arguments do not match those in format string", TCL_STATIC);
             break;
         default:
-            StringCbPrintfA(buf, sizeof(buf),
-                            "Exception %x raised by FormatMessage", code);
-            Tcl_SetResult(interp, buf, TCL_VOLATILE);
+            Tcl_SetObjResult(interp, 
+                             Tcl_ObjPrintf("Exception %x raised by FormatMessage", code));
             break;
         }
     }
+
 
     return result;
 }

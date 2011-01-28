@@ -57,9 +57,11 @@
 #include <security.h>
 #include <userenv.h>
 #include <setupapi.h>
+#if 0
+// Do not use for now as it pulls in C RTL _vsnprintf
 //#define STRSAFE_LIB             /* Use lib, not inline strsafe functions */
 #include <strsafe.h>
-
+#endif
 #include "tcl.h"
 #include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
@@ -1191,7 +1193,7 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_SHFileOperation(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_VerQueryValue_FIXEDFILEINFO(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
 int Twapi_VerQueryValue_STRING(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP,
-                               LPCWSTR lang_and_cp, LPWSTR name);
+                               LPCSTR lang_and_cp, LPSTR name);
 int Twapi_VerQueryValue_TRANSLATIONS(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
 TWAPI_FILEVERINFO * Twapi_GetFileVersionInfo(LPWSTR path);
 void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);

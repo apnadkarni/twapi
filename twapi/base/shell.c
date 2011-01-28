@@ -24,12 +24,12 @@ static DLLVERSIONINFO *TwapiShellVersion()
 
 int Twapi_GetShellVersion(Tcl_Interp *interp)
 {
-    char buf[80];
-
     DLLVERSIONINFO *ver = TwapiShellVersion();
-    StringCbPrintfA(buf, sizeof(buf), "%u.%u.%u",
-              ver->dwMajorVersion, ver->dwMinorVersion, ver->dwBuildNumber);
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    Tcl_SetObjResult(interp,
+                     Tcl_ObjPrintf("%u.%u.%u",
+                                   ver->dwMajorVersion,
+                                   ver->dwMinorVersion,
+                                   ver->dwBuildNumber));
     return TCL_OK;
 }
 
@@ -1234,7 +1234,6 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     GetThemeColor_t fn = Twapi_GetProc_GetThemeColor();
     HRESULT status;
     COLORREF color;
-    char buf[40];
 
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
@@ -1249,9 +1248,11 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (status != S_OK)
         return Twapi_AppendSystemError(interp, status);
 
-    StringCbPrintfA(buf, sizeof(buf), "#%2.2x%2.2x%2.2x",
-             GetRValue(color), GetGValue(color), GetBValue(color));
-    Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
+    Tcl_SetObjResult(interp,
+                     Tcl_ObjPrintf("#%2.2x%2.2x%2.2x",
+                                   GetRValue(color),
+                                   GetGValue(color),
+                                   GetBValue(color)));
     return TCL_OK;
 }
 

@@ -155,6 +155,7 @@ int Twapi_BecomeAService(
     gServiceType = service_type & (SERVICE_WIN32 | SERVICE_INTERACTIVE_PROCESS);
 
     /* Now start the thread that will actually talk to the control manager */
+    /* TBD - should we use _beginthreadex instead ? */
     gServiceMasterThreadHandle = CreateThread(NULL, 0, TwapiServiceMasterThread,
                                         NULL, 0, &gServiceMasterThreadId);
 

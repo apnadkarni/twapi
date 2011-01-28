@@ -1254,9 +1254,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
                 if (pcP->io[WRITER].hevent) {
                     int channel_mask = 0;
                     char instance_name[30];
-
-                    StringCbPrintfA(instance_name, sizeof(instance_name),
-                                    "np%u", TWAPI_NEWID(ticP));
+                    wsprintf(instance_name, "np%u", TWAPI_NEWID(ticP));
                     if (open_mode & PIPE_ACCESS_INBOUND)
                         channel_mask |= TCL_READABLE;
                     if (open_mode & PIPE_ACCESS_OUTBOUND)
@@ -1384,9 +1382,7 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
             if (pcP->io[WRITER].hevent) {
                 int channel_mask = 0;
                 char instance_name[30];
-
-                StringCbPrintfA(instance_name, sizeof(instance_name),
-                                "np%u", TWAPI_NEWID(ticP));
+                wsprintf(instance_name, "np%u", TWAPI_NEWID(ticP));
                 if (desired_access & (GENERIC_READ |FILE_READ_DATA))
                     channel_mask |= TCL_READABLE;
                 if (desired_access & (GENERIC_WRITE|FILE_WRITE_DATA))

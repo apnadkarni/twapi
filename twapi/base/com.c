@@ -113,12 +113,10 @@ typedef struct Twapi_EventSink {
 
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
-    char buf[80];
     if (interp) {
-        StringCbPrintfA(buf, sizeof(buf),
-                       "Invalid or unsupported VARTYPE (%d)",
-                       vt);
-        Tcl_SetResult(interp, buf, TCL_VOLATILE);
+        Tcl_SetObjResult(interp,
+                         Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
+                                       vt));
     }
 }
 
@@ -1357,17 +1355,17 @@ int Twapi_IDispatch_InvokeObjCmd(
             SysFreeString(einfo.bstrDescription);
             SysFreeString(einfo.bstrHelpFile);
         } else {
-            Twapi_AppendSystemError(interp, hr);
             if ((hr == DISP_E_PARAMNOTFOUND  || hr == DISP_E_TYPEMISMATCH) &&
                 badarg_index != -1) {
-                char buf[20];
                 /* TBD - are the parameter indices backward (ie. from
                  * the Tcl perspective, numbered from the end. In that
                  * case, we should probably map badarg_index appropriately
                  */
-                StringCbPrintfA(buf, sizeof(buf), "%d", badarg_index);
-                Tcl_AppendResult(interp, " Offending parameter index ", buf, NULL);
+                Tcl_SetObjResult(interp,
+                                 Tcl_ObjPrintf(
+                                     "Parameter error. Offending parameter index %d.", badarg_index));
             }
+            Twapi_AppendSystemError(interp, hr);
         }
     }
 
