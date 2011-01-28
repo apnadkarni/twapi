@@ -791,9 +791,14 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
     sig = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (sig) {
         /* TBD - when does the thread get asked to exit? */
+#if defined(TWAPI_REPLACE_CRT)
         threadH = (HANDLE)  _beginthreadex(NULL, 0,
                                            TwapiDeviceNotificationThread,
                                            sig, 0, &TwapiDeviceNotificationTid);
+#else
+        threadH = CreateThread(NULL, 0, TwapiDeviceNotificationThread, sig, 0,
+                               &TwapiDeviceNotificationTid);
+#endif
         if (threadH) {
             CloseHandle(threadH);
             /* Wait for the thread to get running and sit in its message loop */
