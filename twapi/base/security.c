@@ -1163,11 +1163,18 @@ int Twapi_LookupAccountName (
         /* Redo the operation */
         WCHAR *new_accountP;
         size_t len = 0;
+        size_t sysnamelen, accnamelen;
         TWAPI_ASSERT(lpSystemName);
         TWAPI_ASSERT(lpAccountName);
-        len = lstrlenW(lpSystemName) + 1 + lstrlenW(lpAccountName) + 1;
+        sysnamelen = lstrlenW(lpSystemName);
+        accnamelen = lstrlenW(lpAccountName);
+        len = sysnamelen + 1 + accnamelen + 1;
         new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
-        StringCchPrintfW(new_accountP, len, L"%s\\%s", lpSystemName, lpAccountName);
+        CopyMemory(new_accountP, lpSystemName, sizeof(*new_accountP)*sysnamelen);
+        new_accountP[sysnamelen] = L'\\';
+        CopyMemory(new_accountP+sysnamelen+1, lpAccountName, sizeof(*new_accountP)*accnamelen);
+        new_accountP[sysnamelen+1+accnamelen] = 0;
+
         /* Recurse */
         result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
         TwapiFree(new_accountP);

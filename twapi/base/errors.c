@@ -96,7 +96,6 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
 Tcl_Obj *TwapiGetErrorMsg(int error)
 {
     char *msg = NULL;
-    char  buf[128];
 
     /* Optimization - the entry in table will likely be indexed by the error */
     if (error >= 0 &&
@@ -114,12 +113,10 @@ Tcl_Obj *TwapiGetErrorMsg(int error)
 	}
     }
 
-    if (msg == NULL) {
-        StringCbPrintfA(buf, sizeof(buf), "Twapi error %d", error);
-        msg = buf;
-    }
-        
-    return Tcl_NewStringObj(msg, -1);
+    if (msg)
+        return Tcl_NewStringObj(msg, -1);
+    else
+        return Tcl_ObjPrintf("Twapi error %d.", error);
 }
 
 /* Returns a Tcl errorCode object from a TWAPI error */
@@ -166,7 +163,6 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     static HMODULE hNetmsg;
     static HMODULE hPdh;
     static HMODULE hNtdll;
-    char msgbuf[24 + TCL_INTEGER_SPACE];
     Tcl_Obj *objP;
 
     /* First try mapping as a system error */
@@ -213,8 +209,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     if (error == ERROR_CALL_NOT_IMPLEMENTED) {
         return STRING_LITERAL_OBJ("Function not supported under this Windows version");
     } else {
-        StringCbPrintfA(msgbuf, sizeof(msgbuf), "Windows error: %ld", error);
-        return Tcl_NewStringObj(msgbuf, -1);
+        return Tcl_ObjPrintf("Windows error: %ld", error);
     }
 }
 

@@ -72,24 +72,22 @@ int Twapi_VerQueryValue_FIXEDFILEINFO(
 int Twapi_VerQueryValue_STRING(
     Tcl_Interp *interp,
     TWAPI_FILEVERINFO* verP,
-    LPCWSTR lang_and_cp,
-    LPWSTR name
+    LPCSTR lang_and_cp,
+    LPSTR name
     )
 {
-    WCHAR namepath[256+30];
+    Tcl_Obj *objP;
     WCHAR *valueP;
     UINT   len;
 
-    if ((lstrlenW(lang_and_cp) + lstrlenW(name)) > (ARRAYSIZE(namepath)+30)) {
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INTERNAL_LIMIT);
-    }
-    StringCbPrintfW(namepath, sizeof(namepath), L"\\StringFileInfo\\%s\\%s", lang_and_cp, name);
-
-    if ((! VerQueryValueW(verP, namepath, (LPVOID) &valueP, &len)) ||
+    objP = Tcl_ObjPrintf("\\StringFileInfo\\%s\\%s", lang_and_cp, name);
+    if ((! VerQueryValueW(verP, Tcl_GetUnicode(objP), (LPVOID) &valueP, &len)) ||
         len == 0) {
         /* Return empty string, not error */
+        Tcl_DecrRefCount(objP);
         return TCL_OK;
     }
+    Tcl_DecrRefCount(objP);
 
     /* Note valueP does not have to be freed, points into verP */
     Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(valueP, -1));
@@ -114,11 +112,11 @@ int Twapi_VerQueryValue_TRANSLATIONS(
 
     resultObj = Tcl_NewListObj(0, NULL);
     for (dwP = bufP; ((char *)dwP) <= (len - sizeof(*dwP) + (char *)bufP) ; ++dwP) {
-        char hex[10];
         WORD *wP = (WORD *) dwP;
         /* Print as langid,codepage */
-        StringCbPrintfA(hex, sizeof(hex), "%04x%04x", wP[0], wP[1]);
-        Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewStringObj(hex, 8));
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 Tcl_ObjPrintf("%04x%04x", wP[0], wP[1])
+            );
     }
 
     /* Note bufP does not have to be freed, points into verP */
