@@ -1400,6 +1400,32 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
         }
     }
 
+    # We first try using GetProcessImageFileName as that does not require
+    # the PROCESS_VM_READ privilege
+    if {[min_os_version 6 0]} {
+        set privs [list process_query_information_limited]
+    } else {
+        set privs [list process_query_information]
+    }
+
+    trap {
+        set hprocess [get_process_handle $pid -access $privs]
+        set path [GetProcessImageFileName $hprocess]
+        if {$type eq "name"} {
+            return [file tail $path]
+        }
+        # Returned path is in native format, convert to win32
+        return [normalize_device_rooted_path $path]
+    } onerror {TWAPI_WIN32 87} {
+        return $opts(noexist)
+    } onerror {} {
+        # Other errors, continue on to other methods
+    } finally {
+        if {[info exists hprocess]} {
+            twapi::close_handle $hprocess
+        }
+    }
+
     trap {
         set hprocess [get_process_handle $pid -access {process_query_information process_vm_read}]
     } onerror {TWAPI_WIN32 87} {
@@ -1444,7 +1470,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
                 return $opts(noexist)
             }
         } else {
-            # Rethrows original error - note try automatically beings these
+            # Rethrows original error - note try automatically brings these
             # into scope
             error $errorResult $errorInfo $errorCode
         }
