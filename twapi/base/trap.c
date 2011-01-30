@@ -6,9 +6,6 @@
  */
 
 #include <twapi.h>
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION == 4)
-#include "tclInt.h" /* Needed for Twapi_SaveResultErrorInfo in 8.4 */
-#endif
 
 static int GlobalImport (Tcl_Interp *interp);
 
@@ -178,16 +175,15 @@ finalize:
      * or not
      */
     if (final) {
-        void *savedResultsP;
-        /* Again, basically cloned from TclX's try_eval */
-        savedResultsP = Twapi_SaveResultErrorInfo (interp, result);
+        Tcl_InterpState savedState;
+        savedState = Tcl_SaveInterpState(interp, result);
         Tcl_ResetResult (interp);
 
         result = Tcl_EvalObjEx (interp, objv[final+1], 0);
         if (result == TCL_ERROR)
-            Twapi_DiscardResultErrorInfo(interp, savedResultsP);
+            Tcl_DiscardInterpState(interp, savedState);
         else
-            result = Twapi_RestoreResultErrorInfo (interp, savedResultsP);
+            result = Tcl_RestoreInterpState(interp, savedState);
     }
 
     goto pop_and_return;
@@ -269,146 +265,17 @@ GlobalImport (interp)
     return TCL_ERROR;
 }
 
-/* Copied from TclX
- *-----------------------------------------------------------------------------
- * TclX_SaveResultErrorInfo --
- *
- *   Saves the Tcl interp result plus errorInfo and errorCode in a structure.
- *
- * Parameters:
- *   o interp - Interpreter to save state for.
- * Returns:
- *   A list object containing the state.
- *-----------------------------------------------------------------------------
- */
-void *
-Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status)
+void *Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status)
 {
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION == 4)
-
-    /* Even when built against 8.4, if we are running against 8.5, we
-       will use the new 8.5 routines through the stubs table. Note
-       we don't run against older than 8.4 anyways */
-
-    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
-        Tcl_Obj *saveObjv [5];
-        Tcl_Obj *listObj;
-
-        long flags = ((Interp *)interp)->flags &
-            (ERR_ALREADY_LOGGED | ERR_IN_PROGRESS | ERROR_CODE_SET);
-
-        saveObjv [0] = Tcl_DuplicateObj (Tcl_GetObjResult (interp));
-
-        saveObjv [1] = Tcl_GetVar2Ex(interp, "errorInfo", NULL, TCL_GLOBAL_ONLY);
-        if (saveObjv [1] == NULL) {
-            saveObjv [1] = Tcl_NewObj ();
-        }
-
-        saveObjv [2] = Tcl_GetVar2Ex(interp, "errorCode", NULL, TCL_GLOBAL_ONLY);
-        if (saveObjv [2] == NULL) {
-            saveObjv [2] = Tcl_NewObj ();
-        }
-
-        saveObjv [3] = Tcl_NewLongObj(flags);
-
-        saveObjv [4] = Tcl_NewIntObj(status);
-
-        Tcl_IncrRefCount(listObj = Tcl_NewListObj (5, saveObjv));
-
-        return listObj;
-    }
-    else {
-        /* Use 8.5 run time call */
-        return TWAPI_TCL85_STUB(tcl_SaveInterpState) (interp, status);
-    }
-
-#else    /* Building against 8.5 or later */
-
     return (void *) Tcl_SaveInterpState(interp, status);
-
-#endif
-
 }
 
-
-/* Copied from TclX
- *-----------------------------------------------------------------------------
- * TclX_RestoreResultErrorInfo --
- *
- *   Restores the Tcl interp state from TclX_SaveResultErrorInfo.
- *
- * Parameters:
- *   o interp - Interpreter to save state for.
- *   o saveObjPtr - Object returned from TclX_SaveResultErrorInfo.  Ref count
- *     will be decremented.
- *-----------------------------------------------------------------------------
- */
 int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr)
 {
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION == 4)
-    /* Building against 8.4 only */
-
-    /* Even when built against 8.4, if we are running against 8.5, we
-       will use the new 8.5 routines through the stubs table. Note
-       we don't run against older than 8.4 anyways */
-
-    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
-        Tcl_Obj *saveObjPtr = (Tcl_Obj *)savePtr;
-        Tcl_Obj **saveObjv;
-        int saveObjc;
-        long flags;
-        int status;
-
-        if ((Tcl_ListObjGetElements (NULL, saveObjPtr, &saveObjc,
-                                     &saveObjv) != TCL_OK) ||
-            (saveObjc != 5) ||
-            (Tcl_GetLongFromObj (NULL, saveObjv[3], &flags) != TCL_OK) ||
-            (Tcl_GetIntFromObj (NULL, saveObjv[4], &status) != TCL_OK)
-            ) {
-            /*
-             * This should never happen
-             */
-            panic ("invalid TclX result save object");
-        }
-
-        Tcl_SetVar2Ex(interp, "errorCode", NULL, saveObjv[2], TCL_GLOBAL_ONLY);
-        Tcl_SetVar2Ex(interp, "errorInfo", NULL, saveObjv[1], TCL_GLOBAL_ONLY);
-
-        Tcl_SetObjResult (interp, saveObjv[0]);
-
-        ((Interp *)interp)->flags |= flags;
-
-        Tcl_DecrRefCount (saveObjPtr);
-
-        return status;
-    }
-    else {
-        /* Use 8.5 run time call */
-        return TWAPI_TCL85_STUB(tcl_RestoreInterpState) (interp, savePtr);
-    }
-
-#else
-
     return Tcl_RestoreInterpState(interp, (Tcl_InterpState) savePtr);
-
-#endif
 }
 
 void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr)
 {
-#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION == 4)
-    /* Even when built against 8.4, if we are running against 8.5, we
-       will use the new 8.5 routines through the stubs table. Note
-       we don't run against older than 8.4 anyways */
-
-    if (gTclVersion.major == 8 && gTclVersion.minor == 4) {
-        Tcl_DecrRefCount ((Tcl_Obj *)savePtr);
-    }
-    else {
-        /* Use 8.5 run time call */
-        TWAPI_TCL85_STUB(tcl_DiscardInterpState) (savePtr);
-    }
-#else
     Tcl_DiscardInterpState((Tcl_InterpState)savePtr);
-#endif
 }
