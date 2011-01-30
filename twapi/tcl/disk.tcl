@@ -785,7 +785,7 @@ proc twapi::normalize_device_rooted_path {path args} {
         set device_path [lindex [lindex [get_volume_info $drive -device] 1] 0]
         if {$device_path ne ""} {
             set len [string length $device_path]
-            if {[string equal -length $len $path $device_path]} {
+            if {[string equal -nocase -length $len $path $device_path]} {
                 # Prefix matches, must be terminated by end or path separator
                 set ch [string index $npath $len]
                 if {$ch eq "" || $ch eq "\\"} {

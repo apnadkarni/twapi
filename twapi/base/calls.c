@@ -744,6 +744,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
+    CALL_(GetProcessImageFileName, CallH, 65); /* TBD - Tcl wrapper */
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(Twapi_EnumResourceTypes, CallH, 68);
@@ -3497,7 +3498,15 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ImpersonateNamedPipeClient(h);
             break;
-//        case 65: UNUSED
+        case 65:
+            result.value.unicode.len = GetProcessImageFileNameW(h, u.buf, ARRAYSIZE(u.buf));
+            if (result.value.unicode.len) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = u.buf;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
         case 66:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetEvent(h);
@@ -3806,8 +3815,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         result.type = TRT_SEC_WINNT_AUTH_IDENTITY;
         result.value.hval = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(s1, s2, s3);
         break;
-
-#ifndef TWAPI_LEAN
     case 5:
         if (objc != 7)
             return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -3831,7 +3838,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         if (u.secattrP)
             TwapiFreeSECURITY_ATTRIBUTES(u.secattrP);
         break;
-#endif
     case 7:
         result.type = TRT_DWORD;
         EMPTIFY_NULL(s1);      /* Undo s1 LPWSTR_NULL_IF_EMPTY semantics */
@@ -3844,20 +3850,14 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 9:
         // Note s2,s1, not s1,s2
         return Twapi_GetPrivateProfileSection(ticP, s2, s1);
-
-#ifndef TWAPI_LEAN
-
     case 10:
         return Twapi_NetUserGetInfo(interp, s1, s2, dw);
     case 11:
         return Twapi_NetGroupGetInfo(interp, s1, s2, dw);
     case 12:
         return Twapi_NetLocalGroupGetInfo(interp, s1, s2, dw);
-
-#endif // TWAPI_LEAN
-
     case 13:
-        result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
+        result.value.unicode.len = ARRAYSIZE(u.buf);
         if (LookupPrivilegeDisplayNameW(s1,s2,u.buf,&result.value.unicode.len,&dw)) {
             result.value.unicode.str = u.buf;
             result.type = TRT_UNICODE;
@@ -3870,7 +3870,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-#ifndef TWAPI_LEAN
     case 15:
         u.gi1.grpi1_name = s2;
         NULLIFY_EMPTY(s3);
@@ -3911,7 +3910,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = NetLocalGroupDelMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
         break;
-#endif // TWAPI_LEAN
     case 23:
         result.type = TRT_SC_HANDLE;
         NULLIFY_EMPTY(s2);
@@ -4121,7 +4119,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         result.type = result.value.hwin ? TRT_HWND : TRT_GETLASTERROR;
         break;
     case 22:
-        result.value.unicode.len = GetClassNameW(hwnd, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
+        result.value.unicode.len = GetClassNameW(hwnd, u.buf, ARRAYSIZE(u.buf));
         result.value.unicode.str = u.buf;
         result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
         break;
@@ -4145,7 +4143,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     case 25:
         SetLastError(0);            /* Make sure error is not set */
         result.type = TRT_UNICODE;
-        result.value.unicode.len = GetWindowTextW(hwnd, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
+        result.value.unicode.len = GetWindowTextW(hwnd, u.buf, ARRAYSIZE(u.buf));
         result.value.unicode.str = u.buf;
         /* Distinguish between error and empty string when count is 0 */
         if (result.value.unicode.len == 0 && GetLastError()) {
