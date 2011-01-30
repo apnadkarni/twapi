@@ -933,12 +933,6 @@ int Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
 void TwapiWriteEventLogError(const char *msg);
 
-
-/* Wrappers around saving/restoring Tcl state */
-void *Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status);
-int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr);
-void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr);
-
 /* Async handling related */
 void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
 #define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
