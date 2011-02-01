@@ -119,7 +119,7 @@ proc twapi::com_create_instance {clsid args} {
         }
     }
 
-    foreach {iid iid_name} [_resolve_iid $opts(interface)] break
+    lassign [_resolve_iid $opts(interface)] iid iid_name
 
     # In some cases, like Microsoft Office getting an interface other
     # than IUnknown fails fails.
@@ -650,7 +650,7 @@ proc twapi::_format_prototype {name proto} {
     if {[llength $proto] > 5} {
         set params {}
         foreach param [lindex $proto 5] {
-            foreach {type paramdesc} $param break
+            lassign $param type paramdesc
             set type [_vttype_to_string $type]
             set parammods [_paramflags_to_tokens [lindex $paramdesc 0]]
             if {[llength [lindex $paramdesc 1]]} {
@@ -1263,7 +1263,7 @@ twapi::class create ::twapi::IUnknownProxy {
 
     method QueryInterface {name_or_iid} {
         my variable _ifc
-        foreach {iid name} [::twapi::_resolve_iid $name_or_iid] break
+        lassign [::twapi::_resolve_iid $name_or_iid] iid name
         return [::twapi::Twapi_IUnknown_QueryInterface $_ifc $iid $name]
     }
 
@@ -1439,7 +1439,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
                 if {![catch {$_typecomp Bind $name $lhash $invkind} binddata] &&
                     [llength $binddata]} {
-                    foreach {type data ifc} $binddata break
+                    lassign $binddata type data ifc
                     if {$type eq "funcdesc" ||
                         ($type eq "vardesc" && [::twapi::kl_get $data varkind] == 3)} {
                         set params {}
@@ -1820,7 +1820,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
     }
 
     method @GetContainingTypeLib {} {
-        foreach {itypelib index} [my GetContainingTypeLib] break
+        lassign [my GetContainingTypeLib] itypelib index
         return [list [::twapi::make_interface_proxy $itypelib] $index]
     }
 
@@ -2089,7 +2089,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
         if {$opts(all) || $opts(params)} {
             set params [list ]
             foreach param $data(lprgelemdescParam) {
-                foreach {paramtype paramdesc} $param break
+                lassign $param paramtype paramdesc
                 set paramflags [::twapi::_paramflags_to_tokens [lindex $paramdesc 0]]
                 if {[llength $paramdesc] > 1} {
                     # There is a default value associated with the parameter
@@ -2119,7 +2119,7 @@ twapi::class create ::twapi::ITypeInfoProxy {
             helpfile
         } -maxleftover 0]
 
-        foreach {name docstring helpctx helpfile} [my GetDocumentation $memid] break
+        lassign [my GetDocumentation $memid] name docstring helpctx helpfile
 
         set result [list ]
         foreach opt {name docstring helpctx helpfile} {
@@ -2215,7 +2215,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             helpfile
         } -maxleftover 0]
 
-        foreach {name docstring helpctx helpfile} [my GetDocumentation $id] break
+        lassign [my GetDocumentation $id] name docstring helpctx helpfile
         set result [list ]
         foreach opt {name docstring helpctx helpfile} {
             if {$opts(all) || $opts($opt)} {
@@ -2285,7 +2285,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             error "Syntax error: Should be '[self] @Foreach ?options? VARNAME SCRIPT'"
         }
 
-        foreach {varname script} $args break
+        lassign $args varname script
         upvar $varname varti
 
         set count [my GetTypeInfoCount]
@@ -2470,7 +2470,7 @@ twapi::class create ::twapi::ITypeCompProxy {
             return {}
         }
 
-        foreach {type data tifc} $binding break
+        lassign $binding type data tifc
         return [list $type $data [::twapi::make_interface_proxy $tifc]]
     }
 }
@@ -2664,7 +2664,7 @@ twapi::class create ::twapi::Automation {
                 while {$more} {
                     # Get the next item from iterator
                     set next [$iter Next 1]
-                    foreach {more values} $next break
+                    lassign $next more values
                     if {[llength $values]} {
                         set var [::twapi::_variant_value [lindex $values 0]]
                         set ret [catch {uplevel 1 $script} msg]

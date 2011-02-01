@@ -371,11 +371,11 @@ proc twapi::_sspi_sample {} {
     set ccred [sspi_new_credentials -usage outbound]
     set scred [sspi_new_credentials -usage inbound]
     set cctx [sspi_client_new_context $ccred -target LUNA -confidentiality true -connection true]
-    foreach {step data cctx} [sspi_security_context_next $cctx] break
+    lassign  [sspi_security_context_next $cctx] step data cctx
     set sctx [sspi_server_new_context $scred $data]
-    foreach {step data sctx} [sspi_security_context_next $sctx] break
-    foreach {step data cctx} [sspi_security_context_next $cctx $data] break
-    foreach {step data sctx} [sspi_security_context_next $sctx $data] break
+    lassign  [sspi_security_context_next $sctx] step data sctx
+    lassign  [sspi_security_context_next $cctx $data] step data cctx
+    lassign  [sspi_security_context_next $sctx $data] step data sctx
     sspi_free_credentials $scred
     sspi_free_credentials $ccred
     return [list $cctx $sctx]
