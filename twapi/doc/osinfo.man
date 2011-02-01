@@ -247,14 +247,32 @@ on which of the following options are specified:
 [opt_def [cmd -all]]Returns all the options listed below.
 [opt_def [cmd -allocationgranularity]]Returns the granularity with
 which virtual memory is allocated.
-[opt_def [cmd -availcommit]]Returns the amount of free virtual memory
-available to commit.
+[opt_def [cmd -availcommit]]Returns the amount of additional memory
+that can be committed by the system without extending the paging files.
 [opt_def [cmd -availphysical]]Returns the amount of free physical memory.
+[opt_def [cmd -kernelpaged]]Returns the amount of memory in the kernel
+paged pool.
+[opt_def [cmd -kernelnonpaged]]Returns the amount of memory in the kernel
+non-paged pool.
 [opt_def [cmd -maxappaddr]]Returns the highest address that may be mapped
 into an application's address space.
 [opt_def [cmd -minappaddr]]Returns the lowest address that may be mapped
 into an application's address space.
 [opt_def [cmd -pagesize]]Returns the size of a virtual memory page
+[opt_def [cmd -peakcommit]]Returns the peak size of the paging files
+since the last system reboot.
+[opt_def [cmd -physicalmemoryload]]Percentage of physical memory currently
+in use.
+[opt_def [cmd -processavailcommit]]Returns the amount of additional memory
+that can be committed by the current process.
+[opt_def [cmd -processcommitlimit]]Returns the maxiumm amount of memory
+that can be committed by the current process.
+[opt_def [cmd -processtotalvirtual]]Size of the user-mode virtual address
+space of the current process.
+[opt_def [cmd -processavailvirtual]]Size of the user-mode virtual address
+space that is currently not reserved or committed.
+[opt_def [cmd -systemcache]]Returns amount of memory used for the system
+cache.
 [opt_def [cmd -swapfiles]]Returns a list of the swap files for the system.
 [opt_def [cmd -swapfiledetail]]
 Returns a flat list of pairs corresponding to the swap files.
@@ -266,6 +284,7 @@ used in the file.
 can be committed without extending the swap files.
 [opt_def [cmd -totalphysical]]Returns the total amount of physical memory
 installed in the system.
+[opt_def [cmd -usedcommit]]Returns the current size of memory committed.
 [list_end]
 
 [call [cmd get_primary_domain_controller] [opt [arg options]]]
