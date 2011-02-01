@@ -166,7 +166,7 @@ proc twapi::write_shortcut {link args} {
             set opts(hotkey) 0
         } else {
             # Try treating it as symbolic
-            foreach {modifiers vk} [_hotkeysyms_to_vk $opts(hotkey)] break
+            lassign [_hotkeysyms_to_vk $opts(hotkey)]  modifiers vk
             set opts(hotkey) $vk
             if {$modifiers & 1} {
                 set opts(hotkey) [expr {$opts(hotkey) | (4<<8)}]

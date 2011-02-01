@@ -308,7 +308,7 @@ proc twapi::get_client_share_info {sharename args} {
     # TBD - any better way of finding out a mapping than calling
     # get_client_shares?
     foreach elem [get_client_shares] {
-        foreach {elem_device elem_unc} $elem break
+        lassign $elem elem_device elem_unc
         if {[string equal -nocase $sharename $elem_unc]} {
             if {$elem_device eq ""} {
                 # Found an entry without a local device. Use it
