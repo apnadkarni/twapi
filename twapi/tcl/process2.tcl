@@ -693,7 +693,7 @@ proc twapi::get_multiple_process_info {args} {
                 # be accessed. If we are looking for the logon session for
                 # these, try getting it from the witssid if we have it
                 # since the logon session is hardcoded for these accounts
-                if {[lsearch -exact $requested_opts "-logonsession"] >= 0} {
+                if {"-logonsession" in  $requested_opts} {
                     if {![info exists wtssids]} {
                         _get_wts_pids wtssids wtsnames
                     }
