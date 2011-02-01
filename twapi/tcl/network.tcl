@@ -228,7 +228,7 @@ proc twapi::get_netif_info {interface args} {
         # we want. This assumes there may be multiple entries with the
         # same ifindex
         foreach entry [GetIpAddrTable 0] {
-            foreach {addr ifindex netmask broadcast reasmsize} $entry break
+            lassign  $entry  addr ifindex netmask broadcast reasmsize
             lappend ipaddresses($ifindex) [list $addr $netmask $broadcast]
             set reassemblysize($ifindex) $reasmsize
         }
@@ -340,7 +340,7 @@ proc twapi::get_arp_table {args} {
     set arps [list ]
 
     foreach arp [GetIpNetTable $opts(sort)] {
-        foreach {ifindex hwaddr ipaddr type} $arp break
+        lassign $arp  ifindex hwaddr ipaddr type
         if {$opts(validonly) && $type == 2} continue
         if {[info exists opts(ifindex)] && $opts(ifindex) != $ifindex} continue
         # Token for enry   0     1      2      3        4
@@ -822,7 +822,7 @@ proc twapi::hostname_to_address {name args} {
     set addrs [list ]
     trap {
         foreach endpt [twapi::getaddrinfo $name 0 0] {
-            foreach {addr port} $endpt break
+            lassign $endpt addr port
             lappend addrs $addr
         }
     } onerror {TWAPI_WIN32 11001} {
@@ -1017,7 +1017,7 @@ proc twapi::_address_resolve_handler {id status hostname} {
         after 0 [list error "Error: No entry found for id $id in address request table"]
         return
     }
-    foreach {addr script} $_address_handler_scripts($id) break
+    lassign  $_address_handler_scripts($id)  addr script
     unset _address_handler_scripts($id)
 
     # Before invoking the callback, store result if available
@@ -1037,7 +1037,7 @@ proc twapi::_hostname_resolve_handler {id status addrs} {
         after 0 [list error "Error: No entry found for id $id in hostname request table"]
         return
     }
-    foreach {name script} $_hostname_handler_scripts($id) break
+    lassign  $_hostname_handler_scripts($id)  name script
     unset _hostname_handler_scripts($id)
 
     # Before invoking the callback, store result if available

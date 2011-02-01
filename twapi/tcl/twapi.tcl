@@ -1311,7 +1311,7 @@ proc twapi::_get_array_as_options {v_arr} {
 # Generate exception on format error using msg
 proc twapi::_parse_integer_pair {pair {msg "Invalid integer pair"}} {
     if {[llength $pair] == 2} {
-        foreach {first second} $pair break
+        lassign $pair first second
         if {[string is integer -strict $first] &&
             [string is integer -strict $second]} {
             return [list $first $second]

@@ -94,7 +94,7 @@ proc twapi::_lookup_account {func account args} {
         if {![info exists _lookup_account_cache($lookup,$opts(system),$account)]} {
             set _lookup_account_cache($lookup,$opts(system),$account) [$func $opts(system) $account]
         }
-        foreach "$lookup domain type" $_lookup_account_cache($lookup,$opts(system),$account) break
+        lassign $_lookup_account_cache($lookup,$opts(system),$account) $lookup domain type
     }
 
     set result [list ]
@@ -326,7 +326,7 @@ proc twapi::get_token_integrity {tok args} {
 
     if {[min_os_version 6]} {
         # TokenIntegrityLevel -> 25
-        foreach {integrity attrs} [GetTokenInformation $tok 25] break
+        lassign [GetTokenInformation $tok 25]  integrity attrs
         if {$attrs != 96} {
             # TBD - is this ok?
         }
@@ -427,7 +427,7 @@ proc twapi::get_token_group_sids_and_attrs {tok} {
     set sids_and_attrs [list ]
     # TokenGroups -> 2
     foreach {group} [GetTokenInformation $tok 2] {
-        foreach {sid attr} $group break
+        lassign $group sid attr
         lappend sids_and_attrs $sid [_map_token_attr $attr SE_GROUP]
     }
 
@@ -555,7 +555,7 @@ proc twapi::get_token_privileges_and_attrs {tok} {
     set privs_and_attrs [list ]
     # TokenPrivileges -> 3
     foreach priv [GetTokenInformation $tok 3] {
-        foreach {luid attr} $priv break
+        lassign $priv luid attr
         lappend privs_and_attrs [map_luid_to_privilege $luid -mapunknown] \
             [_map_token_attr $attr SE_PRIVILEGE]
     }
@@ -2011,7 +2011,7 @@ proc twapi::_delete_rights {account system} {
         # On Win2k SP1 and SP2, we need to delay a bit for notifications
         # to complete before deleting the account.
         # See http://support.microsoft.com/?id=316827
-        foreach {major minor sp dontcare} [get_os_version] break
+        lassign [get_os_version] major minor sp dontcare
         if {($major == 5) && ($minor == 0) && ($sp < 3)} {
             after 1000
         }

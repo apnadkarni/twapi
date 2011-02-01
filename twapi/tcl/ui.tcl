@@ -250,7 +250,7 @@ proc twapi::find_windows {args} {
             }
 
             if {[info exists opts(style)] && [llength $opts(style)]} {
-                foreach {style exstyle} $opts(style) break
+                lassign $opts(style)  style exstyle
                 if {[string length $style] && ($style != $win_style)} continue
                 if {[string length $exstyle] && ($exstyle != $win_exstyle)} continue
             }
@@ -297,7 +297,7 @@ proc twapi::find_windows {args} {
             }
             1 {
                 # Error, see if error code is no window and if so, ignore
-                foreach {subsystem code msg} $::errorCode { break }
+                lassign $::errorCode subsystem code msg
                 if {$subsystem == "TWAPI_WIN32"} {
                     # Window has disappeared so just do not include it
                     # Cannot just actual code since many different codes
@@ -827,7 +827,7 @@ proc twapi::configure_window_titlebar {hwin args} {
     } -maxleftover 0]
 
     # Get the current style setting
-    foreach {style exstyle} [get_window_style $hwin] {break}
+    lassign [get_window_style $hwin] style exstyle
 
     # See if each option is specified. Else use current setting
     # 0x00080000 -> WS_SYSMENU
@@ -1027,7 +1027,7 @@ proc twapi::send_input {inputlist} {
     set inputs [list ]
     foreach input $inputlist {
         if {[string equal [lindex $input 0] "mouse"]} {
-            foreach {mouse xpos ypos} $input {break}
+            lassign $input mouse xpos ypos
             set mouseopts [lrange $input 3 end]
             array unset opts
             array set opts [parseargs mouseopts {
@@ -1081,7 +1081,7 @@ proc twapi::send_input {inputlist} {
             lappend inputs [list mouse $xpos $ypos $mousedata $flags]
 
         } else {
-            foreach {inputtype vk scan keyopts} $input {break}
+            lassign $input inputtype vk scan keyopts
             if {[lsearch -exact $keyopts "-extended"] < 0} {
                 set extended 0
             } else {
@@ -1190,7 +1190,7 @@ proc twapi::register_hotkey {hotkey script args} {
 
 #    set script [lrange $script 0 end]; # Ensure a valid list
 
-    foreach {modifiers vk} [_hotkeysyms_to_vk $hotkey] break
+    lassign  [_hotkeysyms_to_vk $hotkey]  modifiers vk
     set hkid "twapi_hk_${vk}_$modifiers"
     set atom [GlobalAddAtom $hkid]
     if {[info exists _hotkeys($atom)]} {
@@ -1255,7 +1255,7 @@ proc twapi::move_mouse {xpos ypos {mode ""}} {
     switch -exact -- $mode {
         -relative {
             lappend cmd -relative
-            foreach {curx cury} [GetCursorPos] break
+            lassign [GetCursorPos] curx cury
             incr xpos $curx
             incr ypos $cury
         }

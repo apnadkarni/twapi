@@ -22,7 +22,7 @@ interp alias {} twapi::get_device_power_state {} twapi::GetDevicePowerState
 
 # Get the power status of the system
 proc twapi::get_power_status {} {
-    foreach {ac battery lifepercent reserved lifetime fulllifetime} [GetSystemPowerStatus] break
+    lassign  [GetSystemPowerStatus] ac battery lifepercent reserved lifetime fulllifetime
 
     set acstatus unknown
     if {$ac == 0} {
