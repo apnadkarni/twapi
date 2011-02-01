@@ -620,12 +620,32 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         nt
     } -body {
-        verify_kl_fields [twapi::get_memory_info -all] {
-            -totalphysical -availphysical -totalcommit -availcommit
-            -swapfiles -pagesize -minappaddr -maxappaddr -allocationgranularity
-            -swapfiledetail
+        set mem [twapi::get_memory_info -all]
+        verify_kl_fields $mem {
+            -allocationgranularity   -availcommit   -availphysical
+            -kernelpaged     -kernelnonpaged    
+            -maxappaddr   -minappaddr    -pagesize
+            -peakcommit   -physicalmemoryload   
+            -processavailcommit   -processcommitlimit
+            -processtotalvirtual   -processavailvirtual
+            -systemcache   -swapfiles   -swapfiledetail
+            -totalcommit    -totalphysical  -usedcommit
         }
-    } -result ""
+        set result 1
+        foreach field {
+            -allocationgranularity   -availcommit   -availphysical
+            -kernelpaged     -kernelnonpaged    
+            -maxappaddr   -minappaddr    -pagesize
+            -peakcommit   -physicalmemoryload   
+            -processavailcommit   -processcommitlimit
+            -processtotalvirtual   -processavailvirtual
+            -systemcache
+            -totalcommit    -totalphysical  -usedcommit
+        } {
+            set result [expr {$result && [string is integer -strict [twapi::kl_get $mem $field]]}]
+        }
+        set result
+    } -result 1
 
     ###
     test get_memory_info-2.0 {
@@ -727,12 +747,8 @@ namespace eval twapi::osinfo::test {
         verify_wmic_memory_value freephysicalmemory [lindex $optval 1] approx
     } -result 1
 
-    ###
     test get_memory_info-10.0 {
         Get memory information option -availcommit
-    } -constraints {
-        nt
-    } -setup {
     } -body {
         set optval [twapi::get_memory_info -availcommit]
         verify_kl_fields $optval [list -availcommit]
@@ -742,13 +758,75 @@ namespace eval twapi::osinfo::test {
     ###
     test get_memory_info-11.0 {
         Get memory information option -totalcommit
-    } -constraints {
-        nt
-    } -setup {
     } -body {
         set optval [twapi::get_memory_info -totalcommit]
         verify_kl_fields $optval [list -totalcommit]
         verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
+    } -result 1
+
+    ###
+    test get_memory_info-12.0 {
+        Get memory information option -kernelpaged, -kernelnonpaged
+    } -body {
+        set optval [twapi::get_memory_info -kernelpaged -kernelnonpaged]
+        verify_kl_fields $optval [list -kernelpaged -kernelnonpaged]
+        set kernmem [twapi::kl_get [twapi::GetPerformanceInformation] KernelTotal]
+        expr {([twapi::kl_get $optval -kernelpaged] +
+               [twapi::kl_get $optval -kernelnonpaged]) == (4096*$kernmem) &&
+              $kernmem != 0
+          }
+    } -result 1
+
+    test get_memory_info-13.0 {
+        Get memory information option -peakcommit
+    } -body {
+        unset -nocomplain vals
+        array set vals [twapi::get_memory_info -peakcommit -totalcommit]
+        inrange [list 100000000 $vals(-totalcommit)] $vals(-peakcommit)
+    } -result 1
+
+
+    test get_memory_info-14.0 {
+        Get memory information option -usedcommit
+    } -body {
+        unset -nocomplain vals
+        array set vals [twapi::get_memory_info -usedcommit -peakcommit]
+        inrange [list 100000000 $vals(-peakcommit)] $vals(-usedcommit)
+    } -result 1
+
+
+    test get_memory_info-15.0 {
+        Get memory information option -processavailcommit
+    } -body {
+        set optval [twapi::get_memory_info -processavailcommit]
+        verify_kl_fields $optval [list -processavailcommit]
+        # Expect available commit to be same as systemwide avail commit
+        verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx
+    } -result 1
+
+    test get_memory_info-16.0 {
+        Get memory information option -processcommitlimit
+    } -body {
+        set optval [twapi::get_memory_info -processcommitlimit]
+        verify_kl_fields $optval [list -processcommitlimit]
+        # Expect available commit to be same as systemwide avail commit
+        verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
+    } -result 1
+
+    test get_memory_info-17.0 {
+        Get memory information option -processtotalvirtual
+    } -body {
+        set optval [twapi::get_memory_info -processtotalvirtual]
+        verify_kl_fields $optval [list -processtotalvirtual]
+        lindex $optval 1
+    } -result [format %lld [expr {$::tcl_platform(machine) eq "amd64" ? 0x7fffffe0000 : 0x7ffe0000}]]
+
+    test get_memory_info-18.0 {
+        Get memory information option -processavailvirtual
+    } -body {
+        set optval [twapi::get_memory_info -processavailvirtual]
+        verify_kl_fields $optval [list -processavailvirtual]
+        expr {[lindex $optval 1] > 1000000000}
     } -result 1
 
 

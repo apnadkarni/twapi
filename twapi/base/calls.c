@@ -420,6 +420,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_StartConsoleEventNotifier, Call, 73);
     CALL_(TwapiId, Call, 74);
     CALL_(DebugBreak, Call, 75);
+    CALL_(GetPerformanceInformation, Call, 76);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1322,7 +1323,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 42:
             return Twapi_GetSystemWow64Directory(interp);
-#ifndef TWAPI_LEAN
         case 43:
             return Twapi_EnumProcesses(ticP);
         case 44:
@@ -1335,7 +1335,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HANDLE;
             result.value.hval = GetCurrentThread();
             break;
-#endif
         case 47:
             result.value.unicode.str = GetCommandLineW();
             result.value.unicode.len = -1;
@@ -1348,7 +1347,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = LockWorkStation();
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-#ifndef TWAPI_LEAN
         case 50:
             return Twapi_LsaEnumerateLogonSessions(interp);
         case 51:
@@ -1357,7 +1355,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 52:
             return Twapi_InitializeSecurityDescriptor(interp);
-#endif
         case 53: 
             return Twapi_EnumerateSecurityPackages(interp);
         case 54:
@@ -1432,6 +1429,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EMPTY;
             DebugBreak();
             break;
+        case 76:
+            return Twapi_GetPerformanceInformation(ticP->interp);
         }
 
         return TwapiSetResult(interp, &result);
