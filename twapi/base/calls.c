@@ -1141,7 +1141,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
     LPWSTR s, s2, s3, s4;
-    unsigned char *cP, cP2;
+    unsigned char *cP, *cP2;
     LUID luid;
     LUID *luidP;
     void *pv, *pv2, *pv3;
@@ -2139,7 +2139,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETASTR(cP), GETASTR(cP2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_VerQueryValue_STRING(interp, pv, (char*) cP, (char*) cP2);
+            return Twapi_VerQueryValue_STRING(interp, pv, cP, cP2);
         case 10058: // DsGetDcName
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
