@@ -79,7 +79,7 @@ proc twapi::itaskscheduler_get_tasks {its} {
         set result [list ]
         set more 1
         while {$more} {
-            foreach {more items} [IEnumWorkItems_Next $ienum 20] break
+            lassign [IEnumWorkItems_Next $ienum 20] more items
             set result [concat $result $items]
         }
     } finally {
@@ -163,7 +163,7 @@ proc twapi::itask_configure {itask args} {
         # If either one is not specified, get the current settings
         if {! ([info exists opts(idlewait)] &&
                [info exists opts(idlewaitdeadline)]) } {
-            foreach {idle dead} [IScheduledWorkItem_GetIdleWait $itask] break
+            lassign [IScheduledWorkItem_GetIdleWait $itask] idle dead
             if {![info exists opts(idlewait)]} {
                 set opts(idlewait) $idle
             }
@@ -328,7 +328,7 @@ proc twapi::itask_get_info {itask args} {
 
 
     if {$opts(all) || $opts(idlewait) || $opts(idlewaitdeadline)} {
-        foreach {idle dead} [IScheduledWorkItem_GetIdleWait $itask] break
+        lassign [IScheduledWorkItem_GetIdleWait $itask] idle dead
         if {$opts(all) || $opts(idlewait)} {
             lappend result -idlewait $idle
         }
@@ -400,7 +400,7 @@ proc twapi::itask_get_runtimes_within_interval {itask args} {
     if {[info exists opts(statusvar)]} {
         upvar $opts(statusvar) status
     }
-    foreach {status timelist} [IScheduledWorkItem_GetRunTimes $itask $start $end $opts(count)] break
+    lassign [IScheduledWorkItem_GetRunTimes $itask $start $end $opts(count)] status timelist
 
     foreach time $timelist {
         lappend result [_timelist_to_timestring $time]
@@ -546,7 +546,7 @@ proc twapi::itasktrigger_configure {itt args} {
     array set data [ITaskTrigger_GetTrigger $itt]
 
     if {[info exists opts(begindate)]} {
-        foreach {year month day} [split $opts(begindate) -] break
+        lassign  [split $opts(begindate) -]  year month day
         # Note we trim leading zeroes else Tcl thinks its octal
         set data(wBeginYear) [scan $year %d]
         set data(wBeginMonth) [scan $month %d]
@@ -554,7 +554,7 @@ proc twapi::itasktrigger_configure {itt args} {
     }
 
     if {[info exists opts(starttime)]} {
-        foreach {hour minute} [split $opts(starttime) :] break
+        lassign [split $opts(starttime) :] hour minute
         # Note we trim leading zeroes else Tcl thinks its octal
         set data(wStartHour) [scan $hour %d]
         set data(wStartMinute) [scan $minute %d]
@@ -563,7 +563,7 @@ proc twapi::itasktrigger_configure {itt args} {
     if {[info exists opts(enddate)]} {
         if {$opts(enddate) ne ""} {
             setbits data(rgFlags) 1;        # Indicate end date is present
-            foreach {year month day} [split $opts(enddate) -] break
+            lassign  [split $opts(enddate) -] year month day
             # Note we trim leading zeroes else Tcl thinks its octal
             set data(wEndYear) [scan $year %d]
             set data(wEndMonth) [scan $month %d]

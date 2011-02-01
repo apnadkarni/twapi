@@ -72,7 +72,7 @@ proc twapi::create_event {args} {
         error "Option -signalled must not be specified as true if event is named."
     }
 
-    foreach {h preexisted} [CreateEvent [_make_secattr $opts(secd) $opts(inherit)] $opts(manualreset) $opts(signalled) $opts(name)] break
+    lassign [CreateEvent [_make_secattr $opts(secd) $opts(inherit)] $opts(manualreset) $opts(signalled) $opts(name)]  h preexisted
     if {$opts(manualreset)} {
         # We want to catch attempts to wait on manual reset handles
         set h [cast_handle $h HANDLE_MANUALRESETEVENT]

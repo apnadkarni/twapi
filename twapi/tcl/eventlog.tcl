@@ -273,7 +273,7 @@ proc twapi::eventlog_format_message {event_record args} {
         set msg2 ""
         set prev_end 0
         foreach placeholder $placeholder_indices {
-            foreach {start end} $placeholder break
+            lassign $placeholder start end
             # Append the stuff between previous placeholder and this one
             append msg2 [string range $msg $prev_end [expr {$start-1}]]
             set repl [string range $msg $start $end]; # Default if not found

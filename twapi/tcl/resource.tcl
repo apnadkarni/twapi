@@ -51,7 +51,7 @@ proc twapi::read_resource_string {hmod resname langid} {
         error "String resources must have an integer id"
     }
 
-    foreach {block_id index_within_block} [resource_stringid_to_stringblockid $resname] break
+    lassign [resource_stringid_to_stringblockid $resname]  block_id index_within_block
 
     return [lindex \
                 [resource_stringblock_to_strings \

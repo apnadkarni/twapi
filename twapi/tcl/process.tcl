@@ -96,21 +96,21 @@ proc twapi::create_process {path args} {
     # Create the start up info structure
     set si_flags 0
     if {[info exists opts(windowpos)]} {
-        foreach {xpos ypos} [_parse_integer_pair $opts(windowpos)] break
+        lassign [_parse_integer_pair $opts(windowpos)] xpos ypos
         setbits si_flags 0x4
     } else {
         set xpos 0
         set ypos 0
     }
     if {[info exists opts(windowsize)]} {
-        foreach {xsize ysize} [_parse_integer_pair $opts(windowsize)] break
+        lassign [_parse_integer_pair $opts(windowsize)] xsize ysize
         setbits si_flags 0x2
     } else {
         set xsize 0
         set ysize 0
     }
     if {[info exists opts(screenbuffersize)]} {
-        foreach {xscreen yscreen} [_parse_integer_pair $opts(screenbuffersize)] break
+        lassign [_parse_integer_pair $opts(screenbuffersize)] xscreen yscreen
         setbits si_flags 0x8
     } else {
         set xscreen 0
@@ -306,7 +306,7 @@ proc twapi::get_command_line_args {cmdline} {
 # Return true if passed pid is system
 # TBD - update for Win2k8, vista, Windows 7, 64 bits
 proc twapi::is_system_pid {pid} {
-    foreach {major minor} [get_os_version] break
+    lassign [get_os_version] major minor
     if {$major == 4 } {
         # NT 4
         set syspid 2

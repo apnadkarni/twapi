@@ -267,7 +267,7 @@ proc twapi::_get_console_screen_buffer_info {conh args} {
         windowsize
     } -maxleftover 0]
 
-    foreach {size cursorpos textattr windowlocation maxwindowsize} [GetConsoleScreenBufferInfo $conh] break
+    lassign [GetConsoleScreenBufferInfo $conh] size cursorpos textattr windowlocation maxwindowsize
 
     set result [list ]
     foreach opt {size cursorpos maxwindowsize windowlocation} {
@@ -281,7 +281,7 @@ proc twapi::_get_console_screen_buffer_info {conh args} {
     }
 
     if {$opts(windowsize) || $opts(all)} {
-        foreach {left top right bot} $windowlocation break
+        lassign $windowlocation left top right bot
         lappend result -windowsize [list [expr {$right-$left+1}] [expr {$bot-$top+1}]]
     }
 
@@ -332,16 +332,16 @@ proc twapi::_console_write {conh s args} {
     trap {
         # x,y are starting position to write
         if {[info exists opts(position)]} {
-            foreach {x y} [_parse_integer_pair $opts(position)] break
+            lassign [_parse_integer_pair $opts(position)] x y
         } else {
             # No position specified, get current cursor position
-            foreach {x y} $csbi(-cursorpos) break
+            lassign $csbi(-cursorpos) x y
         }
         
         set startx [expr {$opts(newlinemode) == "column" ? $x : 0}]
 
         # Get screen buffer limits
-        foreach {width height} $csbi(-size) break
+        lassign  $csbi(-size)  width height
 
         # Ensure line terminations are just \n
         set s [string map [list \r\n \n] $s]
@@ -399,7 +399,7 @@ proc twapi::_fill_console {conh args} {
     # Get screen buffer info for window and size of buffer
     array set csbi [get_console_screen_buffer_info $conh -windowpos -windowsize -size]
     # Height and width of the console
-    foreach {conx cony} $csbi(-size) break
+    lassign $csbi(-size) conx cony
 
     # Figure out what area we want to fill
     # startx,starty are starting position to write
@@ -409,11 +409,11 @@ proc twapi::_fill_console {conh args} {
             || [info exists opts(position)]} {
             error "Option -window cannot be used togther with options -position, -numlines or -numcols"
         }
-        foreach {startx starty} [_parse_integer_pair $csbi(-windowpos)] break
-        foreach {sizex sizey} [_parse_integer_pair $csbi(-windowsize)] break
+        lassign  [_parse_integer_pair $csbi(-windowpos)] startx starty
+        lassign  [_parse_integer_pair $csbi(-windowsize)] sizex sizey
     } else {
         if {[info exists opts(position)]} {
-            foreach {startx starty} [_parse_integer_pair $opts(position)] break
+            lassign [_parse_integer_pair $opts(position)] startx starty
         } else {
             set startx 0
             set starty 0
@@ -466,13 +466,13 @@ proc twapi::_clear_console {conh args} {
     } -maxleftover 0]
 
     array set cinfo [get_console_screen_buffer_info $conh -size -windowpos -windowsize]
-    foreach {width height} $cinfo(-size) break
+    lassign  $cinfo(-size) width height
     if {$opts(windowonly)} {
         # Only clear portion visible in the window. We have to do this
         # line by line since we do not want to erase text scrolled off
         # the window either in the vertical or horizontal direction
-        foreach {x y} $cinfo(-windowpos) break
-        foreach {w h} $cinfo(-windowsize) break
+        lassign $cinfo(-windowpos) x y
+        lassign $cinfo(-windowsize) w h
         for {set i 0} {$i < $h} {incr i} {
             FillConsoleOutputCharacter \
                 $conh \

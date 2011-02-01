@@ -53,7 +53,7 @@ proc twapi::format_number {number lcid args} {
     # If number of decimals is -1, see how many decimal places
     # in passed string
     if {$opts(idigits) == -1} {
-        foreach {whole frac} [split $number .] break
+        lassign   [split $number .]  whole frac
         set opts(idigits) [string length $frac]
     }
 

@@ -27,7 +27,7 @@ proc twapi::get_volume_info {drive args} {
 
     set result [list ]
     if {$opts(size) || $opts(freespace) || $opts(used) || $opts(useravail)} {
-        foreach {useravail size freespace} [GetDiskFreeSpaceEx $drive] {break}
+        lassign  [GetDiskFreeSpaceEx $drive] useravail size freespace
         foreach opt {size freespace useravail}  {
             if {$opts($opt)} {
                 lappend result -$opt [set $opt]
@@ -288,10 +288,10 @@ proc twapi::find_volumes {} {
     set vols [list ]
     set found 1
     # Assumes there has to be at least one volume
-    foreach {handle vol} [FindFirstVolume] break
+    lassign [FindFirstVolume] handle vol
     while {$found} {
         lappend vols $vol
-        foreach {found vol} [FindNextVolume $handle] break
+        lassign [FindNextVolume $handle] found vol
     }
     FindVolumeClose $handle
     return $vols
@@ -302,7 +302,7 @@ proc twapi::find_volume_mount_points {vol} {
     set mntpts [list ]
     set found 1
     trap {
-        foreach {handle mntpt} [FindFirstVolumeMountPoint $vol] break
+        lassign  [FindFirstVolumeMountPoint $vol] handle mntpt
     } onerror {TWAPI_WIN32 18} {
         # ERROR_NO_MORE_FILES
         # No volume mount points
@@ -315,7 +315,7 @@ proc twapi::find_volume_mount_points {vol} {
     # At least one volume found
     while {$found} {
         lappend mntpts $mntpt
-        foreach {found mntpt} [FindNextVolumeMountPoint $handle] break
+        lassign  [FindNextVolumeMountPoint $handle] found mntpt
     }
     FindVolumeMountPointClose $handle
     return $mntpts
@@ -373,6 +373,7 @@ proc twapi::get_file_version_resource {path args} {
         langid.arg
         codepage.arg
     }]
+
 
     set ver [Twapi_GetFileVersionInfo $path]
 
@@ -552,6 +553,7 @@ proc twapi::get_file_version_resource {path args} {
             foreach sname $args {
                 lappend result $sname [Twapi_VerQueryValue_STRING $ver $match($i) $sname]
             }
+
         }
 
     } finally {

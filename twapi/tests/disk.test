@@ -769,8 +769,6 @@ namespace eval twapi::disk::test {
 
     test get_file_version_resource-8.0 {
         get_file_version_resource -langid
-    } -constraints {
-        nt
     } -body {
         array set ver [twapi::get_file_version_resource [get_filever_dll] -langid 1033 CompanyName]
         set ver(CompanyName)
@@ -1066,7 +1064,7 @@ namespace eval twapi::disk::test {
         set now [clock seconds]
         set fd [open $fn a+]
         puts $fd "Just some junk"
-        twapi::set_file_times $fh -preserveatime
+        twapi::set_file_times $fd -preserveatime
         close $fd
         file stat $fn fstat
         # Verify that access time not changed even though we wrote the file

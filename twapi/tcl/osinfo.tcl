@@ -167,7 +167,7 @@ proc twapi::get_os_version {} {
 
 # Returns true if the OS version is at least $major.$minor.$sp
 proc twapi::min_os_version {major {minor 0} {spmajor 0} {spminor 0}} {
-    foreach {osmajor osminor osspmajor osspminor} [twapi::get_os_version] {break}
+    lassign  [twapi::get_os_version]  osmajor osminor osspmajor osspminor
 
     if {$osmajor > $major} {return 1}
     if {$osmajor < $major} {return 0}
@@ -939,7 +939,7 @@ proc twapi::get_primary_domain_info {args} {
     set result [list ]
     set lsah [get_lsa_policy_handle -access policy_view_local_information]
     trap {
-        foreach {name dnsdomainname dnsforestname domainguid sid} [LsaQueryInformationPolicy $lsah 12] break
+        lassign  [LsaQueryInformationPolicy $lsah 12]  name dnsdomainname dnsforestname domainguid sid
         if {[string length $sid] == 0} {
             set type workgroup
             set domainguid ""
@@ -1133,7 +1133,7 @@ proc twapi::get_system_parameters_info {uiaction} {
         }
     }
 
-    foreach {index uiparam fmt sz modifiers} $SystemParametersInfo_uiactions_get($key) break
+    lassign  $SystemParametersInfo_uiactions_get($key) index uiparam fmt sz modifiers
     if {$uiparam eq "sz"} {
         set uiparam $sz
     }
@@ -1282,7 +1282,7 @@ proc twapi::set_system_parameters_info {uiaction val args} {
         }
     }
 
-    foreach {index fmt} $SystemParametersInfo_uiactions_set($key) break
+    lassign $SystemParametersInfo_uiactions_set($key) index fmt
 
     switch -exact -- $fmt {
         int  { SystemParametersInfo $index $val NULL $flags }
@@ -1426,9 +1426,9 @@ proc twapi::_net_enum_helper {function args} {
     set result {}
     while {$moredata} {
         if {[info exists opts(filter)]} {
-            foreach {moredata resumehandle totalentries groups} [eval [list $function $opts(system)] $opts(preargs) [list $level $opts(filter)] $opts(postargs) [list $resumehandle]] break
+            lassign  [eval [list $function $opts(system)] $opts(preargs) [list $level $opts(filter)] $opts(postargs) [list $resumehandle]] moredata resumehandle totalentries groups
         } else {
-            foreach {moredata resumehandle totalentries groups} [eval [list $function $opts(system)] $opts(preargs) [list $level] $opts(postargs) [list $resumehandle]] break
+            lassign [eval [list $function $opts(system)] $opts(preargs) [list $level] $opts(postargs) [list $resumehandle]] moredata resumehandle totalentries groups
         }
         # If caller does not want all data in one lump stop here
         if {[info exists opts(resume)]} {
