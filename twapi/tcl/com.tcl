@@ -399,7 +399,7 @@ proc twapi::dispatch_print {di args} {
 
 proc twapi::_dispatch_print_helper {ti outfd {names_already_done ""}} {
     set name [$ti @GetName]
-    if {[lsearch -exact $names_already_done $name] >= 0} {
+    if {$name in $names_already_done} {
         # Already printed this
         return $names_already_done
     }
@@ -838,7 +838,7 @@ proc twapi::_resolve_iid {name_or_iid} {
 
 proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
 
-    if {[lsearch -exact $tests ie] >= 0} {
+    if {"ie" in $tests} {
         puts "Invoking Internet Explorer"
         set ie [comobj InternetExplorer.Application -enableaaa true]
         $ie Visible 1
@@ -851,7 +851,7 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
         puts "------------------------------------------"
     }
 
-    if {[lsearch -exact $tests word] >= 0} {
+    if {"word" in $tests} {
         puts "Invoking Word"
         set word [comobj Word.Application]
         set doc [$word -with Documents Add]
@@ -870,7 +870,7 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
         puts "------------------------------------------"
     }
 
-    if {[lsearch -exact $tests wmi] >= 0} {
+    if {"wmi" in $tests} {
         puts "WMI BIOS test"
         puts [_get_bios_info]
         puts "WMI BIOS done."
@@ -888,7 +888,7 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
         puts "------------------------------------------"
     }
 
-    if {[lsearch $tests tracker] >= 0} {
+    if {"tracker" in $tests} {
         puts " Starting process tracker. Type 'twapi::_stop_process_tracker' to stop it."
         twapi::_start_process_tracker
         vwait ::twapi::_stop_tracker

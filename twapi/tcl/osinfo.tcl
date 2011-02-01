@@ -85,9 +85,9 @@ proc twapi::get_os_description {} {
         if {[string equal $osinfo(system_type) "workstation"]} {
             set systype "Workstation"
         } else {
-            if {[lsearch -exact $osinfo(suites) "terminal"] >= 0} {
+            if {"terminal" in $osinfo(suites)} {
                 set systype "Terminal Server Edition"
-            } elseif {[lsearch -exact $osinfo(suites) "enterprise"] >= 0} {
+            } elseif {"enterprise" in $osinfo(suites)} {
                 set systype "Advanced Server"
             } else {
                 set systype "Server"
@@ -100,9 +100,9 @@ proc twapi::get_os_description {} {
                 if {[string equal $osinfo(system_type) "workstation"]} {
                     set systype "Professional"
                 } else {
-                    if {[lsearch -exact $osinfo(suites) "datacenter"] >= 0} {
+                    if {"datacenter" in $osinfo(suites)} {
                         set systype "Datacenter Server"
-                    } elseif {[lsearch -exact $osinfo(suites) "enterprise"] >= 0} {
+                    } elseif {"enterprise" in $osinfo(suites)} {
                         set systype "Advanced Server"
                     } else {
                         set systype "Server"
@@ -111,7 +111,7 @@ proc twapi::get_os_description {} {
             }
             "5.1" {
                 set osname "Windows XP"
-                if {[lsearch -exact $osinfo(suites) "personal"] >= 0} {
+                if {"personal" in $osinfo(suites)} {
                     set systype "Home Edition"
                 } else {
                     set systype "Professional"
@@ -122,11 +122,11 @@ proc twapi::get_os_description {} {
                 if {[string equal $osinfo(system_type) "workstation"]} {
                     set systype "Professional"
                 } else {
-                    if {[lsearch -exact $osinfo(suites) "datacenter"] >= 0} {
+                    if {"datacenter" in $osinfo(suites)} {
                         set systype "Datacenter Edition"
-                    } elseif {[lsearch -exact $osinfo(suites) "enterprise"] >= 0} {
+                    } elseif {"enterprise" in  $osinfo(suites)} {
                         set systype "Enterprise Edition"
-                    } elseif {[lsearch -exact $osinfo(suites) "blade"] >= 0} {
+                    } elseif {"blade" in  $osinfo(suites)} {
                         set systype "Web Edition"
                     } else {
                         set systype "Standard Edition"
@@ -143,7 +143,7 @@ proc twapi::get_os_description {} {
                 }
             }
         }
-        if {[lsearch -exact $osinfo(suites) "terminal"] >= 0} {
+        if {"terminal" in  $osinfo(suites)} {
             set tserver " with Terminal Services"
         }
     }

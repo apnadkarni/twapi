@@ -81,7 +81,7 @@ proc twapi::get_toplevel_windows {args} {
     set process_toplevels [list ]
     foreach toplevel $toplevels {
         set pid [get_window_process $toplevel]
-        if {[lsearch -exact $match_pids $pid] >= 0} {
+        if {[lsearch -exact -integer $match_pids $pid] >= 0} {
             lappend process_toplevels $toplevel
         }
     }
@@ -1082,12 +1082,12 @@ proc twapi::send_input {inputlist} {
 
         } else {
             lassign $input inputtype vk scan keyopts
-            if {[lsearch -exact $keyopts "-extended"] < 0} {
+            if {"-extended" ni $keyopts} {
                 set extended 0
             } else {
                 set extended $windefs(KEYEVENTF_EXTENDEDKEY)
             }
-            if {[lsearch -exact $keyopts "-usescan"] < 0} {
+            if {"-usescan" ni $keyopts} {
                 set usescan 0
             } else {
                 set usescan $windefs(KEYEVENTF_SCANCODE)

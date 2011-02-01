@@ -71,9 +71,9 @@ proc twapi::get_desktop_handle {desk args} {
     # If certain access rights are specified, we must add certain other
     # access rights. See OpenDesktop SDK docs
     set access_rights [_access_mask_to_rights $access_mask]
-    if {[lsearch -exact $access_rights read_control] >= 0 ||
-        [lsearch -exact $access_rights write_dac] >= 0 ||
-        [lsearch -exact $access_rights write_owner] >= 0} {
+    if {"read_control" in $access_rights ||
+        "write_dacl" in $access_rights ||
+        "write_owner" in  $access_rights} {
         lappend access_rights desktop_readobject desktop_writeobjects
         set access_mask [_access_rights_to_mask $opts(access)]
     }
