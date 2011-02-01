@@ -841,13 +841,6 @@ vamoose:
 
 
 
-#if 0 /* TBD - XP or later only */
-DWORD GetProcessImageFileNameW (
-    HANDLE  hProcess,
-    LPWSTR  lpFilename,
-    DWORD   nSize
-);
-#endif
 #if 0 /* TBD - XP only */
 EXCEPTION_ON_FALSE GetProcessMemoryInfo(
     HANDLE Process,
@@ -856,10 +849,4 @@ EXCEPTION_ON_FALSE GetProcessMemoryInfo(
     );
 #endif
 
-#if 0 /* TBD - XP or later only EVEN THOUGH MSDN Docs CLAIN Win2k ALSO */
-EXCEPTION_ON_FALSE GetPerformanceInfo (
-    PPERFORMACE_INFORMATION pPerformanceInformation,
-    DWORD cb
-);
-#endif
 

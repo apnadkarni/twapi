@@ -125,34 +125,74 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
     return TCL_OK;
 }
 
-#ifndef TWAPI_LEAN
 int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
 {
     MEMORYSTATUSEX memstatex;
-    MEMORYSTATUS memstat;
-    Tcl_Obj *objv[4];
+    Tcl_Obj *objv[14];
 
     memstatex.dwLength = sizeof(memstatex);
     if (GlobalMemoryStatusEx(&memstatex)) {
-        objv[0] = Tcl_NewWideIntObj(memstatex.ullTotalPhys);
-        objv[1] = Tcl_NewWideIntObj(memstatex.ullAvailPhys);
-        objv[2] = Tcl_NewWideIntObj(memstatex.ullTotalPageFile);
-        objv[3] = Tcl_NewWideIntObj(memstatex.ullAvailPageFile);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(4, objv));
+        objv[0] = STRING_LITERAL_OBJ("dwMemoryLoad");
+        objv[1] = Tcl_NewIntObj(memstatex.dwMemoryLoad);
+        objv[2] = STRING_LITERAL_OBJ("ullTotalPhys");
+        objv[3] = ObjFromULONGLONG(memstatex.ullTotalPhys);
+        objv[4] = STRING_LITERAL_OBJ("ullAvailPhys");
+        objv[5] = ObjFromULONGLONG(memstatex.ullAvailPhys);
+        objv[6] = STRING_LITERAL_OBJ("ullTotalPageFile");
+        objv[7] = ObjFromULONGLONG(memstatex.ullTotalPageFile);
+        objv[8] = STRING_LITERAL_OBJ("ullAvailPageFile");
+        objv[9] = ObjFromULONGLONG(memstatex.ullAvailPageFile);
+        objv[10] = STRING_LITERAL_OBJ("ullTotalVirtual");
+        objv[11] = ObjFromULONGLONG(memstatex.ullTotalVirtual);
+        objv[12] = STRING_LITERAL_OBJ("ullAvailVirtual");
+        objv[13] = ObjFromULONGLONG(memstatex.ullAvailVirtual);
+        
+        Tcl_SetObjResult(interp, Tcl_NewListObj(14, objv));
         return TCL_OK;
+    } else {
+        return TwapiReturnSystemError(interp);
     }
-
-    memstat.dwLength = sizeof(memstat);
-    GlobalMemoryStatus(&memstat);
-    /* We create wide ints so Tcl does not treat 2GB+ as negative */
-    objv[0] = Tcl_NewWideIntObj(memstat.dwTotalPhys);
-    objv[1] = Tcl_NewWideIntObj(memstat.dwAvailPhys);
-    objv[2] = Tcl_NewWideIntObj(memstat.dwTotalPageFile);
-    objv[3] = Tcl_NewWideIntObj(memstat.dwAvailPageFile);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(4, objv));
-    return TCL_OK;
 }
-#endif // TWAPI_LEAN
+
+int Twapi_GetPerformanceInformation(Tcl_Interp *interp)
+{
+    PERFORMANCE_INFORMATION perf;
+    Tcl_Obj *objv[26];
+
+    perf.cb = sizeof(perf);
+    if (GetPerformanceInfo(&perf, sizeof(perf))) {
+        objv[0] = STRING_LITERAL_OBJ("CommitTotal");
+        objv[1] = ObjFromSIZE_T(perf.CommitTotal);
+        objv[2] = STRING_LITERAL_OBJ("CommitLimit");
+        objv[3] = ObjFromSIZE_T(perf.CommitLimit);
+        objv[4] = STRING_LITERAL_OBJ("CommitPeak");
+        objv[5] = ObjFromSIZE_T(perf.CommitPeak);
+        objv[6] = STRING_LITERAL_OBJ("PhysicalTotal");
+        objv[7] = ObjFromSIZE_T(perf.PhysicalTotal);
+        objv[8] = STRING_LITERAL_OBJ("PhysicalAvailable");
+        objv[9] = ObjFromSIZE_T(perf.PhysicalAvailable);
+        objv[10] = STRING_LITERAL_OBJ("SystemCache");
+        objv[11] = ObjFromSIZE_T(perf.SystemCache);
+        objv[12] = STRING_LITERAL_OBJ("KernelTotal");
+        objv[13] = ObjFromSIZE_T(perf.KernelTotal);
+        objv[14] = STRING_LITERAL_OBJ("KernelPaged");
+        objv[15] = ObjFromSIZE_T(perf.KernelPaged);
+        objv[16] = STRING_LITERAL_OBJ("KernelNonpaged");
+        objv[17] = ObjFromSIZE_T(perf.KernelNonpaged);
+        objv[18] = STRING_LITERAL_OBJ("PageSize");
+        objv[19] = ObjFromSIZE_T(perf.PageSize);
+        objv[20] = STRING_LITERAL_OBJ("HandleCount");
+        objv[21] = Tcl_NewIntObj(perf.HandleCount);
+        objv[22] = STRING_LITERAL_OBJ("ProcessCount");
+        objv[23] = Tcl_NewIntObj(perf.ProcessCount);
+        objv[24] = STRING_LITERAL_OBJ("ThreadCount");
+        objv[25] = Tcl_NewIntObj(perf.ThreadCount);
+
+        Tcl_SetObjResult(interp, Tcl_NewListObj(26, objv));
+        return TCL_OK;
+    } else
+        return TwapiReturnSystemError(interp);
+}
 
 
 static int TwapiGetProfileSectionHelper(

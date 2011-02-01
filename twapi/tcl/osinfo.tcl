@@ -359,23 +359,43 @@ proc twapi::get_memory_info {args} {
         allocationgranularity
         availcommit
         availphysical
+        kernelpaged
+        kernelnonpaged
         minappaddr
         maxappaddr
         pagesize
+        peakcommit
+        physicalmemoryload
+        processavailcommit
+        processcommitlimit
+        processtotalvirtual
+        processavailvirtual
         swapfiles
         swapfiledetail
+        systemcache
         totalcommit
         totalphysical
+        usedcommit
     }]
 
+    # TBD - some of the fields are not system fields, but the min of 
+    # system and process limits - use GetPerformanceInfo instead - see
+    # MSDN
+
     set results [list ]
-    if {$opts(all) || $opts(totalphysical) || $opts(availphysical) ||
-        $opts(totalcommit) || $opts(availcommit)} {
-        foreach {totalphysical availphysical totalcommit availcommit} [GlobalMemoryStatus] break
-        foreach opt {totalphysical availphysical totalcommit availcommit} {
-            if {$opts(all) || $opts($opt)} {
-                lappend results -$opt [set $opt]
-            }
+
+    set mem [GlobalMemoryStatus]
+    foreach {opt fld} {
+        physicalmemoryload     dwMemoryLoad
+        totalphysical  ullTotalPhys
+        availphysical  ullAvailPhys
+        processcommitlimit    ullTotalPageFile
+        processavailcommit    ullAvailPageFile
+        processtotalvirtual   ullTotalVirtual
+        processavailvirtual   ullAvailVirtual
+    } {
+        if {$opts(all) || $opts($opt)} {
+            lappend results -$opt [kl_get $mem $fld]
         }
     }
 
@@ -408,6 +428,30 @@ proc twapi::get_memory_info {args} {
         }
     }
 
+    # This call is slightly expensive so check if it is really needed 
+    if {$opts(all) || $opts(totalcommit) || $opts(usedcommit) ||
+        $opts(availcommit) ||
+        $opts(kernelpaged) || $opts(kernelnonpaged)
+    } {
+        set mem [GetPerformanceInformation]
+        set page_size [kl_get $mem PageSize]
+        foreach {opt fld} {
+            totalcommit CommitLimit
+            usedcommit  CommitTotal
+            peakcommit  CommitPeak
+            systemcache SystemCache
+            kernelpaged KernelPaged
+            kernelnonpaged KernelNonpaged
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend results -$opt [expr {[kl_get $mem $fld] * $page_size}]
+            }
+        }
+        if {$opts(all) || $opts(availcommit)} {
+            lappend results -availcommit [expr {$page_size * ([kl_get $mem CommitLimit]-[kl_get $mem CommitTotal])}]
+        }
+    }
+        
     return $results
 }
 
