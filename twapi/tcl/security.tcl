@@ -464,24 +464,11 @@ proc twapi::get_token_privileges {tok args} {
 proc twapi::check_enabled_privileges {tok privlist args} {
     set all_required [expr {[lsearch -exact $args "-any"] < 0}]
 
-    if {0} {
-        We now call the PrivilegeCheck instead. Not sure it matters
-        This code also does not handle -any option
-        foreach priv $privlist {
-            if {[expr {
-                       [lsearch -exact [get_token_privileges $tok] $priv] < 0
-                   }]} {
-                return 0
-            }
-        }
-        return 1
-    } else {
-        set luid_attr_list [list ]
-        foreach priv $privlist {
-            lappend luid_attr_list [list [map_privilege_to_luid $priv] 0]
-        }
-        return [Twapi_PrivilegeCheck $tok $luid_attr_list $all_required]
+    set luid_attr_list [list ]
+    foreach priv $privlist {
+        lappend luid_attr_list [list [map_privilege_to_luid $priv] 0]
     }
+    return [Twapi_PrivilegeCheck $tok $luid_attr_list $all_required]
 }
 
 
