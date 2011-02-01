@@ -853,7 +853,7 @@ proc twapi::_service_handler_unsafe {name service_status_handle control extra_ar
 proc twapi::update_service_status {name seq state args} {
     variable service_state
 
-    if {[lsearch -exact {running paused stopped} $state] < 0} {
+    if {$state ni {running paused stopped}} {
         error "Invalid state token $state"
     }
 
