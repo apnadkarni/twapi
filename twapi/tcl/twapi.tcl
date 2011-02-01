@@ -1476,7 +1476,7 @@ proc twapi::_binary_to_guid {bin {off 0}} {
 # Given a guid string, return a GUID in binary form
 proc twapi::_guid_to_binary {guid} {
     _validate_guid $guid
-    foreach {g1 g2 g3 g4 g5} [split [string range $guid 1 end-1] -] break
+    lassign [split [string range $guid 1 end-1] -] g1 g2 g3 g4 g5
     return [binary format "i s s H4 H12" 0x$g1 0x$g2 0x$g3 $g4 $g5]
 }
 

@@ -705,7 +705,7 @@ proc twapi::run_as_service {services args} {
 
     set service_defs [list ]
     foreach service $services {
-        foreach {name script} $service break
+        lassign $service name script
         set name [string tolower $name]
         lappend service_defs [list $name $service_state(controls)]
         set service_state($name,state)       stopped

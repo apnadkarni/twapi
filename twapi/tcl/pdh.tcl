@@ -665,7 +665,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
     set items [get_perf_object_items $object \
                    -machine $opts(machine) \
                    -datasource $opts(datasource)]
-    foreach {object_counters object_instances} $items {break}
+    lassign $items object_counters object_instances
 
     if {[llength $counters]} {
         set object_counters $counters
@@ -840,7 +840,7 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
             set counter_info [list ]
             set need_wait 0
             foreach counter_elem $metacounters {
-                foreach {pdh_opt key data_type counter_path wait} $counter_elem {break}
+                lassign $counter_elem pdh_opt key data_type counter_path wait
                 incr need_wait $wait
                 set hcounter [add_perf_counter $hquery $counter_path]
                 lappend counters $hcounter
