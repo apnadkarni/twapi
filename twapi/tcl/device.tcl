@@ -24,7 +24,7 @@ proc twapi::_device_notification_handler {id args} {
     set event [lindex $args 0]
     if {[lindex $args 1] eq "volume" &&
         ($event eq "deviceremovecomplete" || $event eq "devicearrival")} {
-        set args [lreplace $args 2 2 [_drivemask_to_drivelist [lindex $args 2]]]
+        lset args 2 [_drivemask_to_drivelist [lindex $args 2]]
 
         # Also indicate whether network volume and whether change is a media
         # change or physical change
@@ -36,7 +36,7 @@ proc twapi::_device_notification_handler {id args} {
         if {$flags & 2} {
             lappend attrs networkvolume
         }
-        set args [lreplace $args 3 3 $attrs]
+        lset args 3 $attrs
     }
 
     return [eval $script [list $idstr] $args]
