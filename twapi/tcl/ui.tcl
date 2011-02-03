@@ -761,9 +761,9 @@ proc twapi::set_focus {hwin} {
 
 # Flash the given window
 proc twapi::flash_window_caption {hwin args} {
-    eval set [parseargs args {toggle}]
+    array set opts [parseargs args {toggle}]
 
-    return [FlashWindow $hwin $toggle]
+    return [FlashWindow $hwin $opts(toggle)]
 }
 
 # FlashWindow not in binary any more, emulate it

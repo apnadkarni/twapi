@@ -718,7 +718,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
 # Returns the counter path for counter $counter with a value $value
 # for object $object. Returns "" on no matches but exception if more than one
 proc twapi::get_unique_counter_path {object counter value args} {
-    set matches [eval [list get_perf_counter_paths $object [list $counter ] [list $value]] $args -all]
+    set matches [get_perf_counter_paths $object [list $counter ] [list $value] {*}$args -all]
     if {[llength $matches] > 1} {
         error "Multiple counter paths found matching criteria object='$object' counter='$counter' value='$value"
     }

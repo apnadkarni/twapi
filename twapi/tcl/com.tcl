@@ -200,7 +200,7 @@ proc twapi::comobj {comid args} {
         {interface.arg IDispatch {IDispatch IDispatchEx}}
     } -ignoreunknown]
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [eval [list com_create_instance $clsid -interface $opts(interface) -raw] $args]]
+    return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args]]
 }
 
 
