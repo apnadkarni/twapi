@@ -276,29 +276,30 @@ proc twapi::control_service {name code access finalstate args} {
 
 proc twapi::stop_service {name args} {
     variable windefs
-    eval [list control_service $name \
-              $windefs(SERVICE_CONTROL_STOP) $windefs(SERVICE_STOP) stopped -ignorecodes 1062] $args
+    control_service $name \
+        $windefs(SERVICE_CONTROL_STOP) \
+        $windefs(SERVICE_STOP) stopped -ignorecodes 1062 {*}$args
 }
 
 proc twapi::pause_service {name args} {
     variable windefs
-    eval [list control_service $name \
-              $windefs(SERVICE_CONTROL_PAUSE) \
-              $windefs(SERVICE_PAUSE_CONTINUE) paused] $args
+    control_service $name \
+        $windefs(SERVICE_CONTROL_PAUSE) \
+        $windefs(SERVICE_PAUSE_CONTINUE) paused {*}$args
 }
 
 proc twapi::continue_service {name args} {
     variable windefs
-    eval [list control_service $name \
-              $windefs(SERVICE_CONTROL_CONTINUE) \
-              $windefs(SERVICE_PAUSE_CONTINUE) running] $args
+    control_service $name \
+        $windefs(SERVICE_CONTROL_CONTINUE) \
+        $windefs(SERVICE_PAUSE_CONTINUE) running {*}$args
 }
 
 proc twapi::interrogate_service {name args} {
     variable windefs
-    eval [list control_service $name \
-              $windefs(SERVICE_CONTROL_INTERROGATE) \
-              $windefs(SERVICE_INTERROGATE) ""] $args
+    control_service $name \
+        $windefs(SERVICE_CONTROL_INTERROGATE) \
+        $windefs(SERVICE_INTERROGATE) "" {*}$args
     return
 }
 
@@ -341,7 +342,7 @@ proc twapi::get_service_status {name args} {
 
 # Get the state of the service
 proc twapi::get_service_state {name args} {
-    return [kl_get [eval [list get_service_status $name] $args] state]
+    return [kl_get [get_service_status $name {*}$args] state]
 }
 
 
@@ -718,7 +719,7 @@ proc twapi::run_as_service {services args} {
         set service_state($name,seqack)      0
     }
 
-    eval [list twapi::Twapi_BecomeAService $type] $service_defs
+    twapi::Twapi_BecomeAService $type {*}$service_defs
 
     # Turn off console events by installing our own handler,
     # else tclsh will exit when a user logs off even if it is running
