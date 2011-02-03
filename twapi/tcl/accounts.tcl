@@ -48,12 +48,12 @@ proc twapi::new_user {username args} {
 
 # Delete a user account
 proc twapi::delete_user {username args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     # Remove the user from the LSA rights database.
-    _delete_rights $username $system
+    _delete_rights $username $opts(system)
 
-    NetUserDel $system $username
+    NetUserDel $opts(system) $username
 }
 
 
@@ -79,7 +79,7 @@ unset twapi::_field_
 
 # Set account expiry time
 proc twapi::set_user_expiration {username time args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     if {![string is integer -strict $time]} {
         if {[string equal $time "never"]} {
@@ -88,25 +88,25 @@ proc twapi::set_user_expiration {username time args} {
             set time [clock scan $time]
         }
     }
-    Twapi_NetUserSetInfoDWORD 1017 $system $username $time
+    Twapi_NetUserSetInfoDWORD 1017 $opts(system) $username $time
 }
 
 # Unlock a user account
 proc twapi::unlock_user {username args} {
     # UF_LOCKOUT -> 0x10
-    eval [list _change_user_info_flags $username 0x10 0] $args
+    _change_user_info_flags $username 0x10 0 {*}$args
 }
 
 # Enable a user account
 proc twapi::enable_user {username args} {
     # UF_ACCOUNTDISABLE -> 0x2
-    eval [list _change_user_info_flags $username 0x2 0] $args
+    _change_user_info_flags $username 0x2 0 {*}$args
 }
 
 # Disable a user account
 proc twapi::disable_user {username args} {
     # UF_ACCOUNTDISABLE -> 0x2
-    eval [list _change_user_info_flags $username 0x2 0x2] $args
+    _change_user_info_flags $username 0x2 0x2 {*}$args
 }
 
 
@@ -435,11 +435,11 @@ proc twapi::get_local_group_members {grpname args} {
 
 # Add a user to a global group
 proc twapi::add_user_to_global_group {grpname username args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     # No error if already member of the group
     trap {
-        NetGroupAddUser $system $grpname $username
+        NetGroupAddUser $opts(system) $grpname $username
     } onerror {TWAPI_WIN32 1320} {
         # Ignore
     }
@@ -448,11 +448,11 @@ proc twapi::add_user_to_global_group {grpname username args} {
 
 # Add a user to a local group
 proc twapi::add_member_to_local_group {grpname username args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     # No error if already member of the group
     trap {
-        Twapi_NetLocalGroupAddMember $system $grpname $username
+        Twapi_NetLocalGroupAddMember $opts(system) $grpname $username
     } onerror {TWAPI_WIN32 1378} {
         # Ignore
     }
@@ -461,10 +461,10 @@ proc twapi::add_member_to_local_group {grpname username args} {
 
 # Remove a user from a global group
 proc twapi::remove_user_from_global_group {grpname username args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     trap {
-        NetGroupDelUser $system $grpname $username
+        NetGroupDelUser $opts(system) $grpname $username
     } onerror {TWAPI_WIN32 1321} {
         # Was not in group - ignore
     }
@@ -473,10 +473,10 @@ proc twapi::remove_user_from_global_group {grpname username args} {
 
 # Remove a user from a local group
 proc twapi::remove_member_from_local_group {grpname username args} {
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     trap {
-        Twapi_NetLocalGroupDelMember $system $grpname $username
+        Twapi_NetLocalGroupDelMember $opts(system) $grpname $username
     } onerror {TWAPI_WIN32 1377} {
         # Was not in group - ignore
     }
@@ -527,7 +527,7 @@ proc twapi::impersonate_token {token} {
 
 # Impersonate a user
 proc twapi::impersonate_user {args} {
-    set token [eval open_user_token $args]
+    set token [open_user_token {*}$args]
     trap {
         impersonate_token $token
     } finally {
@@ -889,7 +889,7 @@ proc twapi::_logon_session_type_symbol {code} {
 
 proc twapi::_set_user_priv_level {username priv_level args} {
 
-    eval set [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {system.arg} -nulldefault]
 
     if {0} {
         # FOr some reason NetUserSetInfo cannot change priv level
@@ -902,7 +902,7 @@ proc twapi::_set_user_priv_level {username priv_level args} {
         }
         set priv $twapi::priv_level_map($priv_level)
 
-        Twapi_NetUserSetInfo_priv $system $username $priv
+        Twapi_NetUserSetInfo_priv $opts(system) $username $priv
     } else {
         # Don't hardcode group names - reverse map SID's instead for 
         # non-English systems. Also note that since
@@ -927,13 +927,13 @@ proc twapi::_set_user_priv_level {username priv_level args} {
         # Remove from higher priv groups
         foreach outgroup $outgroups {
             # Get the potentially localized name of the group
-            set group [lookup_account_sid $builtin_account_sids($outgroup) -system $system]
+            set group [lookup_account_sid $builtin_account_sids($outgroup) -system $opts(system)]
             # Catch since may not be member of that group
-            catch {remove_member_from_local_group $group $username -system $system}
+            catch {remove_member_from_local_group $group $username -system $opts(system)}
         }
 
         # Get the potentially localized name of the group to be added
-        set group [lookup_account_sid $builtin_account_sids($ingroup) -system $system]
-        add_member_to_local_group $group $username -system $system
+        set group [lookup_account_sid $builtin_account_sids($ingroup) -system $opts(system)]
+        add_member_to_local_group $group $username -system $opts(system)
     }
 }

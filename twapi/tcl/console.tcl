@@ -593,14 +593,13 @@ proc twapi::set_console_input_codepage {cp} {
 # Read a line of input
 proc twapi::_console_read {conh args} {
     if {[llength $args]} {
-        set oldmode \
-            [eval modify_console_input_mode [list $conh] $args]
+        set oldmode [modify_console_input_mode $conh {*}$args]
     }
     trap {
         return [ReadConsole $conh 1024]
     } finally {
         if {[info exists oldmode]} {
-            eval [list set_console_input_mode $conh] $oldmode
+            set_console_input_mode $conh {*}$oldmode
         }
     }
 }

@@ -119,13 +119,13 @@ proc twapi::_lookup_account {func account args} {
 
 # Returns the sid, domain and type for an account
 proc twapi::lookup_account_name {name args} {
-    return [eval [list _lookup_account LookupAccountName $name] $args]
+    return [_lookup_account LookupAccountName $name {*}$args]
 }
 
 
 # Returns the name, domain and type for an account
 proc twapi::lookup_account_sid {sid args} {
-    return [eval [list _lookup_account LookupAccountSid $sid] $args]
+    return [_lookup_account LookupAccountSid $sid {*}$args]
 }
 
 # Returns the sid for a account - may be given as a SID or name
@@ -337,7 +337,7 @@ proc twapi::get_token_integrity {tok args} {
         set integrity S-1-16-8192
     }
 
-    return [eval [list _sid_to_integrity $integrity] $args]
+    return [_sid_to_integrity $integrity {*}$args]
 }
 
 # Get the integrity level associated with a token
@@ -1374,7 +1374,7 @@ proc twapi::get_security_descriptor_integrity {secd args} {
     if {[min_os_version 6]} {
         foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
             if {[get_ace_type $ace] eq "mandatory_label"} {
-                set integrity [eval [list _sid_to_integrity [get_ace_sid $ace]] $args]
+                set integrity [_sid_to_integrity [get_ace_sid $ace] {*}$args]
                 set rights [get_ace_rights $ace -resourcetype mandatory_label]
                 return [list $integrity $rights]
             }
@@ -1403,7 +1403,7 @@ proc twapi::get_resource_integrity {restype name args} {
         set secd [get_resource_security_descriptor $restype $name -mandatory_label]
     }
 
-    return [eval [list get_security_descriptor_integrity $secd] $saved_args]
+    return [get_security_descriptor_integrity $secd {*}$saved_args]
 }
 
 
@@ -1628,7 +1628,7 @@ proc twapi::_access_rights_to_mask {args} {
     variable windefs
 
     set rights 0
-    foreach right [eval concat $args] {
+    foreach right [concat {*}$args] {
         if {![string is integer $right]} {
             if {[catch {set right $windefs([string toupper $right])}]} {
                 error "Invalid access right symbol '$right'"

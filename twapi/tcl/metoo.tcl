@@ -257,7 +257,7 @@ proc metoo::_new {class_ns cmd args} {
 
     # Invoke the constructor
     if {[catch {
-        eval [list $objname constructor] $args
+        $objname constructor {*}$args
     } msg]} {
         # Undo what we did
         set erinfo $::errorInfo
@@ -429,7 +429,7 @@ proc ::metoo::demo {{ns metoo}} {
         superclass Base
         constructor {x y} { puts "Derived constructor ([self object]): $x, $y" ; next $x $y }
         destructor { puts "Derived::destructor called ([self object])" ; next }
-        method n {args} { puts "Derived::n ([self object]): [join $args {, }]"; eval next $args}
+        method n {args} { puts "Derived::n ([self object]): [join $args {, }]";  next {*}$args}
         method put {val} {my variable var ; set var $val}
         method get {varname} {my variable var ; upvar 1 $varname retvar; set retvar $var}
     }

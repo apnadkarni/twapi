@@ -288,8 +288,7 @@ proc twapi::get_processor_info {processor args} {
 
 
     if {[llength $requested_opts]} {
-        set counter_list [eval [list get_perf_processor_counter_paths $processor] \
-                          $requested_opts]
+        set counter_list [get_perf_processor_counter_paths $processor {*}$requested_opts]
         foreach {opt processor value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
             lappend results -$opt $value
         }
@@ -538,25 +537,33 @@ proc twapi::get_system_info {args} {
         }
     }
 
+    if {$opts(all) || $opts(handlecount) || $opts(processcount) || $opts(threadcount)} {
+        set kl [twapi::GetPerformanceInformation]
+        if {$opts(all) || $opts(handlecount)} {
+            lappend result -handlecount [kl_get $kl HandleCount]
+        }
+        if {$opts(all) || $opts(processcount)} {
+            lappend result -processcount [kl_get $kl ProcessCount]
+        }
+        if {$opts(all) || $opts(threadcount)} {
+            lappend result -threadcount [kl_get $kl ThreadCount]
+        }
+    }
+
     # If we don't need any PDH based values, return
     # TBD - many of these are available without PDH ? Check and replace
-    if {! ($opts(all) || $opts(handlecount) || $opts(processcount) || $opts(threadcount) || $opts(eventcount) || $opts(mutexcount) || $opts(sectioncount) || $opts(semaphorecount))} {
+    if {! ($opts(all) || $opts(eventcount) || $opts(mutexcount) || $opts(sectioncount) || $opts(semaphorecount))} {
         return $result
     }
 
     set hquery [open_perf_query]
     trap {
         # Create the counters
-        if {$opts(all) || $opts(handlecount)} {
-            set handlecount_ctr [add_perf_counter $hquery [make_perf_counter_path Process "Handle Count" -instance _Total -localize true]]
-        }
         foreach {opt ctrname} {
             eventcount   Events
             mutexcount   Mutexes
-            processcount Processes
             sectioncount Sections
             semaphorecount Semaphores
-            threadcount  Threads
         } {
             if {$opts(all) || $opts($opt)} {
                 set ${opt}_ctr [add_perf_counter $hquery [make_perf_counter_path Objects $ctrname -localize true]]
@@ -566,13 +573,10 @@ proc twapi::get_system_info {args} {
         collect_perf_query_data $hquery
 
         foreach opt {
-            handlecount
             eventcount
             mutexcount
-            processcount
             sectioncount
             semaphorecount
-            threadcount
         } {
             if {[info exists ${opt}_ctr]} {
                 lappend result -$opt [get_hcounter_value [set ${opt}_ctr] -format long -scale "" -full 0]
@@ -580,13 +584,10 @@ proc twapi::get_system_info {args} {
         }
     } finally {
         foreach opt {
-            handlecount
             eventcount
             mutexcount
-            processcount
             sectioncount
             semaphorecount
-            threadcount
         } {
             if {[info exists ${opt}_ctr]} {
                 remove_perf_counter [set ${opt}_ctr]
@@ -640,13 +641,13 @@ proc twapi::free_library {libh} {
 
 # Format message string
 proc twapi::format_message {args} {
-    if {[catch {eval _unsafe_format_message $args} result]} {
+    if {[catch {_unsafe_format_message {*}$args} result]} {
         set erinfo $::errorInfo
         set ercode $::errorCode
         if {[lindex $ercode 0] == "POSIX" && [lindex $ercode 1] == "EFAULT"} {
             # Number of string params do not match % specifiers
             # Retry without replacing % specifiers
-            return [eval _unsafe_format_message -ignoreinserts $args]
+            return [_unsafe_format_message -ignoreinserts {*}$args]
         } else {
             error $result $erinfo $ercode
         }
@@ -1426,9 +1427,9 @@ proc twapi::_net_enum_helper {function args} {
     set result {}
     while {$moredata} {
         if {[info exists opts(filter)]} {
-            lassign  [eval [list $function $opts(system)] $opts(preargs) [list $level $opts(filter)] $opts(postargs) [list $resumehandle]] moredata resumehandle totalentries groups
+            lassign  [$function $opts(system) {*}$opts(preargs) $level $opts(filter) {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
         } else {
-            lassign [eval [list $function $opts(system)] $opts(preargs) [list $level] $opts(postargs) [list $resumehandle]] moredata resumehandle totalentries groups
+            lassign [$function $opts(system) {*}$opts(preargs) $level {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
         }
         # If caller does not want all data in one lump stop here
         if {[info exists opts(resume)]} {

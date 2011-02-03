@@ -95,7 +95,7 @@ proc twapi::get_process_ids {args} {
             lappend popts -$opt
         }
     }
-    foreach {pid piddata} [eval [list get_multiple_process_info -matchpids $all_pids] $popts] {
+    foreach {pid piddata} [get_multiple_process_info -matchpids $all_pids {*}$popts] {
         array set pidvals $piddata
         if {[info exists opts(path)] &&
             ![string [expr {$match_op eq "-glob" ? "match" : "equal"}] -nocase $opts(path) [file join $pidvals(-path)]]} {
@@ -268,12 +268,12 @@ proc twapi::end_process {pid args} {
 
 # Get the path of a process
 proc twapi::get_process_path {pid args} {
-    return [eval [list twapi::_get_process_name_path_helper $pid path] $args]
+    return [twapi::_get_process_name_path_helper $pid path {*}$args]
 }
 
 # Get the path of a process
 proc twapi::get_process_name {pid args} {
-    return [eval [list twapi::_get_process_name_path_helper $pid name] $args]
+    return [twapi::_get_process_name_path_helper $pid name {*}$args]
 }
 
 
@@ -408,7 +408,7 @@ proc twapi::get_process_thread_ids {pid} {
 
 # Get process information
 proc twapi::get_process_info {pid args} {
-    return [lindex [eval get_multiple_process_info $args [list -matchpids [list $pid]]] 1]
+    return [lindex [get_multiple_process_info {*}$args -matchpids [list $pid]] 1]
 }
 
 
@@ -684,7 +684,7 @@ proc twapi::get_multiple_process_info {args} {
         }
         if {[llength $requested_opts]} {
             trap {
-                set results($pid) [concat $results($pid) [eval [list _token_info_helper -pid $pid] $requested_opts]]
+                set results($pid) [concat $results($pid) [_token_info_helper -pid $pid {*}$requested_opts]]
             } onerror {TWAPI_WIN32 5} {
                 foreach opt $requested_opts {
                     set tokresult($opt) $opts(noaccess)
@@ -745,8 +745,7 @@ proc twapi::get_multiple_process_info {args} {
     # require an interval of measurement
     set wanted_pdh_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
     if {[llength $wanted_pdh_opts] != 0} {
-        set counters [eval [list get_perf_process_counter_paths $pids] \
-                          $wanted_pdh_opts]
+        set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_opts]
         foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval 0] {
             lappend results($pid) $opt $val
             set gotdata($pid,$opt) 1; # Since we have the data
@@ -761,8 +760,7 @@ proc twapi::get_multiple_process_info {args} {
         }
     }
     if {[llength $wanted_pdh_rate_opts] != 0} {
-        set counters [eval [list get_perf_process_counter_paths $pids] \
-                          $wanted_pdh_rate_opts]
+        set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_rate_opts]
         foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval $opts(interval)] {
             lappend results($pid) $opt $val
             set gotdata($pid,$opt) 1; # Since we have the data
@@ -839,10 +837,10 @@ proc twapi::get_thread_info {tid args} {
     if {[llength $requested_opts]} {
         trap {
             trap {
-                set results [eval [list _token_info_helper -tid $tid] $requested_opts]
+                set results [_token_info_helper -tid $tid {*}$requested_opts]
             } onerror {TWAPI_WIN32 1008} {
                 # Thread does not have its own token. Use it's parent process
-                set results [eval [list _token_info_helper -pid [get_thread_parent_process_id $tid]] $requested_opts]
+                set results [_token_info_helper -pid [get_thread_parent_process_id $tid] {*}$requested_opts]
             }
         } onerror {TWAPI_WIN32 5} {
             # No access
@@ -919,8 +917,7 @@ proc twapi::get_thread_info {tid args} {
     set requested_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
     array set pdhdata {}
     if {[llength $requested_opts] != 0} {
-        set counter_list [eval [list get_perf_thread_counter_paths [list $tid]] \
-                          $requested_opts]
+        set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
         foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval 0] {
             set pdhdata($opt) $value
         }
@@ -938,8 +935,7 @@ proc twapi::get_thread_info {tid args} {
     # Now do the same for any interval based counters
     set requested_opts [_array_non_zero_switches opts $pdh_rate_opts $opts(all)]
     if {[llength $requested_opts] != 0} {
-        set counter_list [eval [list get_perf_thread_counter_paths [list $tid]] \
-                          $requested_opts]
+        set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
         foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
             set pdhdata($opt) $value
         }
