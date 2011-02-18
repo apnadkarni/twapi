@@ -456,6 +456,26 @@ namespace eval twapi::com::test {
         llength $drives
     } -result [llength [twapi::get_logical_drives]]
 
+    test comobj-14.1 {
+        Iterate over a comobj collection using -iterate - Bug 3185933
+    } -constraints {
+        nt
+    } -setup {
+        set oCat  [::twapi::comobj ComAdmin.COMAdminCatalog]
+        set oApps [$oCat GetCollection Applications]
+        $oApps Populate
+    } -cleanup {
+        $oCat -destroy
+        $oApps -destroy
+    } -body {
+        set names {}
+        $oApps -iterate oApp {
+            lappend names [$oApp Name]
+            $oApp -destroy
+        }
+        expr {[lsearch -exact $names "COM+ Utilities"] >= 0}
+    } -result 1
+
     ###
 
     test comobj-15.0 {
