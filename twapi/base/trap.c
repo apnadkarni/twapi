@@ -181,7 +181,7 @@ finalize:
 
         result = Tcl_EvalObjEx (interp, objv[final+1], 0);
         if (result == TCL_ERROR)
-            Tcl_DiscardInterpState(interp, savedState);
+            Tcl_DiscardInterpState(savedState);
         else
             result = Tcl_RestoreInterpState(interp, savedState);
     }
