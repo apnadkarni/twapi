@@ -2211,16 +2211,31 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
 
     u.pv = MemLifoPushFrame(&ticP->memlifo, (DWORD) (count * elem_size), NULL);
 
+    /*
+     * Note, although these are output parameters, some COM objects expect
+     * them to be initialized. For example, the COMAdminCollection
+     * IEnumVARIANT interface (Bug 3185933)
+     */
     switch (enum_type) {
     case 0:
+        for (i = 0; i < count; ++i) {
+            u.cdP[i].pUnk = NULL;
+            u.cdP[i].dwCookie = 0;
+        }
         hr = ifc.IEnumConnections->lpVtbl->Next(ifc.IEnumConnections,
                                                 count, u.cdP, &ret_count);
         break;
     case 1:
+        for (i = 0; i < count ; ++i) {
+            VariantInit(&(u.varP[i]));
+        }
         hr = ifc.IEnumVARIANT->lpVtbl->Next(ifc.IEnumVARIANT,
                                             count, u.varP, &ret_count);
         break;
     case 2:
+        for (i = 0; i < count ; ++i) {
+            u.icpP[i] = NULL;
+        }
         hr = ifc.IEnumConnectionPoints->lpVtbl->Next(ifc.IEnumConnectionPoints,
                                                      count, u.icpP, &ret_count);
         break;
