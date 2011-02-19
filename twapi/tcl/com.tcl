@@ -836,7 +836,7 @@ proc twapi::_resolve_iid {name_or_iid} {
 #
 # Some simple tests
 
-proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
+proc twapi::_com_tests {{tests {ie word excel wmi tracker}}} {
 
     if {"ie" in $tests} {
         puts "Invoking Internet Explorer"
@@ -868,6 +868,34 @@ proc twapi::_com_tests {{tests {ie word wmi tracker}}} {
         puts "Word done."
         
         puts "------------------------------------------"
+    }
+
+    if {"excel" in $tests} {
+        puts "Invoking Excel"
+        # This tests property sets with multiple parameters
+        set xl [comobj Excel.Application]
+        $xl -set Visible True
+        set workbooks [$xl Workbooks]
+        set workbook [$workbooks Add]
+        set sheets [$workbook Sheets]
+        set sheet [$sheets Item 1]
+        $sheet Activate
+        set r [$sheet Range "A1:B2"]
+        $r Value 10 "helloworld"
+        after 2000
+        $r Value 11 [string map {helloworld hellouniverse} [$r Value 11]]
+        set vals [$r Value 10]
+        if {$vals ne "hellouniverse hellouniverse hellouniverse hellouniverse"} {
+            puts "EXcel mismatch"
+        }
+
+        # clean up
+        $xl DisplayAlerts 0
+        $xl Quit
+        foreach obj {r sheet sheets workbook workbooks xl} {
+            [set $obj] -destroy
+        }
+
     }
 
     if {"wmi" in $tests} {

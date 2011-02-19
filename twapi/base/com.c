@@ -1203,14 +1203,16 @@ int Twapi_IDispatch_InvokeObjCmd(
     dispparams.rgvarg = nparams ? &dispargP[1] : NULL;
 
     /* Init param structures */
-    named_dispid  = DISPID_PROPERTYPUT;
     if(flags & (DISPATCH_PROPERTYPUT|DISPATCH_PROPERTYPUTREF)) {
+#if 0
         if (nparams != 1) {
             /* TBD - not sure if this is the case. What about indexed props ? */
             Tcl_SetResult(interp, "Property put methods must have exactly one parameter", TCL_STATIC);
             goto vamoose;
         }
+#endif
         dispparams.cNamedArgs = 1;
+        named_dispid  = DISPID_PROPERTYPUT;
         dispparams.rgdispidNamedArgs = &named_dispid;
         retvar_vt = VT_VOID;    /* Property put never has a return value */
     } else {
