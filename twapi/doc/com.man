@@ -476,9 +476,9 @@ See [sectref "COM Collections"] for an example.
 [call "[arg COMOBJ] [cmd -print]"]
 Prints to stdout the methods and properties of the object. Used for debugging.
 
-[call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg parameter] ..."]]
-Sets the value of the specified property. The optional parameters may be
-specified if the property is an indexed property.
+[call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
+Sets the value of the specified property. Additional optional parameters may be
+specified if supported by the underlying COM object.
 
 [call "[arg COMOBJ] [cmd -unbind]" [arg BINDID]]
 Deletes the COM event binding identified by [arg BINDID].
