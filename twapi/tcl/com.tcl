@@ -522,7 +522,11 @@ proc twapi::_resolve_comtype {ti typedesc} {
         # VT_USERDEFINED - {29 HREFTYPE}
         set ti2 [$ti @GetRefTypeInfo [lindex $typedesc 1]]
         array set tattr [$ti2 @GetTypeAttr -guid -typekind]
-        set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+        if {$tattr(-typekind) eq "enum"} {
+            set typedesc [list 3]; # 3 -> i4
+        } else {
+            set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+        }
         $ti2 Release
     }
 
@@ -875,6 +879,9 @@ proc twapi::_com_tests {{tests {ie word excel wmi tracker}}} {
         # This tests property sets with multiple parameters
         set xl [comobj Excel.Application]
         $xl -set Visible True
+
+        $xl WindowState -4137;        # Test for enum params
+
         set workbooks [$xl Workbooks]
         set workbook [$workbooks Add]
         set sheets [$workbook Sheets]
@@ -1648,7 +1655,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
         set ti [my @GetTypeInfo]
         ::twapi::trap {
-            set tl [$ti @GetContainingTypeLib]
+            set tl [lindex [$ti @GetContainingTypeLib] 0]
             if {0} {
                 $tl @Foreach -guid $co_clsid -type coclass coti {
                     break
