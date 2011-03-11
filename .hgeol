@@ -1,0 +1,19 @@
+[patterns]
+**.txt = native
+**.c = native
+**.h = native
+**.cpp = native
+**.inc = native
+**.tcl = native
+**.wtf = native
+**.htm = native
+**.html = native
+**.css = native
+**.cfg = native
+makefile = native
+**.cmd = native
+**.bat = native
+**.exe = BIN
+**.dll = BIN
+**.kit = BIN
+
