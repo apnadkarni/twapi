@@ -1255,7 +1255,8 @@ proc twapi::kl_equal {kl_a kl_b} {
     }
 }
 
-# Return the field names in a keyed list
+# Return the field names in a keyed list in the same order that they
+# occured
 proc twapi::kl_fields {kl} {
     set fields [list ]
     foreach {fld val} $kl {
