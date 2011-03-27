@@ -59,15 +59,18 @@ CONFIGNAME  =
 MODULENAME    = twapi
 MODULEMAJOR   = 3
 MODULEMINOR   = 1
-MODULEBUILD   = 1
+MODULEBUILD   = 2
 # RELEASETYPE: a is alpha, b is beta
 RELEASETYPE = a
 
 PACKAGE=$(MODULENAME)$(CONFIGNAME)
 
+!if "x$(RELEASETYPE)" == "x"
+RELEASETYPE = .
+!endif
+
 # Internal version as used within Tcl code
-# Note we do not use RELEASETYPE here as Tcl 8.4 does not understand that
-MODULEVERSION = $(MODULEMAJOR).$(MODULEMINOR).$(MODULEBUILD)
+MODULEVERSION = $(MODULEMAJOR).$(MODULEMINOR)$(RELEASETYPE)$(MODULEBUILD)
 FILE_VERSION_STR = "$(MODULEVERSION)"
 
 # External version string as stored in a resource file
@@ -76,7 +79,6 @@ MODULE_VERSION_STR = "$(FILE_VERSION_STR) Alpha"
 !elseif "x$(RELEASETYPE)" == "xb"
 MODULE_VERSION_STR = "$(FILE_VERSION_STR) Beta"
 !else
-RELEASETYPE = .
 MODULE_VERSION_STR = $(FILE_VERSION_STR)
 !endif
 
