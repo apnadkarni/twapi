@@ -25,7 +25,7 @@ namespace eval twapi::pipe::test {
 
      ################################################################
 
-    test pipe-server-1.0 {
+    test pipe_server-1.0 {
         Test server using blocking I/O
     } -setup {
         set control_channel [start_npecho_server syncserver]
@@ -55,7 +55,7 @@ namespace eval twapi::pipe::test {
 
     ###
 
-    test pipe-server-2.0 {
+    test pipe_server-2.0 {
         Test server using non-blocking I/O
     } -setup {
         set control_channel [start_npecho_server asyncserver]
@@ -81,6 +81,78 @@ namespace eval twapi::pipe::test {
             unset control_channel
         }
     } -result ""
+
+    ###
+
+    test pipe_nonblocking-1.0 {
+        Test non-blocking server utilization (Bug 3245925) - puts does not cause cpu loop on non-blocking pipe without file event handler
+    } -setup {
+        # Prime PDH
+        twapi::get_process_info [pid] -processorutilization -interval 100
+
+        # Set up client and server
+        set pipes {server client} 
+        set pipename "\\\\.\\pipe\\twapitest[pid]"
+        foreach pipe $pipes { 
+            set $pipe [ ::twapi::namedpipe_$pipe $pipename]
+            chan configure [ set $pipe ] -blocking no -buffering line 
+        } 
+        # Wait for pipe to be connected with event loop running
+        after 100 set ::pipewait 1
+        vwait ::pipewait
+    } -body {
+        puts $server testmessage
+        if {[chan gets $client] ne "testmessage"} {
+            error "Message echo failed"
+        }
+        set usertime1 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        after 1000 set ::wait_over 1
+        vwait ::wait_over
+        set usertime2 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        expr {$usertime2 - $usertime1}
+    } -cleanup {
+        close $server
+        close $client
+    } -result {0 10000} -match inrange
+
+
+    test pipe_nonblocking-1.1 {
+        Test non-blocking server utilization (Bug 3245925) - gets on eof does not cause cpu loop
+    } -setup {
+        # Prime PDH
+        twapi::get_process_info [pid] -processorutilization -interval 100
+
+        # Set up client and server
+        set pipes {server client} 
+        set pipename "\\\\.\\pipe\\twapitest[pid]"
+        foreach pipe $pipes { 
+            set $pipe [ ::twapi::namedpipe_$pipe $pipename]
+            chan configure [ set $pipe ] -blocking no -buffering line 
+        } 
+        # Wait for pipe to be connected with event loop running
+        after 100 set ::pipewait 1
+        vwait ::pipewait
+    } -body {
+        puts $server testmessage
+        if {[chan gets $client] ne "testmessage"} {
+            error "Message echo failed"
+        }
+        close $server
+        if {[chan gets $client] ne "" || ![chan eof $client]} {
+            error "Did not get expected EOF on client."
+        }
+        chan gets $client
+
+        set usertime1 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        after 1000 set ::wait_over 1
+        vwait ::wait_over
+        set usertime2 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        expr {$usertime2 - $usertime1}
+    } -cleanup {
+        close $client
+    } -result {0 10000} -match inrange
+
+
     ################################################################
 
 

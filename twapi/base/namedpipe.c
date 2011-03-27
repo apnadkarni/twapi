@@ -56,6 +56,7 @@ typedef struct _NPipeChannel {
 #define NPIPE_F_NONBLOCKING     4 /* Channel is async */
 #define NPIPE_F_CONNECTED       8 /* Client has successfully connected */
 #define NPIPE_F_EVENT_QUEUED   16 /* A TCL event has been queued */ 
+#define NPIPE_F_EOF_NOTIFIED   32 /* Have already notified EOF */
 
     ULONG volatile nrefs;              /* Ref count */
     WIN32_ERROR winerr;
@@ -76,26 +77,23 @@ typedef struct _NPipeChannel {
      (pcP)->winerr == ERROR_BROKEN_PIPE ||      \
      (pcP)->winerr == 0xc000014b)
 
+#define NPIPE_EOF_NOTIFIABLE(pcP_) \
+    (NPIPE_EOF(pcP_) && !((pcP_)->flags & NPIPE_F_EOF_NOTIFIED))
+
 /*
- * When should we notify for a read - data available in buffer or error/eof.
- * Errors other than eof are only notified in connecting stage.
+ * When should we notify for a read/write - data i/o completed
+ * Note we do not include IDLE state as then we would continually generate
+ * (potentially) notifications.
+ * Errors are only notified in connecting stage ( is that correct ?)
  */
 #define NPIPE_READ_NOTIFIABLE(pcP_) \
     (((pcP_)->io[READER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
-/*
- * When should we notify for a write - data i/o completed, or error/eof
- * Note we do not include IDLE state as then we would continually generate
- * (potentially) notifications.
- * Errors other than eof are only notified in connecting stage.
- */
 #define NPIPE_WRITE_NOTIFIABLE(pcP_) \
     (((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     NPIPE_EOF(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
 /* Combination of above */
@@ -104,7 +102,7 @@ typedef struct _NPipeChannel {
      ((pcP_)->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED) ||                \
      ((pcP_)->io[WRITER].state == IOBUF_IO_COMPLETED_WITH_ERROR) ||     \
-     NPIPE_EOF(pcP_) ||                                                 \
+     NPIPE_EOF_NOTIFIABLE(pcP_) ||                                                 \
      ((pcP_)->winerr != ERROR_SUCCESS && !NPIPE_CONNECTED(pcP_)))
 
 /* Is an async i/o pending ? */
@@ -272,20 +270,24 @@ static void NPipeCheckProc(
      * Loop and check if there are any ready pipes and queue events for
      * them. Note we do not queue events if we have already queued
      * one that has not been processed yet (NPIPE_F_EVENT_QUEUED).
+     * Note, we do not take shortcuts for the case where no watches
+     * are set on the channel since NPipeEventProc also does appropriate
+     * state changes in addition to notifying the channel subsystem
+     * (see bug 3245925)
      * TBD - can we not move the EVENT_QUEUED check to NPipeSetupProc
      * and save an unnecessary callback into here ?
      */
 
     for (pcP = ZLIST_HEAD(&tlsP->pipes) ; pcP ; pcP = ZLIST_NEXT(pcP)) {
-        if ((((pcP->flags & NPIPE_F_WATCHREAD) && NPIPE_READ_NOTIFIABLE(pcP)) ||
-             (((pcP->flags & NPIPE_F_WATCHWRITE) || ! NPIPE_CONNECTED(pcP) ) &&
-              NPIPE_WRITE_NOTIFIABLE(pcP))) &&
+        if (NPIPE_NOTIFIABLE(pcP) &&
             !(pcP->flags & NPIPE_F_EVENT_QUEUED)) {
             /* Move pcP to front so event receiver will find it quicker */
             ZLIST_MOVETOHEAD(&tlsP->pipes, pcP);
 	    evP = (NPipeEvent *) ckalloc(sizeof(*evP));
 	    evP->header.proc = NPipeEventProc;
 	    evP->hpipe = pcP->hpipe;
+            /* Indicate event queued so no new events will be enqueued */
+            pcP->flags |= NPIPE_F_EVENT_QUEUED;
             /*
              * Note we do not protect the pcP from disappearing while
              * the event is on the event queue. The receiver will look
@@ -462,14 +464,17 @@ static int NPipeEventProc(
     /* Indicate no events on queue so new events will be enqueued */
     pcP->flags &= ~ NPIPE_F_EVENT_QUEUED;
 
+#if 0
+WRONG - there is something to do -> change the io buf state on writes
     /*
      * If we are connected but not watching any reads or writes, 
-     * nothing to do
+     * nothing to do.
      */
     if (NPIPE_CONNECTED(pcP) &&
         ! (pcP->flags & (NPIPE_F_WATCHWRITE | NPIPE_F_WATCHREAD))) {
         return 1;               /* Not watching any reads or writes */
     }
+#endif
 
     /* Update channel state error if necessary */
     if (pcP->io[READER].state == IOBUF_IO_COMPLETED_WITH_ERROR) {
@@ -494,6 +499,16 @@ static int NPipeEventProc(
         }
         if (pcP->flags & NPIPE_F_WATCHWRITE)
             event_mask |= TCL_WRITABLE;
+    }
+
+    /* On EOF, both read and write notification are set */
+    if (NPIPE_EOF_NOTIFIABLE(pcP)) {
+        if (pcP->flags & NPIPE_F_WATCHWRITE)
+            event_mask |= TCL_WRITABLE;
+        if (pcP->flags & NPIPE_F_WATCHREAD)
+            event_mask |= TCL_READABLE;
+        /* Make sure we do not keep generating EOF notifications */
+        pcP->flags |= NPIPE_F_EOF_NOTIFIED;
     }
 
     /*
@@ -650,11 +665,14 @@ static void NPipeWatchProc(ClientData clientdata, int mask)
 
 
     /* Finally, if any watchable events, trigger them */
-    if (((mask & TCL_READABLE) && NPIPE_READ_NOTIFIABLE(pcP)) ||
-        ((mask & TCL_WRITABLE) && NPIPE_WRITE_NOTIFIABLE(pcP))) {
-        /* Have Tcl event loop call us immediately to generate notifications */
-        Tcl_Time blockTime = { 0, 0 };
-        Tcl_SetMaxBlockTime(&blockTime);
+    if (mask & (TCL_READABLE|TCL_WRITABLE)) {
+        if (NPIPE_EOF_NOTIFIABLE(pcP) ||
+            ((mask & TCL_READABLE) && NPIPE_READ_NOTIFIABLE(pcP)) ||
+            ((mask & TCL_WRITABLE) && NPIPE_WRITE_NOTIFIABLE(pcP))) {
+            /* Have Tcl event loop call us immediately to generate notifications */
+            Tcl_Time blockTime = { 0, 0 };
+            Tcl_SetMaxBlockTime(&blockTime);
+        }
     }
 }
 
