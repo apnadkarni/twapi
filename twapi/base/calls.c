@@ -665,6 +665,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_GetFileVersionInfo, CallS, 21);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
+    CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
@@ -2951,6 +2952,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
+        LARGE_INTEGER largeint;
     } u;
     int func;                   /* What function to call */
     DWORD dw, dw2, dw3;
@@ -3070,6 +3072,20 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 23: // GlobalAddAtom
             result.value.ival = GlobalAddAtomW(arg);
             result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 24: // GetCompressedFileSize
+            u.largeint.u.LowPart = GetCompressedFileSizeW(arg, &u.largeint.u.HighPart);
+            if (u.largeint.u.LowPart == INVALID_FILE_SIZE) {
+                /* Does not mean failure, have to actually check */
+                dw = GetLastError();
+                if (dw != NO_ERROR) {
+                    result.value.ival = dw;
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                    break;
+                }
+            }
+            result.value.wide = u.largeint.QuadPart;
+            result.type = TRT_WIDE;
             break;
         }
     } else if (func < 1000) {
