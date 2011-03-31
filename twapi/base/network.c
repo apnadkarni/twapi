@@ -68,6 +68,90 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
     return resultObj;
 }
 
+int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP)
+{
+    Tcl_Obj **objv;
+    int       objc;
+    Tcl_Obj **addrv;
+    int       addrc;
+    int       family;
+    char     *addrstr;
+    int       sz = sizeof(*ssP);
+    WORD      port;
+
+    if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+
+    if (objc > 2)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (objc == 0) {
+        /* Assume IP v4 0.0.0.0 */
+        ((struct sockaddr_in *)ssP)->sin_family = AF_INET;
+        ((struct sockaddr_in *)ssP)->sin_addr.s_addr = 0;
+        ((struct sockaddr_in *)ssP)->sin_port = 0;
+        return TCL_OK;
+    }
+
+    /*
+     * An address may be a pair {ipversion addressstring} or just an
+     * address string. If it is anything other than the first form,
+     * we treat it as a string.
+     */
+    family = AF_UNSPEC;
+    if (Tcl_ListObjGetElements(interp, objv[0], &addrc, &addrv) == TCL_OK &&
+        addrc == 2) {
+        char *s = Tcl_GetString(addrv[0]);
+        if (!lstrcmpA(s, "inet"))
+            family = AF_INET;
+        else if (!lstrcmpA(s, "inet6"))
+            family = AF_INET6;
+        else if (Tcl_GetIntFromObj(NULL, addrv[0], &family) != TCL_OK ||
+                (family != AF_INET && family != AF_INET6))
+            family = AF_UNSPEC;
+        /* Note Tcl_GetIntFromObj may have made s invalid */
+        if (family != AF_UNSPEC) {
+            if (WSAStringToAddressA(Tcl_GetString(addrv[1]),
+                                    family, NULL,
+                                    (struct sockaddr *)ssP, &sz) != 0)
+                goto error_return;
+        }
+    }
+
+    if (family == AF_UNSPEC) {
+        /* Family not explicitly specified. */
+        /* Treat as a single string. Try converting as IPv4 first, then IPv6 */
+        if (WSAStringToAddressA(Tcl_GetString(objv[0]),
+                                AF_INET, NULL,
+                                (struct sockaddr *)ssP, &sz) != 0) {
+            if (WSAStringToAddressA(Tcl_GetString(objv[0]),
+                                    AF_INET6, NULL,
+                                    (struct sockaddr *)ssP, &sz) != 0)
+                goto error_return;
+        }
+    }
+    
+    /* OK, we have the address, see if a port was specified */
+    if (objc == 1)
+        return TCL_OK;
+
+    /* Decipher port */
+    if (ObjToWord(interp, objv[1], &port) != TCL_OK)
+        return TCL_ERROR;
+
+    port = htons(port);
+    if (ssP->ss_family == AF_INET) {
+        ((struct sockaddr_in *)ssP)->sin_port = port;
+    } else {
+        ((struct sockaddr_in6 *)ssP)->sin6_port = port;
+    }
+
+    return TCL_OK;
+
+error_return:
+    return Twapi_AppendSystemError(interp, WSAGetLastError());
+}
+
 int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP)
 {
     Tcl_Obj **objv;
