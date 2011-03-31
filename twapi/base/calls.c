@@ -1136,6 +1136,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         struct sockaddr_in sinaddr;
         SYSTEM_POWER_STATUS power_status;
         TwapiId twapi_id;
+        SOCKADDR_STORAGE ss;
     } u;
     DWORD_PTR dwp;
     COORD coord;
@@ -1489,6 +1490,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
 #endif
         case 1007:
+#if 0
             if (IPAddrObjToDWORD(interp, objv[2], &dw) == TCL_ERROR)
                 result.type = TRT_TCL_RESULT;
             else {
@@ -1500,6 +1502,26 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                     result.type = TRT_DWORD;
                 }
             }
+#else
+            /* We only have the address, ObjToSOCKADDR_STORAGE expects
+               it as first element of a list with optional second param
+            */
+            objs[0] = Tcl_NewListObj(1, &objv[2]);
+            Tcl_IncrRefCount(objs[0]);
+            if ((result.value.ival =
+                 ObjToSOCKADDR_STORAGE(interp, objs[0], &u.ss)) != TCL_OK) 
+                result.type = TRT_TCL_RESULT;
+            else {
+                result.value.ival = GetBestInterfaceEx((struct sockaddr *)&u.ss, &dw);
+                if (result.value.ival)
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                else {
+                    result.value.ival = dw;
+                    result.type = TRT_DWORD;
+                }
+            }
+            Tcl_DecrRefCount(objs[0]);
+#endif
             break;
 
         case 1008:
