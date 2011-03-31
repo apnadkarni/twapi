@@ -970,6 +970,10 @@ int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, c
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
+/* Unsigned ints/longs need to be promoted to wide ints */
+#define ObjFromDWORD(dw_) Tcl_NewWideIntObj((DWORD)(dw_))
+#define ObjFromULONG      ObjFromDWORD
+
 #ifdef _WIN64
 #define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
 #define ObjFromDWORD_PTR(p_)  Tcl_NewWideIntObj((DWORD_PTR)(p_))
@@ -1362,6 +1366,7 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
 Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
 int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
 int Twapi_GetNetworkParams(TwapiInterpContext *ticP);
+    int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG, ULONG, void *);
 int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP);
 int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP);
 int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index);
