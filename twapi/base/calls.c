@@ -617,6 +617,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
+    CALL_(GetAdaptersAddresses, CallU, 1001);
     CALL_(Beep, CallU, 1002);
     CALL_(MapVirtualKey, CallU, 1003);
     CALL_(SetCaretPos, CallU, 1004);
@@ -673,6 +674,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LoadLibraryEx, CallS, 504);
     CALL_(AddFontResourceEx, CallS, 505);
     CALL_(BeginUpdateResource, CallS, 506);
+    CALL_(WSAStringToAddress, CallS, 507);
 
     CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
@@ -2826,7 +2828,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
         switch (func) {
-//      case 1001: UNUSED            
+        case 1001:
+            return Twapi_GetAdaptersAddresses(ticP, dw, dw2, NULL);
         case 1002:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Beep(dw, dw2);
@@ -2953,6 +2956,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     union {
         WCHAR buf[MAX_PATH+1];
         LARGE_INTEGER largeint;
+        SOCKADDR_STORAGE ss;
     } u;
     int func;                   /* What function to call */
     DWORD dw, dw2, dw3;
@@ -3138,6 +3142,15 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 506: // BeginUpdateResource
             result.type = TRT_HANDLE;
             result.value.hval = BeginUpdateResourceW(arg, dw);
+            break;
+        case 507: //WSAStringToAddress - TBD - remove ?
+            dw2 = sizeof(u.ss);
+            if (WSAStringToAddressW(arg, dw, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                result.type = TRT_DWORD;
+                result.value.ival = u.ss.ss_family;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
             break;
         }
     } else if (func < 2000) {

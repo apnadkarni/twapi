@@ -94,6 +94,30 @@ int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP
     return TCL_OK;
 }
 
+static Tcl_Obj *ObjFromSOCKET_ADDRESS(SOCKET_ADDRESS *saP)
+{
+    if (saP && saP->lpSockaddr) {
+        char buf[100];
+        DWORD bufsz = ARRAYSIZE(buf);
+        Tcl_Obj *objv[2];
+        if (WSAAddressToStringA(saP->lpSockaddr, saP->iSockaddrLength, NULL, buf, &bufsz) == 0) {
+            if (bufsz && buf[bufsz-1] == 0)
+                --bufsz;        /* Terminating \0 */
+            if (saP->lpSockaddr->sa_family == 2) {
+                objv[0] = STRING_LITERAL_OBJ("inet");
+            } else {
+                objv[0] = STRING_LITERAL_OBJ("inet6");
+            }
+            objv[1] = Tcl_NewStringObj(buf, bufsz);
+            return Tcl_NewListObj(2, objv);
+        }
+        /* Error is already set */
+    } else
+        SetLastError(ERROR_INVALID_PARAMETER);
+
+    return NULL;
+}
+
 /*
  * Given a IP_ADDR_STRING list, return a Tcl_Obj containing only
  * the IP Address components
@@ -112,6 +136,174 @@ static Tcl_Obj *ObjFromIP_ADDR_STRINGAddress (
 
     return resultObj;
 }
+
+
+static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *iauaP)
+{
+    Tcl_Obj *objv[16];
+
+    objv[0] = STRING_LITERAL_OBJ("-flags");
+    objv[1] = Tcl_NewIntObj(iauaP->Flags);
+    objv[2] = STRING_LITERAL_OBJ("-address");
+    if (iauaP->Address.lpSockaddr == NULL ||
+        (objv[3] = ObjFromSOCKET_ADDRESS(&iauaP->Address)) == NULL) {
+        /* Did not recognize socket address type */
+        objv[3] = Tcl_NewObj();
+    }
+    objv[4] = STRING_LITERAL_OBJ("-prefixorigin");
+    objv[5] = Tcl_NewIntObj(iauaP->PrefixOrigin);
+    objv[6] = STRING_LITERAL_OBJ("-suffixorigin");
+    objv[7] = Tcl_NewIntObj(iauaP->SuffixOrigin);
+    objv[8] = STRING_LITERAL_OBJ("-dadstate");
+    objv[9] = Tcl_NewIntObj(iauaP->DadState);
+    objv[10] = STRING_LITERAL_OBJ("ValidLifetime");
+    objv[11] = ObjFromULONG(iauaP->ValidLifetime);
+    objv[12] = STRING_LITERAL_OBJ("-preferredlifetime");
+    objv[13] = ObjFromULONG(iauaP->PreferredLifetime);
+    objv[14] = STRING_LITERAL_OBJ("-leaselifetime");
+    objv[15] = ObjFromULONG(iauaP->LeaseLifetime);
+
+
+    return Tcl_NewListObj(ARRAYSIZE(objv), objv);
+}
+
+
+static Tcl_Obj *ObjFromIP_ADAPTER_ANYCAST_ADDRESS(IP_ADAPTER_ANYCAST_ADDRESS *iaaaP)
+{
+    Tcl_Obj *objv[4];
+
+    objv[0] = STRING_LITERAL_OBJ("-flags");
+    objv[1] = ObjFromDWORD(iaaaP->Flags);
+    objv[2] = STRING_LITERAL_OBJ("-address");
+    if (iaaaP->Address.lpSockaddr == NULL ||
+        (objv[3] = ObjFromSOCKET_ADDRESS(&iaaaP->Address)) == NULL) {
+        /* Did not recognize socket address type */
+        objv[3] = Tcl_NewObj();
+    }
+
+    return Tcl_NewListObj(ARRAYSIZE(objv), objv);
+}
+#define ObjFromIP_ADAPTER_MULTICAST_ADDRESS(p_) ObjFromIP_ADAPTER_ANYCAST_ADDRESS((IP_ADAPTER_ANYCAST_ADDRESS*) (p_))
+#define ObjFromIP_ADAPTER_DNS_SERVER_ADDRESS(p_) ObjFromIP_ADAPTER_ANYCAST_ADDRESS((IP_ADAPTER_ANYCAST_ADDRESS*) (p_))
+
+
+static Tcl_Obj *ObjFromIP_ADAPTER_PREFIX(IP_ADAPTER_PREFIX *iapP)
+{
+    Tcl_Obj *objv[6];
+
+    objv[0] = STRING_LITERAL_OBJ("-flags");
+    objv[1] = ObjFromDWORD(iapP->Flags);
+    objv[2] = STRING_LITERAL_OBJ("-address");
+    if (iapP->Address.lpSockaddr == NULL ||
+        (objv[3] = ObjFromSOCKET_ADDRESS(&iapP->Address)) == NULL) {
+        /* Did not recognize socket address type */
+        objv[3] = Tcl_NewObj();
+    }
+    objv[4] = STRING_LITERAL_OBJ("-prefixlength");
+    objv[5] = ObjFromDWORD(iapP->PrefixLength);
+
+    return Tcl_NewListObj(ARRAYSIZE(objv), objv);
+}
+
+Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
+{
+    Tcl_Obj *objv[34];
+    Tcl_Obj *fieldObjs[16];
+    IP_ADAPTER_UNICAST_ADDRESS *unicastP;
+    IP_ADAPTER_ANYCAST_ADDRESS *anycastP;
+    IP_ADAPTER_MULTICAST_ADDRESS *multicastP;
+    IP_ADAPTER_DNS_SERVER_ADDRESS *dnsserverP;
+    IP_ADAPTER_PREFIX *prefixP;
+    int i;
+    
+    objv[0] = STRING_LITERAL_OBJ("-ifindex");
+    objv[1] = Tcl_NewIntObj(iaaP->IfIndex);
+    objv[2] = STRING_LITERAL_OBJ("-adaptername");
+    objv[3] = Tcl_NewStringObj(iaaP->AdapterName, -1);
+    objv[4] = STRING_LITERAL_OBJ("-unicastaddresses");
+    objv[5] = Tcl_NewListObj(0, NULL);
+    unicastP = iaaP->FirstUnicastAddress;
+    while (unicastP) {
+        Tcl_ListObjAppendElement(NULL, objv[5], ObjFromIP_ADAPTER_UNICAST_ADDRESS(unicastP));
+        unicastP = unicastP->Next;
+    }
+    objv[6] = STRING_LITERAL_OBJ("-anycastaddresses");
+    objv[7] = Tcl_NewListObj(0, NULL);
+    anycastP = iaaP->FirstAnycastAddress;
+    while (anycastP) {
+        Tcl_ListObjAppendElement(NULL, objv[7], ObjFromIP_ADAPTER_ANYCAST_ADDRESS(anycastP));
+        anycastP = anycastP->Next;
+    }
+    objv[8] = STRING_LITERAL_OBJ("-multicastaddresses");
+    objv[9] = Tcl_NewListObj(0, NULL);
+    multicastP = iaaP->FirstMulticastAddress;
+    while (multicastP) {
+        Tcl_ListObjAppendElement(NULL, objv[9], ObjFromIP_ADAPTER_MULTICAST_ADDRESS(multicastP));
+        multicastP = multicastP->Next;
+    }
+    objv[10] = STRING_LITERAL_OBJ("-dnsservers");
+    objv[11] = Tcl_NewListObj(0, NULL);
+    dnsserverP = iaaP->FirstDnsServerAddress;
+    while (dnsserverP) {
+        Tcl_ListObjAppendElement(NULL, objv[11], ObjFromIP_ADAPTER_DNS_SERVER_ADDRESS(dnsserverP));
+        dnsserverP = dnsserverP->Next;
+    }
+
+    objv[12] = STRING_LITERAL_OBJ("-dnssuffix");
+    objv[13] = Tcl_NewUnicodeObj(iaaP->DnsSuffix ? iaaP->DnsSuffix : L"", -1);
+
+    objv[14] = STRING_LITERAL_OBJ("-description");
+    objv[15] = Tcl_NewUnicodeObj(iaaP->Description ? iaaP->Description : L"", -1);
+    objv[16] = STRING_LITERAL_OBJ("-friendlyname");
+    objv[17] = Tcl_NewUnicodeObj(iaaP->FriendlyName ? iaaP->FriendlyName : L"", -1);
+
+    objv[18] = STRING_LITERAL_OBJ("-physicaladdress");
+    objv[19] = Tcl_NewByteArrayObj(iaaP->PhysicalAddress, iaaP->PhysicalAddressLength);
+
+    objv[20] = STRING_LITERAL_OBJ("-flags");
+    objv[21] = ObjFromDWORD(iaaP->Flags);
+
+    objv[22] = STRING_LITERAL_OBJ("-mtu");
+    objv[23] = ObjFromDWORD(iaaP->Mtu);
+
+    objv[24] = STRING_LITERAL_OBJ("-iftype");
+    objv[25] = ObjFromDWORD(iaaP->IfType);
+
+    objv[26] = STRING_LITERAL_OBJ("-operstatus");
+    objv[27] = ObjFromDWORD(iaaP->OperStatus);
+
+    /*
+     * Remaining fields are only available with XP SP1 or later. Check
+     * length against the size of our struct definition.
+     */
+
+    objv[28] = STRING_LITERAL_OBJ("-ipv6ifindex");
+    objv[30] = STRING_LITERAL_OBJ("-zoneindices");
+    objv[32] = STRING_LITERAL_OBJ("-prefixes");
+    if (iaaP->Length >= sizeof(*iaaP)) {
+        objv[29] = ObjFromDWORD(iaaP->Ipv6IfIndex);
+        for (i=0; i < 16; ++i) {
+            fieldObjs[i] = ObjFromDWORD(iaaP->ZoneIndices[i]);
+        }
+        objv[31] = Tcl_NewListObj(16, fieldObjs);
+
+        objv[33] = Tcl_NewListObj(0, NULL);
+        prefixP = iaaP->FirstPrefix;
+        while (prefixP) {
+            Tcl_ListObjAppendElement(NULL, objv[33],
+                                     ObjFromIP_ADAPTER_PREFIX(prefixP));
+            prefixP = prefixP->Next;
+        }
+    } else {
+        objv[29] = ObjFromDWORD(0);
+        objv[31] = Tcl_NewObj(); /* Empty object */
+        Tcl_IncrRefCount(objv[31]);
+        objv[33] = objv[31];
+    }
+
+    return Tcl_NewListObj(ARRAYSIZE(objv), objv);
+}
+
 
 Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP)
 {
@@ -652,6 +844,7 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     DWORD error;
     Tcl_Obj *objv[8];
 
+    /* TBD - maybe allocate bigger space to start with ? */
     netinfoP = MemLifoPushFrame(&ticP->memlifo, sizeof(*netinfoP), &netinfo_size);
     error = GetNetworkParams(netinfoP, &netinfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
@@ -682,6 +875,7 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
 }
 
 
+/* TBD - obsoleted by GetAdaptersAddresses ? */
 int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP)
 {
     return TwapiIpConfigTableHelper(
@@ -692,6 +886,52 @@ int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP)
         0
         );
 }
+
+
+int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
+                               ULONG flags, void *reserved)
+{
+    IP_ADAPTER_ADDRESSES *iaaP;
+    ULONG bufsz;
+    DWORD error;
+    int   tries;
+    Tcl_Obj *resultObj;
+
+    /*
+     * Keep looping as long as we are told we need a bigger buffer. For
+     * robustness, we set a limit on number of tries. Note required size
+     * can keep changing (unlikely, but possible ) so we try multiple times.
+     * TBD - check for appropriate initial size
+     */
+    for (bufsz = 1000, tries=0; tries < 10 ; ++tries) {
+        iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
+                                                        bufsz, &bufsz);
+        error = GetAdaptersAddresses(family, flags, NULL, iaaP, &bufsz);
+        if (error != ERROR_BUFFER_OVERFLOW) {
+            /* Either success or error unrelated to buffer size */
+            break;
+        }
+        
+        /* bufsz contains required size as returned by the functions */
+        MemLifoPopFrame(&ticP->memlifo);
+    }
+
+    if (error != ERROR_SUCCESS) {
+        Twapi_AppendSystemError(ticP->interp, error);
+    } else {
+        resultObj = Tcl_NewListObj(0, NULL);
+        while (iaaP) {
+            Tcl_ListObjAppendElement(NULL, resultObj, ObjFromIP_ADAPTER_ADDRESSES(iaaP));
+            iaaP = iaaP->Next;
+        }
+        Tcl_SetObjResult(ticP->interp, resultObj);
+    }
+
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
+}
+
 
 
 int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
