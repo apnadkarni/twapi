@@ -669,6 +669,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
     CALL_(Twapi_IPAddressFamily, CallS, 25); // TBD - Tcl interface
+    CALL_(Twapi_NormalizeIPAddress, CallS, 26); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
@@ -3101,13 +3102,29 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_WIDE;
             break;
         case 25: // Twapi_IPAddressFamily - TBD - optimizable?
-            result.type = TRT_DWORD;
             result.value.ival = 0;
+            result.type = TRT_DWORD;
             dw = sizeof(u.ss);
             dw2 = sizeof(u.ss); /* Since first call might change dw */
             if (WSAStringToAddressW(arg, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
                 WSAStringToAddressW(arg, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
                 result.value.ival = u.ss.ss_family;
+            }
+            break;
+
+        case 26: // Twapi_NormalizeIPAddress
+            dw = sizeof(u.ss);
+            dw2 = sizeof(u.ss); /* Since first call might change dw */
+            if (WSAStringToAddressW(arg, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
+                WSAStringToAddressW(arg, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                result.type = TRT_OBJ;
+                if (u.ss.ss_family == AF_INET6) {
+                    /* Do not want scope id in normalized form */
+                    ((SOCKADDR_IN6 *)&u.ss)->sin6_scope_id = 0;
+                }
+                result.value.obj = ObjFromSOCKADDR_address((struct sockaddr *)&u.ss);
+            } else {
+                result.type = TRT_GETLASTERROR;
             }
             break;
         }
