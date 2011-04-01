@@ -110,15 +110,7 @@ proc twapi::get_ip_addresses {} {
 
 # Get the list of interfaces
 proc twapi::get_netif_indices {} {
-    # TBD -
-    # Win2K+ only - return [lindex [get_network_info -interfaces] 1]
-
-    # NT4 SP4+
-    set indices [list ]
-    foreach entry [GetIpAddrTable 0] {
-        lappend indices [lindex $entry 1]
-    }
-    return $indices
+    return [lindex [get_network_info -interfaces] 1]
 }
 
 # Get network related information
@@ -494,7 +486,6 @@ proc twapi::get_tcp_connections {args} {
             if {[llength [set $opt]] == 0} {
                 return [list ]; # No addresses, so no connections will match
             }
-            # TBD - normalize IPv4 and IPv6 addresses
         }
     }
 
