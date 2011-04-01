@@ -499,7 +499,7 @@ proc twapi::get_tcp_connections {args} {
         matchpid.int
     } -maxleftover 0]
 
-    set opts(ipversion) [__ipversion_to_af $opts(ipversion)]
+    set opts(ipversion) [_ipversion_to_af $opts(ipversion)]
 
     if {! ($opts(state) || $opts(localaddr) || $opts(remoteaddr) || $opts(localport) || $opts(remoteport) || $opts(pid) || $opts(modulename) || $opts(modulepath) || $opts(bindtime))} {
         set opts(all) 1
@@ -611,7 +611,7 @@ proc twapi::get_udp_connections {args} {
         matchpid.int
     } -maxleftover 0]
 
-    set opts(ipversion) [__ipversion_to_af $opts(ipversion)]
+    set opts(ipversion) [_ipversion_to_af $opts(ipversion)]
 
     if {! ($opts(localaddr) || $opts(localport) || $opts(pid) || $opts(modulename) || $opts(modulepath) || $opts(bindtime))} {
         set opts(all) 1
@@ -1195,7 +1195,7 @@ proc twapi::_hosts_to_ip_addrs hosts {
     return $addrs
 }
 
-proc twapi::__ipversion_to_af {opt} {
+proc twapi::_ipversion_to_af {opt} {
     if {[string is integer -strict $opt]} {
         incr opt 0;             # Normalize ints for switch
     }
