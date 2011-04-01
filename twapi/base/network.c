@@ -68,6 +68,40 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
     return resultObj;
 }
 
+
+/* Note - port is not returned - only address */
+Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
+{
+    char buf[50];
+    DWORD bufsz = ARRAYSIZE(buf);
+    Tcl_Obj *objP;
+    
+    if (WSAAddressToStringA(saP,
+                            ((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
+                            NULL,
+                            buf,
+                            &bufsz) == 0) {
+        if (bufsz && buf[bufsz-1] == 0)
+            --bufsz;        /* Terminating \0 */
+        return Tcl_NewStringObj(buf, bufsz);
+    }
+    /* Error already set */
+    return NULL;
+}
+
+Tcl_Obj *ObjFromIPv6Addr(char *addrP, DWORD scope_id)
+{
+    SOCKADDR_IN6 si;
+
+    si.sin6_family = AF_INET6;
+    si.sin6_port = 0;
+    si.sin6_flowinfo = 0;
+    CopyMemory(si.sin6_addr.u.Byte, addrP, 16);
+    si.sin6_scope_id = scope_id;
+    return ObjFromSOCKADDR_address((SOCKADDR *)&si);
+}
+
+
 int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP)
 {
     Tcl_Obj **objv;
@@ -152,6 +186,7 @@ error_return:
     return Twapi_AppendSystemError(interp, WSAGetLastError());
 }
 
+/* TBD - see if can be replaced by ObjToSOCKADDR_STORAGE */
 int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP)
 {
     Tcl_Obj **objv;
@@ -178,26 +213,22 @@ int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP
     return TCL_OK;
 }
 
+/* Returns NULL on error */
 static Tcl_Obj *ObjFromSOCKET_ADDRESS(SOCKET_ADDRESS *saP)
 {
-    if (saP && saP->lpSockaddr) {
-        char buf[100];
-        DWORD bufsz = ARRAYSIZE(buf);
-        Tcl_Obj *objv[2];
-        if (WSAAddressToStringA(saP->lpSockaddr, saP->iSockaddrLength, NULL, buf, &bufsz) == 0) {
-            if (bufsz && buf[bufsz-1] == 0)
-                --bufsz;        /* Terminating \0 */
-            if (saP->lpSockaddr->sa_family == 2) {
-                objv[0] = STRING_LITERAL_OBJ("inet");
-            } else {
-                objv[0] = STRING_LITERAL_OBJ("inet6");
-            }
-            objv[1] = Tcl_NewStringObj(buf, bufsz);
-            return Tcl_NewListObj(2, objv);
-        }
-        /* Error is already set */
-    } else
+
+    if (saP
+        && saP->lpSockaddr
+        && ((((SOCKADDR_IN *) (saP->lpSockaddr))->sin_family == AF_INET
+             && saP->iSockaddrLength == sizeof(SOCKADDR_IN))
+            ||
+            (((SOCKADDR_IN *) (saP->lpSockaddr))->sin_family == AF_INET6
+             && saP->iSockaddrLength == sizeof(SOCKADDR_IN6)))) {
+        return ObjFromSOCKADDR_address(saP->lpSockaddr);
+        /* Error already set */
+    } else {
         SetLastError(ERROR_INVALID_PARAMETER);
+    }
 
     return NULL;
 }
@@ -240,7 +271,7 @@ static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *ia
     objv[7] = Tcl_NewIntObj(iauaP->SuffixOrigin);
     objv[8] = STRING_LITERAL_OBJ("-dadstate");
     objv[9] = Tcl_NewIntObj(iauaP->DadState);
-    objv[10] = STRING_LITERAL_OBJ("ValidLifetime");
+    objv[10] = STRING_LITERAL_OBJ("-validlifetime");
     objv[11] = ObjFromULONG(iauaP->ValidLifetime);
     objv[12] = STRING_LITERAL_OBJ("-preferredlifetime");
     objv[13] = ObjFromULONG(iauaP->PreferredLifetime);

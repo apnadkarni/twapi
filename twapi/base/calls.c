@@ -428,7 +428,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(GetDeviceDriverBaseName, Call, 1005);
     CALL_(GetDeviceDriverFileName, Call, 1006);
-    CALL_(GetBestInterface, Call, 1007);
+    CALL_(GetBestInterface, Call, 1007); /* Also mapped to GetBestInterfaceEx */
+    CALL_(GetBestInterfaceEx, Call, 1007);
     CALL_(QuerySecurityContextToken, Call, 1008);
     CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
@@ -667,6 +668,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
+    CALL_(Twapi_IPAddressFamily, CallS, 25); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
@@ -674,7 +676,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LoadLibraryEx, CallS, 504);
     CALL_(AddFontResourceEx, CallS, 505);
     CALL_(BeginUpdateResource, CallS, 506);
-    CALL_(WSAStringToAddress, CallS, 507);
 
     CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
@@ -1490,19 +1491,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
 #endif
         case 1007:
-#if 0
-            if (IPAddrObjToDWORD(interp, objv[2], &dw) == TCL_ERROR)
-                result.type = TRT_TCL_RESULT;
-            else {
-                result.value.ival = GetBestInterface(dw, &dw2);
-                if (result.value.ival)
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                else {
-                    result.value.ival = dw2;
-                    result.type = TRT_DWORD;
-                }
-            }
-#else
             /* We only have the address, ObjToSOCKADDR_STORAGE expects
                it as first element of a list with optional second param
             */
@@ -1521,7 +1509,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 }
             }
             Tcl_DecrRefCount(objs[0]);
-#endif
             break;
 
         case 1008:
@@ -3113,6 +3100,16 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.wide = u.largeint.QuadPart;
             result.type = TRT_WIDE;
             break;
+        case 25: // Twapi_IPAddressFamily - TBD - optimizable?
+            result.type = TRT_DWORD;
+            result.value.ival = 0;
+            dw = sizeof(u.ss);
+            dw2 = sizeof(u.ss); /* Since first call might change dw */
+            if (WSAStringToAddressW(arg, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
+                WSAStringToAddressW(arg, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                result.value.ival = u.ss.ss_family;
+            }
+            break;
         }
     } else if (func < 1000) {
         /* One additional integer argument */
@@ -3164,15 +3161,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 506: // BeginUpdateResource
             result.type = TRT_HANDLE;
             result.value.hval = BeginUpdateResourceW(arg, dw);
-            break;
-        case 507: //WSAStringToAddress - TBD - remove ?
-            dw2 = sizeof(u.ss);
-            if (WSAStringToAddressW(arg, dw, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
-                result.type = TRT_DWORD;
-                result.value.ival = u.ss.ss_family;
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
             break;
         }
     } else if (func < 2000) {
