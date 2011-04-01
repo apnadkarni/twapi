@@ -110,6 +110,7 @@ proc twapi::get_ip_addresses {} {
 
 # Get the list of interfaces
 proc twapi::get_netif_indices {} {
+    # TBD -
     # Win2K+ only - return [lindex [get_network_info -interfaces] 1]
 
     # NT4 SP4+
@@ -184,26 +185,8 @@ proc twapi::get_netif_info {interface args} {
 
     array set result [list ]
 
-    # If NT4.0 SP4 or before, NONE of this is available
-    # If we don't want errors, just return unknown placeholder
-    if {![min_os_version 4 0 4]} {
-        if {[string length $opts(unknownvalue)]} {
-            foreach opt [array names opts] {
-                if {$opt == "all" || $opt == "unknownvalue"} continue
-                if {$opts($opt) || $opts(all)} {
-                    set result(-$opt) $opts(unknownvalue)
-                }
-            }
-            return [array get result]
-        }
-        # Else we will just go on and barf when a function is not available
-    }
-
     set nif $interface
     if {![string is integer $nif]} {
-        if {![min_os_version 5]} {
-            error "Interfaces must be identified by integer index values on Windows NT 4.0"
-        }
         set nif [GetAdapterIndex $nif]
     }
 
@@ -242,23 +225,6 @@ proc twapi::get_netif_info {interface args} {
         }
     }
 
-    # Remaining options only available on Win2K and up
-    if {![min_os_version 5]} {
-        if {[string length $opts(unknownvalue)]} {
-            set win2kopts [concat [array names GetAdaptersInfo_opts] \
-                               [array names GetPerAdapterInfo_opts] \
-                               [array names GetInterfaceInfo_opts]]
-            foreach opt $win2kopts {
-                if {$opts($opt) || $opts(all)} {
-                    set result(-$opt) $opts(unknownvalue)
-                }
-            }
-            return [array get result]
-        }
-        # Else we will just go on and barf when a function is not available
-    }
-
-    # Proceed with win2k and above
     if {$opts(all) ||
         [_array_non_zero_entry opts [array names GetAdaptersInfo_opts]]} {
         foreach entry [GetAdaptersInfo] {
