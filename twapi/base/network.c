@@ -17,6 +17,11 @@ typedef DWORD (WINAPI *GetOwnerModuleFromTcpEntry_t)(PVOID, int, PVOID, PDWORD);
 MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcpEntry, iphlpapi, GetOwnerModuleFromTcpEntry_t)
 typedef DWORD (WINAPI *GetOwnerModuleFromUdpEntry_t)(PVOID, int, PVOID, PDWORD);
 MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdpEntry, iphlpapi, GetOwnerModuleFromUdpEntry_t)
+typedef DWORD (WINAPI *GetOwnerModuleFromTcp6Entry_t)(PVOID, int, PVOID, PDWORD);
+MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcp6Entry, iphlpapi, GetOwnerModuleFromTcp6Entry_t)
+typedef DWORD (WINAPI *GetOwnerModuleFromUdp6Entry_t)(PVOID, int, PVOID, PDWORD);
+MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6Entry_t)
+
 
 /* Given a IP address as a DWORD, returns a Tcl string */
 Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
@@ -89,7 +94,7 @@ Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
     return NULL;
 }
 
-Tcl_Obj *ObjFromIPv6Addr(char *addrP, DWORD scope_id)
+Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
 {
     SOCKADDR_IN6 si;
 
@@ -609,7 +614,7 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
     fn = Twapi_GetProc_GetOwnerModuleFromTcpEntry();
     buf_sz = sizeof(buf);
     if (fn && (*fn)((MIB_TCPROW_OWNER_MODULE *)row,
-                    0, // TCPIP_OWNER_MODULE_BASIC_INFO enum
+                    0, // TCPIP_OWNER_MODULE_BASIC_INFO
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
         modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
@@ -656,6 +661,42 @@ int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj,
     return TCL_OK;
 }
 
+Tcl_Obj *ObjFromMIB_TCP6ROW(Tcl_Interp *interp, const MIB_TCP6ROW_OWNER_PID *row, int size)
+{
+    Tcl_Obj *obj[9];
+    char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
+    DWORD    buf_sz;
+    GetOwnerModuleFromTcpEntry_t  fn;
+
+    obj[0] = Tcl_NewIntObj(row->dwState);
+    obj[1] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
+    obj[2] = Tcl_NewIntObj(ntohs((WORD)row->dwLocalPort));
+    obj[3] = ObjFromIPv6Addr(row->ucRemoteAddr, row->dwRemoteScopeId);
+    obj[4] = Tcl_NewIntObj(ntohs((WORD)row->dwRemotePort));
+    obj[5] = Tcl_NewIntObj(row->dwOwningPid);
+
+    if (size < sizeof(MIB_TCP6ROW_OWNER_MODULE))
+        return Tcl_NewListObj(6, obj);
+
+    obj[6] = Tcl_NewWideIntObj(((MIB_TCP6ROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
+
+    fn = Twapi_GetProc_GetOwnerModuleFromTcp6Entry();
+    buf_sz = sizeof(buf);
+    if (fn && (*fn)((MIB_TCP6ROW_OWNER_MODULE *)row,
+                    0, //TCPIP_OWNER_MODULE_BASIC_INFO
+                    buf, &buf_sz) == NO_ERROR) {
+        TCPIP_OWNER_MODULE_BASIC_INFO *modP;
+        modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
+        obj[7] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
+        obj[8] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+    } else {
+        obj[7] = Tcl_NewStringObj("", -1);
+        obj[8] = Tcl_NewStringObj("", -1);
+    }
+
+    return Tcl_NewListObj(9, obj);
+}
+
 
 Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
 {
@@ -694,6 +735,38 @@ Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
     return Tcl_NewListObj(6, obj);
 }
 
+Tcl_Obj *ObjFromMIB_UDP6ROW(Tcl_Interp *interp, MIB_UDP6ROW_OWNER_PID *row, int size)
+{
+    Tcl_Obj *obj[6];
+    char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
+    DWORD    buf_sz;
+    GetOwnerModuleFromUdp6Entry_t fn;
+
+    obj[0] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
+    obj[1] = Tcl_NewIntObj(ntohs((WORD)row->dwLocalPort));
+    obj[2] = Tcl_NewIntObj(row->dwOwningPid);
+
+    if (size < sizeof(MIB_UDP6ROW_OWNER_MODULE))
+        return Tcl_NewListObj(3, obj);
+
+    obj[3] = Tcl_NewWideIntObj(((MIB_UDP6ROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
+
+    fn = Twapi_GetProc_GetOwnerModuleFromUdp6Entry();
+    buf_sz = sizeof(buf);
+    if (fn && (*fn)((MIB_UDP6ROW_OWNER_MODULE *)row,
+                    0, // TCPIP_OWNER_MODULE_BASIC_INFO enum
+                    buf, &buf_sz) == NO_ERROR) {
+        TCPIP_OWNER_MODULE_BASIC_INFO *modP;
+        modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
+        obj[4] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
+        obj[5] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+    } else {
+        obj[4] = Tcl_NewStringObj("", -1);
+        obj[5] = Tcl_NewStringObj("", -1);
+    }
+
+    return Tcl_NewListObj(6, obj);
+}
 
 Tcl_Obj *ObjFromMIB_TCPTABLE(Tcl_Interp *interp, MIB_TCPTABLE *tab)
 {
@@ -734,6 +807,31 @@ Tcl_Obj *ObjFromMIB_TCPTABLE_OWNER_MODULE(Tcl_Interp *interp, MIB_TCPTABLE_OWNER
     return resultObj;
 }
 
+Tcl_Obj *ObjFromMIB_TCP6TABLE_OWNER_PID(Tcl_Interp *interp, MIB_TCP6TABLE_OWNER_PID *tab)
+{
+    DWORD i;
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+
+    for (i=0; i < tab->dwNumEntries; ++i) {
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 ObjFromMIB_TCP6ROW(interp,  &(tab->table[i]), sizeof(MIB_TCP6ROW_OWNER_PID)));
+    }
+
+    return resultObj;
+}
+
+Tcl_Obj *ObjFromMIB_TCP6TABLE_OWNER_MODULE(Tcl_Interp *interp, MIB_TCP6TABLE_OWNER_MODULE *tab)
+{
+    DWORD i;
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+
+    for (i=0; i < tab->dwNumEntries; ++i) {
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 ObjFromMIB_TCP6ROW(interp,  (MIB_TCP6ROW_OWNER_PID *) &(tab->table[i]), sizeof(MIB_TCP6ROW_OWNER_MODULE)));
+    }
+
+    return resultObj;
+}
 
 Tcl_Obj *ObjFromMIB_UDPTABLE(Tcl_Interp *interp, MIB_UDPTABLE *tab)
 {
@@ -774,6 +872,35 @@ Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_MODULE(Tcl_Interp *interp, MIB_UDPTABLE_OWNER
 
     return resultObj;
 }
+
+Tcl_Obj *ObjFromMIB_UDP6TABLE_OWNER_PID(Tcl_Interp *interp, MIB_UDP6TABLE_OWNER_PID *tab)
+{
+    DWORD i;
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+
+    for (i=0; i < tab->dwNumEntries; ++i) {
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 ObjFromMIB_UDP6ROW(interp, &(tab->table[i]), sizeof(MIB_UDP6ROW_OWNER_PID)));
+    }
+
+    return resultObj;
+}
+
+
+Tcl_Obj *ObjFromMIB_UDP6TABLE_OWNER_MODULE(Tcl_Interp *interp, MIB_UDP6TABLE_OWNER_MODULE *tab)
+{
+    DWORD i;
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+
+    for (i=0; i < tab->dwNumEntries; ++i) {
+        Tcl_ListObjAppendElement(interp, resultObj,
+                                 ObjFromMIB_UDP6ROW(interp, (MIB_UDP6ROW_OWNER_PID *) &(tab->table[i]), sizeof(MIB_UDP6TABLE_OWNER_MODULE)));
+    }
+
+    return resultObj;
+}
+
+
 
 Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf)
 {
