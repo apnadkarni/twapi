@@ -926,36 +926,48 @@ int Twapi_FormatExtendedTcpTable(
 {
     Tcl_Obj *obj;
 
-    if (family != AF_INET)
-        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+    if (family != AF_INET && family != AF_INET6)
+        goto error_return;
 
     // The constants below are TCP_TABLE_CLASS enumerations. These
-    // is not defined in the SDK we are using so use integer constants
+    // is not defined in the Win2k3 SDK we are using so use integer constants
     switch (table_class) {
     case 0: // TCP_TABLE_BASIC_LISTENER
     case 1: // TCP_TABLE_BASIC_CONNECTIONS
     case 2: // TCP_TABLE_BASIC_ALL
-        obj = ObjFromMIB_TCPTABLE(interp, (MIB_TCPTABLE *)buf);
+        if (family == AF_INET)
+            obj = ObjFromMIB_TCPTABLE(interp, (MIB_TCPTABLE *)buf);
+        else
+            goto error_return;  /* Not supported for IP v6 */
         break;
 
     case 3: // TCP_TABLE_OWNER_PID_LISTENER
     case 4: // TCP_TABLE_OWNER_PID_CONNECTIONS
     case 5: // TCP_TABLE_OWNER_PID_ALL
-        obj = ObjFromMIB_TCPTABLE_OWNER_PID(interp, (MIB_TCPTABLE_OWNER_PID *)buf);
+        if (family == AF_INET)
+            obj = ObjFromMIB_TCPTABLE_OWNER_PID(interp, (MIB_TCPTABLE_OWNER_PID *)buf);
+        else
+            obj = ObjFromMIB_TCP6TABLE_OWNER_PID(interp, (MIB_TCP6TABLE_OWNER_PID *)buf);
         break;
 
     case 6: // TCP_TABLE_OWNER_MODULE_LISTENER
     case 7: // TCP_TABLE_OWNER_MODULE_CONNECTIONS
     case 8: // TCP_TABLE_OWNER_MODULE_ALL
-        obj = ObjFromMIB_TCPTABLE_OWNER_MODULE(interp, (MIB_TCPTABLE_OWNER_MODULE *)buf);
+        if (family == AF_INET)
+            obj = ObjFromMIB_TCPTABLE_OWNER_MODULE(interp, (MIB_TCPTABLE_OWNER_MODULE *)buf);
+        else
+            obj = ObjFromMIB_TCP6TABLE_OWNER_MODULE(interp, (MIB_TCP6TABLE_OWNER_MODULE *)buf);
         break;
 
     default:
-        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+        goto error_return;
     }
 
     Tcl_SetObjResult(interp, obj);
     return TCL_OK;
+
+error_return:
+    return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
 }
 
 int Twapi_FormatExtendedUdpTable(
@@ -967,32 +979,43 @@ int Twapi_FormatExtendedUdpTable(
 {
     Tcl_Obj *obj;
 
-    if (family != AF_INET)
-        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+    if (family != AF_INET && family != AF_INET6)
+        goto error_return;
 
     // The constants below are TCP_TABLE_CLASS enumerations. These
-    // is not defined in the SDK we are using so use integer constants
+    // are not defined in the SDK we are using so use integer constants
     switch (table_class) {
     case 0: // UDP_TABLE_BASIC
+        if (family != AF_INET)
+            goto error_return;
+
         obj = ObjFromMIB_UDPTABLE(interp, (MIB_UDPTABLE *) buf);
         break;
 
     case 1: // UDP_TABLE_OWNER_PID
-        obj = ObjFromMIB_UDPTABLE_OWNER_PID(interp, (MIB_UDPTABLE_OWNER_PID *) buf);
+        if (family == AF_INET)
+            obj = ObjFromMIB_UDPTABLE_OWNER_PID(interp, (MIB_UDPTABLE_OWNER_PID *) buf);
+        else
+            obj = ObjFromMIB_UDP6TABLE_OWNER_PID(interp, (MIB_UDP6TABLE_OWNER_PID *) buf);
         break;
 
     case 2: // UDP_TABLE_OWNER_MODULE
-        obj = ObjFromMIB_UDPTABLE_OWNER_MODULE(interp, (MIB_UDPTABLE_OWNER_MODULE *) buf);
+        if (family == AF_INET)
+            obj = ObjFromMIB_UDPTABLE_OWNER_MODULE(interp, (MIB_UDPTABLE_OWNER_MODULE *) buf);
+        else
+            obj = ObjFromMIB_UDP6TABLE_OWNER_MODULE(interp, (MIB_UDP6TABLE_OWNER_MODULE *) buf);
         break;
 
     default:
-        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+        goto error_return;
     }
 
     Tcl_SetObjResult(interp, obj);
     return TCL_OK;
-}
 
+error_return:
+    return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+}
 
 
 Tcl_Obj *ObjFromIP_ADAPTER_INFO(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfoP)
@@ -1362,6 +1385,8 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
         MIB_TCPTABLE *tab = NULL;
         int i;
 
+        /* TBD - can remove this code since Win2K no longer supported ? */
+
         /*
          * First get the required  buffer size.
          * Do this in a loop since size might change with an upper limit
@@ -1416,6 +1441,8 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
         DWORD sz;
         MIB_UDPTABLE *tab = NULL;
         int i;
+
+        /* TBD - can remove this code since Win2K no longer supported ? */
 
         /*
          * First get the required  buffer size.

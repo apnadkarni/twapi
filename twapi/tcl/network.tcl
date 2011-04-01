@@ -481,6 +481,7 @@ proc twapi::get_tcp_connections {args} {
     }
     array set opts [parseargs args {
         state
+        {ipversion.arg 0}
         localaddr
         remoteaddr
         localport
@@ -497,6 +498,8 @@ proc twapi::get_tcp_connections {args} {
         matchremoteport.int
         matchpid.int
     } -maxleftover 0]
+
+    set opts(ipversion) [__ipversion_to_af $opts(ipversion)]
 
     if {! ($opts(state) || $opts(localaddr) || $opts(remoteaddr) || $opts(localport) || $opts(remoteport) || $opts(pid) || $opts(modulename) || $opts(modulepath) || $opts(bindtime))} {
         set opts(all) 1
@@ -520,10 +523,12 @@ proc twapi::get_tcp_connections {args} {
 
     foreach opt {matchlocaladdr matchremoteaddr} {
         if {[info exists opts($opt)]} {
+            # Note this also normalizes the address format
             set $opt [_hosts_to_ip_addrs $opts($opt)]
             if {[llength [set $opt]] == 0} {
                 return [list ]; # No addresses, so no connections will match
             }
+            # TBD - normalize IPv4 and IPv6 addresses
         }
     }
 
@@ -534,7 +539,7 @@ proc twapi::get_tcp_connections {args} {
         set level 5
     }
     set conns [list ]
-    foreach entry [_get_all_tcp 0 $level] {
+    foreach entry [_get_all_tcp 0 $level $opts(ipversion)] {
         foreach {state localaddr localport remoteaddr remoteport pid bindtime modulename modulepath} $entry {
             break
         }
@@ -593,6 +598,7 @@ proc twapi::get_tcp_connections {args} {
 # Return the list of UDP connections
 proc twapi::get_udp_connections {args} {
     array set opts [parseargs args {
+        {ipversion.arg 0}
         localaddr
         localport
         pid
@@ -605,11 +611,14 @@ proc twapi::get_udp_connections {args} {
         matchpid.int
     } -maxleftover 0]
 
+    set opts(ipversion) [__ipversion_to_af $opts(ipversion)]
+
     if {! ($opts(localaddr) || $opts(localport) || $opts(pid) || $opts(modulename) || $opts(modulepath) || $opts(bindtime))} {
         set opts(all) 1
     }
 
     if {[info exists opts(matchlocaladdr)]} {
+        # Note this also normalizes the address format
         set matchlocaladdr [_hosts_to_ip_addrs $opts(matchlocaladdr)]
         if {[llength $matchlocaladdr] == 0} {
             return [list ]; # No addresses, so no connections will match
@@ -624,7 +633,7 @@ proc twapi::get_udp_connections {args} {
         set level 1
     }
     set conns [list ]
-    foreach entry [_get_all_udp 0 $level] {
+    foreach entry [_get_all_udp 0 $level $opts(ipversion)] {
         foreach {localaddr localport pid bindtime modulename modulepath} $entry {
             break
         }
@@ -1061,12 +1070,25 @@ proc twapi::_hostname_resolve_handler {id status addrs} {
 # data. Level 5 (default) matches what AllocateAndGetTcpExTableFromStack
 # returns. Note level 6 and higher is two orders of magnitude more expensive
 # to get.
-proc twapi::_get_all_tcp {{sort 0} {level 5}} {
+proc twapi::_get_all_tcp {sort level ipversion} {
+
+    if {$ipversion == 0} {
+        return [concat [_get_all_tcp $sort $level 2] [_get_all_tcp $sort $level 23]]
+    }
+
     # Get required size of buffer. This also verifies that the
     # GetExtendedTcpTable API exists on this system
-    if {[catch {twapi::GetExtendedTcpTable NULL 0 $sort 2 $level} bufsz]} {
+    # TBD - modify to do this check only once and not on every call
+
+    if {[catch {twapi::GetExtendedTcpTable NULL 0 $sort $ipversion $level} bufsz]} {
         # No workee, try AllocateAndGetTcpExTableFromStack
-        return [AllocateAndGetTcpExTableFromStack $sort 0]
+        # Note if GetExtendedTcpTable is not present, ipv6 is not
+        # available
+        if {$ipversion == 2} {
+            return [AllocateAndGetTcpExTableFromStack $sort 0]
+        } else {
+            return {}
+        }
     }
 
     # Allocate the required buffer
@@ -1077,12 +1099,12 @@ proc twapi::_get_all_tcp {{sort 0} {level 5}} {
         # the required size that we get back from the command
         # is less than or equal to what we supplied
         while {true} {
-            set reqsz [twapi::GetExtendedTcpTable $buf $bufsz $sort 2 $level]
+            set reqsz [twapi::GetExtendedTcpTable $buf $bufsz $sort $ipversion $level]
             if {$reqsz <= $bufsz} {
                 # Buffer was large enough. Return the formatted data
                 # Note the finally clause below automatically frees
                 # the buffer so don't do that here!
-                return [Twapi_FormatExtendedTcpTable $buf 2 $level]
+                return [Twapi_FormatExtendedTcpTable $buf $ipversion $level]
             }
             # Need bigger buffer
             set bufsz $reqsz
@@ -1101,12 +1123,20 @@ proc twapi::_get_all_tcp {{sort 0} {level 5}} {
 }
 
 # See comments for _get_all_tcp above except this is for _get_all_udp
-proc twapi::_get_all_udp {{sort 0} {level 1}} {
+proc twapi::_get_all_udp {sort level ipversion} {
+    if {$ipversion == 0} {
+        return [concat [_get_all_udp $sort $level 2] [_get_all_udp $sort $level 23]]
+    }
+
     # Get required size of buffer. This also verifies that the
     # GetExtendedTcpTable API exists on this system
-    if {[catch {twapi::GetExtendedUdpTable NULL 0 $sort 2 $level} bufsz]} {
+    if {[catch {twapi::GetExtendedUdpTable NULL 0 $sort $ipversion $level} bufsz]} {
         # No workee, try AllocateAndGetUdpExTableFromStack
-        return [AllocateAndGetUdpExTableFromStack $sort 0]
+        if {$ipversion == 2} {
+            return [AllocateAndGetUdpExTableFromStack $sort 0]
+        } else {
+            return {}
+        }
     }
 
     # Allocate the required buffer
@@ -1117,12 +1147,12 @@ proc twapi::_get_all_udp {{sort 0} {level 1}} {
         # the required size that we get back from the command
         # is less than or equal to what we supplied
         while {true} {
-            set reqsz [twapi::GetExtendedUdpTable $buf $bufsz $sort 2 $level]
+            set reqsz [twapi::GetExtendedUdpTable $buf $bufsz $sort $ipversion $level]
             if {$reqsz <= $bufsz} {
                 # Buffer was large enough. Return the formatted data
                 # Note the finally clause below automatically frees
                 # the buffer so don't do that here!
-                return [Twapi_FormatExtendedUdpTable $buf 2 $level]
+                return [Twapi_FormatExtendedUdpTable $buf $ipversion $level]
             }
             # Need bigger buffer
             set bufsz $reqsz
@@ -1143,26 +1173,39 @@ proc twapi::_get_all_udp {{sort 0} {level 1}} {
 
 # valid IP address
 proc twapi::_valid_ipaddr_format {ipaddr} {
-    # (Copied from Mastering Regular Expression)
-    # Expression to match 0-255
-    set sub {([01]?\d\d?|2[0-4]\d|25[0-5])}
-
-    return [regexp "^$sub\.$sub\.$sub\.$sub\$" $ipaddr]
+    return [expr {[Twapi_IPAddressFamily $ipaddr] != 0}]
 }
 
 # Given lists of IP addresses and DNS names, returns
-# a list purely of IP addresses
+# a list purely of IP addresses in normalized form
 proc twapi::_hosts_to_ip_addrs hosts {
     set addrs [list ]
     foreach host $hosts {
         if {[_valid_ipaddr_format $host]} {
-            lappend addrs $host
+            lappend addrs [Twapi_NormalizeIPAddress $host]
         } else {
             # Not IP address. Try to resolve, ignoring errors
             if {![catch {hostname_to_address $host -flushcache} hostaddrs]} {
-                set addrs [concat $addrs $hostaddrs]
+                foreach addr $hostaddrs {
+                    lappend addrs [Twapi_NormalizeIPAddress $addr]
+                }
             }
         }
     }
     return $addrs
+}
+
+proc twapi::__ipversion_to_af {opt} {
+    if {[string is integer -strict $opt]} {
+        incr opt 0;             # Normalize ints for switch
+    }
+    switch -exact -- [string tolower $opt] {
+        4 -
+        inet  { return 2 }
+        6 -
+        inet6 { return 23 }
+        0 -
+        all   { return 0 }
+    }
+    error "Invalid IP version '$opt'"
 }
