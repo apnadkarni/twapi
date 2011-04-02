@@ -79,7 +79,6 @@ Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
 {
     char buf[50];
     DWORD bufsz = ARRAYSIZE(buf);
-    Tcl_Obj *objP;
     
     if (WSAAddressToStringA(saP,
                             ((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
@@ -114,7 +113,6 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
     Tcl_Obj **addrv;
     int       addrc;
     int       family;
-    char     *addrstr;
     int       sz = sizeof(*ssP);
     WORD      port;
 
@@ -386,7 +384,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     objv[22] = STRING_LITERAL_OBJ("-mtu");
     objv[23] = ObjFromDWORD(iaaP->Mtu);
 
-    objv[24] = STRING_LITERAL_OBJ("-iftype");
+    objv[24] = STRING_LITERAL_OBJ("-type");
     objv[25] = ObjFromDWORD(iaaP->IfType);
 
     objv[26] = STRING_LITERAL_OBJ("-operstatus");

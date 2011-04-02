@@ -97,20 +97,41 @@ namespace eval twapi {
 # TBD - Tcl interface to GetIfTable ?
 
 # Get the list of local IP addresses
-proc twapi::get_ip_addresses {} {
-    set addrs [list ]
-    foreach entry [GetIpAddrTable 0] {
-        set addr [lindex $entry 0]
-        if {[string compare $addr "0.0.0.0"]} {
-            lappend addrs $addr
+proc twapi::get_ip_addresses {args} {
+    array set opts [parseargs args {
+        {ipversion.arg 0}
+        {type.arg unicast}
+    } -maxleftover 0]
+
+    # 0x20 -> SKIP_FRIENDLYNAME
+    set flags 0x27
+    if {"all" in $opts(type)} {
+        set flags 0x20
+    } else {
+        if {"unicast" in $opts(type)} {incr flags -1}
+        if {"anycast" in $opts(type)} {incr flags -2}
+        if {"multicast" in $opts(type)} {incr flags -4}
+    }
+
+    set addrs {}
+    foreach entry [GetAdaptersAddresses [_ipversion_to_af $opts(ipversion)] $flags] {
+        foreach fld {-unicastaddresses -anycastaddresses -multicastaddresses} {
+            foreach addrset [kl_get $entry $fld] {
+                lappend addrs [kl_get $addrset -address]
+            }
         }
     }
-    return $addrs
+
+    return [lsort -unique $addrs]
 }
 
 # Get the list of interfaces
 proc twapi::get_netif_indices {} {
     return [lindex [get_network_info -interfaces] 1]
+}
+
+proc twapi::get_netif6_indices {} {
+    return [twapi::kl_flatten [twapi::GetAdaptersAddresses 23 8] -ipv6ifindex]
 }
 
 # Get network related information
@@ -159,6 +180,7 @@ proc twapi::get_network_info {args} {
     return $result
 }
 
+
 proc twapi::get_netif_info {interface args} {
     variable IfTypeTokens
     variable GetIfEntry_opts
@@ -187,15 +209,14 @@ proc twapi::get_netif_info {interface args} {
         set result(-ifindex) $nif
     }
 
-    if {$opts(all) ||
-        [_array_non_zero_entry opts [array names GetIfEntry_opts]]} {
-        set values [GetIfEntry $nif]
-        foreach opt [array names GetIfEntry_opts] {
-            if {$opts(all) || $opts($opt)} {
-                set result(-$opt) [lindex $values $GetIfEntry_opts($opt)]
-            }
+    # Several options need the type so make the GetIfEntry call always
+    set values [GetIfEntry $nif]
+    foreach opt [array names GetIfEntry_opts] {
+        if {$opts(all) || $opts($opt)} {
+            set result(-$opt) [lindex $values $GetIfEntry_opts($opt)]
         }
     }
+    set type [lindex $values $GetIfEntry_opts(type)]
 
     if {$opts(all) ||
         [_array_non_zero_entry opts [array names GetIpAddrTable_opts]]} {
@@ -231,7 +252,7 @@ proc twapi::get_netif_info {interface args} {
 
     if {$opts(all) ||
         [_array_non_zero_entry opts [array names GetPerAdapterInfo_opts]]} {
-        if {$result(-type) == 24} {
+        if {$type == 24} {
             # Loopback - we have to make this info up
             set values {0 0 {}}
         } else {
@@ -246,7 +267,7 @@ proc twapi::get_netif_info {interface args} {
 
     if {$opts(all) || $opts(ifname)} {
         array set ifnames [eval concat [GetInterfaceInfo]]
-        if {$result(-type) == 24} {
+        if {$type == 24} {
             set result(-ifname) "loopback"
         } else {
             if {![info exists ifnames($nif)]} {
@@ -282,9 +303,91 @@ proc twapi::get_netif_info {interface args} {
     return [array get result]
 }
 
+proc twapi::get_netif6_info {interface args} {
+    array set opts [parseargs args {
+        all
+        ipv6ifindex
+        adaptername
+        unicastaddresses
+        anycastaddresses
+        multicastaddresses
+        dnsservers
+        dnssuffix
+        description
+        friendlyname
+        physicaladdress
+        type
+        operstatus
+        zoneindices
+        prefixes
+        dhcpenabled
+    } -maxleftover 0]
+    
+    set haveindex [string is integer -strict $interface]
+
+    set flags 0
+    if {! $opts(all)} {
+        if {! $opts(unicastaddresses)} { incr flags 0x1 }
+        if {! $opts(anycastaddresses)} { incr flags 0x2 }
+        if {! $opts(multicastaddresses)} { incr flags 0x4 }
+        if {! $opts(dnsservers)} { incr flags 0x8 }
+        if {(! $opts(friendlyname)) && $haveindex} { incr flags 0x20 }
+
+        if {$opts(prefixes)} { incr flags 0x10 }
+    } else {
+        incr flags 0x10;        # Want prefixes also
+    }
+    
+    if {$haveindex} {
+        foreach entry [GetAdaptersAddresses 23 $flags] {
+            if {[kl_get $entry -ipv6ifindex] == $interface} {
+                set found $entry
+                break
+            }
+        }
+    } else {
+        foreach entry [GetAdaptersAddresses 23 $flags] {
+            if {[string equal -nocase [kl_get $entry -adaptername] $interface] ||
+                [string equal -nocase [kl_get $entry -friendlyname] $interface]} {
+                if {[info exists found]} {
+                    error "More than one interface found matching '$interface'"
+                }
+                set found $entry
+            }
+        }
+    }
+
+    # $found is the matching entry
+    if {![info exists found]} {
+        error "No interface matching '$interface'."
+    }
+
+    set result {}
+    foreach opt {
+        ipv6ifindex adaptername unicastaddresses anycastaddresses
+        multicastaddresses dnsservers dnssuffix description
+        friendlyname physicaladdress type operstatus zoneindices prefixes
+    } {
+        if {$opts(all) || $opts($opt)} {
+            lappend result -$opt [kl_get $found -$opt]
+        }
+    }
+
+    if {$opts(all) || $opts(dhcpenabled)} {
+        lappend result -dhcpenabled [expr {([kl_get $found -flags] & 0x4) != 0}]
+    }
+
+    return $result
+}
+
+
 # Get the number of network interfaces
 proc twapi::get_netif_count {} {
     return [GetNumberOfInterfaces]
+}
+
+proc twapi::get_netif6_count {} {
+    return [llength [GetAdaptersAddresses 23 8]]
 }
 
 # Get the address->h/w address table
@@ -313,6 +416,10 @@ proc twapi::get_arp_table {args} {
 
 # Return IP address for a hw address
 proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
+    if {![Twapi_IPAddressFamily $ipaddr]} {
+        error "$ipaddr is not a valid IP V4 address"
+    }
+
     foreach arp [GetIpNetTable 0] {
         if {[lindex $arp 3] == 2} continue;       # Invalid entry type
         if {[string equal $ipaddr [lindex $arp 2]]} {

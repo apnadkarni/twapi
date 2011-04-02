@@ -7,7 +7,24 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 3.0 Beta"]
+[section "Version 3.1"]
+Note: See list of incompatible changes at the end of this section.
+[list_begin bullet]
+
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+Windows 2000 is no longer supported.
+
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+Tcl 8.4 is no longer supported.
+
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The values returned by the [cmd -type] option to
+[uri network.html#get_netif_info [cmd get_netif_info]] have changed.
+
+[list_end]
+
+
+[section "Version 3.0"]
 [list_begin bullet]
 
 [bullet] Note the list of [emph "IMCOMPATIBLE CHANGES"] at the end
