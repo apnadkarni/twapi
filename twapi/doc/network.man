@@ -16,11 +16,12 @@ data for the local system including DNS and DHCP information,
 type and configuration of network interfaces, traffic statistics and
 various other information.
 
+[para]
 The module also provides some client side name resolution
 lookup functions including nonblocking name and address lookups.
 
-Many of these commands and some options are not available on all platforms
-as noted in each command description.
+[para]
+Not all commands support IPv6. This is noted where applicable.
 
 [section Commands]
 [list_begin definitions]

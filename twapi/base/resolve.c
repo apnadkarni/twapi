@@ -15,16 +15,23 @@ typedef struct _TwapiHostnameEvent {
     TwapiId    id;             /* Passed from script as a request id */
     DWORD  status;         /* 0 -> success, else Win32 error code */
     union {
-        struct in_addr *addrs;      /* Dynamically allocated using TwapiAlloc */
-        char *hostname;      /* Ditto (used for addr->hostname) */
+        struct addrinfo *addrinfolist; /* Returned by getaddrinfo, to be
+                                          freed via freeaddrinfo
+                                          Used for host->addr */
+        char *hostname;      /* Tcl_Alloc'ed (used for addr->hostname) */
     };
-    int    naddrs;              /* Number of addresses in addrs[] */
-    char name[1];               /* Actually more */
+    int family;                 /* AF_UNSPEC, AF_INET or AF_INET6 */
+    char name[1];           /* Holds query for hostname->addr */
+    /* VARIABLE SIZE SINCE name[] IS ARBITRARY SIZE */
 } TwapiHostnameEvent;
-/* Macro to calculate struct size. Note the terminating null (not included
-   in namelen_) and existing space of name[] cancel each other out */
-#define SIZE_TwapiHostnameEvent(namelen_)  \
+/*
+ * Macro to calculate struct size. Note terminating null and the sizeof
+ * the name[] array cancel each other out. (namelen_) does not include
+ * terminating null.
+ */
+#define SIZE_TwapiHostnameEvent(namelen_) \
     (sizeof(TwapiHostnameEvent) + (namelen_))
+
 
 
 /* Called from the Tcl event loop with the result of a hostname lookup */
@@ -44,14 +51,8 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
         Tcl_ListObjAppendElement(interp, objP, ObjFromTwapiId(theP->id));
         if (theP->status == ERROR_SUCCESS) {
             /* Success */
-            Tcl_Obj *addrsObj = Tcl_NewListObj(0, NULL);
             Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("success"));
-            for (i=0; i < theP->naddrs; ++i) {
-                Tcl_ListObjAppendElement(
-                    interp, addrsObj,
-                    Tcl_NewStringObj(inet_ntoa(theP->addrs[i]), -1));
-            }
-            Tcl_ListObjAppendElement(interp, objP, addrsObj);
+            Tcl_ListObjAppendElement(interp, objP, TwapiCollectAddrInfo(theP->addrinfolist, theP->family));
         } else {
             /* Failure */
             Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("fail"));
@@ -68,8 +69,10 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
 
     /* Done with the interp context */
     TwapiInterpContextUnref(theP->ticP, 1);
-    if (theP->addrs)
-        TwapiFree(theP->addrs);
+
+    /* Assumes we can free this from different thread than allocated it ! */
+    if (theP->addrinfolist)
+        freeaddrinfo(theP->addrinfolist);
 
     return 1;                   /* So Tcl removes from queue */
 }
@@ -79,42 +82,14 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
 static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
 {
     struct addrinfo hints;
-    struct addrinfo *addrP;
-    struct addrinfo *saved_addrP;
-    int i;
 
     ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = PF_INET;
+    hints.ai_family = theP->family;
 
     theP->tcl_ev.proc = TwapiHostnameEventProc;
-    theP->status = getaddrinfo(theP->name, "0", &hints, &addrP);
-    if (theP->status) {
-        TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
-        return 0;               /* Return value does not matter */
-    }
-
-    /* Loop and collect addresses. Assume at most 50 entries */
-    /* Note - not in Tcl interp thread. DO NOT USE theP->ticP->memlifo ! */
-    theP->addrs = TwapiAlloc(50*sizeof(*(theP->addrs)));
-    saved_addrP = addrP;
-    for (i = 0; i < 50 && addrP; addrP = addrP->ai_next) {
-        struct sockaddr_in *saddrP = (struct sockaddr_in *)addrP->ai_addr;
-        if (addrP->ai_family != PF_INET ||
-            addrP->ai_addrlen != sizeof(struct sockaddr_in) ||
-            saddrP->sin_family != AF_INET) {
-            /* Not IP V4 */
-            continue;
-        }
-        theP->addrs[i++] = saddrP->sin_addr;
-    }
-    theP->naddrs = i;
-
-    if (saved_addrP)
-        freeaddrinfo(saved_addrP);
-
+    theP->status = getaddrinfo(theP->name, "0", &hints, &theP->addrinfolist);
     TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
-
-    return 0;                   /* Return value is ignored by thread pool */
+    return 0;               /* Return value does not matter */
 }
 
 
@@ -125,11 +100,13 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     int   len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
+    int family;
 
     ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETASTRN(name, len), ARGEND) != TCL_OK)
+                     GETASTRN(name, len), ARGUSEDEFAULT, GETINT(family),
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     id =  TWAPI_NEWID(ticP);
@@ -143,8 +120,8 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     theP->status = ERROR_SUCCESS;
     theP->ticP = ticP;
     TwapiInterpContextRef(ticP, 1); /* So it does not go away */
-    theP->addrs = NULL;
-    theP->naddrs = 0;
+    theP->addrinfolist = NULL;
+    theP->family = family;
     CopyMemory(theP->name, name, len+1);
 
     if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT)) {
@@ -206,21 +183,19 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
 /* Called from the Win2000 thread pool */
 static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
 {
-    struct sockaddr_in saddr;
+    SOCKADDR_STORAGE ss;
     char hostname[NI_MAXHOST];
     char portname[NI_MAXSERV];
-
-    saddr.sin_family = AF_INET;
-    saddr.sin_addr.s_addr = 0;
-    saddr.sin_port = 0;
-    saddr.sin_addr.s_addr = inet_addr(theP->name);
+    int family;
 
     theP->tcl_ev.proc = TwapiAddressEventProc;
-    if (saddr.sin_addr.s_addr == INADDR_NONE && lstrcmpA(theP->name, "255.255.255.255")) {
+    family = TwapiStringToSOCKADDR_STORAGE(theP->name, &ss, theP->family);
+    if (family == AF_UNSPEC) {
         // Fail, invalid address string
         theP->status = 10022;         /* WSAINVAL error code */
-    } else {
-        theP->status = getnameinfo((struct sockaddr *)&saddr, sizeof(saddr),
+    } else {    
+        theP->status = getnameinfo((struct sockaddr *)&ss,
+                                   ss.ss_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
                                    hostname, sizeof(hostname)/sizeof(hostname[0]),
                                    portname, sizeof(portname)/sizeof(portname[0]),
                                    NI_NUMERICSERV);
@@ -246,11 +221,13 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     int   len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
+    int family;
 
     ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETASTRN(addrstr, len), ARGEND) != TCL_OK)
+                     GETASTRN(addrstr, len), ARGUSEDEFAULT, GETINT(family),
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     id =  TWAPI_NEWID(ticP);
@@ -266,7 +243,7 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     theP->ticP = ticP;
     TwapiInterpContextRef(ticP, 1); /* So it does not go away */
     theP->hostname = NULL;
-    theP->naddrs = 0;
+    theP->family = family;
 
     /* We do not syntactically validate address string here. All failures
        are delivered asynchronously */
