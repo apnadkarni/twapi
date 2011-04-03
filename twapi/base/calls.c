@@ -1645,11 +1645,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10006:
             return Twapi_GetAddrInfo(interp, objc-2, objv+2);
         case 10007:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVAR(u.sinaddr, ObjToSOCKADDR_IN), GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_GetNameInfo(interp, &u.sinaddr, dw);
+            return Twapi_GetNameInfo(interp, objc-2, objv+2);
 
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,

@@ -93,6 +93,37 @@ Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
     return NULL;
 }
 
+/* Can return NULL on error */
+Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
+{
+    short save_port;
+    Tcl_Obj *objv[2];
+
+    /* Stash port as 0 so does not show in address string */
+    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
+        save_port = ((SOCKADDR_IN6 *)saP)->sin6_port;
+        ((SOCKADDR_IN6 *)saP)->sin6_port = 0;
+    } else {
+        save_port = ((SOCKADDR_IN *)saP)->sin_port;
+        ((SOCKADDR_IN *)saP)->sin_port = 0;
+    }
+    
+    objv[0] = ObjFromSOCKADDR_address(saP);
+    if (objv[0] == NULL)
+        return NULL;
+
+    objv[1] = Tcl_NewIntObj((WORD)(ntohs(save_port)));
+
+    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
+        ((SOCKADDR_IN6 *)saP)->sin6_port = save_port;
+    } else {
+        ((SOCKADDR_IN *)saP)->sin_port = save_port;
+    }
+
+    return Tcl_NewListObj(2, objv);
+}
+
+
 Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
 {
     SOCKADDR_IN6 si;
@@ -106,6 +137,41 @@ Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
 }
 
 
+/* Returns address family or AF_UNSPEC if s could not be parsed */
+/* GetLastError() is set in latter case */
+int TwapiStringToSOCKADDR_STORAGE(char *s, SOCKADDR_STORAGE *ssP, int family)
+{
+    int sz;
+
+    /* Note Tcl_GetIntFromObj may have made s invalid */
+    if (family != AF_UNSPEC) {
+        ssP->ss_family = family; /* MSDN says this is required to be set */
+        if (WSAStringToAddressA(s,
+                                family, NULL,
+                                (struct sockaddr *)ssP, &sz) != 0) {
+            return AF_UNSPEC;
+        }
+    } else {
+        /* Family not explicitly specified. */
+        /* Try converting as IPv4 first, then IPv6 */
+        ssP->ss_family = AF_INET; /* MSDN says this is required to be set */
+        sz = sizeof(*ssP);
+        if (WSAStringToAddressA(s,
+                                AF_INET, NULL,
+                                (struct sockaddr *)ssP, &sz) != 0) {
+            sz = sizeof(*ssP);
+            ssP->ss_family = AF_INET6;/* MSDN says this is required to be set */
+            if (WSAStringToAddressA(s,
+                                    AF_INET6, NULL,
+                                    (struct sockaddr *)ssP, &sz) != 0)
+                return AF_UNSPEC;
+        }
+    }
+    return ssP->ss_family;
+}
+
+
+/* Note *ssP may be modified even on error return */
 int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP)
 {
     Tcl_Obj **objv;
@@ -148,9 +214,7 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
             family = AF_UNSPEC;
         /* Note Tcl_GetIntFromObj may have made s invalid */
         if (family != AF_UNSPEC) {
-            if (WSAStringToAddressA(Tcl_GetString(addrv[1]),
-                                    family, NULL,
-                                    (struct sockaddr *)ssP, &sz) != 0)
+            if (TwapiStringToSOCKADDR_STORAGE(Tcl_GetString(addrv[1]), ssP, family) != family)
                 goto error_return;
         }
     }
@@ -158,13 +222,8 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
     if (family == AF_UNSPEC) {
         /* Family not explicitly specified. */
         /* Treat as a single string. Try converting as IPv4 first, then IPv6 */
-        if (WSAStringToAddressA(Tcl_GetString(objv[0]),
-                                AF_INET, NULL,
-                                (struct sockaddr *)ssP, &sz) != 0) {
-            if (WSAStringToAddressA(Tcl_GetString(objv[0]),
-                                    AF_INET6, NULL,
-                                    (struct sockaddr *)ssP, &sz) != 0)
-                goto error_return;
+        if (TwapiStringToSOCKADDR_STORAGE(Tcl_GetString(objv[0]), ssP, AF_INET) == AF_UNSPEC) {
+            goto error_return;
         }
     }
     
@@ -1470,30 +1529,63 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
 }
 
 
-int Twapi_GetNameInfo(
-    Tcl_Interp *interp,
-    const struct sockaddr_in* saP,
-    int flags
-    )
+int Twapi_GetNameInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int status;
+    SOCKADDR_STORAGE ss;
     char hostname[NI_MAXHOST];
     char portname[NI_MAXSERV];
-    Tcl_Obj *objv[2];
+    Tcl_Obj *objs[2];
+    int flags;
 
-    status = getnameinfo((struct sockaddr *) saP, sizeof(*saP),
+    if (TwapiGetArgs(interp, objc, objv,
+                     ARGSKIP, GETINT(flags),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ObjToSOCKADDR_STORAGE(interp, objv[0], &ss) != TCL_OK)
+        return TCL_ERROR;
+
+    status = getnameinfo((SOCKADDR *)&ss,
+                         ss.ss_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
                          hostname, sizeof(hostname)/sizeof(hostname[0]),
                          portname, sizeof(portname)/sizeof(portname[0]),
                          flags);
-    if (status != 0) {
+    if (status != 0)
         return Twapi_AppendSystemError(interp, status);
-    }
 
-    objv[0] = Tcl_NewStringObj(hostname, -1);
-    objv[1] = Tcl_NewStringObj(portname, -1);
+    objs[0] = Tcl_NewStringObj(hostname, -1);
+    objs[1] = Tcl_NewStringObj(portname, -1);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2,objv));
+    Tcl_SetObjResult(interp, Tcl_NewListObj(2,objs));
     return TCL_OK;
+}
+
+Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
+{
+    Tcl_Obj *resultObj;
+
+    resultObj = Tcl_NewListObj(0, NULL);
+    while (addrP) {
+        Tcl_Obj *objP;
+        SOCKADDR *saddrP = addrP->ai_addr;
+
+        if (family == AF_UNSPEC || family == addrP->ai_family) {
+            if ((addrP->ai_family == PF_INET &&
+                 addrP->ai_addrlen == sizeof(SOCKADDR_IN) &&
+                 saddrP && saddrP->sa_family == AF_INET)
+                ||
+                (addrP->ai_family == PF_INET6 &&
+                 addrP->ai_addrlen == sizeof(SOCKADDR_IN6) &&
+                 saddrP && saddrP->sa_family == AF_INET6)) {
+                objP = ObjFromSOCKADDR(saddrP);
+                if (objP)
+                    Tcl_ListObjAppendElement(NULL, resultObj, objP);
+            }
+        }
+        addrP = addrP->ai_next;
+    }
+    return resultObj;
 }
 
 int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -1504,13 +1596,15 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     struct addrinfo hints;
     struct addrinfo *addrP;
     struct addrinfo *saved_addrP;
-    Tcl_Obj *resultObj;
 
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = PF_INET;
     if (TwapiGetArgs(interp, objc, objv,
                      GETASTR(hostname), GETASTR(svcname),
+                     ARGUSEDEFAULT,
+                     GETINT(hints.ai_family),
                      GETINT(hints.ai_protocol),
+                     GETINT(hints.ai_socktype),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -1519,28 +1613,10 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return Twapi_AppendSystemError(interp, status);
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
-    saved_addrP = addrP;
-    while (addrP) {
-        Tcl_Obj *objv[2];
-        struct sockaddr_in *saddrP = (struct sockaddr_in *)addrP->ai_addr;
+    Tcl_SetObjResult(interp, TwapiCollectAddrInfo(addrP, hints.ai_family));
+    if (addrP)
+        freeaddrinfo(addrP);
 
-        if (addrP->ai_family != PF_INET ||
-            addrP->ai_addrlen != sizeof(struct sockaddr_in) ||
-            saddrP->sin_family != AF_INET) {
-            /* Not IP V4 */
-            continue;
-        }
-        objv[0] = Tcl_NewStringObj(inet_ntoa(saddrP->sin_addr), -1);
-        objv[1] = Tcl_NewIntObj((unsigned short) ntohs(saddrP->sin_port));
-        Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewListObj(2, objv));
-
-        addrP = addrP->ai_next;
-    }
-    if (saved_addrP)
-        freeaddrinfo(saved_addrP);
-
-    Tcl_SetObjResult(interp, resultObj);
     return TCL_OK;
 }
 
