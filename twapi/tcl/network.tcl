@@ -4,10 +4,7 @@
 #
 # See the file LICENSE for license
 
-# TBD _ maybe more information is available through PDH? Perhaps even on NT?
-
 namespace eval twapi {
-
     array set IfTypeTokens {
         1  other
         6  ethernet
@@ -795,19 +792,14 @@ proc twapi::terminate_tcp_connections {args} {
     return
 }
 
-
 # Flush cache of host names and ports.
-proc twapi::flush_network_name_cache {} {
-    array unset ::twapi::port2name
-    array unset ::twapi::addr2name
-    array unset ::twapi::name2port
-    array unset ::twapi::name2addr
-}
+# Backward compatibility - no op since we no longer have a cache
+proc twapi::flush_network_name_cache {} {}
 
 # IP addr -> hostname
-proc twapi::address_to_hostname {addr args} {
-    variable addr2name
+proc twapi::resolve_address {addr args} {
 
+    # flushcache is ignored (for backward compatibility only)
     array set opts [parseargs args {
         flushcache
         async.arg
@@ -817,22 +809,11 @@ proc twapi::address_to_hostname {addr args} {
     # win32 getnameinfo translates this to the local host name which
     # is completely bogus.
     if {$addr eq "0.0.0.0"} {
-        set addr2name($addr) $addr
-        set opts(flushcache) 0
-        # Now just fall thru to deal with async option etc.
-    }
-
-
-    if {[info exists addr2name($addr)]} {
-        if {$opts(flushcache)} {
-            unset addr2name($addr)
+        if {[info exists opts(async)]} {
+            after idle [list after 0 $opts(async) [list $addr success $addr]]
+            return ""
         } else {
-            if {[info exists opts(async)]} {
-                after idle [list after 0 $opts(async) [list $addr success $addr2name($addr)]]
-                return ""
-            } else {
-                return $addr2name($addr)
-            }
+            return $addr
         }
     }
 
@@ -852,41 +833,30 @@ proc twapi::address_to_hostname {addr args} {
         set name ""
     }
 
-    set addr2name($addr) $name
     return $name
 }
 
-# host name -> IP addresses
-proc twapi::hostname_to_address {name args} {
-    variable name2addr
+interp alias {} twapi::address_to_hostname {} twapi::resolve_address
 
+
+# host name -> IP addresses
+proc twapi::resolve_hostname {name args} {
     set name [string tolower $name]
 
+    # -flushcache option ignored (for backward compat only)
     array set opts [parseargs args {
         flushcache
         async.arg
+        {ipversion.arg 0}
     } -maxleftover 0]
 
-    if {[info exists name2addr($name)]} {
-        if {$opts(flushcache)} {
-            unset name2addr($name)
-        } else {
-            if {[info exists opts(async)]} {
-                after idle [list after 0 $opts(async) [list $name success $name2addr($name)]]
-                return ""
-            } else {
-                return $name2addr($name)
-            }
-        }
-    }
-
-    # Do not have resolved name
+    set opts(ipversion) [_ipversion_to_af $opts(ipversion)]
 
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
         variable _hostname_handler_scripts
-        set id [Twapi_ResolveHostnameAsync $name]
+        set id [Twapi_ResolveHostnameAsync $name $opts(ipversion)]
         set _hostname_handler_scripts($id) [list $name $opts(async)]
         return ""
     }
@@ -894,7 +864,7 @@ proc twapi::hostname_to_address {name args} {
     # Resolve address synchronously
     set addrs [list ]
     trap {
-        foreach endpt [twapi::getaddrinfo $name 0 0] {
+        foreach endpt [twapi::getaddrinfo $name 0 0 $opts(ipversion)] {
             lassign $endpt addr port
             lappend addrs $addr
         }
@@ -908,18 +878,16 @@ proc twapi::hostname_to_address {name args} {
         # Ignore - 11004 -> no such host, though valid syntax
     }
 
-    set name2addr($name) $addrs
     return $addrs
+}
+
+
+proc twapi::hostname_to_address {name args} {
+    return [resolve_hostname $name {*}$args -ipversion 4]
 }
 
 # Look up a port name
 proc twapi::port_to_service {port} {
-    variable port2name
-
-    if {[info exists port2name($port)]} {
-        return $port2name($port)
-    }
-
     set name ""
     trap {
         set name [lindex [twapi::getnameinfo [list 0.0.0.0 $port] 2] 1]
@@ -956,21 +924,15 @@ proc twapi::port_to_service {port} {
         }
     }
 
-    set port2name($port) $name
     return $name
 }
 
 
 # Port name -> number
 proc twapi::service_to_port {name} {
-    variable name2port
 
     # TBD - add option for specifying protocol
     set protocol 0
-
-    if {[info exists name2port($name)]} {
-        return $name2port($name)
-    }
 
     if {[string is integer $name]} {
         return $name
@@ -982,7 +944,6 @@ proc twapi::service_to_port {name} {
     }]} {
         set port ""
     }
-    set name2port($name) $port
     return $port
 }
 
@@ -1094,9 +1055,6 @@ proc twapi::_address_resolve_handler {id status hostname} {
     unset _address_handler_scripts($id)
 
     # Before invoking the callback, store result if available
-    if {$status eq "success"} {
-        set ::twapi::addr2name($addr) $hostname
-    }
     eval [linsert $script end $addr $status $hostname]
     return
 }
@@ -1113,13 +1071,11 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
     lassign  $_hostname_handler_scripts($id)  name script
     unset _hostname_handler_scripts($id)
 
-    # Before invoking the callback, store result if available
     if {$status eq "success"} {
         set addrs {}
         foreach addr $addrandports {
             lappend addrs [lindex $addr 0]
         }
-        set ::twapi::name2addr($name) $addrs
     } elseif {$addrs == 11001} {
         # For compatibility with the sync version and address resolution,
         # We return an success if empty list if in fact the failure was
