@@ -175,7 +175,7 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
     TwapiInterpContextUnref(theP->ticP, 1);
     if (theP->hostname)
         TwapiFree(theP->hostname);
-
+    
     return 1;                   /* So Tcl removes from queue */
 }
 
