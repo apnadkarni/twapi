@@ -1102,7 +1102,7 @@ proc twapi::_address_resolve_handler {id status hostname} {
 }
 
 # Callback for hostname resolution
-proc twapi::_hostname_resolve_handler {id status addrs} {
+proc twapi::_hostname_resolve_handler {id status addrandports} {
     variable _hostname_handler_scripts
 
     if {![info exists _hostname_handler_scripts($id)]} {
@@ -1115,6 +1115,10 @@ proc twapi::_hostname_resolve_handler {id status addrs} {
 
     # Before invoking the callback, store result if available
     if {$status eq "success"} {
+        set addrs {}
+        foreach addr $addrandports {
+            lappend addrs [lindex $addr 0]
+        }
         set ::twapi::name2addr($name) $addrs
     } elseif {$addrs == 11001} {
         # For compatibility with the sync version and address resolution,
