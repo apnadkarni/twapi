@@ -8,6 +8,7 @@
 
 [para]
 This module provides procedures to retrieve network information
+for IPv4 and IPv6.
 
 [section Overview]
 
@@ -31,7 +32,8 @@ This is noted where applicable.
 [call [cmd address_to_hostname] [arg IPADDRESS] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
 
 This command is deprecated in favor of
-[uri network.html#resolve_address [cmd resolve_addresss]].
+[uri network.html#resolve_address [cmd resolve_address]]. It only returns
+IPv4 addresses.
 
 [call [cmd flush_arp_tables] [opt "[arg INTERFACEINDEX]..."]]
 [emph "Note: This command only affects IPv4 tables"]
@@ -76,6 +78,11 @@ following: [const all], [const unicast], [const multicast] or [const anycast].
 In that case, only addresses matching one of those types 
 (or all types in the case of [const all]) are returne.
 
+[call [cmd get_ipaddr_version] [arg IPADDR]]
+Returns the IP version ([const 4] or [const 6]) of the IP address specified
+as [arg IPADDR]. Returns [const 0] if [arg IPADDR] is not a valid IPv4 or
+IPv6 address.
+
 [call [cmd get_netif_count]]
 Returns the number of network interfaces in the system that support IPv4.
 
@@ -118,42 +125,30 @@ specified:
 [list_begin opt]
 [opt_def [cmd -adapterdescription]]Returns a description of the adapter
 associated with the interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -adapterindex]]Returns the index of the adapter
 associated with the interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -adaptername]]Returns the name of the adapter
 associated with the interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -adminstatus]]Returns 1 or 0 depending on whether the interface
 has been administratively enabled or not.
 [opt_def [cmd -all]] Returns all option values.
 [opt_def [cmd -autoconfigactive]]Returns 1 if the interface has been
 autoconfigured with an address, and 0 otherwise.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -autoconfigenabled]]Returns 1 if autoconfiguration is
 enabled on the interface if a DHCP server cannot be found, and 0 otherwise.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -defaultgateway]]Returns the address of the default
 gateway on the interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -description]]Returns a description of the interface.
 [opt_def [cmd -dhcpenabled]]Returns 1 if DHCP is enabled on the
 interface, else 0.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -dhcpleaseend]]Returns the time, in seconds since Jan 1, 1970,
 that the DHCP lease will expire.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -dhcpleasestart]]Returns the time, in seconds since Jan 1, 1970,
 that the DHCP lease was obtained.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -dhcpserver]]Returns the address of the DHCP server
 on the network interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -havewins]]Returns 1 if the interface uses WINS, else 0.
-This option is supported on Windows 2000 and higher.
 [opt_def [cmd -ifindex]]Returns the interface index. This is the same
 as [arg INTERFACEINDEX] unless the latter is specified as a name.
 [opt_def [cmd -ifname]]Returns the name of the network interface.
@@ -278,6 +273,8 @@ the dictionary should be ignored.
 [list_end]
 
 [call [cmd get_network_info] [opt [arg options]]]
+[emph "Note: This command only returns information related to IPv4 configuration."]
+[nl]
 
 Returns various information about network configuration.
 The information returned
@@ -300,11 +297,16 @@ and 0 otherwise.
 [list_end]
 
 [call [cmd get_outgoing_interface] [arg DESTADDR]]
+[emph "Note: This command is only supported for IPv4."]
+[nl]
+
 Returns the index of the network interface that will be used to send
 a packet to the IP address specified by [arg DESTADDR]
 
 
 [call [cmd get_route] [opt [arg options]]]
+[emph "Note: This command is only supported for IPv4."]
+[nl]
 Returns the best route to a specified destination. The following options
 may be specified:
 [list_begin opt]
@@ -355,6 +357,8 @@ The type of the route. This is one of [const local], [const remote],
 [list_end]
 
 [call [cmd get_routing_table] [opt [cmd -sort]]]
+[emph "Note: This command is only returns routing information for IPv4."]
+[nl]
 Returns the network routing table as a list of routes. Each element
 of the route is in the format described in the
 [uri \#get_route [cmd get_route]] command description.
@@ -409,6 +413,11 @@ In addition, the connections for which information is returned may
 be filtered through the following options. Only those connections that
 match the specified criteria are returned.
 [list_begin opt]
+[opt_def [cmd -ipversion] [arg IPVERSION]]
+If [arg IPVERSION] is [const 0] (default), [const any] or [const all], both
+IPv4 and IPv6 connections are returned. If [arg IPVERSION] is [const 4] or
+[const inet], only IPv4 connections are returned and if it is [const 6] or
+[const inet6], only IPv6 connections are returned.
 [opt_def [cmd -matchlocaladdr] [arg HOSTLIST]]
 Only returns those connections whose local address is one of those
 specified in [arg HOSTLIST].
@@ -470,6 +479,11 @@ In addition, the connections for which information is returned may
 be filtered through the following options. Only those connections that
 match the specified criteria are returned.
 [list_begin opt]
+[opt_def [cmd -ipversion] [arg IPVERSION]]
+If [arg IPVERSION] is [const 0] (default), [const any] or [const all], both
+IPv4 and IPv6 connections are returned. If [arg IPVERSION] is [const 4] or
+[const inet], only IPv4 connections are returned and if it is [const 6] or
+[const inet6], only IPv6 connections are returned.
 [opt_def [cmd -matchlocaladdr] [arg HOSTLIST]]
 Only returns those connections whose local address is one of those
 specified in [arg HOSTLIST].
@@ -482,40 +496,16 @@ PID. On platforms where the PID is not available, specifying this option
 will generate an error.
 [list_end]
 
+
 [call [cmd hostname_to_address] [arg HOSTNAME] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
 
-Attempts to map the specified host name to its IP addresses. Note there may
-be more than one address associated with a host name.
-[nl]
-If the [cmd -async] option is not specified, the command returns the
-list of IP addresses corresponding to the host if
-available and an empty list otherwise. Note that this is a blocking call
-and the Tcl event loop will not be run until the command returns.
-[nl]
-If the [cmd -async] option is specified, the command returns right away.
-The name resolution is done in the background and when completed,
-[arg SCRIPT] is called at the global scope. Three additional arguments
-are appended to the script before it is executed - [arg HOSTNAME],
-status [const success] or [const fail] and either the list of IP addresses
-(when the status is [const success]) or the Winsock error code
-(when the status is [const fail]). The Winsock error code
-may be translated to an error string using the
-[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
-Note that on some platforms, if no addresses are found, 
-callback may be invoked with a status of [const success] and an empty list
-for the third argument, or it may be invoked with a status of fail
-and an appropriate error code.
-[nl]
-Note the [cmd -async] option requires a threaded build of Tcl and will 
-raise an exception on non-threaded builds.
-
-[nl]
-Internally, the command maintains a cache of address to hostname mappings
-so as to avoid unnecessary lookups. The result is normally returned from here
-if available. However, if the [cmd -flushcache] option is specified, the
-cache entry is deleted and an explicit lookup up is done.
+This command is deprecated in favor of
+[uri network.html#resolve_hostname [cmd resolve_hostname]]. It only returns
+IPv4 addresses.
 
 [call [cmd hwaddr_to_ipaddr] [arg HWADDR] [opt [arg VARNAME]]]
+[emph "Note: This command is only supported for IPv4."]
+[nl]
 Returns the IP address corresponding to the given hardware address.
 
 If [arg VARNAME] is specified, the command stores the result in
@@ -527,6 +517,8 @@ If [arg VARNAME] is not specified, the command returns the IP
 address if a mapping is found and generates a Tcl exception otherwise.
 
 [call [cmd ipaddr_to_hwaddr] [arg IPADDR] [opt [arg VARNAME]]]
+[emph "Note: This command is only supported for IPv4."]
+[nl]
 Returns the hardware address corresponding to the given IP address.
 
 If [arg VARNAME] is specified, the command stores the result in
@@ -572,15 +564,45 @@ Note the address to hostname mapping is no longer cached internally by
 TWAPI as in older releases. Applications can do the caching themselves
 if desired.
 
+[call [cmd resolve_hostname] [arg HOSTNAME] [opt "[cmd -async] [arg SCRIPT]"] [opt "[cmd -ipversion] [arg IPVERSION]"]]
+
+Attempts to map the specified host name to its IP addresses. Note there may
+be more than one address associated with a host name.
+[nl]
+If [cmd -ipversion] is
+not specified, or [arg IPVERSION] is [const 0], [const any] or [const all], both
+IPv4 and IPv6 addresses are returned. If [arg IPVERSION] is [const 4] or
+[const inet], only IPv4 addresses are returned and if it is [const 6] or
+[const inet6], only IPv6 addresses are returned.
+
+[nl]
+If the [cmd -async] option is not specified, the command returns the
+list of IP addresses corresponding to the host if
+available and an empty list otherwise. Note that this is a blocking call
+and the Tcl event loop will not be run until the command returns.
+[nl]
+If the [cmd -async] option is specified, the command returns right away.
+The name resolution is done in the background and when completed,
+[arg SCRIPT] is called at the global scope. Three additional arguments
+are appended to the script before it is executed - [arg HOSTNAME],
+status [const success] or [const fail] and either the list of IP addresses
+(when the status is [const success]) or the Winsock error code
+(when the status is [const fail]). The Winsock error code
+may be translated to an error string using the
+[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
+Note that on some platforms, if no addresses are found, 
+callback may be invoked with a status of [const success] and an empty list
+for the third argument, or it may be invoked with a status of fail
+and an appropriate error code.
+[nl]
+Note the [cmd -async] option requires a threaded build of Tcl and will 
+raise an exception on non-threaded builds.
 
 [call [cmd service_to_port] [arg SERVICENAME]]
 Returns the port number corresponding to the specified
 service name (e.g. [const http]).
 If the service name is not defined, an empty
 string is returned. If [arg SERVICENAME] is a port number, it is returned.
-
-
-
 
 
 [call [cmd terminate_tcp_connections] [opt [arg options]]]
