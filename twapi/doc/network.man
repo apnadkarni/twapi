@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Network configuration" n ""]
-[copyright "2004-2009, Ashok P. Nadkarni"]
+[copyright "2004-2011, Ashok P. Nadkarni"]
 [moddesc "Network related commands"]
 [titledesc "Commands related to network configuration"]
 [require twapi]
@@ -21,47 +21,28 @@ The module also provides some client side name resolution
 lookup functions including nonblocking name and address lookups.
 
 [para]
-Not all commands support IPv6. This is noted where applicable.
+Some commands only support IPv4 due to lack of underlying Windows support
+for the underlying Windows API on Windows XP and Windows 2003.
+This is noted where applicable.
 
 [section Commands]
 [list_begin definitions]
 
 [call [cmd address_to_hostname] [arg IPADDRESS] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
 
-Attempts to map the specified Internet address [arg IPADDRESS] to its
-fully qualified DNS name (FQDN).
-[nl]
-If the [cmd -async] option is not specified, the command returns the FQDN if
-available and the empty string otherwise. Note that this is a blocking call
-and the Tcl event loop will not be run until the command returns.
-[nl]
-If the [cmd -async] option is specified, the command returns right away.
-The address resolution is done in the background and when completed,
-[arg SCRIPT] is called at the global scope. Three additional arguments
-are appended to the script before it is executed - [arg IPADDRESS],
-status [const success] or [const fail] and either the FQDN
-(when the status is [const success]) or the Winsock error code
-(when the status is [const fail]). The Winsock error code
-may be translated to an error string using the
-[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
-If no names are found, the status is [const success] but the
-third argument will be an empty string.
-[nl]
-Note the [cmd -async] option requires a threaded build of Tcl and will 
-raise an exception on non-threaded builds.
-
-[nl]
-Internally, the command maintains a cache of address to hostname mappings
-so as to avoid unnecessary lookups. The result is normally returned from here
-if available. However, if the [cmd -flushcache] option is specified, the
-cache entry is deleted and an explicit lookup up is done.
+This command is deprecated in favor of
+[uri network.html#resolve_address [cmd resolve_addresss]].
 
 [call [cmd flush_arp_tables] [opt "[arg INTERFACEINDEX]..."]]
+[emph "Note: This command only affects IPv4 tables"]
+[nl]
 Flushes the ARP tables associated with the specified network interfaces.
 If no arguments are specified, all interfaces are flushed.
 
-[call [cmd get_arp_table] [opt [arg options]]]
 
+[call [cmd get_arp_table] [opt [arg options]]]
+[emph "Note: This command only retrieves IPv4 tables"]
+[nl]
 Returns the entries in the system's ARP table. Each entry is a sublist
 consisting of four elements - the interface index, the hardware address,
 the IP address and the type. The type is one of [const dynamic],
@@ -79,23 +60,51 @@ IP address.
 [opt_def [cmd -validonly]]Skips entries that are marked invalid.
 [list_end]
 
-[call [cmd get_ip_addresses]]
+[call [cmd get_ip_addresses] [opt "[cmd -ipversion] [arg IPVERSION]"] [opt "[cmd -types] [arg ADDRTYPELIST]"]]
 
-Returns a list of IP addresses for the system.
+Returns a list of IP addresses for the system. 
+[nl]
+If [cmd -ipversion] is
+not specified, or [arg IPVERSION] is [const 0], [const any] or [const all], both
+IPv4 and IPv6 addresses are returned. If [arg IPVERSION] is [const 4] or
+[const inet], only IPv4 addresses are returned and if it is [const 6] or
+[const inet6], only IPv6 addresses are returned.
+[nl]
+By default, only unicast addresses are returned. If the [cmd -types] option
+is specified, [arg ADDRTYPELIST] should be a list of one or more of the 
+following: [const all], [const unicast], [const multicast] or [const anycast].
+In that case, only addresses matching one of those types 
+(or all types in the case of [const all]) are returne.
 
 [call [cmd get_netif_count]]
-Returns the number of network interfaces in the system.
+Returns the number of network interfaces in the system that support IPv4.
+
+[call [cmd get_netif6_count]]
+Returns the number of network interfaces in the system that support IPv6.
 
 [call [cmd get_netif_indices]]
 
 Network interfaces in the system are identified by integer indices. This
-command retrieves the list of network interfaces in the system.
+command retrieves the list of indices for the IPv4 network interfaces
+in the system. Use [uri #get_netif6_indices [cmd get_netif6_indices]] to
+retrieve the list of IPv6 indices.
+
+[call [cmd get_netif6_indices]]
+
+Network interfaces in the system are identified by integer indices. This
+command retrieves the list of indices for the IPv6 network interfaces
+in the system. Use [uri #get_netif_indices [cmd get_netif_indices]] to
+retrieve the list of IPv4 indices.
 
 [call [cmd get_netif_info] [arg NETWORKINTERFACE] [opt [arg options]]]
 
 Returns various information about the configuration of a network interface.
 [arg NETWORKINTERFACE] must be the index of a
 network interface or a name identifying the interface.
+[nl]
+[emph "Note: This command only returns information for IPv4 interfaces."]
+Use [uri #get_netif6_info [cmd get_netif6_info]] to retrieve information
+for IPv6 interfaces.
 
 [nl]
 The information returned
@@ -196,6 +205,76 @@ ring), [const 23] (PPP), [const 24] (loopback), [const 71] (802.11
 wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
 of [const ethernet], [const tokenring], [const fddi],
 [const ppp], [const loopback], [const slip] or [const other].
+[list_end]
+
+
+[call [cmd get_netif6_info] [arg NETWORKINTERFACE] [opt [arg options]]]
+
+Returns various information about the configuration of a network interface.
+[arg NETWORKINTERFACE] must be the index of a IPv6
+network interface, the name identifying the interface 
+(see the [cmd -adaptername] option), or the friendly name 
+(as returned by the [cmd -friendlyname] option). If the friendly name
+is ambiguous, an exception is generated.
+[nl]
+[emph "Note: This command only returns information for IPv6 interfaces."]
+Use [uri #get_netif_info [cmd get_netif_info]] to retrieve information
+for IPv4 interfaces.
+
+[nl]
+The information returned
+depends on the options specified and is in the form of a flat list of
+the form "[arg option1] [arg value1] ...". If a specific option is not
+valid or relevant for the interface, it is omitted from the returned fields.
+
+[nl]
+The following options may be
+specified:
+[list_begin opt]
+[opt_def [cmd -adaptername]]Returns the name of the adapter
+associated with the interface.
+[opt_def [cmd -all]] Returns all option values.
+[opt_def [cmd -anycastaddresses]]Returns list of anycast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in the
+dictionary should be ignored.
+[opt_def [cmd -description]]Returns a description of the interface.
+[opt_def [cmd -dhcpenabled]]Returns 1 if DHCP is enabled on the
+interface, else 0.
+[opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
+[opt_def [cmd -ipv6ifindex]]Returns the interface index. This is the same
+as [arg INTERFACEINDEX] unless the latter is specified as a name or
+friendly name.
+[opt_def [cmd -multicastaddresses]]Returns list of multicast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in
+the dictionary should be ignored.
+[opt_def [cmd -operstatus]]Returns the operational status of the interface
+as defined in [uri http://www.ietf.org/rfc/rfc2863.txt RFC2863]. Some
+common values are [const 1] (up),
+[const 2] (down),
+[const 3] (testing mode),
+[const 4] (unknown state),
+[const 5] (dormant),
+[const 6] (not present),
+[const 7] (lower layer is down).
+[opt_def [cmd -physicaladdress]]Returns the physical address of the
+network interface.
+[opt_def [cmd -prefixes]]Returns list of address prefixes
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address and the key
+[cmd -prefixlength] containing the number of bits in the prefix.
+Other keys in the dictionary should be ignored.
+[opt_def [cmd -type]] Returns the network interface type. This is an
+integer value as defined by [uri http://www.iana.org/assignments/ianaiftype-mib.  IANA]. Some common values are [const 6] (Ethernet), [const 9] (token
+ring), [const 23] (PPP), [const 24] (loopback), [const 71] (802.11 
+wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
+of [const ethernet], [const tokenring], [const fddi],
+[const ppp], [const loopback], [const slip] or [const other].
+[opt_def [cmd -unicastaddresses]]Returns list of unicast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in
+the dictionary should be ignored.
 [list_end]
 
 [call [cmd get_network_info] [opt [arg options]]]
@@ -463,13 +542,50 @@ Returns the service name (e.g. [const http]) corresponding to the
 specified port number. If no corresponding service name exists, an empty
 string is returned.
 
+[call [cmd resolve_address] [arg IPADDRESS] [opt "[cmd -async] [arg SCRIPT]"]]
+
+Attempts to map the specified Internet address [arg IPADDRESS] to its
+fully qualified DNS name (FQDN). [arg IPADDRESS] may be an IPv4 or IPv6
+address.
+[nl]
+If the [cmd -async] option is not specified, the command returns the FQDN if
+available and the empty string otherwise. Note that this is a blocking call
+and the Tcl event loop will not be run until the command returns.
+[nl]
+If the [cmd -async] option is specified, the command returns right away.
+The address resolution is done in the background and when completed,
+[arg SCRIPT] is called at the global scope. Three additional arguments
+are appended to the script before it is executed - [arg IPADDRESS],
+status [const success] or [const fail] and either the FQDN
+(when the status is [const success]) or the Winsock error code
+(when the status is [const fail]). The Winsock error code
+may be translated to an error string using the
+[uri errors.html\#map_windows_error [cmd map_windows_error]] command.
+If no names are found, the status is [const success] but the
+third argument will be an empty string.
+[nl]
+Note the [cmd -async] option requires a threaded build of Tcl and will 
+raise an exception on non-threaded builds.
+
+[nl]
+Note the address to hostname mapping is no longer cached internally by
+TWAPI as in older releases. Applications can do the caching themselves
+if desired.
+
+
 [call [cmd service_to_port] [arg SERVICENAME]]
 Returns the port number corresponding to the specified
 service name (e.g. [const http]).
 If the service name is not defined, an empty
 string is returned. If [arg SERVICENAME] is a port number, it is returned.
 
+
+
+
+
 [call [cmd terminate_tcp_connections] [opt [arg options]]]
+[emph "Note: This command is only supported for IPv4 connections"]
+[nl]
 Terminates all connections that match all the options specified.
 Any options that are not specified are assumed to match. The valid
 matching options are:

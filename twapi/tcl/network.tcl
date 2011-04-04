@@ -97,17 +97,17 @@ namespace eval twapi {
 proc twapi::get_ip_addresses {args} {
     array set opts [parseargs args {
         {ipversion.arg 0}
-        {type.arg unicast}
+        {types.arg unicast}
     } -maxleftover 0]
 
     # 0x20 -> SKIP_FRIENDLYNAME
     set flags 0x27
-    if {"all" in $opts(type)} {
+    if {"all" in $opts(types)} {
         set flags 0x20
     } else {
-        if {"unicast" in $opts(type)} {incr flags -1}
-        if {"anycast" in $opts(type)} {incr flags -2}
-        if {"multicast" in $opts(type)} {incr flags -4}
+        if {"unicast" in $opts(types)} {incr flags -1}
+        if {"anycast" in $opts(types)} {incr flags -2}
+        if {"multicast" in $opts(types)} {incr flags -4}
     }
 
     set addrs {}
@@ -303,21 +303,21 @@ proc twapi::get_netif_info {interface args} {
 proc twapi::get_netif6_info {interface args} {
     array set opts [parseargs args {
         all
-        ipv6ifindex
         adaptername
-        unicastaddresses
         anycastaddresses
-        multicastaddresses
+        description
+        dhcpenabled
         dnsservers
         dnssuffix
-        description
         friendlyname
-        physicaladdress
-        type
+        ipv6ifindex
+        multicastaddresses
         operstatus
-        zoneindices
+        physicaladdress
         prefixes
-        dhcpenabled
+        type
+        unicastaddresses
+        zoneindices
     } -maxleftover 0]
     
     set haveindex [string is integer -strict $interface]
@@ -1229,6 +1229,7 @@ proc twapi::_ipversion_to_af {opt} {
         6 -
         inet6 { return 23 }
         0 -
+        any -
         all   { return 0 }
     }
     error "Invalid IP version '$opt'"
