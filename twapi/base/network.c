@@ -1568,7 +1568,7 @@ Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
 
     resultObj = Tcl_NewListObj(0, NULL);
     while (addrP) {
-        Tcl_Obj *objP;
+        Tcl_Obj *objv[2];
         SOCKADDR *saddrP = addrP->ai_addr;
 
         if (family == AF_UNSPEC || family == addrP->ai_family) {
@@ -1579,9 +1579,15 @@ Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
                 (addrP->ai_family == PF_INET6 &&
                  addrP->ai_addrlen == sizeof(SOCKADDR_IN6) &&
                  saddrP && saddrP->sa_family == AF_INET6)) {
-                objP = ObjFromSOCKADDR(saddrP);
-                if (objP)
-                    Tcl_ListObjAppendElement(NULL, resultObj, objP);
+                objv[1] = ObjFromSOCKADDR(saddrP);
+                if (objv[1]) {
+                    if (saddrP->sa_family == AF_INET)
+                        objv[0] = STRING_LITERAL_OBJ("inet");
+                    else
+                        objv[0] = STRING_LITERAL_OBJ("inet6");
+                    Tcl_ListObjAppendElement(NULL, resultObj,
+                                             Tcl_NewListObj(2, objv));
+                }
             }
         }
         addrP = addrP->ai_next;
