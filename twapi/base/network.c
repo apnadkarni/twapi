@@ -222,7 +222,8 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
     if (family == AF_UNSPEC) {
         /* Family not explicitly specified. */
         /* Treat as a single string. Try converting as IPv4 first, then IPv6 */
-        if (TwapiStringToSOCKADDR_STORAGE(Tcl_GetString(objv[0]), ssP, AF_INET) == AF_UNSPEC) {
+        if (TwapiStringToSOCKADDR_STORAGE(Tcl_GetString(objv[0]), ssP, AF_INET) == AF_UNSPEC &&
+            TwapiStringToSOCKADDR_STORAGE(Tcl_GetString(objv[0]), ssP, AF_INET6) == AF_UNSPEC) {
             goto error_return;
         }
     }
