@@ -7,9 +7,12 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 3.1"]
-Note: See list of incompatible changes at the end of this section.
+[section "Version 3.1 Alpha"]
+Note: Make sure you read list of incompatible changes at the end of this section.
 [list_begin bullet]
+
+[bullet]
+Added support for IPv6 [uri network.html network] commands.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Windows 2000 is no longer supported.

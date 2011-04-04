@@ -975,6 +975,17 @@ proc twapi::get_outgoing_interface {{dest 0.0.0.0}} {
     return [GetBestInterface $dest]
 }
 
+proc twapi::get_ipaddr_version {addr} {
+    set af [Twapi_IPAddressFamily $addr]
+    if {$af == 2} {
+        return 4
+    } elseif {$af == 23} {
+        return 6
+    } else {
+        return 0
+    }
+}
+
 ################################################################
 # Utility procs
 
