@@ -256,18 +256,17 @@ proc xsplit [list str [list regexp "\[\t \r\n\]+"]] {
 }
 
 # Validate IP address
-proc valid_ip_address {ipaddr} {
-    # (Copied from Mastering Regular Expression)
-    # Expression to match 0-255
-    set sub {([01]?\d\d?|2[0-4]\d|25[0-5])}
-
-    return [regexp "^$sub\.$sub\.$sub\.$sub\$" $ipaddr]
+proc valid_ip_address {ipaddr {ipver 0}} {
+    set addrver [twapi::get_ipaddr_version $ipaddr]
+    if {$addrver == 0} { return 0 }
+    if {$ipver && $addrver != $ipver} { return 0 }
+    return 1
 }
 
 # Validate list of ip addresses
-proc validate_ip_addresses {addrlist} {
+proc validate_ip_addresses {addrlist {ipver 0}} {
     foreach addr $addrlist {
-        if {![valid_ip_address $addr]} {return 0}
+        if {![valid_ip_address $addr $ipver]} {return 0}
     }
     return 1
 }

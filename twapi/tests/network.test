@@ -16,6 +16,8 @@ namespace eval twapi::network::test {
     namespace import ::tcltest::test
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint ipv6  [expr {! [catch {exec netsh interface ipv6 show address}]}]
+
     variable get_tcp_connections_fields {
         -state
         -localaddr
@@ -51,7 +53,7 @@ namespace eval twapi::network::test {
         return yahoo.com
     }
     proc our_ipaddr {} {
-        foreach ipaddr [twapi::get_ip_addresses] {
+        foreach ipaddr [twapi::get_ip_addresses -ipversion 4] {
             if {$ipaddr ne "127.0.0.1"} {
                 return $ipaddr
             }
@@ -256,12 +258,69 @@ namespace eval twapi::network::test {
     ################################################################
 
     test get_ip_addresses-1.0 {
-        Get IP addresses
-    } -constraints {
-        nt
+        Verify IP addresses are retrieved
     } -body {
         expr {[lsearch [twapi::get_ip_addresses] 127.0.0.1] >= 0}
     } -result 1
+
+    test get_ip_addresses-1.1 {
+        Verify IP V6 addresses are not retrieved
+    } -body {
+        lsearch [twapi::get_ip_addresses] ::1
+    } -result -1
+
+    ################################################################
+
+    test get_system_ipaddrs-1.0 {
+        Verify IP V4 unicast addresses are retrieved by default
+    } -body {
+        set addrs [twapi::get_system_ipaddrs]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs 127.0.0.1] >= 0}] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 -1 -1}
+
+    test get_system_ipaddrs-1.1 {
+        Verify IP V6 unicast addresses are retrieved by default
+    } -constraints {
+        ipv6
+    } -body {
+        set addrs [twapi::get_system_ipaddrs]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs 127.0.0.1] >= 0}] [expr {[lsearch $addrs ::1] >= 0}] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 1 -1 -1}
+
+    test get_system_ipaddrs-2.0 {
+        Get IP addresses for IP V4 only
+    } -body {
+        set addrs [twapi::get_system_ipaddrs -ipversion 4]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs 127.0.0.1] >= 0}] [lsearch $addrs ::1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 -1 -1 -1}
+
+    test get_system_ipaddrs-2.1 {
+        Get IP addresses for IP V4 only (inet)
+    } -body {
+        set addrs [twapi::get_system_ipaddrs -ipversion inet]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs 127.0.0.1] >= 0}] [lsearch $addrs ::1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 -1 -1 -1}
+
+    test get_system_ipaddrs-3.0 {
+        Get IP addresses for IP V6 only
+    } -body {
+        set addrs [twapi::get_system_ipaddrs -ipversion 6]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs ::1] >= 0}] [lsearch $addrs 127.0.0.1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 -1 -1 -1}
+
+    test get_system_ipaddrs-3.1 {
+        Get IP addresses for IP V6 only (inet6)
+    } -body {
+        set addrs [twapi::get_system_ipaddrs -ipversion inet6]
+        list [valid_ip_addresses $addrs] [expr {[lsearch $addrs ::1] >= 0}] [lsearch $addrs 127.0.0.1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
+    } -result {1 1 -1 -1 -1}
+
+    test get_system_ipaddrs-4.0 {
+        Get IP addresses of a specific type (unicast, multicast, anycast)
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
 
     ################################################################
 
@@ -543,7 +602,7 @@ namespace eval twapi::network::test {
     test hostname_to_address-3.0 {
         Map host name to address -flushcache
     } -constraints {
-        nt
+        nt OBSOLETE
     } -setup {
 	patience hostname_to_address-3.0
         # Prepopulate cache
@@ -627,7 +686,7 @@ namespace eval twapi::network::test {
     test address_to_hostname-3.0 {
         Map address to host name -flushcache
     } -constraints {
-        nt
+        nt OBSOLETE
     } -setup {
         # Prepopulate cache
         twapi::address_to_hostname [resolvable_address]
