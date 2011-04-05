@@ -94,7 +94,7 @@ namespace eval twapi {
 # TBD - Tcl interface to GetIfTable ?
 
 # Get the list of local IP addresses
-proc twapi::get_ip_addresses {args} {
+proc twapi::get_system_ipaddrs {args} {
     array set opts [parseargs args {
         {ipversion.arg 0}
         {types.arg unicast}
@@ -121,6 +121,9 @@ proc twapi::get_ip_addresses {args} {
 
     return [lsort -unique $addrs]
 }
+
+interp alias {} twapi::get_ip_addresses {} twapi::get_system_ipaddrs -ipversion 4 -types unicast
+
 
 # Get the list of interfaces
 proc twapi::get_netif_indices {} {

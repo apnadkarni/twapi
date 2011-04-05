@@ -62,21 +62,9 @@ IP address.
 [opt_def [cmd -validonly]]Skips entries that are marked invalid.
 [list_end]
 
-[call [cmd get_ip_addresses] [opt "[cmd -ipversion] [arg IPVERSION]"] [opt "[cmd -types] [arg ADDRTYPELIST]"]]
-
-Returns a list of IP addresses for the system. 
-[nl]
-If [cmd -ipversion] is
-not specified, or [arg IPVERSION] is [const 0], [const any] or [const all], both
-IPv4 and IPv6 addresses are returned. If [arg IPVERSION] is [const 4] or
-[const inet], only IPv4 addresses are returned and if it is [const 6] or
-[const inet6], only IPv6 addresses are returned.
-[nl]
-By default, only unicast addresses are returned. If the [cmd -types] option
-is specified, [arg ADDRTYPELIST] should be a list of one or more of the 
-following: [const all], [const unicast], [const multicast] or [const anycast].
-In that case, only addresses matching one of those types 
-(or all types in the case of [const all]) are returne.
+[call [cmd get_ip_addresses]]
+[emph "Deprecated."] Returns list of IPv4 addresses for the system.
+Use [uri #get_system_ipaddrs [cmd get_system_ipaddrs]] instead.
 
 [call [cmd get_ipaddr_version] [arg IPADDR]]
 Returns the IP version ([const 4] or [const 6]) of the IP address specified
@@ -362,6 +350,23 @@ The type of the route. This is one of [const local], [const remote],
 Returns the network routing table as a list of routes. Each element
 of the route is in the format described in the
 [uri \#get_route [cmd get_route]] command description.
+
+[call [cmd get_system_ipaddrs] [opt "[cmd -ipversion] [arg IPVERSION]"] [opt "[cmd -types] [arg ADDRTYPELIST]"]]
+
+Returns a list of IP addresses for the system. 
+[nl]
+If [cmd -ipversion] is
+not specified, or [arg IPVERSION] is [const 0], [const any] or [const all], both
+IPv4 and IPv6 addresses are returned. If [arg IPVERSION] is [const 4] or
+[const inet], only IPv4 addresses are returned and if it is [const 6] or
+[const inet6], only IPv6 addresses are returned.
+[nl]
+By default, only unicast addresses are returned. If the [cmd -types] option
+is specified, [arg ADDRTYPELIST] should be a list of one or more of the 
+following: [const all], [const unicast], [const multicast] or [const anycast].
+In that case, only addresses matching one of those types 
+(or all types in the case of [const all]) are returne.
+
 
 [call [cmd get_tcp_connections] [opt [arg options]]]
 Retrieves information about currently active TCP connections similar to
