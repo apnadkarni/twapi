@@ -343,22 +343,26 @@ proc twapi::get_netif6_info {interface args} {
         error "No interface matching '$interface'."
     }
 
-    set result {}
+    array set result {}
     foreach opt {
         ipv6ifindex adaptername unicastaddresses anycastaddresses
         multicastaddresses dnsservers dnssuffix description
         friendlyname physicaladdress type operstatus zoneindices prefixes
     } {
         if {$opts(all) || $opts($opt)} {
-            lappend result -$opt [kl_get $found -$opt]
+            set result(-$opt) [kl_get $found -$opt]
         }
     }
 
     if {$opts(all) || $opts(dhcpenabled)} {
-        lappend result -dhcpenabled [expr {([kl_get $found -flags] & 0x4) != 0}]
+        set result(-dhcpenabled) [expr {([kl_get $found -flags] & 0x4) != 0}]
     }
 
-    return $result
+    if {[info exists result(-physicaladdress)]} {
+        set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
+    }
+
+    return [array get result]
 }
 
 

@@ -225,6 +225,9 @@ dictionary should be ignored.
 [opt_def [cmd -dhcpenabled]]Returns 1 if DHCP is enabled on the
 interface, else 0.
 [opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
+Each element in the list is a dictionary, with the key [cmd -address]
+containing the address of the server. Other keys in the
+dictionary should be ignored.
 [opt_def [cmd -ipv6ifindex]]Returns the interface index. This is the same
 as [arg INTERFACEINDEX] unless the latter is specified as a name or
 friendly name.

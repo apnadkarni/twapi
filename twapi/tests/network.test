@@ -255,6 +255,56 @@ namespace eval twapi::network::test {
 
     }
 
+    proc validate_netif6 {netifdata msgs} {
+        array set netif $netifdata
+
+        if {[info exists netif(-physicaladdress)] &&
+            $netif(-physicaladdress) ne ""} {
+            if {![regexp {^[[:xdigit:]]{2}(-[[:xdigit:]]{2})*$} $netif(-physicaladdress)]} {
+                lappend msgs "Invalid h/w address $netif(-physicaladdress)."
+            }
+        }
+
+        foreach opt {
+            -prefixes -dnsservers -anycastaddresses -unicastaddresses -multicastaddresses
+        } {
+            if {[info exists netif($opt)]} {
+                set addrs {}
+                foreach elem $netif($opt) {
+                    lappend addrs [twapi::kl_get $elem -address]
+                    if {$opt eq "-prefixes"} {
+                        if {![string is integer -strict [twapi::kl_get $elem -prefixlength]]} {
+                            lappend msgs "Invalid -prefixlength field."
+                        }
+                    }
+                }
+                if {! [validate_ip_addresses $addrs 6]} {
+                    lappend msgs "Invalid IP addresses '$netif($opt)' for $opt."
+                }
+            }
+        }
+
+        foreach opt {
+            -dhcpenabled
+        } {
+            if {[info exists netif($opt)] &&
+                ! [string is boolean -strict $netif($opt)]} {
+                lappend msgs "Invalid non-boolean value '$netif($opt)' for $opt."
+            }
+        }
+
+        foreach opt {
+            -type -operstatus -ipv6ifindex 
+        } {
+            if {[info exists netif($opt)] &&
+                ! [string is integer -strict $netif($opt)]} {
+                lappend msgs "Invalid non-integer value '$netif($opt)' for $opt."
+            }
+        }
+
+    }
+
+
     ################################################################
 
     test get_ip_addresses-1.0 {
@@ -613,6 +663,7 @@ namespace eval twapi::network::test {
         set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -friendlyname] -friendlyname]
         string equal [twapi::get_netif6_info $ind -adaptername -type] [twapi::get_netif6_info $netif_name -adaptername -type]
     } -result 1
+
 
 
     ################################################################
