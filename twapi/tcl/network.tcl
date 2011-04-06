@@ -5,16 +5,6 @@
 # See the file LICENSE for license
 
 namespace eval twapi {
-    array set IfTypeTokens {
-        1  other
-        6  ethernet
-        9  tokenring
-        15 fddi
-        23 ppp
-        24 loopback
-        28 slip
-    }
-
     array set IfOperStatusTokens {
         0 nonoperational
         1 wanunreachable
@@ -182,7 +172,6 @@ proc twapi::get_network_info {args} {
 
 
 proc twapi::get_netif_info {interface args} {
-    variable IfTypeTokens
     variable GetIfEntry_opts
     variable GetIpAddrTable_opts
     variable GetAdaptersInfo_opts
@@ -277,14 +266,6 @@ proc twapi::get_netif_info {interface args} {
         }
     }
 
-    # Some fields need to be translated to more mnemonic names
-    if {[info exists result(-type)]} {
-        if {[info exists IfTypeTokens($result(-type))]} {
-            set result(-type) $IfTypeTokens($result(-type))
-        } else {
-            set result(-type) "other"
-        }
-    }
     if {[info exists result(-physicaladdress)]} {
         set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
     }

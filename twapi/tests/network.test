@@ -326,10 +326,25 @@ namespace eval twapi::network::test {
 
     test get_netif_indices-1.0 {
         Get network interface indices
-    } -constraints {
-        nt
     } -body {
         set indices [twapi::get_netif_indices]
+        set bad_indices [list ]
+        foreach i $indices {
+            if {! [string is integer $i]} {
+                lappend bad_indices $i
+            }
+        }
+        set bad_indices
+    } -result ""
+
+    ################################################################
+
+    test get_netif6_indices-1.0 {
+        Get network interface indices
+    } -constraints {
+        ipv6
+    } -body {
+        set indices [twapi::get_netif6_indices]
         set bad_indices [list ]
         foreach i $indices {
             if {! [string is integer $i]} {
@@ -489,6 +504,16 @@ namespace eval twapi::network::test {
         expr {[twapi::get_netif_count] == [llength [twapi::get_netif_indices]]}
     } -result 1
 
+    ################################################################
+
+    test get_netif6_count-1.0 {
+        Get network interface count IPv6
+    } -constraints {
+        ipv6
+    } -body {
+        expr {[twapi::get_netif6_count] > 0}
+    } -result 1
+
 
     ################################################################
 
@@ -526,8 +551,6 @@ namespace eval twapi::network::test {
     ################################################################
 
     test get_netif_info-1.0 {
-    } -constraints {
-        nt
     } -body {
         set msgs ""
         foreach ind [twapi::get_netif_indices] {
@@ -535,7 +558,7 @@ namespace eval twapi::network::test {
             set fields {
                 -physicaladdress -innonunicastpkts -inunknownprotocols -inerrors -adminstatus -outdiscards -inbytes -laststatuschange -outbytes -ifindex -outqlen -inunicastpkts -outunicastpkts -autoconfigenabled -autoconfigactive -indiscards -description -outnonunicastpkts -outerrors -mtu -dnsservers -ipaddresses -ifname -speed -reassemblysize -type -operstatus
             }
-            if {[twapi::kl_get $netif -type] ne "loopback"} {
+            if {[twapi::kl_get $netif -type] != 24} {
                 lappend fields -adapterdescription -defaultgateway -dhcpleaseend -secondarywins -dhcpenabled -adaptername -primarywins -havewins -dhcpserver -dhcpleasestart -adapterindex
             }
             verify_kl_fields $netif $fields
@@ -543,6 +566,54 @@ namespace eval twapi::network::test {
         }
         join $msgs \n
     } -result ""
+
+    ################################################################
+
+    test get_netif6_info-1.0 {
+        Get IPv6 interface info
+    } -body {
+        set msgs ""
+        foreach ind [twapi::get_netif6_indices] {
+            set netif [twapi::get_netif6_info $ind -all]
+            set fields {
+                -adaptername
+                -anycastaddresses
+                -description
+                -dhcpenabled
+                -dnsservers
+                -dnssuffix
+                -friendlyname
+                -ipv6ifindex
+                -multicastaddresses
+                -operstatus
+                -physicaladdress
+                -prefixes
+                -type
+                -unicastaddresses
+                -zoneindices
+            }                
+            verify_kl_fields $netif $fields
+            validate_netif6 $netif msgs
+        }
+        join $msgs \n
+    } -result ""
+
+    test get_netif6_info-2.0 {
+        Get IPv6 interface info using adapter name
+    } -body {
+        set ind [lindex [twapi::get_netif6_indices] 0]
+        set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -adaptername] -adaptername]
+        string equal [twapi::get_netif6_info $ind -friendlyname -type] [twapi::get_netif6_info $netif_name -friendlyname -type]
+    } -result 1
+
+    test get_netif6_info-3.0 {
+        Get IPv6 interface info using friendly name
+    } -body {
+        set ind [lindex [twapi::get_netif6_indices] 0]
+        set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -friendlyname] -friendlyname]
+        string equal [twapi::get_netif6_info $ind -adaptername -type] [twapi::get_netif6_info $netif_name -adaptername -type]
+    } -result 1
+
 
     ################################################################
 
