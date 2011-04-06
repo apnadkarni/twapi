@@ -44,13 +44,20 @@ namespace eval twapi::network::test {
         return 1
     }
     proc resolvable_hostname {} {
-        return www.yahoo.com
+        # Has both IPv4 and IPv6
+        return ftp.netbsd.org
     }
     proc resolvable_address {} {
         return 209.131.36.158;          # A yahoo address
     }
     proc resolvable_address_domain {} {
         return yahoo.com
+    }
+    proc resolvable_address6 {} {
+        return 2001:4f8:3:7:230:48ff:fec6:9aaa
+    }
+    proc resolvable_address6_domain {} {
+        return netbsd.org
     }
     proc our_ipaddr {} {
         foreach ipaddr [twapi::get_ip_addresses -ipversion 4] {
@@ -719,28 +726,117 @@ namespace eval twapi::network::test {
 	   }
     } -result 1
 
+    ################################################################
+
+    test resolve_hostname-1.0 {
+        Map host name to address
+    } -body {
+        set ipaddrs [twapi::resolve_hostname [resolvable_hostname]]
+        list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs]
+    } -result {1 1}
+
     ###
 
-    test hostname_to_address-3.0 {
-        Map host name to address -flushcache
-    } -constraints {
-        nt OBSOLETE
-    } -setup {
-	patience hostname_to_address-3.0
-        # Prepopulate cache
-        twapi::hostname_to_address [resolvable_hostname]
+    test resolve_hostname-1.1 {
+        Map host name to address (no addresses)
     } -body {
-        set cache_lookup [time {twapi::hostname_to_address [resolvable_hostname]}]
-        # Wait for 30 seconds since Windows also keep a cache and that
-        # must flush else we cannot tell if our internal cache was flushed
-        # TBD - replace with some quicker means
-        after 30000
-        set nocache_lookup [time {set ipaddrs [twapi::hostname_to_address [resolvable_hostname] -flushcache]}]
-        expr {[llength $ipaddrs] &&
-              [validate_ip_addresses $ipaddrs] &&
-              [lindex $cache_lookup 0] < 50 &&
-              [lindex $nocache_lookup 0] > 100
+        llength [twapi::resolve_hostname xadf.xtrt.xsfdg.com]
+    } -result 0
+
+    ###
+
+    test resolve_hostname-2.0 {
+        Map host name to address asynchronous (success)
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result}
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs]}
+    } -result 1
+
+    ###
+
+    test resolve_hostname-2.1 {
+        Map host name to address asynchronous (no addresses)
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname xno.xsuch.xname.xcom -async {lappend ::resolve_hostname_result}
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {
+	      $hostname eq "xno.xsuch.xname.xcom" &&
+	      ((($status eq "success") && [llength $ipaddrs] == 0) ||
+	       $status eq "fail")
           }
+    } -result 1
+
+    test resolve_hostname-3.0 {
+        Map host name to IPv4 address
+    } -body {
+        set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion 4]
+        list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 4]
+    } -result {1 1}
+    
+    test resolve_hostname-3.1 {
+        Map host name to IPv4 address (inet)
+    } -body {
+        set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion inet]
+        list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 4]
+    } -result {1 1}
+    
+    test resolve_hostname-3.2 {
+        Map host name to IPv4 address asynchronous
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion 4
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs 4]}
+    } -result 1
+
+    test resolve_hostname-3.3 {
+        Map host name to IPv4 address asynchronous (inet)
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion inet
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs 4]}
+    } -result 1
+
+    test resolve_hostname-4.0 {
+        Map host name to IPv6 address
+    } -body {
+        set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion 6]
+        list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 6]
+    } -result {1 1}
+    
+    test resolve_hostname-4.1 {
+        Map host name to IPv4 address (inet6)
+    } -body {
+        set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion inet6]
+        list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 6]
+    } -result {1 1}
+    
+    test resolve_hostname-4.2 {
+        Map host name to IPv6 address asynchronous
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion 6
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs 6]}
+    } -result 1
+
+    test resolve_hostname-4.3 {
+        Map host name to IPv6 address asynchronous (inet6)
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion inet6
+        vwait ::resolve_hostname_result
+        foreach {hostname status ipaddrs} $::resolve_hostname_result break
+        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs 6]}
     } -result 1
 
     ################################################################
@@ -753,8 +849,6 @@ namespace eval twapi::network::test {
         twapi::address_to_hostname [resolvable_address]
     } -match glob -result *[resolvable_address_domain]
 
-    ###
-
     test address_to_hostname-1.1 {
         Map address to host name (no names)
     } -constraints {
@@ -762,8 +856,6 @@ namespace eval twapi::network::test {
     } -body {
         llength [twapi::address_to_hostname 127.0.0.2]
     } -result 0
-
-    ###
 
     test address_to_hostname-1.2 {
         Map 127.0.0.1
@@ -774,8 +866,6 @@ namespace eval twapi::network::test {
         expr {[string equal -nocase $name localhost] ||
               [string equal -nocase $name $::env(COMPUTERNAME)]}
     } -result 1
-
-    ###
 
     test address_to_hostname-2.0 {
         Map address to host name asynchronous (success)
@@ -788,9 +878,7 @@ namespace eval twapi::network::test {
         foreach {addr status hostname} $::address_to_hostname_result break
         expr {($addr eq [resolvable_address]) && ($status eq "success") && [string match *[resolvable_address_domain] $hostname]}
     } -result 1
-
-    ###
-
+    
     test address_to_hostname-2.1 {
         Map address to host name asynchronous (no addresses)
     } -constraints {
@@ -803,28 +891,96 @@ namespace eval twapi::network::test {
         expr {($addr eq "127.0.0.2") && ($status eq "success") && $hostname eq ""}
     } -result 1
 
-    ###
+    ################################################################
 
-    test address_to_hostname-3.0 {
-        Map address to host name -flushcache
-    } -constraints {
-        nt OBSOLETE
-    } -setup {
-        # Prepopulate cache
-        twapi::address_to_hostname [resolvable_address]
+    test resolve_address-1.0 {
+        Map IPv4 address to host name
     } -body {
-        patience "address_to_hostname-3.0"
-        set addr [resolvable_address]
-        set cache_lookup [time {twapi::address_to_hostname $addr}]
-        # Wait for 30 seconds since Windows also keep a cache and that
-        # must flush else we cannot tell if our internal cache was flushed
-        # TBD - replace with some quicker means
-        after 30000
-        set nocache_lookup [time {set hostname [twapi::address_to_hostname $addr -flushcache]}]
-        expr {[string match *[resolvable_address_domain] $hostname] &&
-              [lindex $cache_lookup 0] < 50 &&
-              [lindex $nocache_lookup 0] > 100
-          }
+        twapi::resolve_address [resolvable_address]
+    } -match glob -result *[resolvable_address_domain]
+
+    test resolve_address-1.1 {
+        Map IPv6 address to host name
+    } -constraints {
+        ipv6
+    } -body {
+        string match -nocase *[resolvable_address6_domain] [twapi::resolve_address [resolvable_address6]]
+    } -result 1 
+
+    test resolve_address-2.0 {
+        Map Ipv4 address to host name (no names)
+    } -body {
+        llength [twapi::resolve_address 127.0.0.2]
+    } -result 0
+
+    test resolve_address-2.1 {
+        Map IPv6 address to host name (no names)
+    } -constraints {
+        ipv6
+    } -body {
+        llength [twapi::resolve_address ::2]
+    } -result 0
+
+    test resolve_address-3.0 {
+        Map 127.0.0.1
+    } -body {
+        set name [twapi::resolve_address 127.0.0.1]
+        expr {[string equal -nocase $name localhost] ||
+              [string equal -nocase $name $::env(COMPUTERNAME)]}
+    } -result 1
+
+    test resolve_address-3.2 {
+        Map ::1
+    } -constraints {
+        ipv6
+    } -body {
+        set name [twapi::resolve_address ::1]
+        expr {[string equal -nocase $name localhost] ||
+              [string equal -nocase $name $::env(COMPUTERNAME)]}
+    } -result 1
+
+    test resolve_address-4.0 {
+        Map IPv4 address to host name asynchronous (success)
+    } -body {
+        set ::resolve_address_result [list ]
+        twapi::resolve_address [resolvable_address] -async {lappend ::resolve_address_result}
+        vwait ::resolve_address_result
+        foreach {addr status hostname} $::resolve_address_result break
+        expr {($addr eq [resolvable_address]) && ($status eq "success") && [string match -nocase *[resolvable_address_domain] $hostname]}
+    } -result 1
+
+    test resolve_address-4.1 {
+        Map IPv6 address to host name asynchronous (success)
+    } -constraints {
+        ipv6
+    } -body {
+        set ::resolve_address_result [list ]
+        twapi::resolve_address [resolvable_address6] -async {lappend ::resolve_address_result}
+        vwait ::resolve_address_result
+        foreach {addr status hostname} $::resolve_address_result break
+        list [expr {$addr eq [resolvable_address6]}]  $status [string match -nocase *[resolvable_address6_domain] $hostname]
+    } -result {1 success 1}
+
+    test resolve_address-5.0 {
+        Map address to host name asynchronous (no addresses)
+    } -body {
+        set ::resolve_address_result [list ]
+        twapi::resolve_address 127.0.0.2 -async {lappend ::resolve_address_result}
+        vwait ::resolve_address_result
+        foreach {addr status hostname} $::resolve_address_result break
+        expr {($addr eq "127.0.0.2") && ($status eq "success") && $hostname eq ""}
+    } -result 1
+
+    test resolve_address-5.0 {
+        Map address to host name asynchronous (no addresses)
+    } -constraints {
+        ipv6
+    } -body {
+        set ::resolve_address_result [list ]
+        twapi::resolve_address ::2 -async {lappend ::resolve_address_result}
+        vwait ::resolve_address_result
+        foreach {addr status hostname} $::resolve_address_result break
+        expr {($addr eq "::2") && ($status eq "success") && $hostname eq ""}
     } -result 1
 
     ################################################################

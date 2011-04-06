@@ -852,7 +852,7 @@ proc twapi::resolve_hostname {name args} {
     # Resolve address synchronously
     set addrs [list ]
     trap {
-        foreach endpt [twapi::getaddrinfo $name 0 0 $opts(ipversion)] {
+        foreach endpt [twapi::getaddrinfo $name 0 $opts(ipversion)] {
             lassign $endpt addr port
             lappend addrs $addr
         }
