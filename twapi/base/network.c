@@ -1600,7 +1600,6 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     struct addrinfo *saved_addrP;
 
     ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = PF_INET;
     if (TwapiGetArgs(interp, objc, objv,
                      GETASTR(hostname), GETASTR(svcname),
                      ARGUSEDEFAULT,
