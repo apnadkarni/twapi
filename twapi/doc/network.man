@@ -386,21 +386,24 @@ Returns all fields for a connection.
 This option is assumed if no other field option is specified.
 [opt_def [cmd -bindtime]]
 Returns the time at which the last bind operation was done
-on the socket, or 0 if no bind has been done. On some platforms,
-this may not be available in which case, an empty string is returned
-for the value.
+on the socket, or 0 if no bind has been done.
+This may not be available in which case, an empty string is returned
+for the value. [emph "Deprecated"]
 [opt_def [cmd -localaddr]]
 Returns the local address being used for the connection.
 [opt_def [cmd -localport]]
 Returns the local port number being used for the connection.
 [opt_def [cmd -modulename]]
-Returns the name of the process module that owns the socket. On some platforms,
-this may not be available in which case, an empty string is returned
+Returns the name of the process module that owns the socket.
+This may not be available in which case, an empty string is returned
 for the value.
+This value is always the empty string for IPv6 to work around a Windows bug.
+ [emph "Deprecated"]
 [opt_def [cmd -modulepath]]
-Returns the path to the process module that owns the socket. On some platforms,
-this may not be available in which case, an empty string is returned
-for the value.
+Returns the path to the process module that owns the socket. This may not 
+be available in which case, an empty string is returned for the value.
+This value is always the empty string for IPv6 to work around a Windows bug.
+ [emph "Deprecated"]
 [opt_def [cmd -pid]]
 Returns the PID of the process communicating on the port. On some platforms,
 this may not be available in which case, an empty string is returned
@@ -462,21 +465,24 @@ Returns all fields for a connection.
 This option is assumed if no other field option is specified.
 [opt_def [cmd -bindtime]]
 Returns the time at which the last bind operation was done
-on the socket, or 0 if no bind has been done. On some platforms,
-this may not be available in which case, an empty string is returned
-for the value.
+on the socket, or 0 if no bind has been done.
+This may not be available in which case, an empty string is returned
+for the value. [emph "Deprecated"]
 [opt_def [cmd -localaddr]]
 Returns the local address being used for the connection.
 [opt_def [cmd -localport]]
 Returns the local port number being used for the connection.
 [opt_def [cmd -modulename]]
-Returns the name of the process module that owns the socket. On some platforms,
-this may not be available in which case, an empty string is returned
+Returns the name of the process module that owns the socket.
+This may not be available in which case, an empty string is returned
 for the value.
+This value is always the empty string for IPv6 to work around a Windows bug.
+ [emph "Deprecated"]
 [opt_def [cmd -modulepath]]
-Returns the path to the process module that owns the socket. On some platforms,
-this may not be available in which case, an empty string is returned
-for the value.
+Returns the path to the process module that owns the socket. This may not 
+be available in which case, an empty string is returned for the value.
+This value is always the empty string for IPv6 to work around a Windows bug.
+ [emph "Deprecated"]
 [opt_def [cmd -pid]]
 Returns the PID of the process communicating on the port. On some platforms,
 this may not be available in which case, an empty string is returned

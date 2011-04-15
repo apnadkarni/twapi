@@ -1092,22 +1092,27 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
 # $level is passed to GetExtendedTcpTable and dtermines format of returned
 # data. Level 5 (default) matches what AllocateAndGetTcpExTableFromStack
 # returns. Note level 6 and higher is two orders of magnitude more expensive
-# to get.
-proc twapi::_get_all_tcp {sort level ipversion} {
+# to get for IPv4 and crashes in Windows for IPv6 (silently downgraded to
+# level 5 for IPv6)
+proc twapi::_get_all_tcp {sort level address_family} {
 
-    if {$ipversion == 0} {
+    if {$address_family == 0} {
         return [concat [_get_all_tcp $sort $level 2] [_get_all_tcp $sort $level 23]]
+    }
+
+    if {$address_family == 23 && $level > 5} {
+        set level 5;            # IPv6 crashes for levels > 5 - Windows bug
     }
 
     # Get required size of buffer. This also verifies that the
     # GetExtendedTcpTable API exists on this system
     # TBD - modify to do this check only once and not on every call
 
-    if {[catch {twapi::GetExtendedTcpTable NULL 0 $sort $ipversion $level} bufsz]} {
+    if {[catch {twapi::GetExtendedTcpTable NULL 0 $sort $address_family $level} bufsz]} {
         # No workee, try AllocateAndGetTcpExTableFromStack
         # Note if GetExtendedTcpTable is not present, ipv6 is not
         # available
-        if {$ipversion == 2} {
+        if {$address_family == 2} {
             return [AllocateAndGetTcpExTableFromStack $sort 0]
         } else {
             return {}
@@ -1116,18 +1121,19 @@ proc twapi::_get_all_tcp {sort level ipversion} {
 
     # Allocate the required buffer
     set buf [twapi::malloc $bufsz]
+    #puts $address_family,$bufsz,[format 0x%x [lindex $buf 0]] ; update ; gets stdin
     trap {
         # The required buffer size might change as connections
         # are added or deleted. So we sit in a loop until
         # the required size that we get back from the command
         # is less than or equal to what we supplied
         while {true} {
-            set reqsz [twapi::GetExtendedTcpTable $buf $bufsz $sort $ipversion $level]
+            set reqsz [twapi::GetExtendedTcpTable $buf $bufsz $sort $address_family $level]
             if {$reqsz <= $bufsz} {
                 # Buffer was large enough. Return the formatted data
                 # Note the finally clause below automatically frees
                 # the buffer so don't do that here!
-                return [Twapi_FormatExtendedTcpTable $buf $ipversion $level]
+                return [Twapi_FormatExtendedTcpTable $buf $address_family $level]
             }
             # Need bigger buffer
             set bufsz $reqsz
@@ -1146,16 +1152,20 @@ proc twapi::_get_all_tcp {sort level ipversion} {
 }
 
 # See comments for _get_all_tcp above except this is for _get_all_udp
-proc twapi::_get_all_udp {sort level ipversion} {
-    if {$ipversion == 0} {
+proc twapi::_get_all_udp {sort level address_family} {
+    if {$address_family == 0} {
         return [concat [_get_all_udp $sort $level 2] [_get_all_udp $sort $level 23]]
+    }
+
+    if {$address_family == 23 && $level > 5} {
+        set level 5;            # IPv6 crashes for levels > 5 - Windows bug
     }
 
     # Get required size of buffer. This also verifies that the
     # GetExtendedTcpTable API exists on this system
-    if {[catch {twapi::GetExtendedUdpTable NULL 0 $sort $ipversion $level} bufsz]} {
+    if {[catch {twapi::GetExtendedUdpTable NULL 0 $sort $address_family $level} bufsz]} {
         # No workee, try AllocateAndGetUdpExTableFromStack
-        if {$ipversion == 2} {
+        if {$address_family == 2} {
             return [AllocateAndGetUdpExTableFromStack $sort 0]
         } else {
             return {}
@@ -1170,12 +1180,12 @@ proc twapi::_get_all_udp {sort level ipversion} {
         # the required size that we get back from the command
         # is less than or equal to what we supplied
         while {true} {
-            set reqsz [twapi::GetExtendedUdpTable $buf $bufsz $sort $ipversion $level]
+            set reqsz [twapi::GetExtendedUdpTable $buf $bufsz $sort $address_family $level]
             if {$reqsz <= $bufsz} {
                 # Buffer was large enough. Return the formatted data
                 # Note the finally clause below automatically frees
                 # the buffer so don't do that here!
-                return [Twapi_FormatExtendedUdpTable $buf $ipversion $level]
+                return [Twapi_FormatExtendedUdpTable $buf $address_family $level]
             }
             # Need bigger buffer
             set bufsz $reqsz
