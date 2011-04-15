@@ -24,6 +24,10 @@ Tcl 8.4 is no longer supported.
 The values returned by the [cmd -type] option to
 [uri network.html#get_netif_info [cmd get_netif_info]] have changed.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The values returned by the [cmd -type] option to
+[uri network.html#get_netif_info [cmd get_netif_info]] have changed.
+
 [list_end]
 
 
