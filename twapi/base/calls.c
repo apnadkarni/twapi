@@ -635,6 +635,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(AttachThreadInput, CallU, 2004);
     CALL_(RegisterHotKey, CallU, 2005);
 
+    CALL_(CreateRectRgn, CallU, 3001);
+    CALL_(CreateEllipticRgn, CallU, 3002);
+    CALL_(CreateRoundedRectRgn, CallU, 3003);
+
     CALL_(GlobalAlloc, CallU, 10001);
     CALL_(LHashValOfName, CallU, 10002);
     CALL_(SetClipboardData, CallU, 10003);
@@ -754,6 +758,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(Twapi_EnumResourceTypes, CallH, 68);
+    CALL_(DeleteObject, CallH, 69); // TBD - Tcl wrapper
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -842,6 +847,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindWindowEx, CallW, 1006);
     CALL_(ReleaseDC, CallW, 1007);
     CALL_(OpenThemeData, CallW, 1008);
+    CALL_(SetWindowRgn, CallW, 1009); // TBD - Tcl wrapper
+    CALL_(GetWindowRgn, CallW, 1010); // TBD - Tcl wrapper
+
 
     // CallWU - function(HWND, DWORD)
     CALL_(GetAncestor, CallWU, 1);
@@ -2646,7 +2654,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
 int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    DWORD dw, dw2, dw3;
+    DWORD dw, dw2, dw3, dw4, dw5, dw6;
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
@@ -2908,6 +2916,24 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 2005:
             return Twapi_RegisterHotKey(ticP, dw, dw2, dw3);
+        }
+    } else if (func < 4000) {
+        /* Check we have exactly three more integer arguments */
+        if (TwapiGetArgs(interp, objc-3, objv+3,
+                         GETINT(dw2), GETINT(dw3), GETINT(dw4),
+                         ARGUSEDEFAULT, GETINT(dw5), GETINT(dw6),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 3001: // CreateRectRgn
+        case 3002: // CreateEllipticRgn
+            result.type = TRT_HRGN;
+            result.value.hval = (func == 3001 ? CreateRectRgn : CreateEllipticRgn)(dw, dw2, dw3, dw4);
+            break;
+        case 3003: // CreateRoundRectRgn
+            result.type = TRT_HRGN;
+            result.value.hval = CreateRoundRectRgn(dw, dw2, dw3, dw4, dw5, dw6);
+            break;
         }
     } else {
         /* Any number (> 0) of additional arguments */
@@ -3568,6 +3594,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 68:
             return Twapi_EnumResourceTypes(interp, h);
+        case 69:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeleteObject(h);
+            break;
         }
     } else if (func < 2000) {
 
@@ -4075,6 +4105,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         WINDOWINFO wininfo;
         WCHAR buf[MAX_PATH+1];
         RECT   rect;
+        HRGN   hrgn;
     } u;
     RECT *rectP;
     LPWSTR s, s2;
@@ -4293,6 +4324,22 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     case 1008:
         result.type = TRT_HANDLE;
         result.value.hval = OpenThemeData(hwnd, Tcl_GetUnicode(objv[3]));
+        break;
+    case 1009: // SetWindowRgn
+        if (TwapiGetArgs(interp, objc-3, objv+3,
+                         GETHANDLET(u.hrgn, HRGN), GETBOOL(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = SetWindowRgn(hwnd, u.hrgn, dw);
+        break;
+    case 1010: // GetWindowRgn
+        if (TwapiGetArgs(interp, objc-3, objv+3,
+                         GETHANDLET(u.hrgn, HRGN),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD;
+        result.value.ival = GetWindowRgn(hwnd, u.hrgn);
         break;
     }
 

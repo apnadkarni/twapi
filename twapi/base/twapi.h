@@ -520,6 +520,7 @@ typedef enum {
     TRT_WIDE = 47,              /* Tcl_WideInt */
     TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
     TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
+    TRT_HRGN,
 } TwapiResultType;
 
 typedef struct {
