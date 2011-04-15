@@ -1046,6 +1046,8 @@ namespace eval twapi::network::test {
         Get TCP connections for IPv6 - check for crash
     } -constraints {
         tclipv6
+    } -setup {
+        patience "get_tcp_connections-1.1"
     } -body {
         # IPHLPAPI has a bug when retrieving IPv6 connection info
         # for level > 5 (ie. module info being retrieved)
