@@ -17,6 +17,7 @@ namespace eval twapi::network::test {
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint ipv6  [expr {! [catch {exec netsh interface ipv6 show address}]}]
+    ::tcltest::testConstraint tclipv6 [package vsatisfies [package require Tcl] 8.6b1.2]
 
     variable get_tcp_connections_fields {
         -state
@@ -1037,13 +1038,40 @@ namespace eval twapi::network::test {
 
     test get_tcp_connections-1.0 {
         Get TCP connections
-    } -constraints {
-        nt
     } -body {
         validate_connections [twapi::get_tcp_connections -all] 1
     } -result ""
 
-    ###
+    test get_tcp_connections-1.1 {
+        Get TCP connections for IPv6 - check for crash
+    } -constraints {
+        tclipv6
+    } -body {
+        # IPHLPAPI has a bug when retrieving IPv6 connection info
+        # for level > 5 (ie. module info being retrieved)
+        # Check TWAPI works around it
+        set server_socket [socket -server [list set ::connection_establised 1] 9342]
+        unset -nocomplain client_sockets
+        set msgs {}
+        # Note XP has limit on number of connects so we only try up to 100
+        # That is more than sufficient since to reproduce the bug, a single
+        # IPv6 connection was enough
+        for {set i 0} {$i < 100} {incr i} {
+            lappend client_sockets [socket ::1 9342]
+            # Verify we do not crash
+            lappend msgs [validate_connections [twapi::get_tcp_connections] $i]
+            twapi::_get_all_tcp 0 8 0; # Same thing, raw call
+            lappend msgs [validate_connections [twapi::get_tcp_connections -ipversion 6] 1]
+            twapi::_get_all_tcp 0 8 23; # Same thing, raw call
+        }            
+        join $msgs ""
+    } -cleanup {
+        foreach client_socket $client_sockets {
+            close $client_socket
+        }
+        close $server_socket
+    } -result ""
+
 
     test get_tcp_connections-2.0 {
         Get TCP connections -modulepath
@@ -1134,6 +1162,25 @@ namespace eval twapi::network::test {
             } -result ""
     }
 
+    foreach {matchopt opt val} [list \
+                                    -matchlocaladdr -localaddr ::1 \
+                                    -matchremoteaddr -remoteaddr ::1 \
+                                    -matchlocalport -localport 9342 \
+                                    -matchremoteport -remoteport 9342 \
+                                    -matchpid -pid  [pid]] {
+        test get_tcp_connections-[incr testnum].0 \
+            "get_tcp_connections -all $matchopt $val" \
+            -constraints {tclipv6} \
+            -setup {
+                set server_socket [socket -server [list lappend ::connection_establised 1] 9342]
+                set client_socket [socket ::1 9342]
+            } -body "validate_connections \[twapi::get_tcp_connections -all -ipversion 6 $matchopt $val\] 1 [list $get_tcp_connections_fields] {$opt $val}" \
+            -cleanup {
+                close $client_socket
+                close $server_socket
+            } -result ""
+    }
+
 
     ################################################################
 
@@ -1159,7 +1206,7 @@ namespace eval twapi::network::test {
 
     set testnum 1
     foreach opt $get_udp_connections_fields {
-        test get_udp_connections-2.[incr testnum] "get_udp_connections $opt" -body "validate_connections \[twapi::get_tcp_connections $opt\] 1 $opt" -result ""}
+        test get_udp_connections-2.[incr testnum] "get_udp_connections $opt" -body "validate_connections \[twapi::get_udp_connections $opt\] 1 $opt" -result ""}
 
     set testnum 2
     foreach {matchopt opt val} [list \
@@ -1171,6 +1218,13 @@ namespace eval twapi::network::test {
         } -body "validate_connections \[twapi::get_udp_connections -all $matchopt $val\] 1 [list $get_udp_connections_fields] {$opt $val}" \
             -result ""
     }
+
+    test get_udp_connections-99.0 {
+        TBD - add tests related to IPv6
+    } -constraints {
+        ipv6 TBD
+    } -body {
+    } -result ""
 
     ################################################################
 

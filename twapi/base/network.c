@@ -1379,6 +1379,18 @@ int Twapi_GetExtendedTcpTable(
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
     }
 
+    /* IPv6 Windows (at least on XP) has a bug in that it incorrectly
+       calculates buffer size and overwrites the passed buffer when
+       table_class is one of the MODULE values
+       6: TCP_TABLE_OWNER_MODULE_LISTENER
+       7: TCP_TABLE_OWNER_MODULE_CONNECTIONS
+       8: TCP_TABLE_OWNER_MODULE_ALL
+       Google for details
+    */
+    if (family == AF_INET6 && table_class > 5) {
+        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+    }
+       
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
         Tcl_SetObjResult(interp, Tcl_NewIntObj(buf_sz));
@@ -1406,6 +1418,10 @@ int Twapi_GetExtendedUdpTable(
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
     }
 
+    /* See note in Twapi_GetExtendedTcpTable function above */
+    if (family == AF_INET6 && table_class > 5) {
+        return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
+    }
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
         Tcl_SetObjResult(interp, Tcl_NewIntObj(buf_sz));
@@ -1597,7 +1613,6 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int status;
     struct addrinfo hints;
     struct addrinfo *addrP;
-    struct addrinfo *saved_addrP;
 
     ZeroMemory(&hints, sizeof(hints));
     if (TwapiGetArgs(interp, objc, objv,
