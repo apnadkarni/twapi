@@ -44,3 +44,4 @@ nmake /s /nologo /a EMBED_SCRIPT=lzma dlldistribution
 
 rem Libraries
 cd base && nmake /s /nologo /a EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1 clean lib 
+cd ..
