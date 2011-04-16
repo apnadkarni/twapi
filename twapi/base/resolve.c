@@ -44,7 +44,6 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
         /* Invoke the script */
         Tcl_Interp *interp = theP->ticP->interp;
         Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
-        int i;
 
         Tcl_ListObjAppendElement(
             interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_hostname_resolve_handler"));
