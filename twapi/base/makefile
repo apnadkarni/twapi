@@ -224,7 +224,17 @@ INCFLAGS       =  -I. -I$(TCLDIR)\include
 TWAPI_WIN_HEADER_VERSION = 0x0501
 !endif
 
+
 CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS) 
+
+# What version of shell32.dll ?
+!if $(TWAPI_WIN_HEADER_VERSION) >= 0x0501
+CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0600
+!else
+CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0500
+!endif
+
+
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
 !endif
@@ -236,10 +246,10 @@ CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD -DSTATIC_BUILD=1
 !ENDIF
 
 
-# Note CRT=none option does not work. When building with _WINNT_VER=0x5000
-# (ie. Win2K) the winsocket headers define inline functions that make use
-# of the C runtime. So CRT=none needs to be postponed until such a time
-# that we build for XP and later only.
+# Note CRT=none option does not work since the __try wrapper around
+# FormatMessage requires the exception handling support from the C runtime.
+# So CRT=none needs to be postponed until such a time that we can work
+# around that.
 !IF "$(CRT)x" == "nonex"
 CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
 !ELSE

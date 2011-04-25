@@ -7,7 +7,8 @@
 
 #include "twapi.h"
 
-static TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *wsP)
+/* Note: Param 'interp' is there to match prototype expected by TwapiGetArgs */
+TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *wsP)
 {
     int i;
 
@@ -24,7 +25,7 @@ static TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LP
     return TCL_OK;
 }
 
-static Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s)
+Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s)
 {
     if (IS_INTRESOURCE(s))
         return Tcl_NewLongObj((long) (LONG_PTR) s); /* Double cast to avoid warning */
@@ -283,4 +284,27 @@ TCL_RESULT Twapi_SplitStringResource(
     return TCL_OK;
 }
 
+TCL_RESULT Twapi_LoadImage(
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    HANDLE h;
+    LPCWSTR resname;
+    DWORD image_type, cx, cy, flags;
+    TwapiResult result;
 
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETHANDLE(h),
+                     GETVAR(resname, ObjToResourceIntOrString),
+                     GETINT(image_type),
+                     ARGUSEDEFAULT, GETINT(cx), GETINT(cy),
+                     GETINT(flags),
+                     ARGEND) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    result.type = TRT_HANDLE;
+    result.value.hval = LoadImageW(h, resname, image_type, cx, cy, flags);
+    return TwapiSetResult(interp, &result);
+}

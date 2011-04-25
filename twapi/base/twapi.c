@@ -144,6 +144,7 @@ int Twapi_Init(Tcl_Interp *interp)
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::ComEventSink", Twapi_ComEventSinkObjCmd,
                          ticP, NULL);
+    /* TBD - is there a tcl wrapper for SHChangeNotify ? */
     Tcl_CreateObjCommand(interp, "twapi::SHChangeNotify", Twapi_SHChangeNotify,
                          ticP, NULL);
 #endif
