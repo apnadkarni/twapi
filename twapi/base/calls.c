@@ -1153,6 +1153,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         SOCKADDR_STORAGE ss;
     } u;
     DWORD_PTR dwp;
+    HMODULE hmod;
     COORD coord;
     CHAR_INFO chinfo;
     SECURITY_DESCRIPTOR *secdP;
@@ -1956,12 +1957,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10037: // PlaySound
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETDWORD_PTR(dwp), GETINT(dw),
+                             GETWSTR(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             NULLIFY_EMPTY(s);
             result.type = TRT_BOOL;
-            result.value.ival = PlaySoundW(s, (HMODULE)dwp, dw);
+            result.value.ival = PlaySoundW(s, hmod, dw);
             break;
         case 10038: // SetConsoleWindowInfo
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2129,13 +2130,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10054: // GetModuleFileName
         case 10055: // GetModuleBaseName
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETDWORD_PTR(dwp),
+                             GETHANDLE(h), GETHANDLET(hmod, HMODULE),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if ((func == 10054 ?
                  GetModuleFileNameExW
                  : GetModuleBaseNameW)
-                (h, (HMODULE) dwp, u.buf, ARRAYSIZE(u.buf))) {
+                (h, hmod, u.buf, ARRAYSIZE(u.buf))) {
                 result.type = TRT_UNICODE;
                 result.value.unicode.str = u.buf;
                 result.value.unicode.len = -1;
@@ -2144,10 +2145,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10056: // GetModuleInformation
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETDWORD_PTR(dwp),
+                             GETHANDLE(h), GETHANDLET(hmod, HMODULE),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (GetModuleInformation(h, (HMODULE) dwp,
+            if (GetModuleInformation(h, hmod,
                                      &u.moduleinfo, sizeof(u.moduleinfo))) {
                 result.type = TRT_OBJ;
                 result.value.obj = ObjFromMODULEINFO(&u.moduleinfo);
