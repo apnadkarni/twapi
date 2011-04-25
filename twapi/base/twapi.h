@@ -521,6 +521,7 @@ typedef enum {
     TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
     TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
     TRT_HRGN,
+    TRT_HMODULE,
 } TwapiResultType;
 
 typedef struct {
@@ -533,6 +534,7 @@ typedef struct {
         Tcl_WideInt wide;
         LPVOID pv;
         HANDLE hval;
+        HMODULE hmodule;
         HWND hwin;
         struct {
             WCHAR *str;
@@ -1504,6 +1506,7 @@ TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 TCL_RESULT Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* Resource manipulation */
+int Twapi_LoadImage(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_UpdateResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_FindResourceEx(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_LoadResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
@@ -1512,7 +1515,8 @@ int Twapi_EnumResourceLanguages(Tcl_Interp *,int objc,Tcl_Obj *CONST objv[]);
 int Twapi_EnumResourceTypes(Tcl_Interp *, HMODULE hmodule);
 TCL_RESULT Twapi_SplitStringResource(Tcl_Interp *interp, int objc,
                                      Tcl_Obj *CONST objv[]);
-
+Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s);
+TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *wsP);
 
 /* Typedef for callbacks invoked from the hidden window proc. Parameters are
  * those for a window procedure except for an additional interp pointer (which
