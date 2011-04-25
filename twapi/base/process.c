@@ -393,19 +393,18 @@ static int Twapi_EnumProcessesModules (TwapiInterpContext *ticP, int type, HANDL
                 objvP[i] = Tcl_NewLongObj(((DWORD *)bufP)[i]);
             }
         } else if (type == 1) {
-            /* Module handles - pointers but returned as integer as they are
-               not really valid typed handles */
+            /* Module handles */
             num = buf_filled/sizeof(HMODULE);
             objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
-                objvP[i] = ObjFromDWORD_PTR(((HMODULE *)bufP)[i]);
+                objvP[i] = ObjFromOpaque(((HMODULE *)bufP)[i], "HMODULE");
             }
         } else {
             /* device handles - pointers, again not real handles */
             num = buf_filled/sizeof(LPVOID);
             objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
-                objvP[i] = ObjFromDWORD_PTR(((LPVOID *)bufP)[i]);
+                objvP[i] = ObjFromOpaque(((HMODULE *)bufP)[i], "HMODULE");
             }
         }
 
