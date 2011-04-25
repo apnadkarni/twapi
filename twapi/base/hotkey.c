@@ -37,6 +37,7 @@ int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id)
 }
 
 
+#ifdef OBSOLETE /* Now uses generic script level WM handler */
 /* Called (indirectly) from the Tcl notifier loop with a new hotkey event.
  * Constructs the hotkey script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.
@@ -50,8 +51,9 @@ int TwapiHotkeyCallbackFn(TwapiCallback *cbP)
     objs[2] = ObjFromDWORD_PTR(cbP->clientdata);
     return TwapiEvalAndUpdateCallback(cbP, 3, objs, TRT_EMPTY);
 }
+#endif
 
-
+#ifdef OBSOLETE /* Now uses generic script level WM handler */
 /*
  * Called from the notification window message handler when a hotkey message
  * is received. Allocates and enqueues a callback.
@@ -69,3 +71,4 @@ LRESULT TwapiHotkeyHandler(TwapiInterpContext *ticP, UINT msg, WPARAM id, LPARAM
 
     return (LRESULT) NULL;
 }
+#endif

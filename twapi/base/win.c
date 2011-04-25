@@ -132,6 +132,22 @@ int Twapi_CreateHiddenWindow(
 }
 
 
+/* Called (indirectly) from the Tcl notifier loop with a new 
+   windows message callback that is to be handled by the generic
+   script level windows message handler.
+ * Follows behaviour specified by TwapiCallbackFn typedef.
+ */
+static int TwapiScriptWMCallbackFn(TwapiCallback *cbP)
+{
+    Tcl_Obj *objs[4];
+
+    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_script_wm_handler", -1);
+    objs[1] = ObjFromTwapiId(cbP->receiver_id);
+    objs[2] = ObjFromDWORD_PTR(cbP->clientdata);
+    objs[3] = ObjFromDWORD_PTR(cbP->clientdata2);
+    return TwapiEvalAndUpdateCallback(cbP, 4, objs, TRT_EMPTY);
+}
+
 static LRESULT TwapiNotificationWindowHandler(
     TwapiInterpContext *ticP,
     LONG_PTR clientdata,
@@ -141,20 +157,24 @@ static LRESULT TwapiNotificationWindowHandler(
     LPARAM lParam
     )
 {
-    switch (msg)
-    {
-    case WM_HOTKEY:
-        return TwapiHotkeyHandler(ticP, msg, wParam, lParam);
-    case WM_POWERBROADCAST:
-        if (ticP->power_events_on)
-            return TwapiPowerHandler(ticP, msg, wParam, lParam);
-        /* FALLTHRU */
-    default:
+    if (msg == WM_HOTKEY ||
+        (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST)) {
+        TwapiCallback *cbP;
+        cbP = TwapiCallbackNew(ticP, TwapiScriptWMCallbackFn, sizeof(*cbP));
+        cbP->receiver_id = msg;
+        cbP->clientdata = wParam;
+        cbP->clientdata2 = lParam;
+        TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+        return (LRESULT) NULL;
+    } else {
+        if (msg == WM_POWERBROADCAST) {
+            if (ticP->power_events_on)
+                return TwapiPowerHandler(ticP, msg, wParam, lParam);
+            /* else FALLTHRU */
+        }
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
-    return (LRESULT) NULL;
 }
-
     
 
 /*

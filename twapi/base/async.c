@@ -26,8 +26,8 @@ int TwapiEnqueueCallback(
                                    go away until this function returns */
     TwapiCallback *cbP, /* Must be NEWLY Initialized. Ref count
                                    expected to be 0! */
-    int    enqueue_method, /* Use the Tcl_Async route to queue. If 0,
-                              Tcl_QueueEvent is directly called */
+    int    enqueue_method, /* If TCL_ENQUEUE_ASYNC, use the Tcl_Async route to
+                              queue. Else Tcl_QueueEvent is directly called */
     int    timeout,             /* How long to wait for a result. Must be 0
                                   IF CALLING FROM A TCL THREAD ELSE
                                   DEADLOCK MAY OCCUR */
