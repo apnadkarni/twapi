@@ -99,7 +99,7 @@ OBJS  = $(OBJS) \
 
 
 IFILE         = $(MODULENAME)
-CINCLUDES     = twapi.h twapi_ddkdefs.h twapi_sdkdefs.h zlist.h memlifo.h
+CINCLUDES     = twapi.h twapi_wm.h twapi_ddkdefs.h twapi_sdkdefs.h zlist.h memlifo.h
 
 
 # General tools

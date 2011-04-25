@@ -1150,9 +1150,12 @@ proc twapi::send_keys {keys} {
 }
 
 
-# Register a hotkey
+# Handles a hotkey notification
 proc twapi::_hotkey_handler {atom key} {
     variable _hotkeys
+
+    # TBD - it is not clear if we need to specifically return an
+    # error code, since it is ignored at C level anyways.
 
     # Note it is not an error if a hotkey does not exist since it could
     # have been deregistered in the time between hotkey input and receiving it.
@@ -1180,6 +1183,9 @@ proc twapi::_hotkey_handler {atom key} {
     }
     return -code $code ""
 }
+
+
+
 
 proc twapi::register_hotkey {hotkey script args} {
     variable _hotkeys
@@ -2152,4 +2158,58 @@ proc twapi::_get_message_only_windows {args} {
     }
 
     return $wins
+}
+
+proc twapi::_register_script_wm_handler {msg cmdprefix} {
+    variable _wm_registrations
+
+    # The incr ensures decimal format
+    # The lrange ensure proper list format
+    lappend _wm_registrations([incr msg 0]) [lrange $cmdprefix 0 end]
+}
+
+proc twapi::_unregister_script_wm_handler {msg cmdprefix} {
+    variable _wm_registrations
+
+    # The incr ensures decimal format
+    incr msg 0
+    # The lrange ensure proper list format
+    if {[info exists _wm_registrations($msg)]} {
+        set _wm_registrations($msg) [lsearch -exact -inline -not -all $_wm_registrations($msg) [lrange $cmdprefix 0 end]]
+    }                                 
+}
+
+proc twapi::_hotkey_proxy {msg wparam lparam} {
+    puts HOTKEY!
+    uplevel #0 [list ::twapi::_hotkey_handler $wparam $lparam]
+}
+
+# Handles notifications from the common window for script level windows
+# messages (see win.c)
+proc twapi::_script_wm_handler {msg wparam lparam} {
+    variable _wm_registrations
+
+    set code 0
+    if {[info exists _wm_registrations($msg)]} {
+        foreach handler $_wm_registrations($msg) {
+            set code [catch {uplevel #0 [linsert $handler end $msg $wparam $lparam]} msg]
+            switch -exact -- $code {
+                1 {
+                    # TBD - should remaining handlers be called even on error ?
+                    after 0 [list error $msg $::errorInfo $::errorCode]
+                    break
+                }
+                3 {
+                    break;      # Ignore remaining handlers
+                }
+                default {
+                    # Keep going
+                }
+            }
+        }
+    } else {
+        # TBD - debuglog - no handler for $msg
+    }
+
+    return
 }
