@@ -578,6 +578,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_SplitStringResource, Call, 10129);
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
+    CALL_(Twapi_LoadImage, Call, 10132); /* TBD - Tcl interface */
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -643,7 +644,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LHashValOfName, CallU, 10002);
     CALL_(SetClipboardData, CallU, 10003);
     CALL_(SetStdHandle, CallU, 10004);
-    CALL_(CreateConsoleScreenBuffer, CallU, 10005);
+    CALL_(GetModuleHandleEx, CallU, 10005);
+    CALL_(Shell_NotifyIcon, CallU, 10006);
+
+    CALL_(CreateConsoleScreenBuffer, CallU, 11001);
 
     // CallS - function(LPWSTR)
     CALL_(RegisterClipboardFormat, CallS, 1);
@@ -2646,6 +2650,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = twapi_netenum_bufsize;
             result.type = TRT_DWORD;
             break;
+        case 10132: // LoadImage
+            return Twapi_LoadImage(interp, objc-2, objv+2);
         }
     }
 
@@ -2665,6 +2671,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         HANDLE h;
         SECURITY_ATTRIBUTES *secattrP;
         MemLifo *lifoP;
+        NOTIFYICONDATAW *niP;
     } u;
     int func;
 
@@ -2935,9 +2942,9 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.hval = CreateRoundRectRgn(dw, dw2, dw3, dw4, dw5, dw6);
             break;
         }
-    } else {
-        /* Any number (> 0) of additional arguments */
-        if (objc < 4)
+    } else if (func < 11000) {
+        /* Exactly on additional argument */
+        if (objc != 4)
             return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
@@ -2963,7 +2970,40 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetStdHandle(dw, u.h);
             break;
-        case 10005: // CreateConsoleScreenBuffer
+        case 10005: // GetModuleHandleEx
+            if (dw & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) {
+                /* Argument is address in a module */
+                if (ObjToDWORD_PTR(interp, objv[3], &u.dwp) != TCL_OK)
+                    return TCL_ERROR;
+            } else {
+                u.str = Tcl_GetUnicode(objv[3]);
+                NULLIFY_EMPTY(u.str);
+                u.dwp = (DWORD_PTR) u.str;  /* Actually a no-op */
+            }
+            if (GetModuleHandleExW(dw, (LPCWSTR) u.dwp, &result.value.hmodule))
+                result.type = TRT_HANDLE;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 10006: // Shell_NotifyIcon
+            if (objc != 4)
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+            u.niP = (NOTIFYICONDATAW *) Tcl_GetByteArrayFromObj(objv[3], &dw2);
+            if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
+                return TwapiReturnTwapiError(interp, "Inconsistent size of NOTIFYICONDATAW structure.", TWAPI_INVALID_ARGS);
+            }
+            result.type = TRT_BOOL;
+            result.value.bval = Shell_NotifyIconW(dw, u.niP);
+            break;
+        }
+    } else {
+        /* Any number (> 0) of additional arguments */
+        if (objc < 4)
+            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 11001: // CreateConsoleScreenBuffer
             if (TwapiGetArgs(interp, objc-3, objv+3,
                              GETINT(dw2),
                              GETVAR(u.secattrP, ObjToPSECURITY_ATTRIBUTES),
@@ -2975,7 +3015,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             TwapiFreeSECURITY_ATTRIBUTES(u.secattrP);
             break;
         }
-
     }
 
     return TwapiSetResult(interp, &result);
@@ -4501,13 +4540,16 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                      ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
-    result.type = TRT_EXCEPTION_ON_FALSE; /* Likely result type */
+    result.type = TRT_BADFUNCTIONCODE;
+
     switch (func) {
     case 1:
+        result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = BackupEventLogW(h, s);
         break;
     case 2:
         NULLIFY_EMPTY(s);
+        result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = ClearEventLogW(h, s);
         break;
     case 3:
@@ -4542,7 +4584,6 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         else
             result.type = TRT_GETLASTERROR;
         break;
-
     case 7:
         /* If access type not specified, use SERVICE_ALL_ACCESS */
         if (objc < 5)
@@ -4550,7 +4591,6 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.type = TRT_SC_HANDLE;
         result.value.hval = OpenServiceW(h, s, dw);
         break;
-
     default:
         return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
     }

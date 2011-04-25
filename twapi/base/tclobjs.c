@@ -113,6 +113,11 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         resultObj = ObjFromOpaque(resultP->value.hwin, "HWND");
         break;
 
+    case TRT_HMODULE:
+        // Note unlike other handles, we do not return an error if NULL
+        resultObj = ObjFromOpaque(resultP->value.hmodule, "HMODULE");
+        break;
+
     case TRT_HANDLE:
     case TRT_HGLOBAL:
     case TRT_HDC:
