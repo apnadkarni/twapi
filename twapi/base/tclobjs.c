@@ -974,6 +974,16 @@ int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP)
     return TCL_OK;
 }
 
+/* Return a Tcl Obj from a POINT structure */
+Tcl_Obj *ObjFromPOINTS(POINTS *ptP)
+{
+    Tcl_Obj *objv[2];
+
+    objv[0] = Tcl_NewIntObj((int) ptP->x);
+    objv[1] = Tcl_NewIntObj((int) ptP->y);
+
+    return Tcl_NewListObj(2, objv);
+}
 
 Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
     Tcl_Interp *interp,

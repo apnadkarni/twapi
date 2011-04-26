@@ -17,7 +17,8 @@
 
 /*
  * Reserve message id that can be used directly at script level with
- * the default hidden notification window.
+ * the default hidden notification window. If you change this, make
+ * sure to change the _wm_script_messages variable at script level.
  */
 #define TWAPI_WM_SCRIPT_BASE    (TWAPI_WM_BASE + 32)
 #define TWAPI_WM_SCRIPT_LAST    (TWAPI_WM_SCRIPT_BASE + 31)
