@@ -366,12 +366,13 @@ Returns the exit code for a process. [arg HPROCESS] is a handle to the
 process of interest. If the process is still running, a null string
 is returned.
 
-[call [cmd get_process_handle] [arg PID] [arg ACCESSRIGHTS] [opt [arg INHERITMODE]]]
-Returns a handle to the process with id [arg PID].
-[arg ACCESSRIGHTS] specifies the desired access rights and may be
+[call [cmd get_process_handle] [arg PID] [opt "[cmd -access] [arg ACCESSRIGHTS]"] [opt "[cmd -inherit] [arg INHERITMODE]"]]
+Returns a handle to the process with id [arg PID]. If option [cmd -access]
+is specified, [arg ACCESSRIGHTS] are the desired access rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html#accessrights "Access Rights"].
-If [arg INHERITMODE] is non-0, the returned
+If option [cmd -inherit] is specified and 
+[arg INHERITMODE] is non-0, the returned
 handle can be inherited by child processes. If it is 0 (default), the
 handle cannot be inherited by child processes.
 
