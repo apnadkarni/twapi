@@ -574,8 +574,7 @@ typedef struct {
     } value;
 } TwapiResult;
 
-
-
+#define InitTwapiResult(tr_) do {(tr_)->type = TRT_EMPTY;} while (0)
 
 /*
  * Macros for passing arguments to TwapiGetArgs.
@@ -756,7 +755,14 @@ typedef struct _TwapiCallback {
     TwapiId           receiver_id;
     DWORD_PTR         clientdata;     /* For use by client code */
     DWORD_PTR         clientdata2;    /* == ditto == */
-    TwapiResult response;
+    union {
+        TwapiResult response;
+        struct {
+            POINTS message_pos;
+            DWORD  ticks;
+        } wm_state;             /* Used for Window message notifications
+                                   (where there is no response) */
+    } ;
 } TwapiCallback;
 
 
@@ -1044,6 +1050,7 @@ Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
     Tcl_Interp *interp,
     const CONSOLE_SCREEN_BUFFER_INFO *csbiP
     );
+Tcl_Obj *ObjFromPOINTS(POINTS *ptP);
 int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP);
 Tcl_Obj *ObjFromCOORD(Tcl_Interp *interp, const COORD *coordP);
 int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP);

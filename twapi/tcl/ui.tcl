@@ -42,6 +42,15 @@
 
 namespace eval twapi {
     variable null_hwin ""
+
+    # Windows messages that are directly accessible from script. These
+    # are handled by the default notifications window and passed to
+    # the twapi::_script_wm_handler. These messages must be in the
+    # range (1056 = 1024+32) - (1024+32+31) (see twapi_wm.h)
+    variable _wm_script_msgs
+    array set _wm_script_msgs {
+        TWAPI_WM_NOTIFY_ICON_CALLBACK 1056
+    }
 }
 
 # Backward compatibility aliases
@@ -1151,7 +1160,7 @@ proc twapi::send_keys {keys} {
 
 
 # Handles a hotkey notification
-proc twapi::_hotkey_handler {atom key} {
+proc twapi::_hotkey_handler {msg atom key msgpos ticks} {
     variable _hotkeys
 
     # TBD - it is not clear if we need to specifically return an
@@ -1162,7 +1171,7 @@ proc twapi::_hotkey_handler {atom key} {
     set code 0
     if {[info exists _hotkeys($atom)]} {
         foreach handler $_hotkeys($atom) {
-            set code [catch {eval $handler} msg]
+            set code [catch {uplevel #0 $handler} msg]
             switch -exact -- $code {
                 0 {
                     # Normal, keep going
@@ -1184,11 +1193,11 @@ proc twapi::_hotkey_handler {atom key} {
     return -code $code ""
 }
 
-
-
-
 proc twapi::register_hotkey {hotkey script args} {
     variable _hotkeys
+
+    # 0x312 -> WM_HOTKEY
+    _register_script_wm_handler 0x312 [list [namespace current]::_hotkey_handler] 1
 
     array set opts [parseargs args {
         append
@@ -2160,12 +2169,16 @@ proc twapi::_get_message_only_windows {args} {
     return $wins
 }
 
-proc twapi::_register_script_wm_handler {msg cmdprefix} {
+proc twapi::_register_script_wm_handler {msg cmdprefix {overwrite 0}} {
     variable _wm_registrations
 
     # The incr ensures decimal format
     # The lrange ensure proper list format
-    lappend _wm_registrations([incr msg 0]) [lrange $cmdprefix 0 end]
+    if {$overwrite} {
+        set _wm_registrations([incr msg 0]) [list [lrange $cmdprefix 0 end]]
+    } else {
+        lappend _wm_registrations([incr msg 0]) [lrange $cmdprefix 0 end]
+    }
 }
 
 proc twapi::_unregister_script_wm_handler {msg cmdprefix} {
@@ -2179,20 +2192,15 @@ proc twapi::_unregister_script_wm_handler {msg cmdprefix} {
     }                                 
 }
 
-proc twapi::_hotkey_proxy {msg wparam lparam} {
-    puts HOTKEY!
-    uplevel #0 [list ::twapi::_hotkey_handler $wparam $lparam]
-}
-
 # Handles notifications from the common window for script level windows
 # messages (see win.c)
-proc twapi::_script_wm_handler {msg wparam lparam} {
+proc twapi::_script_wm_handler {msg wparam lparam msgpos ticks} {
     variable _wm_registrations
 
     set code 0
     if {[info exists _wm_registrations($msg)]} {
         foreach handler $_wm_registrations($msg) {
-            set code [catch {uplevel #0 [linsert $handler end $msg $wparam $lparam]} msg]
+            set code [catch {uplevel #0 [linsert $handler end $msg $wparam $lparam $msgpos $ticks]} msg]
             switch -exact -- $code {
                 1 {
                     # TBD - should remaining handlers be called even on error ?

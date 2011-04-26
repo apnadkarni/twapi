@@ -1568,7 +1568,12 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
 
 proc twapi::Twapi_PtrToAddress {p} {
     if {[Twapi_IsPtr $p]} {
-        return [lindex $p 0]
+        set addr [lindex $p 0]
+        if {$addr eq "NULL"} {
+            return 0
+        } else {
+            return $addr
+        }
     } else {
         error "'$p' is not a valid pointer value."
     }
