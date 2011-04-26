@@ -460,7 +460,7 @@ namespace eval twapi::systray {
         
     proc _make_NOTIFYICONW {id args} {
         array set opts [parseargs args {
-            {hicon.arg 0}
+            hicon.arg
             tip.arg
             {state.int 0}
             {statemask.int 0}
@@ -487,6 +487,8 @@ namespace eval twapi::systray {
         set flags 0x1;          # uCallbackMessage member is valid
         if {[info exists opts(hicon)]} {
             incr flags 0x2;     # hIcon member is valid
+        } else {
+            set opts(hicon) NULL
         }
 
         if {[info exists opts(tip)]} {
@@ -573,9 +575,17 @@ namespace eval twapi::systray {
         
         set id [incr _icon_id_ctr]
         
+        # 0 -> Add
         if {![Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon $hicon]]} {
             error "Could not register icon in system tray."
         }
+
+        # 4 -> set version (controls notification behaviour) to 3 (Win2K+)
+        if {![Shell_NotifyIcon 4 [_make_NOTIFYICONW $id -version 3]]} {
+            removeicon $id
+            error "Could not set system tray icon notification version."
+        }
+
         set _icon_handlers($id) [lrange $cmdprefix 0 end]
         return $id
     }
@@ -586,6 +596,10 @@ namespace eval twapi::systray {
         if {[info exists _icon_handlers($id)]} {
             unset _icon_handlers($id)
         }
+    }
+
+    proc modifyicon {id args} {
+        Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
     }
 
     proc _systray_icon_handler {msg id notification msgpos ticks} {

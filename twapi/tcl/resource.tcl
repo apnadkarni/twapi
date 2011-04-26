@@ -83,6 +83,28 @@ proc twapi::resource_stringid_to_stringblockid {id} {
     return [list [expr {($id / 16) + 1}] [expr {$id & 15}]]
 }
 
+# TBD - document
+proc twapi::extract_resources {hmod {withdata 0}} {
+    set result [dict create]
+    foreach type [enumerate_resource_types $hmod] {
+        set typedict [dict create]
+        foreach name [enumerate_resource_names $hmod $type] {
+            set namedict [dict create]
+            foreach lang [enumerate_resource_languages $hmod $type $name] {
+                if {$withdata} {
+                    dict set namedict $lang [read_resource $hmod $type $name $lang]
+                } else {
+                    dict set namedict $lang {}
+                }
+            }
+            dict set typedict $name $namedict
+        }
+        dict set result $type $typedict
+    }
+    return $result
+}
+
+
 interp alias {} twapi::enumerate_resource_languages {} twapi::Twapi_EnumResourceLanguages
 interp alias {} twapi::enumerate_resource_names {} twapi::Twapi_EnumResourceNames
 interp alias {} twapi::enumerate_resource_types {} twapi::Twapi_EnumResourceTypes

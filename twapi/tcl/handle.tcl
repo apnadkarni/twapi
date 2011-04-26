@@ -22,7 +22,6 @@ proc twapi::cast_handle {h type} {
 }
 
 proc twapi::close_handle {h} {
-    variable _wait_handle_ids
 
     # Cancel waits on the handle, if any
     cancel_wait_on_handle $h
