@@ -1364,6 +1364,27 @@ proc twapi::process_in_administrators {} {
     }
 }
 
+# Get a module handle
+# TBD - document
+proc twapi::get_module_handle_from_path {path args} {
+    array set opts [parseargs args {
+        pin.bool
+    } -nulldefault -maxleftover 0]
+
+    return [GetModuleHandleEx $opts(pin) $path]
+}
+
+# Get a module handle from an address
+# TBD - document
+proc twapi::get_module_handle_from_path {addr args} {
+    array set opts [parseargs args {
+        pin.bool
+    } -nulldefault -maxleftover 0]
+
+    return [GetModuleHandleEx [expr {$opts(pin) ? 5 : 4}] $path]
+}
+
+
 # Utility procedures
 
 # Get the path of a process
