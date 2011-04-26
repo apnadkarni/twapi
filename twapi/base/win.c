@@ -139,13 +139,15 @@ int Twapi_CreateHiddenWindow(
  */
 static int TwapiScriptWMCallbackFn(TwapiCallback *cbP)
 {
-    Tcl_Obj *objs[4];
+    Tcl_Obj *objs[6];
 
     objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_script_wm_handler", -1);
     objs[1] = ObjFromTwapiId(cbP->receiver_id);
     objs[2] = ObjFromDWORD_PTR(cbP->clientdata);
     objs[3] = ObjFromDWORD_PTR(cbP->clientdata2);
-    return TwapiEvalAndUpdateCallback(cbP, 4, objs, TRT_EMPTY);
+    objs[4] = ObjFromPOINTS(&cbP->wm_state.message_pos);
+    objs[5] = ObjFromDWORD(cbP->wm_state.ticks);
+    return TwapiEvalAndUpdateCallback(cbP, 6, objs, TRT_EMPTY);
 }
 
 static LRESULT TwapiNotificationWindowHandler(
@@ -157,13 +159,19 @@ static LRESULT TwapiNotificationWindowHandler(
     LPARAM lParam
     )
 {
+
     if (msg == WM_HOTKEY ||
         (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST)) {
         TwapiCallback *cbP;
+        DWORD pos;
+
         cbP = TwapiCallbackNew(ticP, TwapiScriptWMCallbackFn, sizeof(*cbP));
         cbP->receiver_id = msg;
         cbP->clientdata = wParam;
         cbP->clientdata2 = lParam;
+        pos = GetMessagePos();
+        cbP->wm_state.message_pos = MAKEPOINTS(pos);
+        cbP->wm_state.ticks = GetTickCount();
         TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
         return (LRESULT) NULL;
     } else {

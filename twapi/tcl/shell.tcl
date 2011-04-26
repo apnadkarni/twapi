@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2006 Ashok P. Nadkarni
+# Copyright (c) 2004-2011 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -421,4 +421,70 @@ proc twapi::shell_execute args {
                 $opts(hkeyclass) \
                 $opts(hotkey) \
                 $hiconormonitor]
+}
+
+
+namespace eval twapi::systray {
+    namespace path [namespace parent]
+    proc _make_NOTIFYICONW {hwnd id args} {
+        array set opts [parseargs args {
+            {msg.int 0}
+            {flags.int 0}
+            {hicon.arg 0}
+            {tip.arg ""}
+            {state.int 0}
+            {statemask.int 0}
+            {info.arg ""}
+            timeout.int
+            version.int
+            {infotitle.arg ""}
+            {infoflags.int 0}
+        } -maxleftover 0]
+
+        set timeout_or_version 0
+        if {[info exists opts(version)]} {
+            if {[info exists opts(timeout)]} {
+                error "Cannot simultaneously specify -timeout and -version."
+            }
+            set timeout_or_version $opts(version)
+        } else {
+            if {[info exists opts(timeout)]} {
+                set timeout_or_version $opts(timeout)
+            }
+        }
+
+        # Truncate if necessary to 127 chars and calculate padding to 128 chars
+        set opts(tip) [string range $opts(tip) 0 127]
+        set tip_padcount [expr {2*(128 - [string length $opts(tip)])}]
+        # Ditto for info (255 chars max plus \0's)
+        set opts(info) [string range $opts(info) 0 255]
+        set info_padcount [expr {2*(256 - [string length $opts(info)])}]
+        # Ditto for infotitle (64 chars max plus \0's)
+        set opts(infotitle) [string range $opts(infotitle) 0 63]
+        set infotitle_padcount [expr {2 * (64 - [string length $opts(infotitle)])}]
+
+        if {$::tcl_platform(pointerSize) == 8} {
+            set addrfmt m
+            set alignment x4
+        } else {
+            set addrfmt n
+            set alignment x0
+        }
+
+        set hwnd  [Twapi_PtrToAddress $hwnd]
+        set opts(hicon) [Twapi_PtrToAddress $opts(hicon)]
+
+        set bin [binary format "${alignment}${addrfmt}nnn${addrfmt}" $hwnd $id $opts(flags) $opts(wm) $opts(hicon)]
+        append bin \
+            [binary format ${alignment}${addrfmt} $opts(hicon)] \
+            [encoding convertto unicode $opts(tip)] \
+            [binary format "x${tip_padcount}nn" $opts(state) $opts(statemask)] \
+            [encoding convertto unicode $opts(info)] \
+            [binary format "x${info_padcount}n" $timeout_or_version] \
+            [encoding convertto unicode $opts(infotitle)] \
+            [binary format "x${infotitle_padcount}nx16" $opts(infoflags)]
+
+        return "[binary format n [expr {[string length $bin]}]]$bin"
+    }
+
 }
