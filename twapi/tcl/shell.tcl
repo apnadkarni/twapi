@@ -425,20 +425,51 @@ proc twapi::shell_execute args {
 
 
 namespace eval twapi::systray {
+
     namespace path [namespace parent]
-    proc _make_NOTIFYICONW {hwnd id args} {
+
+    variable _icon_handlers
+    array set _icon_handlers {}
+
+    variable _icon_id_ctr
+
+    variable _message_map
+    array set _message_map {
+        123 contextmenu
+        512 mousemove
+        513 lbuttondown
+        514 lbuttonup
+        515 lbuttondblclk
+        516 rbuttondown
+        517 rbuttonup
+        518 rbuttondblclk
+        519 mbuttondown
+        520 mbuttonup
+        521 mbuttondblclk
+        522 mousewheel
+        523 xbuttondown
+        524 xbuttonup
+        525 xbuttondblclk
+        1024 select
+        1025 keyselect
+        1026 balloonshow
+        1027 balloonhide
+        1028 balloontimeout
+        1029 balloonuserclick
+    }
+        
+    proc _make_NOTIFYICONW {id args} {
         array set opts [parseargs args {
-            {msg.int 0}
-            {flags.int 0}
             {hicon.arg 0}
-            {tip.arg ""}
+            tip.arg
             {state.int 0}
             {statemask.int 0}
-            {info.arg ""}
+            info.arg
             timeout.int
             version.int
-            {infotitle.arg ""}
-            {infoflags.int 0}
+            infotitle.arg
+            {infoicon.arg none {info warning error user none}}
+            {silent.bool 0}
         } -maxleftover 0]
 
         set timeout_or_version 0
@@ -453,15 +484,63 @@ namespace eval twapi::systray {
             }
         }
 
-        # Truncate if necessary to 127 chars and calculate padding to 128 chars
-        set opts(tip) [string range $opts(tip) 0 127]
+        set flags 0x1;          # uCallbackMessage member is valid
+        if {[info exists opts(hicon)]} {
+            incr flags 0x2;     # hIcon member is valid
+        }
+
+        if {[info exists opts(tip)]} {
+            incr flags 0x4
+            # Truncate if necessary to 127 chars
+            set opts(tip) [string range $opts(tip) 0 127]
+        } else {
+            set opts(tip) ""
+        }
+
+        if {[info exists opts(info)] || [info exists opts(infotitle)]} {
+            incr flags 0x10
+        }
+
+        if {[info exists opts(info)]} {
+            set opts(info) [string range $opts(info) 0 255]
+        } else {
+            set opts(info) ""
+        }
+
+        if {[info exists opts(infotitle)]} {
+            set opts(infotitle) [string range $opts(infotitle) 0 63]
+        } else {
+            set opts(infotitle) ""
+        }
+
+        # Calculate padding for text fields (in bytes so 2*num padchars)
         set tip_padcount [expr {2*(128 - [string length $opts(tip)])}]
-        # Ditto for info (255 chars max plus \0's)
-        set opts(info) [string range $opts(info) 0 255]
         set info_padcount [expr {2*(256 - [string length $opts(info)])}]
-        # Ditto for infotitle (64 chars max plus \0's)
-        set opts(infotitle) [string range $opts(infotitle) 0 63]
         set infotitle_padcount [expr {2 * (64 - [string length $opts(infotitle)])}]
+        if {$opts(infoicon) eq "user"} {
+            if {![min_os_version 5 1 2]} {
+                # 'user' not supported before XP SP2
+                set opts(infoicon) none
+            }
+        }
+
+        set infoflags [dict get {
+            none 0
+            info 1
+            warning 2
+            error 3
+            user 4
+        } $opts(infoicon)]
+        
+        if {$infoflags == 4} {
+            if {![info exists opts(hicon)]} {
+                error "Option -hicon must be specified if value of -infoicon option is 'user'"
+            }
+        }
+
+        if {$opts(silent)} {
+            incr infoflags 0x10
+        }
 
         if {$::tcl_platform(pointerSize) == 8} {
             set addrfmt m
@@ -471,10 +550,10 @@ namespace eval twapi::systray {
             set alignment x0
         }
 
-        set hwnd  [Twapi_PtrToAddress $hwnd]
+        set hwnd  [Twapi_PtrToAddress [Twapi_GetNotificationWindow]]
         set opts(hicon) [Twapi_PtrToAddress $opts(hicon)]
 
-        set bin [binary format "${alignment}${addrfmt}nnn${addrfmt}" $hwnd $id $opts(flags) $opts(wm) $opts(hicon)]
+        set bin [binary format "${alignment}${addrfmt}nnn" $hwnd $id $flags [_get_script_wm NOTIFY_ICON_CALLBACK]]
         append bin \
             [binary format ${alignment}${addrfmt} $opts(hicon)] \
             [encoding convertto unicode $opts(tip)] \
@@ -482,9 +561,47 @@ namespace eval twapi::systray {
             [encoding convertto unicode $opts(info)] \
             [binary format "x${info_padcount}n" $timeout_or_version] \
             [encoding convertto unicode $opts(infotitle)] \
-            [binary format "x${infotitle_padcount}nx16" $opts(infoflags)]
+            [binary format "x${infotitle_padcount}nx16" $infoflags]
+        return "[binary format n [expr {4+[string length $bin]}]]$bin"
+    }
 
-        return "[binary format n [expr {[string length $bin]}]]$bin"
+    proc addicon {hicon cmdprefix} {
+        variable _icon_id_ctr
+        variable _icon_handlers
+
+        _register_script_wm_handler [_get_script_wm NOTIFY_ICON_CALLBACK] [list [namespace current]::_systray_icon_handler] 1
+        
+        set id [incr _icon_id_ctr]
+        
+        if {![Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon $hicon]]} {
+            error "Could not register icon in system tray."
+        }
+        set _icon_handlers($id) [lrange $cmdprefix 0 end]
+        return $id
+    }
+
+    proc removeicon {id} {
+        # Ignore errors in case dup call
+        Shell_NotifyIcon 2 [_make_NOTIFYICONW $id]
+        if {[info exists _icon_handlers($id)]} {
+            unset _icon_handlers($id)
+        }
+    }
+
+    proc _systray_icon_handler {msg id notification msgpos ticks} {
+        variable _icon_handlers
+        variable _message_map
+
+        if {![info exists _icon_handlers($id)]} {
+            return;             # Stale
+        }
+
+        # Translate the notification into text
+        if {[info exists _message_map($notification)]} {
+            set notification $_message_map($notification)
+        }
+        
+        uplevel #0 [linsert $_icon_handlers($id) end $id $notification $msgpos $ticks]
     }
 
 }
