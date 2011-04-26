@@ -12,7 +12,7 @@ int Twapi_PowerNotifyStart(TwapiInterpContext *ticP)
     HWND hwnd;
 
     // Get the common notification window.
-    hwnd = TwapiGetNotificationWindow(ticP);
+    hwnd = Twapi_GetNotificationWindow(ticP);
     if (hwnd == NULL)
         return TCL_ERROR;
 
@@ -32,6 +32,7 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP)
 }
 
 
+/* TBD - move to scrpt level code like hotkeys ? */
 /* Called (indirectly) from the Tcl notifier loop with a new power event.
  * Constructs the script to be invoked in the interpreter.
  * Follows behaviour specified by TwapiCallbackFn typedef.

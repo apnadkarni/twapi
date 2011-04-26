@@ -191,7 +191,7 @@ static LRESULT TwapiNotificationWindowHandler(
  * This window is limited in the sense that it is not possible to store
  * custom data in the window.
  */
-HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP)
+HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP)
 {
     int status;
 

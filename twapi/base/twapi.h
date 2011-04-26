@@ -1501,7 +1501,7 @@ DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *r
 int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id);
 int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk);
 LRESULT TwapiHotkeyHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
-HWND TwapiGetNotificationWindow(TwapiInterpContext *ticP);
+HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* Power management */
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);

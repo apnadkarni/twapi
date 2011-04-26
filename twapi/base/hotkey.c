@@ -7,12 +7,13 @@
 
 #include "twapi.h"
 
+/* TBD - move to script level code */
 int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk)
 {
     HWND hwnd;
 
     // Get the common notification window.
-    hwnd = TwapiGetNotificationWindow(ticP);
+    hwnd = Twapi_GetNotificationWindow(ticP);
     if (hwnd == NULL)
         return TCL_ERROR;
 
@@ -28,7 +29,7 @@ int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id)
     // Note since we are using the common window for notifications,
     // we do not destroy it. Just unregister the hot key.
     HWND hwnd;
-    hwnd = TwapiGetNotificationWindow(ticP);
+    hwnd = Twapi_GetNotificationWindow(ticP);
     
     if (UnregisterHotKey(hwnd, id))
         return TCL_OK;

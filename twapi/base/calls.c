@@ -421,6 +421,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(TwapiId, Call, 74);
     CALL_(DebugBreak, Call, 75);
     CALL_(GetPerformanceInformation, Call, 76);
+    CALL_(Twapi_GetNotificationWindow, Call, 77);
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1450,6 +1451,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 76:
             return Twapi_GetPerformanceInformation(ticP->interp);
+        case 77:
+            result.type = TRT_HWND;
+            result.value.hwin = Twapi_GetNotificationWindow(ticP);
+            break;
         }
 
         return TwapiSetResult(interp, &result);
@@ -2992,6 +2997,9 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
             u.niP = (NOTIFYICONDATAW *) Tcl_GetByteArrayFromObj(objv[3], &dw2);
             if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
+                result.type = TRT_DWORD;
+                result.value.ival = sizeof(NOTIFYICONDATAW);
+                break;
                 return TwapiReturnTwapiError(interp, "Inconsistent size of NOTIFYICONDATAW structure.", TWAPI_INVALID_ARGS);
             }
             result.type = TRT_BOOL;

@@ -49,7 +49,11 @@ namespace eval twapi {
     # range (1056 = 1024+32) - (1024+32+31) (see twapi_wm.h)
     variable _wm_script_msgs
     array set _wm_script_msgs {
-        TWAPI_WM_NOTIFY_ICON_CALLBACK 1056
+        NOTIFY_ICON_CALLBACK 1056
+    }
+    proc _get_script_wm {tok} {
+        variable _wm_script_msgs
+        return $_wm_script_msgs($tok)
     }
 }
 
