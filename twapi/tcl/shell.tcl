@@ -424,7 +424,7 @@ proc twapi::shell_execute args {
 }
 
 
-namespace eval twapi::systray {
+namespace eval twapi::systemtray {
 
     namespace path [namespace parent]
 
@@ -571,7 +571,7 @@ namespace eval twapi::systray {
         variable _icon_id_ctr
         variable _icon_handlers
 
-        _register_script_wm_handler [_get_script_wm NOTIFY_ICON_CALLBACK] [list [namespace current]::_systray_icon_handler] 1
+        _register_script_wm_handler [_get_script_wm NOTIFY_ICON_CALLBACK] [list [namespace current]::_icon_handler] 1
         
         set id [incr _icon_id_ctr]
         
@@ -602,7 +602,7 @@ namespace eval twapi::systray {
         Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
     }
 
-    proc _systray_icon_handler {msg id notification msgpos ticks} {
+    proc _icon_handler {msg id notification msgpos ticks} {
         variable _icon_handlers
         variable _message_map
 
@@ -618,4 +618,6 @@ namespace eval twapi::systray {
         uplevel #0 [linsert $_icon_handlers($id) end $id $notification $msgpos $ticks]
     }
 
+    namespace export addicon modifyicon removeicon
+    namespace ensemble create
 }
