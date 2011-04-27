@@ -74,10 +74,11 @@ proc twapi::wait_on_handle {hwait args} {
     # so convert it so lookups succeed
     set h [cast_handle $hwait HANDLE]
 
+    # 0x00000008 ->   # WT_EXECUTEONCEONLY
     array set opts [parseargs args {
         {wait.int -1}
         async.arg
-        {executeonce.bool false}
+        {executeonce.bool false 0x00000008}
     }]
 
     if {![info exists opts(async)]} {
@@ -112,11 +113,8 @@ proc twapi::wait_on_handle {hwait args} {
         cancel_wait_on_handle $h
     }
 
-    set flags 0
-    if {$opts(executeonce)} {
-        set flags 0x00000008;   # WT_EXECUTEONCEONLY
-    }
-    set id [Twapi_RegisterWaitOnHandle $h $opts(wait) $flags]
+
+    set id [Twapi_RegisterWaitOnHandle $h $opts(wait) $opts(executeonce)]
 
     # Set now that successfully registered
     set _wait_handle_scripts($id) $opts(async)

@@ -202,39 +202,29 @@ proc twapi::write_shortcut {link args} {
 # Read a shortcut
 proc twapi::read_shortcut {link args} {
     array set opts [parseargs args {
-        shortnames
-        uncpath
-        rawpath
         timeout.int
         {hwin.int 0}
-        install
-        nosearch
-        notrack
-        noui
-        nolinkinfo
-        anymatch
+
+        {_comment {Path format flags}}
+        {shortnames {} 1}
+        {uncpath    {} 2}
+        {rawpath    {} 4}
+
+        {_comment {Resolve flags}}
+        {install {} 128}
+        {nolinkinfo {} 64}
+        {notrack {} 32}
+        {nosearch {} 16}
+        {anymatch {} 2}
+        {noui {} 1}
     } -maxleftover 0]
 
-    set pathfmt 0
-    foreach {opt val} {shortnames 1 uncpath 2 rawpath 4} {
-        if {$opts($opt)} {
-            setbits pathfmt $val
-        }
-    }
+    set pathfmt [expr {$opts(shortnames) | $opts(uncpath) | $opts(rawpath)}]
 
-    set resolve_flags 4;                # SLR_UPDATE
-    foreach {opt val} {
-        install      128
-        nolinkinfo    64
-        notrack       32
-        nosearch      16
-        anymatch       2
-        noui           1
-    } {
-        if {$opts($opt)} {
-            setbits resolve_flags $val
-        }
-    }
+    # 4 -> SLR_UPDATE
+    set resolve_flags [expr {4 | $opts(install) | $opts(nolinkinfo) |
+                             $opts(notrack) | $opts(nosearch) |
+                             $opts(anymatch) | $opts(noui)}]
 
     array set shortcut [twapi::Twapi_ReadShortcut $link $pathfmt $opts(hwin) $resolve_flags]
 
@@ -324,30 +314,31 @@ proc twapi::recycle_file {fn args} {
 
 proc twapi::shell_execute args {
     array set opts [parseargs args {
-        asyncok.bool
         class.arg
-        connect.bool
         dir.arg
-        getprocesshandle.bool
         {hicon.arg NULL}
         {hkeyclass.arg NULL}
         {hmonitor.arg NULL}
         hotkey.int
         hwin.int
         idl.arg
-        invokeidlist.bool
-        logusage.bool
-        noconsole.bool
-        noui.bool
-        nozonechecks.bool
         params.arg
         path.arg
         {show.arg 1}
-        substenv.bool
-        unicode.bool
         verb.arg
-        {wait.bool true}
-        waitforinputidle.bool
+
+        {getprocesshandle.bool 0 0x00000040}
+        {connect.bool 0 0x00000080}
+        {wait.bool 0x00000100 0x00000100}
+        {substenv.bool 0 0x00000200}
+        {noui.bool 0 0x00000400}
+        {unicode.bool 0 0x00004000}
+        {noconsole.bool 0 0x00008000}
+        {asyncok.bool 0 0x00100000}
+        {nozonechecks.bool 0 0x00800000}
+        {waitforinputidle.bool 0 0x02000000}
+        {logusage.bool 0 0x04000000}
+        {invokeidlist.bool 0 0x0000000C}
     } -maxleftover 0 -nulldefault]
 
     set fmask 0
@@ -365,25 +356,12 @@ proc twapi::shell_execute args {
         setbits fmask 3
     }
 
-    foreach {opt mask} {
-        getprocesshandle 0x00000040
-        connect          0x00000080
-        wait             0x00000100
-        substenv         0x00000200
-        noui             0x00000400
-        unicode          0x00004000
-        noconsole        0x00008000
-        asyncok          0x00100000
-        nozonechecks     0x00800000
-        waitforinputidle 0x02000000
-        logusage         0x04000000
-        invokeidlist     0x0000000C
-    } {
-        if {$opts($opt)} {
-            setbits fmask $mask
-        }
-    }
-
+    set fmask [expr {$fmask |
+                     $opts(getprocesshandle) | $opts(connect) | $opts(wait) |
+                     $opts(substenv) | $opts(noui) | $opts(unicode) |
+                     $opts(noconsole) | $opts(asyncok) | $opts(nozonechecks) |
+                     $opts(waitforinputidle) | $opts(logusage) |
+                     $opts(invokeidlist)}]
 
     if {$opts(hicon) ne "NULL" && $opts(hmonitor) ne "NULL"} {
         error "Cannot specify -hicon and -hmonitor options together."
@@ -392,10 +370,10 @@ proc twapi::shell_execute args {
     set hiconormonitor NULL
     if {$opts(hicon) ne "NULL"} {
         set hiconormonitor $opts(hicon)
-        setbits flags 0x00000010
+        set flags [expr {$flags | 0x00000010}]
     } elseif {$opts(hmonitor) ne "NULL"} {
         set hiconormonitor $opts(hmonitor)
-        setbits flags 0x00200000
+        set flags [expr {$flags | 0x00200000}]
     }
 
     if {![string is integer -strict $opts(show)]} {

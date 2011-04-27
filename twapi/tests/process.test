@@ -1679,6 +1679,12 @@ namespace eval ::twapi::process::test {
         set result
     } -result 1
 
+    test create_process-99.0 {
+        TBD - add tests for all create_process options
+    } -constraints {
+        TBD 
+    } -body {
+    } -result ""
 
     ################################################################
 

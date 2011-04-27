@@ -76,13 +76,13 @@ proc twapi::com_create_instance {clsid args} {
         download.bool
         {disablelog.bool false}
         enableaaa.bool
-        {nocustommarshal.bool false}
+        {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
         raw
     } -maxleftover 0]
 
     # CLSCTX_NO_CUSTOM_MARSHAL ?
-    set flags [expr { $opts(nocustommarshal) ? 0x1000 : 0}]
+    set flags $opts(nocustommarshal)
 
     set model 0
     if {[info exists opts(model)]} {

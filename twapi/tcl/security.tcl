@@ -25,7 +25,7 @@ namespace eval twapi {
         9 computer
     }
 
-    # Well known group to SID mapping
+    # Well known group to SID mapping. TBD - update for Win7
     array set well_known_sids {
         nullauthority     S-1-0
         nobody            S-1-0-0
@@ -724,9 +724,9 @@ proc twapi::is_valid_luid_syntax {luid} {
 proc twapi::new_ace {type account rights args} {
     array set opts [parseargs args {
         {self.bool 1}
-        {recursecontainers.bool 0}
-        {recurseobjects.bool 0}
-        {recurseonelevelonly.bool 0}
+        {recursecontainers.bool 0 2}
+        {recurseobjects.bool 0 1}
+        {recurseonelevelonly.bool 0 4}
     }]
 
     set sid [map_account_to_sid $account]
@@ -745,21 +745,10 @@ proc twapi::new_ace {type account rights args} {
         }
     }
 
-    set inherit_flags 0
+    set inherit_flags [expr {$opts(recursecontainers) | $opts(recurseobjects) |
+                             $opts(recurseonelevelonly)}]
     if {! $opts(self)} {
-        setbits inherit_flags 8; #INHERIT_ONLY_ACE
-    }
-
-    if {$opts(recursecontainers)} {
-        setbits inherit_flags 2; #CONTAINER_INHERIT_ACE
-    }
-
-    if {$opts(recurseobjects)} {
-        setbits inherit_flags 1; #OBJECT_INHERIT_ACE
-    }
-
-    if {$opts(recurseonelevelonly)} {
-        setbits inherit_flags 4; #NO_PROPAGATE_INHERIT_ACE
+        incr inherit_flags 8; #INHERIT_ONLY_ACE
     }
 
     return [list $typecode $inherit_flags $access_mask $sid]
@@ -1257,20 +1246,19 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
     variable windefs
 
     array set opts [parseargs args {
+        all
         handle
         owner
         group
         dacl
         sacl
         mandatory_label
-        all
-        protect_dacl
-        unprotect_dacl
-        protect_sacl
-        unprotect_sacl
+        {protect_dacl   {} 0x80000000}
+        {unprotect_dacl {} 0x20000000}
+        {protect_sacl   {} 0x40000000}
+        {unprotect_sacl {} 0x10000000}
     }]
 
-    set mask 0
 
     if {![min_os_version 6]} {
         if {$opts(mandatory_label)} {
@@ -1282,23 +1270,12 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
         error "Cannot specify both -protect_dacl and -unprotect_dacl."
     }
 
-    if {$opts(protect_dacl)} {
-        setbits mask $windefs(PROTECTED_DACL_SECURITY_INFORMATION)
-    }
-    if {$opts(unprotect_dacl)} {
-        setbits mask $windefs(UNPROTECTED_DACL_SECURITY_INFORMATION)
-    }
-
     if {$opts(protect_sacl) && $opts(unprotect_sacl)} {
         error "Cannot specify both -protect_sacl and -unprotect_sacl."
     }
 
-    if {$opts(protect_sacl)} {
-        setbits mask $windefs(PROTECTED_SACL_SECURITY_INFORMATION)
-    }
-    if {$opts(unprotect_sacl)} {
-        setbits mask $windefs(UNPROTECTED_SACL_SECURITY_INFORMATION)
-    }
+    set mask [expr {$opts(protect_dacl) | $opts(unprotect_dacl) |
+                    $opts(protect_sacl) | $opts(unprotect_sacl)}]
 
     if {$opts(owner) || $opts(all)} {
         set opts(owner) [get_security_descriptor_owner $secd]
@@ -1520,11 +1497,11 @@ proc twapi::get_security_descriptor_text {secd args} {
 
 # Log off
 proc twapi::logoff {args} {
-    array set opts [parseargs args {force forceifhung}]
-    set flags 0
-    if {$opts(force)} {setbits flags 0x4}
-    if {$opts(forceifhung)} {setbits flags 0x10}
-    ExitWindowsEx $flags 0
+    array set opts [parseargs args {
+        {force {} 0x4}
+        {forceifhung {} 0x10}
+    } -maxleftover 0]
+    ExitWindowsEx [expr {$opts(force) | $opts(forceifhung)}]  0
 }
 
 # Lock the workstation

@@ -170,9 +170,7 @@ proc twapi::map_drive_local {drive path args} {
     array set opts [parseargs args {raw}]
 
     set drive [string range [_drive_rootpath $drive] 0 1]
-
-    set flags [expr {$opts(raw) ? 0x1 : 0}]
-    DefineDosDevice $flags $drive [file nativename $path]
+    DefineDosDevice $opts(raw) $drive [file nativename $path]
 }
 
 
@@ -185,7 +183,7 @@ proc twapi::unmap_drive_local {drive args} {
 
     set drive [string range [_drive_rootpath $drive] 0 1]
 
-    set flags [expr {$opts(raw) ? 0x1 : 0}]
+    set flags $opts(raw)
     setbits flags 0x2;                  # DDD_REMOVE_DEFINITION
     if {$opts(path) ne ""} {
         setbits flags 0x4;              # DDD_EXACT_MATCH_ON_REMOVE
@@ -209,15 +207,15 @@ proc twapi::begin_filesystem_monitor {path script args} {
     variable _filesystem_monitor_scripts
 
     array set opts [parseargs args {
-        {subtree.bool false}
-        filename.bool
-        dirname.bool
-        attr.bool
-        size.bool
-        write.bool
-        access.bool
-        create.bool
-        secd.bool
+        {subtree.bool  0}
+        {filename.bool 0 0x1}
+        {dirname.bool  0 0x2}
+        {attr.bool     0 0x4}
+        {size.bool     0 0x8}
+        {write.bool    0 0x10}
+        {access.bool   0 0x20}
+        {create.bool   0 0x40}
+        {secd.bool     0 0x100}
         {pattern.arg ""}
         {patterns.arg ""}
     } -maxleftover 0]
@@ -243,27 +241,11 @@ proc twapi::begin_filesystem_monitor {path script args} {
         set opts(patterns) $pats
     }
 
-    set have_opts 0
-    set flags 0
-    foreach {opt val} {
-        filename 0x1
-        dirname  0x2
-        attr     0x4
-        size     0x8
-        write 0x10
-        access 0x20
-        create  0x40
-        secd      0x100
-    } {
-        if {[info exists opts($opt)]} {
-            if {$opts($opt)} {
-                setbits flags $val
-            }
-            set have_opts 1
-        }
-    }
+    set flags [expr { $opts(filename) | $opts(dirname) | $opts(attr) |
+                      $opts(size) | $opts(write) | $opts(access) |
+                      $opts(create) | $opts(secd)}]
 
-    if {! $have_opts} {
+    if {! $flags} {
         # If no options specified, default to all
         set flags 0x17f
     }
