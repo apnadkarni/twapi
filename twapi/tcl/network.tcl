@@ -744,6 +744,8 @@ proc twapi::terminate_tcp_connections {args} {
     }
 
     # Get connection list and go through matching on each
+    # TBD - optimize by precalculating if *ANY* matching is to be done
+    # and if not, skip the whole matching sequence
     foreach conn [eval get_tcp_connections [_get_array_as_options opts]] {
         array set aconn $conn
         # TBD - should we handle integer values of opts(state) ?

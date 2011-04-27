@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, Ashok P. Nadkarni
+# Copyright (c) 2010-2011, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -16,10 +16,10 @@ proc twapi::namedpipe_server {name args} {
 
     array set opts [twapi::parseargs args {
         {access.arg {read write}}
-        writedacl
-        writeowner
-        writesacl
-        writethrough
+        {writedacl    0  0x00040000}
+        {writeowner   0  0x00080000}
+        {writesacl    0  0x01000000}
+        {writethrough 0  0x80000000}
         denyremote
         {timeout.int 50}
         {maxinstances.int 255}
@@ -27,19 +27,13 @@ proc twapi::namedpipe_server {name args} {
         {inherit.bool 0}
     } -maxleftover 0]
 
-    set open_mode [twapi::_parse_symbolic_bitmask $opts(access) {read 1 write 2}]
-    foreach {opt mask} {
-        writedacl  0x00040000
-        writeowner 0x00080000
-        writesacl  0x01000000
-        writethrough 0x80000000
-    } {
-        if {$opts($opt)} {
-            set open_mode [expr {$open_mode | $mask}]
-        }
-    }
-        
-    set open_mode [expr {$open_mode | 0x40000000}]; # OVERLAPPPED I/O
+    # 0x40000000 -> OVERLAPPED I/O
+    set open_mode [expr {
+                         [twapi::_parse_symbolic_bitmask $opts(access) {read 1 write 2}] |
+                         $opts(writedacl) | $opts(writeowner) |
+                         $opts(writesacl) | $opts(writethrough) |
+                         0x40000000
+                      }]
         
     set pipe_mode 0
     if {$opts(denyremote)} {
@@ -65,8 +59,8 @@ proc twapi::namedpipe_client {name args} {
     array set opts [twapi::parseargs args {
         {access.arg {read write}}
         impersonationlevel.arg
-        {impersonateeffectiveonly.bool false}
-        {impersonatecontexttracking.bool false}
+        {impersonateeffectiveonly.bool false 0x00080000}
+        {impersonatecontexttracking.bool false 0x00040000}
     } -maxleftover 0]
 
     # FILE_READ_DATA              0x00000001
@@ -90,12 +84,8 @@ proc twapi::namedpipe_client {name args} {
                 win32_error 1346 "Invalid impersonation level '$opts(impersonationlevel)'."
             }
         }
-        if {$opts(impersonateeffectiveonly)} {
-            set flags [expr {$flags | 0x00080000}]
-        }
-        if {$opts(impersonatecontexttracking)} {
-            set flags [expr {$flags | 0x00040000}]
-        }
+        set flags [expr {$flags | $opts(impersonateeffectiveonly) |
+                         $opts(impersonatecontexttracking)}]
     }
 
     set share_mode 0;           # Share none
