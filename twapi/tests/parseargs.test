@@ -458,20 +458,16 @@ namespace eval twapi::parseargs::test {
     ###
 
     test parseargs-4.8 {
-        Verify parsing of arguments of type bool ignore enumerated values
+        Verify parsing of arguments of type bool return mapped true value
     } -constraints {
     } -body {
         unset -nocomplain opts
         set vargs {-a true extraarg}
         array set opts [twapi::parseargs vargs {
-            {a.bool 0 {XXX YYY}}
+            {a.bool 0 mappedvalue}
         }]
-        expr {
-              [llength $vargs] == 1 &&
-              [string equal [lindex $vargs 0] "extraarg"] &&
-              $opts(a) == 1
-          }
-    } -result 1
+        list [llength $vargs] $opts(a)
+    } -result {1 mappedvalue}
 
     ###
 
@@ -543,21 +539,17 @@ namespace eval twapi::parseargs::test {
     ###
 
     test parseargs-5.3 {
-        Verify parsing of arguments of type switch ignore enumerated values
+        Verify parsing of arguments of type switch return mapped values
     } -constraints {
     } -body {
         unset -nocomplain opts
         set vargs {-a arg extraarg}
         array set opts [twapi::parseargs vargs {
-            {a switch 0 {XXX YYY}}
+            {a 0 mappedvalue}
         }]
-        expr {
-              [llength $vargs] == 2 &&
-              [string equal [lindex $vargs 0] "arg"] &&
-              [string equal [lindex $vargs 1] "extraarg"] &&
-              $opts(a) == 1
-          }
-    } -result 1
+
+        list [llength $vargs] {*}$vargs $opts(a)
+    } -result {2 arg extraarg mappedvalue}
 
     ###
 
