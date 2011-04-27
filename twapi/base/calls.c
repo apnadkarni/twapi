@@ -446,6 +446,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
+    CALL_(DeleteObject, Call, 1023);
+    CALL_(DestroyIcon, Call, 1024);
+    CALL_(DestroyCursor, Call, 1025);
 
     CALL_(Twapi_FormatExtendedTcpTable, Call, 10000);
     CALL_(Twapi_FormatExtendedUdpTable, Call, 10001);
@@ -579,7 +582,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_SplitStringResource, Call, 10129);
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
-    CALL_(Twapi_LoadImage, Call, 10132); /* TBD - Tcl interface */
+    CALL_(LoadImage, Call, 10132); /* TBD - Tcl interface */
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -763,7 +766,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(Twapi_EnumResourceTypes, CallH, 68);
-    CALL_(DeleteObject, CallH, 69); // TBD - Tcl wrapper
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -1632,6 +1634,24 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EMPTY;
             if (pv)
                 TwapiFree(pv);
+            break;
+        case 1023:              /* DeleteObject */
+            if (ObjToOpaque(interp, objv[2], &pv, "HGDIOBJ") != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeleteObject(pv);
+            break;
+        case 1024:              /* DestroyIcon */
+            if (ObjToOpaque(interp, objv[2], &pv, "HICON") != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DestroyIcon(pv);
+            break;
+        case 1025:              /* DestroyCursor */
+            if (ObjToOpaque(interp, objv[2], &pv, "HCURSOR") != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DestroyCursor(pv);
             break;
         }
     } else {
@@ -3642,10 +3662,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 68:
             return Twapi_EnumResourceTypes(interp, h);
-        case 69:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeleteObject(h);
-            break;
         }
     } else if (func < 2000) {
 
