@@ -428,8 +428,9 @@ namespace eval twapi::systemtray {
 
     namespace path [namespace parent]
 
-    variable _icon_handlers
-    array set _icon_handlers {}
+    # Dictionary mapping id->handler, hicon
+    variable _icondata
+    set _icondata [dict create]
 
     variable _icon_id_ctr
 
@@ -569,9 +570,10 @@ namespace eval twapi::systemtray {
 
     proc addicon {hicon cmdprefix} {
         variable _icon_id_ctr
-        variable _icon_handlers
+        variable _icondata
 
         _register_script_wm_handler [_get_script_wm NOTIFY_ICON_CALLBACK] [list [namespace current]::_icon_handler] 1
+        _register_script_wm_handler [_get_script_wm TASKBAR_RESTART] [list [namespace current]::_taskbar_restart_handler] 1
         
         set id [incr _icon_id_ctr]
         
@@ -586,27 +588,30 @@ namespace eval twapi::systemtray {
             error "Could not set system tray icon notification version."
         }
 
-        set _icon_handlers($id) [lrange $cmdprefix 0 end]
+        dict set _icondata $id handler [lrange $cmdprefix 0 end]
+        dict set _icondata $id hicon   $hicon
+
         return $id
     }
 
     proc removeicon {id} {
+        variable _icondata
+
         # Ignore errors in case dup call
         Shell_NotifyIcon 2 [_make_NOTIFYICONW $id]
-        if {[info exists _icon_handlers($id)]} {
-            unset _icon_handlers($id)
-        }
+        dict unset _icondata $id
     }
 
     proc modifyicon {id args} {
+        # TBD - do we need to [dict set _icondata hicon ...] ?
         Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
     }
 
     proc _icon_handler {msg id notification msgpos ticks} {
-        variable _icon_handlers
+        variable _icondata
         variable _message_map
 
-        if {![info exists _icon_handlers($id)]} {
+        if {![dict  exists _icondata $id handler]} {
             return;             # Stale
         }
 
@@ -615,7 +620,16 @@ namespace eval twapi::systemtray {
             set notification $_message_map($notification)
         }
         
-        uplevel #0 [linsert $_icon_handlers($id) end $id $notification $msgpos $ticks]
+        uplevel #0 [linsert [dict get $_icondata $id handler] end $id $notification $msgpos $ticks]
+    }
+
+    proc _taskbar_restart_handler {args} {
+        variable _icondata
+        # Need to add icons back into taskbar
+        dict for {id icodata} $_icondata {
+            # 0 -> Add
+            Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon [dict get $icodata hicon]]
+        }
     }
 
     namespace export addicon modifyicon removeicon

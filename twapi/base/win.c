@@ -159,6 +159,7 @@ static LRESULT TwapiNotificationWindowHandler(
     LPARAM lParam
     )
 {
+    static UINT wm_taskbar_restart;
 
     if (msg == WM_HOTKEY ||
         (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST)) {
@@ -175,10 +176,39 @@ static LRESULT TwapiNotificationWindowHandler(
         TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
         return (LRESULT) NULL;
     } else {
-        if (msg == WM_POWERBROADCAST) {
+        switch (msg) {
+        case WM_CREATE:
+            /*
+             * On creation, stash the message number windows sends when
+             * the taskbar is (re) created
+             * Not thread safe, but no matter
+             */
+            if (wm_taskbar_restart == 0)
+                wm_taskbar_restart = RegisterWindowMessageW(L"TaskbarCreated");
+            break;
+        case WM_POWERBROADCAST:
             if (ticP->power_events_on)
                 return TwapiPowerHandler(ticP, msg, wParam, lParam);
-            /* else FALLTHRU */
+            break;
+        default:
+            if (msg == WM_HOTKEY ||
+                (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST) ||
+                msg == wm_taskbar_restart) {
+                TwapiCallback *cbP;
+                DWORD pos;
+                if (msg == wm_taskbar_restart)
+                    msg = TWAPI_WM_TASKBAR_RESTART; /* Map dynamic number to our fixed number */
+
+                cbP = TwapiCallbackNew(ticP, TwapiScriptWMCallbackFn, sizeof(*cbP));
+                cbP->receiver_id = msg;
+                cbP->clientdata = wParam;
+                cbP->clientdata2 = lParam;
+                pos = GetMessagePos();
+                cbP->wm_state.message_pos = MAKEPOINTS(pos);
+                cbP->wm_state.ticks = GetTickCount();
+                TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
+                return (LRESULT) NULL;
+            }
         }
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }

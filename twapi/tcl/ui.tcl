@@ -49,6 +49,7 @@ namespace eval twapi {
     # range (1056 = 1024+32) - (1024+32+31) (see twapi_wm.h)
     variable _wm_script_msgs
     array set _wm_script_msgs {
+        TASKBAR_RESTART      1031
         NOTIFY_ICON_CALLBACK 1056
     }
     proc _get_script_wm {tok} {
