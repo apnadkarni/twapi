@@ -69,7 +69,7 @@ int Twapi_ParseargsObjCmd(
     Tcl_Obj   **optObjs;
     int         j, k;
     Tcl_WideInt wide;
-    struct OptionDescriptor opts[128]; /* Max number of options */
+    struct OptionDescriptor opts[64]; /* Max number of options */
     int         ignoreunknown = 0;
     int         nulldefault = 0;
     Tcl_Obj    *newargvObj = NULL;
@@ -171,7 +171,8 @@ int Twapi_ParseargsObjCmd(
             opts[k].def_value = elems[1];
 
             if (nelems > 2) {
-                /* Value must be in the specified list */
+                /* Value must be in the specified list or for BOOL and SWITCH
+                   value to use for 'true' */
                 opts[k].valid_values = elems[2];
             }
         }
@@ -251,23 +252,34 @@ int Twapi_ParseargsObjCmd(
         int       nvalid;
         int       ivalid;
 
-        /* Construct array of allowed values if specified.
-         * Since we created the list ourselves, call cannot fail
-         */
-        if (opts[k].valid_values) {
-            (void) Tcl_ListObjGetElements(interp, opts[k].valid_values,
-                                          &nvalid, &validObjs);
-        }
-
-        if (opts[k].value == NULL) {
-            /* Option not specified. Check for a default and use it */
-            if (opts[k].type != OPT_SWITCH) {
+        ivalid = 0;
+        nvalid = 0;
+        validObjs = NULL;
+        switch (opts[k].type) {
+        case OPT_SWITCH:
+            /* This ignores defaults and doesn't treat valid_values as a list */
+            break;
+        default:
+            /* For all opts except SWITCH and BOOL, valid_values is a list */
+            if (opts[k].valid_values) {
+                /* Construct array of allowed values if specified.
+                 * Since we created the list ourselves, call cannot fail
+                 */
+                (void) Tcl_ListObjGetElements(NULL, opts[k].valid_values,
+                                              &nvalid, &validObjs);
+            }
+            /* FALLTHRU to check for defaults */
+        case OPT_BOOL:
+            if (opts[k].value == NULL) {
+                /* Option not specified. Check for a default and use it */
                 if (opts[k].def_value == NULL && !nulldefault)
                     continue;       /* No default, so skip */
                 opts[k].value = opts[k].def_value;
             }
+            break;
         }
-        /* Do type checking if necessary */
+
+        /* Do value type checking */
         switch (opts[k].type) {
         case OPT_INT:
             /* If no explicit default, but have a -nulldefault switch,
@@ -331,12 +343,18 @@ int Twapi_ParseargsObjCmd(
                                                             opts[k].name, opts[k].name_len));
                     goto error_return;
                 }
-                //Note: Can't just do a SetBoolean as object is shared
-                //Need to allocate a new obj
-                //Tcl_SetBooleanObj(opts[k].value, j); /* Set as 1 or 0 */
-                opts[k].value = Tcl_NewBooleanObj(j);
+                if (j && opts[k].valid_values) {
+                    /* Note the AppendElement below will incr its ref count */
+                    opts[k].value = opts[k].valid_values;
+                } else {
+                    /*
+                     * Note: Can't just do a SetBoolean as object is shared
+                     * Need to allocate a new obj
+                     * BAD  - Tcl_SetBooleanObj(opts[k].value, j); 
+                     */
+                    opts[k].value = Tcl_NewBooleanObj(j);
+                }
             }
-            ivalid = 0;         /* Valid values are ignored for booleans */
             break;
 
         default:
@@ -344,7 +362,7 @@ int Twapi_ParseargsObjCmd(
         }
 
         /* Check if validity checks succeeded */
-        if (opts[k].valid_values) {
+        if (validObjs) {
             if (ivalid == nvalid) {
                 Tcl_Obj *invalidObj = TwapiParseargsBadValue("Invalid",
                                                              opts[k].value,
