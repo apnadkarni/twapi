@@ -1,4 +1,5 @@
 /* Windows messages defined by TWAPI */
+/* IF YOU CHANGE ANY VALUES, YOU MAY NEED TO CHANGE TCL SCRIPT VALUES TOO */
 
 /* Messages used by hidden window implementations */
 
@@ -6,7 +7,7 @@
    for application-defined messages and the former for control and window
    classes. We, as a library, are more of window class than the application
 */
-#define TWAPI_WM_BASE WM_USER
+#define TWAPI_WM_BASE               WM_USER
 #define TWAPI_WM_HIDDEN_WINDOW_INIT (TWAPI_WM_BASE+0)
 #define TWAPI_WM_ADD_HOTKEY         (TWAPI_WM_BASE+1) //TBD OBSOLETE?
 #define TWAPI_WM_REMOVE_HOTKEY      (TWAPI_WM_BASE+2) //TBD OBSOLETE?
@@ -14,6 +15,7 @@
 #define TWAPI_WM_REMOVE_DIR_NOTIFICATION            (TWAPI_WM_BASE+4) //TBD OBSOLETE?
 #define TWAPI_WM_ADD_DEVICE_NOTIFICATION    (TWAPI_WM_BASE+5)
 #define TWAPI_WM_REMOVE_DEVICE_NOTIFICATION (TWAPI_WM_BASE+6)
+#define TWAPI_WM_TASKBAR_RESTART (TWAPI_WM_BASE+7)
 
 /*
  * Reserve message id that can be used directly at script level with
