@@ -122,8 +122,8 @@ proc twapi::update_devinfoset {args} {
     array set opts [parseargs args {
         {guid.arg ""}
         {classtype.arg setup {interface setup}}
-        {presentonly.bool false}
-        {currentprofileonly.bool false}
+        {presentonly.bool false 0x2}
+        {currentprofileonly.bool false 0x8}
         {deviceinfoset.arg NULL}
         {hwin.int 0}
         {system.arg ""}
@@ -136,14 +136,12 @@ proc twapi::update_devinfoset {args} {
         # DIGCF_DEVICEINTERFACE
         set flags [expr {$flags | 0x10}]
     }
-    if {$opts(presentonly)} {
-        # DIGCF_PRESENT
-        set flags [expr {$flags | 0x2}]
-    }
-    if {$opts(currentprofileonly)} {
-        # DIGCF_PRESENT
-        set flags [expr {$flags | 0x8}]
-    }
+
+    # DIGCF_PRESENT
+    set flags [expr {$flags | $opts(presentonly)}]
+
+    # DIGCF_PRESENT
+    set flags [expr {$flags | $opts(currentprofileonly)}]
 
     return [SetupDiGetClassDevsEx \
                 $opts(guid) \

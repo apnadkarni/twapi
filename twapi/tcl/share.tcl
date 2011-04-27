@@ -221,10 +221,10 @@ proc twapi::connect_share {remoteshare args} {
         defaultpassword
         user.arg
         {window.arg 0}
-        interactive
-        prompt
-        updateprofile
-        commandline
+        {interactive {} 0x8}
+        {prompt      {} 0x10}
+        {updateprofile {} 0x1}
+        {commandline {} 0x800}
     } -nulldefault]
 
     set flags 0
@@ -259,16 +259,8 @@ proc twapi::connect_share {remoteshare args} {
         }
     }
 
-    foreach {opt mask} {
-        interactive   0x8
-        prompt        0x10
-        updateprofile 0x1
-        commandline   0x800
-    } {
-        if {$opts($opt)} {
-            setbits flags $mask
-        }
-    }
+    set flags [expr {$flags | $opts(interactive) | $opts(prompt) |
+                     $opts(updateprofile) | $opts(commandline)}]
 
     return [Twapi_WNetUseConnection $opts(window) $type $opts(localdevice) \
                 $remoteshare $opts(provider) $opts(user) $ignore_password \

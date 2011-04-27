@@ -44,55 +44,58 @@ proc twapi::process_waiting_for_input {pid args} {
 
 # Create a process
 proc twapi::create_process {path args} {
-    array set opts [parseargs args \
-                        [list \
-                             [list cmdline.arg ""] \
-                             [list inheritablechildprocess.bool 0] \
-                             [list inheritablechildthread.bool 0] \
-                             [list childprocesssecd.arg ""] \
-                             [list childthreadsecd.arg ""] \
-                             [list inherithandles.bool 0] \
-                             [list env.arg ""] \
-                             [list startdir.arg ""] \
-                             [list inheriterrormode.bool 1] \
-                             [list newconsole.bool 0] \
-                             [list detached.bool 0] \
-                             [list newprocessgroup.bool 0] \
-                             [list noconsole.bool 0] \
-                             [list separatevdm.bool 0] \
-                             [list sharedvdm.bool 0] \
-                             [list createsuspended.bool 0] \
-                             [list debugchildtree.bool 0] \
-                             [list debugchild.bool 0] \
-                             [list priority.arg "normal" [list normal abovenormal belownormal high realtime idle]] \
-                             [list desktop.arg "__null__"] \
-                             [list title.arg ""] \
-                             windowpos.arg \
-                             windowsize.arg \
-                             screenbuffersize.arg \
-                             [list feedbackcursoron.bool false] \
-                             [list feedbackcursoroff.bool false] \
-                             background.arg \
-                             foreground.arg \
-                             [list fullscreen.bool false] \
-                             [list showwindow.arg ""] \
-                             [list stdhandles.arg ""] \
-                             [list stdchannels.arg ""] \
-                             [list returnhandles.bool 0]\
-                            ] -maxleftover 0]
+    array set opts [parseargs args {
+        {_comment "dwCreationFlags"}
+        {debugchildtree.bool  0 0x1}
+        {debugchild.bool      0 0x2}
+        {createsuspended.bool 0 0x4}
+        {detached.bool        0 0x8}
+        {newconsole.bool      0 0x10}
+        {newprocessgroup.bool 0 0x200}
+        {separatevdm.bool     0 0x800}
+        {sharedvdm.bool       0 0x1000}
+        {inheriterrormode.bool 1 0x04000000}
+        {noconsole.bool       0 0x08000000}
+        {priority.arg normal {normal abovenormal belownormal high realtime idle}}
 
+        {_comment {STARTUPINFO flag}}
+        {feedbackcursoron.bool  0 0x40}
+        {feedbackcursoroff.bool 0 0x80}
+        {fullscreen.bool        0 0x20}
+        
+
+        {cmdline.arg ""}
+        {inheritablechildprocess.bool 0}
+        {inheritablechildthread.bool 0}
+        {childprocesssecd.arg ""}
+        {childthreadsecd.arg ""}
+        {inherithandles.bool 0}
+        {env.arg ""}
+        {startdir.arg ""}
+        {desktop.arg __null__}
+        {title.arg ""}
+        windowpos.arg
+        windowsize.arg
+        screenbuffersize.arg
+        background.arg
+        foreground.arg
+        {showwindow.arg ""}
+        {stdhandles.arg ""}
+        {stdchannels.arg ""}
+        {returnhandles.bool 0}
+    } -maxleftover 0]
+                    
     set process_sec_attr [_make_secattr $opts(childprocesssecd) $opts(inheritablechildprocess)]
     set thread_sec_attr [_make_secattr $opts(childthreadsecd) $opts(inheritablechildthread)]
 
     # Check incompatible options
-    foreach {opt1 opt2} {
-        newconsole detached
-        sharedvdm  separatevdm
-    } {
-        if {$opts($opt1) && $opts($opt2)} {
-            error "Options -$opt1 and -$opt2 cannot be specified together"
-        }
+    if {$opts(newconsole) && $opts(detached)} {
+        error "Options -newconsole and -detached cannot be specified together"
     }
+    if {$opts(sharedvdm) && $opts(separatevdm)} {
+        error "Options -sharedvdm and -separatevdm cannot be specified together"
+    }
+
     # Create the start up info structure
     set si_flags 0
     if {[info exists opts(windowpos)]} {
@@ -128,17 +131,9 @@ proc twapi::create_process {path args} {
         setbits si_flags 0x10
     }
 
-    if {$opts(feedbackcursoron)} {
-        setbits si_flags 0x40
-    }
-
-    if {$opts(feedbackcursoron)} {
-        setbits si_flags 0x80
-    }
-
-    if {$opts(fullscreen)} {
-        setbits si_flags 0x20
-    }
+    set si_flags [expr {$si_flags |
+                        $opts(feedbackcursoron) | $opts(feedbackcursoroff) |
+                        $opts(fullscreen)}]
 
     switch -exact -- $opts(showwindow) {
         ""        { }
@@ -185,23 +180,13 @@ proc twapi::create_process {path args} {
                      $opts(stdhandles)]
 
     # Figure out process creation flags
-    set flags 0x00000400;               # CREATE_UNICODE_ENVIRONMENT
-    foreach {opt flag} {
-        debugchildtree       0x00000001
-        debugchild           0x00000002
-        createsuspended      0x00000004
-        detached             0x00000008
-        newconsole           0x00000010
-        newprocessgroup      0x00000200
-        separatevdm          0x00000800
-        sharedvdm            0x00001000
-        inheriterrormode     0x04000000
-        noconsole            0x08000000
-    } {
-        if {$opts($opt)} {
-            setbits flags $flag
-        }
-    }
+    # 0x400 -> CREATE_UNICODE_ENVIRONMENT
+    set flags [expr {0x00000400 |
+                     $opts(createsuspended) | $opts(debugchildtree) |
+                     $opts(debugchild) | $opts(detached) | $opts(newconsole) |
+                     $opts(newprocessgroup) | $opts(separatevdm) |
+                     $opts(sharedvdm) | $opts(inheriterrormode) |
+                     $opts(noconsole) }]
 
     switch -exact -- $opts(priority) {
         normal      {set priority 0x00000020}
@@ -213,7 +198,7 @@ proc twapi::create_process {path args} {
         idle        {set priority 0x00000040}
         default     {error "Unknown priority '$priority'"}
     }
-    setbits flags $priority
+    set flags [expr {$flags | $priority}]
 
     # Create the environment strings
     if {[llength $opts(env)]} {
@@ -226,13 +211,12 @@ proc twapi::create_process {path args} {
     }
 
     trap {
-        foreach {ph th pid tid} [CreateProcess [file nativename $path] \
-                                     $opts(cmdline) \
-                                     $process_sec_attr $thread_sec_attr \
-                                     $opts(inherithandles) $flags $child_env \
-                                     [file normalize $opts(startdir)] $startup] {
-            break
-        }
+        lassign [CreateProcess [file nativename $path] \
+                     $opts(cmdline) \
+                     $process_sec_attr $thread_sec_attr \
+                     $opts(inherithandles) $flags $child_env \
+                     [file normalize $opts(startdir)] $startup \
+                    ]   ph   th   pid   tid
     } finally {
         # If opts(stdchannels) is not an empty list, we duplicated the handles
         # into opts(stdhandles) ourselves so free them
