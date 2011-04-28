@@ -3007,7 +3007,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 u.dwp = (DWORD_PTR) u.str;  /* Actually a no-op */
             }
             if (GetModuleHandleExW(dw, (LPCWSTR) u.dwp, &result.value.hmodule))
-                result.type = TRT_HANDLE;
+                result.type = TRT_HMODULE;
             else
                 result.type = TRT_GETLASTERROR;
             break;

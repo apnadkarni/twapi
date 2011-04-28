@@ -1366,17 +1366,18 @@ proc twapi::process_in_administrators {} {
 
 # Get a module handle
 # TBD - document
-proc twapi::get_module_handle_from_path {path args} {
+proc twapi::get_module_handle {args} {
     array set opts [parseargs args {
+        path.arg
         pin.bool
     } -nulldefault -maxleftover 0]
 
-    return [GetModuleHandleEx $opts(pin) $path]
+    return [GetModuleHandleEx $opts(pin) [file nativename $opts(path)]]
 }
 
 # Get a module handle from an address
 # TBD - document
-proc twapi::get_module_handle_from_path {addr args} {
+proc twapi::get_module_handle_from_address {addr args} {
     array set opts [parseargs args {
         pin.bool
     } -nulldefault -maxleftover 0]

@@ -589,7 +589,7 @@ namespace eval twapi::systemtray {
         variable _icondata
         variable _message_map
 
-        if {![dict  exists _icondata $id handler]} {
+        if {![dict  exists $_icondata $id handler]} {
             return;             # Stale
         }
 
