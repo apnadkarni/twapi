@@ -59,7 +59,10 @@ for input, and more specifically if it has finished initialization.
 [para]
 [uri \#get_process_modules [cmd get_process_modules]]
 retrieves information pertaining to the
-modules and DLL's loaded into a process.
+modules and DLL's loaded into a process. The commands
+[uri #get_module_handle [cmd get_module_handle]] and
+[uri #get_module_handle_from_address [cmd get_module_handle_from_address]]
+retrieve handles to individual modules in the current process.
 The commands [uri \#load_library [cmd load_library]]
 and [uri \#free_library [cmd free_library]] can be used to load
 and free DLL's.
@@ -303,7 +306,9 @@ Caller should not rely on this.
 
 [call [cmd free_library] [arg HMODULE]]
 Frees a loaded module. [arg HMODULE] must be a handle previously
-returned through [uri \#load_library [cmd load_library]].
+returned through [uri \#load_library [cmd load_library]],
+[uri #get_module_handle [cmd get_module_handle]] or
+[uri #get_module_handle_from_address [cmd get_module_handle_from_address]].
 
 [call [cmd get_current_process_id]]
 
@@ -330,6 +335,33 @@ qualified path.
 [opt_def [cmd -name]] Returns the name of the driver - generally the
 file name portion of the file from which the driver was loaded.
 [list_end]
+
+[call [cmd get_module_handle] [opt "[cmd -path] [arg PATH]"] [opt "[cmd -pin] [arg BOOLEAN]"]]
+Retrieves a handle for a module loaded in the process. If no arguments
+are specified, returns a handle to the [const .exe] file from which
+calling process was created.
+[nl]
+If the [cmd -path] option is present, the command returns a handle to
+the module loaded from the file specified by [arg PATH]. [arg PATH]
+may be either a full path or just the file name.
+[nl]
+The command will normally increment the reference count for the specified
+module. The returned handle must later be released by calling
+[uri \#free_library [cmd free_library]] (not [cmd close_handle]).
+However, if the [cmd -pin] option is specified as [const true], the module
+will stayed loaded until the process terminates irrespective of how many
+calls are made to free it.
+
+[call [cmd get_module_handle_from_address] [arg ADDRESS] [opt "[cmd -pin] [arg BOOLEAN]"]]
+Retrieves a handle for the module in whose address range the specifed
+[arg ADDRESS] lies.
+[nl]
+The command will normally increment the reference count for the specified
+module. The returned handle must later be released by calling
+[uri \#free_library [cmd free_library]] (not [cmd close_handle]).
+However, if the [cmd -pin] option is specified as [const true], the module
+will stayed loaded until the process terminates irrespective of how many
+calls are made to free it.
 
 [call [cmd get_pid_from_handle] [arg HPROCESS]]
 Returns the PID of the process corresponding to the process handle
@@ -788,7 +820,7 @@ Returns true if the passed [arg PID] is that of the system process.
 
 Loads a DLL and returns a handle to it.
 The handle must later be released by calling
-[uri \#free_library [cmd free_library]].
+[uri \#free_library [cmd free_library]], not [cmd close_handle].
 
 The following options may be specified:
 [list_begin opt]

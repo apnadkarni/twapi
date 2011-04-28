@@ -14,6 +14,11 @@ Note: Make sure you read list of incompatible changes at the end of this section
 [bullet]
 Added support for IPv6 [uri network.html network] commands.
 
+[bullet] Added
+[uri process.html#get_module_handle [cmd get_module_handle]] or
+[uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]].
+
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Windows 2000 is no longer supported.
 
