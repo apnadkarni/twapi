@@ -65,6 +65,12 @@ The commands
 of URL shortcuts. A URL shortcut can be invoked by
 [uri \#invoke_url_shortcut [cmd invoke_url_shortcut]].
 
+[section "Taskbar"]
+
+Notification icons in the taskbar notification area
+(also known as the system tray) can be controlled with the commands
+[uri systemtray].
+
 
 [section Commands]
 [list_begin definitions]
@@ -400,6 +406,15 @@ this option is not specified, the command will attempt to figure out
 the object type and display the appropriate dialog.
 [list_end]
 
+
+[call [cmd systemtray] [cmd addicon] [arg HICON] [arg CMDPREFIX] [opt [arg options]]]
+[cmd systemtray] [cmd modifyicon] [arg ICONID] [opt [arg options]]
+[nl]
+[cmd systemtray] [cmd removeicon] [arg HICON]
+[nl]
+TBD Manipulate icons in the system tray.
+
+
 [call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
 Writes or creates a shortcut. [arg SHORTCUTPATH] specifies the path of
 the shortcut itself. The following options control the contents of the
@@ -451,5 +466,5 @@ is [const usedefault], the system will use the default protocol scheme.
 
 [list_end]
 
-[keywords "Windows shell" "shell" "CSIDL" "shell folders" "themes" "file property dialog" "volume property dialog" "printer property dialog" "shortcut" "shell link" "item identifier list" "Recycle Bin"]
+[keywords "Windows shell" "shell" "CSIDL" "shell folders" "themes" "file property dialog" "volume property dialog" "printer property dialog" "shortcut" "shell link" "item identifier list" "Recycle Bin" "system tray" "notification icon" "taskbar"]
 [manpage_end]

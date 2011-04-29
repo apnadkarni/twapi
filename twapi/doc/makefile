@@ -90,7 +90,7 @@ $(CHMDIR)\twapi.chm : $(MANFILES) styleschm.css makefile html_head.inc generate_
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) map -ext html $(MANFILES) > iomap.tmp
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
-	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) -varfile meta ../html_head.inc $(FMT) iomap.tmp
+	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) $(DTP) gen-doc -varfile meta ../html_head.inc $(FMT) iomap.tmp
 	@echo Generating MSHELP input files...
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_hhp.tcl $(HTMLOUTPUTFILES) styleschm.css > twapi.hhp
 	$(SILENT)cd $(CHMDIR) && $(SILENT)$(TCLSH) ../generate_mshelp_index.tcl idx.tmp > twapi.hhk
@@ -122,7 +122,7 @@ website.zip : $(MANFILES) styles.css index.htf generate_web_page.tcl generate_ww
 	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) meta iomap.tmp > meta.tmp
 	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) toc -title "Tcl Windows API Extension - Table of Contents"  meta.tmp > toc.tmp
 	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) idx -title "Tcl Windows API Extension - Index" meta.tmp > idx.tmp
-	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) gen-doc $(DTPQUIET) htf iomap.tmp
+	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) gen-doc htf iomap.tmp
 	$(SILENT)cd website-build && $(SILENT)$(TCLSH) $(DTP) gen-toc htf iomap.tmp toc.tmp > toc.htf
 	@echo Generating web pages...
 	$(SILENT)$(TCLSH) generate_www_index.tcl website-build\idx.tmp > website-build\idx.htf
