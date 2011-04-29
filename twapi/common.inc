@@ -8,6 +8,10 @@ TWAPI_SRCROOT=$(MAKEDIR)
 TOOLDIR=$(TWAPI_SRCROOT)\..\tools
 !endif
 
+!ifndef HOME
+HOME=%HOMEDRIVE%\%HOMEPATH%
+!endif
+
 ################################################################
 # Compiler and target environment
 
