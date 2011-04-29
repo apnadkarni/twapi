@@ -438,16 +438,18 @@ namespace eval twapi::systemtray {
     }
         
     proc _make_NOTIFYICONW {id args} {
+        # TBD - implement -hiddenicon and -sharedicon using
+        # dwState and dwStateMask
+        set state     0
+        set statemask 0
         array set opts [parseargs args {
             hicon.arg
             tip.arg
-            {state.int 0}
-            {statemask.int 0}
-            info.arg
+            balloon.arg
             timeout.int
             version.int
-            infotitle.arg
-            {infoicon.arg none {info warning error user none}}
+            balloontitle.arg
+            {balloonicon.arg none {info warning error user none}}
             {silent.bool 0}
         } -maxleftover 0]
 
@@ -478,49 +480,49 @@ namespace eval twapi::systemtray {
             set opts(tip) ""
         }
 
-        if {[info exists opts(info)] || [info exists opts(infotitle)]} {
+        if {[info exists opts(balloon)] || [info exists opts(balloontitle)]} {
             incr flags 0x10
         }
 
-        if {[info exists opts(info)]} {
-            set opts(info) [string range $opts(info) 0 255]
+        if {[info exists opts(balloon)]} {
+            set opts(balloon) [string range $opts(balloon) 0 255]
         } else {
-            set opts(info) ""
+            set opts(balloon) ""
         }
 
-        if {[info exists opts(infotitle)]} {
-            set opts(infotitle) [string range $opts(infotitle) 0 63]
+        if {[info exists opts(balloontitle)]} {
+            set opts(balloontitle) [string range $opts(balloontitle) 0 63]
         } else {
-            set opts(infotitle) ""
+            set opts(balloontitle) ""
         }
 
         # Calculate padding for text fields (in bytes so 2*num padchars)
         set tip_padcount [expr {2*(128 - [string length $opts(tip)])}]
-        set info_padcount [expr {2*(256 - [string length $opts(info)])}]
-        set infotitle_padcount [expr {2 * (64 - [string length $opts(infotitle)])}]
-        if {$opts(infoicon) eq "user"} {
+        set balloon_padcount [expr {2*(256 - [string length $opts(balloon)])}]
+        set balloontitle_padcount [expr {2 * (64 - [string length $opts(balloontitle)])}]
+        if {$opts(balloonicon) eq "user"} {
             if {![min_os_version 5 1 2]} {
                 # 'user' not supported before XP SP2
-                set opts(infoicon) none
+                set opts(balloonicon) none
             }
         }
 
-        set infoflags [dict get {
+        set balloonflags [dict get {
             none 0
             info 1
             warning 2
             error 3
             user 4
-        } $opts(infoicon)]
+        } $opts(balloonicon)]
         
-        if {$infoflags == 4} {
+        if {$balloonflags == 4} {
             if {![info exists opts(hicon)]} {
-                error "Option -hicon must be specified if value of -infoicon option is 'user'"
+                error "Option -hicon must be specified if value of -balloonicon option is 'user'"
             }
         }
 
         if {$opts(silent)} {
-            incr infoflags 0x10
+            incr balloonflags 0x10
         }
 
         if {$::tcl_platform(pointerSize) == 8} {
@@ -538,15 +540,15 @@ namespace eval twapi::systemtray {
         append bin \
             [binary format ${alignment}${addrfmt} $opts(hicon)] \
             [encoding convertto unicode $opts(tip)] \
-            [binary format "x${tip_padcount}nn" $opts(state) $opts(statemask)] \
-            [encoding convertto unicode $opts(info)] \
-            [binary format "x${info_padcount}n" $timeout_or_version] \
-            [encoding convertto unicode $opts(infotitle)] \
-            [binary format "x${infotitle_padcount}nx16" $infoflags]
+            [binary format "x${tip_padcount}nn" $state) $statemask] \
+            [encoding convertto unicode $opts(balloon)] \
+            [binary format "x${balloon_padcount}n" $timeout_or_version] \
+            [encoding convertto unicode $opts(balloontitle)] \
+            [binary format "x${balloontitle_padcount}nx16" $balloonflags]
         return "[binary format n [expr {4+[string length $bin]}]]$bin"
     }
 
-    proc addicon {hicon cmdprefix} {
+    proc addicon {hicon {cmdprefix ""}} {
         variable _icon_id_ctr
         variable _icondata
 
@@ -566,7 +568,9 @@ namespace eval twapi::systemtray {
             error "Could not set system tray icon notification version."
         }
 
-        dict set _icondata $id handler [lrange $cmdprefix 0 end]
+        if {[llength $cmdprefix]} {
+            dict set _icondata $id handler $cmdprefix
+        }
         dict set _icondata $id hicon   $hicon
 
         return $id
@@ -581,6 +585,7 @@ namespace eval twapi::systemtray {
     }
 
     proc modifyicon {id args} {
+        puts [llength $args]:$args
         # TBD - do we need to [dict set _icondata hicon ...] ?
         Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
     }
@@ -590,7 +595,7 @@ namespace eval twapi::systemtray {
         variable _message_map
 
         if {![dict  exists $_icondata $id handler]} {
-            return;             # Stale
+            return;             # Stale or no handler specified
         }
 
         # Translate the notification into text

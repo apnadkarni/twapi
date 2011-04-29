@@ -8,6 +8,7 @@ syntax: glob
 *.log
 *.orig
 *.pdb
+*.sav
 temp
 base/build
 doc/chm-build

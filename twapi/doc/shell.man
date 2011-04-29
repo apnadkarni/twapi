@@ -67,9 +67,21 @@ of URL shortcuts. A URL shortcut can be invoked by
 
 [section "Taskbar"]
 
-Notification icons in the taskbar notification area
-(also known as the system tray) can be controlled with the commands
-[uri systemtray].
+TWAPI also provides commands to display and manage in the system tray
+(the Windows taskbar notification area). To display an icon in the
+system tray, application must first retrieve a handle to an icon
+using commands such as
+[uri resource.html#load_icon_from_file [cmd load_icon_from_file]],
+[uri resource.html#load_icon_from_module [cmd load_icon_from_module]] or
+[uri resource.html#load_icon_from_system [cmd load_icon_from_system]].
+This icon can then be displayed in the taskbar with the
+[uri "#systemtray addicon" [cmd "systemtray addicon"]] command
+with optional callbacks when the icon is clicked or selected.
+Icons can be removed from the system tray via the
+[uri "#systemtray removeicon" [cmd "systemtray removeicon"]] command.
+Standard features like display of menus or balloons can be implemented
+either via the callbacks and
+[uri "#systemtray modifyicon" [cmd "systemtray modifyicon"]] command.
 
 
 [section Commands]
@@ -407,12 +419,97 @@ the object type and display the appropriate dialog.
 [list_end]
 
 
-[call [cmd systemtray] [cmd addicon] [arg HICON] [arg CMDPREFIX] [opt [arg options]]]
-[cmd systemtray] [cmd modifyicon] [arg ICONID] [opt [arg options]]
+[call [cmd "systemtray addicon"] [arg HICON] [opt [arg CMDPREFIX]]]
+Adds the icon referenced by handle [arg HICON] to the system tray
+and returns an identifier to be used with the 
+[uri "#systemtray modifyicon" [cmd "systemtray modifyicon"]] and
+[uri "#systemtray removeicon" [cmd "systemtray removeicon"]] commands.
 [nl]
-[cmd systemtray] [cmd removeicon] [arg HICON]
+If argument [arg CMDPREFIX] is specified and is not empty, it is invoked
+in response to user interface events (such as mouse clicks)
+related to the displayed icon. Four additional arguments are appended
+to [arg CMDPREFIX] before it is invoked - the associated identifier (as
+returned by this command), the notification event, the location of the
+mouse (as a pair of X,Y coordinates) when the event occured,
+and the clock ticks 
+(as returned by the Windows [cmd GetClockTicks] API) at the time
+of the event.
 [nl]
-TBD Manipulate icons in the system tray.
+The notification event indicates the event and is one of the following
+constants:
+[list_begin opt]
+[opt_def [const select]] Sent when the user selects the icon with the
+mouse (generally by clicking the left mouse button).
+[opt_def [const keyselect]] Sent when the user selects the icon with
+the keyboard.
+[opt_def [const contextmenu]] Sent when the user clicks the right mouse
+button.
+[opt_def [const mousemove]] Sent when the mouse cursor is moved within
+the icon display area.
+[opt_def [const lbuttondown]] Sent when the left mouse button is pressed.
+[opt_def [const lbuttonup]]  Sent when the left mouse button is released.
+[opt_def [const lbuttondblclk]] Sent on a left button double-click.
+[opt_def [const rbuttondown]] Sent when the right mouse button is pressed.
+[opt_def [const rbuttonup]] Sent when the right mouse button is released.
+[opt_def [const rbuttondblclk]] Sent on a right button double-click.
+[opt_def [const mbuttondown]]Sent when the middle mouse button is pressed.
+[opt_def [const mbuttonup]] Sent when the middle mouse button is released.
+[opt_def [const mbuttondblclk]] Sent on a middle button double-click.
+[opt_def [const mousewheel]] Sent when the mouse wheel is rotated.
+[opt_def [const xbuttondown]] Sent when the x mouse button is pressed.
+[opt_def [const xbuttonup]] Sent when the x mouse button is released.
+[opt_def [const xbuttondblclk]] Sent on a x button double-click.
+[opt_def [const balloonshow]] Sent when the balloon help associated
+with the icon is displayed.
+[opt_def [const balloonhide]] Sent when the balloon icon is hidden.
+[opt_def [const balloontimeout]] Sent when the balloon is hidden after
+a timeout.
+[opt_def [const balloonuserclick]] Sent when the user clicks on the
+balloon.
+[list_end]
+
+Generally, applications should need to only handle the [const select],
+[const keyselect] and [const contextmenu] events. If the double-click
+events are also used, applications should be aware that select
+and button up/down events will also be sent and filter these
+appropriately.
+[nl]
+For future compatibility, applications should ignore any notification 
+events not listed above.
+
+[call [cmd "systemtray modifyicon"] [arg ICONID] [opt [arg options]]]
+Modifies the specified system tray icon as per the specified options.
+[arg ICONID] is the identifier for the icon as returned by
+[uri "#systemtray addicon" [cmd "systemtray addicon"]]. The following
+options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -hicon] [arg HICON]]
+Sets the icon to that specified by the handle [arg HICON].
+[opt_def [cmd -tip] [arg STRING]]
+Sets the tooltip that displayed when the mouse hovers over the icon.
+Truncated to 127 characters.
+[opt_def [cmd -balloon] [arg BALLOONTEXT]]
+Displays [arg BALLOONTEXT] in the balloon tool tip for the icon.
+The balloon is removed after a timeout based on system setting.
+[arg BALLOONTEXT] is truncated to 255 characters.
+[opt_def [cmd -balloontitle] [arg BALLOONTITLE]]
+Sets the title of the balloon, truncated to 63 characters.
+[opt_def [cmd -balloonicon] [arg BALLOONICON]]
+Sets the icon displayed in the balloon tooltip. [arg BALLOONICON]
+must be one of 
+[const info], [const warning], [const error], [const user], or [const none]
+(default). The icon is not displayed if the balloon title is not specified.
+[opt_def [cmd -silent] [arg BOOLEAN]]
+If true, sounds associated with the balloon (based on the icon
+type), are not played. Default is false (sounds are enabled).
+[list_end]
+
+[call [cmd "systemtray removeicon"] [arg ICONID]]
+
+Removes the specified icon from the system tray. [arg ICONID] is the
+identifier for the icon as returned by
+[uri "#systemtray addicon" [cmd "systemtray addicon"]].
 
 
 [call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
