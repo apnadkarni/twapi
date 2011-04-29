@@ -38,6 +38,12 @@ It does not provide any functionality related to constructing the actual
 binary data itself. Each resource type has a specific structure and
 it is up to the application to construct it appropriately.
 
+[para]
+In addition to the commands to load resources as binary data,
+TWAPI also provides commands to load certain resource types -
+icons, cursors and bitmaps - as GDI objects accessed through handles
+by other functions in the Windows API.
+
 [section "Resource Types"]
 
 Windows defines certain standard resource types shown in the table below
@@ -158,6 +164,58 @@ and a resource string that is defined with an empty value. An attempt
 to read an undefined resource string may either result in an error being
 generated, or in the return of an empty string.
 
+[section "Loading Resources as GDI objects"]
+
+TWAPI also provides commands to load some resource types as GDI objects
+whose handles are opaque but can be passed to other commands in the Windows
+API. These include the commands
+[uri #load_icon_from_file [cmd load_icon_from_file]],
+[uri #load_cursor_from_file [cmd load_cursor_from_file]],
+[uri #load_bitmap_from_file [cmd load_bitmap_from_file]],
+[uri #load_icon_from_module [cmd load_icon_from_module]],
+[uri #load_cursor_from_module [cmd load_cursor_from_module]],
+[uri #load_bitmap_from_module [cmd load_bitmap_from_module]],
+[uri #load_icon_from_system [cmd load_icon_from_system]],
+[uri #load_cursor_from_system [cmd load_cursor_from_system]] and
+[uri #load_bitmap_from_system [cmd load_bitmap_from_system]].
+
+[para]
+Correspondingly, these handles can be freed using 
+[uri #free_icon [cmd free_icon]],
+[uri #free_cursor [cmd free_cursor]] and
+[uri #free_bitmap [cmd free_bitmap]] as appropriate.
+
+[para]
+The commands to load these GDI objects share a common set of options:
+
+[list_begin opt]
+[opt_def [cmd -createdibsection] [arg BOOLEAN]]
+If [const true], returns a DIB section bitmap instead of a compatible
+bitmap. Default is [const false]. This option is
+only valid for bitmap resources.
+[opt_def [cmd -defaultsize] [arg BOOLEAN]]
+If [const false] (default) and
+options [cmd -height] and [cmd -width] are not specified or
+specified as 0, Windows will use the actual resource size. If
+[const true], Windows will use the system metric settings.
+This option is only valid for cursors and icons.
+[opt_def [cmd -height] [arg INTEGER]]
+Specifies the desired height of the icon or cursor. Default value is 0
+in which case the width is controlled by the [cmd -defaultsize] option.
+[opt_def [cmd -loadtransparent] [arg BOOLEAN]]
+If specified as [const true], the color of the first pixel is replaced with
+the default window color. Should be used only if the color depth is
+8 bpp or less. Default is [const false].
+[opt_def [cmd -monochrome] [arg BOOLEAN]]
+If specified as [const true], returns a monochrome image. Default is 
+[const false].
+[opt_def [cmd -vgacolor] [arg BOOLEAN]]
+If [const true], uses VGA color.
+[opt_def [cmd -width] [arg INTEGER]]
+Specifies the desired width of the icon or cursor. Default value is 0
+in which case the width is controlled by the [cmd -defaultsize] option.
+[list_end]
+
 [section Commands]
 
 [list_begin definitions]
@@ -195,12 +253,101 @@ module contains a resource of type [arg RESTYPE] with name [arg RESNAME].
 Returns a list of the names of resources of type [arg RESTYPE] in the specified
 module.
 [arg HMODULE] must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri process.html#load_library [cmd load_library]],
+[uri process.html#get_module_handle [cmd get_module_handle]], or
+[uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]].
+
 
 [call [cmd enumerate_resource_types] [arg HMODULE]]
 Returns a list of the types of resources in the specified module.
 [arg HMODULE] must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
+
+
+[call [cmd load_bitmap_from_file] [arg PATH] [opt [arg options]]]
+Returns a handle to a bitmap loaded from a standalone file.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_bitmap_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
+Returns a handle to a bitmap from a resource in a module 
+that has been loaded into the 
+process. [arg HMODULE] is handle to the module as returned by
+[uri process.html#load_library [cmd load_library]],
+[uri process.html#get_module_handle [cmd get_module_handle]], or
+[uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_bitmap_from_system] [arg NAME] [opt [arg options]]]
+Returns a handle to a bitmap built into Windows. [arg NAME] must be one of
+[const close], [const uparrow], [const dnarrow], [const rgarrow],
+[const lfarrow], [const reduce], [const zoom], [const restore],
+[const reduced], [const zoomd], [const restored], [const uparrowd],
+[const dnarrowd], [const rgarrowd], [const lfarrowd], [const mnarrow],
+[const combo], [const uparrowi], [const dnarrowi], [const rgarrowi],
+[const lfarrowi], [const old_close], [const size], [const old_uparrow],
+[const old_dnarrow], [const old_rgarrow], [const old_lfarrow], [const btsize],
+[const check], [const checkboxes], [const btncorners], [const old_reduce],
+[const old_zoom] or [const old_restore].
+
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_cursor_from_file] [arg PATH] [opt [arg options]]]
+Returns a handle to a cursor loaded from a standalone file.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_cursor_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
+Returns a handle to a cursor from a resource in a module 
+that has been loaded into the 
+process. [arg HMODULE] is handle to the module as returned by
+[uri process.html#load_library [cmd load_library]],
+[uri process.html#get_module_handle [cmd get_module_handle]], or
+[uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_cursor_from_system] [arg NAME] [opt [arg options]]]
+Returns a handle to a cursor built into Windows. [arg NAME] must be one of
+[const normal], [const ibeam],
+[const wait], [const cross],
+[const up], [const sizenwse],
+[const sizenesw], [const sizewe],
+[const sizens], [const sizeall],
+[const no], [const hand] or
+[const appstarting].
+
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_icon_from_file] [arg PATH] [opt [arg options]]]
+Returns a handle to an icon loaded from a standalone file.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_icon_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
+Returns a handle to an icon from a resource in a module 
+that has been loaded into the 
+process. [arg HMODULE] is handle to the module as returned by
+[uri process.html#load_library [cmd load_library]],
+[uri process.html#get_module_handle [cmd get_module_handle]], or
+[uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
+[call [cmd load_icon_from_system] [arg NAME] [opt [arg options]]]
+Returns a handle to an icon built into Windows. [arg NAME] must be one of
+[const sample], [const hand],
+[const ques], [const bang],
+[const note], [const winlogo],
+[const warning], [const error],
+[const information] or [const shield].
+
+[nl]
+See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
 
 [call [cmd read_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
 Returns the content of a resource from the specified module
@@ -253,8 +400,7 @@ the [uri #end_resource_update [cmd end_resource_update]] command is called.
 
 [list_end]
 
-[keywords internationalization globalization localization locales language \
-     LCID LANGID "number formatting" "currency formatting" formatting \
-     "code page" "primary language" "sublanguage"]
+[keywords resource icon "string resource" bitmap cursor stringblock \
+     "version resource" "resource files" "resource modules"]
 
 [manpage_end]
