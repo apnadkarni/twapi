@@ -179,12 +179,12 @@ proc twapi::_load_image_from_system {type id args} {
                 APPSTARTING     32650
             }
 
-            set id [dict get _oem_image_syms $type [string toupper $id]]
         }
     }
         
+    set id [dict get $_oem_image_syms $type [string toupper $id]]
     # Built-in system images must always be loaded shared (0x8000)
-    return [_load_image 0x8000 $type NULL $id {*}$args
+    return [_load_image 0x8000 $type NULL $id {*}$args]
 }
 
 
