@@ -32,7 +32,7 @@ proc process_meta {data} {
         append text "\n\t<param name=\"Name\" value=\"$manpage(title)\">"
         append text "\n\t<param name=\"Local\" value=\"$filename\">"
         append text "\n\t</OBJECT>\n"
-        if {[llength $manpage(commands)]} {
+        if {[info exists manpage(commands)] && [llength $manpage(commands)]} {
             append text "\n\t<UL>"
             foreach cmd $manpage(commands) {
                 append text "\n\t\t<LI> <OBJECT type=\"text/sitemap\">"
@@ -42,6 +42,7 @@ proc process_meta {data} {
             }
             append text "\n\t</UL>"
         }
+        unset manpage
     }
     return $text
 }
