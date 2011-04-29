@@ -35,6 +35,7 @@ proc process_meta {data} {
         if {[info exists manpage(commands)] && [llength $manpage(commands)]} {
             append text "\n\t<UL>"
             foreach cmd $manpage(commands) {
+                set cmd [eval concat $cmd]
                 append text "\n\t\t<LI> <OBJECT type=\"text/sitemap\">"
                 append text "\n\t\t<param name=\"Name\" value=\"$cmd\">"
                 append text "\n\t\t<param name=\"Local\" value=\"$filename#[make_linkable_cmd $cmd]\">"
