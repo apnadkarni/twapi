@@ -953,6 +953,6 @@ The two options must not be used together.
 
 [list_end]
 
-[keywords process thread "executable path" "device driver" "process modules" "CPU utilization" "process existence" "process priority" "memory usage" "virtual memory" "working set" "I/O rates" "performance" "process termination" "waiting for input" "idle" "process creation" "run program" DLL "shared library" "load shared library" "free shared library" "command line" "exit code" "priority" "elevation" "WoW64" UAC "User Account Control"]
+[keywords process thread "executable path" "device driver" "module handles" "process modules" "CPU utilization" "process existence" "process priority" "memory usage" "virtual memory" "working set" "I/O rates" "performance" "process termination" "waiting for input" "idle" "process creation" "run program" DLL "shared library" "load shared library" "free shared library" "command line" "exit code" "priority" "elevation" "WoW64" UAC "User Account Control"]
 
 [manpage_end]
