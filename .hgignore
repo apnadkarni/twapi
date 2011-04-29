@@ -16,6 +16,7 @@ doc/website
 tools/h2c/*
 TAGS
 \#*#
+*.vfs
 
 # TEA based intermediate files
 autom4te.cache/*

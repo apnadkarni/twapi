@@ -22,7 +22,7 @@ array set keywords {}
 proc index_begin args {}
 proc index_end args {}
 proc key keyword {
-    set ::current_keyword $keyword
+    set ::current_keyword [eval concat $keyword]
     return
 }
 proc manpage {filename description} {
