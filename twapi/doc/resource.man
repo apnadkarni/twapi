@@ -306,7 +306,8 @@ Returns a handle to a bitmap built into Windows. The returned bitmap
 is a shared bitmap. Applications must not attempt to free it
 by calling [uri #free_bitmap [cmd free_bitmap]].
 
-[nl][arg NAME] must be one of
+[nl]
+[arg NAME] must be one of
 [const close], [const uparrow], [const dnarrow], [const rgarrow],
 [const lfarrow], [const reduce], [const zoom], [const restore],
 [const reduced], [const zoomd], [const restored], [const uparrowd],
@@ -347,7 +348,7 @@ See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 Returns a handle to a cursor built into Windows. The returned cursor
 is a shared cursor. Applications must not attempt to free it
 by calling [uri #free_cursor [cmd free_cursor]].
-[nl
+[nl]
 [arg NAME] must be one of
 [const normal], [const ibeam],
 [const wait], [const cross],

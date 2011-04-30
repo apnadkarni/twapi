@@ -144,7 +144,7 @@ contains a list of arguments. Option names are case-sensitive.
 allowed and is list of option specifiers. Each option specifier is a list
 of up to 3 elements and takes the following form:
 [nl]
-[arg "OPTNAME[opt [cmd .]OPTTYPE]"] [arg [opt "DEFAULTVALUE [opt VALIDVALUELIST]"]]
+[arg "OPTNAME[opt [cmd .]OPTTYPE]"] [arg [opt "DEFAULTVALUE [opt VALUEOPTS]"]]
 [nl]
 [arg OPTNAME] is the name of the option (without a leading [cmd -]) and
 is required.
@@ -163,10 +163,16 @@ the option is not associated with any value and is treated as a binary switch.
 a default value to be assumed for the option if it is not present in
 [arg ARGLISTVAR]. This is ignored for options of type [cmd switch].
 [nl]
-If [arg VALIDVALUELIST] is specified, it is treated as a list of
+If [arg VALUEOPTS] is specified for option types [cmd arg] or [cmd int],
+it is treated as a list of
 allowed values for the option. If an option's value is not in the
-list, the command will return an error. [arg VALIDVALUELIST] is ignored if the
-option type is [cmd bool] or [cmd switch].
+list, the command will return an error. 
+If the option type is [cmd bool] or [cmd switch], [arg VALUEOPTS]
+is the treated as the value to return when the value of the option
+is boolean true (by default [const 1] is returned). This is commonly
+used in TWAPI to return a integer bit mask for the true value
+of an option.
+
 [nl]
 The command returns a list of the form [arg "OPTION VALUE OPTION VALUE..."].
 If the [cmd -nulldefault] option is not present,
