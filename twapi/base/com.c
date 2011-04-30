@@ -944,7 +944,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     Tcl_Obj **cmdobjv;
     Tcl_Obj **cmdprefixv;
     int     cmdobjc;
-    Tcl_SavedResult savedresult;
+    Tcl_InterpState savedState;
 
     if (me == NULL)
         return E_POINTER;
@@ -997,11 +997,12 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
        loop? Or should we queue to pending callback queue ? But in that
        case we cannot get results back as we can't block in this thread
        as the script invocation will also be in this thread. Also, is
-       the Tcl_SaveResult/RestoreResult really necessary ?
+       the Tcl_SaveInterpState/RestoreInterpState really necessary ?
        Note tclWinDde also evals in this fashion.
     */
     /* If hr is not TCL_OK, it is a HRESULT error code */
-    Tcl_SaveResult(me->interp, &savedresult);
+    savedState = Tcl_SaveInterpState(me->interp, TCL_OK);
+    Tcl_ResetResult (me->interp);
     hr = Tcl_EvalObjv(me->interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
     if (hr != TCL_OK) {
         Tcl_BackgroundError(me->interp);
@@ -1017,7 +1018,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
             VariantInit(retvarP);
         hr = S_OK;
     }
-    Tcl_RestoreResult(me->interp, &savedresult);
+    Tcl_RestoreInterpState(me->interp, savedState);
 
     /* Free the objects we allocated */
     for (i = 0; i < cmdobjc; ++i) {
