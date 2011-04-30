@@ -26,8 +26,12 @@ Added support for
 [uri resource.html#load_cursor_from_module [cmd load_cursor_from_module]],
 [uri resource.html#load_bitmap_from_module [cmd load_bitmap_from_module]],
 [uri resource.html#load_icon_from_system [cmd load_icon_from_system]],
-[uri resource.html#load_cursor_from_system [cmd load_cursor_from_system]] and
-[uri resource.html#load_bitmap_from_system [cmd load_bitmap_from_system]].
+[uri resource.html#load_cursor_from_system [cmd load_cursor_from_system]],
+[uri resource.html#load_bitmap_from_system [cmd load_bitmap_from_system]],
+[uri resource.html#free_icon [cmd free_icon]],
+[uri resource.html#free_cursor [cmd free_cursor]] and
+[uri resource.html#free_bitmap [cmd free_bitmap]].
+
 
 [bullet]
 [uri process.html#get_module_handle [cmd get_module_handle]] and
