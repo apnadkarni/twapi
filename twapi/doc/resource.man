@@ -180,10 +180,14 @@ API. These include the commands
 [uri #load_bitmap_from_system [cmd load_bitmap_from_system]].
 
 [para]
-Correspondingly, these handles can be freed using 
+The handles returned by the above commands may be shared or unshared
+(as described in the documentation for the specific command).
+Unshared handles must be freed using 
 [uri #free_icon [cmd free_icon]],
 [uri #free_cursor [cmd free_cursor]] and
-[uri #free_bitmap [cmd free_bitmap]] as appropriate.
+[uri #free_bitmap [cmd free_bitmap]] respectively. Shared handles
+are automatically freed by the system and must not be passed
+to the free commands.
 
 [para]
 The commands to load these GDI objects share a common set of options:
@@ -263,16 +267,34 @@ Returns a list of the types of resources in the specified module.
 [arg HMODULE] must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
 
+[call [cmd free_bitmap] [arg HBITMAP]]
+Frees a bitmap handle and associated resources. The handle must not be for
+be a shared bitmap.
+
+[call [cmd free_cursor] [arg HCURSOR]]
+Frees a cursor handle and associated resources. The handle must not be for
+be a shared cursor.
+
+[call [cmd free_icon] [arg HBITMAP]]
+Frees a icon handle and associated resources. The handle must not be for
+be a shared icon.
 
 [call [cmd load_bitmap_from_file] [arg PATH] [opt [arg options]]]
 Returns a handle to a bitmap loaded from a standalone file.
+The returned bitmap must be freed when no longer needed by calling
+[uri #free_bitmap [cmd free_bitmap]].
+
 [nl]
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
+
 
 [call [cmd load_bitmap_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
 Returns a handle to a bitmap from a resource in a module 
 that has been loaded into the 
-process. [arg HMODULE] is handle to the module as returned by
+process. The returned bitmap must be freed when no longer needed by calling
+[uri #free_bitmap [cmd free_bitmap]].
+[nl]
+[arg HMODULE] is handle to the module as returned by
 [uri process.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
@@ -280,7 +302,11 @@ process. [arg HMODULE] is handle to the module as returned by
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_bitmap_from_system] [arg NAME] [opt [arg options]]]
-Returns a handle to a bitmap built into Windows. [arg NAME] must be one of
+Returns a handle to a bitmap built into Windows. The returned bitmap 
+is a shared bitmap. Applications must not attempt to free it
+by calling [uri #free_bitmap [cmd free_bitmap]].
+
+[nl][arg NAME] must be one of
 [const close], [const uparrow], [const dnarrow], [const rgarrow],
 [const lfarrow], [const reduce], [const zoom], [const restore],
 [const reduced], [const zoomd], [const restored], [const uparrowd],
@@ -294,15 +320,23 @@ Returns a handle to a bitmap built into Windows. [arg NAME] must be one of
 [nl]
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
+
 [call [cmd load_cursor_from_file] [arg PATH] [opt [arg options]]]
 Returns a handle to a cursor loaded from a standalone file.
+The returned cursor must be freed when no longer needed by calling
+[uri #free_cursor [cmd free_cursor]].
+
 [nl]
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_cursor_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
 Returns a handle to a cursor from a resource in a module 
 that has been loaded into the 
-process. [arg HMODULE] is handle to the module as returned by
+process. The returned cursor must be freed when no longer needed by calling
+[uri #free_cursor [cmd free_cursor]].
+
+[nl]
+[arg HMODULE] is handle to the module as returned by
 [uri process.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
@@ -310,7 +344,11 @@ process. [arg HMODULE] is handle to the module as returned by
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_cursor_from_system] [arg NAME] [opt [arg options]]]
-Returns a handle to a cursor built into Windows. [arg NAME] must be one of
+Returns a handle to a cursor built into Windows. The returned cursor
+is a shared cursor. Applications must not attempt to free it
+by calling [uri #free_cursor [cmd free_cursor]].
+[nl
+[arg NAME] must be one of
 [const normal], [const ibeam],
 [const wait], [const cross],
 [const up], [const sizenwse],
@@ -324,13 +362,18 @@ See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_icon_from_file] [arg PATH] [opt [arg options]]]
 Returns a handle to an icon loaded from a standalone file.
+The returned icon must be freed when no longer needed by calling
+[uri #free_icon [cmd free_icon]].
 [nl]
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_icon_from_module] [arg HMODULE] [arg NAME] [opt [arg options]]]
 Returns a handle to an icon from a resource in a module 
 that has been loaded into the 
-process. [arg HMODULE] is handle to the module as returned by
+process. The returned icon must be freed when no longer needed by calling
+[uri #free_icon [cmd free_icon]].
+[nl]
+[arg HMODULE] is handle to the module as returned by
 [uri process.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
@@ -338,7 +381,11 @@ process. [arg HMODULE] is handle to the module as returned by
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 
 [call [cmd load_icon_from_system] [arg NAME] [opt [arg options]]]
-Returns a handle to an icon built into Windows. [arg NAME] must be one of
+Returns a handle to an icon built into Windows. The returned icon
+is a shared icon. Applications must not attempt to free it
+by calling [uri #free_icon [cmd free_icon]].
+[nl]
+[arg NAME] must be one of
 [const sample], [const hand],
 [const ques], [const bang],
 [const note], [const winlogo],
