@@ -1382,7 +1382,7 @@ proc twapi::get_module_handle_from_address {addr args} {
         pin.bool
     } -nulldefault -maxleftover 0]
 
-    return [GetModuleHandleEx [expr {$opts(pin) ? 5 : 4}] $path]
+    return [GetModuleHandleEx [expr {$opts(pin) ? 5 : 4}] $addr]
 }
 
 

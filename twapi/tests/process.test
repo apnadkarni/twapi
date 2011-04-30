@@ -2365,6 +2365,100 @@ namespace eval ::twapi::process::test {
         twapi::process_exists $pid
     } -result 0
 
+    ################################################################
+
+    test get_module_handle-1.0 {
+        Get the handle to a module with no options specified
+    } -body {
+        set h [twapi::get_module_handle]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_library $h
+    } -result HMODULE
+
+    test get_module_handle-2.0 {
+        Get the handle to a module from a specific dll name
+    } -body {
+        set h [twapi::get_module_handle -path advapi32.dll]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_library $h
+    } -result HMODULE
+
+    test get_module_handle-2.1 {
+        Get the handle to a module from a specific dll path
+    } -body {
+        set h [twapi::get_module_handle -path [file join $::env(WINDIR) system32 advapi32.dll]]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_library $h
+    } -result HMODULE
+
+    test get_module_handle-3.0 {
+        Get the handle to a module with -pin false
+    } -body {
+        set h [twapi::get_module_handle -path [file join $::env(WINDIR) system32 advapi32.dll] -pin false]
+        # No way to really check if module is pinned or not
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_library $h
+    } -result HMODULE
+
+    test get_module_handle-3.1 {
+        Get the handle to a module with -pin true
+    } -body {
+        set h [twapi::get_module_handle -path [file join $::env(WINDIR) system32 advapi32.dll] -pin 1]
+        # No way to really check if module is pinned or not
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_library $h
+    } -result HMODULE
+
+
+    ################################################################
+
+    test get_module_handle_from_address-1.0 {
+        Get the handle to a module based on its address
+    } -body {
+        set addr [twapi::Twapi_PtrToAddress [lindex [twapi::get_process_modules [pid]] 1]]
+        set h [twapi::get_module_handle_from_address $addr]
+        list [twapi::Twapi_PtrType $h] [expr {[lindex $h 0] == $addr}]
+    } -cleanup {
+        twapi::free_library $h
+    } -result {HMODULE 1}
+
+    test get_module_handle_from_address-1.1 {
+        Get the handle to a module based on its address
+    } -body {
+        set addr [twapi::Twapi_PtrToAddress [lindex [twapi::get_process_modules [pid]] 1]]
+        set h [twapi::get_module_handle_from_address [expr {$addr + 4}]]
+        list [twapi::Twapi_PtrType $h] [expr {[lindex $h 0] == $addr}]
+    } -cleanup {
+        twapi::free_library $h
+    } -result {HMODULE 1}
+
+    test get_module_handle_from_address-2.0 {
+        Get the handle to a module based on its address with -pin false
+    } -body {
+        set addr [twapi::Twapi_PtrToAddress [lindex [twapi::get_process_modules [pid]] 1]]
+        set h [twapi::get_module_handle_from_address $addr -pin 0]
+        # No way to really check if module is pinned or not
+        list [twapi::Twapi_PtrType $h] [expr {[lindex $h 0] == $addr}]
+    } -cleanup {
+        twapi::free_library $h
+    } -result {HMODULE 1}
+
+    test get_module_handle_from_address-2.1 {
+        Get the handle to a module based on its address with -pin true
+    } -body {
+        set addr [twapi::Twapi_PtrToAddress [lindex [twapi::get_process_modules [pid]] 1]]
+        set h [twapi::get_module_handle_from_address [expr {$addr + 4}] -pin true] 
+        # No way to really check if module is pinned or not
+        list [twapi::Twapi_PtrType $h] [expr {[lindex $h 0] == $addr}]
+    } -cleanup {
+        twapi::free_library $h
+    } -result {HMODULE 1}
+
 
 
     ################################################################
