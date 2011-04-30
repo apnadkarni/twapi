@@ -582,7 +582,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_SplitStringResource, Call, 10129);
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
-    CALL_(LoadImage, Call, 10132); /* TBD - Tcl interface */
+    CALL_(LoadImage, Call, 10132);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
