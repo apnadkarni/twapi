@@ -38,6 +38,10 @@ Added support for
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]].
 
 
+[bullet]
+Enhancements to [uri misc.html#parseargs [cmd parseargs]] to
+map boolean true values.
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Windows 2000 is no longer supported.
 
