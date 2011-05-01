@@ -540,7 +540,7 @@ namespace eval twapi::systemtray {
         append bin \
             [binary format ${alignment}${addrfmt} $opts(hicon)] \
             [encoding convertto unicode $opts(tip)] \
-            [binary format "x${tip_padcount}nn" $state) $statemask] \
+            [binary format "x${tip_padcount}nn" $state $statemask] \
             [encoding convertto unicode $opts(balloon)] \
             [binary format "x${balloon_padcount}n" $timeout_or_version] \
             [encoding convertto unicode $opts(balloontitle)] \
@@ -585,9 +585,10 @@ namespace eval twapi::systemtray {
     }
 
     proc modifyicon {id args} {
-        puts [llength $args]:$args
         # TBD - do we need to [dict set _icondata hicon ...] ?
-        Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
+        if {![Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]]} {
+            error "Could not modify icon in system tray."
+        }
     }
 
     proc _icon_handler {msg id notification msgpos ticks} {
