@@ -1247,6 +1247,97 @@ namespace eval twapi::shell::test {
         test shell_execute-[incr testnum].0 "Call shell_execute with -$opt" -constraints "TBD" -body {} -result {}
     }
 
+    ################################################################
+
+    test systemtray-1.0 {
+        Display icon in system tray
+    } -constraints {
+        userInteraction
+    } -setup {
+        set ico [twapi::load_icon_from_system information -width 16 -height 16]
+        set ::systray_test_events {}
+        proc systray_test_handler {args} {
+            lappend ::systray_test_events $args
+        }
+    } -body {
+        set errors {}
+        set id [twapi::systemtray addicon $ico [namespace current]::systray_test_handler]
+        if {![yesno "systemtray-1.0: Do you see an Info icon in the system tray?"]} {
+            lappend errors "No icon in system tray."
+        } else {
+            set tip "TWAPI Test Tip"
+            twapi::systemtray modifyicon $id -tip $tip
+            if {![yesno "Hover over the mouse over the icon without clicking. Do you see a tooltip ?"]} {
+                lappend errors "No tooltip seen."
+            }
+            set balloon "TWAPI Test balloon. Do not click until asked to do so."
+            set balloontitle "TWAPI Test"
+            twapi::systemtray modifyicon $id -balloon $balloon -balloontitle $balloontitle -balloonicon warning
+            if {![yesno "Do you see a balloon with a WARNING icon and title (Do NOT click on it) ?"]} {
+                lappend errors "No balloon seen."
+            } else {
+                if {![yesno "Please click on the balloon. Did it disappear?"]} {
+                    lappend errors "Balloon did not disappear on user click."
+                }
+            }
+
+            set balloon "TWAPI Test balloon. Do not click! Balloon should disappear by itself."
+            set balloontitle "TWAPI Test"
+            twapi::systemtray modifyicon $id -balloon $balloon -balloontitle $balloontitle -balloonicon info
+            if {![yesno "Do you see a balloon with a WARNING icon and title (Do NOT click on it) ?"]} {
+                lappend errors "No balloon seen."
+            } else {
+                if {![yesno "Do NOT click on balloon. Wait for it to disappear (about 30 secs). Did it disappear?"]} {
+                    lappend errors "Balloon did not disappear by itself."
+                }
+            }
+
+            pause "Please left click on the icon."
+            pause "Please right click on the icon."
+            pause "Please select the icon with the KEYBOARD"
+            
+            # Let all event handlers run
+            after 1000 set ::wait_over 1
+            vwait ::wait_over
+
+            # Now verify events
+            set bad [lsearch -exact -index 0 -all -inline -not $::systray_test_events $id]
+            if {[llength $bad]} {
+                lappend errors "Unknown icon identifier in events - $bad."
+            }
+
+            foreach ev {mousemove lbuttondown lbuttonup rbuttondown rbuttonup select keyselect contextmenu balloonshow balloonuserclick balloontimeout} {
+                if {[lsearch -exact -index 1 $::systray_test_events $ev] < 0} {
+                    lappend errors "Event code $ev not found in event list."
+                }
+            }
+
+            # Validate every event
+            foreach event $::systray_test_events {
+                lassign $event evid evcode loc ticks
+                lassign $loc x y
+                if {(![string is integer -strict $x]) ||
+                    (![string is integer -strict $y])} {
+                    lappend errors "Non-integer location coordinates '$loc'"
+                }
+                if {![string is integer -strict $ticks]} {
+                    lappend errors "Non-integer tick count '$ticks'"
+                }
+            }
+
+            twapi::systemtray removeicon $id
+
+            if {[yesno "Is the icon in system tray still visible?"]} {
+                lappend errors "Icon could not be removed from system tray."
+            }
+            
+            set errors
+        }
+
+    } -result ""
+
+
+
 
     ################################################################
 
