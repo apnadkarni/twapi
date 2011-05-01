@@ -313,10 +313,9 @@ by calling [uri #free_bitmap [cmd free_bitmap]].
 [const reduced], [const zoomd], [const restored], [const uparrowd],
 [const dnarrowd], [const rgarrowd], [const lfarrowd], [const mnarrow],
 [const combo], [const uparrowi], [const dnarrowi], [const rgarrowi],
-[const lfarrowi], [const old_close], [const size], [const old_uparrow],
-[const old_dnarrow], [const old_rgarrow], [const old_lfarrow], [const btsize],
-[const check], [const checkboxes], [const btncorners], [const old_reduce],
-[const old_zoom] or [const old_restore].
+[const lfarrowi], [const size], [const btsize],
+[const check], [const checkboxes], [const btncorners].
+
 
 [nl]
 See [sectref "Loading Resources as GDI objects"] for a list of valid options.

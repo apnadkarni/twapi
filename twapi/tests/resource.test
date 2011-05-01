@@ -17,6 +17,12 @@ load_twapi_package
 namespace eval twapi::resource::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint vista [twapi::min_os_version 6]
+
+    proc resource_file name {
+        return [file join rctest $name]
+    }
+
 
     if {$::tcl_platform(machine) eq "amd64"} {
         set rctest_dll "rctest64.dll"
@@ -726,6 +732,843 @@ namespace eval twapi::resource::test {
     } -cleanup {
         twapi::free_library $reslibh
     } -result {1033}
+
+    ################################################################
+
+    test load_bitmap_from_file-1.0 {
+        Load bitmap from file
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp]]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-2.0 {
+        Load bitmap from file with -createdibsection false
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -createdibsection false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-2.1 {
+        Load bitmap from file with -createdibsection true
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -createdibsection 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-3.0 {
+        Load bitmap from file with -loadtransparent false
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-3.1 {
+        Load bitmap from file with -loadtransparent true
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-4.0 {
+        Load bitmap from file with -monochrome false
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-4.1 {
+        Load bitmap from file with -monochrome true
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-5.0 {
+        Load bitmap from file with -vgacolor false
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    test load_bitmap_from_file-5.1 {
+        Load bitmap from file with -vgacolor true
+    } -body {
+        set h [twapi::load_bitmap_from_file [resource_file bitmap.bmp] -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+    } -result HGDIOBJ
+
+    ################################################################
+
+    test load_cursor_from_file-1.0 {
+        Load cursor from file
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur]]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-2.0 {
+        Load cursor from file with -defaultsize false
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -defaultsize 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-2.1 {
+        Load cursor from file with -defaultsize true
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -defaultsize true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-3.0 {
+        Load cursor from file with -loadtransparent false
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-3.1 {
+        Load cursor from file with -loadtransparent true
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-4.0 {
+        Load cursor from file with -monochrome false
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-4.1 {
+        Load cursor from file with -monochrome true
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-5.0 {
+        Load cursor from file with -vgacolor false
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-5.1 {
+        Load cursor from file with -vgacolor true
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    test load_cursor_from_file-6.0 {
+        Load cursor from file with -width and -height
+    } -body {
+        set h [twapi::load_cursor_from_file [resource_file cursor.cur] -width 16 -height 16]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    ################################################################
+
+    test load_icon_from_file-1.0 {
+        Load icon from file
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico]]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-2.0 {
+        Load icon from file with -defaultsize false
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -defaultsize 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-2.1 {
+        Load icon from file with -defaultsize true
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -defaultsize true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-3.0 {
+        Load icon from file with -loadtransparent false
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-3.1 {
+        Load icon from file with -loadtransparent true
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-4.0 {
+        Load icon from file with -monochrome false
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-4.1 {
+        Load icon from file with -monochrome true
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-5.0 {
+        Load icon from file with -vgacolor false
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-5.1 {
+        Load icon from file with -vgacolor true
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    test load_icon_from_file-6.0 {
+        Load icon from file with -width and -height
+    } -body {
+        set h [twapi::load_icon_from_file [resource_file icon1.ico] -width 16 -height 16]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+    ################################################################
+
+    test load_bitmap_from_module-1.0 {
+        Load bitmap from module
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-2.0 {
+        Load bitmap from file with -createdibsection false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -createdibsection false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-2.1 {
+        Load bitmap from file with -createdibsection true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -createdibsection 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-3.0 {
+        Load bitmap from file with -loadtransparent false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-3.1 {
+        Load bitmap from file with -loadtransparent true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-4.0 {
+        Load bitmap from file with -monochrome false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-4.1 {
+        Load bitmap from file with -monochrome true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-5.0 {
+        Load bitmap from file with -vgacolor false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+    test load_bitmap_from_module-5.1 {
+        Load bitmap from file with -vgacolor true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_bitmap_from_module $reslibh 106 -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_bitmap $h
+        twapi::free_library $reslibh
+    } -result HGDIOBJ
+
+
+    ################################################################
+
+    test load_cursor_from_module-1.0 {
+        Load cursor from module
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-2.0 {
+        Load cursor from file with -defaultsize false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -defaultsize false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-2.1 {
+        Load cursor from file with -defaultsize true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -defaultsize 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-3.0 {
+        Load cursor from file with -loadtransparent false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-3.1 {
+        Load cursor from file with -loadtransparent true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-4.0 {
+        Load cursor from file with -monochrome false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-4.1 {
+        Load cursor from file with -monochrome true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-5.0 {
+        Load cursor from file with -vgacolor false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-5.1 {
+        Load cursor from file with -vgacolor true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+        twapi::free_library $reslibh
+    } -result HCURSOR
+
+    test load_cursor_from_module-6.0 {
+        Load cursor from file with -width and -height
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_cursor_from_module $reslibh 103 -width 16 -height 16]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_cursor $h
+    } -result HCURSOR
+
+    ################################################################
+
+    test load_icon_from_module-1.0 {
+        Load icon from module
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-2.0 {
+        Load icon from file with -defaultsize false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -defaultsize false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-2.1 {
+        Load icon from file with -defaultsize true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -defaultsize 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-3.0 {
+        Load icon from file with -loadtransparent false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-3.1 {
+        Load icon from file with -loadtransparent true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-4.0 {
+        Load icon from file with -monochrome false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-4.1 {
+        Load icon from file with -monochrome true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-5.0 {
+        Load icon from file with -vgacolor false
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-5.1 {
+        Load icon from file with -vgacolor true
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+        twapi::free_library $reslibh
+    } -result HICON
+
+    test load_icon_from_module-6.0 {
+        Load icon from file with -width and -height
+    } -setup {
+        set reslibh [twapi::load_library $rctest_dll -datafile]
+    } -body {
+        set h [twapi::load_icon_from_module $reslibh 102 -width 16 -height 16]
+        twapi::Twapi_PtrType $h
+    } -cleanup {
+        twapi::free_icon $h
+    } -result HICON
+
+
+    ################################################################
+
+    test load_bitmap_from_system-1.0 {
+        Load bitmap from system
+    } -body {
+        set h [twapi::load_bitmap_from_system close]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-2.0 {
+        Load bitmap from system with -createdibsection false
+    } -body {
+        set h [twapi::load_bitmap_from_system uparrow -createdibsection false]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-2.1 {
+        Load bitmap from system with -createdibsection true
+    } -body {
+        set h [twapi::load_bitmap_from_system dnarrow -createdibsection 1]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-3.0 {
+        Load bitmap from system with -loadtransparent false
+    } -body {
+        set h [twapi::load_bitmap_from_system rgarrow -loadtransparent 0]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-3.1 {
+        Load bitmap from system with -loadtransparent true
+    } -body {
+        set h [twapi::load_bitmap_from_system lfarrow -loadtransparent true]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-4.0 {
+        Load bitmap from system with -monochrome false
+    } -body {
+        set h [twapi::load_bitmap_from_system reduce -monochrome 0]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-4.1 {
+        Load bitmap from system with -monochrome true
+    } -body {
+        set h [twapi::load_bitmap_from_system zoom -monochrome true]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-5.0 {
+        Load bitmap from system with -vgacolor false
+    } -body {
+        set h [twapi::load_bitmap_from_system restore -vgacolor false]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+
+    test load_bitmap_from_system-5.1 {
+        Load bitmap from system with -vgacolor true
+    } -body {
+        set h [twapi::load_bitmap_from_system reduced -vgacolor 1]
+        twapi::Twapi_PtrType $h
+    } -result HGDIOBJ_SHARED
+   
+    # Check the remaining bitmap ids not used in above tests
+    set testnum 5
+    foreach builtin {
+        zoomd restored uparrowd dnarrowd rgarrowd lfarrowd mnarrow
+        combo uparrowi dnarrowi rgarrowi lfarrowi size
+        btsize
+        check checkboxes btncorners
+    } {
+        test load_bitmap_from_system-[incr testnum].0 {
+            Load bitmap from system
+        } -body "twapi::Twapi_PtrType \[twapi::load_bitmap_from_system $builtin\]"  -result HGDIOBJ_SHARED
+    }
+
+    ################################################################
+
+    test load_cursor_from_system-1.0 {
+        Load cursor from system
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system normal]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-2.0 {
+        Load cursor from system with -defaultsize false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system ibeam -defaultsize 0]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-2.1 {
+        Load cursor from system with -defaultsize true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system wait -defaultsize true]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-3.0 {
+        Load cursor from system with -loadtransparent false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system  cross -loadtransparent 0]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-3.1 {
+        Load cursor from system with -loadtransparent true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system up -loadtransparent true]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-4.0 {
+        Load cursor from system with -monochrome false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system sizenwse -monochrome 0]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-4.1 {
+        Load cursor from system with -monochrome true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system sizenesw -monochrome true]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-5.0 {
+        Load cursor from system with -vgacolor false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system sizewe -vgacolor false]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-5.1 {
+        Load cursor from system with -vgacolor true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system sizens -vgacolor 1]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-6.0 {
+        Load cursor from system with -width and -height
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system no -width 16 -height 16]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-7.0 {
+        Load cursor from system
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system hand]
+    } -result HCURSOR_SHARED
+
+    test load_cursor_from_system-8.0 {
+        Load cursor from system
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_cursor_from_system appstarting]
+    } -result HCURSOR_SHARED
+
+    ################################################################
+
+    test load_icon_from_system-1.0 {
+        Load icon from system
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system sample]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-2.0 {
+        Load icon from system with -defaultsize false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system hand -defaultsize 0]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-2.1 {
+        Load icon from system with -defaultsize true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system ques -defaultsize true]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-3.0 {
+        Load icon from system with -loadtransparent false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system bang -loadtransparent 0]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-3.1 {
+        Load icon from system with -loadtransparent true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system note -loadtransparent true]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-4.0 {
+        Load icon from system with -monochrome false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system winlogo -monochrome 0]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-4.1 {
+        Load icon from system with -monochrome true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system warning -monochrome true]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-5.0 {
+        Load icon from system with -vgacolor false
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system error -vgacolor false]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-5.1 {
+        Load icon from system with -vgacolor true
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system information -vgacolor 1]
+    } -result HICON_SHARED
+
+    test load_icon_from_system-6.0 {
+        Load icon from system with -width and -height
+    } -constraints {
+        vista
+    } -body {
+        twapi::Twapi_PtrType [twapi::load_icon_from_system shield -width 16 -height 16]
+    } -result HICON_SHARED
 
     ################################################################
 
