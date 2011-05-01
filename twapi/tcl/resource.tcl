@@ -152,13 +152,9 @@ proc twapi::_load_image_from_system {type id args} {
                 LFARROWD        32740            MNARROW         32739
                 COMBO           32738            UPARROWI        32737
                 DNARROWI        32736            RGARROWI        32735
-                LFARROWI        32734            OLD_CLOSE       32767
-                SIZE            32766            OLD_UPARROW     32765
-                OLD_DNARROW     32764            OLD_RGARROW     32763
-                OLD_LFARROW     32762            BTSIZE          32761
-                CHECK           32760            CHECKBOXES      32759
-                BTNCORNERS      32758            OLD_REDUCE      32757
-                OLD_ZOOM        32756            OLD_RESTORE     32755
+                LFARROWI        32734            SIZE            32766
+                BTSIZE          32761            CHECK           32760
+                CHECKBOXES      32759            BTNCORNERS      32758
             }            
             # Icon symbols (type 1)
             dict set _oem_image_syms 1 {
