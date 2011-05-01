@@ -100,7 +100,10 @@ You can also enumerate resources present in a module using the
 [uri #enumerate_resource_types [cmd enumerate_resource_types]]
 [uri #enumerate_resource_names [cmd enumerate_resource_names]]
 [uri #enumerate_resource_languages [cmd enumerate_resource_languages]]
-commands.
+commands. The entire resource tree can be enumerated, optionally
+retrieving the resource values, through the command
+[uri #extract_resources [cmd extract_resources]].
+
 
 [para]
 Note that resources themselves do not need to be explicitly freed up.
@@ -266,6 +269,16 @@ module.
 Returns a list of the types of resources in the specified module.
 [arg HMODULE] must be a handle previously retrieved via
 [uri process.html#load_library [cmd load_library]].
+
+[call [cmd extract_resources] [arg HMODULE] [opt [arg INCLUDEDATA]]]
+Extracts all resources from the specified module. The returned data
+is a nested dictionary with the first level key being the resource
+type, second level key the resource name and the third level key
+the language identifier.
+[nl]
+If [arg INCLUDEDATA] is true, the actual binary data for the resource
+is returned as the value for each nested key. If [arg INCLUDEDATA]
+is not specified or is false, an empty string is returned as the value.
 
 [call [cmd free_bitmap] [arg HBITMAP]]
 Frees a bitmap handle and associated resources. The handle must not be for

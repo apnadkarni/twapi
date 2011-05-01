@@ -18,7 +18,8 @@ Added support for IPv6 [uri network.html network] commands.
 Added support for 
 [uri shell.html#Taskbar "taskbar notification icons"].
 
-[bullet] Added
+[bullet] Added resource loading commands
+[uri resource.html#extract_resources [cmd extract_resources]],
 [uri resource.html#load_icon_from_file [cmd load_icon_from_file]],
 [uri resource.html#load_cursor_from_file [cmd load_cursor_from_file]],
 [uri resource.html#load_bitmap_from_file [cmd load_bitmap_from_file]],
@@ -31,7 +32,6 @@ Added support for
 [uri resource.html#free_icon [cmd free_icon]],
 [uri resource.html#free_cursor [cmd free_cursor]] and
 [uri resource.html#free_bitmap [cmd free_bitmap]].
-
 
 [bullet]
 [uri process.html#get_module_handle [cmd get_module_handle]] and
