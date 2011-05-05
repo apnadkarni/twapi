@@ -151,7 +151,7 @@ int Twapi_RecordArrayObjCmd(
         cmd = RA_SLICE;
         raindex = 2;
     } else {
-        Tcl_SetResult(interp, "Invalid command. Must be one of 'exists', 'field' or 'get'.", TCL_STATIC);
+        Tcl_SetResult(interp, "Invalid command. Must be one of 'exists', 'field', 'filter', 'get', 'keys' or 'slice'.", TCL_STATIC);
         return TCL_ERROR;
     }
 
