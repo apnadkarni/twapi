@@ -2493,9 +2493,22 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                              GETBOOL(dw), GETNULLIFEMPTY(s),
+                             ARGUSEDEFAULT, GETINT(dw2),
                              ARGEND) == TCL_OK) {
-                result.type = TRT_HANDLE;
+
+                result.type = TRT_HANDLE;                        
                 result.value.hval = CreateMutexW(secattrP, dw, s);
+                if (result.value.hval) {
+                    if (dw2 & 1) {
+                        /* Caller also wants indicator of whether object
+                           already existed */
+                        objs[0] = ObjFromHANDLE(result.value.hval);
+                        objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS);
+                        result.value.objv.objPP = objs;
+                        result.value.objv.nobj = 2;
+                        result.type = TRT_OBJV;
+                    }
+                }
             } else {
                 result.type = TRT_TCL_RESULT;
                 result.value.ival = TCL_ERROR;
@@ -2506,11 +2519,23 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10099: // OpenSemaphore
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), GETBOOL(dw2), GETWSTR(s),
+                             ARGUSEDEFAULT, GETINT(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
             result.value.hval = (func == 10098 ? OpenMutexW : OpenSemaphoreW)
                 (dw, dw2, s);
+            if (result.value.hval) {
+                if (dw3 & 1) {
+                    /* Caller also wants indicator of whether object
+                       already existed */
+                    objs[0] = ObjFromHANDLE(result.value.hval);
+                    objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS);
+                    result.value.objv.objPP = objs;
+                    result.value.objv.nobj = 2;
+                    result.type = TRT_OBJV;
+                }
+            }
             break;
         case 10100:
             secattrP = NULL;        /* Even on error, it might be filled */
