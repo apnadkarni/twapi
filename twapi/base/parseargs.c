@@ -69,7 +69,7 @@ int Twapi_ParseargsObjCmd(
     Tcl_Obj   **optObjs;
     int         j, k;
     Tcl_WideInt wide;
-    struct OptionDescriptor opts[64]; /* Max number of options */
+    struct OptionDescriptor opts[128]; /* TBD - Max number of options - get_locale_info needs more than 100! */
     int         ignoreunknown = 0;
     int         nulldefault = 0;
     Tcl_Obj    *newargvObj = NULL;
