@@ -1519,6 +1519,13 @@ proc twapi::get_input_idle_time {} {
     }
 }
 
+# TBD - document
+proc twapi::tkpath_to_hwnd {tkpath} {
+    return [cast_handle [window id $tkpath] HWND]
+}
+
+
+
 ################################################################
 # Utility routines
 
@@ -1932,18 +1939,18 @@ proc twapi::_style_mask_to_symbols {style exstyle} {
 proc twapi::_show_theme_colors {class part {state ""}} {
     set w [toplevel .themetest$class$part$state]
 
-    set h [OpenThemeData [winfo id $w] $class]
+    set h [OpenThemeData [cast_handle [winfo id $w] HWND] $class]
     wm title $w "$class Colors"
 
     label $w.title -text "$class, $part, $state" -bg white
     grid $w.title -
 
-    set part [::twapi::TwapiThemeDefineValue $part]
-    set state [::twapi::TwapiThemeDefineValue $state]
+    set part [TwapiGetThemeDefine $part]
+    set state [TwapiGetThemeDefine $state]
 
     foreach x {BORDERCOLOR FILLCOLOR TEXTCOLOR EDGELIGHTCOLOR EDGESHADOWCOLOR EDGEFILLCOLOR TRANSPARENTCOLOR GRADIENTCOLOR1 GRADIENTCOLOR2 GRADIENTCOLOR3 GRADIENTCOLOR4 GRADIENTCOLOR5 SHADOWCOLOR GLOWCOLOR TEXTBORDERCOLOR TEXTSHADOWCOLOR GLYPHTEXTCOLOR FILLCOLORHINT BORDERCOLORHINT ACCENTCOLORHINT BLENDCOLOR} {
-        set prop [::twapi::TwapiThemeDefineValue TMT_$x]
-        if {![catch {twapi::GetThemeColor $h $part $state $prop} color]} {
+        set prop [TwapiGetThemeDefine TMT_$x]
+        if {![catch {GetThemeColor $h $part $state $prop} color]} {
             label $w.l-$x -text $x
             label $w.c-$x -text $color -bg $color
             grid $w.l-$x $w.c-$x
@@ -1966,12 +1973,12 @@ proc twapi::_show_theme_fonts {class part {state ""}} {
     label $w.title -text "$class, $part, $state" -bg white
     grid $w.title -
 
-    set part [::twapi::TwapiThemeDefineValue $part]
-    set state [::twapi::TwapiThemeDefineValue $state]
+    set part [TwapiGetThemeDefine $part]
+    set state [TwapiGetThemeDefine $state]
 
     foreach x {GLYPHTYPE FONT} {
-        set prop [::twapi::TwapiThemeDefineValue TMT_$x]
-        if {![catch {twapi::GetThemeFont $h NULL $part $state $prop} font]} {
+        set prop [TwapiGetThemeDefine TMT_$x]
+        if {![catch {GetThemeFont $h NULL $part $state $prop} font]} {
             label $w.l-$x -text $x
             label $w.c-$x -text $font
             grid $w.l-$x $w.c-$x
