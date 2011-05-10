@@ -13,12 +13,7 @@ namespace eval twapi {
 }
 
 proc twapi::cast_handle {h type} {
-    # Don't convert untyped values like 0 and NULL
-    if {[llength $h] > 1} {
-        return [list [lindex $h 0] $type]
-    } else {
-        return $h
-    }
+    return [list [lindex $h 0] $type]
 }
 
 proc twapi::close_handle {h} {
