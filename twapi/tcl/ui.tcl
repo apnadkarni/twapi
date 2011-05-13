@@ -1521,7 +1521,7 @@ proc twapi::get_input_idle_time {} {
 
 # TBD - document
 proc twapi::tkpath_to_hwnd {tkpath} {
-    return [cast_handle [window id $tkpath] HWND]
+    return [cast_handle [winfo id $tkpath] HWND]
 }
 
 
