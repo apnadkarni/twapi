@@ -481,6 +481,8 @@ proc twapi::get_multiple_process_info {args} {
         groups
         primarygroup
         privileges
+        enabledprivileges
+        disabledprivileges
         logonsession
     }
 
@@ -586,7 +588,7 @@ proc twapi::get_multiple_process_info {args} {
     }
 
     set requested_token_opts {}
-    foreach opt {elevation integrity groups primarygroup privileges logonsession virtualized} {
+    foreach opt {elevation integrity groups primarygroup privileges enabledprivileges disabledprivileges logonsession virtualized} {
         if {$opts(all) || $opts($opt)} {
             lappend requested_token_opts -$opt
         }
@@ -820,6 +822,8 @@ proc twapi::get_thread_info {tid args} {
         user
         primarygroup
         privileges
+        enabledprivileges
+        disabledprivileges
     }
 
     array set opts [parseargs args \
@@ -1528,6 +1532,8 @@ proc twapi::_token_info_helper {args} {
         groups
         primarygroup
         privileges
+        enabledprivileges
+        disabledprivileges
         logonsession
         linkedtoken
         {noexist.arg "(no such process)"}
@@ -1588,8 +1594,17 @@ proc twapi::_token_info_helper {args} {
         if {$opts(primarygroup)} {
             lappend result -primarygroup [get_token_primary_group $tok -name]
         }
-        if {$opts(privileges)} {
-            lappend result -privileges [get_token_privileges $tok -all]
+        if {$opts(privileges) || $opts(disabledprivileges) || $opts(enabledprivileges)} {
+            set privs [get_token_privileges $tok -all]
+            if {$opts(privileges)} {
+                lappend result -privileges $privs
+            }
+            if {$opts(enabledprivileges)} {
+                lappend result -enabledprivileges [lindex $privs 0]
+            }
+            if {$opts(disabledprivileges)} {
+                lappend result -disabledprivileges [lindex $privs 1]
+            }
         }
         if {$opts(logonsession)} {
             array set stats [get_token_statistics $tok]
