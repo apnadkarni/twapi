@@ -61,6 +61,11 @@ namespace eval twapi {
         guests          S-1-5-32-546
         "power users"   S-1-5-32-547
     }
+
+    # Cache of privilege names to LUID's
+    variable _privilege_to_luid_map
+    set _privilege_to_luid_map {}
+    variable _luid_to_privilege_map {}
 }
 
 # Helper for lookup_account_name{sid,name}
@@ -662,19 +667,19 @@ proc twapi::disable_all_token_privileges {tok} {
 
 # Map a privilege given as a LUID
 proc twapi::map_luid_to_privilege {luid args} {
-    variable _map_luid_to_privilege_cache
+    variable _luid_to_privilege_map
     
     array set opts [parseargs args [list system.arg mapunknown] -nulldefault]
 
-    if {[info exists _map_luid_to_privilege_cache($opts(system),$luid)]} {
-        return $_map_luid_to_privilege_cache($opts(system),$luid)
+    if {[dict exists $_luid_to_privilege_map $opts(system) $luid]} {
+        return [dict get $_luid_to_privilege_map $opts(system) $luid]
     }
 
     # luid may in fact be a privilege name. Check for this
     if {[is_valid_luid_syntax $luid]} {
         trap {
             set name [LookupPrivilegeName $opts(system) $luid]
-            set _map_luid_to_privilege_cache($opts(system),$luid) $name
+            dict set _luid_to_privilege_map $opts(system) $luid $name
         } onerror {TWAPI_WIN32 1313} {
             if {! $opts(mapunknown)} {
                 error $errorResult $errorInfo $errorCode
@@ -696,18 +701,31 @@ proc twapi::map_luid_to_privilege {luid args} {
 
 # Map a privilege to a LUID
 proc twapi::map_privilege_to_luid {priv args} {
+    variable _privilege_to_luid_map
+
     array set opts [parseargs args [list system.arg] -nulldefault]
+
+    if {[dict exists $_privilege_to_luid_map $opts(system) $priv]} {
+        return [dict get $_privilege_to_luid_map $opts(system) $priv]
+    }
 
     # First check for privilege names we might have generated
     if {[string match "Privilege-*" $priv]} {
         set priv [string range $priv 10 end]
     }
 
-    # If already a LUID format, return as is
+    # If already a LUID format, return as is, else look it up
     if {[is_valid_luid_syntax $priv]} {
         return $priv
     }
-    return [LookupPrivilegeValue $opts(system) $priv]
+
+    set luid [LookupPrivilegeValue $opts(system) $priv]
+    # This is an expensive call so stash it unless cache too big
+    if {[dict size $_privilege_to_luid_map] < 100} {
+        dict set _privilege_to_luid_map $opts(system) $priv $luid
+    }
+
+    return $luid
 }
 
 
