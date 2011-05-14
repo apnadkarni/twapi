@@ -63,7 +63,7 @@ if {$$::tcl_platform(os) eq "Windows NT" &&
 <<KEEP
 !ENDIF
         cd $(DISTDIR) && $(ZIP) -r "$(DISTDIR)"/$(ZIPBASENAME).zip $(PACKAGE)
-	if exist "%HOME%\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(ZIPBASENAME).zip "%HOME%\My Documents\Downloads\twapi"
+	if exist "$(HOME)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(ZIPBASENAME).zip "$(HOME)\My Documents\Downloads\twapi"
 
 #NOTE - the starkit is no longer supported/built regularly
 starkit: distribution
@@ -91,7 +91,7 @@ tmdistribution:
         $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -autoload $(PACKAGE) $(MODULEVERSION) $(PACKAGEDIR)\LICENSE $(PACKAGEDIR)\twapi_buildid.tcl $(PACKAGEDIR)\$(DLLNAME).dll
 !ENDIF
         move $(PACKAGE)-$(MODULEVERSION).tm "$(DISTDIR)"\$(DISTBASENAME).tm
-	if exist "%HOME%\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(DISTBASENAME).tm "%HOME%\My Documents\Downloads\twapi"
+	if exist "$(HOME)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(DISTBASENAME).tm "$(HOME)\My Documents\Downloads\twapi"
 
 !IF "x$(EMBED_SCRIPT)" == "xlzma" || "x$(EMBED_SCRIPT)" == "xplain"
 dlldistribution:
@@ -99,7 +99,7 @@ dlldistribution:
         -mkdir $(PACKAGEDIR)
 	cd base && $(MAKE) MAKEFLAGS=$(MAKEFLAGS) PACKAGEDIR=$(PACKAGEDIR)  EMBED_SCRIPT=$(EMBED_SCRIPT) distribution
         move $(PACKAGEDIR)\$(DLLNAME).dll "$(DISTDIR)"\$(DISTBASENAME).dll
-	if exist "%HOME%\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(DISTBASENAME).dll "%HOME%\My Documents\Downloads\twapi"
+	if exist "$(HOME)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)"\$(DISTBASENAME).dll "$(HOME)\My Documents\Downloads\twapi"
 !ENDIF
 
 

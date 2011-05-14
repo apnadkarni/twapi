@@ -135,7 +135,7 @@ website.zip : $(MANFILES) styles.css index.htf generate_web_page.tcl generate_ww
 	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f website
 #	$(SILENT)xcopy /q /y *.example website
 	@echo Zipping distribution...
-	$(SILENT)zip -q -r twapi-website.zip website
+	$(SILENT)$(ZIP) -q -r twapi-website.zip website
 
 clean:
 	-del *.tmp
