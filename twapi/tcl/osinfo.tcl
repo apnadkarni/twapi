@@ -377,12 +377,8 @@ proc twapi::get_memory_info {args} {
         usedcommit
     }]
 
-    # TBD - some of the fields are not system fields, but the min of 
-    # system and process limits - use GetPerformanceInfo instead - see
-    # MSDN
 
     set results [list ]
-
     set mem [GlobalMemoryStatus]
     foreach {opt fld} {
         physicalmemoryload     dwMemoryLoad
