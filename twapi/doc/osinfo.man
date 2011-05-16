@@ -406,7 +406,7 @@ the service pack minor version number.
 
 Returns various pieces of information related to the processors in
 the system. [arg PROCESSOR] identifies the processor whose information
-is to be retrieving. If specified as an empty string, information across
+is to be retrieved. If specified as an empty string, information across
 all processors in the system is returned.
 The information returned is in the form of a flat list of
 the form "[arg field1] [arg value1] [arg field2] [arg value2] ...".
