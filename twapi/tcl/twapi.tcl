@@ -17,6 +17,18 @@ if {[lindex [split $::tcl_platform(osVersion) .] 0] < 5 ||
 namespace eval twapi {
     variable nullptr "__null__"
     variable scriptdir [file dirname [info script]]
+
+    # Accessing global environ in ::env is expensive so cache
+    # it. Not updated even if real environ changes
+    proc getenv {varname} {
+        variable envcache
+        set varname [string toupper $varname]
+        if {[info exists envcache($varname)]} {
+            return $envcache($varname)
+        }
+        return [set envcache($varname) $::env($varname)]
+    }
+
 }
 
 if {![info exists twapi::version]} {
@@ -1348,20 +1360,19 @@ proc twapi::_map_console_color {colors background} {
 
 # Convert file names by substituting \SystemRoot and \??\ sequences
 proc twapi::_normalize_path {path} {
-    global env
-
     # Get rid of \??\ prefixes
     regsub {^[\\/]\?\?[\\/](.*)} $path {\1} path
 
-    # Replace leading \SystemRoot with real system root
-    catch {set systemroot $env(WINDIR)}
-    catch {set systemroot $env(SYSTEMROOT)}
-    regsub -nocase {^[\\/]systemroot([\\/].*)} $path "${systemroot}\\1" path
-
-    # If not a full path, make it a full path - TBD
+    # If not a full path, make it a full path? - TBD
     # should we return [file normalize $path]
 
-    return $path
+    # Replace leading \SystemRoot with real system root
+    if {[string match -nocase {[\\/]Systemroot*} $path] &&
+        ([string index $path 11] in [list "" / \\])} {
+        return [file join [twapi::GetSystemWindowsDirectory] [string range $path 12 end]]
+    } else {
+        return $path
+    }
 }
 
 # Convert a LARGE_INTEGER time value (100ns since 1601) to a formatted date
