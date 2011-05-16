@@ -422,6 +422,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DebugBreak, Call, 75);
     CALL_(GetPerformanceInformation, Call, 76);
     CALL_(Twapi_GetNotificationWindow, Call, 77);
+    CALL_(GetSystemWindowsDirectory, Call, 78); /* Tcl */
+    CALL_(GetWindowsDirectory, Call, 79);       /* Tcl */
+    CALL_(GetSystemDirectory, Call, 80);        /* Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1456,6 +1459,21 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 77:
             result.type = TRT_HWND;
             result.value.hwin = Twapi_GetNotificationWindow(ticP);
+            break;
+        case 78:                /* GetSystemWindowsDirectory */
+        case 79:                /* GetWindowsDirectory */
+        case 80:                /* GetSystemDirectory */
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = u.buf;
+            result.value.unicode.len =
+                (func == 78
+                 ? GetSystemWindowsDirectoryW
+                 : (func == 79 ? GetWindowsDirectoryW : GetSystemDirectoryW)
+                    ) (u.buf, ARRAYSIZE(u.buf));
+            if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
+                result.value.unicode.len == 0) {
+                result.type = TRT_GETLASTERROR;
+            }
             break;
         }
 
