@@ -1945,8 +1945,13 @@ proc twapi::_show_theme_colors {class part {state ""}} {
     label $w.title -text "$class, $part, $state" -bg white
     grid $w.title -
 
-    set part [TwapiGetThemeDefine $part]
-    set state [TwapiGetThemeDefine $state]
+    if {![string is integer -strict $part]} {
+        set part [TwapiGetThemeDefine $part]
+    }
+
+    if {![string is integer -strict $state]} {
+        set state [TwapiGetThemeDefine $state]
+    }
 
     foreach x {BORDERCOLOR FILLCOLOR TEXTCOLOR EDGELIGHTCOLOR EDGESHADOWCOLOR EDGEFILLCOLOR TRANSPARENTCOLOR GRADIENTCOLOR1 GRADIENTCOLOR2 GRADIENTCOLOR3 GRADIENTCOLOR4 GRADIENTCOLOR5 SHADOWCOLOR GLOWCOLOR TEXTBORDERCOLOR TEXTSHADOWCOLOR GLYPHTEXTCOLOR FILLCOLORHINT BORDERCOLORHINT ACCENTCOLORHINT BLENDCOLOR} {
         set prop [TwapiGetThemeDefine TMT_$x]
