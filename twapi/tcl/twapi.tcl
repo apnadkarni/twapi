@@ -1363,15 +1363,12 @@ proc twapi::_normalize_path {path} {
     # Get rid of \??\ prefixes
     regsub {^[\\/]\?\?[\\/](.*)} $path {\1} path
 
-    # If not a full path, make it a full path? - TBD
-    # should we return [file normalize $path]
-
     # Replace leading \SystemRoot with real system root
     if {[string match -nocase {[\\/]Systemroot*} $path] &&
         ([string index $path 11] in [list "" / \\])} {
         return [file join [twapi::GetSystemWindowsDirectory] [string range $path 12 end]]
     } else {
-        return $path
+        return [file normalize $path]
     }
 }
 
