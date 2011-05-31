@@ -803,7 +803,10 @@ namespace eval twapi::nls::test {
             idigitsubstitution
     } {
         test get_locale_info-[incr i].0 "get_locale_info -$opt" -constraints { nt } -body "twapi::get_locale_info 1035 -$opt" -result * -match glob
+        test get_locale_info-[incr i].1 "get_locale_info -$opt" -constraints { nt } -body "twapi::get_locale_info systemdefault -$opt" -result * -match glob
+        test get_locale_info-[incr i].2 "get_locale_info -$opt" -constraints { nt } -body "twapi::get_locale_info userdefault -$opt" -result * -match glob
     }
+    # TBD - check for specific values in get_locale_info calls
 
     ################################################################
 
