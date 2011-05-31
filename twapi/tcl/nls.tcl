@@ -266,13 +266,11 @@ proc twapi::get_locale_info {lcid args} {
         }
     }
 
-    array set opts [parseargs args [array names locale_info_class_map]]
+    #    array set opts [parseargs args [array names locale_info_class_map]]
 
     set result [list ]
-    foreach opt [array names opts] {
-        if {$opts($opt)} {
-            lappend result -$opt [GetLocaleInfo $lcid $locale_info_class_map($opt)]
-        }
+    foreach opt $args {
+        lappend result $opt [GetLocaleInfo $lcid $locale_info_class_map([string range $opt 1 end])]
     }
     return $result
 }
