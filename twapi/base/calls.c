@@ -430,8 +430,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FlashWindowEx, Call, 1002);
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
-    CALL_(GetDeviceDriverBaseName, Call, 1005);
-    CALL_(GetDeviceDriverFileName, Call, 1006);
     CALL_(GetBestInterface, Call, 1007); /* Also mapped to GetBestInterfaceEx */
     CALL_(GetBestInterfaceEx, Call, 1007);
     CALL_(QuerySecurityContextToken, Call, 1008);
@@ -769,6 +767,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(Twapi_EnumResourceTypes, CallH, 68);
+    CALL_(GetDeviceDriverBaseName, CallH, 69);
+    CALL_(GetDeviceDriverFileName, CallH, 70);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(ControlService, CallH, 1002);
@@ -1511,24 +1511,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = SystemTimeToVariantTime(&u.systime, &result.value.dval) ?
                 TRT_DOUBLE : TRT_GETLASTERROR;
             break;
-#ifndef TWAPI_LEAN
-        case 1005:
-        case 1006:
-            if (ObjToDWORD_PTR(interp, objv[2], &dwp) != TCL_OK)
-                return TCL_ERROR;
-            if ((func == 1005 ?
-                 GetDeviceDriverBaseNameW
-                 : GetDeviceDriverFileNameW) (
-                     (LPVOID) dwp,
-                     u.buf,
-                     ARRAYSIZE(u.buf))) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
+        case 1005://UNUSED
+        case 1006://UNUSED
             break;
-#endif
         case 1007:
             /* We only have the address, ObjToSOCKADDR_STORAGE expects
                it as first element of a list with optional second param
@@ -3705,6 +3690,22 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 68:
             return Twapi_EnumResourceTypes(interp, h);
+#ifndef TWAPI_LEAN
+        case 69:                /* GetDeviceDriverBaseNameW */
+        case 70:                /* GetDeviceDriverFileNameW */
+            if ((func == 69 ?
+                 GetDeviceDriverBaseNameW
+                 : GetDeviceDriverFileNameW) (
+                     (LPVOID) h,
+                     u.buf,
+                     ARRAYSIZE(u.buf))) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = u.buf;
+                result.value.unicode.len = -1;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+#endif
         }
     } else if (func < 2000) {
 
