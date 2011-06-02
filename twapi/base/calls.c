@@ -683,6 +683,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
     CALL_(Twapi_IPAddressFamily, CallS, 25); // TBD - Tcl interface
     CALL_(Twapi_NormalizeIPAddress, CallS, 26); // TBD - Tcl interface
+    CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
@@ -3085,6 +3086,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         WCHAR buf[MAX_PATH+1];
         LARGE_INTEGER largeint;
         SOCKADDR_STORAGE ss;
+        PSID sidP;
     } u;
     int func;                   /* What function to call */
     DWORD dw, dw2, dw3;
@@ -3244,6 +3246,13 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else {
                 result.type = TRT_GETLASTERROR;
             }
+            break;
+        case 27: // IsValidSidSyntax
+            u.sidP = NULL;
+            result.type = TRT_BOOL;
+            result.value.bval = ConvertStringSidToSidW(arg, &u.sidP);
+            if (u.sidP)
+                LocalFree(u.sidP);
             break;
         }
     } else if (func < 1000) {
@@ -4689,6 +4698,7 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     LSA_UNICODE_STRING *lsa_strings;
     ULONG  lsa_count;
 
+    func = 0;
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func),
                      ARGSKIP,
@@ -4696,7 +4706,14 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                      ARGTERM) != TCL_OK) {
         if (sidP)
             TwapiFree(sidP);         /* Might be alloc'ed even on fail */
-        return TCL_ERROR;
+        /* Special case - IsValidSid check. */
+        if (func == 1 &&
+            objc == 4) {
+            /* Problem was with SID. IsValidSid return 0 with TCL_OK */
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+            return TCL_OK;
+        } else
+            return TCL_ERROR;
     }
     /* sidP may legitimately be NULL, else it points to a Twapialloc'ed block */
 
@@ -4704,8 +4721,9 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     if (func < 1000) {
         switch (func) {
         case 1:
+            /* The ObjToPSID above would have already checked SID validity */
             result.type = TRT_BOOL;
-            result.value.bval = IsValidSid(sidP);
+            result.value.bval = 1;
             break;
         case 2:
             s = ObjToLPWSTR_NULL_IF_EMPTY(objv[2]);

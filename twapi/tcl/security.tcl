@@ -201,17 +201,6 @@ proc twapi::get_current_user {{format -samcompatible}} {
     }
 }
 
-# Verify that the given sid is valid. This is purely a syntactic check
-proc twapi::is_valid_sid_syntax sid {
-    trap {
-        set result [IsValidSid $sid]
-    } onerror {TWAPI_WIN32 1337} {
-        set result 0
-    }
-
-    return $result
-}
-
 # Returns token for a process
 proc twapi::open_process_token {args} {
     array set opts [parseargs args {
