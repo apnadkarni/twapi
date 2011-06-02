@@ -519,7 +519,8 @@ when [arg DRIVE] specifies a drive letter (see below).
 The values returned depend on which of the following options are specified:
 
 [list_begin opt]
-[opt_def [cmd -all]] Returns all fields except [cmd -type] and [cmd -device]
+[opt_def [cmd -all]] Returns all fields except [cmd -extents],
+[cmd -type] and [cmd -device]
 which have to be explicitly specified since they are not valid for volumes.
 [opt_def [cmd -attr]] Returns a list containing one or more
 of the values

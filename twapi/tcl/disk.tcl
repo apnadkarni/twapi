@@ -17,12 +17,12 @@ proc twapi::get_volume_info {drive args} {
     } -maxleftover 0]
 
     if {$opts(all)} {
-        # -all option does not cover -type and -device
-        set device_requested $opts(device)
-        set type_requested   $opts(type)
-        _array_set_all opts 1
-        set opts(device) $device_requested
-        set opts(type)   $type_requested
+        # -all option does not cover -type, -extents and -device
+        foreach opt {
+            all size freespace used useravail serialnum label maxcomponentlen fstype attr
+        } {
+            set opts($opt) 1
+        }
     }
 
     set result [list ]
@@ -54,8 +54,8 @@ proc twapi::get_volume_info {drive args} {
     if {$opts(extents)} {
         set extents {}
         if {! [_is_unc $drive]} {
-            set device_handle [create_file "\\\\.\\[string range $drive 0 1]" -createdisposition open_existing]
             trap {
+                set device_handle [create_file "\\\\.\\[string range $drive 0 1]" -createdisposition open_existing]
                 set bin [device_ioctl $device_handle 0x560000]
                 if {[binary scan $bin i nextents] != 1} {
                     error "Truncated information returned from ioctl 0x560000"
@@ -68,10 +68,13 @@ proc twapi::get_volume_info {drive args} {
                     lappend extents [array get extent]
                     incr off 24; # Size of one extent element
                 }
-            } onerror {TWAPI_WIN32 1} {
-                # Do nothing, device does not support extents
+            } onerror {} {
+                # Do nothing, device does not support extents or access denied
+                # Empty list is returned
             } finally {
-                CloseHandle $device_handle
+                if {[info exists device_handle]} {
+                    CloseHandle $device_handle
+                }
             }
         }
 
