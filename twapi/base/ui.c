@@ -532,7 +532,6 @@ int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread)
 /*
 TBD functions:
 EnumThreadWindows
-GetFocus
 GetKeyboardState
 TileWindows
 SetKeyboardState
