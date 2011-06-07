@@ -194,6 +194,7 @@ static LRESULT TwapiNotificationWindowHandler(
             if (msg == WM_HOTKEY ||
                 (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST) ||
                 msg == wm_taskbar_restart) {
+#ifdef  DO_NOT_USE_WINMSG_DIRECT_CALL
                 TwapiCallback *cbP;
                 DWORD pos;
                 if (msg == wm_taskbar_restart)
@@ -208,6 +209,9 @@ static LRESULT TwapiNotificationWindowHandler(
                 cbP->wm_state.ticks = GetTickCount();
                 TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
                 return (LRESULT) NULL;
+#else
+                return TwapiEvalWinMessage(ticP, msg, wParam, lParam);
+#endif
             }
         }
         return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -231,4 +235,67 @@ HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP)
     status =  Twapi_CreateHiddenWindow(
         ticP, TwapiNotificationWindowHandler, 0, &ticP->notification_win);
     return status == TCL_OK ? ticP->notification_win : NULL;
+}
+
+
+LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+    int i;
+    Tcl_Obj *objs[6];
+    DWORD pos;
+    POINTS pts;
+    Tcl_Interp *interp;
+    Tcl_InterpState interp_state;
+    LRESULT lresult = 0;
+
+    interp = ticP->interp;
+    if (interp == NULL ||
+        Tcl_InterpDeleted(interp)) {
+        return 0;
+    }
+
+    pos = GetMessagePos();
+    pts = MAKEPOINTS(pos);
+    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_script_wm_handler", -1);
+    objs[1] = ObjFromDWORD(msg);
+    objs[2] = ObjFromDWORD_PTR(wParam);
+    objs[3] = ObjFromDWORD_PTR(lParam);
+    objs[4] = ObjFromPOINTS(&pts);
+    objs[5] = ObjFromDWORD(GetTickCount());
+
+    for (i=0; i < ARRAYSIZE(objs); ++i) {
+        Tcl_IncrRefCount(objs[i]);
+    }
+
+    /* Preserve structures during eval */
+    TwapiInterpContextRef(ticP, 1);
+    Tcl_Preserve(interp);
+
+    /* Save the interp state.
+       TBD - really required ? At this point interp should be dormant, no ?
+    */
+    interp_state = Tcl_SaveInterpState(interp, TCL_OK);
+
+    lresult = 0;
+    if (Tcl_EvalObjv(interp, ARRAYSIZE(objs), objs, 
+                     TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL) == TCL_OK) {
+        /* Note if not integer result, lresult stays 0 */
+        ObjToDWORD_PTR(interp, Tcl_GetObjResult(interp), &lresult);
+    }
+
+    /* Restore Interp state */
+    Tcl_RestoreInterpState(interp, interp_state);
+
+    Tcl_Release(interp);
+    TwapiInterpContextUnref(ticP, 1);
+
+    /* 
+     * Undo the incrref above. This will delete the object unless
+     * caller had done an incr-ref on it.
+     */
+    for (i=0; i < ARRAYSIZE(objs); ++i) {
+        Tcl_IncrRefCount(objs[i]);
+    }
+
+    return lresult;
 }
