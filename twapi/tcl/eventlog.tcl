@@ -19,7 +19,7 @@ proc twapi::eventlog_open {args} {
         source.arg
         file.arg
         write
-    } -nulldefault]
+    } -nulldefault -maxleftover 0]
     if {$opts(source) == ""} {
         # Source not specified
         if {$opts(file) == ""} {
