@@ -1548,7 +1548,6 @@ int Twapi_AdjustTokenPrivileges(
         AdjustTokenPrivileges(tokenH, disableAll,
                               (PTOKEN_PRIVILEGES) bufP,
                               0, NULL, NULL);
-        MemLifoPopFrame(&ticP->memlifo);
         Twapi_AppendSystemError(interp, ERROR_NOT_ALL_ASSIGNED);
     } else {
         objP = ObjFromTOKEN_PRIVILEGES(interp, (PTOKEN_PRIVILEGES) bufP);
