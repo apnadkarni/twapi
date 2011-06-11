@@ -15,7 +15,6 @@ int Twapi_TryObjCmd(
     int objc,
     Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj **objv_copy;
     int       i, final;
     Tcl_Obj *errorCodeVar;
     Tcl_Obj **errorCodeObjv;
@@ -24,21 +23,10 @@ int Twapi_TryObjCmd(
     char    *codeP;
     TCL_RESULT result = TCL_ERROR;
 
-    /*
-     * To quote from implementation of Tcl_CatchObjCmd in Tcl 8.4.1 -
-     * "Save a pointer to the variable name object, if any, in case the
-     * Tcl_EvalObj reallocates the bytecode interpreter's evaluation
-     * stack rendering objv invalid."
-     * - we do the same. I dunno if this is really necessary - TBD
-     */
-    objv_copy = MemLifoPushFrame(&ticP->memlifo, objc*sizeof(Tcl_Obj*), NULL);
 
     if (objc < 2)
         goto badargs;
 
-    for (i = 0; i < objc; ++i)
-        objv_copy[i] = objv[i];
-    objv = objv_copy;
 
     /* First parse syntax without evaluating */
     final = 0;
@@ -202,7 +190,6 @@ badsyntax:
     /* Fall thru */
 
 pop_and_return:
-    MemLifoPopFrame(&ticP->memlifo);
     return result;
 }
 
