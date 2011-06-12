@@ -473,12 +473,17 @@ proc twapi::get_multiple_process_info {args} {
         pagefaultrate
     }
 
+    # Note -user is also a potential token opt but not listed above
+    # because it can be gotten by other means
     set token_opts {
         virtualized
         elevation
         integrity
-        user
+        integritylabel
         groups
+        restrictedgroups
+        groupattrs
+        restrictedgroupattrs
         primarygroup
         privileges
         enabledprivileges
@@ -488,6 +493,7 @@ proc twapi::get_multiple_process_info {args} {
 
     array set opts [parseargs args \
                         [concat [list all \
+                                     user \
                                      path \
                                      toplevels \
                                      commandline \
@@ -575,7 +581,7 @@ proc twapi::get_multiple_process_info {args} {
     # If all we need are baseline options, and no massaging is required
     # (as for elapsedtime, for example), we can return what we have
     # without looping through below. Saves significant time.
-    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list elapsedtime tids path toplevels commandline priorityclass]] $opts(all)]] == 0} {
+    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list user elapsedtime tids path toplevels commandline priorityclass]] $opts(all)]] == 0} {
         set return_data {}
         foreach pid $pids {
             if {[info exists results($pid)]} {
@@ -588,7 +594,7 @@ proc twapi::get_multiple_process_info {args} {
     }
 
     set requested_token_opts {}
-    foreach opt {elevation integrity groups primarygroup privileges enabledprivileges disabledprivileges logonsession virtualized} {
+    foreach opt $token_opts {
         if {$opts(all) || $opts($opt)} {
             lappend requested_token_opts -$opt
         }
@@ -818,9 +824,12 @@ proc twapi::get_thread_info {tid args} {
     }
 
     set token_opts {
-        groups
         user
         primarygroup
+        groups
+        restrictedgroups
+        groupattrs
+        restrictedgroupattrs
         privileges
         enabledprivileges
         disabledprivileges
@@ -1524,27 +1533,32 @@ proc twapi::_token_info_helper {args} {
         set args [lindex $args 0]
     }
 
-    array set opts [parseargs args {
+    if {0} {
+        Following options are passed on to get_token_info:
         elevation
         virtualized
-        integrity
         user
         groups
+        restrictedgroups
         primarygroup
         privileges
         enabledprivileges
         disabledprivileges
         logonsession
         linkedtoken
-        {noexist.arg "(no such process)"}
-        {noaccess.arg "(unknown)"}
+        Option -integrity is not passed on because it has to deal with
+        -raw and -label options
+    }
+
+    array set opts [parseargs args {
         pid.arg
         hprocess.arg
         tid.arg
         hthread.arg
+        integrity
         raw
         label
-    } -maxleftover 0]
+    } -ignoreunknown]
 
     if {[expr {[info exists opts(pid)] + [info exists opts(hprocess)] +
                [info exists opts(tid)] + [info exists opts(hthread)]}] > 1} {
@@ -1564,14 +1578,8 @@ proc twapi::_token_info_helper {args} {
         set tok [open_process_token]
     }
 
-    set result [list ]
     trap {
-        if {$opts(linkedtoken)} {
-            lappend result -linkedtoken [get_token_linked_token $tok]
-        }
-        if {$opts(elevation)} {
-            lappend result -elevation [get_token_elevation $tok]
-        }
+        set result [get_token_info $tok {*}$args]
         if {$opts(integrity)} {
             if {$opts(raw)} {
                 set integrity [get_token_integrity $tok -raw]
@@ -1581,34 +1589,6 @@ proc twapi::_token_info_helper {args} {
                 set integrity [get_token_integrity $tok]
             }
             lappend result -integrity $integrity
-        }
-        if {$opts(virtualized)} {
-            lappend result -virtualized [get_token_virtualization $tok]
-        }
-        if {$opts(user)} {
-            lappend result -user [get_token_user $tok -name]
-        }
-        if {$opts(groups)} {
-            lappend result -groups [get_token_groups $tok -name]
-        }
-        if {$opts(primarygroup)} {
-            lappend result -primarygroup [get_token_primary_group $tok -name]
-        }
-        if {$opts(privileges) || $opts(disabledprivileges) || $opts(enabledprivileges)} {
-            set privs [get_token_privileges $tok -all]
-            if {$opts(privileges)} {
-                lappend result -privileges $privs
-            }
-            if {$opts(enabledprivileges)} {
-                lappend result -enabledprivileges [lindex $privs 0]
-            }
-            if {$opts(disabledprivileges)} {
-                lappend result -disabledprivileges [lindex $privs 1]
-            }
-        }
-        if {$opts(logonsession)} {
-            array set stats [get_token_statistics $tok]
-            lappend result -logonsession $stats(authluid)
         }
     } finally {
         close_token $tok
