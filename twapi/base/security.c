@@ -190,6 +190,27 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
     return Tcl_NewListObj(2, objv);
 }
 
+Tcl_Obj *ObjFromSID_AND_ATTRIBUTES_Array (
+    Tcl_Interp *interp, const SID_AND_ATTRIBUTES *sidattrP, int count
+)
+{
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *obj;
+    int i;
+    for (i = 0; i < count; ++i, ++sidattrP) {
+        obj = ObjFromSID_AND_ATTRIBUTES(interp, sidattrP);
+        if (obj)
+            Tcl_ListObjAppendElement(interp, resultObj, obj);
+        else {
+            Tcl_DecrRefCount(resultObj);
+            return NULL;
+        }
+    }
+
+    return resultObj;
+}
+
+
 /* Note sidattrP->Sid is dynamically allocated and must be freed by calling TwapiFree(). */
 int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP)
 {
@@ -1398,18 +1419,11 @@ int Twapi_GetTokenInformation(
 
     case TokenRestrictedSids: /* Fall through */
     case TokenGroups:
-        resultObj = Tcl_NewListObj(0, NULL);
-        for (i = 0; i < ((TOKEN_GROUPS *)infoP)->GroupCount; ++i) {
-            obj = ObjFromSID_AND_ATTRIBUTES(
-                interp,
-                &((TOKEN_GROUPS *)infoP)->Groups[i]
-                );
-            if (obj)
-                Tcl_ListObjAppendElement(interp, resultObj, obj);
-            else
-                break;
-        }
-        if (i == ((TOKEN_GROUPS *)infoP)->GroupCount)
+        resultObj = ObjFromSID_AND_ATTRIBUTES_Array(
+            interp,
+            &((TOKEN_GROUPS *)infoP)->Groups[0],
+            ((TOKEN_GROUPS *)infoP)->GroupCount);
+        if (resultObj)
             result = TCL_OK;
         break;
 
@@ -1418,6 +1432,37 @@ int Twapi_GetTokenInformation(
                                                 (TOKEN_PRIVILEGES *)infoP);
         if (resultObj)
             result = TCL_OK;
+
+        break;
+
+    case TokenGroupsAndPrivileges:
+        resultObj = Tcl_NewListObj(0, NULL);
+        obj = ObjFromSID_AND_ATTRIBUTES_Array(
+            interp,
+            ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->Sids,
+            ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->SidCount);
+        if (obj) {
+            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            obj = ObjFromSID_AND_ATTRIBUTES_Array(
+                interp,
+                ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->RestrictedSids,
+                ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->RestrictedSidCount);
+            if (obj) {
+                Tcl_ListObjAppendElement(interp, resultObj, obj);
+                obj = ObjFromLUID_AND_ATTRIBUTES_Array(
+                    interp, 
+                    ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->Privileges,
+                    ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->PrivilegeCount);
+                if (obj) {
+                    Tcl_ListObjAppendElement(interp, resultObj, obj);
+                    obj = ObjFromLUID(&((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->AuthenticationId);
+                    if (obj) {
+                        Tcl_ListObjAppendElement(interp, resultObj, obj);
+                        result = TCL_OK;
+                    }
+                }
+            }
+        }
 
         break;
 
@@ -1476,7 +1521,6 @@ int Twapi_GetTokenInformation(
 #endif
 
     case TokenSessionReference:
-    case TokenGroupsAndPrivileges:
     case TokenDefaultDacl:
         Tcl_SetResult(interp, "Unsupported token information type", TCL_STATIC);
         break;
