@@ -251,18 +251,3 @@ GlobalImport (interp)
     Tcl_DecrRefCount (savedResult);
     return TCL_ERROR;
 }
-
-void *Twapi_SaveResultErrorInfo (Tcl_Interp *interp, int status)
-{
-    return (void *) Tcl_SaveInterpState(interp, status);
-}
-
-int Twapi_RestoreResultErrorInfo (Tcl_Interp *interp, void *savePtr)
-{
-    return Tcl_RestoreInterpState(interp, (Tcl_InterpState) savePtr);
-}
-
-void Twapi_DiscardResultErrorInfo (Tcl_Interp *interp, void *savePtr)
-{
-    Tcl_DiscardInterpState((Tcl_InterpState)savePtr);
-}
