@@ -932,7 +932,7 @@ namespace eval twapi::security::test {
 
     ################################################################
 
-    test get_token_group_sids_and_attrs-1.0 {
+    test get_token_groups_and_attrs-1.0 {
         Get the group sids and attributes for a token
     } -constraints {
         nt
@@ -941,7 +941,7 @@ namespace eval twapi::security::test {
     } -body {
         set sids {}
         set attrs {}
-        foreach {sid gattrs} [twapi::get_token_group_sids_and_attrs $tok] {
+        foreach {sid gattrs} [twapi::get_token_groups_and_attrs $tok] {
             lappend sids $sid
             set attrs [setops::union $attrs $gattrs]
         }

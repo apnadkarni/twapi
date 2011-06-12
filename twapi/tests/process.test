@@ -86,6 +86,8 @@ namespace eval ::twapi::process::test {
             -groups
             -primarygroup
             -privileges
+            -enabledprivileges
+            -disabledprivileges
             -priorityclass
             -logonsession
             -pid

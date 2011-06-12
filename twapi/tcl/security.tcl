@@ -69,6 +69,8 @@ namespace eval twapi {
 }
 
 # Helper for lookup_account_name{sid,name}
+# TBD - get rid of this common code - makes it slower than it need be
+# when results are cached. Or move cache up one level
 proc twapi::_lookup_account {func account args} {
     if {$func == "LookupAccountSid"} {
         set lookup name
@@ -277,33 +279,198 @@ proc twapi::close_token {tok} {
     CloseHandle $tok
 }
 
-proc twapi::get_token_elevation {tok} {
-    if {![min_os_version 6]} {
+proc twapi::get_token_info {tok args} {
+    array set opts [parseargs args {
+        elevation
+        virtualized
+        integrity
+        integritylabel
+        user
+        groups
+        restrictedgroups
+        groupattrs
+        restrictedgroupattrs
+        primarygroup
+        privileges
+        enabledprivileges
+        disabledprivileges
+        logonsession
+        linkedtoken
+    } -maxleftover 0]
+
+    # TBD - add an -ignorerrors option
+
+    set result [dict create]
+    trap {
+        if {$opts(privileges) || $opts(disabledprivileges) || $opts(enabledprivileges)} {
+            lassign [GetTokenInformation $tok 13] gtigroups gtirestrictedgroups privs gtilogonsession
+            set privs [_map_luids_and_attrs_to_privileges $privs]
+            if {$opts(privileges)} {
+                lappend result -privileges $privs
+            }
+            if {$opts(enabledprivileges)} {
+                lappend result -enabledprivileges [lindex $privs 0]
+            }
+            if {$opts(disabledprivileges)} {
+                lappend result -disabledprivileges [lindex $privs 1]
+            }
+        }
+        if {$opts(linkedtoken)} {
+            lappend result -linkedtoken [get_token_linked_token $tok]
+        }
+        if {$opts(elevation)} {
+            lappend result -elevation [get_token_elevation $tok]
+        }
+        if {$opts(integrity)} {
+            lappend result -integrity [get_token_integrity $tok]
+        }
+        if {$opts(integritylabel)} {
+            lappend result -integrity [get_token_integrity $tok -label]
+        }
+        if {$opts(virtualized)} {
+            lappend result -virtualized [get_token_virtualization $tok]
+        }
+        if {$opts(user)} {
+            # First element of groups is user sid
+            if {[info exists gtigroups]} {
+                lappend result -user [lindex $gtigroups 0 0 0]
+            } else {
+                lappend result -user [get_token_user $tok]
+            }
+        }
+        if {$opts(groups)} {
+            if {[info exists gtigroups]} {
+                set items {}
+                # First element of groups is user sid, skip it
+                foreach item [lrange $gtigroups 1 end] {
+                    lappend items [lookup_account_sid [lindex $item 0]]
+                }
+                lappend result -groups $items
+            } else {
+                lappend result -groups [get_token_groups $tok -name]
+            }
+        }
+        if {$opts(groupattrs)} {
+            if {[info exists gtigroups]} {
+                set items {}
+                # First element of groups is user sid, skip it
+                foreach item [lrange $gtigroups 1 end] {
+                    lappend items [lindex $item 0] [_map_token_attr [lindex $item 1] SE_GROUP]
+                }
+                lappend result -groupattrs $items
+            } else {
+                lappend result -groupattrs [get_token_groups_and_attrs $tok]
+            }
+        }
+        if {$opts(restrictedgroups)} {
+            if {![info exists gtirestrictedgroups]} {
+                set gtirestrictedgroups [get_token_restricted_groups_and_attrs $tok]
+            }
+            set items {}
+            foreach item $gtirestrictedgroups {
+                lappend items [lookup_account_sid[lindex $item 0]]
+            }
+            lappend result -restrictedgroups $items
+        }
+        if {$opts(restrictedgroupattrs)} {
+            if {[info exists gtirestrictedgroups]} {
+                set items {}
+                foreach item $gtirestrictedgroups {
+                    lappend items [lindex $item 0] [_map_token_attr [lindex $item 1] SE_GROUP]
+                }
+                lappend result -restrictedgroupattrs $items
+            } else {
+                lappend result -restrictedgroupattrs [get_token_restricted_groups_and_attrs $tok]
+            }
+        }
+        if {$opts(primarygroup)} {
+            lappend result -primarygroup [get_token_primary_group $tok -name]
+        }
+        if {$opts(logonsession)} {
+            if {[info exists gtilogonsession]} {
+                lappend result -logonsession $gtilogonsession
+            } else {
+                array set stats [get_token_statistics $tok]
+                lappend result -logonsession $stats(authluid)
+            }
+        }
+    }
+
+    return $result
+}
+
+
+# Procs that differ between Vista and prior versions
+if {[twapi::min_os_version 6]} {
+    proc twapi::get_token_elevation {tok} {
+        set elevation [GetTokenInformation $tok 18]; #TokenElevationType
+        switch -exact -- $elevation {
+            1 { set elevation default }
+            2 { set elevation full }
+            3 { set elevation limited }
+        }
+        return $elevation
+    }
+
+    proc twapi::get_token_virtualization {tok} {
+        return [GetTokenInformation $tok 24]; # TokenVirtualizationEnabled
+    }
+
+    proc twapi::set_token_virtualization {tok enabled} {
+        # tok must have TOKEN_ADJUST_DEFAULT access
+        Twapi_SetTokenVirtualizationEnabled $tok [expr {$enabled ? 1 : 0}]
+    }
+
+    # Get the integrity level associated with a token
+    proc twapi::get_token_integrity {tok args} {
+        # TokenIntegrityLevel -> 25
+        lassign [GetTokenInformation $tok 25]  integrity attrs
+        if {$attrs != 96} {
+            # TBD - is this ok?
+        }
+        return [_sid_to_integrity $integrity {*}$args]
+    }
+
+    # Get the integrity level associated with a token
+    proc twapi::set_token_integrity {tok integrity} {
+        # SE_GROUP_INTEGRITY attribute - 0x20
+        Twapi_SetTokenIntegrityLevel $tok [list [_integrity_to_sid $integrity] 0x20]
+    }
+
+    proc twapi::get_token_integrity_policy {tok} {
+        set policy [GetTokenInformation $tok 27]; #TokenMandatoryPolicy
+        set result {}
+        if {$policy & 1} {
+            lappend result no_write_up
+        }
+        if {$policy & 2} {
+            lappend result new_process_min
+        }
+        return $result
+    }
+
+
+    proc twapi::set_token_integrity_policy {tok args} {
+        set policy [_parse_symbolic_bitmask $args {
+            no_write_up     0x1
+            new_process_min 0x2
+        }]
+
+        Twapi_SetTokenMandatoryPolicy $tok $policy
+    }
+} else {
+    # Versions for pre-Vista
+    proc twapi::get_token_elevation {tok} {
         # Older OS versions have no concept of elevation.
         return "default"
     }
 
-    set elevation [GetTokenInformation $tok 18]; #TokenElevationType
-    switch -exact -- $elevation {
-        1 { set elevation default }
-        2 { set elevation full }
-        3 { set elevation limited }
-    }
-    return $elevation
-}
-
-proc twapi::get_token_virtualization {tok} {
-    if {![min_os_version 6]} {
+    proc twapi::get_token_virtualization {tok} {
         # Older OS versions have no concept of elevation.
         return 0
     }
 
-    return [GetTokenInformation $tok 24]; # TokenVirtualizationEnabled
-}
-
-proc twapi::set_token_virtualization {tok enabled} {
-    # tok must have TOKEN_ADJUST_DEFAULT access
-    if {![min_os_version 6]} {
+    proc twapi::set_token_virtualization {tok enabled} {
         # Older OS versions have no concept of elevation, so only disable
         # allowed
         if {$enabled} {
@@ -312,77 +479,35 @@ proc twapi::set_token_virtualization {tok enabled} {
         return
     }
 
-    Twapi_SetTokenVirtualizationEnabled $tok [expr {$enabled ? 1 : 0}]
-}
-
-# Get the integrity level associated with a token
-proc twapi::get_token_integrity {tok args} {
-
-    if {[min_os_version 6]} {
-        # TokenIntegrityLevel -> 25
-        lassign [GetTokenInformation $tok 25]  integrity attrs
-        if {$attrs != 96} {
-            # TBD - is this ok?
-        }
-    } else {
+    # Get the integrity level associated with a token
+    proc twapi::get_token_integrity {tok args} {
         # Older OS versions have no concept of elevation.
         # For future consistency in label mapping, fall through to mapping
         # below instead of directly returning mapped value
         set integrity S-1-16-8192
+
+        return [_sid_to_integrity $integrity {*}$args]
     }
 
-    return [_sid_to_integrity $integrity {*}$args]
-}
-
-# Get the integrity level associated with a token
-proc twapi::set_token_integrity {tok integrity} {
-
-    if {![min_os_version 6]} {
+    # Get the integrity level associated with a token
+    proc twapi::set_token_integrity {tok integrity} {
+        # Old platforms have a "default" of medium that cannot be changed.
         if {[_integrity_to_sid $integrity] ne "S-1-16-8192"} {
             error "Invalid integrity level value '$integrity' for this platform."
         }
-        # Old platforms have a "default" of medium that cannot be changed.
         return
     }
 
-    # SE_GROUP_INTEGRITY attribute - 0x20
-    Twapi_SetTokenIntegrityLevel $tok [list [_integrity_to_sid $integrity] 0x20]
-}
-
-
-
-proc twapi::get_token_integrity_policy {tok} {
-    if {![min_os_version 6]} {
+    proc twapi::get_token_integrity_policy {tok} {
         # Old platforms - no integrity
         return 0
     }
-    
-    set policy [GetTokenInformation $tok 27]; #TokenMandatoryPolicy
-    set result {}
-    if {$policy & 1} {
-        lappend result no_write_up
-    }
-    if {$policy & 2} {
-        lappend result new_process_min
-    }
-    return $result
-}
 
-
-proc twapi::set_token_integrity_policy {tok args} {
-    if {![min_os_version 6]} {
+    proc twapi::set_token_integrity_policy {tok args} {
         # Old platforms - no integrity
         return 0
     }
-    
-    set policy [_parse_symbolic_bitmask $args {
-        no_write_up     0x1
-        new_process_min 0x2
-    }]
-
-    Twapi_SetTokenMandatoryPolicy $tok $policy
 }
-
 
 # Get the user account associated with a token
 proc twapi::get_token_user {tok args} {
@@ -403,11 +528,11 @@ proc twapi::get_token_groups {tok args} {
     set groups [list ]
     # TokenGroups -> 2
     foreach group [GetTokenInformation $tok 2] {
-        set group [lindex $group 0]
         if {$opts(name)} {
-            set group [lookup_account_sid $group]
+            lappend groups [lookup_account_sid [lindex $group 0]]
+        } else {
+            lappend groups [lindex $group 0]
         }
-        lappend groups $group
     }
 
     return $groups
@@ -416,41 +541,42 @@ proc twapi::get_token_groups {tok args} {
 # Get the groups associated with a token along with their attributes
 # These are returned as a flat list of the form "sid attrlist sid attrlist..."
 # where the attrlist is a list of attributes
-proc twapi::get_token_group_sids_and_attrs {tok} {
+proc twapi::get_token_groups_and_attrs {tok} {
 
     set sids_and_attrs [list ]
     # TokenGroups -> 2
     foreach {group} [GetTokenInformation $tok 2] {
-        lassign $group sid attr
-        lappend sids_and_attrs $sid [_map_token_attr $attr SE_GROUP]
+        lappend sids_and_attrs [lindex $group 0] [_map_token_attr [lindex $group 1] SE_GROUP]
     }
 
     return $sids_and_attrs
 }
+
+# Get the groups associated with a token along with their attributes
+# These are returned as a flat list of the form "sid attrlist sid attrlist..."
+# where the attrlist is a list of attributes
+proc twapi::get_token_restricted_groups_and_attrs {tok} {
+    set sids_and_attrs [list ]
+    # TokenRestrictedGroups -> 11
+    foreach {group} [GetTokenInformation $tok 11] {
+        lappend sids_and_attrs [lindex $group 0] [_map_token_attr [lindex $group 1] SE_GROUP]
+    }
+
+    return $sids_and_attrs
+}
+
 
 # Get list of privileges that are currently enabled for the token
 # If -all is specified, returns a list {enabled_list disabled_list}
 proc twapi::get_token_privileges {tok args} {
 
     set all [expr {[lsearch -exact $args -all] >= 0}]
-
-    set enabled_privs [list ]
-    set disabled_privs [list ]
     # TokenPrivileges -> 3
-    foreach {item} [GetTokenInformation $tok 3] {
-        set priv [map_luid_to_privilege [lindex $item 0] -mapunknown]
-        # SE_PRIVILEGE_ENABLED -> 0x2
-        if {[lindex $item 1] & 2} {
-            lappend enabled_privs $priv
-        } else {
-            lappend disabled_privs $priv
-        }
-    }
-
+    set privs [_map_luids_and_attrs_to_privileges [GetTokenInformation $tok 3]]
     if {$all} {
-        return [list $enabled_privs $disabled_privs]
+        return $privs
     } else {
-        return $enabled_privs
+        return [lindex $privs 0]
     }
 }
 
@@ -2103,4 +2229,20 @@ proc twapi::_integrity_to_sid {integrity} {
         }
     }
     return $integrity
+}
+
+proc twapi::_map_luids_and_attrs_to_privileges {luids_and_attrs} {
+    set enabled_privs [list ]
+    set disabled_privs [list ]
+    foreach item $luids_and_attrs {
+        set priv [map_luid_to_privilege [lindex $item 0] -mapunknown]
+        # SE_PRIVILEGE_ENABLED -> 0x2
+        if {[lindex $item 1] & 2} {
+            lappend enabled_privs $priv
+        } else {
+            lappend disabled_privs $priv
+        }
+    }
+
+    return [list $enabled_privs $disabled_privs]
 }
