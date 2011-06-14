@@ -175,6 +175,10 @@ proc twapi::find_windows {args} {
             if {[info exists opts(toplevel)] && $opts(toplevel)} {
                 error "Options -toplevel and -messageonlywindow cannot be both specified as true"
             }
+            if {[info exists opts(text)]} {
+                # See bug 3213001
+                error "Option -text cannot be specified if -messageonlywindow is specified as true"
+            }
             if {[info exists opts(ancestor)]} {
                 error "Option -ancestor cannot be specified if -messageonlywindow is specified as true"
             }
@@ -184,8 +188,12 @@ proc twapi::find_windows {args} {
     } else {
         # -messageonlywindow not specified at all. Only include
         # messageonly windows if toplevel is not specified as true
+        # Also, if opts(text) is specified, will never match messageonly
+        # so set it to false to we do not pick up messageonly windows
+        # (which will hang if we go looking for them with -text : see
+        # bug 3213001).
         if {([info exists opts(toplevel)] && $opts(toplevel)) ||
-            [info exists opts(ancestor)]
+            [info exists opts(ancestor)] || [info exists opts(text)]
         } {
             set include_messageonly false
         } else {
@@ -203,7 +211,7 @@ proc twapi::find_windows {args} {
             $opts(match) eq "string"} {
             set text $opts(text)
         }
-        set messageonly_candidates [_get_message_only_windows -class $class -text $text]
+        set messageonly_candidates [_get_message_only_windows]
     } else {
         set messageonly_candidates [list ]
     }
@@ -2164,12 +2172,7 @@ proc twapi::_format_monitor_info {hmon} {
 }
 
 # Get message-only windows
-proc twapi::_get_message_only_windows {args} {
-    array set opts [parseargs args {
-        class.arg
-        text.arg
-        single
-    } -nulldefault -maxleftover 0]
+proc twapi::_get_message_only_windows {} {
 
     set wins [list ]
     set prev 0
@@ -2179,7 +2182,6 @@ proc twapi::_get_message_only_windows {args} {
         set win [FindWindowEx [list -3 HWND] $prev "" ""]
         if {[Twapi_IsNullPtr $win]} break
         lappend wins $win
-        if {$opts(single)} break
         set prev $win
     }
 
