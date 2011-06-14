@@ -325,7 +325,7 @@ proc twapi::get_token_info {tok args} {
             lappend result -integrity [get_token_integrity $tok]
         }
         if {$opts(integritylabel)} {
-            lappend result -integrity [get_token_integrity $tok -label]
+            lappend result -integritylabel [get_token_integrity $tok -label]
         }
         if {$opts(virtualized)} {
             lappend result -virtualized [get_token_virtualization $tok]
