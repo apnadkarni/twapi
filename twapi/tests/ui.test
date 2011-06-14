@@ -920,6 +920,14 @@ namespace eval twapi::ui::test {
               [::setops::empty [::setops::diff $union $all]]}
     } -result 0
 
+    test find_windows-17.1 {
+        Verify -messageonlywindow true and -text cannot be used together
+    } -constraints {
+        nt
+    } -body {
+        twapi::find_windows -messageonlywindow true -text "something"
+    } -result "Option -text cannot be specified*-messageonly*true*" -match glob -returnCodes error
+
     ################################################################
 
     test get_descendent_windows-1.0 {
