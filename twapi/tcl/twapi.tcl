@@ -9,11 +9,6 @@
 package require Tcl 8.5
 package require registry
 
-if {[lindex [split $::tcl_platform(osVersion) .] 0] < 5 ||
-    [lindex [split $::tcl_platform(osVersion) .] 1] == 0} {
-    error "This version of TWAPI requires Windows XP or later"
-}
-
 namespace eval twapi {
     variable nullptr "__null__"
     variable scriptdir [file dirname [info script]]
