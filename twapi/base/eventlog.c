@@ -94,6 +94,7 @@ int Twapi_ReadEventLog(
             winerr = GetLastError();
             goto vamoose;
         }
+        winerr = 0;             /* Reset for vamoose */
     }
 
     /* Loop through all records, adding them to the record list */
