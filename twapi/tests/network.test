@@ -559,7 +559,8 @@ namespace eval twapi::network::test {
     test get_netif_count-1.0 {
         Get network interface count
     } -body {
-        expr {[twapi::get_netif_count] == [llength [twapi::get_netif_indices]]}
+        expr {[twapi::get_netif_count] ==
+              ([llength [twapi::get_netif_indices]] + [llength [twapi::get_netif6_indices]])}
     } -result 1
 
     ################################################################
