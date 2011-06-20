@@ -3152,7 +3152,7 @@ namespace eval twapi::ui::test {
     test stop_sound-1.0 {
         Stop all sounds
     } -constraints {
-        nt
+        userInteraction
     } -setup {
         set played [twapi::play_sound SystemAsterisk -alias -loop]
     } -body {

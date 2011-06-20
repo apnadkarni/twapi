@@ -450,7 +450,7 @@ namespace eval twapi::console::test {
     test fill_console-1.1 {
         Fill the console buffer with attributes within the visible window
     } -constraints {
-        nt
+        userInteraction
     } -body {
         twapi::fill_console stdout -window true -bgblue true -fggray true
         if {[tcltest::testConstraint userInteraction]} {
@@ -465,7 +465,7 @@ namespace eval twapi::console::test {
     test fill_console-1.2 {
         Fill the console buffer with attributes within column range
     } -constraints {
-        nt
+        userInteraction
     } -body {
         twapi::fill_console stdout -bggreen true -numcols 10
         if {[tcltest::testConstraint userInteraction]} {
@@ -500,7 +500,7 @@ namespace eval twapi::console::test {
     test fill_console-1.5 {
         Fill the console buffer with attributes starting at a position
     } -constraints {
-        nt
+        userInteraction
     } -body {
         twapi::fill_console stdout -bgblue true -bggreen true -position {40 0}
         if {[tcltest::testConstraint userInteraction]} {
