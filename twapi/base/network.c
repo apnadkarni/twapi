@@ -7,10 +7,12 @@
 
 #include "twapi.h"
 
-typedef struct {
+#if _MSC_VER == 1200
+typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
     PWCHAR pModuleName;
     PWCHAR pModulePath;
 } TCPIP_OWNER_MODULE_BASIC_INFO;
+#endif
 
 /* Undocumented functions */
 typedef DWORD (WINAPI *GetOwnerModuleFromTcpEntry_t)(PVOID, int, PVOID, PDWORD);

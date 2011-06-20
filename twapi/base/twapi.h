@@ -52,7 +52,10 @@
 #include <mstask.h>
 #include <dsgetdc.h>
 #include <powrprof.h>
-#include <winable.h>
+#if _MSC_VER == 1200
+/* Not present in newer compiler/sdks as it is subsumed by winuser.h */ 
+# include <winable.h>
+#endif
 #define SECURITY_WIN32 1
 #include <security.h>
 #include <userenv.h>

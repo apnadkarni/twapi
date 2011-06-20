@@ -52,7 +52,7 @@ static TwapiOneTimeInitState gTwapiInitialized;
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp);
-static void TwapiInterpContextDelete(ticP, interp);
+static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
 
@@ -359,7 +359,7 @@ static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     return ticP;
 }
 
-static void TwapiInterpContextDelete(TwapiInterpContext *ticP, Tcl_Interp *interp)
+static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
     TWAPI_ASSERT(ticP->interp == NULL);
 
