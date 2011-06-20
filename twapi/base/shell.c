@@ -1231,10 +1231,14 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+#if _MSC_VER == 1200
     /* NOTE GetThemeFont ExPECTS LOGFONTW although the documentation/header
      * mentions LOGFONT
      */
     hr =  GetThemeFont(hTheme, hdc, iPartId, iStateId, iPropId, (LOGFONT*)&lf);
+#else
+    hr =  GetThemeFont(hTheme, hdc, iPartId, iStateId, iPropId, &lf);
+#endif
     if (hr != S_OK)
         return Twapi_AppendSystemError(interp, hr);
 

@@ -7,7 +7,9 @@
 
 #include "twapi.h"
 #include "twapi_wm.h"
-#include <process.h>            /* TBD - remove when crt is removed */
+#if !defined(TWAPI_REPLACE_CRT) && !defined(TWAPI_MINIMIZE_CRT)
+# include <process.h>
+#endif
 #include <dbt.h>
 #include <initguid.h>           // Instantiate ioevent.h guids
 #include <ioevent.h>            // Custom GUID definitions
