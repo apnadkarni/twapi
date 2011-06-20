@@ -151,7 +151,7 @@ void MemLifoClose(MemLifo *l)
     /* Finally free the chunk containing the bottom mark */
     l->lifo_freeFn(l->lifo_bot_mark->lm_chunks,
                        l->lifo_allocator_data);
-    ZeroMemory(l, sizeof(*l));
+    TwapiZeroMemory(l, sizeof(*l));
 }
 
 

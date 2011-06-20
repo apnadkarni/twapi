@@ -65,6 +65,10 @@ typedef int Int32;
 typedef unsigned int UInt32;
 #endif
 
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+#define _SZ_NO_INT_64
+#endif
+
 #ifdef _SZ_NO_INT_64
 
 /* define _SZ_NO_INT_64, if your compiler doesn't support 64-bit integers.

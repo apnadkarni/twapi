@@ -110,7 +110,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
             return TCL_ERROR;
         }
     } else
-        ZeroMemory(sddP, sizeof(*sddP));
+        TwapiZeroMemory(sddP, sizeof(*sddP));
 
     sddP->cbSize = sizeof(*sddP);
     return TCL_OK;
@@ -153,7 +153,7 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
             return TCL_ERROR;
         }
     } else
-        ZeroMemory(sdiP, sizeof(*sdiP));
+        TwapiZeroMemory(sdiP, sizeof(*sdiP));
 
     sdiP->cbSize = sizeof(*sdiP);
     return TCL_OK;
@@ -656,7 +656,7 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
     if (dncP->devtype == DBT_DEVTYP_HANDLE) {
         DEV_BROADCAST_HANDLE h_filter;
 
-        ZeroMemory(&h_filter, sizeof(h_filter));
+        TwapiZeroMemory(&h_filter, sizeof(h_filter));
         h_filter.dbch_size = sizeof(h_filter);
         h_filter.dbch_devicetype = DBT_DEVTYP_HANDLE;
         notify_flags = DEVICE_NOTIFY_WINDOW_HANDLE;
@@ -672,7 +672,7 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
     else if (dncP->devtype == DBT_DEVTYP_DEVICEINTERFACE) {
         DEV_BROADCAST_DEVICEINTERFACE di_filter;
 
-        ZeroMemory(&di_filter, sizeof(di_filter));
+        TwapiZeroMemory(&di_filter, sizeof(di_filter));
         di_filter.dbcc_size = sizeof(di_filter);
         di_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
         notify_flags = DEVICE_NOTIFY_WINDOW_HANDLE;
@@ -791,13 +791,13 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
     sig = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (sig) {
         /* TBD - when does the thread get asked to exit? */
-#if defined(TWAPI_REPLACE_CRT)
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+        threadH = CreateThread(NULL, 0, TwapiDeviceNotificationThread, sig, 0,
+                               &TwapiDeviceNotificationTid);
+#else
         threadH = (HANDLE)  _beginthreadex(NULL, 0,
                                            TwapiDeviceNotificationThread,
                                            sig, 0, &TwapiDeviceNotificationTid);
-#else
-        threadH = CreateThread(NULL, 0, TwapiDeviceNotificationThread, sig, 0,
-                               &TwapiDeviceNotificationTid);
 #endif
         if (threadH) {
             CloseHandle(threadH);

@@ -557,7 +557,7 @@ static void NPipeWatchReads(NPipeChannel *pcP)
      */
     if (pcP->io[READER].state != IOBUF_IO_PENDING) {
         pcP->io[READER].state = IOBUF_IO_PENDING; /* Important to set this first since reader thread might run immediately */
-        ZeroMemory(&pcP->io[READER].ovl, sizeof(pcP->io[READER].ovl));
+        TwapiZeroMemory(&pcP->io[READER].ovl, sizeof(pcP->io[READER].ovl));
         pcP->io[READER].ovl.hEvent = pcP->io[READER].hevent;
         if (! ReadFile(pcP->hpipe,
                        &pcP->io[READER].data.read_ahead,
@@ -762,7 +762,7 @@ static DWORD NPipeReadData(NPipeChannel *pcP, char *bufP, DWORD bufsz)
     if (num_to_read > bufsz)
         num_to_read = bufsz;
     
-    ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+    TwapiZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
     ioP->ovl.hEvent = pcP->hsync; /* Event used for "synchronous" reads */
     if (ReadFile(pcP->hpipe, bufP, num_to_read, &sync_count, &ioP->ovl)) {
         /*
@@ -941,7 +941,7 @@ static int NPipeOutputProc(
             return -1;
         }
 
-        ZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
+        TwapiZeroMemory(&ioP->ovl, sizeof(ioP->ovl));
         ioP->ovl.hEvent = ioP->hevent;
 
         /*
@@ -1012,7 +1012,7 @@ static int NPipeOutputProc(
          * make sure we use a different OVERLAPPED struct and event.
          */
         OVERLAPPED ovl;
-        ZeroMemory(&ovl, sizeof(ovl));
+        TwapiZeroMemory(&ovl, sizeof(ovl));
         ovl.hEvent = pcP->hsync;
         if (! WriteFile(pcP->hpipe, bufP, count, NULL, &ovl)) {
             WIN32_ERROR winerr = GetLastError();
@@ -1171,7 +1171,7 @@ static WIN32_ERROR NPipeAccept(NPipeChannel *pcP)
      * to connect, we will get success right away. Else we wait on the
      * event and queue a callback later
      */
-    ZeroMemory(&pcP->io[WRITER].ovl, sizeof(pcP->io[WRITER].ovl));
+    TwapiZeroMemory(&pcP->io[WRITER].ovl, sizeof(pcP->io[WRITER].ovl));
     pcP->io[WRITER].ovl.hEvent = pcP->io[WRITER].hevent;
     if (ConnectNamedPipe(pcP->hpipe, &pcP->io[WRITER].ovl) ||
         (winerr = GetLastError()) == ERROR_PIPE_CONNECTED) {

@@ -355,7 +355,7 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
     PDH_BROWSE_DLG_CONFIG_W browse_dlg;
     PDH_STATUS pdh_status;
 
-    ZeroMemory(&browse_dlg, sizeof(browse_dlg));
+    TwapiZeroMemory(&browse_dlg, sizeof(browse_dlg));
     browse_dlg.bIncludeInstanceIndex = 1;
     browse_dlg.bSingleCounterPerDialog = 1;
     browse_dlg.cchReturnPathLength = 1000;

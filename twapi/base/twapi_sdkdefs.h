@@ -1,3 +1,18 @@
+
+/* 
+ * Depending on compiler / platform, ZeroMemory translates a call to memset.
+ * If we want to avoid the C rtl, then define appropriately
+ */
+#ifdef TWAPI_REPLACE_CRT
+# ifdef _M_AMD64
+#  define TwapiZeroMemory(p_, count_) RtlSecureZeroMemory((p_), (count_))
+# else
+#  define TwapiZeroMemory(p_, count_) ZeroMemory((p_), (count_))
+# endif
+#else
+# define TwapiZeroMemory(p_, count_) memset((p_), 0, (count_))
+#endif
+
 /*
  * Contains copies of definitions from newer SDK's.
  * Since we are stuck with the older SDK's for compatibility reasons,

@@ -1007,7 +1007,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     if (hr != TCL_OK) {
         Tcl_BackgroundError(me->interp);
         if (excepP) {
-            ZeroMemory(excepP, sizeof(*excepP));
+            TwapiZeroMemory(excepP, sizeof(*excepP));
             excepP->scode = hr;
         }
     } else {
@@ -1245,7 +1245,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     }
     
     /* Init exception structure for error handling */
-    ZeroMemory(&einfo, sizeof(einfo));
+    TwapiZeroMemory(&einfo, sizeof(einfo));
     badarg_index = (UINT) -1;
 
     /*
@@ -1551,7 +1551,7 @@ int Twapi_ITypeInfo_GetNames(
     BSTR    names[64];
     int     name_count;
 
-    ZeroMemory(names, sizeof(names));
+    TwapiZeroMemory(names, sizeof(names));
 
     hr = tiP->lpVtbl->GetNames(tiP, memid, names, sizeof(names)/sizeof(names[0]), &name_count);
 
@@ -2142,7 +2142,7 @@ int Twapi_IRecordInfo_GetFieldNames(Tcl_Interp *interp, IRecordInfo *riP)
     Tcl_Obj *objv[50];
     HRESULT hr;
 
-    ZeroMemory(bstrs, sizeof(bstrs));
+    TwapiZeroMemory(bstrs, sizeof(bstrs));
     nbstrs = ARRAYSIZE(bstrs);
     hr = riP->lpVtbl->GetFieldNames(riP, &nbstrs, bstrs);
     if (hr != S_OK)
