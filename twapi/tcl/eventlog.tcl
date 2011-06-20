@@ -157,6 +157,7 @@ proc twapi::eventlog_read {hevl args} {
     trap {
         set recs [ReadEventLog $hevl $flags $offset]
     } onerror {TWAPI_WIN32 38} {
+        # EOF - no more
         set recs [list ]
     }
     foreach rec $recs {
@@ -403,4 +404,19 @@ proc twapi::_find_eventlog_regkey {source} {
 
     # Default to Application - TBD
     return "${topkey}\\Application"
+}
+
+proc twapi::_eventlog_dump {source chan} {
+    set hevl [eventlog_open -source $source]
+    while {[llength [set events [eventlog_read $hevl]]]} {
+        # print out each record
+        foreach eventrec $events {
+            array set event $eventrec
+            set timestamp [clock format $event(-timewritten) -format "%x %X"]
+            set source   $event(-source)
+            set category [twapi::eventlog_format_category $eventrec -width -1]
+            set message  [twapi::eventlog_format_message $eventrec -width -1]
+            puts -nonewline "Time: $timestamp\r\nSource: $source\r\nCategory: $category\r\n$message\r\n\r\n"
+        }
+    }
 }

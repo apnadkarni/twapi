@@ -637,20 +637,71 @@ proc twapi::free_library {libh} {
 
 # Format message string
 proc twapi::format_message {args} {
-    if {[catch {_unsafe_format_message {*}$args} result]} {
-        set erinfo $::errorInfo
-        set ercode $::errorCode
-        if {[lindex $ercode 0] == "POSIX" && [lindex $ercode 1] == "EFAULT"} {
-            # Number of string params do not match % specifiers
-            # Retry without replacing % specifiers
-            return [_unsafe_format_message -ignoreinserts {*}$args]
-        } else {
-            error $result $erinfo $ercode
-        }
+    array set opts [parseargs args {
+        {params.arg {}}
+    } -ignoreunknown]
+
+    set msg [_unsafe_format_message -ignoreinserts {*}$args]
+
+    set placeholder_indices [regexp -indices -all -inline {%(?:.|(?:[1-9][0-9]?(?:![^!]+!)?))} $msg]
+
+    if {[llength $placeholder_indices] == 0} {
+        # No placeholders.
+        return $msg
     }
 
-    return $result
+    # Use of * in format specifiers will change where the actual parameters
+    # are positioned
+    set num_asterisks 0
+    set msg2 ""
+    set prev_end 0
+    foreach placeholder $placeholder_indices {
+        lassign $placeholder start end
+        # Append the stuff between previous placeholder and this one
+        append msg2 [string range $msg $prev_end [expr {$start-1}]]
+        set spec [string range $msg $start+1 $end]
+        switch -exact -- [string index $spec 0] {
+            % { append msg2 % }
+            r { append msg2 \r }
+            n { append msg2 \n }
+            t { append msg2 \t }
+            0 { 
+                # No-op - %0 means to not add trailing newline
+            }
+            default {
+                if {! [string is integer -strict [string index $spec 0]]} {
+                    # Not a insert parameter. Just append the character
+                    append msg2 $spec
+                } else {
+                    # Insert parameter
+                    set fmt ""
+                    scan $spec %d%s param_index fmt
+                    # Note params are numbered starting with 1
+                    incr param_index -1
+                    # Format spec, if present, is enclosed in !. Get rid of them
+                    set fmt [string trim $fmt "!"]
+                    if {$fmt eq ""} {
+                        # No fmt spec
+                    } else {
+                        # Since everything is a string in Tcl, we happily
+                        # do not have to worry about type. However, the
+                        # format spec could have * specifiers which will
+                        # change the parameter indexing for subsequent
+                        # arguments
+                        incr num_asterisks [expr {[llength [split $fmt *]]-1}]
+                        incr param_index $num_asterisks
+                    }
+                    # TBD - we ignore the actual format type
+                    append msg2 [lindex $opts(params) $param_index]
+                }                        
+            }
+        }                    
+        set prev_end [incr end]
+    }
+    append msg2 [string range $msg $prev_end end]
+    return $msg2
 }
+
 
 
 # Read an ini file int

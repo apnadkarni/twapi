@@ -22,56 +22,31 @@ int TwapiFormatMessageHelper(
     LPCWSTR *argv
 )
 {
-    int result;
     WCHAR *msgP;
-
-    result = TCL_ERROR;
-    dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER;
 
     /* For security reasons, MSDN recommends not to use FormatMessageW
        with arbitrary codes unless IGNORE_INSERTS is also used, in which
-       case arguments are ignored and we do not need the __try. Note __try
+       case arguments are ignored. As Richter suggested in his book,
+       TWAPI used to use __try to protect against this but note _try
        does not protect against malicious buffer overflows.
 
        There is also another problem in that we are passing all strings
        but the format specifiers in the message may expect (for example)
-       integer values. We have not way of doing the right thing without
-       building a FormatMessage parser ourselves.
+       integer values. We have no way of doing the right thing without
+       building a FormatMessage parser ourselves. That is what we do
+       at the script level and force IGNORE_INSERTS here.
 
        As a side-benefit, not using __try reduces CRT dependency.
-
-       Despite all the above, we still allow inserts with the expectation
-       that the application will not call this function without proper
-       care. In other words, we are no better, no worse than FormatMessage
-       itself. Disabling inserts disables too much functionality, eg.
-       parsing event log messages.
     */
 
-    __try {
-        if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
-            Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
-            LocalFree(msgP);
-            result = TCL_OK;
-        } else {
-            TwapiReturnSystemError(interp);
-        }
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-        DWORD code;
-        switch (code = GetExceptionCode()) {
-        case EXCEPTION_ACCESS_VIOLATION:
-            Tcl_SetErrno(EFAULT);
-            Tcl_PosixError(interp);
-            Tcl_SetResult(interp, "Access violation in FormatMessage. Most likely, number of supplied arguments do not match those in format string", TCL_STATIC);
-            break;
-        default:
-            Tcl_SetObjResult(interp, 
-                             Tcl_ObjPrintf("Exception %x raised by FormatMessage", code));
-            break;
-        }
+    dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
+    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
+        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
+        LocalFree(msgP);
+        return TCL_OK;
+    } else {
+        return TwapiReturnSystemError(interp);
     }
-
-
-    return result;
 }
 
 
@@ -396,7 +371,7 @@ int Twapi_LoadUserProfile(
 {
     PROFILEINFOW profileinfo;
 
-    ZeroMemory(&profileinfo, sizeof(profileinfo));
+    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
     profileinfo.dwSize        = sizeof(profileinfo);
     profileinfo.lpUserName    = username;
     profileinfo.lpProfilePath = profilepath;
