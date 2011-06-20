@@ -120,7 +120,9 @@ VCVER=0
 !include $(OBJDIR)\vercl.p
 !endif
 
-!if $(VCVERSION) >= 1500
+!if $(VCVERSION) >= 1600
+VCVER=10
+!elseif $(VCVERSION) >= 1500
 VCVER=9
 !elseif $(VCVERSION) >= 1400
 VCVER=8
@@ -195,7 +197,7 @@ WINLIB        = \
 	$(SDKLIB)uxtheme.lib
 # Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 
-!if $(VCVER) > 6
+!if $(VCVER) > 6 && $(VCVER) < 10
 WINLIB = $(WINLIB) bufferoverflowU.lib
 !endif
 
@@ -259,8 +261,7 @@ CFLAGS = $(CFLAGS) /D_DLL /MD
 !ENDIF
 
 # Linker options
-# /OPT:NOWIN98 reduces code size by using 512 byte section alignment
-LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF $(LENTRYFLAG)
+LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
 
 !IFDEF ENABLE_DELAYLOAD
 LIBS = $(LIBS) delayimp.lib
@@ -268,7 +269,8 @@ LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /
 !ENDIF
 
 !if $(VCVER) == 6
-LOPT = $(LOPT) /debug:full /debugtype:cv 
+# VC 6 - /OPT:NOWIN98 reduces code size by using 512 byte section alignment
+LOPT = $(LOPT) /debug:full /debugtype:cv /OPT:NOWIN98
 !else
 LOPT = $(LOPT) /debug
 !endif
