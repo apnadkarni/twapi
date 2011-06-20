@@ -81,7 +81,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
 {
     struct addrinfo hints;
 
-    ZeroMemory(&hints, sizeof(hints));
+    TwapiZeroMemory(&hints, sizeof(hints));
     hints.ai_family = theP->family;
 
     theP->tcl_ev.proc = TwapiHostnameEventProc;

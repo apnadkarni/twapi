@@ -1614,7 +1614,7 @@ int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     struct addrinfo hints;
     struct addrinfo *addrP;
 
-    ZeroMemory(&hints, sizeof(hints));
+    TwapiZeroMemory(&hints, sizeof(hints));
     if (TwapiGetArgs(interp, objc, objv,
                      GETASTR(hostname), GETASTR(svcname),
                      ARGUSEDEFAULT,
