@@ -471,7 +471,7 @@ int ListObjToSTARTUPINFO(Tcl_Interp *interp, Tcl_Obj *siObj, STARTUPINFOW *siP)
     long lval;
     Tcl_Obj **objvP;
 
-    ZeroMemory(siP, sizeof(*siP));
+    TwapiZeroMemory(siP, sizeof(*siP));
 
     siP->cb = sizeof(*siP);
 

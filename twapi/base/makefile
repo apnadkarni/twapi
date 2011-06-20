@@ -246,12 +246,10 @@ CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD -DSTATIC_BUILD=1
 !ENDIF
 
 
-# Note CRT=none option does not work since the __try wrapper around
-# FormatMessage requires the exception handling support from the C runtime.
-# So CRT=none needs to be postponed until such a time that we can work
-# around that.
+# CRT=none support is not complete as yet
 !IF "$(CRT)x" == "nonex"
 CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
+LENTRYFLAG = /ENTRY:DllMain
 !ELSE
 !IF "$(CRT)x" == "staticx"
 CFLAGS = $(CFLAGS) /MT /Oi /DTWAPI_MINIMIZE_CRT
@@ -262,7 +260,7 @@ CFLAGS = $(CFLAGS) /D_DLL /MD
 
 # Linker options
 # /OPT:NOWIN98 reduces code size by using 512 byte section alignment
-LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF
+LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:NOWIN98 /OPT:REF $(LENTRYFLAG)
 
 !IFDEF ENABLE_DELAYLOAD
 LIBS = $(LIBS) delayimp.lib

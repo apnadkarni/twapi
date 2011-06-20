@@ -1303,7 +1303,7 @@ int Twapi_GetTokenInformation(
     void *infoP;
     Tcl_Obj *resultObj = NULL;
     Tcl_Obj *obj = NULL;
-    DWORD    i,sz;
+    DWORD    sz;
     int   result = TCL_ERROR;
     union {
         DWORD dw;

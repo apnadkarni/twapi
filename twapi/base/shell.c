@@ -1308,7 +1308,7 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     SHELLEXECUTEINFOW sei;
     
-    ZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
+    TwapiZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
                                      Need to track if it needs freeing */
     sei.cbSize = sizeof(sei);
 

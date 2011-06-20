@@ -155,10 +155,14 @@ int Twapi_BecomeAService(
     gServiceType = service_type & (SERVICE_WIN32 | SERVICE_INTERACTIVE_PROCESS);
 
     /* Now start the thread that will actually talk to the control manager */
-    /* TBD - should we use _beginthreadex instead ? */
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
     gServiceMasterThreadHandle = CreateThread(NULL, 0, TwapiServiceMasterThread,
                                         NULL, 0, &gServiceMasterThreadId);
-
+#else
+    gServiceMasterThreadHandle = (HANDLE)  _beginthreadex(NULL, 0,
+                                                          TwapiServiceMasterThread, NULL,
+                                                          0, &gServiceMasterThreadId);
+#endif
     if (gServiceMasterThreadHandle == NULL) {
         Twapi_AppendSystemError(interp, GetLastError());
         return TCL_ERROR;

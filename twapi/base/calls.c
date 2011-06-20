@@ -3283,7 +3283,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 #ifndef TWAPI_LEAN
         case 502: // LsaOpenPolicy
             ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
-            ZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
+            TwapiZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
             dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
             if (dw2 == STATUS_SUCCESS) {
                 result.type = TRT_LSA_HANDLE;
