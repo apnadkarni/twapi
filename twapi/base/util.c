@@ -688,3 +688,20 @@ strtoul(
 }
 
 #endif
+
+
+#if 0 // MS C does not like intrinsics redefined
+#ifdef TWAPI_REPLACE_CRT
+void *memset(
+   void* dest, 
+   int c, 
+   size_t count 
+)
+{
+    __stosb((unsigned char *)dest, (unsigned char *) c, count);
+    return dest;
+}
+
+
+#endif
+#endif
