@@ -63,6 +63,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
     return TRUE;
 }
 
+const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
 /* Main entry point */
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
@@ -77,7 +78,7 @@ int Twapi_Init(Tcl_Interp *interp)
        done for EVERY interp creation or move into one-time above ? TBD
      */
 #ifdef USE_TCL_STUBS
-    if (Tcl_InitStubs(interp, "8.4", 0) == NULL) {
+    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
         return TCL_ERROR;
     }
 #endif
