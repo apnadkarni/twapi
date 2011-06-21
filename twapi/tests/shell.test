@@ -982,7 +982,7 @@ namespace eval twapi::shell::test {
         Call shell_execute with -path
     } -body {
         twapi::shell_execute -path [pwd]
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         set w
     } -cleanup {
         twapi::close_window $w
@@ -995,7 +995,7 @@ namespace eval twapi::shell::test {
     } -body {
         pause "After hitting Return, you MAY see an Explorer window. Note the view and the path and then close it."
         twapi::shell_execute -path [pwd] -verb explore
-        set w [wait_for_window -text [file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail [pwd]] -toplevel true -pids [list [get_explorer_pid]]]
         yesno "Did you see an Explorer window for [file tail [pwd]] displaying AN EXPLORE view (file tree in left pane)?"
     } -cleanup {
         if {[twapi::window_exists $w]} {twapi::close_window $w}
@@ -1064,7 +1064,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
         set w
@@ -1079,7 +1079,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show normal -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         # Note "normal" remembers the last position and so may be maximized
         # or minimized
         set w
@@ -1094,7 +1094,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show minimize -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
@@ -1108,7 +1108,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showminimized -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
@@ -1122,7 +1122,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showminnoactive -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
@@ -1136,7 +1136,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show maximize -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
@@ -1150,7 +1150,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showmaximized -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
         after 50; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
@@ -1164,7 +1164,7 @@ namespace eval twapi::shell::test {
 	# and later tests that bring up a window
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show show -path $dir
-        set w [wait_for_window -text [file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
+        set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
     } -cleanup {
         twapi::close_window $w
     } -result HWND -match handle

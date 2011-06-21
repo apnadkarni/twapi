@@ -14,13 +14,16 @@ load_twapi_package
 
 namespace eval twapi::ui::test {
     namespace import ::tcltest::test
-    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     # Timeout when ending processes
     set end_process_timeout 5000
 
     # Offset from window edge to system menu or close buttons
-    set button_edge_offset 5
+    if {[twapi::min_os_version 6]} {
+        set button_edge_offset 10
+    } else {
+        set button_edge_offset 5
+    }
 
     proc hotkey_test {hk} {
         set ::twapi_test_hotkey_result fail
@@ -2707,8 +2710,8 @@ namespace eval twapi::ui::test {
         # Right click the mouse in the body area. Note absolute coords
         # are on a scale of 0-65535 so need to scale based on
         # actual screen size
-        set x [expr {(($left+100)*65535)/$display_width}]
-        set y [expr {(($top+100)*65535)/$display_height}]
+        set x [expr {(($left+200)*65535)/$display_width}]
+        set y [expr {(($top+200)*65535)/$display_height}]
 
         lappend input \
             [list mouse $x $y -moved] \
@@ -2727,6 +2730,7 @@ namespace eval twapi::ui::test {
         # Number has to be at least the same as characters entered above
         # else we will not be able to close the window below
         # Backspace is ascii 8 or scan code 14
+
         lappend input \
             [list key 8 0] \
             [list keydown 8 0] \
@@ -2742,10 +2746,11 @@ namespace eval twapi::ui::test {
             [list mouse 0 0 -lup]
 
         twapi::set_focus $np_win
+        after 100
         twapi::send_input $input
 
         # Give it a chance to process events
-        after 50;
+        after 150;
 
         # Process should have exited
         twapi::process_exists $np_pid
@@ -3231,8 +3236,6 @@ namespace eval twapi::ui::test {
 
     test get_display_devices-1.0 {
         Get display devices
-    } -constraints {
-        win2k
     } -body {
         set devs [twapi::get_display_devices]
         foreach dev $devs {
@@ -3260,8 +3263,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitors-1.0 {
         Get display monitors
-    } -constraints {
-        win2k
     } -body {
         set monitors [twapi::get_display_monitors]
         foreach monitor $monitors {
@@ -3282,8 +3283,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitors-2.0 {
         Get active display monitors
-    } -constraints {
-        win2k
     } -body {
         set monitors [twapi::get_display_monitors -activeonly]
         set active true
@@ -3306,8 +3305,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitors-3.0 {
         Get display monitors for a display device
-    } -constraints {
-        win2k
     } -setup {
         set devicename [twapi::kl_get [lindex [twapi::get_display_devices] 0] -name]
     } -body {
@@ -3336,8 +3333,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_window-1.0 {
         Get display monitor handle from window
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_window [twapi::get_desktop_window]
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3346,8 +3341,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_window-1.1 {
         Get display monitor handle from Tk window path
-    } -constraints {
-        win2k
     } -setup {
         package require Tk
     } -body {
@@ -3358,8 +3351,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_window-2.0 {
         Get display monitor handle defaulting to nearest
-    } -constraints {
-        win2k
     } -setup {
         package require Tk
     } -body {
@@ -3372,8 +3363,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_window-3.0 {
         Get display monitor handle defaulting to primary display
-    } -constraints {
-        win2k
     } -setup {
         package require Tk
     } -body {
@@ -3388,8 +3377,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_point-1.0 {
         Get display monitor handle for a virtual screen point
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_point 10 10
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3398,8 +3385,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_point-2.0 {
         Get display monitor handle defaulting to nearest
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_point 10000 10000 -default nearest
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3408,8 +3393,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_point-3.0 {
         Get display monitor handle defaulting to primary display
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_point 10000 10000 -default primary
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3418,8 +3401,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_rect-1.0 {
         Get display monitor handle for a virtual screen rectangle
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_rect {10 10 100 100}
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3428,8 +3409,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_rect-2.0 {
         Get display monitor handle defaulting to nearest
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_rect {-10 -10 -20 -20} -default nearest
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3438,8 +3417,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_from_rect-3.0 {
         Get display monitor handle defaulting to primary display
-    } -constraints {
-        win2k
     } -body {
         twapi::get_display_monitor_from_rect {-10 -10 -20 -20} -default primary
     } -result {\d+\s+HMONITOR} -match regexp
@@ -3448,8 +3425,6 @@ namespace eval twapi::ui::test {
 
     test get_display_monitor_info-1.0 {
         Get display monitor information
-    } -constraints {
-        win2k
     } -body {
         verify_kl_fields [twapi::get_display_monitor_info [twapi::get_display_monitor_from_rect {10 10 100 100}]] {-extent -workarea -primary -name}
     } -result ""
@@ -3458,8 +3433,6 @@ namespace eval twapi::ui::test {
 
     test get_multiple_display_monitor_info-1.0 {
         Get display monitor information for all monitors
-    } -constraints {
-        win2k
     } -body {
         set data [twapi::get_multiple_display_monitor_info]
         verify_list_kl_fields $data {-extent -workarea -primary -name}
@@ -3470,8 +3443,6 @@ namespace eval twapi::ui::test {
 
     test get_input_idle_time-1.0 {
         Get elapsed time since last input event
-    } -constraints {
-        win2k
     } -body {
         string is integer [twapi::get_input_idle_time]
     } -result 1
