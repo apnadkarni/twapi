@@ -1595,7 +1595,7 @@ namespace eval twapi::security::test {
     } -body {
         set elev [twapi::get_token_elevation $tok]
         if {[twapi::min_os_version 6]} {
-            expr {[string equal -nocase $::env(USERNAME) Administrator] ? ? "default" : "full"}
+            expr {[string equal -nocase $::env(USERNAME) Administrator] ? "default" : "full"}
         } else {
             expr {$elev eq "default"}
         }
