@@ -1104,7 +1104,7 @@ proc twapi::get_system_parameters_info {uiaction} {
             SPI_GETICONTITLEWRAP {0x0019 0 i 4}
             SPI_GETMENUDROPALIGNMENT {0x001B 0 i 4}
             SPI_GETDRAGFULLWINDOWS {0x0026 0 i 4}
-            SPI_GETNONCLIENTMETRICS {0x0029 sz i125 500 cbsize}
+            SPI_GETNONCLIENTMETRICS {0x0029 sz {i6 i5 cu8 A64 i2 i5 cu8 A64 i2 i5 cu8 A64 i5 cu8 A64 i5 cu8 A64} 500 cbsize}
             SPI_GETMINIMIZEDMETRICS {0x002B sz i5 20 cbsize}
             SPI_GETWORKAREA {0x0030 0 i4 16}
             SPI_GETKEYBOARDPREF {0x0044 0 i 4 }
@@ -1193,14 +1193,22 @@ proc twapi::get_system_parameters_info {uiaction} {
         }
         SystemParametersInfo $index $uiparam $mem 0
         if {$fmt eq "unicode"} {
-            set val [Twapi_ReadMemoryUnicode $mem 0 -1]
+            return [Twapi_ReadMemoryUnicode $mem 0 -1]
         } else {
-            binary scan [Twapi_ReadMemoryBinary $mem 0 $sz] $fmt val
+            set n [binary scan [Twapi_ReadMemoryBinary $mem 0 $sz] $fmt {*}[lrange {val0 val1 val2 val3 val4 val5 val6 val7 val8 val9 val10 val11 val12 val13 val14 val15 val16 val17 val17} 0 [llength $fmt]-1]]
+            if {$n == 1} {
+                return $val0
+            } else {
+                set result {}
+                for {set i 0} {$i < $n} {incr i} {
+                    lappend result {*}[set val$i]
+                }
+                return $result
+            }
         }
     } finally {
         free $mem
     }
-    return $val
 }
 
 proc twapi::set_system_parameters_info {uiaction val args} {
