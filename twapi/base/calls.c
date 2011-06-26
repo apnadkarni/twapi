@@ -792,6 +792,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
     CALL_(EndUpdateResource, CallH, 1020);
+    CALL_(GetThemeSysColor, CallH, 1021); /* TBD - tcl wrapper */
+    CALL_(GetThemeSysFont, CallH, 1022);  /* TBD - tcl wrapper */
 
     CALL_(WTSDisconnectSession, CallH, 2001);
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
@@ -3388,6 +3390,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         MONITORINFOEXW minfo;
         RECT rect;
         MemLifo *lifoP;
+        LOGFONTW lf;
     } u;
     int func;
     int i;
@@ -3814,6 +3817,26 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 1020: // EndUpdateResource
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EndUpdateResourceW(h, dw);
+            break;
+        case 1021: // GetThemeSysColor
+            result.type = TRT_DWORD;
+            result.value.ival = GetThemeSysColor(h, dw);
+            break;
+        case 1022: // GetThemeSysFont
+            result.type = TRT_OBJ;
+#if _MSC_VER == 1200
+            /* NOTE GetThemeSysFont ExPECTS LOGFONTW although the
+             * docs/header mentions LOGFONT
+             */
+            result.value.ival =  GetThemeSysFont(h, dw, (LOGFONT*)&u.lf);
+#else
+            result.value.ival =  GetThemeSysFont(h, dw, &u.lf);
+#endif
+            if (result.value.ival == S_OK) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromLOGFONTW(&u.lf);
+            } else
+                result.type = TRT_EXCEPTION_ON_ERROR;
             break;
         }
     } else if (func < 3000) {
