@@ -1231,7 +1231,7 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-#if _MSC_VER == 1200
+#if VER_PRODUCTVERSION <= 3790
     /* NOTE GetThemeFont ExPECTS LOGFONTW although the documentation/header
      * mentions LOGFONT
      */
