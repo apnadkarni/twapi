@@ -7,7 +7,7 @@
 
 #include "twapi.h"
 
-#if _MSC_VER == 1200
+#if VER_PRODUCTBUILD <= 3790
 typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
     PWCHAR pModuleName;
     PWCHAR pModulePath;

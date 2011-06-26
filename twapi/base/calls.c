@@ -3824,7 +3824,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 1022: // GetThemeSysFont
             result.type = TRT_OBJ;
-#if _MSC_VER == 1200
+#if VER_PRODUCTVERSION <= 3790
             /* NOTE GetThemeSysFont ExPECTS LOGFONTW although the
              * docs/header mentions LOGFONT
              */
