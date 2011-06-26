@@ -1947,7 +1947,7 @@ proc twapi::_style_mask_to_symbols {style exstyle} {
 proc twapi::_show_theme_colors {class part {state ""}} {
     set w [toplevel .themetest$class$part$state]
 
-    set h [OpenThemeData [cast_handle [winfo id $w] HWND] $class]
+    set h [OpenThemeData [tkpath_to_hwnd $w] $class]
     wm title $w "$class Colors"
 
     label $w.title -text "$class, $part, $state" -bg white
@@ -1976,11 +1976,39 @@ proc twapi::_show_theme_colors {class part {state ""}} {
     CloseThemeData $h
 }
 
+# Test proc for displaying all sys colors for a class
+# class might be "WINDOW"
+proc twapi::_show_theme_syscolors {class} {
+    destroy .themetest$class
+    set w [toplevel .themetest$class]
+
+    set h [OpenThemeData [tkpath_to_hwnd $w] $class]
+    wm title $w "$class SysColors"
+
+    label $w.title -text "$class" -bg white
+    grid $w.title -
+
+
+    for {set x 0} {$x <= 30} {incr x} {
+        if {![catch {GetThemeSysColor $h $x} color]} {
+            set color #[format %6.6x $color]
+            label $w.l-$x -text $x
+            label $w.c-$x -text $color -bg $color
+            grid $w.l-$x $w.c-$x
+        } else {
+            label $w.l-$x -text $x
+            label $w.c-$x -text "Not defined"
+            grid $w.l-$x $w.c-$x
+        }
+    }
+    CloseThemeData $h
+}
+
 # Test proc for displaying all fonts for a class
 proc twapi::_show_theme_fonts {class part {state ""}} {
     set w [toplevel .themetest$class$part$state]
 
-    set h [OpenThemeData [winfo id $w] $class]
+    set h [OpenThemeData [tkpath_to_hwnd $w] $class]
     wm title $w "$class fonts"
 
     label $w.title -text "$class, $part, $state" -bg white
