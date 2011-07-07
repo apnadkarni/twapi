@@ -393,9 +393,18 @@ proc twapi::_eventlog_valid_handle {hevl mode {raise_error ""}} {
 # Find the registry key corresponding the given event log source
 proc twapi::_find_eventlog_regkey {source} {
     set topkey {HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Eventlog}
+
+    # Set a default list of children to work around an issue in
+    # the Tcl [registry keys] command where a ERROR_MORE_DATA is returned
+    # instead of a retry with a larger buffer.
+    set keys {Application Security System}
+    catch {set keys [registry keys $topkey]}
     # Get all keys under this key and look for a source under that
-    foreach key [registry keys $topkey] {
-        foreach srckey [registry keys "${topkey}\\$key"] {
+    foreach key $keys {
+        # See above Tcl issue
+        set srckeys {}
+        catch {set srckeys [registry keys "${topkey}\\$key"]}
+        foreach srckey $srckeys {
             if {[string equal -nocase $srckey $source]} {
                 return "${topkey}\\${key}\\$srckey"
             }
