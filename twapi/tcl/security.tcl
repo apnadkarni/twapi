@@ -109,7 +109,12 @@ proc twapi::_lookup_account {func account args} {
         lappend result -domain $domain
     }
     if {$opts(all) || $opts(type)} {
-        lappend result -type $twapi::sid_type_names($type)
+        if {[info exists twapi::sid_type_names($type)]} {
+            lappend result -type $twapi::sid_type_names($type)
+        } else {
+            # Could be the "logonid" dummy type we added above
+            lappend result -type $type
+        }
     }
 
     if {$opts(all) || $opts($lookup)} {
@@ -368,7 +373,7 @@ proc twapi::get_token_info {tok args} {
             }
             set items {}
             foreach item $gtirestrictedgroups {
-                lappend items [lookup_account_sid[lindex $item 0]]
+                lappend items [lookup_account_sid [lindex $item 0]]
             }
             lappend result -restrictedgroups $items
         }
