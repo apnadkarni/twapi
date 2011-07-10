@@ -296,6 +296,7 @@ proc twapi::get_token_info {tok args} {
         groupattrs
         restrictedgroupattrs
         primarygroup
+        primarygroupsid
         privileges
         enabledprivileges
         disabledprivileges
@@ -387,6 +388,9 @@ proc twapi::get_token_info {tok args} {
             } else {
                 lappend result -restrictedgroupattrs [get_token_restricted_groups_and_attrs $tok]
             }
+        }
+        if {$opts(primarygroupsid)} {
+            lappend result -primarygroupsid [get_token_primary_group $tok]
         }
         if {$opts(primarygroup)} {
             lappend result -primarygroup [get_token_primary_group $tok -name]
