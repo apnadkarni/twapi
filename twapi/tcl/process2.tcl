@@ -492,6 +492,7 @@ proc twapi::get_multiple_process_info {args} {
         groupattrs
         restrictedgroupattrs
         primarygroup
+        primarygroupsid
         privileges
         enabledprivileges
         disabledprivileges
@@ -1548,6 +1549,7 @@ proc twapi::_token_info_helper {args} {
         groups
         restrictedgroups
         primarygroup
+        primarygroupsid
         privileges
         enabledprivileges
         disabledprivileges
