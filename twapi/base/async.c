@@ -99,8 +99,8 @@ int TwapiEnqueueCallback(
     } else {
         /* Queue directly to the Tcl event loop for the thread */
         /* Note the CallbackEvent gets freed by the Tcl code and hence
-           must be allocated using Tcl_Alloc only */
-        TwapiTclEvent *tteP = (TwapiTclEvent *) Tcl_Alloc(sizeof(*tteP));
+           must be allocated using ckalloc_Alloc only */
+        TwapiTclEvent *tteP = (TwapiTclEvent *) ckalloc(sizeof(*tteP));
         tteP->event.proc = Twapi_TclEventProc;
         tteP->pending_callback = cbP;
         /* For similar reasons to above, bump ref counts */
@@ -177,8 +177,8 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
          */
 
         /* Note the CallbackEvent gets freed by the Tcl code and hence
-           must be allocated using Tcl_Alloc only */
-        tteP = (TwapiTclEvent *) Tcl_Alloc(sizeof(*tteP));
+           must be allocated using ckalloc only */
+        tteP = (TwapiTclEvent *) ckalloc(sizeof(*tteP));
         tteP->event.proc = Twapi_TclEventProc;
         tteP->pending_callback = cbP;
 
