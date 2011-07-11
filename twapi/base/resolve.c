@@ -18,7 +18,7 @@ typedef struct _TwapiHostnameEvent {
         struct addrinfo *addrinfolist; /* Returned by getaddrinfo, to be
                                           freed via freeaddrinfo
                                           Used for host->addr */
-        char *hostname;      /* Tcl_Alloc'ed (used for addr->hostname) */
+        char *hostname;      /* ckalloc'ed (used for addr->hostname) */
     };
     int family;                 /* AF_UNSPEC, AF_INET or AF_INET6 */
     char name[1];           /* Holds query for hostname->addr */
@@ -108,10 +108,10 @@ int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         return TCL_ERROR;
 
     id =  TWAPI_NEWID(ticP);
-    /* Allocate the callback context, must be allocated via Tcl_Alloc
+    /* Allocate the callback context, must be allocated via ckalloc
      * as it will be passed to Tcl_QueueEvent.
      */
-    theP = (TwapiHostnameEvent *) Tcl_Alloc(SIZE_TwapiHostnameEvent(len));
+    theP = (TwapiHostnameEvent *) ckalloc(SIZE_TwapiHostnameEvent(len));
     theP->tcl_ev.proc = NULL;
     theP->tcl_ev.nextPtr = NULL;
     theP->id = id;
@@ -230,10 +230,10 @@ int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     id =  TWAPI_NEWID(ticP);
 
-    /* Allocate the callback context, must be allocated via Tcl_Alloc
+    /* Allocate the callback context, must be allocated via ckalloc
      * as it will be passed to Tcl_QueueEvent.
      */
-    theP = (TwapiHostnameEvent *) Tcl_Alloc(SIZE_TwapiHostnameEvent(len));
+    theP = (TwapiHostnameEvent *) ckalloc(SIZE_TwapiHostnameEvent(len));
     theP->tcl_ev.proc = NULL;
     theP->tcl_ev.nextPtr = NULL;
     theP->id = id;
