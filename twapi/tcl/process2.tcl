@@ -1517,6 +1517,11 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
             # into scope
             error $errorResult $errorInfo $errorCode
         }
+    } onerror {TWAPI_WIN32 299} {
+        # Partial read - usually means either we are WOW64 and target
+        # is 64bit, or process is exiting / starting and not all mem is
+        # reachable yet
+        return $opts(noaccess)
     } finally {
         CloseHandle $hprocess
     }
