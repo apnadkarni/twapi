@@ -20,7 +20,7 @@ int Twapi_EnumPrinters_Level4(
     Tcl_Obj *resultObj;
     PRINTER_INFO_4W *printerInfoP;
 
-    buf = Tcl_Alloc(sz);
+    buf = ckalloc(sz);
 
     if (EnumPrintersW(flags, NULL, 4, buf, sz, &needed_sz, &num_printers) == FALSE) {
         DWORD err = GetLastError();
@@ -32,7 +32,7 @@ int Twapi_EnumPrinters_Level4(
 
     if (needed_sz > sz) {
         Tcl_Free(buf);
-        buf = Tcl_Alloc(needed_sz);
+        buf = ckalloc(needed_sz);
         if (EnumPrintersW(flags, NULL, 4, buf, needed_sz, &needed_sz, &num_printers) == FALSE) {
             TwapiReturnSystemError(interp); /* Store before calling free */
             Tcl_Free(buf);
