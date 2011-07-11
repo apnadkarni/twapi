@@ -37,6 +37,19 @@ Added support for
 [uri process.html#get_module_handle [cmd get_module_handle]] and
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]].
 
+[bullet]
+Added options [cmd -primarygroupsid], 
+[cmd -groupattrs], [cmd -restrictedgroups], [cmd -restrictedgroupattrs],
+[cmd -enabledprivileges], 
+[cmd -enabledprivileges] and [cmd -integritylabel] to
+[uri process.html#get_process_info [cmd get_process_info]].
+
+[bullet]
+Added options [cmd -primarygroupsid], 
+[cmd -groupattrs], [cmd -restrictedgroups], [cmd -restrictedgroupattrs],
+[cmd -enabledprivileges], 
+[cmd -enabledprivileges] to
+[uri process.html#get_thread_info [cmd get_thread_info]].
 
 [bullet]
 Enhancements to [uri misc.html#parseargs [cmd parseargs]] to

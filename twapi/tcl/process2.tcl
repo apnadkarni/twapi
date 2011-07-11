@@ -834,6 +834,7 @@ proc twapi::get_thread_info {tid args} {
     set token_opts {
         user
         primarygroup
+        primarygroupsid
         groups
         restrictedgroups
         groupattrs
