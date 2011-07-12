@@ -1188,14 +1188,52 @@ namespace eval ::twapi::process::test {
     } -result {-privileges -enabledprivileges -disabledprivileges 1 1 0 1 1}
 
     test get_process_info-11.0 {
-        Verify -groups -groupattrs -restrictedgroups -restrictedgroupattrs
-    } -constraints {
-        TBD
+        Verify get_process_info -groups and -groupattrs for another process
+    } -setup {
+        set np_pid [notepad_exec]
     } -body {
-    } -result ""
+        set grps [twapi::get_process_info $np_pid -groups]
+        set grpattrs [twapi::get_process_info $np_pid -groupattrs]
+        set grps2 {}
+        set bad_attrs {}
+        foreach {sid attrs} $grpattrs {
+            lappend grps2 [twapi::map_account_to_name $sid]
+            foreach attr $attrs {
+                if {$attr ni {}} {
+                    lappend bad_attrs $attr
+                }
+            }
+        }
+        list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -result {-groups -groupattrs 1 {}}
+
+    test get_process_info-12.0 {
+        Verify get_process_info -restrictedgroups and -restrictedgroupattrs for another process
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        set grps [twapi::get_process_info $np_pid -restrictedgroups]
+        set grpattrs [twapi::get_process_info $np_pid -restrictedgroupattrs]
+        set grps2 {}
+        set bad_attrs {}
+        foreach {sid attrs} $grpattrs {
+            lappend grps2 [twapi::map_account_to_name $sid]
+            foreach attr $attrs {
+                if {$attr ni {}} {
+                    lappend bad_attrs $attr
+                }
+            }
+        }
+        list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -result {-restrictedgroups -restrictedgroupattrs 1 {}}
 
 
-    set testnum 12
+
+    set testnum 13
 
     ### Option tests - path type fields
     foreach field {-name -path} {
@@ -1410,11 +1448,42 @@ namespace eval ::twapi::process::test {
 
 
     test get_thread_info-5.0 {
-        Verify -groups -groupattrs -restrictedgroups -restrictedgroupattrs
-    } -constraints {
-        TBD
+        Verify get_thread_info -groups and -groupattrs for a thread
     } -body {
-    } -result ""
+        set tid [twapi::get_current_thread]
+        set grps [twapi::get_thread_info $tid -groups]
+        set grpattrs [twapi::get_thread_info $tid -groupattrs]
+        set grps2 {}
+        set bad_attrs {}
+        foreach {sid attrs} $grpattrs {
+            lappend grps2 [twapi::map_account_to_name $sid]
+            foreach attr $attrs {
+                if {$attr ni {}} {
+                    lappend bad_attrs $attr
+                }
+            }
+        }
+        list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
+    } -result {-groups -groupattrs 1 {}}
+
+    test get_thread_info-6.0 {
+        Verify get_thread_info -restrictedgroups and -restrictedgroupattrs for a thread
+    } -body {
+        set tid [twapi::get_current_thread]
+        set grps [twapi::get_thread_info $tid -restrictedgroups]
+        set grpattrs [twapi::get_thread_info $tid -restrictedgroupattrs]
+        set grps2 {}
+        set bad_attrs {}
+        foreach {sid attrs} $grpattrs {
+            lappend grps2 [twapi::map_account_to_name $sid]
+            foreach attr $attrs {
+                if {$attr ni {}} {
+                    lappend bad_attrs $attr
+                }
+            }
+        }
+        list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
+    } -result {-restrictedgroups -restrictedgroupattrs 1 {}}
 
 
     ################################################################

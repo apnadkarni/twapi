@@ -286,22 +286,22 @@ proc twapi::close_token {tok} {
 
 proc twapi::get_token_info {tok args} {
     array set opts [parseargs args {
+        disabledprivileges
         elevation
-        virtualized
+        enabledprivileges
+        groupattrs
+        groups
         integrity
         integritylabel
-        user
-        groups
-        restrictedgroups
-        groupattrs
-        restrictedgroupattrs
+        linkedtoken
+        logonsession
         primarygroup
         primarygroupsid
         privileges
-        enabledprivileges
-        disabledprivileges
-        logonsession
-        linkedtoken
+        restrictedgroupattrs
+        restrictedgroups
+        user
+        virtualized
     } -maxleftover 0]
 
     # TBD - add an -ignorerrors option
