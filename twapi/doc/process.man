@@ -626,8 +626,8 @@ Returns the current size of the process' virtual address space.
 Returns the maximum amount of virtual address space that the
 process has used in the course of its execution.
 [opt_def [cmd -virtualized]]
-Returns [const 1] if the process is virtualized
-and [const 0] otherwise. See [uri #virtualized_process [cmd virtualized_process]].
+Returns trued if the process is virtualized
+and false otherwise. See [uri #virtualized_process [cmd virtualized_process]].
 [opt_def [cmd -workingset]]
 Returns the number of bytes currently in the process' working set.
 [opt_def [cmd -workingsetpeak]]
