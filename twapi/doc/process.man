@@ -470,11 +470,22 @@ since Jan 1, 1601. This can be converted to a date and time string
 by passing it to
 [uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
 and formatting the result using [cmd "clock format"].
+[opt_def [cmd -disabledprivileges]] Returns the list of privileges
+for the process that are currently disabled.
 [opt_def [cmd -elapsedtime]]
 Returns the total time (seconds) that the process has been running.
 [opt_def [cmd -elevation]] Returns the elevation level of the process
 (see [uri #get_process_elevation [cmd get_process_elevation]]).
+[opt_def [cmd -enabledprivileges]] Returns the list of privileges
+that are enabled in the process.
+[opt_def [cmd -groupattrs]] Returns the list of groups
+SIDs and attributes in
+the process security token. See
+[uri security.html#get_token_info [cmd get_token_info]] for a description
+of the return value.
 [opt_def [cmd -groups]] Returns the list of groups that the process belongs to.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -groupattrs] to avoid this.
 [opt_def [cmd -handlecount]]
 Returns the number of handles that the process currently has open.
 [opt_def [cmd -handles]]
@@ -483,7 +494,10 @@ sublist contains three elements - the handle value, the type of
 the handle, and name of the corresponding resource.
 [emph "This an unsupported option that uses undocumented Windows functions
 and should not be used for production systems."]
-[opt_def [cmd -integrity]] Returns the integrity level of the process
+[opt_def [cmd -integrity]] Returns the numeric integrity level of the process
+(see [uri #get_process_integrity [cmd get_process_integrity]]).
+[opt_def [cmd -integritylabel]] Returns the label for
+the integrity level range of the process
 (see [uri #get_process_integrity [cmd get_process_integrity]]).
 [opt_def [cmd -interval] [arg INTERVAL]] Specifies the number of
 milliseconds over which rate based fields are to be measured. The command
@@ -562,6 +576,9 @@ Returns the number of bytes of nonpaged pool memory in use for the process.
 [opt_def [cmd -poolpagedbytes]]
 Returns the number of bytes of paged pool memory in use for the process.
 [opt_def [cmd -primarygroup]] Returns the primary group that the
+process belongs to. For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -primarygroupsid] to avoid this.
+[opt_def [cmd -primarygroupsid]] Returns the SID of primary group that the
 process belongs to.
 [opt_def [cmd -priorityclass]] Returns the priority class of the process.
 [opt_def [cmd -privatebytes]]
@@ -574,8 +591,19 @@ that this process has spent executing in privileged mode.
 [opt_def [cmd -privileges]] Returns the list of enabled and disabled
 process privileges in the same format as
 [uri security.html\#get_token_privileges [cmd get_token_privileges]].
+Deprecated, use [cmd -enabledprivileges] and [cmd -disabledprivileges]
+instead.
 [opt_def [cmd -processorutilization]]
 Returns the percentage of CPU time that this process has used.
+[opt_def [cmd -restrictedgroupattrs]] Returns the list of restricted group
+SIDs and attributes in
+the process security token. See
+[uri security.html#get_token_info [cmd get_token_info]] for a description
+of the return value.
+[opt_def [cmd -restrictedgroups]] Returns the list of restricted groups in
+the process security token.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
 [opt_def [cmd -threadcount]]
 Returns the total number of threads in the process.
 [opt_def [cmd -tids]]
@@ -598,8 +626,8 @@ Returns the current size of the process' virtual address space.
 Returns the maximum amount of virtual address space that the
 process has used in the course of its execution.
 [opt_def [cmd -virtualized]]
-Returns true if the process is virtualized
-and 0 otherwise. See [uri #virtualized_process [cmd virtualized_process]].
+Returns trued if the process is virtualized
+and false otherwise. See [uri #virtualized_process [cmd virtualized_process]].
 [opt_def [cmd -workingset]]
 Returns the number of bytes currently in the process' working set.
 [opt_def [cmd -workingsetpeak]]
@@ -739,9 +767,20 @@ since Jan 1, 1601. This can be converted to a date and time string
 by passing it to
 [uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
 and formatting the result using [cmd "clock format"].
+[opt_def [cmd -disabledprivileges]] Returns the list of privileges
+for the thread that are currently disabled.
 [opt_def [cmd -elapsedtime]] Returns the total time (seconds)
 that the thread has been running.
+[opt_def [cmd -enabledprivileges]] Returns the list of privileges
+that are enabled in the thread.
+[opt_def [cmd -groupattrs]] Returns the list of groups
+SIDs and attributes in
+the thread's security token. See
+[uri security.html#get_token_info [cmd get_token_info]] for a description
+of the return value.
 [opt_def [cmd -groups]] Returns the list of groups that the thread belongs to.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -groupattrs] to avoid this.
 [opt_def [cmd -interval] [arg INTERVAL]] Specifies the number of
 milliseconds over which rate based fields are to be measured. The command
 will not return until this time has elapsed. By default this is 100ms.
@@ -758,7 +797,10 @@ threads.
 [opt_def [cmd -pid]]
 Returns the id of the process the thread belongs to.
 [opt_def [cmd -primarygroup]] Returns the primary group that the
-thread belongs to.
+thread belongs to. For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -primarygroupsid] to avoid this.
+[opt_def [cmd -primarygroupsid]] Returns the SID of primary group that the
+process belongs to.
 [opt_def [cmd -priority]]
 Returns the current priority of the thread.
 [opt_def [cmd -privilegedtime]]
@@ -767,10 +809,20 @@ The amount of privileged context CPU time used by the thread in 100ns units.
 Returns the percentage of elapsed time
 that this process has spent executing in privileged mode.
 [opt_def [cmd -privileges]] Returns the list of the current thread privileges.
+Deprecated, use [cmd -enabledprivileges] and [cmd -disabledprivileges]
+instead.
 [opt_def [cmd -processorutilization]]
 Returns the percentage of CPU time that this process has used.
 [opt_def [cmd -relativepriority]] Returns the priority level of the thread
 relative to the priority class of the containing process.
+[opt_def [cmd -restrictedgroupattrs]] Returns the list of restricted group
+SIDs and attributes in
+the thread's security token. See
+[uri security.html#get_token_info [cmd get_token_info]] for a description
+of the return value.
+[opt_def [cmd -restrictedgroups]] Returns the list of restricted groups in
+the thread's security token. For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
 [opt_def [cmd -startaddress]]
 Returns the address at which the thread began execution.
 [opt_def [cmd -state]]
