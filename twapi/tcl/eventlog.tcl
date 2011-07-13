@@ -226,10 +226,6 @@ proc twapi::eventlog_format_message {rec args} {
         langid.int
     } -nulldefault]
 
-    # TBD - See if we can cache the actual message string
-    # At least cache the DLL handle ?
-    # Maybe associate cache with the open eventlog handle? And close accordingly?
-
     set source  [dict get $rec -source]
     set eventid [dict get $rec -eventid]
 
@@ -340,45 +336,6 @@ proc twapi::eventlog_format_message {rec args} {
     # Tack on tail after last placeholder
     append msg2 [string range $msg $prev_end end]
     return $msg2
-
-
-
-    # Need to get strings from the parameter file
-    # TBD - add parameterfile to cache
-    if {! [catch {registry get $regkey "ParameterMessageFile"} path]} {
-        # Loop through every placeholder, look for the entry in the
-        # parameters file and replace it if found
-
-        set msgfiles {}
-        foreach msgfile [split $path \;] {
-            lappend msgfiles [expand_environment_strings $msgfile]
-        }
-        set msg2 ""
-        set prev_end 0
-        foreach placeholder $placeholder_indices {
-            lassign $placeholder start end
-            # Append the stuff between previous placeholder and this one
-            append msg2 [string range $msg $prev_end [expr {$start-1}]]
-            set repl [string range $msg $start $end]; # Default if not found
-            set msgid [string trimleft $repl %];     # Skip "%"
-
-            # Try each file listed in turn
-            foreach msgfile $msgfiles {
-                if {! [catch {
-                    set repl [string trimright [format_message -module $msgfile -messageid $msgid -params [dict get $rec -params] -langid $opts(langid)] \r\n]
-                } ]} {
-                    # Found the replacement
-                    break
-                }
-            }
-            append msg2 $repl
-            set prev_end [incr end]
-        }
-        append msg2 [string range $msg $prev_end end]
-        set msg $msg2
-    }
-
-    return $msg
 }
 
 # Format the category
@@ -396,14 +353,10 @@ proc twapi::eventlog_format_category {rec args} {
 
     variable _eventlog_message_cache
 
-    # TBD - See if we can cache the actual message string
-    # At least cache the DLL handle ?
-    # Maybe associate cache with the open eventlog handle? And close accordingly?
     set source  [dict get $rec -source]
 
     # Get the category string from cache, if there is one
     if {[dict exists $_eventlog_message_cache $source category $opts(langid) $category]} {
-        dict incr _eventlog_message_cache __hits
         set fmtstring [dict get $_eventlog_message_cache $source category $opts(langid) $category]
     } else {
         # Find the registry key if we do not have it already
