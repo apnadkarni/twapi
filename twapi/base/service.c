@@ -340,7 +340,7 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
         Tcl_Obj *objs[6];
         int nobjs = 0;
         objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_service_handler");
-        objs[1] = Tcl_NewUnicodeObj(gServiceContexts[cbP->service_index]->name, -1);
+        objs[1] = ObjFromUnicode(gServiceContexts[cbP->service_index]->name);
         objs[2] = ObjFromOpaque(gServiceContexts[cbP->service_index]->service_status_handle, "SERVICE_STATUS_HANDLE");
         objs[3] = Tcl_NewStringObj(ctrl_str, -1);
         objs[4] = Tcl_NewLongObj(cbP->ctrl);

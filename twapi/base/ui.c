@@ -42,7 +42,7 @@ Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP)
     objv[24] = STRING_LITERAL_OBJ("lfPitchAndFamily");
     objv[25] = Tcl_NewLongObj(lfP->lfPitchAndFamily);
     objv[26] = STRING_LITERAL_OBJ("lfFaceName");
-    objv[27] = Tcl_NewUnicodeObj(lfP->lfFaceName, -1);
+    objv[27] = ObjFromUnicode(lfP->lfFaceName);
 
     return Tcl_NewListObj(28, objv);
 }
@@ -419,7 +419,7 @@ BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARA
 
     Tcl_ListObjAppendElement(p_enum_ctx->interp,
                              p_enum_ctx->objP,
-                             Tcl_NewUnicodeObj(p_winsta, -1));
+                             ObjFromUnicode(p_winsta));
     return 1;
 }
 

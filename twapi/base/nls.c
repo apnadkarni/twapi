@@ -60,7 +60,7 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     if (numchars == 0)
         TwapiReturnSystemError(ticP->interp);
     else
-        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(buf, numchars-1));
+        Tcl_SetObjResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
 
     MemLifoPopFrame(&ticP->memlifo);
 
@@ -125,7 +125,7 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     if (numchars == 0)
         TwapiReturnSystemError(ticP->interp);
     else
-        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(buf, numchars-1));
+        Tcl_SetObjResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
 
     MemLifoPopFrame(&ticP->memlifo);
 

@@ -580,7 +580,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 /* Left over from last iteration so use it */
                 Tcl_SetUnicodeObj(fnObj[1], fniP->FileName, fniP->FileNameLength/2);
             } else 
-                fnObj[1] = Tcl_NewUnicodeObj(fniP->FileName, fniP->FileNameLength/2);
+                fnObj[1] = ObjFromUnicodeN(fniP->FileName, fniP->FileNameLength/2);
             if (dmcP->npatterns == 0)
                 pattern_matched = 1; /* No pattern so match everything */
             else {

@@ -23,7 +23,7 @@ int Twapi_ReadConsole(TwapiInterpContext *ticP, HANDLE conh, unsigned int numcha
     bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR) * numchars, NULL);
 
     if (ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
-        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(bufP, len));
+        Tcl_SetObjResult(ticP->interp, ObjFromUnicodeN(bufP, len));
         status = TCL_OK;
     } else {
         TwapiReturnSystemError(ticP->interp);
