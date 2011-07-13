@@ -19,6 +19,8 @@ namespace eval twapi {
     # TBD - have a means of clearing this out
     variable _eventlog_message_paths;
     set _eventlog_message_paths {}
+    variable _eventlog_message_cache
+    set _eventlog_message_cache {}
 
 }
 
@@ -224,6 +226,7 @@ proc twapi::eventlog_clear {hevl args} {
 # 
 proc twapi::eventlog_format_message {rec args} {
     variable _eventlog_message_paths
+    variable _eventlog_message_cache
 
     array set opts [parseargs args {
         width.int
@@ -237,43 +240,40 @@ proc twapi::eventlog_format_message {rec args} {
     set source  [dict get $rec -source]
     set eventid [dict get $rec -eventid]
 
-    # Find the registry key if we do not have it already
-    if {[dict exists $_eventlog_message_paths $source regkey]} {
-        set regkey [dict get $_eventlog_message_paths $source regkey]
-        dict incr _eventlog_message_paths __regkey_hits; # TBD
-    } else {
-        set regkey [_find_eventlog_regkey $source]
-        dict set _eventlog_message_paths $source regkey $regkey
-        dict incr _eventlog_message_paths __regkey_misses; # TBD
-    }
+    if {[dict exists $_eventlog_message_cache $source fmtstring $opts(langid) $eventid]} {
+        dict incr _eventlog_message_cache __hits
+        set fmtstring [dict get $_eventlog_message_cache $source fmtstring $opts(langid) $eventid]
 
-    set found 0
-    if {[dict exists $_eventlog_message_paths $source messagefile $opts(langid) $eventid]} {
-        dict incr _eventlog_message_paths __messagefile_hits; # TBD
-        if {! [catch {
-            format_message -module [dict get $_eventlog_message_paths $source messagefile $opts(langid) $eventid] -messageid $eventid -params [dict get $rec -params] -width $opts(width) -langid $opts(langid)
-        } msg]} {
-            set found 1
-        }
     } else {
-        dict incr _eventlog_message_paths __messagefile_misses; # TBD
+        dict incr _eventlog_message_cache __misses
+
+        # Find the registry key if we do not have it already
+        if {[dict exists $_eventlog_message_paths $source regkey]} {
+            set regkey [dict get $_eventlog_message_paths $source regkey]
+            dict incr _eventlog_message_paths __regkey_hits; # TBD
+        } else {
+            set regkey [_find_eventlog_regkey $source]
+            dict set _eventlog_message_paths $source regkey $regkey
+            dict incr _eventlog_message_paths __regkey_misses; # TBD
+        }
+
         # Get the message file, if there is one
         if {! [catch {registry get $regkey "EventMessageFile"} path]} {
             # Try each file listed in turn
             foreach dll [split $path \;] {
                 set dll [expand_environment_strings $dll]
                 if {! [catch {
-                    format_message -module $dll -messageid $eventid -params [dict get $rec -params] -width $opts(width) -langid $opts(langid)
+                    set fmtstring [format_message -module $dll -messageid $eventid -width $opts(width) -langid $opts(langid)]
+                    dict set _eventlog_message_cache $source fmtstring $opts(langid) $eventid $fmtstring
                 } msg]} {
                     dict set _eventlog_message_paths $source messagefile $opts(langid) $eventid $dll
-                    set found 1
                     break
                 }
             }
         }
     }
 
-    if {! $found} {
+    if {! [info exists fmtstring]} {
         set fmt "The message file or event definition for event id [dict get $rec -eventid] from source [dict get $rec -source] was not found. The following information was part of the event: "
         set flds [list ]
         for {set i 1} {$i <= [llength [dict get $rec -params]]} {incr i} {
@@ -283,6 +283,8 @@ proc twapi::eventlog_format_message {rec args} {
         return [format_message -fmtstring $fmt  \
                     -params [dict get $rec -params] -width $opts(width)]
     }
+
+    set msg [format_message -fmtstring $fmtstring -params [dict get $rec -params]]
 
     # We'd found a message from the message file and replaced the string
     # parameters. Now fill in the parameter file values if any. Note these are
@@ -296,6 +298,18 @@ proc twapi::eventlog_format_message {rec args} {
     if {[llength $placeholder_indices] == 0} {
         # No placeholders.
         return $msg
+    }
+
+    # Find the registry key if we do not have it already
+    if {![info exists regkey]} {
+        if {[dict exists $_eventlog_message_paths $source regkey]} {
+            set regkey [dict get $_eventlog_message_paths $source regkey]
+            dict incr _eventlog_message_paths __regkey_hits; # TBD
+        } else {
+            set regkey [_find_eventlog_regkey $source]
+            dict set _eventlog_message_paths $source regkey $regkey
+            dict incr _eventlog_message_paths __regkey_misses; # TBD
+        }
     }
 
     # Need to get strings from the parameter file
@@ -349,23 +363,21 @@ proc twapi::eventlog_format_category {rec args} {
         return ""
     }
 
-    variable _eventlog_message_paths
+    variable _eventlog_message_cache
 
     # TBD - See if we can cache the actual message string
     # At least cache the DLL handle ?
     # Maybe associate cache with the open eventlog handle? And close accordingly?
     set source  [dict get $rec -source]
 
-    # Get the message file, if there is one
-    if {[dict exists $_eventlog_message_paths $source categoryfile $opts(langid) $category]} {
-        dict incr _eventlog_message_paths __categoryfile_hits; # TBD
-        if {! [catch {
-            format_message -module [dict get $_eventlog_message_paths $source categoryfile $opts(langid) $category] -messageid $category -params [dict get $rec -params] -width $opts(width) -langid $opts(langid)
-        } msg]} {
-            return $msg
-        }
+    # Get the category string from cache, if there is one
+    if {[dict exists $_eventlog_message_cache $source category $opts(langid) $category]} {
+        dict incr _eventlog_message_cache __hits
+        set fmtstring [dict get $_eventlog_message_cache $source category $opts(langid) $category]
     } else {
-        dict incr _eventlog_message_paths __categoryfile_misses; # TBD
+        dict incr _eventlog_message_cache __misses
+
+        variable _eventlog_message_paths
 
         # Find the registry key if we do not have it already
         if {[dict exists $_eventlog_message_paths $source regkey]} {
@@ -382,16 +394,20 @@ proc twapi::eventlog_format_category {rec args} {
             foreach dll [split $path \;] {
                 set dll [expand_environment_strings $dll]
                 if {! [catch {
-                    format_message -module $dll -messageid $category -params [dict get $rec -params] -width $opts(width) -langid $opts(langid)
+                    set fmtstring [format_message -module $dll -messageid $category -width $opts(width) -langid $opts(langid)]
+                    dict set _eventlog_message_cache $source category $opts(langid) $category $fmtstring
                 } msg]} {
                     dict set _eventlog_message_paths $source categoryfile $opts(langid) $category $dll
-                    return $msg
                 }
             }
         }
     }
 
-    return "Category $category"
+    if {[info exists fmtstring]} {
+        return [format_message -fmtstring $fmtstring -params [dict get $rec -params]]
+    } else {
+        return "Category $category"
+    }
 }
 
 proc twapi::eventlog_monitor_start {hevl script} {

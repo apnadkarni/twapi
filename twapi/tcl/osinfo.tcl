@@ -638,10 +638,37 @@ proc twapi::free_library {libh} {
 # Format message string
 proc twapi::format_message {args} {
     array set opts [parseargs args {
-        {params.arg {}}
+        params.arg
+        fmtstring.arg
+        width.int
     } -ignoreunknown]
 
-    set msg [_unsafe_format_message -ignoreinserts {*}$args]
+    # TBD - document - if no params specified, different from params = {}
+
+    # If a format string is specified, other options do not matter
+    # except for -width. In that case, we do not call FormatMessage
+    # at all
+    if {[info exists opts(fmtstring)]} {
+        # If -width specifed, call FormatMessage
+        if {[info exists opts(width)] && $opts(width)} {
+            set msg [_unsafe_format_message -ignoreinserts -fmtstring $opts(fmtstring) -width $opts(width) {*}$args]
+        } else {
+            set msg $opts(fmtstring)
+        }
+    } else {
+        # Not -fmtstring, retrieve from message file
+        if {[info exists opts(width)]} {
+            set msg [_unsafe_format_message -ignoreinserts -width $opts(width) {*}$args]
+        } else {
+            set msg [_unsafe_format_message -ignoreinserts {*}$args]
+        }
+    }
+
+    # If not param list, do not replace placeholder. This is NOT
+    # the same as empty param list
+    if {![info exists opts(params)]} {
+        return $msg
+    }
 
     set placeholder_indices [regexp -indices -all -inline {%(?:.|(?:[1-9][0-9]?(?:![^!]+!)?))} $msg]
 
