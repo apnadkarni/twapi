@@ -90,7 +90,7 @@ int Twapi_VerQueryValue_STRING(
     Tcl_DecrRefCount(objP);
 
     /* Note valueP does not have to be freed, points into verP */
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(valueP, -1));
+    Tcl_SetObjResult(interp, ObjFromUnicode(valueP));
     return TCL_OK;
 }
 

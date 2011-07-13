@@ -336,7 +336,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
             BSTR bstr = GETVAL(i,BSTR);
             Tcl_ListObjAppendElement(
                 NULL, objv[2],
-                Tcl_NewUnicodeObj(bstr, SysStringLen(bstr))
+                ObjFromUnicodeN(bstr, SysStringLen(bstr))
                 );
         }
         break;
@@ -518,10 +518,10 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
     case VT_BSTR|VT_BYREF:
     case VT_BSTR:
         if (V_VT(varP) == VT_BSTR)
-            objv[1] = Tcl_NewUnicodeObj(V_BSTR(varP),
+            objv[1] = ObjFromUnicodeN(V_BSTR(varP),
                                         SysStringLen(V_BSTR(varP)));
         else
-            objv[1] = Tcl_NewUnicodeObj(* V_BSTRREF(varP),
+            objv[1] = ObjFromUnicodeN(* V_BSTRREF(varP),
                                         SysStringLen(* V_BSTRREF(varP)));
         break;
 
@@ -729,7 +729,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         if (tiP->lpVtbl->GetRefTypeInfo(tiP, tdP->hreftype, &utiP) == S_OK) {
             BSTR bstr;
             if (utiP->lpVtbl->GetDocumentation(utiP, MEMBERID_NIL, &bstr, NULL, NULL, NULL) == S_OK) {
-                objv[1] = Tcl_NewUnicodeObj(bstr, SysStringLen(bstr));
+                objv[1] = ObjFromUnicodeN(bstr, SysStringLen(bstr));
                 SysFreeString(bstr);
             }
             utiP->lpVtbl->Release(utiP);
@@ -1409,7 +1409,7 @@ int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei,
         BSTR msg;
         ei->lpVtbl->GetDescription(ei, &msg);
         Twapi_AppendSystemError2(interp, hr,
-                                 Tcl_NewUnicodeObj(msg,SysStringLen(msg)));
+                                 ObjFromUnicodeN(msg,SysStringLen(msg)));
 
         SysFreeString(msg);
         ei->lpVtbl->Release(ei);
@@ -1467,7 +1467,7 @@ static int TwapiGetIDsOfNamesHelper(
 
         resultObj = Tcl_NewListObj(0, NULL);
         for (i = 0; i < nitems; ++i) {
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewUnicodeObj(names[i], -1));
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
             Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewIntObj(ids[i]));
         }
         Tcl_SetObjResult(interp, resultObj);
@@ -1505,7 +1505,7 @@ int Twapi_ITypeInfo_GetTypeAttr(Tcl_Interp *interp, ITypeInfo *tiP)
     objv[8] = STRING_LITERAL_OBJ("memidDestructor");
     objv[9] = Tcl_NewLongObj(taP->memidDestructor);
     objv[10] = STRING_LITERAL_OBJ("lpstrSchema");
-    objv[11] = Tcl_NewUnicodeObj(taP->lpstrSchema ? taP->lpstrSchema : L"", -1);
+    objv[11] = ObjFromUnicode(taP->lpstrSchema ? taP->lpstrSchema : L"");
     objv[12] = STRING_LITERAL_OBJ("cbSizeInstance");
     objv[13] = Tcl_NewLongObj(taP->cbSizeInstance);
     objv[14] = STRING_LITERAL_OBJ("typekind");
@@ -1564,7 +1564,7 @@ int Twapi_ITypeInfo_GetNames(
             Tcl_ListObjAppendElement(
                 interp,
                 resultObj,
-                Tcl_NewUnicodeObj(names[i], SysStringLen(names[i])));
+                ObjFromUnicodeN(names[i], SysStringLen(names[i])));
             SysFreeString(names[i]);
             names[i] = NULL;
         }
@@ -3528,7 +3528,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             /* Note S_FALSE also is a success return */
             result.type = TRT_OBJV;
             objs[0] = Tcl_NewLongObj(hr);
-            objs[1] = Tcl_NewUnicodeObj(result.value.lpolestr, -1);
+            objs[1] = ObjFromUnicode(result.value.lpolestr);
             result.value.objv.nobj = 2;
             result.value.objv.objPP = objs;
             break;

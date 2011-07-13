@@ -25,7 +25,7 @@ int TwapiFirstVolume(
         return TwapiReturnSystemError(interp);
 
     objv[0] = ObjFromHANDLE(h);
-    objv[1] = Tcl_NewUnicodeObj(buf, -1);
+    objv[1] = ObjFromUnicode(buf);
 
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
     return TCL_OK;
@@ -43,7 +43,7 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
     if (found) {
         Tcl_Obj *objv[2];
         objv[0] = Tcl_NewIntObj(1);
-        objv[1] = Tcl_NewUnicodeObj(buf, -1);
+        objv[1] = ObjFromUnicode(buf);
         Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
         return TCL_OK;
     } else {
@@ -75,11 +75,11 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
         return TwapiReturnSystemError(interp);
     }
 
-    objv[0] = Tcl_NewUnicodeObj(volname, -1);
+    objv[0] = ObjFromUnicode(volname);
     objv[1] = Tcl_NewLongObj(serial_no);
     objv[2] = Tcl_NewLongObj(max_component_len);
     objv[3] = Tcl_NewLongObj(sysflags);
-    objv[4] = Tcl_NewUnicodeObj(fsname, -1);
+    objv[4] = ObjFromUnicode(fsname);
     Tcl_SetObjResult(interp, Tcl_NewListObj(5, objv));
 
     return TCL_OK;

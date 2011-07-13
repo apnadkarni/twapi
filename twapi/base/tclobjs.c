@@ -68,8 +68,8 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_UNICODE_DYNAMIC:
     case TRT_UNICODE:
         if (resultP->value.unicode.str) {
-            resultObj = Tcl_NewUnicodeObj(resultP->value.unicode.str,
-                                          resultP->value.unicode.len);
+            resultObj = ObjFromUnicodeN(resultP->value.unicode.str,
+                                        resultP->value.unicode.len);
         }
         break;
 
@@ -231,7 +231,7 @@ int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 
     case TRT_LPOLESTR:
         if (resultP->value.lpolestr) {
-            resultObj = Tcl_NewUnicodeObj(resultP->value.lpolestr, -1);
+            resultObj = ObjFromUnicode(resultP->value.lpolestr);
         } else
             Tcl_ResetResult(interp);
         break;
@@ -401,7 +401,7 @@ int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
 
 Tcl_Obj *ObjFromBSTR (BSTR bstr)
 {
-    return bstr ? Tcl_NewUnicodeObj(bstr, SysStringLen(bstr)) : Tcl_NewStringObj("", 0);
+    return bstr ? ObjFromUnicodeN(bstr, SysStringLen(bstr)) : Tcl_NewStringObj("", 0);
 }
 
 /*
@@ -689,7 +689,7 @@ Tcl_Obj *ObjFromGUID(GUID *guidP)
     if (guidP == NULL || StringFromGUID2(guidP, str, sizeof(str)/sizeof(str[0])) == 0)
         return Tcl_NewStringObj("", 0);
 
-    obj = Tcl_NewUnicodeObj(str, -1);
+    obj = ObjFromUnicode(str);
     return obj;
 }
 
@@ -759,7 +759,7 @@ int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP)
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP)
 {
     /* Note LSA_UNICODE_STRING Length field is in *bytes* NOT characters */
-    return Tcl_NewUnicodeObj(lsauniP->Buffer, lsauniP->Length / sizeof(WCHAR));
+    return ObjFromUnicodeN(lsauniP->Buffer, lsauniP->Length / sizeof(WCHAR));
 }
 
 void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP)
@@ -872,7 +872,7 @@ Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
             break;
         }
 
-        Tcl_ListObjAppendElement(NULL, listPtr, Tcl_NewUnicodeObj(s, (int) (lpcw-s)));
+        Tcl_ListObjAppendElement(NULL, listPtr, ObjFromUnicodeN(s, (int) (lpcw-s)));
         ++lpcw;            /* Point beyond this string, possibly beyond end */
     }
 
@@ -1172,7 +1172,7 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
         count /= 2;             /*  Assumed to be Unicode. */
         if (count && bufP[count-1] == 0)
             --count;        /* Do not include \0 */
-        objv[1] = Tcl_NewUnicodeObj((WCHAR *)bufP, count);
+        objv[1] = ObjFromUnicodeN((WCHAR *)bufP, count);
         break;
             
     case REG_DWORD_BIG_ENDIAN:
@@ -1354,7 +1354,7 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 }
 
 
-Tcl_Obj *TwapiUtf8ObjFromUnicode(WCHAR *wsP, int nchars)
+Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 {
     Tcl_DString ds;
     Tcl_Obj *objP;

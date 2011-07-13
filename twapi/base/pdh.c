@@ -44,7 +44,7 @@ int Twapi_PdhLookupPerfNameByIndex(
     bufsz=ARRAYSIZE(buf);
     status = PdhLookupPerfNameByIndexW(szMachineName, ctr_index, buf, &bufsz);
     if (status == ERROR_SUCCESS) {
-        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, -1));
+        Tcl_SetObjResult(interp, ObjFromUnicode(buf));
         return TCL_OK;
     }
     else {
@@ -209,7 +209,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         result = TCL_ERROR;
     }
     else {
-        Tcl_SetObjResult(ticP->interp, Tcl_NewUnicodeObj(path_buf, -1));
+        Tcl_SetObjResult(ticP->interp, ObjFromUnicode(path_buf));
         result = TCL_OK;
     }
     MemLifoPopFrame(&ticP->memlifo);
@@ -248,17 +248,17 @@ int Twapi_PdhParseCounterPath(
         } else {
             Tcl_Obj *objs[12];
             objs[0] = STRING_LITERAL_OBJ("szMachineName");
-            objs[1] = Tcl_NewUnicodeObj(pdh_elems->szMachineName, -1);
+            objs[1] = ObjFromUnicode(pdh_elems->szMachineName);
             objs[2] = STRING_LITERAL_OBJ("szObjectName");
-            objs[3] = Tcl_NewUnicodeObj(pdh_elems->szObjectName, -1);
+            objs[3] = ObjFromUnicode(pdh_elems->szObjectName);
             objs[4] = STRING_LITERAL_OBJ("szInstanceName");
-            objs[5] = Tcl_NewUnicodeObj(pdh_elems->szInstanceName, -1);
+            objs[5] = ObjFromUnicode(pdh_elems->szInstanceName);
             objs[6] = STRING_LITERAL_OBJ("szParentInstance");
-            objs[7] = Tcl_NewUnicodeObj(pdh_elems->szParentInstance, -1);
+            objs[7] = ObjFromUnicode(pdh_elems->szParentInstance);
             objs[8] = STRING_LITERAL_OBJ("dwInstanceIndex");
             objs[9] = Tcl_NewLongObj(pdh_elems->dwInstanceIndex);
             objs[10] = STRING_LITERAL_OBJ("szCounterName");
-            objs[11] = Tcl_NewUnicodeObj(pdh_elems->szCounterName, -1);
+            objs[11] = ObjFromUnicode(pdh_elems->szCounterName);
             Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(12, objs));
             result = TCL_OK;
         }

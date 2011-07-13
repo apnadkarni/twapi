@@ -430,12 +430,12 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     }
 
     objv[12] = STRING_LITERAL_OBJ("-dnssuffix");
-    objv[13] = Tcl_NewUnicodeObj(iaaP->DnsSuffix ? iaaP->DnsSuffix : L"", -1);
+    objv[13] = ObjFromUnicode(iaaP->DnsSuffix ? iaaP->DnsSuffix : L"");
 
     objv[14] = STRING_LITERAL_OBJ("-description");
-    objv[15] = Tcl_NewUnicodeObj(iaaP->Description ? iaaP->Description : L"", -1);
+    objv[15] = ObjFromUnicode(iaaP->Description ? iaaP->Description : L"");
     objv[16] = STRING_LITERAL_OBJ("-friendlyname");
-    objv[17] = Tcl_NewUnicodeObj(iaaP->FriendlyName ? iaaP->FriendlyName : L"", -1);
+    objv[17] = ObjFromUnicode(iaaP->FriendlyName ? iaaP->FriendlyName : L"");
 
     objv[18] = STRING_LITERAL_OBJ("-physicaladdress");
     objv[19] = Tcl_NewByteArrayObj(iaaP->PhysicalAddress, iaaP->PhysicalAddressLength);
@@ -517,7 +517,7 @@ Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP)
     int len;
 #if 0
     This field does not seem to contain a consistent format
-    objv[0] = Tcl_NewUnicodeObj(ifrP->wszName, -1);
+    objv[0] = ObjFromUnicode(ifrP->wszName);
 #else
     objv[0] = Tcl_NewStringObj("", 0);
 #endif
@@ -629,7 +629,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *i
 {
     Tcl_Obj *objv[2];
     objv[0] = Tcl_NewIntObj(iaimP->Index);
-    objv[1] = Tcl_NewUnicodeObj(iaimP->Name, -1);
+    objv[1] = ObjFromUnicode(iaimP->Name);
     return Tcl_NewListObj(2, objv);
 }
 
@@ -678,8 +678,8 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
         modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
-        obj[7] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
-        obj[8] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+        obj[7] = ObjFromUnicode(modP->pModuleName);
+        obj[8] = ObjFromUnicode(modP->pModulePath);
     } else {
         obj[7] = Tcl_NewStringObj("", -1);
         obj[8] = Tcl_NewStringObj("", -1);
@@ -747,8 +747,8 @@ Tcl_Obj *ObjFromMIB_TCP6ROW(Tcl_Interp *interp, const MIB_TCP6ROW_OWNER_PID *row
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
         modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
-        obj[7] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
-        obj[8] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+        obj[7] = ObjFromUnicode(modP->pModuleName);
+        obj[8] = ObjFromUnicode(modP->pModulePath);
     } else {
         obj[7] = Tcl_NewStringObj("", -1);
         obj[8] = Tcl_NewStringObj("", -1);
@@ -785,8 +785,8 @@ Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
         modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
-        obj[4] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
-        obj[5] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+        obj[4] = ObjFromUnicode(modP->pModuleName);
+        obj[5] = ObjFromUnicode(modP->pModulePath);
     } else {
         obj[4] = Tcl_NewStringObj("", -1);
         obj[5] = Tcl_NewStringObj("", -1);
@@ -818,8 +818,8 @@ Tcl_Obj *ObjFromMIB_UDP6ROW(Tcl_Interp *interp, MIB_UDP6ROW_OWNER_PID *row, int 
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
         modP = (TCPIP_OWNER_MODULE_BASIC_INFO *) buf;
-        obj[4] = Tcl_NewUnicodeObj(modP->pModuleName, -1);
-        obj[5] = Tcl_NewUnicodeObj(modP->pModulePath, -1);
+        obj[4] = ObjFromUnicode(modP->pModuleName);
+        obj[5] = ObjFromUnicode(modP->pModulePath);
     } else {
         obj[4] = Tcl_NewStringObj("", -1);
         obj[5] = Tcl_NewStringObj("", -1);

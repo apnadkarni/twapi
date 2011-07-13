@@ -404,7 +404,7 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, ERROR_INSUFFICIENT_BUFFER);
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(path, len));
+    Tcl_SetObjResult(interp, ObjFromUnicodeN(path, len));
     return TCL_OK;
 }
 

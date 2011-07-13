@@ -64,7 +64,7 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
             if (wMsgPtr[length-1] == L'\r')
                 --length;
         }
-        objP = Tcl_NewUnicodeObj(wMsgPtr, length);
+        objP = ObjFromUnicodeN(wMsgPtr, length);
         LocalFree(wMsgPtr);
         return objP;
     }

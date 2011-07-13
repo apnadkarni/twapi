@@ -702,7 +702,7 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
 
     resultObj = Tcl_NewListObj(0, NULL);
     for (i= 0; i < argc; ++i) {
-        Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewUnicodeObj(argv[i], -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
     }
 
     Tcl_SetObjResult(interp, resultObj);

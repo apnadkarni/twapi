@@ -1763,7 +1763,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_OBJ;
                 /* Do not use dw3 as length because it seems to be size
                    of buffer, not string length as it includes padded nulls */
-                result.value.obj = Tcl_NewUnicodeObj(s, -1);
+                result.value.obj = ObjFromUnicode(s);
                 LocalFree(s);
             } else
                 result.type = TRT_GETLASTERROR;
@@ -3205,7 +3205,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.type = TRT_GETLASTERROR;
             else {
                 result.type = TRT_OBJ;
-                result.value.obj = Tcl_NewUnicodeObj(bufP, dw-1);
+                result.value.obj = ObjFromUnicodeN(bufP, dw-1);
             }
             if (bufP != u.buf)
                 TwapiFree(bufP);

@@ -139,7 +139,7 @@ int Twapi_WTSQuerySessionInformation(
         }
         /* Note bufP can be NULL even on success! */
         if (bufP)
-            Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(bufP, -1));
+            Tcl_SetObjResult(interp, ObjFromUnicode(bufP));
         break;
 
     case WTSClientBuildNumber:
