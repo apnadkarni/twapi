@@ -54,35 +54,28 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
     int i, n1, n2, nmin;
     Tcl_Obj *resultObj;
 
-    /* TBD - make more efficient by allocating array of Tcl_Obj* */
-
     if (Tcl_ListObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
         Tcl_ListObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
         return NULL;
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = Tcl_NewDictObj();
     nmin = n1 > n2 ? n2 : n1;
     for (i = 0;  i < nmin; ++i) {
-        /* We are building the list ourselves so resultObj is valid list
-           and no need to check return */
-        (void) Tcl_ListObjAppendElement(interp, resultObj, list1[i]);
-        (void) Tcl_ListObjAppendElement(interp, resultObj, list2[i]);
+        Tcl_DictObjPut(interp, resultObj, list1[i], list2[i]);
     }
 
     if (i < n1) {
         /* n1 != n2 and n2 was the minimum. Use an empty object for list2 */
         Tcl_Obj *empty = Tcl_NewStringObj("", 0);
         for ( ; i < n1; ++i) {
-            (void) Tcl_ListObjAppendElement(interp, resultObj, list1[i]);
-            (void) Tcl_ListObjAppendElement(interp, resultObj, empty);
+            Tcl_DictObjPut(interp, resultObj, list1[i], empty);
         }
     } else if (i < n2) {
         /* n1 != n2 and n1 was the minimum. Use an empty object for list1 */
         Tcl_Obj *empty = Tcl_NewStringObj("", 0);
         for ( ; i < n2; ++i) {
-            (void) Tcl_ListObjAppendElement(interp, resultObj, empty);
-            (void) Tcl_ListObjAppendElement(interp, resultObj, list2[i]);
+            Tcl_DictObjPut(interp, resultObj, empty, list2[i]);
         }
     }
 

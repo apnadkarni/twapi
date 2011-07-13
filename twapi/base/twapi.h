@@ -1001,7 +1001,16 @@ int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, c
 #define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
 #define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
 
-#define ObjFromUnicode(p_)    Tcl_NewUnicodeObj((p_), -1)
+Tcl_Obj *TwapiUtf8ObjFromUnicode(WCHAR *p, int len);
+#if defined(USE_UNICODE_OBJ)
+#define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
+#else
+#define ObjFromUnicodeN(p_, n_) TwapiUtf8ObjFromUnicode((p_), (n_))
+#endif
+
+#define ObjFromUnicode(p_)    ObjFromUnicodeN(p_, -1)
+
+
 int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
 
