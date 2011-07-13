@@ -41,7 +41,7 @@ int TwapiFormatMessageHelper(
 
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
     if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
-        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(msgP, -1));
+        Tcl_SetObjResult(interp, ObjFromUnicode(msgP));
         LocalFree(msgP);
         return TCL_OK;
     } else {

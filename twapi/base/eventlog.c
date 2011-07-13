@@ -109,9 +109,9 @@ int Twapi_ReadEventLog(
 
         strP = (WCHAR *) (1 + &(evlP->DataOffset));
         len = lstrlenW(strP);
-        objv[0] = Tcl_NewUnicodeObj(strP, len); /* Source name */
+        objv[0] = ObjFromUnicodeN(strP, len); /* Source name */
         strP += len + 1;
-        objv[1] = Tcl_NewUnicodeObj(strP, -1); /* Computer name */
+        objv[1] = ObjFromUnicode(strP); /* Computer name */
         objv[2] = Tcl_NewIntObj(evlP->Reserved);
         objv[3] = Tcl_NewIntObj(evlP->RecordNumber);
         objv[4] = Tcl_NewIntObj(evlP->TimeGenerated);
@@ -129,7 +129,7 @@ int Twapi_ReadEventLog(
              ++strindex) {
             len = lstrlenW(strP);
             Tcl_ListObjAppendElement(interp, objv[11],
-                                     Tcl_NewUnicodeObj(strP, len));
+                                     ObjFromUnicodeN(strP, len));
             strP += len + 1;
         }
 
