@@ -965,6 +965,38 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_token_restricted_groups_and_attrs-1.0 {
+        Get the restricted group sids and attributes for a token
+    } -constraints {
+        nt
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set sids {}
+        set attrs {}
+        foreach {sid gattrs} [twapi::get_token_restricted_groups_and_attrs $tok] {
+            lappend sids $sid
+            set attrs [setops::union $attrs $gattrs]
+        }
+        expr {[valid_sids $sids] &&
+              [llength [setops::diff $attrs {
+                  enabled
+                  enabled_by_default
+                  logon_id
+                  mandatory
+                  owner
+                  resource
+                  integrity
+                  integrity_enabled
+                  use_for_deny_only
+              }]] == 0}
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+    ################################################################
+
     test get_token_privileges-1.0 {
         Get the privileges for a token
     } -constraints {
@@ -1605,6 +1637,222 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_token_info-1.0 {
+        get_token_info with no options
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    test get_token_info-2.0 {
+        get_token_info with multiple options
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        set opts {-enabledprivileges -disabledprivileges -user -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession}
+        equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+    test get_token_info-3.0 {
+        get_token_info -privileges, -disabledprivileges, -enabledprivileges
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        set privs [twapi::get_token_info $tok -privileges]
+        set enabled [twapi::get_token_info $tok -enabledprivileges]
+        set disabled [twapi::get_token_info $tok -disabledprivileges]
+        set enabled_privs  [lindex $enabled 1]
+        set disabled_privs [lindex $disabled 1]
+
+        list [lindex $privs 0] [lindex $enabled 0] [lindex $disabled 0] \
+            [equal_sets [lindex $privs 1 0] $enabled_privs]  \
+            [equal_sets [lindex $privs 1 1] $disabled_privs] \
+            [llength [setops::intersect $enabled_privs $disabled_privs]] \
+            [valid_privs $enabled_privs] \
+            [valid_privs $disabled_privs]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-privileges -enabledprivileges -disabledprivileges 1 1 0 1 1}
+
+    test get_token_info-4.0 {
+        get_token_info -elevation
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        lassign [twapi::get_token_info $tok -elevation] opt elev
+        if {[twapi::min_os_version 6]} {
+            list $opt [expr {[string equal -nocase $::env(USERNAME) Administrator] ? "default" : "full"}]
+        } else {
+            list $opt [expr {$elev eq "default"}]
+        }
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-elevation 1}
+
+
+    test get_token_info-5.0 {
+        get_token_info -groupattrs
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        lassign [twapi::get_token_info $tok -groupattrs] opt sidattrs
+        set sids {}
+        set attrs {}
+        foreach {sid gattrs} $sidattrs {
+            lappend sids $sid
+            set attrs [setops::union $attrs $gattrs]
+        }
+        list $opt [expr {[llength $sids] &&
+                         [valid_sids $sids] &&
+                         [llength [setops::diff $attrs {
+                             enabled
+                             enabled_by_default
+                             logon_id
+                             mandatory
+                             owner
+                             resource
+                             integrity
+                             integrity_enabled
+                             use_for_deny_only
+                         }]] == 0}]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-groupattrs 1}
+
+    test get_token_info-6.0 {
+        get_token_info -groups
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        lassign [twapi::get_token_info $tok -groups] opt names
+        list $opt [expr {[llength $names] && [valid_account_names $names]}]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-groups 1}
+
+    test get_token_info-7.0 {
+        get_token_info -integrity
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok -integrity
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list -integrity [expr {[twapi::min_os_version 6] ? 12288 : 8192}]]
+
+    test get_token_info-8.0 {
+        get_token_info -integritylabel
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok -integritylabel
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list -integritylabel [expr {[twapi::min_os_version 6] ? "high" : "medium"}]]
+
+    test get_token_info-9.0 {
+        get_token_info -linkedtoken
+    } -constraints {
+        TBD
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::close_token [lindex [twapi::get_token_info $tok -linkedtoken] 1]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result ""
+
+    test get_token_info-10.0 {
+        get_token_info -logonsession
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok -logonsession
+    } -cleanup {
+        twapi::close_token $tok
+    } -match regexp -result {^-logonsession\s+[[:xdigit:]]{8}-[[:xdigit:]]{8}$}
+
+    test get_token_info-11.0 {
+        get_token_info -primarygroup and -primarygroupsid
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        set grp [twapi::get_token_info $tok -primarygroup]
+        set sid [twapi::get_token_info $tok -primarygroupsid]
+        string equal [twapi::map_account_to_sid $grp] $sid
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
+
+
+    test get_token_info-12.0 {
+        get_token_info -restrictedgroupattrs
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        lassign [twapi::get_token_info $tok -restrictedgroupattrs] opt sidattrs
+        set sids {}
+        set attrs {}
+        foreach {sid gattrs} $sidattrs {
+            lappend sids $sid
+            set attrs [setops::union $attrs $gattrs]
+        }
+        list $opt [expr {[valid_sids $sids] &&
+                         [llength [setops::diff $attrs {
+                             enabled
+                             enabled_by_default
+                             logon_id
+                             mandatory
+                             owner
+                             resource
+                             integrity
+                             integrity_enabled
+                             use_for_deny_only
+                         }]] == 0}]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-restrictedgroupattrs 1}
+
+    test get_token_info-13.0 {
+        get_token_info -restrictedgroups
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        lassign [twapi::get_token_info $tok -restrictedgroups] opt names
+        list $opt [expr {[valid_account_names $names]}]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-restrictedgroups 1}
+
+
+    test get_token_info-14.0 {
+        get_token_info -user
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok -user
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list -user [twapi::lookup_account_name $::env(USERNAME)]]
+
+    test get_token_info-15.0 {
+        get_token_info -virtualized
+    } -setup {
+        set tok [twapi::open_process_token]
+    } body {
+        twapi::get_token_info $tok -virtualized
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list -virtualized [expr {[twapi::min_os_version 6] && [lsearch -exact [twapi::get_build_config] x86] >= 0 && [twapi::get_process_elevation] ne "full"}]]
+
+
+    ################################################################
+
     test get_token_integrity-1.0 {
         Get the integrity level for a token
     } -constraints {
@@ -1630,7 +1878,7 @@ namespace eval twapi::security::test {
     } -result [expr {[twapi::min_os_version 6] ? "high" : "medium"}]
 
     test get_token_integrity-1.2 {
-        Get the integrity level label for a token
+        Get the raw integrity level label for a token
     } -constraints {
         nt
     } -setup {
@@ -1679,7 +1927,7 @@ namespace eval twapi::security::test {
     test get_token_linked_token-1.0 {
         Get the linked token for a limited token
     } -constraints {
-        nt TBD
+        TBD
     } -setup {
     } -body {
     } -cleanup {

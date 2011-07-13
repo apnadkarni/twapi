@@ -44,13 +44,16 @@ When no longer required, the tokens must be passed
 to [uri \#close_token [cmd close_token]] in order to release resources.
 
 [para]
-The commands [uri \#get_token_user [cmd get_token_user]],
+The command [uri #get_token_info [cmd get_token_info]] retrieves
+information from a token. Individual pieces of the token can also
+be retrieved via commands [uri \#get_token_user [cmd get_token_user]],
 [uri \#get_token_groups [cmd get_token_groups]],
 [uri \#get_token_primary_group [cmd get_token_primary_group]],
-[uri \#get_token_owner [cmd get_token_owner]] and
-[uri \#get_token_group_sids_and_attrs [cmd get_token_group_sids_and_attrs]]
-retrieve information related to
-the user and group accounts associated with a token.
+[uri \#get_token_owner [cmd get_token_owner]],
+[uri \#get_token_groups_and_attrs [cmd get_token_groups_and_attrs]]
+and
+[uri \#get_token_restricted_groups_and_attrs [cmd get_token_restricted_groups_and_attrs]].
+
 
 [para]
 The commands [uri \#get_token_privileges [cmd get_token_privileges]],
@@ -870,6 +873,63 @@ one of the following values: [const anonymous], [const identification],
 [const impersonation], or [const delegation]. See [sectref Impersonation]
 for details.
 
+[call [cmd get_token_info] [arg TOKEN] [opt [arg options]]]
+Returns a dictionary containing the token fields specified in
+[arg options]. The following fields may be requested:
+[list_begin opt]
+[opt_def [cmd -disabledprivileges]] Returns the list of privileges
+in the token that are currently disabled.
+[opt_def [cmd -elevation]] Returns the elevation level for the token
+(see [uri process.html#get_process_elevation [cmd get_process_elevation]]).
+[opt_def [cmd -enabledprivileges]] Returns the list of privileges
+that are enabled in the token.
+[opt_def [cmd -groupattrs]]
+Returns a dictionary whose keys are group SID's contained in the token,
+with the corresponding value being a list of attributes for the group.
+[opt_def [cmd -groups]] Returns the list of groups included in the token.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -groupattrs] to avoid this.
+[opt_def [cmd -integrity]] Returns the numeric integrity level associated
+with the token
+(see [uri process.html#get_process_integrity [cmd get_process_integrity]]).
+[opt_def [cmd -integritylabel]] Returns the label for
+the range for the integrity level associated with the token
+(see [uri process.html#get_process_integrity [cmd get_process_integrity]]).
+[opt_def [cmd -linkedtoken]]
+If [arg TOKEN] is an elevated or limited token, this command returns the
+corresponding limited or elevated token linked to it.
+[opt_def [cmd -logonsession]]
+Returns the [uri #uniqueidentifiers LUID] of the
+[uri #logonsessions "logon session"] for the associated with the token.
+[opt_def [cmd -primarygroup]] Returns the primary group for the token.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -primarygroupsid] to avoid this.
+[opt_def [cmd -primarygroupsid]] Returns the SID of primary group 
+for the token.
+[opt_def [cmd -privileges]] Returns the list of enabled and disabled
+process privileges in the same format as
+[uri security.html\#get_token_privileges [cmd get_token_privileges]].
+Deprecated, use [cmd -enabledprivileges] and [cmd -disabledprivileges]
+instead.
+[opt_def [cmd -restrictedgroupattrs]]
+Returns a dictionary whose keys are SID's for the restricted 
+groups contained in the token,
+with the corresponding value being a list of attributes for the group.
+See [uri #get_token_groups_and_attrs [cmd get_token_groups_and_attrs]]
+for details.
+[opt_def [cmd -restrictedgroups]] Returns the list of restricted groups in
+the token.
+For domain accounts, an error is raised if the
+domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
+[opt_def [cmd -user]]
+Returns the SID of the user account associated with the token.
+[opt_def [cmd -virtualized]]
+Returns true if the process associated with the token is virtualized
+and false otherwise. See [uri process.html#virtualized_process [cmd virtualized_process]].
+
+[list_end]
+
+
 [call [cmd get_token_integrity] [arg TOKEN] [opt "[cmd -raw] | [cmd -label]"]]
 On systems that support Windows UAC, this command returns the integrity
 level associated with the token. The integrity value is an integer value 
@@ -934,6 +994,16 @@ for each. The returned list is of the form
 where [arg ATTRIBUTELIST]
 is a list of zero or more of the following attributes: [const enabled],
 [const enabled_by_default] and [const used_for_access].
+
+[call [cmd get_token_restricted_groups_and_attrs] [arg TOKEN]]
+Returns the list of restricted group SID's for the token together with the 
+attributes for each group. The returned list is of the form
+[arg "SID ATTRIBUTELIST SID ATTRIBUTELIST..."] where [arg ATTRIBUTELIST]
+is a list of zero or more of the following attributes:
+[const enabled], [const enabled_by_default], [const logon_id],
+[const mandatory], [const owner], [const resource], [const integrity],
+[const integrity_enabled] and
+[const use_for_deny_only]. Refer to the Windows Platform SDK for details.
 
 [call [cmd get_token_source] [arg TOKEN]]
 Returns the source of an access token.

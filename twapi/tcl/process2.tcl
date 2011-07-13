@@ -410,6 +410,7 @@ proc twapi::get_process_thread_ids {pid} {
 proc twapi::get_process_info {pid args} {
     # To avert a common mistake where pid is unspecified, use current pid
     # so [get_process_info -name] becomes [get_process_info [pid] -name]
+    # TBD - should this be documented ?
     if {[string is integer -strict $pid]} {
         return [lindex [get_multiple_process_info {*}$args -matchpids [list $pid]] 1]
     } else {
@@ -800,6 +801,7 @@ proc twapi::get_multiple_process_info {args} {
 # Get thread information
 # TBD - add info from GetGUIThreadInfo
 proc twapi::get_thread_info {tid args} {
+    # TBD - modify so tid is optional like for get_process_info
 
     # Options that are directly available from Twapi_GetProcessList
     if {![info exists ::twapi::get_thread_info_base_opts]} {
@@ -834,6 +836,7 @@ proc twapi::get_thread_info {tid args} {
     set token_opts {
         user
         primarygroup
+        primarygroupsid
         groups
         restrictedgroups
         groupattrs
@@ -1517,6 +1520,11 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
             # into scope
             error $errorResult $errorInfo $errorCode
         }
+    } onerror {TWAPI_WIN32 299} {
+        # Partial read - usually means either we are WOW64 and target
+        # is 64bit, or process is exiting / starting and not all mem is
+        # reachable yet
+        return $opts(noaccess)
     } finally {
         CloseHandle $hprocess
     }
