@@ -420,7 +420,7 @@ int Twapi_QueryContextAttributes(
             case SECPKG_ATTR_AUTHORITY:
                 buf = param.authority.sAuthorityName; /* Freed later */
                 if (buf)
-                    obj = Tcl_NewUnicodeObj(buf, -1);
+                    obj = ObjFromUnicode(buf);
                 break;
             case SECPKG_ATTR_FLAGS:
                 obj = Tcl_NewLongObj(param.flags.Flags);
@@ -448,11 +448,11 @@ int Twapi_QueryContextAttributes(
             case SECPKG_ATTR_NAMES:
                 buf = param.names.sUserName; /* Freed later */
                 if (buf)
-                    obj = Tcl_NewUnicodeObj(buf, -1);
+                    obj = ObjFromUnicode(buf);
                 break;
             case SECPKG_ATTR_NATIVE_NAMES:
-                objv[0] = Tcl_NewUnicodeObj(param.nativenames.sClientName ? param.nativenames.sClientName : L"", -1);
-                objv[1] = Tcl_NewUnicodeObj(param.nativenames.sServerName ? param.nativenames.sServerName : L"", -1);
+                objv[0] = ObjFromUnicode(param.nativenames.sClientName ? param.nativenames.sClientName : L"");
+                objv[1] = ObjFromUnicode(param.nativenames.sServerName ? param.nativenames.sServerName : L"");
                 obj = Tcl_NewListObj(2, objv);
                 if (param.nativenames.sClientName)
                     FreeContextBuffer(param.nativenames.sClientName);

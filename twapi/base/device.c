@@ -244,7 +244,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     }
 
     if (success) {
-        objs[0] = Tcl_NewUnicodeObj(sdiddP->DevicePath, -1);
+        objs[0] = ObjFromUnicode(sdiddP->DevicePath);
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
         Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objs));
     } else
@@ -388,7 +388,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
         case DBT_DEVTYP_DEVICEINTERFACE:
             /* First tack on the GUID, then the name */
             objs[nobjs++] = ObjFromGUID(&((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid);
-            objs[nobjs++] = Tcl_NewUnicodeObj(((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_name, -1);
+            objs[nobjs++] = ObjFromUnicode(((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_name);
             break;
 
         case DBT_DEVTYP_HANDLE:
@@ -408,7 +408,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
             break;
 
         case DBT_DEVTYP_PORT:
-            objs[nobjs++] = Tcl_NewUnicodeObj(((PDEV_BROADCAST_PORT_W)dbhP)->dbcp_name, -1);
+            objs[nobjs++] = ObjFromUnicode(((PDEV_BROADCAST_PORT_W)dbhP)->dbcp_name);
             break;
 
         case DBT_DEVTYP_VOLUME:

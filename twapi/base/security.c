@@ -1103,8 +1103,8 @@ int Twapi_LookupAccountSid (
      * Got everything we need, now format it
      * {NAME DOMAIN ACCOUNT}
      */
-    objs[0] = Tcl_NewUnicodeObj(nameP, -1);   /* Will exit on alloc fail */
-    objs[1] = Tcl_NewUnicodeObj(domainP, -1); /* Will exit on alloc fail */
+    objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
+    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = Tcl_NewIntObj(account_type);
     Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
     result = TCL_OK;
@@ -1210,7 +1210,7 @@ int Twapi_LookupAccountName (
     result = ObjFromSID(interp, sidP, &objs[0]);
     if (result != TCL_OK)
         goto done;
-    objs[1] = Tcl_NewUnicodeObj(domainP, -1); /* Will exit on alloc fail */
+    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = Tcl_NewIntObj(account_type);
     Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
     result = TCL_OK;
@@ -1631,9 +1631,9 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("time");
         objv[--objc] = Tcl_NewLongObj(ciP->coni1_num_users);
         objv[--objc] = STRING_LITERAL_OBJ("num_users");
-        objv[--objc] = Tcl_NewUnicodeObj(ciP->coni1_username, -1);
+        objv[--objc] = ObjFromUnicode(ciP->coni1_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = Tcl_NewUnicodeObj(ciP->coni1_netname, -1);
+        objv[--objc] = ObjFromUnicode(ciP->coni1_netname);
         objv[--objc] = STRING_LITERAL_OBJ("netname");
         /* FALLTHRU */
     case 0:
@@ -1667,7 +1667,7 @@ Tcl_Obj *ObjFromUSE_INFO(
        at front of Tcl list we build (most accessed elements in front */
     objc = sizeof(objv)/sizeof(objv[0]);
 #define ADD_LPWSTR_(fld) do {                                      \
-        objv[--objc] = Tcl_NewUnicodeObj(uiP->ui2_ ## fld, -1); \
+        objv[--objc] = ObjFromUnicode(uiP->ui2_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
@@ -1720,7 +1720,7 @@ Tcl_Obj *ObjFromSHARE_INFO(
        at front of Tcl list we build (most accessed elements in front */
     objc = sizeof(objv)/sizeof(objv[0]);
 #define ADD_LPWSTR_(fld) do {                                          \
-        objv[--objc] = Tcl_NewUnicodeObj(siP->shi502_ ## fld, -1); \
+        objv[--objc] = ObjFromUnicode(siP->shi502_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
@@ -1782,9 +1782,9 @@ Tcl_Obj *ObjFromFILE_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("permissions");
         objv[--objc] = Tcl_NewLongObj(fiP->fi3_num_locks);
         objv[--objc] = STRING_LITERAL_OBJ("num_locks");
-        objv[--objc] = Tcl_NewUnicodeObj(fiP->fi3_username, -1);
+        objv[--objc] = ObjFromUnicode(fiP->fi3_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = Tcl_NewUnicodeObj(fiP->fi3_pathname, -1);
+        objv[--objc] = ObjFromUnicode(fiP->fi3_pathname);
         objv[--objc] = STRING_LITERAL_OBJ("pathname");
         /* FALLTHRU */
     case 2:
@@ -1817,15 +1817,15 @@ Tcl_Obj *ObjFromSESSION_INFO(
     objc = sizeof(objv)/sizeof(objv[0]);
     switch (level) {
     case 502:
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_502 *)infoP)->sesi502_transport, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_502 *)infoP)->sesi502_transport);
         objv[--objc] = STRING_LITERAL_OBJ("transport");
         /* FALLTHRU */
     case 2:
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name);
         objv[--objc] = STRING_LITERAL_OBJ("cltype_name");
         /* FALLTHRU */
     case 1:
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_1 *)infoP)->sesi1_username, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_1 *)infoP)->sesi1_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
         objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
         objv[--objc] = STRING_LITERAL_OBJ("num_opens");
@@ -1840,14 +1840,14 @@ Tcl_Obj *ObjFromSESSION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("user_flags");
         /* FALLTHRU */
     case 0:
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_0 *)infoP)->sesi0_cname, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_0 *)infoP)->sesi0_cname);
         objv[--objc] = STRING_LITERAL_OBJ("cname");
         break;
 
     case 10:
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_10 *)infoP)->sesi10_cname, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_cname);
         objv[--objc] = STRING_LITERAL_OBJ("cname");
-        objv[--objc] = Tcl_NewUnicodeObj(((SESSION_INFO_10 *)infoP)->sesi10_username, -1);
+        objv[--objc] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
         objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_10 *)infoP)->sesi10_time);
 
@@ -1891,7 +1891,7 @@ Tcl_Obj *ObjFromUSER_INFO(
        at front of Tcl list we build (most accessed elements in front */
     objc = sizeof(objv)/sizeof(objv[0]);
 #define ADD_LPWSTR_(fld) do {                                          \
-        objv[--objc] = Tcl_NewUnicodeObj(userinfoP->usri3_ ## fld, -1); \
+        objv[--objc] = ObjFromUnicode(userinfoP->usri3_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
@@ -1975,7 +1975,7 @@ Tcl_Obj *ObjFromGROUP_INFO(
 
 #define ADD_LPWSTR_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewUnicodeObj(groupinfoP->grpi3_ ## fld, -1); \
+        objv[objc++] = ObjFromUnicode(groupinfoP->grpi3_ ## fld); \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
@@ -2030,7 +2030,7 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
 
 #define ADD_LPWSTR_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewUnicodeObj(groupinfoP->lgrpi1_ ## fld, -1); \
+        objv[objc++] = ObjFromUnicode(groupinfoP->lgrpi1_ ## fld); \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
@@ -2070,7 +2070,7 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
 
 #define ADD_LPWSTR_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewUnicodeObj(groupinfoP->grui1_ ## fld, -1); \
+        objv[objc++] = ObjFromUnicode(groupinfoP->grui1_ ## fld); \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
@@ -2111,7 +2111,7 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
 
 #define ADD_LPWSTR_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewUnicodeObj(groupinfoP->lgrui0_ ## fld, -1); \
+        objv[objc++] = ObjFromUnicode(groupinfoP->lgrui0_ ## fld); \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
@@ -2159,15 +2159,15 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
         objv[objc++] = Tcl_NewLongObj(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sidusage);
         if (info_level == 1) {
             objv[objc++] = STRING_LITERAL_OBJ("name");
-            objv[objc++] = Tcl_NewUnicodeObj(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name, -1);
+            objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name);
         } else {
             objv[objc++] = STRING_LITERAL_OBJ("domainandname");
-            objv[objc++] = Tcl_NewUnicodeObj(((LOCALGROUP_MEMBERS_INFO_2 *)infoP)->lgrmi2_domainandname, -1);
+            objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_2 *)infoP)->lgrmi2_domainandname);
         }
         break;
     case 3:
         objv[objc++] = STRING_LITERAL_OBJ("domainandname");
-        objv[objc++] = Tcl_NewUnicodeObj(((LOCALGROUP_MEMBERS_INFO_3 *)infoP)->lgrmi3_domainandname, -1);
+        objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_3 *)infoP)->lgrmi3_domainandname);
         break;
         
     default:

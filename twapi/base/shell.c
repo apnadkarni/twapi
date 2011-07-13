@@ -926,16 +926,14 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         Tcl_ListObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-args"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewUnicodeObj(buf, -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetDescription(psl, buf, sizeof(buf)/sizeof(buf[0]));
     if (SUCCEEDED(hres)) {
         Tcl_ListObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-desc"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewUnicodeObj(buf, -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetHotkey(psl, &wordval);
@@ -956,8 +954,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                                  Tcl_NewIntObj(intval));
         Tcl_ListObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconpath"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewUnicodeObj(buf, -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetIDList(psl, &pidl);
@@ -973,8 +970,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         Tcl_ListObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-path"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewUnicodeObj(buf, -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetShowCmd(psl, &intval);
@@ -989,8 +985,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         Tcl_ListObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-workdir"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewUnicodeObj(buf, -1));
+        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
     
     Tcl_SetObjResult(interp, resultObj);
@@ -1086,7 +1081,7 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
     if (FAILED(hres))
         goto fail;
 
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(url, -1));
+    Tcl_SetObjResult(interp, ObjFromUnicode(url));
     CoTaskMemFree(url);
 
     retval = TCL_OK;
@@ -1177,9 +1172,9 @@ int Twapi_GetCurrentThemeName(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, status);
     }
 
-    objv[0] = Tcl_NewUnicodeObj(filename, -1);
-    objv[1] = Tcl_NewUnicodeObj(color, -1);
-    objv[2] = Tcl_NewUnicodeObj(size, -1);
+    objv[0] = ObjFromUnicode(filename);
+    objv[1] = ObjFromUnicode(color);
+    objv[2] = ObjFromUnicode(size);
     Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
     return TCL_OK;
 }
@@ -1279,11 +1274,11 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         SHNAMEMAPPINGW *mapP = *(SHNAMEMAPPINGW **)(((char *)sfop.hNameMappings) + 4);
         for (i = 0; i < *(int *) (sfop.hNameMappings); ++i) {
             Tcl_ListObjAppendElement(interp, objs[1],
-                                     Tcl_NewUnicodeObj(
+                                     ObjFromUnicodeN(
                                          mapP[i].pszOldPath,
                                          mapP[i].cchOldPath));
             Tcl_ListObjAppendElement(interp, objs[1],
-                                     Tcl_NewUnicodeObj(
+                                     ObjFromUnicodeN(
                                          mapP[i].pszNewPath,
                                          mapP[i].cchNewPath));
         }

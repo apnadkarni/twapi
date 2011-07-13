@@ -52,7 +52,7 @@
 #include <mstask.h>
 #include <dsgetdc.h>
 #include <powrprof.h>
-#if _MSC_VER == 1200
+#if _MSC_VER <= 1400
 /* Not present in newer compiler/sdks as it is subsumed by winuser.h */ 
 # include <winable.h>
 #endif
@@ -315,7 +315,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), Tcl_NewUnicodeObj(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
+    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromUnicodeN(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
   } while (0)
 
 /* Appends a struct char string field name and string pair to a Tcl list object */
@@ -1001,7 +1001,7 @@ int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, c
 #define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
 #define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
 
-Tcl_Obj *TwapiUtf8ObjFromUnicode(WCHAR *p, int len);
+Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
 #if defined(USE_UNICODE_OBJ)
 #define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
 #else

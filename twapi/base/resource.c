@@ -30,7 +30,7 @@ Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s)
     if (IS_INTRESOURCE(s))
         return Tcl_NewLongObj((long) (LONG_PTR) s); /* Double cast to avoid warning */
     else
-        return Tcl_NewUnicodeObj(s, -1);
+        return ObjFromUnicode(s);
 }
 
 
@@ -275,7 +275,7 @@ TCL_RESULT Twapi_SplitStringResource(
             break;
         }
         Tcl_ListObjAppendElement(interp, objP,
-                                 Tcl_NewUnicodeObj(wP, slen));
+                                 ObjFromUnicodeN(wP, slen));
         wP += slen;
         len -= sizeof(WCHAR)*(1+slen);
     }

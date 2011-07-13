@@ -453,7 +453,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
         return TCL_OK;          /* Logging not enabled */
     }
 
-    msgObj = Tcl_NewUnicodeObj(msg, -1);
+    msgObj = ObjFromUnicode(msg);
     var = Tcl_GetVar2Ex(interp, TWAPI_LOG_VAR, NULL, 0);
     if (var) {
         if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {

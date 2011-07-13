@@ -11,11 +11,11 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP)
 {
     Tcl_Obj *objv[5];
 
-    objv[0] = Tcl_NewUnicodeObj(ddP->DeviceName, -1);
-    objv[1] = Tcl_NewUnicodeObj(ddP->DeviceString, -1);
+    objv[0] = ObjFromUnicode(ddP->DeviceName);
+    objv[1] = ObjFromUnicode(ddP->DeviceString);
     objv[2] = Tcl_NewIntObj(ddP->StateFlags);
-    objv[3] = Tcl_NewUnicodeObj(ddP->DeviceID, -1);
-    objv[4] = Tcl_NewUnicodeObj(ddP->DeviceKey, -1);
+    objv[3] = ObjFromUnicode(ddP->DeviceID);
+    objv[4] = ObjFromUnicode(ddP->DeviceKey);
 
     return Tcl_NewListObj(5, objv);
 }
@@ -35,7 +35,7 @@ Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP)
         objc = 4;
     }
     else if (miP->cbSize == sizeof(MONITORINFOEXW)) {
-        objv[3] = Tcl_NewUnicodeObj(((MONITORINFOEXW *)miP)->szDevice, -1);
+        objv[3] = ObjFromUnicode(((MONITORINFOEXW *)miP)->szDevice);
         objc = 4;
     }
 

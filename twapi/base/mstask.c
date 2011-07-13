@@ -243,7 +243,7 @@ int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
     if (jobsP) {
         for (i = 0; i < ret_count; ++i) {
             Tcl_ListObjAppendElement(interp, objv[1],
-                                     Tcl_NewUnicodeObj(jobsP[i], -1));
+                                     ObjFromUnicode(jobsP[i]));
             /* Free the string */
             CoTaskMemFree(jobsP[i]);
         }

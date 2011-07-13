@@ -72,9 +72,9 @@ static Tcl_Obj *ListObjFromREMOTE_NAME_INFOW(
 {
     Tcl_Obj *objv[3];
 
-    objv[0] = Tcl_NewUnicodeObj(rniP->lpUniversalName, -1);
-    objv[1] = Tcl_NewUnicodeObj(rniP->lpConnectionName, -1);
-    objv[2] = Tcl_NewUnicodeObj(rniP->lpRemainingPath, -1);
+    objv[0] = ObjFromUnicode(rniP->lpUniversalName);
+    objv[1] = ObjFromUnicode(rniP->lpConnectionName);
+    objv[2] = ObjFromUnicode(rniP->lpRemainingPath);
 
     return Tcl_NewListObj(3, objv);
 }
@@ -92,7 +92,7 @@ static Tcl_Obj *ListObjFromAT_INFO (const AT_INFO *atP)
     objv[1] = Tcl_NewIntObj(atP->DaysOfMonth);
     objv[2] = Tcl_NewIntObj(atP->DaysOfWeek);
     objv[3] = Tcl_NewIntObj(atP->Flags);
-    objv[4] = Tcl_NewUnicodeObj(atP->Command, -1);
+    objv[4] = ObjFromUnicode(atP->Command);
     return Tcl_NewListObj(5, objv);
 }
 
@@ -153,7 +153,7 @@ static Tcl_Obj *ListObjFromAT_ENUM(const AT_ENUM *atP)
     objv[2] = Tcl_NewIntObj(atP->DaysOfMonth);
     objv[3] = Tcl_NewIntObj(atP->DaysOfWeek);
     objv[4] = Tcl_NewIntObj(atP->Flags);
-    objv[5] = Tcl_NewUnicodeObj(atP->Command, -1);
+    objv[5] = ObjFromUnicode(atP->Command);
     return Tcl_NewListObj(6, objv);
 }
 #endif // OBSOLETE
@@ -338,7 +338,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     error = WNetUseConnectionW(winH, &netresource, passwordP, usernameP, flags,
                                accessname, &accessname_size, &outflags);
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(accessname, -1));
+        Tcl_SetObjResult(interp, ObjFromUnicode(accessname));
         return TCL_OK;
     }
     else {
@@ -411,7 +411,7 @@ int Twapi_WNetGetResourceInformation(
     }
     if (error == ERROR_SUCCESS) {
         objv[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
-        objv[1] = Tcl_NewUnicodeObj(systempart, -1);
+        objv[1] = ObjFromUnicode(systempart);
         Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objv));
     } else
         Twapi_AppendWNetError(ticP->interp, error);
@@ -459,7 +459,7 @@ int Twapi_WNetGetUser(
     if (error != NO_ERROR)
         return Twapi_AppendWNetError(interp, error);
 
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(buf, -1));
+    Tcl_SetObjResult(interp, ObjFromUnicode(buf));
     return TCL_OK;
 }
 
@@ -471,7 +471,7 @@ int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainnam
     if (status != NERR_Success) {
         return Twapi_AppendSystemError(interp, status);
     }
-    Tcl_SetObjResult(interp, Tcl_NewUnicodeObj((wchar_t *)bufP, -1));
+    Tcl_SetObjResult(interp, ObjFromUnicode((wchar_t *)bufP));
     NetApiBufferFree(bufP);
     return TCL_OK;
 }
