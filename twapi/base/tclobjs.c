@@ -1354,3 +1354,64 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 }
 
 
+Tcl_Obj *TwapiUtf8ObjFromUnicode(WCHAR *wsP, int nchars)
+{
+    Tcl_DString ds;
+    Tcl_Obj *objP;
+    int nbytes;
+
+    /*
+     * Note - not using Tcl_WinTCharToUtf because there is no way
+     * of telling if the Tcl core was compiled with _UNICODE defined
+     * or not
+     */
+
+    /* Note WideChar... does not like 0 length strings */
+    if (nchars == 0)
+        return Tcl_NewObj();
+
+    Tcl_DStringInit(&ds);
+
+    nbytes = WideCharToMultiByte(
+        CP_UTF8, /* CodePag */
+        0,       /* dwFlags */
+        wsP,     /* lpWideCharStr */
+        nchars < 0 ? -1 : nchars, /* cchWideChar */
+        NULL,    /* lpMultiByteStr */
+        0,       /* cbMultiByte */
+        NULL,    /* lpDefaultChar */
+        NULL     /* lpUsedDefaultChar */
+        );
+    
+    if (nbytes == 0) {
+        Tcl_Panic("WideCharToMultiByte returned 0, with error code %d", GetLastError());
+    }
+
+    Tcl_DStringSetLength(&ds, nbytes);
+
+    nbytes = WideCharToMultiByte(
+        CP_UTF8, /* CodePag */
+        0,       /* dwFlags */
+        wsP,     /* lpWideCharStr */
+        nchars < 0 ? -1 : nchars, /* cchWideChar */
+        Tcl_DStringValue(&ds),    /* lpMultiByteStr */
+        Tcl_DStringLength(&ds),   /* cbMultiByte */
+        NULL,    /* lpDefaultChar */
+        NULL     /* lpUsedDefaultChar */
+        );
+    
+    if (nbytes == 0) {
+        Tcl_Panic("WideCharToMultiByte returned 0, with error code %d", GetLastError());
+    }
+
+    /*
+     * Note WideCharToMultiByte does not explicitly terminate with \0
+     * if nchars was specifically specified
+     */
+    if (nchars < 0)
+        --nbytes;                /* Exclude terminating \0 */
+    objP = Tcl_NewStringObj(Tcl_DStringValue(&ds), nbytes);
+
+    Tcl_DStringFree(&ds);
+    return objP;
+}
