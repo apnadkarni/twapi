@@ -18,7 +18,7 @@
  * - Similarly, TRT_UNICODE_DYNAMIC, TRT_CHARS_DYNAMIC, TRT_OLESTR and TRT_PIDL
  *   have their memory freed
  **/
-int TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
+TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
     char *typenameP;
     Tcl_Obj *resultObj = NULL;
