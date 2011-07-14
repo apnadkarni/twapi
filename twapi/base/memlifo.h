@@ -12,6 +12,11 @@
 #include <stdlib.h>
 
 #define MEMLIFO_ASSERT(x) TWAPI_ASSERT(x)
+#ifdef TWAPI_EXTERN
+# define MEMLIFO_EXTERN TWAPI_EXTERN
+#else
+# define MEMLIFO_EXTERN
+#endif
 
 typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;
@@ -51,7 +56,7 @@ MemLifoReset
 
 Returns ERROR_SUCCESS or a Win32 error code
 */
-int MemLifoInit
+MEMLIFO_EXTERN int MemLifoInit
 (
     MemLifo *lifoP,
     void *allocator_data,
@@ -90,7 +95,7 @@ Free up resources associated with a LIFO memory pool
 Frees up various resources allocated for a LIFO memory pool. The pool must not
 be used after the function is called.
 */
-void MemLifoClose(MemLifo  *lifoP);
+MEMLIFO_EXTERN void MemLifoClose(MemLifo  *lifoP);
 
 /*f
 Allocate memory from LIFO memory pool
@@ -101,7 +106,7 @@ is set for the pool, in which case it panics.
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
-void* MemLifoAlloc
+MEMLIFO_EXTERN void* MemLifoAlloc
     (
      MemLifo *lifoP,    /* LIFO pool to allocate from */
      DWORD sz,         /* Number of bytes to allocate */
@@ -130,7 +135,7 @@ is set for the pool, in which case it panics.
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
-void *MemLifoPushFrame
+MEMLIFO_EXTERN void *MemLifoPushFrame
 (
     MemLifo *lifoP,		/* LIFO pool to allocate from */
     DWORD sz,			/* Number of bytes to allocate */
@@ -163,7 +168,7 @@ is set for the pool, in which case it panics.
 
 Returns a handle for the mark if successful, 0 on failure.
 */
-MemLifoMarkHandle MemLifoPushMark(MemLifo *lifoP);
+MEMLIFO_EXTERN MemLifoMarkHandle MemLifoPushMark(MemLifo *lifoP);
 
 
 /*f
@@ -179,7 +184,7 @@ and hence must not be reused.
 
 Returns 0 on success, 1 on failure
 */
-int MemLifoPopMark(MemLifoMarkHandle mark);
+MEMLIFO_EXTERN int MemLifoPopMark(MemLifoMarkHandle mark);
 
 
 /*f
@@ -206,7 +211,7 @@ is set for the pool.
 
 Returns pointer to new block position on success, else a NULL pointer.
 */
-void * MemLifoExpandLast
+MEMLIFO_EXTERN void * MemLifoExpandLast
     (
      MemLifo *lifoP,		/* Lifo pool from which alllocation
 					   was made */
@@ -238,7 +243,7 @@ was allocated after the last allocation.
 Note the function does not panic even if MEMLIFO_F_PANIC_ON_FAIL
 is set for the pool.
 */
-void *MemLifoShrinkLast
+MEMLIFO_EXTERN void *MemLifoShrinkLast
     (
      MemLifo *lifoP,       /* Lifo pool from which alllocation
                                    was made */
@@ -270,7 +275,7 @@ Returns pointer to new block position on success, else a NULL pointer.
 Note the function does not panic even if MEMLIFO_F_PANIC_ON_FAIL
 is set for the pool.
 */
-void * MemLifoResizeLast
+MEMLIFO_EXTERN void * MemLifoResizeLast
 (
     MemLifo *lifoP,        /* Lifo pool from which allocation was made */
     DWORD newSz,		/* New size of the block */
@@ -280,6 +285,6 @@ void * MemLifoResizeLast
                                    cannot be expanded in place. */
     );
 
-int MemLifoValidate(MemLifo *l);
+MEMLIFO_EXTERN int MemLifoValidate(MemLifo *l);
 
 #endif

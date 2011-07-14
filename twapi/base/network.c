@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include <ntverp.h>
 
 #if VER_PRODUCTBUILD <= 3790
 typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {

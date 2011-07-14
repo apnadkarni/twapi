@@ -82,7 +82,7 @@ static char *apiprocs =
 
 DWORD twapi_netenum_bufsize = MAX_PREFERRED_LENGTH; /* Defined by LANMAN */
 
-int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
     int        argno;

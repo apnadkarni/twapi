@@ -11,12 +11,55 @@
 /* Enable prototype-less extern functions warnings even at warning level 1 */
 #pragma warning (1 : 13)
 
+/*
+ * The following is along the lines of the Tcl model for exporting
+ * functions.
+ *
+ * TWAPI_STATIC_BUILD - the TWAPI build should define this to build
+ * a static library version of TWAPI. Clients should define this when
+ * linking to the static library version of TWAPI.
+ *
+ * TWAPI_CORE_BUILD - the TWAPI core build and ONLY the TWAPI core build
+ * should define this, both for static as well dll builds. Clients should never 
+ * define it for their builds, nor should other twapi components
+ *
+ * USE_TWAPI_STUBS - for future use should not be currently defined.
+ */
+
+#ifdef TWAPI_STATIC_BUILD
+# define TWAPI_EXPORT
+# define TWAPI_IMPORT
+#else
+# define TWAPI_EXPORT __declspec(dllexport)
+# define TWAPI_IMPORT __declspec(dllimport)
+#endif
+
+#ifdef TWAPI_CORE_BUILD
+#   define TWAPI_STORAGE_CLASS TWAPI_EXPORT
+#else
+#   ifdef USE_TWAPI_STUBS
+#      error USE_TWAPI_STUBS not implemented yet.
+#      define TWAPI_STORAGE_CLASS
+#   else
+#      define TWAPI_STORAGE_CLASS TWAPI_IMPORT
+#   endif
+#endif
+
+#ifdef __cplusplus
+#   define TWAPI_EXTERN extern "C" TWAPI_STORAGE_CLASS
+#else
+#   define TWAPI_EXTERN extern TWAPI_STORAGE_CLASS
+#endif
+
+
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <winsock2.h>
 #include <windows.h>
+
 //#define _WSPIAPI_COUNTOF // Needed to use VC++ 6.0 with Platform SDK 2003 SP1
 #ifndef ARRAYSIZE
 /* Older SDK's do not define this */
@@ -66,6 +109,7 @@
 #include <strsafe.h>
 #endif
 #include "tcl.h"
+
 #include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
 #include "zlist.h"
@@ -897,23 +941,6 @@ extern TwapiId volatile gIdGenerator;
 TwapiTls *TwapiGetTls();
 int TwapiAssignTlsSlot();
 
-/* Memory allocation */
-void *TwapiAlloc(size_t sz);
-void *TwapiAllocSize(size_t sz, size_t *);
-void *TwapiAllocZero(size_t sz);
-#define TwapiFree(p_) HeapFree(GetProcessHeap(), 0, (p_))
-WCHAR *TwapiAllocWString(WCHAR *, int len);
-WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
-char *TwapiAllocAString(char *, int len);
-char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
-void *TwapiReallocTry(void *p, size_t sz);
-
-/* C - Tcl result and parameter conversion  */
-int TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
-void TwapiClearResult(TwapiResult *resultP);
-int TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
-                 char fmt, ...);
-
 /* Thread pool handle registration */
 TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
@@ -931,36 +958,10 @@ void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE 
 void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP);
 
 
-/* errors.c */
-int TwapiReturnSystemError(Tcl_Interp *interp);
-int TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code);
-DWORD TwapiNTSTATUSToError(NTSTATUS status);
-Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
-Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD err);
-Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD err, Tcl_Obj *);
-int Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long err);
-int Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 #define Twapi_AppendSystemError(interp_, error_) \
     Twapi_AppendSystemError2(interp_, error_, NULL)
 int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
-void TwapiWriteEventLogError(const char *msg);
 
-/* Async handling related */
-void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
-#define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
-void TwapiCallbackUnref(TwapiCallback *pcbP, int);
-void TwapiCallbackDelete(TwapiCallback *pcbP);
-TwapiCallback *TwapiCallbackNew(
-    TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
-int TwapiEnqueueCallback(
-    TwapiInterpContext *ticP, TwapiCallback *pcbP,
-    int enqueue_method,
-    int timeout,
-    TwapiCallback **responseP
-    );
-#define TWAPI_ENQUEUE_DIRECT 0
-#define TWAPI_ENQUEUE_ASYNC  1
-int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
@@ -972,93 +973,6 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 void Twapi_FreeNewTclObj(Tcl_Obj *objPtr);
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
-Tcl_Obj *ObjFromOpaque(void *pv, char *name);
-#define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
-#define ObjFromHWND(h) ObjFromOpaque((h), "HWND")
-#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
-
-int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
-int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
-#define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
-#define ObjToHANDLE ObjToLPVOID
-#define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
-
-/* Unsigned ints/longs need to be promoted to wide ints */
-#define ObjFromDWORD(dw_) Tcl_NewWideIntObj((DWORD)(dw_))
-#define ObjFromULONG      ObjFromDWORD
-
-#ifdef _WIN64
-#define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
-#define ObjFromDWORD_PTR(p_)  Tcl_NewWideIntObj((DWORD_PTR)(p_))
-#else  // _WIN64
-#define ObjToDWORD_PTR        Tcl_GetLongFromObj
-#define ObjFromDWORD_PTR(p_)  Tcl_NewLongObj((DWORD_PTR)(p_))
-#endif // _WIN64
-#define ObjToULONG_PTR    ObjToDWORD_PTR
-#define ObjFromULONG_PTR  ObjFromDWORD_PTR
-#define ObjFromSIZE_T     ObjFromDWORD_PTR
-
-#define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
-#define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
-
-Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
-#if defined(USE_UNICODE_OBJ)
-#define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
-#else
-#define ObjFromUnicodeN(p_, n_) TwapiUtf8ObjFromUnicode((p_), (n_))
-#endif
-
-#define ObjFromUnicode(p_)    ObjFromUnicodeN(p_, -1)
-
-
-int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
-
-
-
-int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
-int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
-LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP);
-
-#define NULL_TOKEN "__null__"
-#define NULL_TOKEN_L L"__null__"
-LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP);
-
-Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP);
-Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
-int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
-
-#define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch")
-int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP);
-#define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown")
-#define ObjToIUnknown(ip_, obj_, ifc_) \
-    ObjToOpaque((ip_), (obj_), (ifc_), "IUnknown")
-
-int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP);
-Tcl_Obj *ObjFromBSTR (BSTR bstr);
-int ObjToBSTR (Tcl_Interp *, Tcl_Obj *, BSTR *);
-int ObjToRangedInt(Tcl_Interp *, Tcl_Obj *obj, int low, int high, int *iP);
-Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP);
-int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
-Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP);
-int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *cyP);
-Tcl_Obj *ObjFromCY(const CY *cyP);
-int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP);
-Tcl_Obj *ObjFromDECIMAL(DECIMAL *cyP);
-int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *cyP);
-Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
-
-/* Note: the returned multiszPP must be free()'ed */
-int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
-#define Twapi_ConvertTclListToMultiSz ObjToMultiSz
-Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
-#define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
-Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
-                         BYTE *bufP, int count);
-int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP);
-int ObjToRECT_NULL (Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP);
-Tcl_Obj *ObjFromRECT(RECT *rectP);
-Tcl_Obj *ObjFromPOINT(POINT *ptP);
-int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP);
 Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
     Tcl_Interp *interp,
     const CONSOLE_SCREEN_BUFFER_INFO *csbiP
@@ -1073,9 +987,6 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP);
 Tcl_Obj *ObjFromWINDOWINFO (WINDOWINFO *wiP);
 Tcl_Obj *ObjFromWINDOWPLACEMENT(WINDOWPLACEMENT *wpP);
 int ObjToWINDOWPLACEMENT(Tcl_Interp *, Tcl_Obj *objP, WINDOWPLACEMENT *wpP);
-Tcl_Obj *ObjFromGUID(GUID *guidP);
-int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP);
-int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP);
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP);
 int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP);
 int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP);
@@ -1085,10 +996,6 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
 int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
-Tcl_Obj *ObjFromUUID (UUID *uuidP);
-int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
-int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
-Tcl_Obj *ObjFromLUID (const LUID *luidP);
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
                               SP_DEVINFO_DATA **sddPP);
@@ -1128,26 +1035,6 @@ Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
 int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
 Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
 
-int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
-int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
-Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
-int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
-Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
-int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
-int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
-                                 SECURITY_ATTRIBUTES **secattrPP);
-void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
-void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
-int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
-Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
-Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
-int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
-                              LUID_AND_ATTRIBUTES *luidattrP);
-int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
-Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                                 const TOKEN_PRIVILEGES *tokprivP);
-void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
 int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
@@ -1168,11 +1055,6 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 Tcl_Obj *ObjFromGROUP_USERS_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 
 /* System related */
-typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
-NtQuerySystemInformation_t Twapi_GetProc_NtQuerySystemInformation();
-int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
-                              LPCVOID lpSource, DWORD dwMessageId,
-                              DWORD dwLanguageId, int argc, LPCWSTR *argv );
 int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
                           LPWSTR username, LPWSTR profilepath);
 BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
@@ -1193,7 +1075,6 @@ int Twapi_GetVersionEx(Tcl_Interp *interp);
 void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
 
 /* Shell stuff */
-void TwapiFreePIDL(LPITEMIDLIST idlistP);
 HRESULT Twapi_SHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken,
                           DWORD flags, WCHAR *pathbuf);
 BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
@@ -1582,29 +1463,208 @@ TwapiTclObjCmd Twapi_CallNetEnumObjCmd;
 TwapiTclObjCmd Twapi_CallPdhObjCmd;
 TwapiTclObjCmd Twapi_CallCOMObjCmd;
 
-/* LZMA */
-unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
-                                         unsigned char *buf,
-                                         DWORD sz, DWORD *outsz);
-void TwapiLzmaFreeBuffer(unsigned char *buf);
-
 
 /* General utility functions */
 int WINAPI TwapiGlobCmp (const char *s, const char *pat);
 int WINAPI TwapiGlobCmpCase (const char *s, const char *pat);
-Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
-/* TBD - replace all calls to malloc with this */
-void DebugOutput(char *s);
-int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-typedef int TwapiOneTimeInitFn(void *);
-int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
-int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 
 int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+/*
+ * Exported functions
+ */
+
+/* Memory allocation */
+
+TWAPI_EXTERN void *TwapiAlloc(size_t sz);
+TWAPI_EXTERN void *TwapiAllocSize(size_t sz, size_t *);
+TWAPI_EXTERN void *TwapiAllocZero(size_t sz);
+TWAPI_EXTERN void TwapiFree(void *p);
+TWAPI_EXTERN WCHAR *TwapiAllocWString(WCHAR *, int len);
+TWAPI_EXTERN WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
+TWAPI_EXTERN char *TwapiAllocAString(char *, int len);
+TWAPI_EXTERN char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
+TWAPI_EXTERN void *TwapiReallocTry(void *p, size_t sz);
+
+
+/* C - Tcl result and parameter conversion  */
+TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
+TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
+TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+
+/* errors.c */
+TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
+TWAPI_EXTERN TCL_RESULT TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code);
+TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
+TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
+TWAPI_EXTERN Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD err);
+TWAPI_EXTERN Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD err, Tcl_Obj *);
+TWAPI_EXTERN TCL_RESULT Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long err);
+TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
+TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
+
+/* Async handling related */
+TWAPI_EXTERN void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
+#define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
+TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *pcbP, int);
+TWAPI_EXTERN void TwapiCallbackDelete(TwapiCallback *pcbP);
+TWAPI_EXTERN TwapiCallback *TwapiCallbackNew(
+    TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
+TWAPI_EXTERN int TwapiEnqueueCallback(
+    TwapiInterpContext *ticP, TwapiCallback *pcbP,
+    int enqueue_method,
+    int timeout,
+    TwapiCallback **responseP
+    );
+#define TWAPI_ENQUEUE_DIRECT 0
+#define TWAPI_ENQUEUE_ASYNC  1
+TWAPI_EXTERN int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
+
+/* Tcl_Obj manipulation and conversion - basic Windows types */
+TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
+#define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
+#define ObjFromHWND(h) ObjFromOpaque((h), "HWND")
+#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
+
+TWAPI_EXTERN int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
+TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
+#define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
+#define ObjToHANDLE ObjToLPVOID
+#define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
+
+/* Unsigned ints/longs need to be promoted to wide ints */
+#define ObjFromDWORD(dw_) Tcl_NewWideIntObj((DWORD)(dw_))
+#define ObjFromULONG      ObjFromDWORD
+
+#ifdef _WIN64
+#define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
+#define ObjFromDWORD_PTR(p_)  Tcl_NewWideIntObj((DWORD_PTR)(p_))
+#else  // _WIN64
+#define ObjToDWORD_PTR        Tcl_GetLongFromObj
+#define ObjFromDWORD_PTR(p_)  Tcl_NewLongObj((DWORD_PTR)(p_))
+#endif // _WIN64
+#define ObjToULONG_PTR    ObjToDWORD_PTR
+#define ObjFromULONG_PTR  ObjFromDWORD_PTR
+#define ObjFromSIZE_T     ObjFromDWORD_PTR
+
+#define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
+#define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
+
+TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
+#if defined(USE_UNICODE_OBJ)
+#define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
+#else
+#define ObjFromUnicodeN(p_, n_) TwapiUtf8ObjFromUnicode((p_), (n_))
+#endif
+
+#define ObjFromUnicode(p_)    ObjFromUnicodeN(p_, -1)
+
+
+TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
+
+
+
+TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
+TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
+TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP);
+
+#define NULL_TOKEN "__null__"
+#define NULL_TOKEN_L L"__null__"
+TWAPI_EXTERN LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP);
+
+TWAPI_EXTERN Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP);
+TWAPI_EXTERN Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
+TWAPI_EXTERN int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
+TWAPI_EXTERN void TwapiFreePIDL(LPITEMIDLIST idlistP);
+
+#define ObjFromIDispatch(p_) ObjFromOpaque((p_), "IDispatch")
+TWAPI_EXTERN int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP);
+#define ObjFromIUnknown(p_) ObjFromOpaque((p_), "IUnknown")
+#define ObjToIUnknown(ip_, obj_, ifc_) \
+    ObjToOpaque((ip_), (obj_), (ifc_), "IUnknown")
+
+TWAPI_EXTERN int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP);
+TWAPI_EXTERN Tcl_Obj *ObjFromBSTR (BSTR bstr);
+TWAPI_EXTERN int ObjToBSTR (Tcl_Interp *, Tcl_Obj *, BSTR *);
+TWAPI_EXTERN int ObjToRangedInt(Tcl_Interp *, Tcl_Obj *obj, int low, int high, int *iP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP);
+TWAPI_EXTERN int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
+TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP);
+TWAPI_EXTERN int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *cyP);
+TWAPI_EXTERN Tcl_Obj *ObjFromCY(const CY *cyP);
+TWAPI_EXTERN int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP);
+TWAPI_EXTERN Tcl_Obj *ObjFromDECIMAL(DECIMAL *cyP);
+TWAPI_EXTERN int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *cyP);
+TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
+
+/* Note: the returned multiszPP must be free()'ed */
+TWAPI_EXTERN int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
+#define Twapi_ConvertTclListToMultiSz ObjToMultiSz
+TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
+#define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
+TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
+                         BYTE *bufP, int count);
+TWAPI_EXTERN int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP);
+TWAPI_EXTERN int ObjToRECT_NULL (Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromRECT(RECT *rectP);
+TWAPI_EXTERN Tcl_Obj *ObjFromPOINT(POINT *ptP);
+TWAPI_EXTERN int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP);
+
+/* GUIDs and UUIDs */
+TWAPI_EXTERN Tcl_Obj *ObjFromGUID(GUID *guidP);
+TWAPI_EXTERN int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP);
+TWAPI_EXTERN int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP);
+TWAPI_EXTERN int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
+TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP);
+
+/* Security stuff */
+TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
+TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
+TWAPI_EXTERN int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
+TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
+TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
+                                 SECURITY_ATTRIBUTES **secattrPP);
+TWAPI_EXTERN void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
+TWAPI_EXTERN void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
+TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
+TWAPI_EXTERN Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
+TWAPI_EXTERN int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
+                              LUID_AND_ATTRIBUTES *luidattrP);
+TWAPI_EXTERN int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                                 const TOKEN_PRIVILEGES *tokprivP);
+TWAPI_EXTERN void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
+
+typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
+TWAPI_EXTERN NtQuerySystemInformation_t Twapi_GetProc_NtQuerySystemInformation();
+TWAPI_EXTERN int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
+                              LPCVOID lpSource, DWORD dwMessageId,
+                              DWORD dwLanguageId, int argc, LPCWSTR *argv );
+
+/* LZMA */
+TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
+                                         unsigned char *buf,
+                                         DWORD sz, DWORD *outsz);
+TWAPI_EXTERN void TwapiLzmaFreeBuffer(unsigned char *buf);
+
+/* General utility */
+TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
+
+TWAPI_EXTERN void TwapiDebugOutput(char *s);
+TWAPI_EXTERN int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TWAPI_EXTERN int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+typedef int TwapiOneTimeInitFn(void *);
+TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
+TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 
 #endif // TWAPI_H
