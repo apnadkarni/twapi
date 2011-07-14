@@ -1,6 +1,8 @@
 TWAPI_SRCROOT = $(MAKEDIR)\..
 !include ..\common.inc
 
+CONFIGFLAGS = -DTWAPI_CORE_BUILD
+
 !IFDEF SERVERONLY
 !IFDEF DESKTOPONLY
 !ERROR Must define only one of SERVERONLY or DESKTOPONLY
@@ -113,7 +115,7 @@ COPY          = copy
 !message Output directory $(OBJDIR) exists
 !endif
 
-# Location of the Visual C++ tools (32 bit assumed)
+# Visual C++ version
 VCVER=0
 !if ![echo VCVERSION=_MSC_VER > $(OBJDIR)\vercl.x] \
     && ![cl -nologo -TC -E $(OBJDIR)\vercl.x > $(OBJDIR)\vercl.p 2>NUL]
@@ -138,6 +140,7 @@ VCVER=6
 !message Compiling with Visual C++ $(VCVER).
 !endif
 
+
 !ifdef MSSDK
 SDK           = "$(MSSDK)"
 !else
@@ -146,9 +149,9 @@ SDK           = "c:\program files\microsoft platform sdk"
 CC            = cl.exe
 LINK          = link.exe
 LIBTOOL       = lib.exe
+MT            = mt.exe
 
-# TCL resources. By default, we will use 8.5 for 64-bit builds and 8.4
-# for 32-bit builds.
+# TCL resources. By default, we will use 8.5 
 !if "x$(TCLVER)" == "x"
 TCLVER        = 85
 !endif
@@ -197,7 +200,7 @@ WINLIB        = \
 	$(SDKLIB)uxtheme.lib
 # Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 
-!if $(VCVER) > 6 && $(VCVER) < 10
+!if $(VCVER) > 6 && $(VCVER) < 9
 WINLIB = $(WINLIB) bufferoverflowU.lib
 !endif
 
@@ -272,6 +275,7 @@ LIBS = $(LIBS) delayimp.lib
 LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll
 !ENDIF
 
+
 !if $(VCVER) == 6
 # VC 6 - /OPT:NOWIN98 reduces code size by using 512 byte section alignment
 LOPT = $(LOPT) /debug:full /debugtype:cv /OPT:NOWIN98
@@ -299,6 +303,9 @@ all: $(OBJDIR)\$(MODULE)
 
 $(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(OBJDIR)\twapi.res makefile
         $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(OBJDIR)\twapi.res
+!if $(VCVER) > 8
+	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
+!endif
 
 $(OBJS): $(CINCLUDES) makefile
 
