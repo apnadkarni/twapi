@@ -241,6 +241,11 @@ void *TwapiAlloc(size_t sz)
     return p;
 }
 
+void TwapiFree(void *p)
+{
+    HeapFree(GetProcessHeap(), 0, p);
+}
+
 void *TwapiAllocSize(size_t sz, size_t *actual_sizeP)
 {
     void *p = TwapiAlloc(sz);

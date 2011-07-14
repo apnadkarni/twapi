@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 
 #if _WIN32_WINNT < 0x0500
 #error _WIN32_WINNT too low
@@ -248,6 +249,9 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
 #endif
+
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("sdk_version"));
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(VER_PRODUCTBUILD));
 
     /* Are we building with TEA ? */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
