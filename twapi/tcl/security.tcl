@@ -2095,7 +2095,7 @@ proc twapi::_map_resource_symbol_to_type {sym {named true}} {
         directoryservice { return 8 }
         directoryserviceall { return 9 }
         providerdefined { return 10 }
-        wmiguid { return 111 }
+        wmiguid { return 11 }
         registrywow6432key { return 12 }
     }
 
