@@ -924,6 +924,7 @@ extern "C" {
 
 /* GLOBALS */
 extern OSVERSIONINFO gTwapiOSVersionInfo;
+extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 extern int gTclIsThreaded;
