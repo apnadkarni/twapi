@@ -7,6 +7,8 @@
 namespace eval twapi {
 }
 
+interp alias {} twapi::get_default_printer {} twapi::GetDefaultPrinter
+
 proc twapi::enumerate_printers {args} {
     array set opts [parseargs args {
         {proximity.arg all {local remote all any}}
