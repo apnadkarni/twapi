@@ -1367,7 +1367,7 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
      */
 
     /* Note WideChar... does not like 0 length strings */
-    if (nchars == 0)
+    if (wsP == NULL || nchars == 0)
         return Tcl_NewObj();
 
     Tcl_DStringInit(&ds);
