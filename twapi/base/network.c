@@ -25,6 +25,9 @@ MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcp6Entry, iphlpapi, GetOwnerModuleFromTcp6E
 typedef DWORD (WINAPI *GetOwnerModuleFromUdp6Entry_t)(PVOID, int, PVOID, PDWORD);
 MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6Entry_t)
 
+typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
+MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
+
 
 /* Given a IP address as a DWORD, returns a Tcl string */
 Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
@@ -1660,3 +1663,44 @@ int Twapi_GetBestRoute(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]
         return Twapi_AppendSystemError(ticP->interp, error);
     }
 }
+
+int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    GetBestInterfaceEx_t fn;
+    int result;
+    DWORD ifindex;
+    DWORD ipaddr;
+    Tcl_Obj *objP;
+
+    if (objc != 1)
+        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    fn = Twapi_GetProc_GetBestInterfaceEx();
+    if (fn) {
+        SOCKADDR_STORAGE ss;
+
+        /* We only have the address, ObjToSOCKADDR_STORAGE expects
+         * it as first element of a list with optional second param
+         */
+        objP = Tcl_NewListObj(1, objv);
+        Tcl_IncrRefCount(objP);
+        result = ObjToSOCKADDR_STORAGE(ticP->interp, objP, &ss);
+        Tcl_DecrRefCount(objP);
+        if (result != TCL_OK)
+            return result;
+        result = GetBestInterfaceEx((struct sockaddr *)&ss, &ifindex);
+        if (result)
+            return Twapi_AppendSystemError(ticP->interp, result);
+    } else {
+        /* GetBestInterfaceEx not available before XP SP2 */
+        if (IPAddrObjToDWORD(ticP->interp, objv[0], &ipaddr) == TCL_ERROR)
+            return TCL_ERROR;
+        result = GetBestInterface(ipaddr, &ifindex);
+        if (result)
+            return Twapi_AppendSystemError(ticP->interp, result);
+    }
+
+    Tcl_SetObjResult(ticP->interp, Tcl_NewLongObj(ifindex));
+    return TCL_OK;
+}
+

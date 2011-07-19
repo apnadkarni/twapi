@@ -432,8 +432,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FlashWindowEx, Call, 1002);
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
-    CALL_(GetBestInterface, Call, 1007); /* Also mapped to GetBestInterfaceEx */
-    CALL_(GetBestInterfaceEx, Call, 1007);
     CALL_(QuerySecurityContextToken, Call, 1008);
     CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
@@ -586,6 +584,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
     CALL_(LoadImage, Call, 10132);
+    CALL_(GetBestInterface, Call, 10133); /* Also mapped to GetBestInterfaceEx */
+    CALL_(GetBestInterfaceEx, Call, 10133);
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -1161,7 +1161,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         struct sockaddr_in sinaddr;
         SYSTEM_POWER_STATUS power_status;
         TwapiId twapi_id;
-        SOCKADDR_STORAGE ss;
     } u;
     DWORD_PTR dwp;
     HMODULE hmod;
@@ -1532,26 +1531,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1005://UNUSED
         case 1006://UNUSED
-            break;
-        case 1007:
-            /* We only have the address, ObjToSOCKADDR_STORAGE expects
-               it as first element of a list with optional second param
-            */
-            objs[0] = Tcl_NewListObj(1, &objv[2]);
-            Tcl_IncrRefCount(objs[0]);
-            if ((result.value.ival =
-                 ObjToSOCKADDR_STORAGE(interp, objs[0], &u.ss)) != TCL_OK) 
-                result.type = TRT_TCL_RESULT;
-            else {
-                result.value.ival = GetBestInterfaceEx((struct sockaddr *)&u.ss, &dw);
-                if (result.value.ival)
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                else {
-                    result.value.ival = dw;
-                    result.type = TRT_DWORD;
-                }
-            }
-            Tcl_DecrRefCount(objs[0]);
+        case 1007://UNUSED
             break;
 
         case 1008:
@@ -2725,6 +2705,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10132: // LoadImage
             return Twapi_LoadImage(interp, objc-2, objv+2);
+        case 10133: // GetBestInterface
+            return Twapi_GetBestInterface(ticP, objc-2, objv+2);
         }
     }
 

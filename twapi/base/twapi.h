@@ -1284,6 +1284,7 @@ int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort);
 int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort);
 
 int Twapi_GetBestRoute(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_AllocateAndGetTcpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
 int Twapi_AllocateAndGetUdpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
 int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
