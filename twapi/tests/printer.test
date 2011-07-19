@@ -108,6 +108,17 @@ namespace eval twapi::printer::test {
 
     ################################################################
 
+    test get_default_printer-1.0 {
+        Get the default printer
+    } -constraints {
+        haveprinter
+    } -body {
+        set msgs {}
+        validate_printer [twapi::get_default_printer] msgs
+        join $msgs \n
+    } -result ""
+
+    ################################################################
     
 
     #

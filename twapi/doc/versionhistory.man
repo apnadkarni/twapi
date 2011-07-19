@@ -52,6 +52,9 @@ Added options [cmd -primarygroupsid],
 [uri process.html#get_thread_info [cmd get_thread_info]].
 
 [bullet]
+Added [uri printer.html#get_default_printer [cmd get_default_printer]].
+
+[bullet]
 Enhancements to [uri misc.html#parseargs [cmd parseargs]] to
 map boolean true values.
 
