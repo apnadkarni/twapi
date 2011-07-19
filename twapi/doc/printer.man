@@ -11,7 +11,9 @@ This module provides commands related to Windows printer management.
 
 [section "Printer Management"]
 The command [uri \#enumerate_printers [cmd enumerate_printers]] returns
-all the printers on the system.
+all the printers on the system. The command
+[uri #get_default_printer [cmd get_default_printer]] returns the
+name of the default printer.
 
 [para]
 The command [uri \#printer_properties_dialog [cmd printer_properties_dialog]]
@@ -41,6 +43,9 @@ Refer to the Windows SDK documentation for the meaning of these attributes.
 [arg PROXIMITY] may be one of [const all] (default), [const local]
 or [const remote] depending on whether all printers, local printers
 or remote printers are to be included in the returned list.
+
+[call [cmd get_default_printer]]
+Returns the name of the default printer.
 
 [call [cmd printer_properties_dialog] [arg PRINTERNAME] [opt [arg options]]]
 Displays the shell property dialog for the specified printer.

@@ -426,6 +426,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetWindowsDirectory, Call, 79);       /* Tcl */
     CALL_(GetSystemDirectory, Call, 80);        /* Tcl */
     CALL_(GetFocus, Call, 81);                  /* Tcl */
+    CALL_(GetDefaultPrinter, Call, 82);         /* Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1482,6 +1483,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 81:
             result.type = TRT_HWND;
             result.value.hwin = GetFocus();
+            break;
+        case 82:
+            result.value.unicode.len = ARRAYSIZE(u.buf);
+            if (GetDefaultPrinterW(u.buf, &result.value.unicode.len)) {
+                result.value.unicode.len -= 1; /* Discard \0 */
+                result.value.unicode.str = u.buf;
+                result.type = TRT_UNICODE;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
             break;
         }
 
