@@ -558,14 +558,16 @@ namespace eval twapi::systemtray {
         set id [incr _icon_id_ctr]
         
         # 0 -> Add
-        if {![Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon $hicon]]} {
-            error "Could not register icon in system tray."
-        }
+        Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon $hicon]
 
         # 4 -> set version (controls notification behaviour) to 3 (Win2K+)
-        if {![Shell_NotifyIcon 4 [_make_NOTIFYICONW $id -version 3]]} {
+        if {[catch {
+            Shell_NotifyIcon 4 [_make_NOTIFYICONW $id -version 3]
+        } ermsg]} {
+            set ercode $::errorCode
+            set erinfo $::errorInfo
             removeicon $id
-            error "Could not set system tray icon notification version."
+            error $ermsg $erinfo $ercode
         }
 
         if {[llength $cmdprefix]} {
@@ -580,15 +582,13 @@ namespace eval twapi::systemtray {
         variable _icondata
 
         # Ignore errors in case dup call
-        Shell_NotifyIcon 2 [_make_NOTIFYICONW $id]
+        catch {Shell_NotifyIcon 2 [_make_NOTIFYICONW $id]}
         dict unset _icondata $id
     }
 
     proc modifyicon {id args} {
         # TBD - do we need to [dict set _icondata hicon ...] ?
-        if {![Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]]} {
-            error "Could not modify icon in system tray."
-        }
+        Shell_NotifyIcon 1 [_make_NOTIFYICONW $id {*}$args]
     }
 
     proc _icon_handler {msg id notification msgpos ticks} {
