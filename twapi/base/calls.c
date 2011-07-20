@@ -3053,7 +3053,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             }
             result.type = TRT_EMPTY;
             if (Shell_NotifyIconW(dw, u.niP) == FALSE) {
-                result.value.type = TRT_GETLASTERROR;
+                result.type = TRT_GETLASTERROR;
             }
             break;
         }
