@@ -231,14 +231,18 @@ proc twapi::eventlog_format_message {rec args} {
 
     if {[dict exists $_eventlog_message_cache $source fmtstring $opts(langid) $eventid]} {
         set fmtstring [dict get $_eventlog_message_cache $source fmtstring $opts(langid) $eventid]
-
+        dict incr _eventlog_message_cache __hits
     } else {
+        dict incr _eventlog_message_cache __misses
+
         # Find the registry key if we do not have it already
         if {[dict exists $_eventlog_message_cache $source regkey]} {
+            dict incr _eventlog_message_cache __hits
             set regkey [dict get $_eventlog_message_cache $source regkey]
         } else {
             set regkey [_find_eventlog_regkey $source]
             dict set _eventlog_message_cache $source regkey $regkey
+            dict incr _eventlog_message_cache __misses
         }
 
         # Get the message file, if there is one
@@ -293,8 +297,10 @@ proc twapi::eventlog_format_message {rec args} {
         set repl [string range $msg $start $end]; # Default if not found
         set paramid [string trimleft $repl %];     # Skip "%"
         if {[dict exists $_eventlog_message_cache $source paramstring $opts(langid) $paramid]} {
+            dict incr _eventlog_message_cache __hits
             set repl [format_message -fmtstring [dict get $_eventlog_message_cache $source paramstring $opts(langid) $paramid] -params [dict get $rec -params]]
         } else {
+            dict incr _eventlog_message_cache __misses
             # Not in cache, need to look up
             if {![info exists paramfiles]} {
                 # Construct list of parameter string files
@@ -357,14 +363,19 @@ proc twapi::eventlog_format_category {rec args} {
 
     # Get the category string from cache, if there is one
     if {[dict exists $_eventlog_message_cache $source category $opts(langid) $category]} {
+        dict incr _eventlog_message_cache __hits
         set fmtstring [dict get $_eventlog_message_cache $source category $opts(langid) $category]
     } else {
+        dict incr _eventlog_message_cache __misses
+
         # Find the registry key if we do not have it already
         if {[dict exists $_eventlog_message_cache $source regkey]} {
+            dict incr _eventlog_message_cache __hits
             set regkey [dict get $_eventlog_message_cache $source regkey]
         } else {
             set regkey [_find_eventlog_regkey $source]
             dict set _eventlog_message_cache $source regkey $regkey
+            dict incr _eventlog_message_cache __misses
         }
 
         if {! [catch {registry get $regkey "CategoryMessageFile"} path]} {
