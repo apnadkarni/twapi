@@ -3051,8 +3051,10 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 break;
                 return TwapiReturnTwapiError(interp, "Inconsistent size of NOTIFYICONDATAW structure.", TWAPI_INVALID_ARGS);
             }
-            result.type = TRT_BOOL;
-            result.value.bval = Shell_NotifyIconW(dw, u.niP);
+            result.type = TRT_EMPTY;
+            if (Shell_NotifyIconW(dw, u.niP) == FALSE) {
+                result.value.type = TRT_GETLASTERROR;
+            }
             break;
         }
     } else {
