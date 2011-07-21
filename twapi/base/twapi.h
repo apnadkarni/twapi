@@ -1597,6 +1597,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP);
 TWAPI_EXTERN int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
 TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP);
 TWAPI_EXTERN int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *cyP);
+TWAPI_EXTERN Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP);
+TWAPI_EXTERN TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp, Tcl_Obj *tzObj, TIME_ZONE_INFORMATION *tzP);
 TWAPI_EXTERN Tcl_Obj *ObjFromCY(const CY *cyP);
 TWAPI_EXTERN int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDECIMAL(DECIMAL *cyP);
@@ -1668,5 +1670,4 @@ TWAPI_EXTERN int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
-
 #endif // TWAPI_H
