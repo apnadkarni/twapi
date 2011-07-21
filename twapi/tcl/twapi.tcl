@@ -1400,8 +1400,7 @@ proc twapi::large_system_time_to_secs_since_1970 {ns100 {fraction false}} {
 
 proc twapi::secs_since_1970_to_large_system_time {secs} {
     # No. 100ns units between 1601 to 1970 = 116444736000000000
-    set ns100 "${secs}0000000"
-    return [expr {$ns100 + wide(116444736000000000)}]
+    return [expr {($secs * 10000000) + wide(116444736000000000)}]
 }
 
 interp alias {} ::twapi::get_system_time {} ::twapi::GetSystemTimeAsFileTime

@@ -1415,3 +1415,25 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
     Tcl_DStringFree(&ds);
     return objP;
 }
+
+Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
+{
+    /*
+     * We mostly just pass this around, so just keep as binary structure
+     */
+    return Tcl_NewByteArrayObj((unsigned char *)tzP, sizeof(*tzP));
+}
+
+TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp, Tcl_Obj *tzObj, TIME_ZONE_INFORMATION *tzP)
+{
+    unsigned char *p;
+    int len;
+
+    p = Tcl_GetByteArrayFromObj(tzObj, &len);
+    if (len != sizeof(*tzP)) {
+        return TwapiReturnTwapiError(interp, "Invalid TIME_ZONE_INFORMATION size", TWAPI_INVALID_ARGS);
+    }
+
+    *tzP = *((TIME_ZONE_INFORMATION *)p);
+    return TCL_OK;
+}

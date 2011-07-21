@@ -427,6 +427,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemDirectory, Call, 80);        /* Tcl */
     CALL_(GetFocus, Call, 81);                  /* Tcl */
     CALL_(GetDefaultPrinter, Call, 82);         /* Tcl */
+    CALL_(GetTimeZoneInformation, Call, 83);    /* Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -586,6 +587,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LoadImage, Call, 10132);
     CALL_(GetBestInterface, Call, 10133); /* Also mapped to GetBestInterfaceEx */
     CALL_(GetBestInterfaceEx, Call, 10133);
+    CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
+    CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -1144,7 +1147,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         LASTINPUTINFO lastin;
         double d;
         FILETIME   filetime;
-        SYSTEMTIME systime;
+        TIME_ZONE_INFORMATION tzinfo;
         POINT  pt;
         LARGE_INTEGER largeint;
         RECT rect;
@@ -1186,6 +1189,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     GUID guid;
     GUID *guidP;
     LPITEMIDLIST idlP;
+    SYSTEMTIME systime;
+    TIME_ZONE_INFORMATION *tzinfoP;
 
     if (objc < 2)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -1493,6 +1498,23 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             }
             break;
+        case 83:
+            dw = GetTimeZoneInformation(&u.tzinfo);
+            switch (dw) {
+            case TIME_ZONE_ID_UNKNOWN:
+            case TIME_ZONE_ID_STANDARD:
+            case TIME_ZONE_ID_DAYLIGHT:
+                objs[0] = Tcl_NewLongObj(dw);
+                objs[1] = ObjFromTIME_ZONE_INFORMATION(&u.tzinfo);
+                result.type = TRT_OBJV;
+                result.value.objv.objPP = objs;
+                result.value.objv.nobj = 2;
+                break;
+            default:
+                result.type = TRT_GETLASTERROR;
+                break;
+            }
+            break;
         }
 
         return TwapiSetResult(interp, &result);
@@ -1524,9 +1546,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 TRT_SYSTEMTIME : TRT_GETLASTERROR;
             break;
         case 1004:
-            if (ObjToSYSTEMTIME(interp, objv[2], &u.systime) != TCL_OK)
+            if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
                 return TCL_ERROR;
-            result.type = SystemTimeToVariantTime(&u.systime, &result.value.dval) ?
+            result.type = SystemTimeToVariantTime(&systime, &result.value.dval) ?
                 TRT_DOUBLE : TRT_GETLASTERROR;
             break;
         case 1005://UNUSED
@@ -1603,9 +1625,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             break;
         case 1017:
-            if (ObjToSYSTEMTIME(interp, objv[2], &u.systime) != TCL_OK)
+            if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
                 return TCL_ERROR;
-            if (SystemTimeToFileTime(&u.systime, &result.value.filetime))
+            if (SystemTimeToFileTime(&systime, &result.value.filetime))
                 result.type = TRT_FILETIME;
             else
                 result.type = TRT_GETLASTERROR;
@@ -2707,6 +2729,25 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_LoadImage(interp, objc-2, objv+2);
         case 10133: // GetBestInterface
             return Twapi_GetBestInterface(ticP, objc-2, objv+2);
+        case 10134: // TzLocalSpecificTimeToSystemTime
+        case 10135: // SystemTimeToTzSpecificLocalTime
+            if (objc == 3) {
+                tzinfoP = NULL;
+            } else if (objc == 4) {
+                if (ObjToTIME_ZONE_INFORMATION(ticP->interp, objv[3], &u.tzinfo) != TCL_OK) {
+                    return TCL_ERROR;
+                }
+                tzinfoP = &u.tzinfo;
+            } else {
+                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            }
+            if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
+                return TCL_ERROR;
+            if ((func == 10134 ? TzSpecificLocalTimeToSystemTime : SystemTimeToTzSpecificLocalTime) (tzinfoP, &systime, &result.value.systime))
+                result.type = TRT_SYSTEMTIME;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
     }
 
