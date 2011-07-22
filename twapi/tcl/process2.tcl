@@ -613,11 +613,7 @@ proc twapi::get_multiple_process_info {args} {
         # If base values were requested, but this pid does not exist
         # use the "noexist" values
         if {![info exists results($pid)]} {
-            if {$opts(all) || $opts(pid)} {
-                set results($pid) [kl_set $basenoexistvals -pid $pid]
-            } else {
-                set results($pid) $basenoexistvals
-            }
+            set results($pid) $basenoexistvals
         }
         
         if {$opts(elapsedtime) || $opts(all)} {
