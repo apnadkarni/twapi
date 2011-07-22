@@ -569,8 +569,9 @@ Returns the path to the executable file from which this process was
 invoked. This value is the same as that returned by the
 [cmd get_process_path] command.
 [opt_def [cmd -pid]]
-Returns the process id of this process (which should be
-identical to that passed in as the [arg PID] argument.
+Returns the process id of this process, which will be
+identical to that passed in as the [arg PID] argument if the process exists.
+Otherwise it is set to the value of the [cmd -noexist] option.
 [opt_def [cmd -poolnonpagedbytes]]
 Returns the number of bytes of nonpaged pool memory in use for the process.
 [opt_def [cmd -poolpagedbytes]]
