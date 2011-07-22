@@ -300,7 +300,7 @@ proc twapi::get_token_info {tok args} {
         privileges
         restrictedgroupattrs
         restrictedgroups
-        user
+        usersid
         virtualized
     } -maxleftover 0]
 
@@ -336,12 +336,12 @@ proc twapi::get_token_info {tok args} {
         if {$opts(virtualized)} {
             lappend result -virtualized [get_token_virtualization $tok]
         }
-        if {$opts(user)} {
+        if {$opts(usersid)} {
             # First element of groups is user sid
             if {[info exists gtigroups]} {
-                lappend result -user [lindex $gtigroups 0 0 0]
+                lappend result -usersid [lindex $gtigroups 0 0 0]
             } else {
-                lappend result -user [get_token_user $tok]
+                lappend result -usersid [get_token_user $tok]
             }
         }
         if {$opts(groups)} {

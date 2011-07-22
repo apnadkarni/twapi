@@ -1652,7 +1652,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } body {
-        set opts {-enabledprivileges -disabledprivileges -user -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession}
+        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession}
         equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
     } -cleanup {
         twapi::close_token $tok
@@ -1831,14 +1831,14 @@ namespace eval twapi::security::test {
 
 
     test get_token_info-14.0 {
-        get_token_info -user
+        get_token_info -usersid
     } -setup {
         set tok [twapi::open_process_token]
     } body {
-        twapi::get_token_info $tok -user
+        twapi::get_token_info $tok -usersid
     } -cleanup {
         twapi::close_token $tok
-    } -result [list -user [twapi::lookup_account_name $::env(USERNAME)]]
+    } -result [list -usersid [twapi::lookup_account_name $::env(USERNAME)]]
 
     test get_token_info-15.0 {
         get_token_info -virtualized

@@ -1553,7 +1553,6 @@ proc twapi::_token_info_helper {args} {
         Following options are passed on to get_token_info:
         elevation
         virtualized
-        user
         groups
         restrictedgroups
         primarygroup
@@ -1575,11 +1574,16 @@ proc twapi::_token_info_helper {args} {
         integrity
         raw
         label
+        user
     } -ignoreunknown]
 
     if {[expr {[info exists opts(pid)] + [info exists opts(hprocess)] +
                [info exists opts(tid)] + [info exists opts(hthread)]}] > 1} {
         error "At most one option from -pid, -tid, -hprocess, -hthread can be specified."
+    }
+
+    if {$opts(user)} {
+        lappend args -usersid
     }
 
     if {[info exists opts(hprocess)]} {
@@ -1596,7 +1600,11 @@ proc twapi::_token_info_helper {args} {
     }
 
     trap {
-        set result [get_token_info $tok {*}$args]
+        array set result [get_token_info $tok {*}$args]
+        if {[info exists result(-usersid)]} {
+            set result(-user) [lookup_account_sid $result(-usersid)]
+            unset result(-usersid)
+        }
         if {$opts(integrity)} {
             if {$opts(raw)} {
                 set integrity [get_token_integrity $tok -raw]
@@ -1605,13 +1613,13 @@ proc twapi::_token_info_helper {args} {
             } else {
                 set integrity [get_token_integrity $tok]
             }
-            lappend result -integrity $integrity
+            set result(-integrity) $integrity
         }
     } finally {
         close_token $tok
     }
 
-    return $result
+    return [array get result]
 }
 
 # Set various information for a process token

@@ -921,7 +921,7 @@ for details.
 the token.
 For domain accounts, an error is raised if the
 domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
-[opt_def [cmd -user]]
+[opt_def [cmd -usersid]]
 Returns the SID of the user account associated with the token.
 [opt_def [cmd -virtualized]]
 Returns true if the process associated with the token is virtualized
