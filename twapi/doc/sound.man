@@ -10,7 +10,7 @@
 This package provides commands for playing sounds on
 Windows platforms.
 
-[sectref Overview]
+[section Overview]
 
 The commands [uri \#beep [cmd beep]],
 [uri \#play_sound [cmd play_sound]] and [uri \#stop_sound [cmd stop_sound]] provide basic
