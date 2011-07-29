@@ -58,6 +58,7 @@ OBJS  = \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\eventlog.obj \
+	$(OBJDIR)\etw.obj \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\hotkey.obj \
 	$(OBJDIR)\gdi.obj \
