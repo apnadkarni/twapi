@@ -103,6 +103,9 @@
 #include <security.h>
 #include <userenv.h>
 #include <setupapi.h>
+#include <wmistr.h>             /* Needed for WNODE_HEADER for evntrace */
+#include <evntrace.h>
+
 #if 0
 // Do not use for now as it pulls in C RTL _vsnprintf
 //#define STRSAFE_LIB             /* Use lib, not inline strsafe functions */
