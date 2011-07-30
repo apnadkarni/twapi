@@ -399,10 +399,10 @@ proc twapi::get_memory_info {args} {
         set swapdetail [list ]
 
         foreach item [Twapi_SystemPagefileInformation] {
-            array set swap $item
-            set swap(FileName) [_normalize_path $swap(FileName)]
-            lappend swapfiles $swap(FileName)
-            lappend swapdetail $swap(FileName) [list $swap(CurrentSize) $swap(TotalUsed) $swap(PeakUsed)]
+            lassign $item current_size total_used peak_used path
+            set path [_normalize_path $path]
+            lappend swapfiles $path
+            lappend swapdetail $path [list $current_size $total_used $peak_used]
         }
         if {$opts(all) || $opts(swapfiles)} {
             lappend results -swapfiles $swapfiles
