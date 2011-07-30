@@ -288,77 +288,52 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
 
 
 #ifndef TWAPI_LEAN
+/* NOTE - DESPITE WHAT THE SDK DOCS AND HEADERS SAY, THE CALLING CONVENTION
+   FOR THIS IS WINAPI. See MS ack in http://www.ureader.com/msg/147433.aspx
+*/
+static BOOL WINAPI TwapiEnumPageFilesProc(
+    Tcl_Obj *objP,
+    PENUM_PAGE_FILE_INFORMATION pfiP,
+    LPCWSTR fnP
+    )
+{
+    Tcl_Obj *objs[4];
+
+    objs[0] = ObjFromSIZE_T(pfiP->TotalSize);
+    objs[1] = ObjFromSIZE_T(pfiP->TotalInUse);
+    objs[2] = ObjFromSIZE_T(pfiP->PeakUsage);
+    objs[3] = ObjFromUnicode(fnP);
+    Tcl_ListObjAppendElement(NULL, objP, Tcl_NewListObj(4, objs));
+
+    return TRUE;
+}
+
+
 /*
  *  Wrapper around NtQuerySystemInformation to get swapfile information
  *
  */
 int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP)
 {
-    struct _SYSTEM_PAGEFILE_INFORMATION *pagefileP;
-    void  *bufP;
-    ULONG  bufsz;          /* Number of bytes allocated */
-    ULONG  dummy;
-    NTSTATUS status;
-    NtQuerySystemInformation_t NtQuerySystemInformationPtr = Twapi_GetProc_NtQuerySystemInformation();
-    Tcl_Obj *resultObj;
-    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
 
-    if (NtQuerySystemInformationPtr == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+    /* MS HEADER BUG WORKAROUND: see http://www.ureader.com/msg/147433.aspx
+       Despite what the SDK headers say, the callback function should
+       follow WINAPI calling convention. So we have to implement the
+       callback as WINAPI otherwise the stack gets screwed up. Then
+       we need to CAST it so it matches the header.
+    */
+
+    if (EnumPageFilesW((PENUM_PAGE_FILE_CALLBACKW) TwapiEnumPageFilesProc, resultObj)) {
+        Tcl_SetObjResult(ticP->interp, resultObj);
+        return TCL_OK;
+    } else {
+        DWORD winerr = GetLastError();
+        Tcl_DecrRefCount(resultObj);
+        return Twapi_AppendSystemError(ticP->interp, winerr);
     }
-
-    bufsz = 2000;
-    bufP = MemLifoPushFrame(&ticP->memlifo, 2000, &bufsz);
-    do {
-        /*
-         * Note for information class 18, the last parameter which
-         * corresponds to number of bytes needed is not actually filled
-         * in by the system so we ignore it and just double alloc size
-         */
-        status = (*NtQuerySystemInformationPtr)(18, bufP, bufsz, &dummy);
-        if (status != STATUS_INFO_LENGTH_MISMATCH || bufsz >= 32000)
-            break;
-        bufsz = 2* bufsz;       /* For next iteration if needed */
-        MemLifoPopFrame(&ticP->memlifo);
-        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
-    } while (1);
-
-    if (status) {
-        MemLifoPopFrame(&ticP->memlifo);
-        return Twapi_AppendSystemError(interp,
-                                       TwapiNTSTATUSToError(status));
-    }
-
-    /* OK, now we got the info. Loop through to extract information
-     * from the list. See Nebett's Window NT/2000 Native API
-     * Reference for details
-     */
-    resultObj = Tcl_NewListObj(0, NULL);
-    pagefileP = bufP;
-    while (1) {
-        Tcl_Obj *pagefileObj;
-
-        pagefileObj = Tcl_NewListObj(0, NULL);
-        Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, pagefileObj, pagefileP, CurrentSize);
-        Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, pagefileObj, pagefileP, TotalUsed);
-        Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, pagefileObj, pagefileP, PeakUsed);
-        Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp, pagefileObj, pagefileP, FileName);
-
-        Tcl_ListObjAppendElement(interp, resultObj, pagefileObj);
-
-        /* Point to the next entry */
-        if (pagefileP->NextEntryDelta == 0)
-            break;              /* This was the last one */
-        pagefileP = (struct _SYSTEM_PAGEFILE_INFORMATION *) (pagefileP->NextEntryDelta + (char *) pagefileP);
-    }
-
-    Tcl_SetObjResult(interp, resultObj);
-
-    MemLifoPopFrame(&ticP->memlifo);
-
-    return TCL_OK;
 }
-#endif // TWAPI_LEAN
+#endif
 
 #ifndef TWAPI_LEAN
 int Twapi_LoadUserProfile(
