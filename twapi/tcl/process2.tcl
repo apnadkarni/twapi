@@ -245,7 +245,7 @@ proc twapi::end_process {pid args} {
     } onerror {TWAPI_WIN32 5} {
         # Retry - if still fail, then just throw the error
         eval_with_privileges {
-            set hproc [get_process_handle $pid -access synchronize process_terminate]
+            set hproc [get_process_handle $pid -access {synchronize process_terminate}]
         } SeDebugPrivilege
     } onerror {TWAPI_WIN32 87} {
         # Process does not exist, we must have succeeded above but just
