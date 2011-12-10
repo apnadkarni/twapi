@@ -932,6 +932,7 @@ extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 extern int gTclIsThreaded;
 extern TwapiId volatile gIdGenerator;
+extern CRITICAL_SECTION gEventTraceCS;
 
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \

@@ -11,12 +11,13 @@
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
 #define ObjFromTRACEHANDLE(val_) Tcl_NewWideIntObj(val_)
+#define ObjToTRACEHANDLE(ip_, objP_, valP_) Tcl_GetWideIntFromObj((ip_), (objP_), (valP_))
 
 /* IMPORTANT : 
  * Do not change order without changing ObjToPEVENT_TRACE_PROPERTIES()
  * and ObjFromEVENT_TRACE_PROPERTIES
  */
-static const char * gEVENT_TRACE_PROPERTIES_fields[] = {
+static const char * g_event_trace_fields[] = {
     "-logfile",
     "-sessionname",
     "-sessionguid",
@@ -40,6 +41,19 @@ static const char * gEVENT_TRACE_PROPERTIES_fields[] = {
 };
 
 
+struct TwapiEventTraceContext {
+    ULONG pointer_size;
+    ULONG timer_resolution;
+    ULONG user_mode;
+};
+struct {
+    int initialized;
+    Tcl_HashTable contexts;
+} gEventTraceContexts;
+TBD - need to add initialization for this in twapi.c
+CRITICAL_SECTION gEventTraceCS; /* Access to gEventTraceContexts */
+
+
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,
@@ -61,7 +75,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
 
     /* First loop and find out required buffers size */
     for (i = 0 ; i < objc ; ++i) {
-        if (Tcl_GetIndexFromObj(interp, objv[i], gEVENT_TRACE_PROPERTIES_fields, "event trace field", TCL_EXACT, &field) != TCL_OK)
+        if (Tcl_GetIndexFromObj(interp, objv[i], g_event_trace_fields, "event trace field", TCL_EXACT, &field) != TCL_OK)
             return TCL_ERROR;
         switch (field) {
         case 0: // -logfile
@@ -139,7 +153,7 @@ st */
     for (i = 0 ; i < objc ; ++i) {
         ULONG *ulP;
 
-        if (Tcl_GetIndexFromObj(interp, objv[i], gEVENT_TRACE_PROPERTIES_fields, "event trace field", TCL_EXACT, &field) == TCL_ERROR)
+        if (Tcl_GetIndexFromObj(interp, objv[i], g_event_trace_fields, "event trace field", TCL_EXACT, &field) == TCL_ERROR)
             return TCL_ERROR;
         ulP = NULL;
         switch (field) {
@@ -228,8 +242,8 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     int i;
     Tcl_Obj *objs[38];
 
-    for (i = 0; gEVENT_TRACE_PROPERTIES_fields[i]; ++i) {
-        objs[2*i] = Tcl_NewStringObj(gEVENT_TRACE_PROPERTIES_fields[i], -1);
+    for (i = 0; g_event_trace_fields[i]; ++i) {
+        objs[2*i] = Tcl_NewStringObj(g_event_trace_fields[i], -1);
     }
 
     if (etP->LogFileNameOffset)
@@ -356,3 +370,104 @@ TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
     return TCL_OK;
 }
 
+
+void WINAPI TwapiETWEventCallback(
+  PEVENT_TRACE pEvent
+)
+{
+    return;
+}
+
+ULONG WINAPI TwapiETWBufferCallback(
+  PEVENT_TRACE_LOGFILEW Buffer
+)
+{
+    return FALSE;
+}
+
+
+
+TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    TRACEHANDLE htrace;
+    EVENT_TRACE_LOGFILEW etl;
+    int real_time;
+    Tcl_Interp *interp = ticP->interp;
+
+    if (objc != 2)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (Tcl_GetIntFromObj(interp, objv[1], &real_time) != TCL_OK)
+        return TCL_ERROR;
+
+    ZeroMemory(&etl, sizeof(etl));
+    if (real_time) {
+        etl.LoggerName = Tcl_GetUnicode(objv[0]);
+        etl.LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+    } else 
+        etl.LogFileName = Tcl_GetUnicode(objv[0]);
+
+    etl.BufferCallback = TwapiETWBufferCallback;
+    etl.EventCallback = TwapiETWEventCallback;
+
+    htrace = OpenTraceW(&etl);
+    if ((TRACEHANDLE) INVALID_HANDLE_VALUE == htrace)
+        return TwapiReturnSystemError(ticP->interp);
+
+    Tcl_SetObjResult(ticP->interp, ObjFromTRACEHANDLE(htrace));
+    return TCL_OK;
+}
+
+TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    FILETIME start, end, *startP, *endP;
+    TRACEHANDLE htraces[1];
+    Tcl_Interp *interp = ticP->interp;
+    ULONG winerr;
+    struct TwapiEventTraceContext *tetcP;
+
+    if (objc == 0 || objc > 3)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (ObjToTRACEHANDLE(interp, objv[0], &htraces[0]) != TCL_OK)
+        return TCL_ERROR;
+
+    startP = NULL;
+    if (objc > 1) {
+        if (ObjToFILETIME(interp, objv[1], &start) != TCL_OK)
+            return TCL_ERROR;
+        startP = &start;
+    }
+    
+    endP = NULL;
+    if (objc > 2) {
+        if (ObjToFILETIME(interp, objv[2], &end) != TCL_OK)
+            return TCL_ERROR;
+        endP = &end;
+    }
+
+    EnterCriticalSection(&gEventTraceCS);
+    
+    if (! gEventTraceContexts.initialized) {
+        Tcl_InitObjHashTable(&gEventTraceContexts.contexts);
+        gEventTraceContexts.initialized = 1;
+    }
+
+
+    ZeroMemory(gEventTraceContext);
+
+    winerr = ProcessTrace(htraces, 1, startP, endP);
+
+
+    LeaveCriticalSection(&gEventTraceCS);
+
+    if (winerr == ERROR_SUCCESS) {
+        // TBD - deal with data
+
+        return TCL_OK;
+    } else {
+        // TBD - clean up
+
+        return TCL_ERROR;
+    }
+}
