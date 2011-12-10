@@ -793,8 +793,8 @@ proc twapi::_vtcode_to_string {vt} {
 
 #
 # Get WMI service
-proc twapi::_wmi {} {
-    return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/cimv2"]
+proc twapi::_wmi {{top cimv2}} {
+    return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/$top"]
 }
 
 #
