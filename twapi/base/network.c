@@ -1688,7 +1688,7 @@ int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
         Tcl_DecrRefCount(objP);
         if (result != TCL_OK)
             return result;
-        result = GetBestInterfaceEx((struct sockaddr *)&ss, &ifindex);
+        result = (*fn)((struct sockaddr *)&ss, &ifindex);
         if (result)
             return Twapi_AppendSystemError(ticP->interp, result);
     } else {
