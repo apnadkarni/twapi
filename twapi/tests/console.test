@@ -868,6 +868,8 @@ namespace eval twapi::console::test {
 
     test set_console_default_attr-1.0 {
         Set console default attribute
+    } -constraints {
+        userInteraction
     } -body {
         set colors {
             -fgred -bgwhite
@@ -889,6 +891,8 @@ namespace eval twapi::console::test {
 
     test set_console_default_attr-1.1 {
         Set console default attribute with -white 0
+    } -constraints {
+        userInteraction
     } -body {
         # This verifies a bug in previous versions is fixed
         # -Setting white to 0 would reset all colors
@@ -911,6 +915,8 @@ namespace eval twapi::console::test {
 
     test set_console_default_attr-2.0 {
         Set console default attribute intensity
+    } -constraints {
+        userInteraction
     } -body {
         twapi::set_console_default_attr stdout -fgyellow 1 -bgblue 1
         twapi::console_write stdout "Yellow on blue (low intensity)\r\n" -newlinemode line

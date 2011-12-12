@@ -270,6 +270,7 @@ proc validate_ip_addresses {addrlist {ipver 0}} {
     }
     return 1
 }
+interp alias {} valid_ip_addresses {} validate_ip_addresses
 
 proc valid_handle {h} {
     return [twapi::Twapi_IsPtr $h]
@@ -827,6 +828,7 @@ proc verify_priv_list {privs} {
     }
     return $match
 }
+interp alias {} valid_privs {} verify_priv_list
 
 # Verify evey element satisfies a condition
 proc verify_list_elements {l cond} {

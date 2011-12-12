@@ -45,6 +45,7 @@ namespace eval twapi::base::test {
             opts
             compiler
             compiler_version
+            sdk_version
             tcl_header_version
             tea
         }
@@ -105,7 +106,7 @@ namespace eval twapi::base::test {
         nt
     } -body {
         twapi::get_build_config tcl_header_version
-    } -result {^8\.[4]\..+} -match regexp
+    } -result {^8\.[5]\..+} -match regexp
 
     test get_build_config-1.8 {
         Get the build configuration (tea)
