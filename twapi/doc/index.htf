@@ -36,7 +36,7 @@
   <li>Follow the links on the left for the <a href="overview.html">documentation</a></li>
   <li>Go to the <a href="http://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
   <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
-  <li>Browse the <a href="http://twapi.cvs.sourceforge.net/twapi">CVS source repository</a></li>
+  <li>Browse the <a href="http://twapi.hg.sourceforge.net/hgweb/twapi/">source repository</a></li>
   <li>Documentation for older versions: 
     <a href="http://twapi.magicsplat.com/v3.0">3.0</a>
     <a href="http://twapi.magicsplat.com/v2.2">2.2</a>
