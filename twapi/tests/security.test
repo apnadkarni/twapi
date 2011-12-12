@@ -1627,7 +1627,7 @@ namespace eval twapi::security::test {
     } -body {
         set elev [twapi::get_token_elevation $tok]
         if {[twapi::min_os_version 6]} {
-            expr {[string equal -nocase $::env(USERNAME) Administrator] ? "default" : "full"}
+            string equal $elev [expr {[string equal -nocase $::env(USERNAME) Administrator] ? "default" : "full"}]
         } else {
             expr {$elev eq "default"}
         }
@@ -1641,7 +1641,7 @@ namespace eval twapi::security::test {
         get_token_info with no options
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok
     } -cleanup {
         twapi::close_token $tok
@@ -1651,7 +1651,7 @@ namespace eval twapi::security::test {
         get_token_info with multiple options
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession}
         equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
     } -cleanup {
@@ -1662,7 +1662,7 @@ namespace eval twapi::security::test {
         get_token_info -privileges, -disabledprivileges, -enabledprivileges
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         set privs [twapi::get_token_info $tok -privileges]
         set enabled [twapi::get_token_info $tok -enabledprivileges]
         set disabled [twapi::get_token_info $tok -disabledprivileges]
@@ -1683,10 +1683,14 @@ namespace eval twapi::security::test {
         get_token_info -elevation
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         lassign [twapi::get_token_info $tok -elevation] opt elev
         if {[twapi::min_os_version 6]} {
-            list $opt [expr {[string equal -nocase $::env(USERNAME) Administrator] ? "default" : "full"}]
+            if {[string equal -nocase $::env(USERNAME) Administrator]} {
+                list $opt [expr {$elev eq "default"}]
+            } else {
+                list $opt [expr {$elev eq "full"}]
+            }
         } else {
             list $opt [expr {$elev eq "default"}]
         }
@@ -1699,7 +1703,7 @@ namespace eval twapi::security::test {
         get_token_info -groupattrs
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         lassign [twapi::get_token_info $tok -groupattrs] opt sidattrs
         set sids {}
         set attrs {}
@@ -1728,7 +1732,7 @@ namespace eval twapi::security::test {
         get_token_info -groups
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         lassign [twapi::get_token_info $tok -groups] opt names
         list $opt [expr {[llength $names] && [valid_account_names $names]}]
     } -cleanup {
@@ -1739,7 +1743,7 @@ namespace eval twapi::security::test {
         get_token_info -integrity
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok -integrity
     } -cleanup {
         twapi::close_token $tok
@@ -1749,7 +1753,7 @@ namespace eval twapi::security::test {
         get_token_info -integritylabel
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok -integritylabel
     } -cleanup {
         twapi::close_token $tok
@@ -1761,7 +1765,7 @@ namespace eval twapi::security::test {
         TBD
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::close_token [lindex [twapi::get_token_info $tok -linkedtoken] 1]
     } -cleanup {
         twapi::close_token $tok
@@ -1771,7 +1775,7 @@ namespace eval twapi::security::test {
         get_token_info -logonsession
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok -logonsession
     } -cleanup {
         twapi::close_token $tok
@@ -1781,10 +1785,11 @@ namespace eval twapi::security::test {
         get_token_info -primarygroup and -primarygroupsid
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
-        set grp [twapi::get_token_info $tok -primarygroup]
-        set sid [twapi::get_token_info $tok -primarygroupsid]
-        string equal [twapi::map_account_to_sid $grp] $sid
+        unset -nocomplain tokdict
+    } -body {
+        dict set tokdict {*}[twapi::get_token_info $tok -primarygroup]
+        dict set tokdict {*}[twapi::get_token_info $tok -primarygroupsid]
+        string equal [twapi::map_account_to_sid [dict get $tokdict -primarygroup]] [dict get $tokdict -primarygroupsid]
     } -cleanup {
         twapi::close_token $tok
     } -result 1
@@ -1794,7 +1799,7 @@ namespace eval twapi::security::test {
         get_token_info -restrictedgroupattrs
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         lassign [twapi::get_token_info $tok -restrictedgroupattrs] opt sidattrs
         set sids {}
         set attrs {}
@@ -1822,7 +1827,7 @@ namespace eval twapi::security::test {
         get_token_info -restrictedgroups
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         lassign [twapi::get_token_info $tok -restrictedgroups] opt names
         list $opt [expr {[valid_account_names $names]}]
     } -cleanup {
@@ -1834,7 +1839,7 @@ namespace eval twapi::security::test {
         get_token_info -usersid
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok -usersid
     } -cleanup {
         twapi::close_token $tok
@@ -1844,7 +1849,7 @@ namespace eval twapi::security::test {
         get_token_info -virtualized
     } -setup {
         set tok [twapi::open_process_token]
-    } body {
+    } -body {
         twapi::get_token_info $tok -virtualized
     } -cleanup {
         twapi::close_token $tok
@@ -2845,6 +2850,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         verify_kl_fields [array get uinfo] [array names get_user_account_info_fields]
 
         # TBD - need more validation
+        # NOTE - Administrator account may be disabled on some systems
 	list \
 	    $uinfo(-user_id) \
 	    [string is integer $uinfo(-bad_pw_count)] \
@@ -2857,7 +2863,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 	    [string match -nocase "*built-in*" $uinfo(-comment)] \
 	    $uinfo(-units_per_week) \
 	    $uinfo(-primary_group_id) \
-	    $uinfo(-status) \
+	    [string match *abled $uinfo(-status)] \
 	    $uinfo(-logon_server) \
 	    $uinfo(-local_groups) \
 	    $uinfo(-acct_expires)
@@ -2873,7 +2879,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
                                1 \
                                168 \
                                513 \
-                               enabled \
+                               1 \
                                \\\\* \
                                $administrators_account_name \
                                never \
