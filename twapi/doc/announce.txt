@@ -1,30 +1,21 @@
-Version 3.0.29 of the Tcl Windows API (TWAPI) extension has been released.
+Version 3.1.17 of the Tcl Windows API (TWAPI) extension has been released.
 
 Project home page, including documentation, download links and 
 examples, is at http://twapi.magicsplat.com
 
-V3.0 Changes
+V3.1 Changes
 ------------
 
-Following is a summary of the major changes in 3.0 over 2.2.
+Following is a summary of the major changes in 3.1 over 3.0
 For a complete list, including INCOMPATIBLE CHANGES, see 
 http://twapi.magicsplat.com/versionhistory.html
 
-  * Version 3.0 has been completely rearchitected. SWIG and C++
-    have been eliminated resulting in easier deployment, a smaller
-    disk and memory footprint and faster execution
-  * Support for loading into multiple interpreters
-  * 64-bit version for Windows 2003+ and Tcl 8.5+
-  * New single-file deployment options that do not depend 
-    on TclVFS/Starkit support in Tcl
-  * Support for named pipe channels
-  * Enhanced COM support
-  * New Vista and Windows 7 security functions including UAC
-  * Device management API's
-  * Synchronization commands
-  * Manipulation of Windows file resources
-  * Enhancements to many existing components
+  * Support for IPv6 network related commands
+  * Support for taskbar icons and notifications
+  * Support for resource loading and extractions
 
+Note that as of this release, TWAPI no longer supports 
+Windows 2000 or Tcl 8.4.
 
 Distributions
 -------------
@@ -51,8 +42,7 @@ TWAPI Summary
 
 The Tcl Windows API (TWAPI) extension provides
 access to over 500 functions in the Windows API
-from within the Tcl scripting language. The
-extension targets Windows 2000 and later.
+from within the Tcl scripting language.
 
 Functions in the following areas are implemented:
 
@@ -74,6 +64,7 @@ Functions in the following areas are implemented:
   * Network connection monitoring and control
   * Named pipes
   * Clipboard access
+  * Taskbar icons and notifications
   * Console mode functions
   * System performance data
   * Window stations and desktops
