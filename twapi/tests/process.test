@@ -1444,7 +1444,7 @@ namespace eval ::twapi::process::test {
     test get_thread_info-5.0 {
         Verify get_thread_info -groups and -groupattrs for a thread
     } -body {
-        set tid [twapi::get_current_thread]
+        set tid [twapi::get_current_thread_id]
         set grps [twapi::get_thread_info $tid -groups]
         set grpattrs [twapi::get_thread_info $tid -groupattrs]
         set grps2 {}
@@ -1463,7 +1463,7 @@ namespace eval ::twapi::process::test {
     test get_thread_info-6.0 {
         Verify get_thread_info -restrictedgroups and -restrictedgroupattrs for a thread
     } -body {
-        set tid [twapi::get_current_thread]
+        set tid [twapi::get_current_thread_id]
         set grps [twapi::get_thread_info $tid -restrictedgroups]
         set grpattrs [twapi::get_thread_info $tid -restrictedgroupattrs]
         set grps2 {}
