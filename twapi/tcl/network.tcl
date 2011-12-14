@@ -1072,17 +1072,16 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
     lassign  $_hostname_handler_scripts($id)  name script
     unset _hostname_handler_scripts($id)
 
+    set addrs {}
     if {$status eq "success"} {
-        set addrs {}
         foreach addr $addrandports {
             lappend addrs [lindex $addr 0]
         }
-    } elseif {$addrandports == 11001} {
+    } elseif {$addrandports == 11001 || $addrandports == 11004} {
         # For compatibility with the sync version and address resolution,
         # We return an success if empty list if in fact the failure was
         # that no name->address mapping exists
         set status success
-        set addrs [list ]
     }
 
     eval [linsert $script end $name $status $addrs]
