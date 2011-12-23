@@ -192,6 +192,18 @@ proc twapi::comobj_object {path args} {
     return [comobj_idispatch [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]]
 }
 
+# TBD - document
+proc twapi::comobj_active_instance {clsid} {
+    set iunk [GetActiveObject $clsid]
+    twapi::trap {
+        # Get the IDispatch interface
+        set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
+        return [comobj_idispatch $idisp]
+    } finally {
+        IUnknown_Release $iunk
+    }
+}
+
 #
 # Create a object command for a COM object IDispatch interface
 # comid is either a CLSID or a PROGID
