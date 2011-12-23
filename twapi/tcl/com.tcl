@@ -1132,11 +1132,12 @@ namespace eval twapi {
     #  - the invocation kind (as an integer)
     # Each value contains the full prototype in a form
     # that can be passed to IDispatch_Invoke. This is a list with the
-    # elements {DISPID LCID INVOKEFLAGS RETTYPE PARAMTYPES}
+    # elements {DISPID LCID INVOKEFLAGS RETTYPE PARAMTYPES PARAMNAMES}
     # Here PARAMTYPES is a list each element of which describes a
     # parameter in the following format:
     #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
-    # 
+    # PARAMNAMES is list of parameter names in order and is
+    # only present if PARAMTYPES is also present.
     
     variable _dispatch_prototype_cache
     array set _dispatch_prototype_cache {}
@@ -1377,7 +1378,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
     method Invoke {prototype args} {
         my variable _ifc
-        if {$prototype eq "" && [llength $args] == 0} {
+        if {[llength $prototype] == 0 && [llength $args] == 0} {
             # Treat as a property get DISPID_VALUE (default value)
             # {dispid=0, lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
             set prototype {0 0 2 8 {}}
@@ -1388,7 +1389,7 @@ twapi::class create ::twapi::IDispatchProxy {
     }
 
     # Methods are tried in the order specified by invkinds.
-    method @Invoke {name invkinds lcid params} {
+    method @Invoke {name invkinds lcid params {namedargs {}}} {
         if {$name eq ""} {
             # Default method
             return [uplevel 1 [list [self] Invoke {}] $params]
@@ -1397,10 +1398,10 @@ twapi::class create ::twapi::IDispatchProxy {
 
             # We will try for each invkind to match. matches can be of
             # different degrees, in descending priority -
-            # - prototype has parameter info and num params match exactly
-            # - prototype has parameter info and num params is greater
-            #   than supplied arguments (assumes others have defaults)
-            # - prototype has no parameter information
+            # 1. prototype has parameter info and num params match exactly
+            # 2. prototype has parameter info and num params is greater
+            #    than supplied arguments (assumes others have defaults)
+            # 3. prototype has no parameter information
             # Within these classes, the order of invkinds determines
             # priority
 
@@ -1424,10 +1425,34 @@ twapi::class create ::twapi::IDispatchProxy {
                 }
             }
 
+            # For exact match (class1), we do not need the named arguments as
+            # positional arguments take priority. When number of passed parameters
+            # is fewer than those in prototype, check named arguments and use those
+            # values. If no parameter information, we can't use named arguments
+            # anyways.
             if {[info exists class1]} {
                 set proto [lindex $class1 0]
             } elseif {[info exists class2]} {
                 set proto [lindex $class2 0]
+                # If we are passed named arguments AND the prototype also
+                # has parameter name information, replace the default values
+                # in the parameter definitions with the named arg value if
+                # it exists.
+                if {[llength $namedargs] &&
+                    [llength [set paramnames [lindex $proto 5]]]} {
+                    foreach {paramname paramval} $namedargs {
+                        set paramindex [lsearch -nocase $paramnames $paramname]
+                        if {$paramindex < 0} {
+                            twapi::win32_error 0x80020004 "No parameter with name '$paramname' found for method '$name'"
+                        }
+                        # Set the default value field of the appropriate parameter. The value
+                        # is supposed to be of the form {VT_TYPE VALUE}. Actually the VT_TYPE
+                        # does not matter as the type will be picked from the parameter
+                        # type (at the C level) so we just use 8 (BSTR) as it is ignored
+                        # anyway.
+                        lset proto 4 $paramindex 1 1 [list 8 $paramval]
+                    }
+                }
             } elseif {[info exists class3]} {
                 set proto [lindex $class3 0]
             } else {
@@ -1481,6 +1506,10 @@ twapi::class create ::twapi::IDispatchProxy {
                         set bindti [::twapi::make_interface_proxy $ifc]
                         ::twapi::trap {
                             set params [::twapi::_resolve_params_for_prototype $bindti [::twapi::kl_get $data lprgelemdescParam]]
+                            # Param names are needed for named arguments. Index 0 is method name so skip it
+                            if {[catch {lrange [$bindti GetNames [twapi::kl_get $data memid]] 1 end} paramnames]} {
+                                set paramnames {}
+                            }
                         } finally {
                             $bindti Release
                         }
@@ -1488,9 +1517,9 @@ twapi::class create ::twapi::IDispatchProxy {
                                        $lcid \
                                        $invkind \
                                        [::twapi::kl_get $data elemdescFunc.tdesc] \
-                                       $params]
+                                       $params $paramnames]
                     } else {
-                        ::twapi::IUnknown_Release $ifc; # Don't need this but must release
+                        ::twapi::IUnknown_Release $ifc; # Don't need ifc but must release
                         debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                     }
                 }
@@ -2382,6 +2411,12 @@ twapi::class create ::twapi::ITypeLibProxy {
                                    $funcdata(invkind) \
                                    $funcdata(elemdescFunc.tdesc) \
                                    [::twapi::_resolve_params_for_prototype $ti $funcdata(lprgelemdescParam)]]
+                    # Param names are needed for named arguments. Index 0 is method name so skip it
+                    if {[catch {lappend proto [lrange [$ti GetNames $funcdata(memid)] 1 end]}]} {
+                        # Could not get param names
+                        lappend proto {}
+                    }
+
                     ::twapi::_dispatch_prototype_set \
                         $attrs(guid) [$ti @GetName $funcdata(memid)] \
                         $attrs(lcid) \
@@ -2397,7 +2432,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                         $attrs(guid) [$ti @GetName $vardata(memid)] \
                         $attrs(lcid) \
                         2 \
-                        [list $vardata(memid) $attrs(lcid) 2 $vardata(elemdescVar.tdesc) {}]
+                        [list $vardata(memid) $attrs(lcid) 2 $vardata(elemdescVar.tdesc) {} {}]
 
                     # TBD - mock up the parameters for the property set
                     # Single parameter corresponding to return type of
@@ -2412,7 +2447,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                             $attrs(guid) [$ti @GetName $vardata(memid)] \
                             $attrs(lcid) \
                             4 \
-                            [list $vardata(memid) $attrs(lcid) 4 24 [list [list $vardata(elemdescVar.tdesc) [list 1]]]]
+                            [list $vardata(memid) $attrs(lcid) 4 24 [list [list $vardata(elemdescVar.tdesc) [list 1]]] {}]
                     }
                 }
             } finally {
@@ -2573,10 +2608,10 @@ twapi::class create ::twapi::Automation {
     # Intended to be called only from another method. Not directly.
     # Does an uplevel 2 to get to application context.
     # On failures, retries with IDispatchEx interface
-    method _invoke {name invkinds params} {
+    method _invoke {name invkinds params {namedargs {}}} {
         my variable  _proxy  _lcid
         ::twapi::trap {
-            return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params]]]
+            return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $namedargs]]]
         } onerror {} {
             set erinfo $::errorInfo
             set ercode $::errorCode
@@ -2604,7 +2639,7 @@ twapi::class create ::twapi::Automation {
         set _proxy $proxy_ex
         
         # Retry with the IDispatchEx interface
-        return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params]]]
+        return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $namedargs]]]
     }
 
     method -get {name args} {
@@ -2617,6 +2652,10 @@ twapi::class create ::twapi::Automation {
 
     method -call {name args} {
         return [my _invoke $name [list 1] $args]
+    }
+
+    method -callnamedargs {name args} {
+        return [my _invoke $name [list 1] {} $args]
     }
 
     method -destroy {} {
