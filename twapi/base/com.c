@@ -1119,11 +1119,13 @@ int Twapi_IDispatch_InvokeObjCmd(
      *   1 - LCID
      *   2 - flags
      *   3 - return type
-     *   4 - (optional) list of parameters to dispatch function. This is a list
+     *   4 - (optional) list of parameter types to dispatch function. This is a list
      *       of elements of the form {type paramflags ?defaultvalue?}. If this
      *       element is missing (as opposed to empty), it means no parameter
      *       info is available and we will go strictly by the arguments
      *       present.
+     *   5 - (optional) list of param names. Not used here. Only present
+     *       if param types field is present
      */
 
     if (objc < 3) {
@@ -1801,11 +1803,10 @@ int TwapiMakeVariantParam(
                 valueObj = Tcl_ObjGetVar2(interp, valueObj, NULL, 0);
         }
         /*
-         * valueObj points to actual value. If this is NULL, then we mark
-         * the parameter as missing if it is optional. If it is not optional
-         * we use the default value
+         * valueObj points to actual value. If this is NULL, set to default/optional
          */
         if (valueObj == NULL) {
+#ifdef OBSOLETE
             if (*paramflagsP & PARAMFLAG_FOPT) {
                 targetP = varP; /* Reset to point to primary VARIANT */
                 vt = VT_ERROR;  // Indicates optional param below
@@ -1819,6 +1820,26 @@ int TwapiMakeVariantParam(
                 /* Default value to be used if value is not specified */
                 valueObj = paramdefaultObj;
             }
+#else
+            /*
+             * Note the parameter default may have come from the type library
+             * or via the named argument feature at the script level.
+             */
+            if (paramdefaultObj)
+                valueObj = paramdefaultObj;
+            else {
+                /* No value or default supplied. Parameter better be optional */
+                if (*paramflagsP & PARAMFLAG_FOPT) {
+                    targetP = varP; /* Reset to point to primary VARIANT */
+                    vt = VT_ERROR;  // Indicates optional param below
+                } else {
+                    Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
+                    goto vamoose;
+                }
+            }
+#endif // OBSOLETE
+
+
         }
 
         /*
