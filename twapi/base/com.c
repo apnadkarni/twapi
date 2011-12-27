@@ -1926,17 +1926,6 @@ int TwapiMakeVariantParam(
             if (ObjToIDispatch(interp, valueObj, (void **)&targetP->pdispVal)
                 != TCL_OK)
                 goto vamoose;
-            /*
-             * If it is a IN or OUT param, no need to muck with ref counts.
-             * If it is an INOUT though, we need to AddRef as the COM object
-             * will call Release on it before overwriting the value and we
-             * do not want our comobj target to be released.
-             */
-            if (((*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT))
-                 == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) &&
-                targetP->pdispVal != NULL) {
-                targetP->pdispVal->lpVtbl->AddRef(targetP->pdispVal);
-            }
             targetP->vt = VT_DISPATCH;
             break;
 
@@ -1958,18 +1947,6 @@ int TwapiMakeVariantParam(
             if (ObjToIUnknown(interp, valueObj, (void **) &targetP->punkVal)
                 != TCL_OK)
                 goto vamoose;
-            /*
-             * If it is a IN or OUT param, no need to muck with ref counts.
-             * If it is an INOUT though, we need to AddRef as the COM object
-             * will call Release on it before overwriting the value and we
-             * do not want our comobj target to be released.
-             */
-            if (((*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT))
-                 == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) &&
-                targetP->punkVal != NULL) {
-                targetP->punkVal->lpVtbl->AddRef(targetP->punkVal);
-            }
-
             targetP->vt = VT_UNKNOWN;
             break;
 
@@ -2003,6 +1980,25 @@ int TwapiMakeVariantParam(
                 goto vamoose;
             }
         }
+
+        /*
+         * If it is a IN or OUT param, no need to muck with ref counts.
+         * If it is an INOUT though, we need to AddRef as the COM object
+         * will call Release on it before overwriting the value and we
+         * do not want our comobj target to be released.
+         */
+        if ((targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN) &&
+            (*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT))
+            == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) {
+            if (targetP->vt == VT_DISPATCH) {
+                if (targetP->pdispVal != NULL)
+                    targetP->pdispVal->lpVtbl->AddRef(targetP->pdispVal);
+            } else {
+                if (targetP->punkVal != NULL)
+                    targetP->punkVal->lpVtbl->AddRef(targetP->punkVal);
+            }
+        }
+            
 
     } /* End Handling of IN and INOUT params */
 

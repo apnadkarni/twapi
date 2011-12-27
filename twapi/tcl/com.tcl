@@ -1437,9 +1437,10 @@ twapi::class create ::twapi::IDispatchProxy {
                         # In the future we will have to check contents of
                         # the passed arg as a variable in the CALLER's context
                     } else {
-                        # Pure IN param. Check if it is a IDispatch. Else nothing
+                        # Pure IN param. Check if it is VT_DISPATCH or
+                        # VT_VARIANT. Else nothing
                         # to do
-                        if {$argtype == 9} {
+                        if {$argtype == 9 || $argtype == 12} {
                             # TBD - Check if pattern match is ok for MeTOO AND TclOO
                             if {[string match ::twapi::Automation::o#* $arg]} {
                                 # Note we do not addref when getting the interface
@@ -1528,10 +1529,9 @@ twapi::class create ::twapi::IDispatchProxy {
                         # to be of the form {VT_TYPE VALUE}.
                         set paramtype [lindex $proto 4 $paramindex 0]
 
-                        # If parameter is IDispatch (9), convert from
-                        # comobj if necessary TBD - check if paramval
-                        # is a IDispatch or IUnknown object
-                        if {$paramtype == 9} {
+                        # If parameter is VT_DISPATCH or VT_VARIANT, 
+                        # convert from comobj if necessary.
+                        if {$paramtype == 9 || $paramtype == 12} {
                             # TBD - Check if pattern match is ok for MeTOO AND TclOO
                             if {[string match ::twapi::Automation::o#* $paramval]} {
                                 # Note we do not addref when getting the interface
