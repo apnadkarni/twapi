@@ -1522,13 +1522,25 @@ twapi::class create ::twapi::IDispatchProxy {
                         if {$paramindex < 0} {
                             twapi::win32_error 0x80020004 "No parameter with name '$paramname' found for method '$name'"
                         }
-                        # Set the default value field of the appropriate parameter. The value
-                        # is supposed to be of the form {VT_TYPE VALUE}. Actually the VT_TYPE
-                        # does not matter as the type will be picked from the parameter
-                        # type (at the C level) so we just use 8 (BSTR) as it is ignored
-                        # anyway.
-                        # TBD - check if paramval is a IDispatch or IUnknown object
-                        lset proto 4 $paramindex 1 1 [list 8 $paramval]
+
+                        # Set the default value field of the
+                        # appropriate parameter. The value is supposed
+                        # to be of the form {VT_TYPE VALUE}.
+                        set paramtype [lindex $proto 4 $paramindex 0]
+
+                        # If parameter is IDispatch (9), convert from
+                        # comobj if necessary TBD - check if paramval
+                        # is a IDispatch or IUnknown object
+                        if {$paramtype == 9} {
+                            # TBD - Check if pattern match is ok for MeTOO AND TclOO
+                            if {[string match ::twapi::Automation::o#* $paramval]} {
+                                # Note we do not addref when getting the interface
+                                # (last param 0) because it is the C code's
+                                # responsibility based on in/out direction
+                                set paramval [$paramval -interface 0]
+                            }
+                        }
+                        lset proto 4 $paramindex 1 1 [list $paramtype $paramval]
                     }
                 }
             } elseif {[info exists class3]} {
