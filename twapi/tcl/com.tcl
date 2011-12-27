@@ -122,7 +122,7 @@ proc twapi::com_create_instance {clsid args} {
     lassign [_resolve_iid $opts(interface)] iid iid_name
 
     # In some cases, like Microsoft Office getting an interface other
-    # than IUnknown fails fails.
+    # than IUnknown fails.
     # We need to get IUnknown, wait for the object to run, and then
     # get the desired interface from IUnknown.
     #  We could check for a specific error code but no guarantee that
@@ -1309,6 +1309,17 @@ twapi::class create ::twapi::IUnknownProxy {
         }
     }
 
+    method DebugRefCounts {} {
+        my variable _nrefs
+        my variable _ifc
+
+        # Return out internal ref as well as the COM ones
+        # Note latter are unstable and only to be used for
+        # debugging
+        twapi::IUnknown_AddRef $_ifc
+        return [list $_nrefs [twapi::IUnknown_Release $_ifc]]
+    }
+
     method QueryInterface {name_or_iid} {
         my variable _ifc
         lassign [::twapi::_resolve_iid $name_or_iid] iid name
@@ -1342,9 +1353,12 @@ twapi::class create ::twapi::IUnknownProxy {
     }
 
     # Returns raw interface. Caller must call IUnknown_Release on it
-    method @Interface {} {
+    # iff addref is passed as true (default)
+    method @Interface {{addref 1}} {
         my variable _ifc
-        ::twapi::IUnknown_AddRef $_ifc
+        if {$addref} {
+            ::twapi::IUnknown_AddRef $_ifc
+        }
         return $_ifc
     }
 
@@ -1394,7 +1408,58 @@ twapi::class create ::twapi::IDispatchProxy {
             # Treat as a property get DISPID_VALUE (default value)
             # {dispid=0, lcid=0 cmd=propget(2) ret type=bstr(8) {} (no params)}
             set prototype {0 0 2 8 {}}
+        } else {
+            # TBD - optimize by precomputing if a prototype needs this processing
+            # If any arguments are comobjs, may need to replace with the 
+            # IDispatch interface.
+            # Moreover, we have to manage the reference counts for both
+            # IUnknown and IDispatch - 
+            #  - If the parameter is an IN parameter, ref counts do not need
+            #    to change.
+            #  - If the parameter is an OUT parameter, we are not passing
+            #    an interface in, so nothing to do
+            #  - If the parameter is an INOUT, we need to AddRef it since
+            #    the COM method will Release it when storing a replacement
+            # HERE WE ONLY DO THE CHECK FOR COMOBJ. The AddRef checks are
+            # DONE IN THE C CODE
+
+            set i 0
+            set args2 {}
+            foreach arg $args {
+                # TBD - optimize this loop
+                set argtype  [lindex $prototype 4 $i 0]
+                set argflags [lindex $prototype 4 $i 1 0]
+                if {$argflags & 1} {
+                    # IN param
+                    if {$argflags & 2} {
+                        # IN/OUT
+                        # We currently do NOT handle a In/Out - skip for now TBD
+                        # In the future we will have to check contents of
+                        # the passed arg as a variable in the CALLER's context
+                    } else {
+                        # Pure IN param. Check if it is a IDispatch. Else nothing
+                        # to do
+                        if {$argtype == 9} {
+                            # TBD - Check if pattern match is ok for MeTOO AND TclOO
+                            if {[string match ::twapi::Automation::o#* $arg]} {
+                                # Note we do not addref when getting the interface
+                                # (last param 0) because not necessary for IN
+                                # params, AND it is the C code's responsibility
+                                # anyways
+                                set arg [$arg -interface 0]
+                            }
+                        }
+                    }
+
+                } else {
+                    # Not an IN param. Nothing to be done
+                }
+                
+                lappend args2 $arg
+            }
+            set args $args2
         }
+
         # The uplevel is so that if some parameters are output, the varnames
         # are resolved in caller
         uplevel 1 [list ::twapi::IDispatch_Invoke $_ifc $prototype] $args
@@ -1462,6 +1527,7 @@ twapi::class create ::twapi::IDispatchProxy {
                         # does not matter as the type will be picked from the parameter
                         # type (at the C level) so we just use 8 (BSTR) as it is ignored
                         # anyway.
+                        # TBD - check if paramval is a IDispatch or IUnknown object
                         lset proto 4 $paramindex 1 1 [list 8 $paramval]
                     }
                 }
@@ -2691,10 +2757,17 @@ twapi::class create ::twapi::Automation {
         return $_proxy
     }
 
-    # Returns the raw interface. Caller must call IUnknownRelease on it.
-    method -interface {} {
+    # Only for debugging
+    method -proxyrefcounts {} {
         my variable _proxy
-        return [$_proxy @Interface]
+        return [$_proxy DebugRefCounts]
+    }
+
+    # Returns the raw interface. Caller must call IUnknownRelease on it
+    # iff addref is passed as true (default)
+    method -interface {{addref 1}} {
+        my variable _proxy
+        return [$_proxy @Interface $addref]
     }
 
     # Set/return the GUID for the interface
