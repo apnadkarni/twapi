@@ -60,13 +60,6 @@ proc twapi::clsid_to_progid {progid} {
 }
 
 #
-# Get IUnknown interface for an existing active object
-# TBD - make a comobj out of this and document
-proc twapi::get_active_object {clsid} {
-    return [::twapi::make_interface_proxy [GetActiveObject $clsid]]
-}
-
-#
 # Create a new object and get an interface to it
 # Generates exception if no such interface
 # TBD - document
@@ -192,27 +185,27 @@ proc twapi::comobj_object {path args} {
     return [comobj_idispatch [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]]
 }
 
-# TBD - document
-proc twapi::comobj_active_instance {clsid} {
-    set iunk [GetActiveObject $clsid]
-    twapi::trap {
-        # Get the IDispatch interface
-        set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
-        return [comobj_idispatch $idisp]
-    } finally {
-        IUnknown_Release $iunk
-    }
-}
-
 #
 # Create a object command for a COM object IDispatch interface
 # comid is either a CLSID or a PROGID
 proc twapi::comobj {comid args} {
     array set opts [parseargs args {
         {interface.arg IDispatch {IDispatch IDispatchEx}}
+        active
     } -ignoreunknown]
     set clsid [_convert_to_clsid $comid]
-    return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args]]
+    if {$opts(active)} {
+        set iunk [GetActiveObject $clsid]
+        twapi::trap {
+            # Get the IDispatch interface
+            set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
+            return [comobj_idispatch $idisp]
+        } finally {
+            IUnknown_Release $iunk
+        }
+    } else {
+        return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args]]
+    }
 }
 
 
