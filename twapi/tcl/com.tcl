@@ -849,9 +849,6 @@ proc twapi::_resolve_iid {name_or_iid} {
 }
 
 
-
-#================ NEW COM CODE
-
 namespace eval twapi {
     # TBD - enable oo if available
     if {0} {
@@ -2102,6 +2099,10 @@ twapi::class create ::twapi::ITypeLibProxy {
         return $result
     }
 
+    method @GetName {} {
+        return [lindex [my GetDocumentation -1] 0]
+    }
+
     method @GetLibAttr {args} {
         array set opts [::twapi::parseargs args {
             all
@@ -2204,67 +2205,19 @@ twapi::class create ::twapi::ITypeLibProxy {
     }
 
     method @LoadDispatchPrototypes {} {
-        my @Foreach -type dispatch ti {
-            ::twapi::trap {
-                array set attrs [$ti GetTypeAttr]
-                # Load up the functions
-                for {set j 0} {$j < $attrs(cFuncs)} {incr j} {
-                    array set funcdata [$ti GetFuncDesc $j]
-                    if {$funcdata(funckind) != 4} {
-                        # Not a dispatch function (4), ignore
-                        # TBD - what else could it be if already filtering
-                        # typeinfo on dispatch
-                        # Vtable set funckind "(vtable $funcdata(-oVft))"
-                        ::twapi::debuglog "Unexpected funckind value '$funcdata(funckind)' ignored. funcdata: [array get funcdata]"
-                        continue;
-                    }
-                    
-                    set proto [list $funcdata(memid) \
-                                   $attrs(lcid) \
-                                   $funcdata(invkind) \
-                                   $funcdata(elemdescFunc.tdesc) \
-                                   [::twapi::_resolve_params_for_prototype $ti $funcdata(lprgelemdescParam)]]
-                    # Param names are needed for named arguments. Index 0 is method name so skip it
-                    if {[catch {lappend proto [lrange [$ti GetNames $funcdata(memid)] 1 end]}]} {
-                        # Could not get param names
-                        lappend proto {}
-                    }
+        set data [my @Read -type dispatch]
+        if {![dict exists $data dispatch]} {
+            return
+        }
 
-                    ::twapi::_dispatch_prototype_set \
-                        $attrs(guid) [$ti @GetName $funcdata(memid)] \
-                        $attrs(lcid) \
-                        $funcdata(invkind) \
-                        $proto
-                }
-                # Load up the properties
-                for {set j 0} {$j < $attrs(cVars)} {incr j} {
-                    array set vardata [$ti GetVarDesc $j]
-                    # We will add both propput and propget.
-                    # propget:
-                    ::twapi::_dispatch_prototype_set \
-                        $attrs(guid) [$ti @GetName $vardata(memid)] \
-                        $attrs(lcid) \
-                        2 \
-                        [list $vardata(memid) $attrs(lcid) 2 $vardata(elemdescVar.tdesc) {} {}]
-
-                    # TBD - mock up the parameters for the property set
-                    # Single parameter corresponding to return type of
-                    # property. Param list is of the form
-                    # {PARAM1 PARAM2} where PARAM is {TYPE {FLAGS ?DEFAULT}}
-                    # So param list with one param is
-                    # {{TYPE {FLAGS ?DEFAULT?}}}
-                    # propput:
-                    if {! ($vardata(wVarFlags) & 1)} {
-                        # Not read-only
+        dict for {guid guiddata} [dict get $data dispatch] {
+            dict for {name namedata} $guiddata {
+                dict for {lcid lciddata} $namedata {
+                    dict for {invkind proto} $lciddata {
                         ::twapi::_dispatch_prototype_set \
-                            $attrs(guid) [$ti @GetName $vardata(memid)] \
-                            $attrs(lcid) \
-                            4 \
-                            [list $vardata(memid) $attrs(lcid) 4 24 [list [list $vardata(elemdescVar.tdesc) [list 1]]] {}]
+                            $guid $name $lcid $invkind $proto
                     }
                 }
-            } finally {
-                $ti Release
             }
         }
     }
@@ -2280,7 +2233,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             ::twapi::trap {
                 array set attrs [$ti @GetTypeAttr -all]
                 set docs [$ti @GetDocumentation -1 -name -docstring]
-                set desc "[string totitle $attrs(-typekind)] [::twapi::kl_get $docs -name] - [::twapi::kl_get $docs -docstring]\n"
+                set desc "[string totitle $attrs(-typekind)] [::twapi::kl_get $docs -name] $attrs(-guid) - [::twapi::kl_get $docs -docstring]\n"
                 switch -exact -- $attrs(-typekind) {
                     record -
                     union  -
@@ -2331,6 +2284,124 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
         return $text
     }
+
+    method @Read {args} {
+        array set opts [::twapi::parseargs args {
+            type.arg
+            name.arg
+        } -maxleftover 0 -nulldefault]
+
+        set data [dict create]
+        my @Foreach -type $opts(type) -name $opts(name) ti {
+            ::twapi::trap {
+                array set attrs [$ti @GetTypeAttr -guid -lcid -varcount -fncount -interfacecount -typekind]
+                set name [lindex [$ti @GetDocumentation -1 -name] 1]
+                # dict set data $attrs(-typekind) $name {}
+                switch -exact -- $attrs(-typekind) {
+                    record -
+                    union  -
+                    enum {
+                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+                            array set vardata [$ti @GetVarDesc $j -name -value]
+                            dict set data $attrs(-typekind) $name $vardata(-name) $vardata(-value)
+                        }
+                    }
+                    alias {
+                        # TBD - anything worth importing ?
+                    }
+                    dispatch {
+                        # Load up the functions
+                        for {set j 0} {$j < $attrs(-fncount)} {incr j} {
+                            array set funcdata [$ti GetFuncDesc $j]
+                            if {$funcdata(funckind) != 4} {
+                                # Not a dispatch function (4), ignore
+                                # TBD - what else could it be if already filtering
+                                # typeinfo on dispatch
+                                # Vtable set funckind "(vtable $funcdata(-oVft))"
+                                ::twapi::debuglog "Unexpected funckind value '$funcdata(funckind)' ignored. funcdata: [array get funcdata]"
+                                continue;
+                            }
+                            
+                            set proto [list $funcdata(memid) \
+                                           $attrs(-lcid) \
+                                           $funcdata(invkind) \
+                                           $funcdata(elemdescFunc.tdesc) \
+                                           [::twapi::_resolve_params_for_prototype $ti $funcdata(lprgelemdescParam)]]
+                            # Param names are needed for named arguments. Index 0 is method name so skip it
+                            if {[catch {lappend proto [lrange [$ti GetNames $funcdata(memid)] 1 end]}]} {
+                                # Could not get param names
+                                lappend proto {}
+                            }
+
+                            dict set data "dispatch" \
+                                $attrs(-guid) \
+                                [$ti @GetName $funcdata(memid)] \
+                                $attrs(-lcid) \
+                                $funcdata(invkind) \
+                                $proto
+                        }
+                        # Load up the properties
+                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+                            array set vardata [$ti GetVarDesc $j]
+                            # We will add both propput and propget.
+                            # propget:
+                            dict set data "dispatch" \
+                                $attrs(-guid) \
+                                [$ti @GetName $vardata(memid)] \
+                                $attrs(-lcid) \
+                                2 \
+                                [list $vardata(memid) $attrs(-lcid) 2 $vardata(elemdescVar.tdesc) {} {}]
+
+                            # TBD - mock up the parameters for the property set
+                            # Single parameter corresponding to return type of
+                            # property. Param list is of the form
+                            # {PARAM1 PARAM2} where PARAM is {TYPE {FLAGS ?DEFAULT}}
+                            # So param list with one param is
+                            # {{TYPE {FLAGS ?DEFAULT?}}}
+                            # propput:
+                            if {! ($vardata(wVarFlags) & 1)} {
+                                # Not read-only
+                                dict set data "dispatch" \
+                                    $attrs(-guid) \
+                                    [$ti @GetName $vardata(memid)] \
+                                    $attrs(-lcid) \
+                                    4 \
+                                    [list $vardata(memid) $attrs(-lcid) 4 24 [list [list $vardata(elemdescVar.tdesc) [list 1]]] {}]
+                            }
+                        }
+                    }
+                    module -
+                    interface {
+                        # TBD
+                    }
+                    coclass {
+                        dict set data "coclass" $attrs(-guid) name $name
+                        for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
+                            set ti2 [$ti @GetRefTypeInfoFromIndex $j]
+                            set iflags [$ti GetImplTypeFlags $j]
+                            set iguid [twapi::kl_get [$ti2 GetTypeAttr] guid]
+                            set iname [$ti2 @GetName]
+                            $ti2 Release
+                            unset ti2; # So finally clause does not relese again on error
+
+                            dict set data "coclass" $attrs(-guid) interfaces $iguid name $iname
+                            dict set data "coclass" $attrs(-guid) interfaces $iguid flags $iflags
+                        }
+                    }
+                    default {
+                        # TBD
+                    }
+                }
+            } finally {
+                $ti Release
+                if {[info exists ti2]} {
+                    $ti2 Release
+                }
+            }
+        }
+        return $data
+    }
+
 
 }
 
