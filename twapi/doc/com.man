@@ -58,7 +58,15 @@ a Tcl object command that may be used to access the object's methods
 and properties.
 The example below creates a proxy object using the PROGID for
 Internet Explorer.
-[example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
+[example "set xl \[comobj Excel.Application\]"]
+
+[para]
+To attach to an existing COM instance instead of creating a new one,
+the [cmd -active] option may be specified.
+[example "set xl \[comobj Excel.Application -active\]"]
+[para]
+The above command requires an instance of Excel to be running
+else an error is returned.
 
 [para]
 Alternatively, the [uri \#comobj_object [cmd comobj_object]] command can
@@ -125,8 +133,11 @@ Explicitly specifying [cmd -call] may also be required to disambiguate
 between methods that are implemented within the TWAPI [cmd comobj]
 command object and the actual COM automation object itself. For example,
 the method [uri \#destroy [cmd destroy]] destroys the command object.
-If the underlying automatio object also had a [cmd destroy] method,
+If the underlying automation object also had a [cmd destroy] method,
 you would need to invoke it as
+
+
+
 
 [example "\$ie -call destroy"]
 
@@ -143,8 +154,28 @@ Ask the application to exit by calling its [method Quit] method.
 Finally, destroy the proxy object and release the underlying COM object,
 [example "\$ie destroy"]
 
+[section "Named Arguments"]
+
+[para]
+Some COM object methods may have a large number of arguments. Usually,
+these have default values and do not need to be specified. However,
+sometimes you may want to specify one or two of these. In such cases,
+having to specify all preceding arguments by position can be cumbersome.
+Using named arguments makes this easier. To use named arguments,
+use [cmd -callnamedargs] instead of [cmd -call]. For example, suppose
+in the call above to [cmd Navigate], 
+we wanted to specify the page to be displayed in a new window
+without specifying all intervening parameters. We could call it as follows:
+
+[example "\$ie -callnamedargs Navigate url http://twapi.sf.net TargetFrameName _blank"]
+[para]
+In the above call, [cmd url] and [cmd TargetFrameName] are parameter names. The
+parameter names for a call are generally specified in the documentation for
+the object.
+
 [section "COM Collections"]
 
+[para]
 Some COM objects are collection of items which may even
 be other COM objects. The items within
 these collections can be accessed by their index
@@ -298,7 +329,7 @@ working with the interfaces.
 [para]
 The following illustrates how these wrappers might be used:
 [example_begin]
-set tlib [lb]get_itypelib c:/windows/system32/stdole2.tlb[rb]
+set tlib [lb]ITypeLibProxy_from_path  c:/windows/system32/stdole2.tlb[rb]
 set count [lb]$tlib GetTypeInfoCount[rb]
 for {set i 0} {$i < $count} {incr i} {
     if {[lb]$tlib GetTypeInfoType $i[rb] == 4} {
@@ -321,7 +352,7 @@ still be other references to it.
 [para]
 The same may be written with the [cmd @Foreach] helper method as follows:
 [example_begin]
-set tlib [lb]get_itypelib c:/windows/system32/stdole2.tlb[rb]
+set tlib [lb]ITypeLibProxy_from_path c:/windows/system32/stdole2.tlb[rb]
 $tlib @Foreach -type dispatch ti {
     puts [lb]$ti @GetName[rb]
     $ti Release
@@ -366,6 +397,12 @@ in the
 for details regarding these options.
 
 [list_begin opt]
+[opt_def [cmd -active]]
+If [const true], the returned object is attached to an 
+existing COM instance instead of creating a new one. 
+If no instances are running, an error is generated.
+Other options are ignored if this option is specified.
+
 [opt_def [cmd -disablelog] [arg BOOLEAN]]
 If specified as true, disables logging of failures.
 Corresponds to the flag
@@ -441,7 +478,15 @@ See [sectref "COM Events"] for an example.
 
 [call "[arg COMOBJ] [cmd -call]" [arg METHOD] [opt "[arg parameter] ..."]]
 Calls the specified COM object method with the given parameters and returns
-the result if any.
+the result if any. Trailing parameters with default values need not
+be specified.
+
+[call "[arg COMOBJ] [cmd -callnamedargs]" [arg METHOD] [opt "[arg parametername] [arg parameter]..."]]
+Calls the specified COM object method with the given parameters and returns
+the result if any. The parameters are specified as an alternating list of
+the parameter names and the corresponding parameter values. The order
+of specification is not important and parameter names are not case sensitive.
+Any parameters that are not specified must have default values.
 
 [call "[arg COMOBJ] [cmd -default]"]
 Returns the default property of the COM object.

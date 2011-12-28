@@ -609,6 +609,22 @@ namespace eval twapi::com::test {
     } -result 0 -match boolean
 
 
+    ###
+
+    test comobj-20.0 {
+        comobj -active
+    } -body {
+        TBD - what can we use running object table ?
+    } -result TBD
+
+    ###
+
+    test comobj-21.0 {
+        comobj -callnamedargs
+    } -body {
+        TBD - comobj -callnamedargs
+    } -result TBD
+
     ################################################################
 
     test comobj_object-1.0 {

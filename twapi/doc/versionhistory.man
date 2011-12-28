@@ -1,13 +1,24 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2010 Ashok P. Nadkarni"]
+[copyright "2003-2011 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 3.1 Alpha"]
+[section "Version 3.2 Alpha"]
+
+[list_begin bullet]
+[bullet]
+Enhanced COM support. Added [cmd -active] option to
+[uri com.html#comobj [cmd comobj]] to create an instance
+of an existing object and support for named arguments.
+
+[list_end]
+
+[section "Version 3.1"]
+
 Note: Make sure you read list of incompatible changes at the end of this section.
 [list_begin bullet]
 
