@@ -306,10 +306,7 @@ proc twapi::timelist_to_variant_time {timelist} {
     return [SystemTimeToVariantTime $timelist]
 }
 
-################################################################
 
-#
-# Test code
 proc twapi::typelib_print {path args} {
     array set opts [parseargs args {
         type.arg
@@ -341,6 +338,43 @@ proc twapi::typelib_print {path args} {
 
     return
 }
+
+proc twapi::generate_code_from_typelib {path args} {
+    array set opts [parseargs args {
+        output.arg
+    } -ignoreunknown]
+
+    if {[info exists opts(output)]} {
+        if {$opts(output) ne "stdout"} {
+            if {[file exists $opts(output)]} {
+                error "File $opts(output) already exists."
+            }
+            set outfd [open $opts(output) a]
+        } else {
+            set outfd stdout
+        }
+    }
+
+    trap {
+        set tl [ITypeLibProxy_from_path $path -registration none]
+        set code [$tl @GenerateCode {*}$args]
+        if {[info exists outfd]} {
+            puts $outfd $code
+            return
+        } else {
+            return $code
+        }
+    } finally {
+        if {[info exists tl]} {
+            $tl Release
+        }
+        if {[info exists outfd] && $outfd ne "stdout"} {
+            close $outfd
+        }
+    }        
+}
+
+
 
 
 proc twapi::_interface_text {ti} {
@@ -2327,13 +2361,13 @@ twapi::class create ::twapi::ITypeLibProxy {
                 # which is dispatchable. Else an error will be generated
                 # at runtime.
                 append code [format {
-                    twapi::class create %s {
-                        superclass ::twapi::Automation
-                        constructor {args} {
-                            set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
-                            next [twapi::IDispatchProxy new $ifc]
-                        }
-                    } 
+    twapi::class create %s {
+        superclass ::twapi::Automation
+        constructor {args} {
+            set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
+            next [twapi::IDispatchProxy new $ifc]
+        }
+    }
                 } [dict get $def name] $guid]
             }
         }
