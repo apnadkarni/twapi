@@ -2278,6 +2278,75 @@ twapi::class create ::twapi::ITypeLibProxy {
         return $text
     }
 
+    method @GenerateCode {args} {
+        array set opts [twapi::parseargs args {
+            namespace.arg
+        } -ignoreunknown]
+
+        if {![info exists opts(namespace)]} {
+            set opts(namespace) [string tolower [my @GetName]]
+        }
+
+        set data [my @Read {*}$args]
+        
+        set code {}
+        if {[dict exists $data dispatch]} {
+            dict for {guid guiddata} [dict get $data dispatch] {
+                dict for {name namedata} $guiddata {
+                    dict for {lcid lciddata} $namedata {
+                        dict for {invkind proto} $lciddata {
+                            append code [list ::twapi::_dispatch_prototype_set \
+                                             $guid $name $lcid $invkind $proto]
+                            append code \n
+                        }
+                    }
+                }
+            }
+        }
+
+        # If namespace specfied as empty string (as opposed to unspecified)
+        # do not output a namespace
+        if {$opts(namespace) ne ""} {
+            append code "namespace eval $opts(namespace) \{"
+            append code \n
+        }
+
+
+        if {[dict exists $data enum]} {
+            dict for {name values} [dict get $data enum] {
+                append code [list array set $name $values]
+                append code \n
+            }
+        }
+
+
+
+        if {[dict exists $data coclass]} {
+            dict for {guid def} [dict get $data coclass] {
+                # We assume here that coclass has a default interface
+                # which is dispatchable. Else an error will be generated
+                # at runtime.
+                append code [format {
+                    twapi::class create %s {
+                        superclass ::twapi::Automation
+                        constructor {args} {
+                            set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
+                            next [twapi::IDispatchProxy new $ifc]
+                        }
+                    } 
+                } [dict get $def name] $guid]
+            }
+        }
+
+        if {$opts(namespace) ne ""} {
+            append code "\}"
+            append code \n
+        }
+
+
+        return $code
+    }
+
     method @Read {args} {
         array set opts [::twapi::parseargs args {
             type.arg
@@ -2394,8 +2463,6 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
         return $data
     }
-
-
 }
 
 # ITypeComp
@@ -2745,3 +2812,4 @@ twapi::class create ::twapi::Automation {
         return [my _invoke $name $invkinds $args]
     }
 }
+
