@@ -1315,6 +1315,12 @@ twapi::class create ::twapi::IDispatchProxy {
     method @Prototype {name invkind lcid} {
         my variable  _ifc  _guid  _typecomp
 
+        # Always need the GUID so get it we have not done so already
+        if {![info exists _guid]} {
+            my @InitTypeCompAndGuid
+        }
+        # Note above call may still have failed to init _guid
+
         # If we have been through here before and have our guid,
         # check if a prototype exists and return it. 
         if {[info exists _guid] && $_guid ne "" &&
@@ -1323,11 +1329,10 @@ twapi::class create ::twapi::IDispatchProxy {
         }
 
         # Not in cache, have to look for it
-        # Get the ITypeComp for this interface if we do not
+        # Use the ITypeComp for this interface if we do not
         # already have it. We trap any errors because we will retry with
         # different LCID's below.
         set proto {}
-        my @InitTypeCompAndGuid; # Inits _guid and _typecomp
         if {$_typecomp ne ""} {
             ::twapi::trap {
 
@@ -1427,7 +1432,8 @@ twapi::class create ::twapi::IDispatchProxy {
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
             if {![info exists _guid]} {
-                # Do not overwrite if set thru @SetGuid
+                # Do not overwrite if already set thru @SetGuid or constructor
+                # Set to empty otherwise so we know we tried and failed
                 set _guid ""
             }
             set _typecomp ""
@@ -1458,6 +1464,8 @@ twapi::class create ::twapi::IDispatchProxy {
             $ti Release
         }
     }            
+
+
 
     # Some COM objects like MSI do not have TypeInfo interfaces from
     # where the GUID and TypeComp can be extracted. So we allow caller
