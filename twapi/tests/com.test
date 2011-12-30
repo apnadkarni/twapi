@@ -826,6 +826,14 @@ namespace eval twapi::com::test {
         $wmi -destroy
     } -result 1
 
+    ################################################################
+
+    generate_code_from_typelib-1.0 {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
 
     ################################################################
 
