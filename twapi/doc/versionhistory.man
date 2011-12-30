@@ -9,11 +9,23 @@ Summarizes the list of changes for each version of TWAPI.
 
 [section "Version 3.2 Alpha"]
 
+[para]
+Major changes in this release pertain to COM module enhancements.
+
 [list_begin bullet]
+
 [bullet]
-Enhanced COM support. Added [cmd -active] option to
+Added [cmd -active] option to
 [uri com.html#comobj [cmd comobj]] to create an instance
-of an existing object and support for named arguments.
+of an existing object.
+
+[bullet]
+Added [uri com.html#namedarguments "named argument"] 
+support for COM method calls
+
+[bullet]
+Added [uri com.html#generate_code_from_typelib [cmd generate_code_from_typelib]]
+to generate COM client code from type libraries.
 
 [list_end]
 
