@@ -363,6 +363,96 @@ $tlib Release
 The @Foreach method  passes [cmd ITypeInfoProxy] objects into the loop for
 every dispatch interface type entry in the library.
 
+[section "Using Type Libraries"]
+[para]
+Normally, TWAPI accesses COM components
+by looking up the method and property definitions at run time when the
+method or property is actually invoked.
+However, in some situations it is beneficial for reasons of convenience or
+efficiency to define these up front. TWAPI therefore provides facilities to
+extract the classes, interfaces and other data definitions
+associated with COM components from type libraries.
+
+[para]
+The primary command used for this purpose is the
+[uri #generate_code_from_typelib [cmd generate_code_from_typelib]] command.
+During development, this command can be used to write a file containing
+a Tcl script that will
+load the appropriate class and type definitions. The Tcl [cmd source]
+command can then be used to load the class and type definitions at
+run time. Alternatively, the command can also return the script itself
+which can then be run via the Tcl [cmd eval] command to immediately
+define the classes and types. Both these are illustrated by the examples
+below.
+
+[para]
+The following command will evaluate a script for defining 
+type definitions for Microsoft Excel and then create a new instance of Excel.
+[example_begin]
+eval [lb]twapi::generate_code_from_typelib "c:/program files/microsoft office/office12/excel.exe"[rb]
+set xl [lb]excel::Application new[rb]
+$xl Visible 1
+[example_end]
+
+[para]
+In the example, the namespace [cmd excel] is created based on the
+[emph internal] name of the library, [emph not] the file name though they
+happen to be the same. Within the namespace, classes such as
+[cmd Application], [cmd Worksheet], are defined corresponding to
+various COM objects. Invoking [cmd new] on these classes will create
+instances of a COM automation object just like in the
+[uri #comobj [cmd comobj]] command and can be used the same way.
+
+[para]
+In addition, the above will also define arrays within the namespace
+corresponding to the enums defined in the type library.
+For example, [cmd excel::XlRgbColor] will contain the values
+mapping rgb color names.
+
+[para]
+Instead of [cmd eval]ing the returned script, we could also have saved
+it to a file using the [cmd -output] option. This file could then
+be shipped with the application and
+read using the Tcl [cmd source] command to recreate the definitions.
+[example_begin]
+generate_code_from_typelib "c:/program files/microsoft office/office12/excel.exe" -output exceldefs.tcl
+[example_end]
+
+[para]
+The following examples illustrate other options and scenarios. Note
+the commands do not [cmd eval] the result which is just output to the
+screen so you can see the effect of the various options and the generated
+code. The [cmd stdole2.tlb] type library is used as it is small enough
+to be viewed without clutter.
+
+[para]
+The following creates a script for all type definitions within the type library.
+[example "generate_code_from_typelib c:/windows/system32/stdole2.tlb"]
+
+The next example creates a script for all type definitions within the 
+type library, but
+within the [cmd ns] namespace instead of the default [cmd stdole] which
+is the internal type library name. If an empty string was specified instead
+of [cmd ns], the classes and enum array would be created in the current
+namespace.
+[example {generate_code_from_typelib c:/windows/system32/stdole2.tlb -namespace ns}]
+
+Type libraries can be quite large and sometimes you need only a subset of
+the definitions. The following commands restrict the generated code
+to only define enums and a specific COM class respectively.
+[example {generate_code_from_typelib c:/windows/system32/stdole2.tlb -type enum}]
+[example {generate_code_from_typelib c:/windows/system32/stdole2.tlb -type coclass -name StdPicture}]
+
+The choice between pregenerating type definitions versus runtime 
+discovery of methods depends on several factors. The former provides some
+convenience; for example, enum constants can be used symbolically. Also,
+with some components (Microsoft Installer being one example), the type
+information may not be available on the target system and pregeneration
+is the only way to access them. The other factor is performance. If only
+a few components and methods are used, runtime discovery may be more efficient
+but for heavy use of pregeneration may offer better performance.
+
+
 [section Commands]
 
 [list_begin definitions]
@@ -552,6 +642,33 @@ By default, the command will bind to the object's [cmd IDispatch] interface.
 If the object is known to support the [cmd IDispatchEx] interface as well,
 the [cmd -interface] option may be used to specify that should be used
 instead.
+
+[call [cmd generate_code_from_typelib] [arg PATH] [opt [arg options]]]
+Generates Tcl code to access enums, interfaces and COM classes defined
+within a type library. [arg PATH] specifies the type library path.
+The following options may be specified with the command.
+[list_begin opt]
+[opt_def [cmd -name] [arg ITEMNAME]]
+Normally the command processes all items of the specfied type. If this
+option is specified, the generated script only contains definitions
+for the specified [arg ITEMNAME].
+[opt_def [cmd -namespace] [arg NAMESPACE]]
+By default, the enum values and classes are defined within a namespace
+corresponding to the library name, converted to lower case. This option
+may be specified to use a different namespace instead. [arg NAMESPACE]
+may also be specified as an empty string in which case the script will
+be run in the context of the namespace it is evaluated in.
+[opt_def [cmd -output] [arg SCRIPTPATH]] The command normally returns the
+generated script. If this option is specified, the generated script is
+written out to the specified file. [arg SCRIPTPATH] may also be specified
+as [const stdout] in which case it is written out to standard output.
+[opt_def [cmd -type] [arg TYPE]]
+Normally, the generated script processes definitions of all types.
+If this option is specified, only definitions of that type are processed.
+[arg TYPE] must be one of [const enum], [const coclass], or [const interface].
+[list_end]
+See [sectref "Using Type Libraries"] for more details and
+examples.
 
 [call [cmd get_typelib_path_from_guid] [arg GUID] [arg MAJOR] [arg MINOR] [opt "[cmd -lcid] [arg LCID]"]]
 Returns the path to the type library identified
