@@ -1268,8 +1268,30 @@ int Twapi_IDispatch_InvokeObjCmd(
     idispP = NULL;    /* May have gone away - see comment above Invoke call */
 
     if (SUCCEEDED(hr)) {
-        if (retvar_vt != VT_VOID) {
-            Tcl_SetObjResult(interp, ObjFromVARIANT(&dispargP[0], 0));
+        /*
+         * Some calls return the "return value" as output of the
+         * last parameter which would be marked as OUT|RETVAL.
+         * In that case use it as command return instead of
+         * using the call return value
+         */
+        if (retvar_vt == VT_HRESULT &&
+            nparams &&
+            (paramflagsP[nparams] & (PARAMFLAG_FOUT | PARAMFLAG_FRETVAL)) == (PARAMFLAG_FOUT | PARAMFLAG_FRETVAL)) {
+            /* Yep, one of those funky results */
+            if (SUCCEEDED(V_I4(&dispargP[0]))) {
+                /* Yes return status is success, pick up return value */
+                Tcl_SetObjResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
+            } else {
+                /* Hmm, toplevel HRESULT is success, retval HRESULT is not
+                   WTF does that mean ? Treat as error */
+                /* Not sure if standard COM error handling should apply  so skip */
+                Tcl_SetResult(interp, "Unexpected COM result: Invoke returned success but retval param is error.", TCL_STATIC);
+                goto vamoose;
+            }
+        } else {
+            if (retvar_vt != VT_VOID) {
+                Tcl_SetObjResult(interp, ObjFromVARIANT(&dispargP[0], 0));
+            }
         }
 
         /*
