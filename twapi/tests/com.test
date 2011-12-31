@@ -613,6 +613,8 @@ namespace eval twapi::com::test {
 
     test comobj-20.0 {
         comobj -active
+    } -constraints {
+        TBD
     } -body {
         TBD - what can we use running object table ?
     } -result TBD
@@ -621,6 +623,8 @@ namespace eval twapi::com::test {
 
     test comobj-21.0 {
         comobj -callnamedargs
+    } -constraints {
+        TBD
     } -body {
         TBD - comobj -callnamedargs
     } -result TBD
@@ -828,7 +832,7 @@ namespace eval twapi::com::test {
 
     ################################################################
 
-    generate_code_from_typelib-1.0 {
+    test generate_code_from_typelib-1.0 {
         TBD
     } -body {
         TBD
