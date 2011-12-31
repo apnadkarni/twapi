@@ -2334,12 +2334,19 @@ twapi::class create ::twapi::ITypeLibProxy {
         set code {}
         if {[dict exists $data dispatch]} {
             dict for {guid guiddata} [dict get $data dispatch] {
-                dict for {name namedata} $guiddata {
-                    dict for {lcid lciddata} $namedata {
-                        dict for {invkind proto} $lciddata {
-                            append code [list ::twapi::_dispatch_prototype_set \
-                                             $guid $name $lcid $invkind $proto]
-                            append code \n
+                set dispatch_name [dict get $guiddata -name]
+                append code "\n# Dispatch Interface $dispatch_name\n"
+                foreach type {methods properties} {
+                    if {[dict exists $guiddata -$type]} {
+                        append code "# $dispatch_name [string totitle $type]\n"
+                        dict for {name namedata} [dict get $guiddata -$type] {
+                            dict for {lcid lciddata} $namedata {
+                                dict for {invkind proto} $lciddata {
+                                    append code [list ::twapi::_dispatch_prototype_set \
+                                                     $guid $name $lcid $invkind $proto]
+                                    append code \n
+                                }
+                            }
                         }
                     }
                 }
@@ -2348,23 +2355,26 @@ twapi::class create ::twapi::ITypeLibProxy {
 
         # If namespace specfied as empty string (as opposed to unspecified)
         # do not output a namespace
-        if {$opts(namespace) ne ""} {
+        if {$opts(namespace) ne "" &&
+            ([dict exists $data enum] ||
+             [dict exists $data coclass])
+        } {
             append code "namespace eval $opts(namespace) \{"
             append code \n
         }
 
 
         if {[dict exists $data enum]} {
-            dict for {name values} [dict get $data enum] {
-                append code [list array set $name $values]
+            dict for {name def} [dict get $data enum] {
+                append code "\n    # Enum $name\n"
+                append code "    [list array set {*}[dict get $def -values]]"
                 append code \n
             }
         }
 
-
-
         if {[dict exists $data coclass]} {
             dict for {guid def} [dict get $data coclass] {
+                append code "\n    # Coclass [dict get $def -name]"
                 # We assume here that coclass has a default interface
                 # which is dispatchable. Else an error will be generated
                 # at runtime.
@@ -2375,12 +2385,15 @@ twapi::class create ::twapi::ITypeLibProxy {
             set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
             next [twapi::IDispatchProxy new $ifc]
         }
-    }
-                } [dict get $def name] $guid]
+    }} [dict get $def -name] $guid]
+                append code \n
             }
         }
 
-        if {$opts(namespace) ne ""} {
+        if {$opts(namespace) ne "" &&
+            ([dict exists $data enum] ||
+             [dict exists $data coclass])
+        } {
             append code "\}"
             append code \n
         }
@@ -2405,9 +2418,13 @@ twapi::class create ::twapi::ITypeLibProxy {
                     record -
                     union  -
                     enum {
+                        # For consistency with the coclass and dispatch dict structure
+                        # we have a separate key for 'name' even though it is the same
+                        # as the dict key
+                        dict set data $attrs(-typekind) $name -name $name
                         for {set j 0} {$j < $attrs(-varcount)} {incr j} {
                             array set vardata [$ti @GetVarDesc $j -name -value]
-                            dict set data $attrs(-typekind) $name $vardata(-name) $vardata(-value)
+                            dict set data $attrs(-typekind) $name -values $vardata(-name) $vardata(-value)
                         }
                     }
                     alias {
@@ -2415,6 +2432,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     }
                     dispatch {
                         # Load up the functions
+                        dict set data "dispatch" $attrs(-guid) -name $name
                         for {set j 0} {$j < $attrs(-fncount)} {incr j} {
                             array set funcdata [$ti GetFuncDesc $j]
                             if {$funcdata(funckind) != 4} {
@@ -2439,6 +2457,7 @@ twapi::class create ::twapi::ITypeLibProxy {
 
                             dict set data "dispatch" \
                                 $attrs(-guid) \
+                                -methods \
                                 [$ti @GetName $funcdata(memid)] \
                                 $attrs(-lcid) \
                                 $funcdata(invkind) \
@@ -2451,6 +2470,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                             # propget:
                             dict set data "dispatch" \
                                 $attrs(-guid) \
+                                -properties \
                                 [$ti @GetName $vardata(memid)] \
                                 $attrs(-lcid) \
                                 2 \
@@ -2467,6 +2487,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                                 # Not read-only
                                 dict set data "dispatch" \
                                     $attrs(-guid) \
+                                    -properties \
                                     [$ti @GetName $vardata(memid)] \
                                     $attrs(-lcid) \
                                     4 \
@@ -2479,7 +2500,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                         # TBD
                     }
                     coclass {
-                        dict set data "coclass" $attrs(-guid) name $name
+                        dict set data "coclass" $attrs(-guid) -name $name
                         for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
                             set ti2 [$ti @GetRefTypeInfoFromIndex $j]
                             set iflags [$ti GetImplTypeFlags $j]
@@ -2488,8 +2509,8 @@ twapi::class create ::twapi::ITypeLibProxy {
                             $ti2 Release
                             unset ti2; # So finally clause does not relese again on error
 
-                            dict set data "coclass" $attrs(-guid) interfaces $iguid name $iname
-                            dict set data "coclass" $attrs(-guid) interfaces $iguid flags $iflags
+                            dict set data "coclass" $attrs(-guid) -interfaces $iguid -name $iname
+                            dict set data "coclass" $attrs(-guid) -interfaces $iguid -flags $iflags
                         }
                     }
                     default {
