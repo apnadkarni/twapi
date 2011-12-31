@@ -2374,7 +2374,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             ([dict exists $data enum] ||
              [dict exists $data coclass])
         } {
-            append code "namespace eval $opts(namespace) \{"
+            append code "\nnamespace eval $opts(namespace) \{"
             append code \n
         }
 
@@ -2382,7 +2382,7 @@ twapi::class create ::twapi::ITypeLibProxy {
         if {[dict exists $data enum]} {
             dict for {name def} [dict get $data enum] {
                 append code "\n    # Enum $name\n"
-                append code "    [list array set {*}[dict get $def -values]]"
+                append code "    [list array set $name [dict get $def -values]]"
                 append code \n
             }
         }
