@@ -1175,7 +1175,10 @@ twapi::class create ::twapi::IDispatchProxy {
             foreach arg $args {
                 # TBD - optimize this loop
                 set argtype  [lindex $prototype 4 $i 0]
-                set argflags [lindex $prototype 4 $i 1 0]
+                set argflags 0
+                if {[llength [lindex $prototype 4 $i 1]]} {
+                    set argflags [lindex $prototype 4 $i 1 0]
+                }
                 if {$argflags & 1} {
                     # IN param
                     if {$argflags & 2} {
@@ -1333,6 +1336,9 @@ twapi::class create ::twapi::IDispatchProxy {
         # already have it. We trap any errors because we will retry with
         # different LCID's below.
         set proto {}
+        if {![info exists _typecomp]} {
+            my @InitTypeCompAndGuid
+        }
         if {$_typecomp ne ""} {
             ::twapi::trap {
 
@@ -1422,6 +1428,8 @@ twapi::class create ::twapi::IDispatchProxy {
         my variable   _guid   _typecomp
         
         if {[info exists _typecomp]} {
+            # Based on code below, if _typecomp exists
+            # _guid also exists so no need to check for that
             return
         }
 
@@ -1457,7 +1465,10 @@ twapi::class create ::twapi::IDispatchProxy {
                     error "Interface is not a dispatch interface"
                 }
             }
-            set _guid [::twapi::kl_get [$ti GetTypeAttr] guid]
+            if {![info exists _guid]} {
+                # _guid might have already been valid, do not overwrite
+                set _guid [::twapi::kl_get [$ti GetTypeAttr] guid]
+            }
             set _typecomp [$ti @GetTypeComp]; # ITypeComp
 
         } finally {
@@ -2246,11 +2257,15 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
 
         dict for {guid guiddata} [dict get $data dispatch] {
-            dict for {name namedata} $guiddata {
-                dict for {lcid lciddata} $namedata {
-                    dict for {invkind proto} $lciddata {
-                        ::twapi::_dispatch_prototype_set \
-                            $guid $name $lcid $invkind $proto
+            foreach type {methods properties} {
+                if {[dict exists $guiddata -$type]} {
+                    dict for {name namedata} [dict get $guiddata -$type] {
+                        dict for {lcid lciddata} $namedata {
+                            dict for {invkind proto} $lciddata {
+                                ::twapi::_dispatch_prototype_set \
+                                    $guid $name $lcid $invkind $proto
+                            }
+                        }
                     }
                 }
             }
