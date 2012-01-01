@@ -13,13 +13,18 @@ namespace eval twapi {
     variable msiprotos_record
     variable msi_guids
     array set msi_guids {
-        installer {{000C1090-0000-0000-C000-000000000046}}
-        database {{000C109D-0000-0000-C000-000000000046}}
-        record {{000C1093-0000-0000-C000-000000000046}}
+        database    {{000C109D-0000-0000-C000-000000000046}}
+        featureinfo {{000C109A-0000-0000-C000-000000000046}}
+        installer   {{000C1090-0000-0000-C000-000000000046}}
+        patch       {{000C10A1-0000-0000-C000-000000000046}}
+        product     {{000C10A0-0000-0000-C000-000000000046}}
+        record      {{000C1093-0000-0000-C000-000000000046}}
+        recordlist  {{000C1096-0000-0000-C000-000000000046}}
+        session     {{000C109E-0000-0000-C000-000000000046}}
+        stringlist  {{000C1095-0000-0000-C000-000000000046}}
         summaryinfo {{000C109B-0000-0000-C000-000000000046}}
-        stringlist {{000C1095-0000-0000-C000-000000000046}}
-        view {{000C109C-0000-0000-C000-000000000046}}
-            
+        uipreview   {{000C109A-0000-0000-C000-000000000046}}
+        view        {{000C109C-0000-0000-C000-000000000046}}
     }
 }
 
@@ -312,8 +317,8 @@ proc twapi::delete_msi {obj} {
     $obj -destroy
 }
 
-# Loads msi prototypes for the object
-proc twapi::load_msi_prototypes {obj type} {
+# Cast an MSI object, needed because MSI does not support ITypeInfo
+proc twapi::cast_msi_object {obj type} {
 
     # Init protos and stuff
     init_msi
@@ -331,3 +336,4 @@ proc twapi::load_msi_prototypes {obj type} {
     return [load_msi_prototypes $obj $type]
 }
 
+interp alias {} twapi::load_msi_prototypes {} twapi::cast_msi_object
