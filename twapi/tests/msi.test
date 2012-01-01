@@ -30,6 +30,18 @@ namespace eval twapi::msi::test {
         $msi -destroy
     } -result {^\d\.\d\.\d+\.\d+$} -match regexp
 
+    test cast_msi_object-1.0 {
+        Cast an MSI object to appropriate type
+    } -setup {
+        set msi [twapi::comobj WindowsInstaller.Installer]
+    } -body {
+        twapi::cast_msi_object $msi Installer
+        # Verify that protos were actually loaded
+        $msi Version
+    } -cleanup {
+        $msi -destroy
+    } -result {^\d\.\d\.\d+\.\d+$} -match regexp
+
     test msi_sql_query-1.0 {
         Test exec ing a SQL query on an MSI package
     } -setup {

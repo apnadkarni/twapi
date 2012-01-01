@@ -324,7 +324,11 @@ proc twapi::cast_msi_object {obj type} {
     init_msi
 
     # Redefine ourselves so we don't call init_msi everytime
-    proc ::twapi::load_msi_prototypes {obj type} {
+    proc ::twapi::cast_msi_object {obj type} {
+        if {[$obj -isnull]} {
+            error "Attempt to cast NULL comobj to Windows Installer type $type"
+        }
+
         set type [string tolower $type]
         variable msi_guids
 
@@ -333,7 +337,7 @@ proc twapi::cast_msi_object {obj type} {
     }
 
     # Call our new definition
-    return [load_msi_prototypes $obj $type]
+    return [cast_msi_object $obj $type]
 }
 
 interp alias {} twapi::load_msi_prototypes {} twapi::cast_msi_object
