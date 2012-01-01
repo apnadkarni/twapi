@@ -34,6 +34,7 @@ proc twapi::init_msi {} {
     # Following code generated using the generate_code_from_typelib function
     # msi objects do not support ITypeInfo so cannot use at run time binding
 
+
     # Dispatch Interface Installer
     # Installer Methods
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} CreateRecord 1033 1 {1 1033 1 {26 {29 200}} {{3 1}} Count}
@@ -85,8 +86,8 @@ proc twapi::init_msi {} {
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} FileSignatureInfo 1033 1 {48 1033 1 {27 17} {{8 1} {3 1} {3 1}} {FilePath Options Format}}
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} RemovePatches 1033 1 {49 1033 1 24 {{8 1} {8 1} {3 1} {8 {49 {8 0}}}} {PatchList Product UninstallType PropertyList}}
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} ApplyMultiplePatches 1033 1 {51 1033 1 24 {{8 1} {8 1} {8 1}} {PatchPackage Product PropertiesList}}
-    ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} Product 1033 2 {53 1033 2 25 {{8 1} {8 1} {3 1} {{26 {26 {29 2900}}} 10}} {Product UserSid iContext retval}}
-    ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} Patch 1033 2 {56 1033 2 25 {{8 1} {8 1} {8 1} {3 1} {{26 {26 {29 3100}}} 10}} {PatchCode ProductCode UserSid iContext retval}}
+    ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} Product 1033 2 {53 1033 2 25 {{8 1} {8 1} {3 1} {{26 9} 10}} {Product UserSid iContext retval}}
+    ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} Patch 1033 2 {56 1033 2 25 {{8 1} {8 1} {8 1} {3 1} {{26 9} 10}} {PatchCode ProductCode UserSid iContext retval}}
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} ProductsEx 1033 2 {52 1033 2 {26 {29 2200}} {{8 1} {8 1} {3 1}} {Product UserSid Contexts}}
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} PatchesEx 1033 2 {55 1033 2 {26 {29 2200}} {{8 1} {8 1} {3 1} {3 1}} {Product UserSid Contexts filter}}
     ::twapi::_dispatch_prototype_set {{000C1090-0000-0000-C000-000000000046}} ExtractPatchXMLData 1033 1 {57 1033 1 8 {{8 1}} PatchPath}
@@ -202,13 +203,13 @@ proc twapi::init_msi {} {
     # Product Methods
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} ProductCode 1033 2 {1 1033 2 25 {{{26 8} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} UserSid 1033 2 {2 1033 2 25 {{{26 8} 10}} retval}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} Context 1033 2 {3 1033 2 25 {{{26 {29 2800}} 10}} retval}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} State 1033 2 {4 1033 2 25 {{{26 {29 1900}} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} Context 1033 2 {3 1033 2 25 {{{26 3} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} State 1033 2 {4 1033 2 25 {{{26 3} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} InstallProperty 1033 2 {5 1033 2 25 {{8 1} {{26 8} 10}} {Name retval}}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} ComponentState 1033 2 {6 1033 2 25 {{8 1} {{26 {29 1900}} 10}} {Component retval}}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} FeatureState 1033 2 {7 1033 2 25 {{8 1} {{26 {29 1900}} 10}} {Feature retval}}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} Sources 1033 2 {14 1033 2 25 {{3 1} {{26 {26 {29 2600}}} 10}} {SourceType retval}}
-    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} MediaDisks 1033 2 {15 1033 2 25 {{{26 {26 {29 2200}}} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} ComponentState 1033 2 {6 1033 2 25 {{8 1} {{26 3} 10}} {Component retval}}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} FeatureState 1033 2 {7 1033 2 25 {{8 1} {{26 3} 10}} {Feature retval}}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} Sources 1033 2 {14 1033 2 25 {{3 1} {{26 9} 10}} {SourceType retval}}
+    ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} MediaDisks 1033 2 {15 1033 2 25 {{{26 9} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} SourceListAddSource 1033 1 {8 1033 1 25 {{3 1} {8 1} {3 1}} {iSourceType Source dwIndex}}
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} SourceListAddMediaDisk 1033 1 {9 1033 1 25 {{3 1} {8 1} {8 1}} {dwDiskId VolumeLabel DiskPrompt}}
     ::twapi::_dispatch_prototype_set {{000C10A0-0000-0000-C000-000000000046}} SourceListClearSource 1033 1 {10 1033 1 25 {{3 1} {8 1}} {iSourceType Source}}
@@ -223,10 +224,10 @@ proc twapi::init_msi {} {
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} PatchCode 1033 2 {1 1033 2 25 {{{26 8} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} ProductCode 1033 2 {2 1033 2 25 {{{26 8} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} UserSid 1033 2 {3 1033 2 25 {{{26 8} 10}} retval}
-    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} Context 1033 2 {4 1033 2 25 {{{26 {29 2800}} 10}} retval}
-    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} State 1033 2 {5 1033 2 25 {{{26 {29 1900}} 10}} retval}
-    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} Sources 1033 2 {12 1033 2 25 {{3 1} {{26 {26 {29 2600}}} 10}} {SourceType retval}}
-    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} MediaDisks 1033 2 {13 1033 2 25 {{{26 {26 {29 2200}}} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} Context 1033 2 {4 1033 2 25 {{{26 3} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} State 1033 2 {5 1033 2 25 {{{26 3} 10}} retval}
+    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} Sources 1033 2 {12 1033 2 25 {{3 1} {{26 9} 10}} {SourceType retval}}
+    ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} MediaDisks 1033 2 {13 1033 2 25 {{{26 9} 10}} retval}
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} SourceListAddSource 1033 1 {6 1033 1 25 {{3 1} {8 1} {3 1}} {iSourceType Source dwIndex}}
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} SourceListAddMediaDisk 1033 1 {7 1033 1 25 {{3 1} {8 1} {8 1}} {dwDiskId VolumeLabel DiskPrompt}}
     ::twapi::_dispatch_prototype_set {{000C10A1-0000-0000-C000-000000000046}} SourceListClearSource 1033 1 {8 1033 1 25 {{3 1} {8 1}} {iSourceType Source}}
