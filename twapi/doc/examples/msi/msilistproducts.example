@@ -1,9 +1,12 @@
+# Windows Installer
 # List product versions that are installed through Windows Installer
+
 # Note this is a sample script for illustrative purposes. There is no
 # error handling as such.
 
-# MSI related stuff requires at least V2.0
-package require twapi
+# Tested with TWAPI 3.2. Earlier version may need some modification.
+
+package require twapi 3.2
 
 # Array to map product state codes to display strings
 array set product_state_map {
@@ -26,14 +29,14 @@ set msiobj [twapi::comobj WindowsInstaller.Installer]
 # The Installer objects do not come with their own type library containing
 # method definitions so we need to manually load the definitions
 # for every object we create
-twapi::load_msi_prototypes $msiobj Installer
+twapi::cast_msi_object $msiobj Installer
 
-# Get the product id list (type is StringList)
-set prodidsobj [$msiobj -get Products]
+# Get the product id list
 set prodids    [list ]
+set prodidsobj [$msiobj -get Products]
 
 if {![$prodidsobj -isnull]} {
-    twapi::load_msi_prototypes $prodidsobj StringList
+    twapi::cast_msi_object $prodidsobj StringList
     set count [$prodidsobj -get Count]
     for {set i 0} {$i < $count} {incr i} {
         lappend prodids [$prodidsobj -get Item $i]
