@@ -6,14 +6,16 @@
 [require twapi]
 [description]
 
+[emph "This module is experimental."]
+
 [para]
 This module provides commands for accessing the Microsoft Windows Installer
 (MSI) component through its COM interfaces. The primary motivation for
-this module is that although the Installer provides a COM type library,
-its type library may not be available on the target system. This module
+this module is that although the Installer provides a COM interface,
+it cannot be bound and types discovered at run time. This module
 provides the required type definitions for the various interfaces.
-
-[emph "This module is experimental."]
+These type definitions must be programmatically loaded into a
+MSI object instance by the application.
 
 [section "Creation and Destruction of MSI objects"]
 
@@ -29,210 +31,27 @@ COM object.
 [emph "Note a final call to [cmd \$MSIOBJ\ -destroy] is required for all MSI objects, not just the top-level Installer object"].
 
 [para]
-Once an MSI object is created, its type library must be explicitly loaded
-by calling [cmd load_msi_prototypes] with the object command and the
-object type.
+Once an MSI object is created, it must be cast to the appropriate type
+with the command [uri #cast_msi_object [cmd cast_msi_object]] before calling
+any methods on the object.
+
 [example "twapi::load_msi_prototypes \$msiobj Installer"]
 
 [list_begin definitions]
-[call [cmd load_msi_prototypes] [arg MSICOMOBJ] [arg MSITYPE]]
+[call [cmd cast_msi_object] [arg MSICOMOBJ] [arg MSITYPE]]
 Loads the type information corresponding to the MSI type [arg MSITYPE] into
-the COM object command [arg MSICOMOBJ].
-The sections below describe the various types of MSI objects that can
-be loaded. When an object of a type is created, it should be passed
-to [cmd load_msi_prototypes] along with the type before making any method
+the COM object command [arg MSICOMOBJ]. [arg MSITYPE] corresponds to
+one of the object types defined in the 
+[uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"]:
+[const Database], [const FeatureInfo], [const Installer], [const Patch],
+[const Product], [const Record], [const RecordList], [const Session],
+[const StringList], [const SummaryInfo], [const UiPreview] and
+[const View].
+
+[nl]
+When an object of a MSI type is created, it should be passed
+to [cmd cast_msi_object] along with the type before making any method
 calls on the objects.
-[list_end]
-
-
-[section "Installer object"]
-
-An [cmd Installer] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg INSTALLEROBJ] [cmd AddSource]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ClearSourceList]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd CollectUserInfo]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ComponentClients]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ComponentPath]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ComponentQualifiers]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Components]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ConfigureFeature]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ConfigureProduct]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd CreateRecord]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd EnableLog]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Environment]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ExtractPatchXMLData]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FeatureParent]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Features]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FeatureState]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FeatureUsageCount]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FeatureUsageDate]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FileAttributes]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FileSize]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd FileVersion]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd InstallProduct]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd LastErrorRecord]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd OpenPackage]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd OpenDatabase]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd OpenProduct]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Patches]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd PatchesEx]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ProductInfo]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ProductsEx]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Products]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ProductState]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ProvideComponent]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd RegistryValue]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ReinstallFeature]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ReinstallProduct]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd RelatedProducts]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd RemovePatches]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd ShortcutTarget]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd SummaryInformation]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd UILevel]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd UseFeature]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg INSTALLEROBJ] [cmd Version]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[list_end]
-
-[section "Database object"]
-A MSI [cmd Database] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg MSIDBOBJ] [cmd ApplyTransform]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd Commit]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd CreateTransformSummaryInfo]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd DatabaseState]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd EnableUIPreview]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd Export]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd GenerateTransform]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd Import]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd Merge]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd OpenView]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd PrimaryKeys]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIDBOBJ] [cmd TablePersistent]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[list_end]
-
-[section "Record object"]
-A MSI [cmd Record] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg MSIRECORDOBJ] [cmd ClearData]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd DataSize]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd FieldCount]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd FormatText]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd IntegerData]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd IsNull]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd ReadStream]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd SetStream]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIRECORDOBJ] [cmd StringData]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[list_end]
-
-
-[section "SummaryInfo object"]
-A MSI [cmd SummaryInfo] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg MSISUMMARYOBJ] [cmd Persist]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSISUMMARYOBJ] [cmd Property]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSISUMMARYOBJ] [cmd PropertyCount]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[list_end]
-
-
-[section "StringList object"]
-A MSI [cmd StringList] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg MSISTRINGLISTOBJ] [cmd Count]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSISTRINGLISTOBJ] [cmd Item]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[list_end]
-
-
-[section "View object"]
-A MSI [cmd View] object supports the following methods:
-
-[list_begin definitions]
-[call "[arg MSIVIEWOBJ] [cmd Close]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIVIEWOBJ] [cmd ColumnInfo]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIVIEWOBJ] [cmd Execute]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIVIEWOBJ] [cmd Fetch]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIVIEWOBJ] [cmd GetError]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
-[call "[arg MSIVIEWOBJ] [cmd Modify]" [arg ARGS]]
-Refer to [uri http://msdn2.microsoft.com/en-us/library/aa372860.aspx "Windows Installer Reference"] for a description and parameters.
 [list_end]
 
 [keywords "Windows Installer" MSI installer]
