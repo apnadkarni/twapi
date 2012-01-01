@@ -544,10 +544,9 @@ proc twapi::_resolve_comtype {ti typedesc} {
         # If pointing to a UDT, convert to appropriate base type if possible
         set inner [_resolve_comtype $ti [lindex $typedesc 1]]
         if {[lindex $inner 0] == 29} {
-            # TBD - is this really correct / necessary ? For UDT, the
-            # second element is hreftype, not a vt_code so why are we
-            # checking in this manner. It should not even match since 
-            # the second element will not "dispatch" or "interface"
+            # When the referenced type is a UDT (29) which is actually
+            # a dispatch or other interface, replace the
+            # "pointer to UDT" with VT_DISPATCH/VT_INTERFACE
             switch -exact -- [lindex $inner 1] {
                 dispatch  {set typedesc [list 9]}
                 interface {set typedesc [list 13]}
@@ -556,6 +555,8 @@ proc twapi::_resolve_comtype {ti typedesc} {
                     set typedesc [list 26 $inner]
                 }
             }
+        } else {
+            set typedesc [list 26 $inner]
         }
     } elseif {[lindex $typedesc 0] == 29} {
         # VT_USERDEFINED - {29 HREFTYPE}
