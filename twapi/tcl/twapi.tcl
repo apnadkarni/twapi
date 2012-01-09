@@ -1447,7 +1447,7 @@ proc twapi::mem_binary_scan {mem off mem_sz args} {
 
 # Validate guid syntax
 proc twapi::_validate_guid {guid} {
-    if {![regexp {^\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} $guid]} {
+    if {![Twapi_IsValidGUID $guid]} {
         error "Invalid GUID syntax: '$guid'"
     }
 }

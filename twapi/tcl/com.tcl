@@ -691,7 +691,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
 # else tries to convert it from progid. An error is generated if neither
 # works
 proc twapi::_convert_to_clsid {comid} {
-    if {! [Twapi_ValidIID $comid]} {
+    if {! [Twapi_IsValidGUID $comid]} {
         return [progid_to_clsid $comid]
     }
     return $comid

@@ -686,6 +686,28 @@ namespace eval twapi::com::test {
         } 1
     } -result ""
 
+    test comobj_object-1.3 {
+        Create a COM object based on a moniker display name for a file
+    } -constraints {
+        TBD
+    } -body {
+        set workbook [twapi::comobj_object [file normalize sample.xlsx]]
+        read and check first line
+    } -cleanup {
+        $workbook -destroy
+    } -result TBD
+
+    test comobj_object-2.0 {
+        Create a COM object using a specific application
+    } -constraints {
+        TBD - need a test case of an app that supports IPersistFile interface
+    } -body {
+    } -cleanup {
+    } -result TBD
+
+
+
+
     ################################################################
 
     test comobj_null-1.0 {
@@ -833,6 +855,8 @@ namespace eval twapi::com::test {
     ################################################################
 
     test generate_code_from_typelib-1.0 {
+        TBD
+    } -constraints {
         TBD
     } -body {
         TBD

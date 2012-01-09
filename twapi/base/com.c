@@ -3717,7 +3717,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.value.ifc.name = "IUnknown";
             hr = GetActiveObject(&guid, NULL, (IUnknown **)&result.value.ifc.p);
             break;
-        case 10010: // CLSIDFromString
+        case 10010: // ProgIDFromCLSID
             if (objc != 3)
                 goto badargs;
             if (ObjToGUID(interp, objv[2], &guid) != TCL_OK)
@@ -3744,12 +3744,6 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.value.ifc.name = cP;
             hr = CoCreateInstance(&guid, ifc.unknown, dw1, &guid2,
                                   &result.value.ifc.p);
-            break;
-        case 10013:
-            if (objc != 3)
-                goto badargs;
-            result.type = TRT_BOOL;
-            result.value.bval = CLSIDFromString(Tcl_GetUnicode(objv[2]), &guid) == S_OK;
             break;
         }
     }
