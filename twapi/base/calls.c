@@ -1131,6 +1131,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALLCOM_(CLSIDFromProgID, 10011);
     CALLCOM_(Twapi_CoCreateInstance, 10012);
     CALLCOM_(Twapi_ValidIID, 10013);
+    CALLCOM_(Twapi_ValidIID2, 10014);
 
     return Tcl_Eval(interp, apiprocs);
 }

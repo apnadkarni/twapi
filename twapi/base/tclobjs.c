@@ -697,7 +697,9 @@ int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
 {
     HRESULT hr;
     if (objP) {
-        if ((hr = CLSIDFromString(Tcl_GetUnicode(objP), guidP)) != NOERROR) {
+        /* We *used* to use CLSIDFromString but it turns out that 
+           accepts Prog IDs as valid GUIDs as well */
+        if ((hr = IIDFromString(Tcl_GetUnicode(objP), guidP)) != NOERROR) {
             Twapi_AppendSystemError(interp, hr);
             return TCL_ERROR;
         }
