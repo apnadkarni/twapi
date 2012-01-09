@@ -175,14 +175,29 @@ proc twapi::comobj_idispatch {ifc} {
 
 #
 # Create an object command for a COM object from a name
-# TBD - add -progid option so file can be opened with different app
-#       see "Mapping Visual Basic to Automation" in SDK help
 proc twapi::comobj_object {path args} {
     array set opts [parseargs args {
+        progid.arg
         {interface.arg IDispatch {IDispatch IDispatchEx}}
     } -maxleftover 0]
 
-    return [comobj_idispatch [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]]
+    if {[info exists opts(progid)]} {
+        # TBD - document once we have a test case for this
+        # Specify which app to use to open the file.
+        # See "Mapping Visual Basic to Automation" in SDK help
+        set clsid [_convert_to_clsid $opts(progid)]
+        set ipersistfile [com_create_instance $clsid -interface IPersistFile]
+        trap {
+            IPersistFile_Load $ipersistfile $path 0
+            set idisp [Twapi_IUnknown_QueryInterface $ipersistfile [_iid_idispatch] IDispatch]
+        } finally {
+            IUnknown_Release $ipersistfile
+        }
+    } else {
+        set idisp [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]
+    }
+
+    return [comobj_idispatch $idisp]
 }
 
 #
