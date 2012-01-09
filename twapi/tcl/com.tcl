@@ -910,7 +910,9 @@ namespace eval twapi {
     # elements {DISPID LCID INVOKEFLAGS RETTYPE PARAMTYPES PARAMNAMES}
     # Here PARAMTYPES is a list each element of which describes a
     # parameter in the following format:
-    #     {TYPE {FLAGS DEFAULT}} where DEFAULT is optional
+    #     {TYPE {FLAGS DEFAULT} NAMEDARGVALUE} where DEFAULT is optional
+    # and NAMEDARGVALUE only appears (optionally) when the prototype is
+    # passed to Invoke, not in the cached prototype itself.
     # PARAMNAMES is list of parameter names in order and is
     # only present if PARAMTYPES is also present.
     
@@ -1306,7 +1308,7 @@ twapi::class create ::twapi::IDispatchProxy {
                                 set paramval [$paramval -interface 0]
                             }
                         }
-                        lset proto 4 $paramindex 1 1 [list $paramtype $paramval]
+                        lset proto 4 $paramindex 2 $paramval
                     }
                 }
             } elseif {[info exists class3]} {
