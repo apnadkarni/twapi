@@ -44,7 +44,7 @@ if {![$prodidsobj -isnull]} {
 }
 $prodidsobj -destroy
 
-# Now we have a list of product id's. Print the product name, version
+# Now we have a list of product id's. Print the product name, version and publisher
 foreach prodid $prodids {
     set encoded_version [$msiobj -get ProductInfo $prodid Version]
     set version [expr {0xff & ($encoded_version >> 24)}].[expr {0xff & ($encoded_version >> 16)}].[expr {0xffff & $encoded_version}]
@@ -52,7 +52,7 @@ foreach prodid $prodids {
     if {[info exists product_state_map($state)]} {
         set state $product_state_map($state)
     }
-    puts "[$msiobj -get ProductInfo $prodid ProductName] (V$version): $state"
+    puts "[$msiobj -get ProductInfo $prodid ProductName]: $state\n    Version: $version    Publisher: [$msiobj -get ProductInfo $prodid Publisher] "
 }
 
 # Get rid of objects we created
