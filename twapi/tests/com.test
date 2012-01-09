@@ -629,6 +629,16 @@ namespace eval twapi::com::test {
         TBD - comobj -callnamedargs
     } -result TBD
 
+    ###
+
+    test comobj-21.0 {
+        comobj -call with optional arguments
+    } -constraints {
+        TBD
+    } -body {
+        TBD - comobj methods with optional arguments
+    } -result TBD
+
     ################################################################
 
     test comobj_object-1.0 {
