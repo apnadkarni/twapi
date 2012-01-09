@@ -794,8 +794,8 @@ namespace eval twapi::com::test {
         Test variant parameter of type dispatch are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
-        set dir [tcltest::makeDirectory [clock clicks]]
-        set path [tcltest::makeFile "" [clock clicks]]; # Makes file in temp dir
+        set dir [tcltest::makeDirectory [clock clicks]-dir]
+        set path [tcltest::makeFile "" [clock clicks]-file]; # Makes file in temp dir
         set source_folder_obj [$sh NameSpace [file nativename [tcltest::temporaryDirectory]]]
         set source_file_obj [$source_folder_obj ParseName [file tail $path]]
         set ifc [$source_file_obj -interface]
