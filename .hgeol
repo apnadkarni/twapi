@@ -16,4 +16,8 @@ makefile = native
 **.exe = BIN
 **.dll = BIN
 **.kit = BIN
-
+**.xls = BIN
+**.xlsx = BIN
+**.docx = BIN
+**.doc = BIN
+**.msi = BIN
