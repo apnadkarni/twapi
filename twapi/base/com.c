@@ -1674,7 +1674,9 @@ int TwapiMakeVariantParam(
     /*
      * paramDescriptorP is a list where the first element is the param type,
      * second element is one/two element list {flags, optional default value}
-     * If this info is missing, we assume a BSTR IN parameter
+     * If this info is missing, we assume a BSTR IN parameter.
+     * The third element, if present, is the parameter value passed
+     * in as a named argument.
      *
      */
     paramc = 0;
@@ -1705,10 +1707,17 @@ int TwapiMakeVariantParam(
         vt = VT_BSTR;
     }
     else if (paramc > 1) {
+        /* If no value supplied as positional parameter, see if it is 
+           supplied as named argument */
+        if (valueObj == NULL && paramc > 2) {
+            valueObj = paramv[2];
+        }
+
+        /* Get the flags and default value */
         if (Tcl_ListObjGetElements(interp, paramv[1], &paramfieldsc, &paramfields) != TCL_OK)
             goto vamoose;
 
-        /* First fields is the flags */
+        /* First field is the flags */
         if (paramfieldsc > 0) {
             if (Tcl_GetIntFromObj(NULL, paramfields[0], &itemp) == TCL_OK) {
                 *paramflagsP = (USHORT) (itemp ? itemp : PARAMFLAG_FIN);
@@ -1825,43 +1834,22 @@ int TwapiMakeVariantParam(
                 valueObj = Tcl_ObjGetVar2(interp, valueObj, NULL, 0);
         }
         /*
-         * valueObj points to actual value. If this is NULL, set to default/optional
+         * valueObj points to actual value. If this is NULL, parameter
+         * better be optional. Note in versions before 3.2.2, we used
+         * to set this to the default value specified in the prototype.
+         * We now instead just set it to VT_ERROR since some methods
+         * like Excel Range.AutoFilter differentiate behaviour on whether
+         * the parameter was actually passed or defaulted.
          */
         if (valueObj == NULL) {
-#ifdef OBSOLETE
+            /* No value or default supplied. Parameter better be optional */
             if (*paramflagsP & PARAMFLAG_FOPT) {
                 targetP = varP; /* Reset to point to primary VARIANT */
                 vt = VT_ERROR;  // Indicates optional param below
             } else {
-                /* Not optional - Check if there is a default supplied */
-                if (paramdefaultObj == NULL) {
-                    /* TBD - should we assume optional argument anyway ? */
-                    Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
-                    goto vamoose;
-                }
-                /* Default value to be used if value is not specified */
-                valueObj = paramdefaultObj;
+                Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
+                goto vamoose;
             }
-#else
-            /*
-             * Note the parameter default may have come from the type library
-             * or via the named argument feature at the script level.
-             */
-            if (paramdefaultObj)
-                valueObj = paramdefaultObj;
-            else {
-                /* No value or default supplied. Parameter better be optional */
-                if (*paramflagsP & PARAMFLAG_FOPT) {
-                    targetP = varP; /* Reset to point to primary VARIANT */
-                    vt = VT_ERROR;  // Indicates optional param below
-                } else {
-                    Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
-                    goto vamoose;
-                }
-            }
-#endif // OBSOLETE
-
-
         }
 
         /*
