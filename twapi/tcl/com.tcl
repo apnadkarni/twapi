@@ -897,10 +897,18 @@ proc twapi::_resolve_iid {name_or_iid} {
 
 namespace eval twapi {
     # TBD - enable oo if available
-    if {0} {
+    variable use_tcloo_for_com 1
+    if {$use_tcloo_for_com} {
         namespace import ::oo::class
+        proc ::oo::define::twapi_exportall {} {
+            uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
+        }
     } else {
         namespace import ::metoo::class
+        proc ::metoo::define::twapi_exportall {args} {
+            # args is dummy to match metoo's class definition signature
+            # Nothing to do, all methods are metoo are public
+        }
     }
 
     # The prototype cache is indexed a composite key consisting of
@@ -1030,6 +1038,8 @@ twapi::class create ::twapi::INullProxy {
             my destroy
         }
     }
+
+    twapi_exportall
 }
 
 twapi::class create ::twapi::IUnknownProxy {
@@ -1130,6 +1140,7 @@ twapi::class create ::twapi::IUnknownProxy {
         return $_ifc
     }
 
+    twapi_exportall
 }
 
 twapi::class create ::twapi::IDispatchProxy {
@@ -1586,6 +1597,8 @@ twapi::class create ::twapi::IDispatchProxy {
             }
         }
     }
+
+    twapi_exportall
 }
 
 
@@ -1692,6 +1705,8 @@ twapi::class create ::twapi::IDispatchExProxy {
         # actual type will be set based on what is returned.
         return [list $dispid $lcid $invkind 8]
     }
+
+    twapi_exportall
 }
 
 
@@ -2104,6 +2119,8 @@ twapi::class create ::twapi::ITypeInfoProxy {
         }
         return ""
     }
+
+    twapi_exportall
 }
 
 
@@ -2566,6 +2583,8 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
         return $data
     }
+
+    twapi_exportall
 }
 
 # ITypeComp
@@ -2590,6 +2609,8 @@ twapi::class create ::twapi::ITypeCompProxy {
         lassign $binding type data tifc
         return [list $type $data [::twapi::make_interface_proxy $tifc]]
     }
+
+    twapi_exportall
 }
 
 # IEnumVARIANT
@@ -2617,6 +2638,8 @@ twapi::class create ::twapi::IEnumVARIANTProxy {
         my variable _ifc
         return [::twapi::IEnumVARIANT_Skip $_ifc $count]
     }
+
+    twapi_exportall
 }
 
 # Automation
@@ -2914,5 +2937,8 @@ twapi::class create ::twapi::Automation {
         # here so variables if any are in caller's context
         return [my _invoke $name $invkinds $args]
     }
+
+    twapi_exportall
 }
+
 
