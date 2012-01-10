@@ -6,8 +6,11 @@
 
 # TBD - object identity comparison 
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
-
-
+# TBD - we seem to resolve UDT's every time a COM method is actually invoked.
+# Optimize by doing it when prototype is stored or only the first time it
+# is called.
+# TBD - optimize by caching UDT's within a type library when the library
+# is read.
 
 namespace eval twapi {
     # Maps TYPEKIND data values to symbols
@@ -1186,7 +1189,7 @@ twapi::class create ::twapi::IDispatchProxy {
             #  - If the parameter is an INOUT, we need to AddRef it since
             #    the COM method will Release it when storing a replacement
             # HERE WE ONLY DO THE CHECK FOR COMOBJ. The AddRef checks are
-            # DONE IN THE C CODE
+            # DONE IN THE C CODE (if necessary)
 
             set i 0
             set args2 {}
@@ -1208,7 +1211,11 @@ twapi::class create ::twapi::IDispatchProxy {
                         # Pure IN param. Check if it is VT_DISPATCH or
                         # VT_VARIANT. Else nothing
                         # to do
-                        if {$argtype == 9 || $argtype == 12} {
+                        if {[lindex $argtype 0] == 26} {
+                            # Pointer, get base type
+                            set argtype [lindex $argtype 1]
+                        }
+                        if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
                             # TBD - Check if pattern match is ok for MeTOO AND TclOO
                             if {[string match ::twapi::Automation::o#* $arg]} {
                                 # Note we do not addref when getting the interface
