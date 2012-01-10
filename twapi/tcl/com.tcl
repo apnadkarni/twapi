@@ -2673,6 +2673,7 @@ twapi::class create ::twapi::Automation {
         }
 
         $_proxy Release
+        return
     }
 
     # Intended to be called only from another method. Not directly.

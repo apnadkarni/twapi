@@ -347,14 +347,14 @@ proc metoo::class {cmd cname definition} {
     # Define the destroy method for the class
     namespace eval $class_ns {
         method destroy {} {
-            my destructor
+            set retval [my destructor]
             # Remove trace on command rename/deletion.
             # ${_this}::_(name) contains the object's current name on
             # which the trace is set
             trace remove command [set ${_this}::_(name)] {rename delete} [list ::metoo::_trace_object_renames $_this]
             rename [self object] ""
             namespace delete $_this
-            return
+            return $retval
         }
         method variable {args} {
             if {[llength $args]} {
