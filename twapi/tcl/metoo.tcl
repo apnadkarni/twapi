@@ -97,6 +97,8 @@
 #   Also a class is not itself an object.
 # - Renaming classes does not work and will fail in mysterious ways
 # - does not support class refinement/definition
+# - no variable command at class level for automatically bringing variables
+#   into scope
 # - no filters, forwarding, multiple-inheritance
 # - no private methods (all methods are exported).
 
