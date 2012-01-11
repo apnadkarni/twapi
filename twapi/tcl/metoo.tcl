@@ -85,13 +85,18 @@
 #   metoo::introspect object isa OBJECT ?CLASSNAME?
 #    - returns 1 if OBJECT is a metoo object and is of the specified class
 #      if CLASSNAME is specified. Returns 0 otherwise.
+#   metoo::introspect object list
+#    - returns list of all objects
+#   metoo::introspect class ancestors CLASSNAME
+#    - returns list of ancestors for a class
 #
 # Differences and missing features from TclOO: Everything not listed above
 # is missing. Some notable differences:
 # - MeTOO is class-based, not object based like TclOO, thus class instances
 #   (objects) cannot be modified by adding instance-specific methods etc..
 #   Also a class is not itself an object.
-# - does not support class refinement/definition.
+# - Renaming classes does not work and will fail in mysterious ways
+# - does not support class refinement/definition
 # - no filters, forwarding, multiple-inheritance
 # - no private methods (all methods are exported).
 
@@ -445,17 +450,92 @@ proc metoo::class {cmd cname definition} {
     # TBD - check if command of that name already exists
     interp alias {} $class_ns {} [namespace current]::_class_cmd $class_ns
     # Set up trace to track when the class command is renamed/destroyed
-    trace add command $class_ns [list delete] ::metoo::_trace_class_renames
+    trace add command $class_ns [list rename delete] ::metoo::_trace_class_renames
 
     return $class_ns
 }
 
 proc metoo::_trace_class_renames {oldname newname op} {
     if {$op eq "rename"} {
+        # TBD - this does not actually work. The rename succeeds anyways
         error "MetOO classes may not be renamed"
     } else {
         $oldname destroy
     }
+}
+
+proc metoo::introspect {type info args} {
+    switch -exact -- $type {
+        "object" {
+            variable _objects
+            switch -exact -- $info {
+                "isa" {
+                    if {[llength $args] == 0 || [llength $args] > 2} {
+                        error "wrong # args: should be \"metoo::introspect $type $info OBJNAME ?CLASSNAME?\""
+                    }
+                    if {![info exists _objects([lindex $args 0])]} {
+                        return 0
+                    }
+                    if {[llength $args] == 1} {
+                        # No class specified
+                        return 1
+                    }
+                    # passed classname assumed to be fully qualified
+                    set objclass [namespace parent $_objects([lindex $args 0])]
+                    if {[string equal $objclass [lindex $args 1]]} {
+                        # Direct hit
+                        return 1
+                    }
+
+                    # No direct hit, check ancestors
+                    if {[lindex $args 1] in [ancestors $objclass]} {
+                        return 1
+                    }
+
+                    return 0
+                }
+
+                "list" {
+                    if {[llength $args] > 0} {
+                        error "wrong # args: should be \"metoo::introspect $type $info"
+                    }
+                    variable _objects
+                    return [array names _objects]
+                }
+                default {
+                    error "$info subcommand not supported for $type introspection"
+                }
+            }
+        }
+
+        "class" {
+            switch -exact -- $info {
+                "ancestors" {
+                    if {[llength $args] != 1} {
+                        error "wrong # args: should be \"metoo::introspect $type $info CLASSNAME"
+                    }
+                    return [ancestors [lindex $args 0]]
+                }
+                default {
+                    error "$info subcommand not supported for $type introspection"
+                }
+            }
+        }
+        default {
+            error "$type introspection not supported"
+        }
+    }
+}
+
+proc metoo::ancestors {class_ns} {
+    # Returns ancestors of a class
+
+    set ancestors [list ]
+    while {[info exists ${class_ns}::super]} {
+        lappend ancestors [set class_ns [set ${class_ns}::super]]
+    }
+
+    return $ancestors
 }
 
 namespace eval metoo { namespace export class }
