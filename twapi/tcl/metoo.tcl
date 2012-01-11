@@ -80,6 +80,12 @@
 #    - the object can now be invoked using the new name. Note this is unlike
 #      classes which should not be renamed.
 #
+#
+# Introspection (though different from TclOO)
+#   metoo::introspect object isa OBJECT ?CLASSNAME?
+#    - returns 1 if OBJECT is a metoo object and is of the specified class
+#      if CLASSNAME is specified. Returns 0 otherwise.
+#
 # Differences and missing features from TclOO: Everything not listed above
 # is missing. Some notable differences:
 # - MeTOO is class-based, not object based like TclOO, thus class instances
@@ -87,8 +93,10 @@
 #   Also a class is not itself an object.
 # - does not support class refinement/definition.
 # - no filters, forwarding, multiple-inheritance
-# - no introspection capabilities
 # - no private methods (all methods are exported).
+
+# NOTE: file must be sourced at global level since metoo namespace is expected
+# to be top level namespace
 
 catch {namespace delete metoo}
 
@@ -99,6 +107,10 @@ catch {namespace delete metoo}
 
 namespace eval metoo {
     variable next_id 0
+
+    variable _objects;          # Maps objects to its namespace
+    array set _objects {}
+    
 }
 
 # Namespace in which commands in a class definition block are called
@@ -186,6 +198,12 @@ namespace eval metoo::object {
             return [uplevel 1 [list $meth $this] $args]
         }
 
+        # It is ok for constructor or destructor to be undefined. For
+        # the others, invoke "unknown" if it exists
+        if {$methodname eq "constructor" || $methodname eq "destructor"} {
+            return
+        }
+
         set meth [::metoo::_locate_method $class_ns "unknown"]
         if {$meth ne ""} {
             # We need to invoke in the caller's context so upvar etc. will
@@ -220,6 +238,7 @@ proc metoo::_locate_method {class_ns methodname} {
 }
 
 proc metoo::_new {class_ns cmd args} {
+    # class_ns expected to be fully qualified
     variable next_id
 
     # IMPORTANT:
@@ -234,9 +253,16 @@ proc metoo::_new {class_ns cmd args} {
                 error "Insufficient args, should be: class create CLASSNAME ?args?"
             }
             # TBD - check if command already exists
-            # Note objname must always be fully qualified
-            set objname ::[string trimleft "[uplevel 1 "namespace current"]::[lindex $args 0]" :]
-            set args [lrange $args 1 end]
+            # Note objname must always be fully qualified. Note cannot
+            # use namespace which here because the commmand does not
+            # yet exist.
+            set args [lassign $args objname]
+            if {[string compare :: [string range $objname 0 1]]} {
+                # Not fully qualified. Qualify based on caller namespace
+                set objname [uplevel 1 "namespace current"]::$objname
+            }
+            # Trip excess ":" - can happen in both above cases
+            set objname ::[string trimleft $objname :]
         }
         new {
             set objname $objns
@@ -252,8 +278,12 @@ proc metoo::_new {class_ns cmd args} {
     }
     set ${objns}::_(name) $objname
 
-    # When invoked by its name, call the dispatcher
+    # When invoked by its name, call the dispatcher.
     interp alias {} $objname {} ${class_ns}::_call $objns
+
+    # Register the object. We do this BEFORE running the constructor
+    variable _objects
+    set _objects($objname) $objns
 
     # Invoke the constructor
     if {[catch {
@@ -274,7 +304,11 @@ proc metoo::_new {class_ns cmd args} {
 }
 
 proc metoo::_trace_object_renames {objns oldname newname op} {
+    # Note the trace command fully qualifies oldname and newname
     if {$op eq "rename"} {
+        variable _objects
+        set _objects($newname) $_objects($oldname)
+        unset _objects($oldname)
         set ${objns}::_(name) $newname
     } else {
         $oldname destroy
@@ -297,6 +331,7 @@ proc metoo::_class_cmd {class_ns cmd args} {
                 # Child namespace is also subclass command
                 $child_ns destroy
             }
+            trace remove command $class_ns {rename delete} [list ::metoo::_trace_class_renames]
             namespace delete ${class_ns}
             rename ${class_ns} ""
         }
@@ -344,15 +379,17 @@ proc metoo::class {cmd cname definition} {
         error $msg $::errorInfo $::errorCode
     }
 
-    # Define the destroy method for the class
+    # Define the destroy method for the class object instances
     namespace eval $class_ns {
         method destroy {} {
             set retval [my destructor]
             # Remove trace on command rename/deletion.
             # ${_this}::_(name) contains the object's current name on
-            # which the trace is set
-            trace remove command [set ${_this}::_(name)] {rename delete} [list ::metoo::_trace_object_renames $_this]
-            rename [self object] ""
+            # which the trace is set.
+            set me [set ${_this}::_(name)]
+            trace remove command $me {rename delete} [list ::metoo::_trace_object_renames $_this]
+            rename $me  ""
+            unset -nocomplain ::metoo::_objects($me)
             namespace delete $_this
             return $retval
         }
@@ -405,9 +442,20 @@ proc metoo::class {cmd cname definition} {
     }
 
     # The namespace is also a command used to create class instances
+    # TBD - check if command of that name already exists
     interp alias {} $class_ns {} [namespace current]::_class_cmd $class_ns
+    # Set up trace to track when the class command is renamed/destroyed
+    trace add command $class_ns [list delete] ::metoo::_trace_class_renames
 
     return $class_ns
+}
+
+proc metoo::_trace_class_renames {oldname newname op} {
+    if {$op eq "rename"} {
+        error "MetOO classes may not be renamed"
+    } else {
+        $oldname destroy
+    }
 }
 
 namespace eval metoo { namespace export class }
