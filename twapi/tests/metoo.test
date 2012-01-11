@@ -1,0 +1,283 @@
+#
+# Copyright (c) 2011, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for the parseargs command
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package
+
+
+namespace eval metoo::test {
+    namespace import ::tcltest::test
+
+    ################################################################
+
+    test metoo-1.0 {
+        Define an empty class with no methods or constructors or destructors
+    } -body {
+        metoo::class create C {}
+        C create c
+        c destroy
+        set o [C new]
+        $o destroy
+        C destroy
+        list [info commands C] [info commands c]
+    } -result {{} {}}
+
+    test metoo-1.1 {
+        Create objects in a namespace
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result {{} {}}
+    
+
+    test metoo-2.0 {
+        Verify basic operation of constructors and destructors
+    } -setup {
+        set ::metoo_result {}
+    } -body {
+        metoo::class create C {
+            constructor {arg} {
+                my variable var
+                set var $arg
+            }
+            destructor {
+                my variable var
+                # To verify destructor return value is passed on
+                return $var
+            }
+        }
+        C create c A
+        lappend ::metoo_result [c destroy]
+        lappend ::metoo_result [[C new B] destroy]
+        C destroy
+        set metoo_result
+    } -result {A B}
+
+    test metoo-3.0 {
+        Verify destructors are called for all objects when class is destroyed
+    } -setup {
+        set ::metoo_result {}
+    } -body {
+        metoo::class create C {
+            constructor {arg} {
+                my variable var
+                set var $arg
+            }
+            destructor {
+                my variable var
+                lappend ::metoo_result $var
+            }
+        }
+        C create c A
+        C new B
+        C destroy
+        set metoo_result
+    } -result {A B} -match set
+
+   test metoo-3.1 {
+        Verify subclasses and their objects are destroyed objects when super class is destroyed
+    } -setup {
+        set ::metoo_result {}
+    } -body {
+        metoo::class create C {
+            constructor {arg} {
+                my variable var
+                set var $arg
+            }
+            destructor {
+                my variable var
+                lappend ::metoo_result C$var
+            }
+        }
+        metoo::class create D {
+            superclass C
+            destructor {
+                my variable var
+                next
+                lappend ::metoo_result D$var
+            }
+        }
+        C create c A
+        D create d B
+        set o [D new C]
+        C destroy
+        set metoo_result
+    } -result {CA DB CB DC CC} -match set
+
+    test metoo-4.0 {
+        Method calls
+    } -body {
+        set ::metoo_result {}
+        metoo::class create Base {
+            constructor {x} {
+                my variable var
+                set var $x
+            }
+            destructor {
+                my variable var
+                return Base.destructor.$var
+            }
+            method m {} {
+                my variable var
+                return Base.m.$var
+            }
+            method n {args} {
+                my variable var
+                return Base.n.$var.[join $args ,].[my m]
+            }
+            method vlappend {varname} {
+                upvar $varname v
+                my variable var
+                lappend v $var
+            }
+            method unknown {methodname args} {
+                my variable var
+                return Base.unknown.$var.$methodname.[join $args ,]
+            }
+        }
+
+        metoo::class create Derived {
+            superclass Base
+            constructor {x y} {
+                next $x$y
+            }
+            destructor {
+                return Derived.destructor.[next]
+            }
+            method n {args} {
+                return Derived.n.[next {*}$args]
+            }
+            method put {val} {
+                my variable var ; set var $val
+            }
+            method get {} {
+                return Derived.get.[my m]
+            }
+
+        }
+
+        set base [Base new base]
+        set derived [Derived new der ived]
+
+        set result {}
+        lappend result [$base m]; # Base method
+        lappend result [$derived m]; # Inherited base method
+        lappend result [$base n 1 2 3]; # Base method
+        lappend result [$derived n 1 2]; # Overridden base method
+
+        # Verify correct frame level when calling methods
+        $base vlappend result
+        $derived vlappend result
+
+        # Verifies that derived uses base variable var
+        $derived put putted
+        lappend result [$derived m]
+
+        lappend result [$base nosuchmethod]
+        lappend result [$derived nosuchmethodargs a b c]
+
+        lappend result [$base destroy]; # Verify destructor result
+        lappend result [$derived destroy]; # Verify destructor chaining
+
+        Base destroy;           # Should also destroy Derived
+        
+        set result
+
+    } -result {
+        Base.m.base
+        Base.m.derived
+        Base.n.base.1,2,3.Base.m.base
+        Derived.n.Base.n.derived.1,2.Base.m.derived
+        base
+        derived
+        Base.m.putted
+        Base.unknown.base.nosuchmethod.
+        Base.unknown.putted.nosuchmethodargs.a,b,c
+        Base.destructor.base
+        Derived.destructor.Base.destructor.putted
+    } -match list
+
+    test metoo-5.0 {
+        Verify renaming of an object
+    } -setup {
+        metoo::class create C {
+            method m {} {return [self]}
+        }
+    } -body {
+        set result {}
+        C create o1
+        set o [C new]
+        rename o1 o2
+        rename $o o3
+        lappend result [o2 m]
+        lappend result [o3 m]
+        o2 destroy
+        C destroy;                     # To verify renamed (o3) is destroyed
+        lappend result [catch {o3 m}]; # Should fail
+    } -result {::metoo::test::o2 ::metoo::test::o3 1}
+
+    ################################################################
+
+    test introspect-1.0 {
+        Verify object isa
+    } -setup {
+        metoo::class create C {}
+        metoo::class create D {superclass C}
+        metoo::class create E {}
+    } -cleanup {
+        C destroy
+        E destroy
+    } -body {
+        set o [C new]
+        D create d
+        set o2 [C new]
+        $o2 destroy;            # Should not show up as object
+        list \
+            [metoo::introspect object isa $o] \
+            [metoo::introspect object isa $o [namespace current]::C] \
+            [metoo::introspect object isa $o [namespace current]::E] \
+            [metoo::introspect object isa $o2] \
+            [metoo::introspect object isa $o2 [namespace current]::C] \
+            [metoo::introspect object isa [namespace current]::d [namespace current]::C] \
+            [metoo::introspect object isa [namespace current]::d [namespace current]::D] \
+            [metoo::introspect object isa ::file [namespace current]::D] \
+            [metoo::introspect object isa ::nosuchobj [namespace current]::D] \
+    } -result {1 1 0 0 0 1 1 0 0}
+
+    test introspect-1.1 {
+        Verify object list
+    } -setup {
+        metoo::class create C {}
+        metoo::class create D {superclass C}
+        metoo::class create E {}
+    } -cleanup {
+        C destroy
+        E destroy
+    } -body {
+        set o [C new]
+        D create d
+        set o2 [C new]
+        $o2 destroy;            # Should not show up as object
+        set l [metoo::introspect object list]
+        expr {
+              [llength $l] == 2 &&
+              "::metoo::test::d" in $l &&
+              $o in $l
+          }
+    } -result 1
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::metoo::test
