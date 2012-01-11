@@ -724,19 +724,34 @@ namespace eval twapi::com::test {
         NULL comobj -isnull
     } -body {
         twapi::comobj_null -isnull
-    } -result 1 -match boolean
+    } -result 1
 
     test comobj_null-1.1 {
         NULL comobj -interface
     } -body {
         twapi::comobj_null -interface
-    } -result NULL
+    } -result {0 IDispatch}
 
     test comobj_null-1.2 {
         NULL comobj -destroy
     } -body {
-        twapi::comobj_null -destroy
-    } -result ""
+        twapi::comobj_null -destroy; # Should have no effect
+        twapi::comobj_null -isnull
+    } -result 1
+
+    test comobj_null-1.3 {
+        NULL comobj destroy
+    } -body {
+        twapi::comobj_null destroy; # Should have no effect
+        twapi::comobj_null -isnull
+    } -result 1
+
+    test comobj_null-2.0 {
+        Verify that comobj_null is a comobj
+    } -body {
+        twapi::comobj? twapi::comobj_null
+    } -result 1
+    
 
     ################################################################
 
@@ -872,6 +887,41 @@ namespace eval twapi::com::test {
         TBD
     } -result TBD
 
+
+    ################################################################
+
+    test comobj?-1.0 {
+        Test whether a real comobj is a comobj
+    } -setup {
+        set cobj [twapi::comobj WScript.Shell]
+    } -body {
+        twapi::comobj? $cobj
+    } -cleanup {
+        $cobj destroy
+    } -result 1
+
+    test comobj?-2.0 {
+        Test whether a arbitrary object is a comobj
+    } -setup {
+        twapi::class create C {}
+        set cobj [C new]
+    } -body {
+        twapi::comobj? $cobj
+    } -cleanup {
+        C destroy
+    } -result 0
+
+    test comobj?-3.0 {
+        Test whether a arbitrary command is a comobj
+    } -body {
+        twapi::comobj? "file"
+    } -result 0
+
+    test comobj?-4.0 {
+        Test some random string is a comobj
+    } -body {
+        twapi::comobj? "affsdf"
+    } -result 0
 
     ################################################################
 

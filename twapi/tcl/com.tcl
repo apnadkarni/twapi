@@ -4,6 +4,9 @@
 #
 # See the file LICENSE for license
 
+# TBD - tests  comobj? works with derived classes of Automation
+
+
 # TBD - object identity comparison 
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
 # TBD - we seem to resolve UDT's every time a COM method is actually invoked.
@@ -142,18 +145,6 @@ proc twapi::com_create_instance {clsid args} {
     }
 }
 
-#
-# NULL comobj object
-proc twapi::comobj_null {args} {
-    switch -exact -- [lindex $args 0] {
-        -isnull    { return true }
-        -interface { return NULL }
-        -destroy   { return }
-        default {
-            error "NULL comobj called with arguments <[join $args ,]>."
-        }
-    }
-}
 
 #
 # Creates an object command for a COM object from IDispatch or IDispatchEx
@@ -896,18 +887,33 @@ proc twapi::_resolve_iid {name_or_iid} {
 
 
 namespace eval twapi {
-    # TBD - enable oo if available
-    variable use_tcloo_for_com 1
+    # Enable use of TclOO for new Tcl versions
+    variable use_tcloo_for_com 
+    if {![info exists use_tcloo_for_com]} {
+        set use_tcloo_for_com [package vsatisfies [package require Tcl] 8.6b2]
+    }
     if {$use_tcloo_for_com} {
         namespace import ::oo::class
         proc ::oo::define::twapi_exportall {} {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
+        }
+        # TBD - tests for comobj?
+        proc comobj? {cobj} {
+            if {[info object isa object $cobj] &&
+                [info object isa typeof $cobj ::twapi::Automation]} {
+                return 1
+            } else {
+                return 0
+            }
         }
     } else {
         namespace import ::metoo::class
         proc ::metoo::define::twapi_exportall {args} {
             # args is dummy to match metoo's class definition signature
             # Nothing to do, all methods are metoo are public
+        }
+        proc comobj? {cobj} {
+            return [metoo::introspect object isa $cobj ::twapi::Automation]
         }
     }
 
@@ -1228,7 +1234,7 @@ twapi::class create ::twapi::IDispatchProxy {
                         }
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
                             # TBD - Check if pattern match is ok for MeTOO AND TclOO
-                            if {[string match ::twapi::Automation::o#* $arg]} {
+                            if {[twapi::comobj? $arg]} {
                                 # Note we do not addref when getting the interface
                                 # (last param 0) because not necessary for IN
                                 # params, AND it is the C code's responsibility
@@ -1319,7 +1325,7 @@ twapi::class create ::twapi::IDispatchProxy {
                         # convert from comobj if necessary.
                         if {$paramtype == 9 || $paramtype == 12} {
                             # TBD - Check if pattern match is ok for MeTOO AND TclOO
-                            if {[string match ::twapi::Automation::o#* $paramval]} {
+                            if {[::twapi::comobj? $paramval]} {
                                 # Note we do not addref when getting the interface
                                 # (last param 0) because it is the C code's
                                 # responsibility based on in/out direction
@@ -2942,4 +2948,39 @@ twapi::class create ::twapi::Automation {
     twapi_exportall
 }
 
+#
+# NULL comobj object - TBD - derive this from Automation so
+# checks for a comobj param will work properly
+twapi::class create twapi::NullAutomation {
+    superclass twapi::Automation
+    constructor {} {
+        # Note we do NOT call the superclass constructor
+    }
+    destructor {
+        # Note we do NOT call the superclass destructor
+    }
+    method -isnull {}    { return 1 }
+    method -interface {} { return [twapi::Twapi_AddressToPtr 0 IDispatch] }
+    method -destroy {}  {
+        # Silently ignore
+    }
+    method destroy {}  {
+        # Silently ignore
+    }
+    method -call {args} {
+        error "NULL comobj -call invoked with arguments <[join $args ,]>."
+    }
+    method -get {args} {
+        error "NULL comobj -get invoked with arguments <[join $args ,]>."
+    }
+    method -set {args} {
+        error "NULL comobj -set invoked with arguments <[join $args ,]>."
+    }
+    method unknown {args} {
+        error "NULL comobj called with arguments <[join $args ,]>."
+    }
 
+    twapi_exportall
+}
+
+twapi::NullAutomation create twapi::comobj_null
