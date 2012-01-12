@@ -887,7 +887,8 @@ proc twapi::_resolve_iid {name_or_iid} {
 
 
 namespace eval twapi {
-    # Enable use of TclOO for new Tcl versions
+    # Enable use of TclOO for new Tcl versions. To override setting
+    # applications should define and set before sourcing this file.
     variable use_tcloo_for_com 
     if {![info exists use_tcloo_for_com]} {
         set use_tcloo_for_com [package vsatisfies [package require Tcl] 8.6b2]
@@ -897,7 +898,6 @@ namespace eval twapi {
         proc ::oo::define::twapi_exportall {} {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
         }
-        # TBD - tests for comobj?
         proc comobj? {cobj} {
             if {[info object isa object $cobj] &&
                 [info object isa typeof $cobj ::twapi::Automation]} {
@@ -1010,7 +1010,9 @@ proc twapi::make_interface_proxy {ifc} {
     return $proxy
 }
 
-# "Null" object - clones IUnknown but will raise error on method calls
+# "Null" object - clones IUnknownProxy but will raise error on method calls
+# We could have inherited but IUnknownProxy assumes non-null ifc so it
+# and its inherited classes do not have to check for null in every method.
 twapi::class create ::twapi::INullProxy {
     constructor {ifc} {
         my variable _ifc
@@ -1019,11 +1021,13 @@ twapi::class create ::twapi::INullProxy {
             error "Attempt to create a INullProxy with non-NULL interface"
         }
 
+        set _ifc $ifc
+
         my variable _nrefs;   # Internal ref count (held by app)
         set _nrefs 1
     }
 
-    method @Null? {} { return true }
+    method @Null? {} { return 1 }
     method @Type {} {
         my variable _ifc
         return [::twapi::Twapi_PtrType $_ifc]
@@ -1034,7 +1038,8 @@ twapi::class create ::twapi::INullProxy {
     }
     method AddRef {} {
         my variable _nrefs
-        # We maintain our own ref counts.
+        # We maintain our own ref counts. _ifc is null so do not
+        # call the COM AddRef !
         incr _nrefs
     }
 
@@ -1043,6 +1048,28 @@ twapi::class create ::twapi::INullProxy {
         if {[incr _nrefs -1] == 0} {
             my destroy
         }
+    }
+
+    method DebugRefCounts {} {
+        my variable _nrefs
+
+        # Return out internal ref as well as the COM ones
+        # Note latter is always 0 since _ifc is always NULL.
+        return [list $_nrefs 0]
+    }
+
+    method QueryInterface {name_or_iid} {
+        error "Attempt to call QueryInterface called on NULL pointer"
+    }
+
+    method @QueryInterface {name_or_iid} {
+        error "Attempt to call QueryInterface called on NULL pointer"
+    }
+
+    # Parameter is for compatibility with IUnknownProxy
+    method @Interface {{addref 1}} {
+        my variable _ifc
+        return $_ifc
     }
 
     twapi_exportall
@@ -1132,8 +1159,8 @@ twapi::class create ::twapi::IUnknownProxy {
     }
 
     method @Null? {} {
-        # Should never be true since we check in constructor
-        return 0
+        my variable _ifc
+        return [::twapi::Twapi_IsNullPtr $_ifc]
     }
 
     # Returns raw interface. Caller must call IUnknown_Release on it
@@ -2687,6 +2714,10 @@ twapi::class create ::twapi::Automation {
     # On failures, retries with IDispatchEx interface
     method _invoke {name invkinds params {namedargs {}}} {
         my variable  _proxy  _lcid
+
+        if {[$_proxy @Null?]} {
+            error "Attempt to invoke method $name on NULL COM object"
+        }
         ::twapi::trap {
             return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $namedargs]]]
         } onerror {} {
@@ -2741,7 +2772,8 @@ twapi::class create ::twapi::Automation {
     }
 
     method -isnull {} {
-        return false
+        my variable _proxy
+        return [$_proxy @Null?]
     }
 
     method -default {} {
@@ -2949,38 +2981,22 @@ twapi::class create ::twapi::Automation {
 }
 
 #
-# NULL comobj object - TBD - derive this from Automation so
-# checks for a comobj param will work properly
+# Singleton NULL comobj object. We want to override default destroy methods
+# to prevent object from being destroyed. This is a backward compatibility
+# hack and not fool proof since the command could just be renamed away.
 twapi::class create twapi::NullAutomation {
     superclass twapi::Automation
     constructor {} {
-        # Note we do NOT call the superclass constructor
+        next [twapi::make_interface_proxy {0 IDispatch}]
     }
-    destructor {
-        # Note we do NOT call the superclass destructor
-    }
-    method -isnull {}    { return 1 }
-    method -interface {} { return [twapi::Twapi_AddressToPtr 0 IDispatch] }
     method -destroy {}  {
         # Silently ignore
     }
     method destroy {}  {
         # Silently ignore
     }
-    method -call {args} {
-        error "NULL comobj -call invoked with arguments <[join $args ,]>."
-    }
-    method -get {args} {
-        error "NULL comobj -get invoked with arguments <[join $args ,]>."
-    }
-    method -set {args} {
-        error "NULL comobj -set invoked with arguments <[join $args ,]>."
-    }
-    method unknown {args} {
-        error "NULL comobj called with arguments <[join $args ,]>."
-    }
-
     twapi_exportall
 }
 
 twapi::NullAutomation create twapi::comobj_null
+# twapi::Automation create twapi::comobj_null [twapi::make_interface_proxy {0 IDispatch}]
