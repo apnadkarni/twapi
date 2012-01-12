@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2010, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -191,6 +191,18 @@ proc twapi::get_build_config {{key ""}} {
     } else {
         set config(build_id) 0; # Running from source directory (development)
     }
+
+    # This is actually a runtime config and might not have been initialized
+    if {[info exists ::twapi::use_tcloo_for_com]} {
+        if {$::twapi::use_tcloo_for_com} {
+            set config(comobj_ootype) tcloo
+        } else {
+            set config(comobj_ootype) metoo
+        }
+    } else {
+        set config(comobj_ootype) uninitialized
+    }
+
     if {$key eq ""} {
         return [array get config]
     } else {
