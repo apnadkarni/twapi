@@ -96,6 +96,38 @@ value of 0 for [arg MAXLINEWIDTH] is identical to the default behaviour.
 strings. Decimal format specifiers such as %|u! will not result in the
 correct decimal value being inserted.}]
 
+[call [cmd get_build_config] [opt [arg CONFIGKEY]]]
+
+If no arguments are specified, 
+returns an dictionary that contains the TWAPI build configuration.
+If [arg CONFIGKEY] is specified, only returns the value for that configuration
+key. The build configuration keys are:
+
+[list_begin opt]
+[opt_def [const build_id]]
+Identifies the specific TWAPI build. This is independent
+of the TWAPI version information.
+[opt_def [const comobj_ootype]]
+The underlying object system on which the TWAPI COM support is built.
+[opt_def [const compiler]]
+The compiler used for the build (e.g. [const vc++])
+[opt_def [const compiler_version]]
+The version of the build compiler.
+[opt_def [const embed_type]]
+Indicates whether the TWAPI scripts are embedded within the DLL and
+the compression type. One of [const none], [const lzma] or [const plain].
+[opt_def [const opts]]
+List of additional options used in the build.
+[opt_def [const platform]]
+One of [const x86] or [const x64].
+[opt_def [const sdk_version]]
+Version of the Windows SDK used for the build.
+[opt_def [const tcl_header_version]]
+Version of the Tcl headers used for the build.
+[opt_def [const tea]]
+Boolean indicating whether the build used Tcl Extension Architecture
+or native builds.
+[list_end]
 
 [call [cmd get_command_line]]
 
