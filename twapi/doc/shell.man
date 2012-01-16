@@ -75,13 +75,13 @@ using commands such as
 [uri resource.html#load_icon_from_module [cmd load_icon_from_module]] or
 [uri resource.html#load_icon_from_system [cmd load_icon_from_system]].
 This icon can then be displayed in the taskbar with the
-[uri "#systemtray addicon" [cmd "systemtray addicon"]] command
+[uri "#systemtrayaddicon" [cmd "systemtray addicon"]] command
 with optional callbacks when the icon is clicked or selected.
 Icons can be removed from the system tray via the
-[uri "#systemtray removeicon" [cmd "systemtray removeicon"]] command.
+[uri "#systemtrayremoveicon" [cmd "systemtray removeicon"]] command.
 Standard features like display of menus or balloons can be implemented
 either via the callbacks and
-[uri "#systemtray modifyicon" [cmd "systemtray modifyicon"]] command.
+[uri "#systemtraymodifyicon" [cmd "systemtray modifyicon"]] command.
 
 
 [section Commands]
@@ -422,8 +422,8 @@ the object type and display the appropriate dialog.
 [call [cmd "systemtray addicon"] [arg HICON] [opt [arg CMDPREFIX]]]
 Adds the icon referenced by handle [arg HICON] to the system tray
 and returns an identifier to be used with the 
-[uri "#systemtray modifyicon" [cmd "systemtray modifyicon"]] and
-[uri "#systemtray removeicon" [cmd "systemtray removeicon"]] commands.
+[uri "#systemtraymodifyicon" [cmd "systemtray modifyicon"]] and
+[uri "#systemtrayremoveicon" [cmd "systemtray removeicon"]] commands.
 [nl]
 If argument [arg CMDPREFIX] is specified and is not empty, it is invoked
 in response to user interface events (such as mouse clicks)
@@ -480,7 +480,7 @@ events not listed above.
 [call [cmd "systemtray modifyicon"] [arg ICONID] [opt [arg options]]]
 Modifies the specified system tray icon as per the specified options.
 [arg ICONID] is the identifier for the icon as returned by
-[uri "#systemtray addicon" [cmd "systemtray addicon"]]. The following
+[uri "#systemtrayaddicon" [cmd "systemtray addicon"]]. The following
 options may be specified:
 
 [list_begin opt]
@@ -509,7 +509,7 @@ type), are not played. Default is false (sounds are enabled).
 
 Removes the specified icon from the system tray. [arg ICONID] is the
 identifier for the icon as returned by
-[uri "#systemtray addicon" [cmd "systemtray addicon"]].
+[uri "#systemtrayaddicon" [cmd "systemtray addicon"]].
 
 
 [call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]

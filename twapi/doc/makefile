@@ -128,7 +128,7 @@ website.zip : $(MANFILES) styles.css index.htf generate_web_page.tcl generate_ww
 	$(SILENT)$(TCLSH) generate_www_index.tcl website-build\idx.tmp > website-build\idx.htf
         $(SILENT)for %f in ($(HTFOUTPUTFILES) idx.htf) do $(SILENT)$(TCLSH) generate_web_page.tcl website-build\%f $(MODULEVERSION) website-build\toc.htf $(ADFILE) $(ADFILE2) > website-build\%~nf.html
 	@echo Tidying web pages...
-        $(SILENT)for %f in ($(HTMLOUTPUTFILES) idx.html) do $(SILENT)$(TIDY) -asxhtml -q website-build\%f > website\%f
+        $(SILENT)for %f in ($(HTMLOUTPUTFILES) idx.html) do echo %f && $(SILENT)$(TIDY) -asxhtml -q website-build\%f > website\%f
         $(SILENT)$(TCLSH) generate_web_page.tcl index.htf $(MODULEVERSION) website-build\toc.htf $(ADFILE) $(ADFILE2) | $(TIDY) -asxhtml -q > website\index.html
 	@echo Copying files...
 	$(SILENT)xcopy /q /y styles.css website
