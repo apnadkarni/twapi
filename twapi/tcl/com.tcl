@@ -1344,22 +1344,22 @@ twapi::class create ::twapi::IDispatchProxy {
                         }
 
                         # Set the default value field of the
-                        # appropriate parameter. The value is supposed
-                        # to be of the form {VT_TYPE VALUE}.
+                        # appropriate parameter to the named arg value
                         set paramtype [lindex $proto 4 $paramindex 0]
 
                         # If parameter is VT_DISPATCH or VT_VARIANT, 
                         # convert from comobj if necessary.
                         if {$paramtype == 9 || $paramtype == 12} {
-                            # TBD - Check if pattern match is ok for MeTOO AND TclOO
                             if {[::twapi::comobj? $paramval]} {
-                                # Note we do not addref when getting the interface
+                                # Note no AddRef when getting the interface
                                 # (last param 0) because it is the C code's
                                 # responsibility based on in/out direction
                                 set paramval [$paramval -interface 0]
                             }
                         }
-                        lset proto 4 $paramindex 2 $paramval
+
+                        # Replace the default value field for that param def
+                        lset proto 4 $paramindex [linsert [lrange [lindex $proto 4 $paramindex] 0 1] 2 $paramval]
                     }
                 }
             } elseif {[info exists class3]} {
