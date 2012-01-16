@@ -925,6 +925,19 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test comobj_instances-1.0 {
+        Number of comobj objects
+    } -setup {
+        set wshell [twapi::comobj wscript.shell]
+    } -body {
+        set comobjs [twapi::comobj_instances]
+        expr {("::twapi::comobj_null" in $comobjs) && ($wshell in $comobjs)}
+    } -cleanup {
+        $wshell -destroy
+    } -result 1
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
