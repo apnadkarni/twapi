@@ -507,7 +507,7 @@ proc metoo::introspect {type info args} {
                     }
                     set objs {}
                     foreach obj [array names _objects] {
-                        if {[introspect object isa [lindex $args 0]]} {
+                        if {[introspect object isa $obj [lindex $args 0]]} {
                             lappend objs $obj
                         }
                     }
