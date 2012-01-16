@@ -16,6 +16,9 @@ proc make_linkable_cmd {name} {
         append name _uc
     }
 
+    # Remove spaces
+    set name [string map {{ } {}} $name]    
+
     # Hopefully all the above will not lead to name clashes
     return [string tolower $name]
 }
