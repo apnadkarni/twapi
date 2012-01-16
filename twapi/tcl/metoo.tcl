@@ -473,7 +473,7 @@ proc metoo::introspect {type info args} {
             switch -exact -- $info {
                 "isa" {
                     if {[llength $args] == 0 || [llength $args] > 2} {
-                        error "wrong # args: should be \"metoo::introspect $type $info OBJNAME ?CLASSNAME?\""
+                        error "wrong # args: should be \"metoo::introspect $type $info OBJNAME ?CLASS?\""
                     }
                     if {![info exists _objects([lindex $args 0])]} {
                         return 0
@@ -498,11 +498,20 @@ proc metoo::introspect {type info args} {
                 }
 
                 "list" {
-                    if {[llength $args] > 0} {
-                        error "wrong # args: should be \"metoo::introspect $type $info"
+                    if {[llength $args] > 1} {
+                        error "wrong # args: should be \"metoo::introspect $type $info ?CLASS?"
                     }
                     variable _objects
-                    return [array names _objects]
+                    if {[llength $args] == 0} {
+                        return [array names _objects]
+                    }
+                    set objs {}
+                    foreach obj [array names _objects] {
+                        if {[introspect object isa [lindex $args 0]]} {
+                            lappend objs $obj
+                        }
+                    }
+                    return $objs
                 }
                 default {
                     error "$info subcommand not supported for $type introspection"

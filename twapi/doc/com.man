@@ -78,6 +78,11 @@ the following creates a COM object for an Excel file.
 When an object is no longer required, it must be explicitly destroyed
 by calling the command with the [cmd -destroy] subcommand.
 
+[para]
+The list of existing COM automation objects in the application can
+be retrieved with the [uri #comobj_instances [cmd comobj_instances]]
+command.
+
 [section "Accessing Properties and Methods of Automation Objects"]
 
 The properties and methods of a COM object can be accessed through
@@ -632,6 +637,10 @@ from this list is passed the remaining arguments in the command.
 All the intermediate objects created are automatically destroyed.
 [nl]
 See [sectref "Navigating Objects"] for an example.
+
+[call [cmd comobj_instances]]
+Returns the list of existing COM proxy objects created through the
+[uri #comobj [cmd comobj]] command.
 
 [call [cmd comobj_object] [arg DISPLAYNAME] [opt "[cmd -interface] [cmd IDispatch]|[cmd IDispatchEx]"]]
 Creates a COM object identified by its display name [arg DISPLAYNAME]
