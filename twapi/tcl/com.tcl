@@ -906,6 +906,18 @@ namespace eval twapi {
                 return 0
             }
         }
+        proc comobj_instances {} {
+            set comobj_classes [list ::twapi::Automation]
+            set objs {}
+            while {[llength $comobj_classes]} {
+                set comobj_classes [lassign $comobj_classes class]
+                lappend objs {*}[info class instances $class]
+                lappend comobj_classes {*}[info class subclasses $class]
+            }
+            # Get rid of dups which may occur if subclasses use
+            # multiple (diamond type) inheritance
+            return [lsort -unique $objs]
+        }
     } else {
         namespace import ::metoo::class
         proc ::metoo::define::twapi_exportall {args} {
@@ -914,6 +926,9 @@ namespace eval twapi {
         }
         proc comobj? {cobj} {
             return [metoo::introspect object isa $cobj ::twapi::Automation]
+        }
+        proc comobj_instances {} {
+            return [metoo::introspect object list ::twapi::Automation]
         }
     }
 
@@ -2705,7 +2720,9 @@ twapi::class create ::twapi::Automation {
             my -unbind $sinkid
         }
 
-        $_proxy Release
+        if {[info exists _proxy]} {
+            $_proxy Release
+        }
         return
     }
 
