@@ -1,6 +1,7 @@
 # Create a linkable name that matches the one created by the doctools
 # htm formatter.
-# This proc is duplicated all over the place...oh well
+# This proc is duplicated all over the place, for example in
+# fmt.htf in twapi version of doctools...oh well
 proc make_linkable_cmd {name} {
     # Map starting - to x- as the former is not legal in XHTML "id" attribute
     if {[string index $name 0] eq "-"} {
@@ -12,6 +13,9 @@ proc make_linkable_cmd {name} {
         [string toupper $name] eq $name} {
         append name _uc
     }
+
+    # Remove spaces
+    set name [string map {{ } {}} $name]    
 
     # Hopefully all the above will not lead to name clashes
     return [string tolower $name]
@@ -36,7 +40,7 @@ proc manpage {filename description} {
     # no problem, we will just get the whole page instead. To match
     # the manpage htm format generator, we replace - with _ in keyword
     # since the former is not valid in XHTML id fields.
-    if {[string first " " $::current_keyword] < 0} {
+    if {1 || [string first " " $::current_keyword] < 0} {
         append entry "\n\t<param name=\"Local\" value=\"$filename#[make_linkable_cmd $::current_keyword]\">"
     } else {
         append entry "\n\t<param name=\"Local\" value=\"$filename\">"
