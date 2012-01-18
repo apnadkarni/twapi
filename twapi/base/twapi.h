@@ -318,9 +318,24 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define EMPTIFY_NULL(s_) if ((s_) == NULL) (s_) = L"";
 
 
-/**********************************
- * Macros dealing with Tcl_Obj 
- **********************************/
+/**********************************************
+ * Macros and definitions dealing with Tcl_Obj 
+ **********************************************/
+enum {
+    TWAPI_TCLTYPE_NONE  = 0,
+    TWAPI_TCLTYPE_STRING,
+    TWAPI_TCLTYPE_BOOLEAN,
+    TWAPI_TCLTYPE_INT,
+    TWAPI_TCLTYPE_DOUBLE,
+    TWAPI_TCLTYPE_BYTEARRAY,
+    TWAPI_TCLTYPE_LIST,
+    TWAPI_TCLTYPE_DICT,
+    TWAPI_TCLTYPE_WIDEINT,
+    TWAPI_TCLTYPE_BOOLEANSTRING,
+    TWAPI_TCLTYPE_BOUND
+} TwapiTclType;
+    
+
 
 /* Create a string obj from a string literal. */
 #define STRING_LITERAL_OBJ(x) Tcl_NewStringObj(x, sizeof(x)-1)
@@ -1453,9 +1468,11 @@ TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_IDispatch_InvokeObjCmd;
 TwapiTclObjCmd Twapi_ComEventSinkObjCmd;
 TwapiTclObjCmd Twapi_SHChangeNotify;
+TwapiTclObjCmd Twapi_InternalCastObjCmd;
+TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 
 /* Dispatcher routines */
-    int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
+int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TwapiTclObjCmd Twapi_CallObjCmd;
 TwapiTclObjCmd Twapi_CallUObjCmd;
 TwapiTclObjCmd Twapi_CallSObjCmd;
@@ -1531,6 +1548,9 @@ TWAPI_EXTERN int TwapiEnqueueCallback(
 TWAPI_EXTERN int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], TwapiResultType response_type);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
+int TwapiInitTclTypes(void);
+int TwapiGetTclType(Tcl_Obj *objP);
+
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
 #define ObjFromHWND(h) ObjFromOpaque((h), "HWND")

@@ -7,6 +7,138 @@
 
 #include "twapi.h"
 
+/*
+ * Used for deciphering  unknown types when passing to COM. Note
+ * any or all of these may be NULL.
+ */
+static struct TwapiTclTypeMap {
+    char *typename;
+    Tcl_ObjType *typeptr;
+} gTclTypes[TWAPI_TCLTYPE_BOUND];
+
+
+int TwapiInitTclTypes(void)
+{
+    int i;
+
+    gTclTypes[TWAPI_TCLTYPE_NONE].typename = "none";
+    gTclTypes[TWAPI_TCLTYPE_NONE].typeptr = NULL; /* No internal type set */
+    gTclTypes[TWAPI_TCLTYPE_STRING].typename = "string";
+    gTclTypes[TWAPI_TCLTYPE_BOOLEAN].typename = "boolean";
+    gTclTypes[TWAPI_TCLTYPE_INT].typename = "int";
+    gTclTypes[TWAPI_TCLTYPE_DOUBLE].typename = "double";
+    gTclTypes[TWAPI_TCLTYPE_BYTEARRAY].typename = "bytearray";
+    gTclTypes[TWAPI_TCLTYPE_LIST].typename = "list";
+    gTclTypes[TWAPI_TCLTYPE_DICT].typename = "dict";
+    gTclTypes[TWAPI_TCLTYPE_WIDEINT].typename = "wideInt";
+    gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typename = "booleanString";
+
+    for (i = 1; i < ARRAYSIZE(gTclTypes); ++i) {
+        gTclTypes[i].typeptr =
+            Tcl_GetObjType(gTclTypes[i].typename); /* May be NULL */
+    }
+
+    /* "booleanString" type is not always registered (if ever). Get it
+     *  by hook or by crook
+     */
+    if (gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr == NULL) {
+        Tcl_Obj *objP = Tcl_NewStringObj("true", -1);
+        Tcl_GetBooleanFromObj(NULL, objP, &i);
+        /* This may still be NULL, but what can we do ? */
+        gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
+    }    
+
+    return TCL_OK;
+}
+
+int TwapiGetTclType(Tcl_Obj *objP)
+{
+    int i;
+    
+    for (i = 0; i < ARRAYSIZE(gTclTypes); ++i) {
+        if (gTclTypes[i].typeptr == objP->typePtr)
+            return i;
+    }
+
+    return -1;
+}
+
+int Twapi_GetTclTypeObjCmd(
+    ClientData dummy,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[]
+)
+{
+    if (objc != 2)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (objv[1]->typePtr != NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(objv[1]->typePtr->name, -1));
+    } else {
+        /* Leave result as empty string */
+    }
+    return TCL_OK;
+}
+
+int Twapi_InternalCastObjCmd(
+    ClientData dummy,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[]
+)
+{
+    Tcl_Obj *objP;
+    Tcl_ObjType *typeP;
+    const char *typename;
+    int i;
+
+    if (objc != 3)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    typename = Tcl_GetString(objv[1]);
+
+
+    /*
+     * We special case "boolean" and "booleanString" because they will keep
+     * numerics as numerics while we want to force to boolean Tcl_Obj type.
+     * We do this even before GetObjType because "booleanString" is not
+     * even a registered type in Tcl.
+     */
+    if (STREQ(typename, "boolean") || STREQ(typename, "booleanString")) {
+        if (Tcl_GetBooleanFromObj(interp, objv[2], &i) == TCL_ERROR)
+            return TCL_ERROR;
+        /* Directly calling Tcl_NewBooleanObj returns an int type object */
+        objP = Tcl_NewStringObj(i ? "true" : "false", -1);
+        Tcl_GetBooleanFromObj(NULL, objP, &i);
+        Tcl_SetObjResult(interp, objP);
+        return TCL_OK;
+    }
+
+    typeP = Tcl_GetObjType(typename);
+    if (typeP == NULL) {
+        Tcl_SetResult(interp, "Invalid or unknown Tcl type", TCL_STATIC);
+        return TCL_ERROR;
+    }
+        
+
+    if (Tcl_IsShared(objv[2])) {
+        objP = Tcl_DuplicateObj(objv[2]);
+    } else {
+        objP = objv[2];
+    }
+        
+    if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
+        if (objP != objv[2]) {
+            Tcl_DecrRefCount(objP);
+        }
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+
 
 /*
  * Generic function for setting a Tcl result. Note following special cases

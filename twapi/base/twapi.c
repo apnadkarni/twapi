@@ -151,6 +151,8 @@ int Twapi_Init(Tcl_Interp *interp)
                          ticP, NULL);
 #endif
 
+    Tcl_CreateObjCommand(interp, "twapi::_internal_cast", Twapi_InternalCastObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
     
     if (TwapiLoadInitScript(ticP) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
@@ -292,6 +294,7 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
 }
+
 
 static void Twapi_Cleanup(ClientData clientdata)
 {
@@ -483,6 +486,7 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
        given above check but ... */
     if (gTclVersion.major ==  TWAPI_TCL_MAJOR &&
         gTclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
+        TwapiInitTclTypes();
         gTwapiOSVersionInfo.dwOSVersionInfoSize =
             sizeof(gTwapiOSVersionInfo);
         if (GetVersionEx(&gTwapiOSVersionInfo)) {
