@@ -98,7 +98,12 @@ int Twapi_InternalCastObjCmd(
 
     typename = Tcl_GetString(objv[1]);
 
-
+    if (*typename == '\0') {
+        /* No type, keep as is */
+        Tcl_SetObjResult(interp, objv[2]);
+        return TCL_OK;
+    }
+        
     /*
      * We special case "boolean" and "booleanString" because they will keep
      * numerics as numerics while we want to force to boolean Tcl_Obj type.
@@ -117,22 +122,31 @@ int Twapi_InternalCastObjCmd(
 
     typeP = Tcl_GetObjType(typename);
     if (typeP == NULL) {
-        Tcl_SetResult(interp, "Invalid or unknown Tcl type", TCL_STATIC);
+        Tcl_AppendResult(interp, "Invalid or unknown Tcl type '", typename, "'", NULL);
         return TCL_ERROR;
     }
         
-
-    if (Tcl_IsShared(objv[2])) {
-        objP = Tcl_DuplicateObj(objv[2]);
-    } else {
+    if (objv[2]->typePtr == typeP) {
+        /* If type is already correct, no need to do anything */
         objP = objv[2];
-    }
-        
-    if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
-        if (objP != objv[2]) {
-            Tcl_DecrRefCount(objP);
+    } else {
+        /*
+         * Need to convert it. If not shared, do in place else allocate
+         * new object
+         */
+
+        if (Tcl_IsShared(objv[2])) {
+            objP = Tcl_DuplicateObj(objv[2]);
+        } else {
+            objP = objv[2];
         }
-        return TCL_ERROR;
+        
+        if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
+            if (objP != objv[2]) {
+                Tcl_DecrRefCount(objP);
+            }
+            return TCL_ERROR;
+        }
     }
 
     Tcl_SetObjResult(interp, objP);

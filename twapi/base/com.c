@@ -98,8 +98,8 @@ static struct IDispatchVtbl Twapi_EventSink_Vtbl = {
 };
 
 
-/* TBD - does this (related methods) need to be made thread safe? Right now
- * we do not support multithreaded Tcl
+/*
+ *  TBD - does this (related methods) need to be made thread safe?
  */
 typedef struct Twapi_EventSink {
     interface IDispatch idispP; /* Must be first field */
@@ -1856,9 +1856,53 @@ int TwapiMakeVariantParam(
          * At this point, targetP points to the variant where the actual
          * value will be stored. This will be refvarP if VT_BYREF is set
          * and varP otherwise.
-         *
-         *
          */
+        
+        /* When vt is VARIANT we don't really know the type.
+         * Note VT_VARIANT is only valid in type descriptions and
+         * is not valid for VARIANTARG (ie. for
+         * the actual value). It has to be a concrete type.
+         *
+         * To store it as an appropriate concrete VT type, we check to see
+         * if it is internally a specific Tcl type. If so, we set vt
+         * accordingly so it gets handled below. If not, vt stays as
+         * VT_VARIANT and we will make a best guess later.
+         */
+        if ((vt & ~VT_BYREF) == VT_VARIANT) {
+            switch (TwapiGetTclType(valueObj)) {
+            case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
+            case TWAPI_TCLTYPE_BOOLEANSTRING:
+                vt = VT_BOOL | (vt & VT_BYREF);
+                break;
+            case TWAPI_TCLTYPE_INT:
+                vt = VT_INT | (vt & VT_BYREF);
+                break;
+            case TWAPI_TCLTYPE_WIDEINT:
+                vt = VT_I8 | (vt & VT_BYREF);
+                break;
+            case TWAPI_TCLTYPE_DOUBLE:
+                vt = VT_R8 | (vt & VT_BYREF);
+                break;
+            case TWAPI_TCLTYPE_STRING:
+                /* In Tcl everything is a string. However, it is marked
+                   as a string only when some string operations are done
+                   on it. So we treat TWAPI_TCLTYPE_STRING specifically
+                   as a string and don't treat it as TWAPI_TCLTYPE_NONE
+                */
+                vt = VT_BSTR | (vt & VT_BYREF);
+                break;
+            case TWAPI_TCLTYPE_BYTEARRAY: /* Binary - TBD */
+            case TWAPI_TCLTYPE_LIST:      /* List - TBD */
+            case TWAPI_TCLTYPE_DICT:      /* Dict - TBD */
+            case TWAPI_TCLTYPE_NONE: /* Completely untyped */
+            default:
+                /* No internal rep marker in the object. Keep as VT_VARIANT
+                   and handle in switch below
+                */
+                break;
+            }
+        }
+
         switch (vt & ~VT_BYREF) {
         case VT_I2:
         case VT_I4:
@@ -1898,7 +1942,9 @@ int TwapiMakeVariantParam(
              * Note VT_VARIANT is only valid in type descriptions and
              * is not valid for VARIANTARG (ie. for
              * the actual value). It has to be a concrete type.
-             * Just make a best guess. Note we pass NULL for interp
+             * We have been unable to guess the type based on the Tcl
+             * internal type pointer so make a guess based on value.
+             * Note we pass NULL for interp
              * when to GetLong and GetDouble as we don't want an
              * error message left in the interp.
              */
@@ -1920,6 +1966,7 @@ int TwapiMakeVariantParam(
                 }
                 targetP->vt = VT_BSTR;
             }
+
             break;
 
         case VT_BSTR:
