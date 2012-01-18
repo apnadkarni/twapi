@@ -151,7 +151,7 @@ int Twapi_Init(Tcl_Interp *interp)
                          ticP, NULL);
 #endif
 
-    Tcl_CreateObjCommand(interp, "twapi::_internal_cast", Twapi_InternalCastObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::tclcast", Twapi_InternalCastObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
     
     if (TwapiLoadInitScript(ticP) != TCL_OK) {

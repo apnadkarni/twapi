@@ -1275,13 +1275,20 @@ twapi::class create ::twapi::IDispatchProxy {
                             set argtype [lindex $argtype 1]
                         }
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
-                            # TBD - Check if pattern match is ok for MeTOO AND TclOO
+                            # We do not want change the internal type so
+                            # save it since comobj? changes it to cmdProc
+                            set orig_type [twapi::tcltype $arg]
                             if {[twapi::comobj? $arg]} {
                                 # Note we do not addref when getting the interface
                                 # (last param 0) because not necessary for IN
                                 # params, AND it is the C code's responsibility
                                 # anyways
                                 set arg [$arg -interface 0]
+                            } else {
+                                # Restore the original type
+                                # The [set arg ""] is to optimize refcounts
+                                # so a new Tcl_Obj is not allocated internally
+                                set arg [twapi::tclcast $orig_type $arg[set arg ""]]
                             }
                         }
                     }
@@ -1365,11 +1372,19 @@ twapi::class create ::twapi::IDispatchProxy {
                         # If parameter is VT_DISPATCH or VT_VARIANT, 
                         # convert from comobj if necessary.
                         if {$paramtype == 9 || $paramtype == 12} {
+                            # We do not want change the internal type so
+                            # save it since comobj? changes it to cmdProc
+                            set orig_type [twapi::tcltype $paramval]
                             if {[::twapi::comobj? $paramval]} {
                                 # Note no AddRef when getting the interface
                                 # (last param 0) because it is the C code's
                                 # responsibility based on in/out direction
                                 set paramval [$paramval -interface 0]
+                            } else {
+                                # Restore the original type
+                                # [set paramval ""] is to optimize refcounts
+                                # so a new Tcl_Obj is not allocated internally
+                                set paramval [twapi::tclcast $orig_type $paramval[set paramval ""]]
                             }
                         }
 
