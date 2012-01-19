@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
-[copyright "2006-2010 Ashok P. Nadkarni"]
+[copyright "2006-2012 Ashok P. Nadkarni"]
 [moddesc "COM client support"]
 [titledesc "Commands for accessing COM servers"]
 [require twapi]
@@ -81,7 +81,8 @@ by calling the command with the [cmd -destroy] subcommand.
 [para]
 The list of existing COM automation objects in the application can
 be retrieved with the [uri #comobj_instances [cmd comobj_instances]]
-command.
+command. The command [uri #comobj? [cmd comobj?]] can be used
+to check if a command is a COM object.
 
 [section "Accessing Properties and Methods of Automation Objects"]
 
@@ -141,11 +142,7 @@ the method [uri \#destroy [cmd destroy]] destroys the command object.
 If the underlying automation object also had a [cmd destroy] method,
 you would need to invoke it as
 
-
-
-
 [example "\$ie -call destroy"]
-
 
 [para]
 To continue with the example, we can read the [var LocationURL] property
@@ -435,7 +432,7 @@ The following creates a script for all type definitions within the type library.
 [example "generate_code_from_typelib c:/windows/system32/stdole2.tlb"]
 
 The next example creates a script for all type definitions within the 
-type library, but
+type library, but 
 within the [cmd ns] namespace instead of the default [cmd stdole] which
 is the internal type library name. If an empty string was specified instead
 of [cmd ns], the classes and enum array would be created in the current
@@ -457,6 +454,26 @@ is the only way to access them. The other factor is performance. If only
 a few components and methods are used, runtime discovery may be more efficient
 but for heavy use of pregeneration may offer better performance.
 
+
+[section "Controlling Parameter Types"]
+Generally, TWAPI uses type information present in COM objects to detect
+parameter types and convert Tcl values appropriately. However, there are
+two circumstances where TWAPI has to guess the parameter type. The first
+case is when the COM object does not provide type information. The second
+case is when the parameter type is defined as a [cmd VARIANT] which is
+a union that may be instantiated as one of several types. The COM object
+method may change its behaviour depending on the concret type of the
+passed parameter.
+[para]
+In languages like Visual Basic, the type of the passed parameter can
+be deduced because the language itself is typed. In Tcl, 
+where "Everything Is A String", this is not possible. To deal with
+this situation, the application can use the 
+[uri misc.html#tclcast [cmd tclcast]] command to appropriately force
+the passed value to a specific type. So for example, to force the
+passed parameter to be treated as a boolean, and not an integer,
+the application could call a method as follows:
+[example "\$obj Visible [lb]tclcast boolean 1[rb]"]
 
 [section Commands]
 
@@ -637,6 +654,9 @@ from this list is passed the remaining arguments in the command.
 All the intermediate objects created are automatically destroyed.
 [nl]
 See [sectref "Navigating Objects"] for an example.
+
+[call [cmd comobj?] [arg COMOBJ]]
+Returns 1 if the [arg COMOBJ] refers to a [cmd COMOBJ] object and 0 otherwise.
 
 [call [cmd comobj_instances]]
 Returns the list of existing COM proxy objects created through the
