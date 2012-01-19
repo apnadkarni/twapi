@@ -143,9 +143,6 @@ clean:
 	-del idx.html
 	-del toc.html
 	-del $(HTMLOUTPUTFILES)
+	-rmdir/s/q chm-build
 	-rmdir/s/q website-build
 	-rmdir/s/q website
-	-del *.chm
-	-del *.hhc
-	-del *.hhk
-	-del twapi.hhp
