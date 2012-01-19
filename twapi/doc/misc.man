@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Miscellaneous" n ""]
-[copyright "2004-2009 Ashok P. Nadkarni"]
+[copyright "2004-2012 Ashok P. Nadkarni"]
 [moddesc "Miscellaneous commands"]
 [titledesc "Various TWAPI ancillary commands"]
 [require twapi]
@@ -237,6 +237,16 @@ Converts [arg TIMELIST] to the number of 100 nanoseconds since Jan 1, 1601.
 [arg TIMELIST] must be a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
+
+[call [cmd tclcast] [arg TYPE] [arg VALUE]]
+Returns [arg VALUE] whose internal Tcl type is set to [arg TYPE].
+See [uri com.html#controllingparametertypes "Controlling Parameter Types"]
+for a use case. [arg TYPE] must be one of
+[const int], [const boolean], [const double], [const string],
+[const list], or [const dict].
+
+[call [cmd tcltype] [arg VALUE]]
+Returns the internal Tcl type for a value.
 
 [list_end]
 

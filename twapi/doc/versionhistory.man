@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2011 Ashok P. Nadkarni"]
+[copyright "2003-2012 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
@@ -28,12 +28,21 @@ Added [uri com.html#generate_code_from_typelib [cmd generate_code_from_typelib]]
 to generate COM client code from type libraries.
 
 [bullet]
+Added [uri com.html [cmd comobj?]] and
+[uri com.html#comobj_instances [cmd comobj_instances]] to check for and
+return instances of [uri com.html#comobj [cmd comobj]] objects.
+
+[bullet]
 Significantly improved COM method call performance through the use of
 TclOO in newer Tcl versions (8.6b2 and later)
 
 [bullet]
 Added [uri misc.html#get_build_config [cmd get_build_config]] to
 return build information.
+
+[bullet]
+Added [uri misc.html#tclcast [cmd tclcast]] and
+[uri misc.html#tcltype [cmd tcltype]].
 
 [list_end]
 
