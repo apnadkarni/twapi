@@ -73,8 +73,13 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
+    if (objc & 1) {
+        Tcl_SetResult(interp, "EVENT_TRACE_PROPERTIES must contain even number of elements", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
     /* First loop and find out required buffers size */
-    for (i = 0 ; i < objc ; ++i) {
+    for (i = 0 ; i < objc ; i += 2) {
         if (Tcl_GetIndexFromObj(interp, objv[i], g_event_trace_fields, "event trace field", TCL_EXACT, &field) != TCL_OK)
             return TCL_ERROR;
         switch (field) {
@@ -88,16 +93,18 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     }
     
     if (session_name_i >= 0) {
-        session_name = Tcl_GetUnicodeFromObj(objv[session_name_i], &session_name_i);
+        session_name = Tcl_GetUnicodeFromObj(objv[session_name_i+1], &session_name_i);
     } else {
         session_name_i = 0;
     }
 
     if (logfile_name_i >= 0) {
-        logfile_name = Tcl_GetUnicodeFromObj(objv[logfile_name_i], &logfile_name_i);
+        logfile_name = Tcl_GetUnicodeFromObj(objv[logfile_name_i+1], &logfile_name_i);
     } else {
         logfile_name_i = 0;
     }
+
+    /* Note: session_name_i/logfile_name_i now contain lengths of names */
 
     buf_sz = sizeof(*etP);
     /* Note 0 length names means we do not specify it or know its length */
@@ -150,7 +157,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
 st */
     etP->LogFileMode = EVENT_TRACE_USE_PAGED_MEMORY | EVENT_TRACE_FILE_MODE_APPEND;
 
-    for (i = 0 ; i < objc ; ++i) {
+    for (i = 0 ; i < objc ; i += 2) {
         ULONG *ulP;
 
         if (Tcl_GetIndexFromObj(interp, objv[i], g_event_trace_fields, "event trace field", TCL_EXACT, &field) == TCL_ERROR)
@@ -162,7 +169,7 @@ st */
             /* Already handled above */
             break;
         case 2: //-sessionguid
-            if (ObjToGUID(interp, objv[i], &etP->Wnode.Guid) != TCL_OK)
+            if (ObjToGUID(interp, objv[i+1], &etP->Wnode.Guid) != TCL_OK)
                 goto error_handler;
             break;
         case 3: // -buffersize
@@ -211,7 +218,7 @@ st */
             ulP = &etP->RealTimeBuffersLost;
             break;
         case 18: // -loggerthread
-            if (ObjToHANDLE(interp, objv[i], &etP->LoggerThreadId) != TCL_OK)
+            if (ObjToHANDLE(interp, objv[i+1], &etP->LoggerThreadId) != TCL_OK)
                 goto error_handler;
             break;
         default:
@@ -222,7 +229,7 @@ st */
         if (ulP == NULL) {
             /* Nothing to do, value already set in the switch */
         } else {
-            if (Tcl_GetLongFromObj(interp, objv[i], ulP) != TCL_OK)
+            if (Tcl_GetLongFromObj(interp, objv[i+1], ulP) != TCL_OK)
                 goto error_handler;
         }
     }
@@ -452,9 +459,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         Tcl_InitObjHashTable(&gEventTraceContexts.contexts);
         gEventTraceContexts.initialized = 1;
     }
-
-
-// TBD    What is this trying to do ? - ZeroMemory(gEventTraceContexts);
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
 
