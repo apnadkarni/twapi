@@ -50,7 +50,7 @@ struct {
     int initialized;
     Tcl_HashTable contexts;
 } gEventTraceContexts;
-TBD - need to add initialization for this in twapi.c
+
 CRITICAL_SECTION gEventTraceCS; /* Access to gEventTraceContexts */
 
 
@@ -454,10 +454,9 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     }
 
 
-    ZeroMemory(gEventTraceContext);
+// TBD    What is this trying to do ? - ZeroMemory(gEventTraceContexts);
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
-
 
     LeaveCriticalSection(&gEventTraceCS);
 
