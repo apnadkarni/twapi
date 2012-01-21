@@ -57,6 +57,7 @@ OBJS  = \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
+	$(OBJDIR)\etw.obj \
 	$(OBJDIR)\eventlog.obj \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\hotkey.obj \
