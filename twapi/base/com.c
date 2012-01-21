@@ -1875,7 +1875,7 @@ int TwapiMakeVariantParam(
                 vt = VT_BOOL | (vt & VT_BYREF);
                 break;
             case TWAPI_TCLTYPE_INT:
-                vt = VT_INT | (vt & VT_BYREF);
+                vt = VT_I4 | (vt & VT_BYREF);
                 break;
             case TWAPI_TCLTYPE_WIDEINT:
                 vt = VT_I8 | (vt & VT_BYREF);
@@ -1883,17 +1883,14 @@ int TwapiMakeVariantParam(
             case TWAPI_TCLTYPE_DOUBLE:
                 vt = VT_R8 | (vt & VT_BYREF);
                 break;
-            case TWAPI_TCLTYPE_STRING:
-                /* In Tcl everything is a string. However, it is marked
-                   as a string only when some string operations are done
-                   on it. So we treat TWAPI_TCLTYPE_STRING specifically
-                   as a string and don't treat it as TWAPI_TCLTYPE_NONE
-                */
-                vt = VT_BSTR | (vt & VT_BYREF);
-                break;
             case TWAPI_TCLTYPE_BYTEARRAY: /* Binary - TBD */
             case TWAPI_TCLTYPE_LIST:      /* List - TBD */
             case TWAPI_TCLTYPE_DICT:      /* Dict - TBD */
+            case TWAPI_TCLTYPE_STRING:
+                /* In Tcl everything is a string so we cannot really
+                   mark it as a BSTR.
+                   FALLTHRU
+                */
             case TWAPI_TCLTYPE_NONE: /* Completely untyped */
             default:
                 /* No internal rep marker in the object. Keep as VT_VARIANT
