@@ -1399,6 +1399,11 @@ BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP);
 int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD offset);
 
+/* ETW */
+TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* UI and window related */
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);

@@ -589,6 +589,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetBestInterfaceEx, Call, 10133);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
+    CALL_(StartTrace, Call, 10136); // Tcl
+    CALL_(ControlTrace, Call, 10137); // Tcl
+    CALL_(EnableTrace, Call, 10138); // Tcl
+    CALL_(OpenTrace, Call, 10139); // Tcl
+
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2747,6 +2752,19 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             else
                 result.type = TRT_GETLASTERROR;
             break;
+
+        case 10136: // StartTrace
+            return Twapi_StartTrace(ticP, objc-2, objv+2);
+
+        case 10137: // ControlTrace
+            return Twapi_ControlTrace(ticP, objc-2, objv+2);
+
+        case 10138: // EnableTrace
+            return Twapi_EnableTrace(ticP, objc-2, objv+2);
+
+        case 10139: // OpenTrace
+            return Twapi_OpenTrace(ticP, objc-2, objv+2);
+
         }
     }
 
