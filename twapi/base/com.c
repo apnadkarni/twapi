@@ -1657,7 +1657,7 @@ int TwapiMakeVariantParam(
 {
     Tcl_Obj   **paramv;
     int         paramc;
-    VARTYPE     vt;
+    VARTYPE     vt, target_vt;
     HRESULT     hr;
     int         len;
     WCHAR      *wcharP;
@@ -1782,19 +1782,21 @@ int TwapiMakeVariantParam(
          */
         /* TBD - add support for referenced arrays */
         if (reftypec != 1 ||
-            ObjToVT(interp, reftypev[0], &vt) != TCL_OK) {
+            ObjToVT(interp, reftypev[0], &target_vt) != TCL_OK) {
             goto invalid_type;
         }
-        vt |= VT_BYREF;
+        vt = target_vt | VT_BYREF;
         targetP = refvarP;
     } else if (vt == VT_VARIANT) {
 #if 0
         //Based on Google groups discussions, we will treat
         //VT_VARIANT the same as VT_VARIANT|VT_BYREF. See for example
         // http://groups.google.co.in/group/borland.public.cppbuilder.activex/browse_thread/thread/ca1c49b278fe7f57/99729a102eedf216?lnk=st&q=VT_VARIANT+parameter&rnum=3#99729a102eedf216
+        target_vt = vt;
         vt |= VT_BYREF;
         targetP = refvarP;
 #else
+        target_vt = vt;
         targetP = varP;
 #endif
     } else {
@@ -1808,6 +1810,7 @@ int TwapiMakeVariantParam(
             goto invalid_type;
 
         targetP = varP;
+        target_vt = vt;
     }
 
     /*
@@ -1846,6 +1849,7 @@ int TwapiMakeVariantParam(
             if (*paramflagsP & PARAMFLAG_FOPT) {
                 targetP = varP; /* Reset to point to primary VARIANT */
                 vt = VT_ERROR;  // Indicates optional param below
+                target_vt = VT_ERROR;
             } else {
                 Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
                 goto vamoose;
@@ -1868,20 +1872,20 @@ int TwapiMakeVariantParam(
          * accordingly so it gets handled below. If not, vt stays as
          * VT_VARIANT and we will make a best guess later.
          */
-        if ((vt & ~VT_BYREF) == VT_VARIANT) {
+        if (target_vt == VT_VARIANT) {
             switch (TwapiGetTclType(valueObj)) {
             case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
             case TWAPI_TCLTYPE_BOOLEANSTRING:
-                vt = VT_BOOL | (vt & VT_BYREF);
+                target_vt = VT_BOOL;
                 break;
             case TWAPI_TCLTYPE_INT:
-                vt = VT_I4 | (vt & VT_BYREF);
+                target_vt = VT_I4;
                 break;
             case TWAPI_TCLTYPE_WIDEINT:
-                vt = VT_I8 | (vt & VT_BYREF);
+                target_vt = VT_I8;
                 break;
             case TWAPI_TCLTYPE_DOUBLE:
-                vt = VT_R8 | (vt & VT_BYREF);
+                target_vt = VT_R8;
                 break;
             case TWAPI_TCLTYPE_BYTEARRAY: /* Binary - TBD */
             case TWAPI_TCLTYPE_LIST:      /* List - TBD */
@@ -1900,7 +1904,8 @@ int TwapiMakeVariantParam(
             }
         }
 
-        switch (vt & ~VT_BYREF) {
+        
+        switch (target_vt) {
         case VT_I2:
         case VT_I4:
         case VT_I1:
@@ -2026,9 +2031,9 @@ int TwapiMakeVariantParam(
          * actual value since the above code only stores the closest
          * related type. An exception is for a byref VT_VARIANT
          */
-        if ((vt & ~VT_BYREF)  != targetP->vt &&
+        if (target_vt != targetP->vt &&
             (vt & ~VT_BYREF) != VT_VARIANT) {
-            hr = VariantChangeType(targetP, targetP, 0, (VARTYPE)(vt & ~VT_BYREF));
+            hr = VariantChangeType(targetP, targetP, 0, target_vt);
             if (FAILED(hr)) {
                 Twapi_AppendSystemError(interp, hr);
                 goto vamoose;
