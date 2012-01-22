@@ -531,7 +531,7 @@ proc twapi::_resolve_com_type_text {ti typedesc} {
         userdefined {
             set hreftype [lindex $typedesc 1]
             set ti2 [$ti @GetRefTypeInfo $hreftype]
-            set typedesc [$ti2 @GetName]
+            set typedesc "[$ti2 @GetName] [$ti2 @GetTypeAttr -all]"
             $ti2 Release
         }
         default {
@@ -574,7 +574,11 @@ proc twapi::_resolve_comtype {ti typedesc} {
         if {$tattr(-typekind) eq "enum"} {
             set typedesc [list 3]; # 3 -> i4
         } else {
-            set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+            if {$tattr(-typekind) eq "alias"} {
+                set typedesc [_resolve_comtype $ti2 [kl_get [$ti2 GetTypeAttr] tdescAlias]]
+            } else {
+                set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+            }
         }
         $ti2 Release
     }
