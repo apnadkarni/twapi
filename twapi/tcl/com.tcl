@@ -531,7 +531,7 @@ proc twapi::_resolve_com_type_text {ti typedesc} {
         userdefined {
             set hreftype [lindex $typedesc 1]
             set ti2 [$ti @GetRefTypeInfo $hreftype]
-            set typedesc "[$ti2 @GetName] [$ti2 @GetTypeAttr -all]"
+            set typedesc "[$ti2 @GetName]"
             $ti2 Release
         }
         default {
