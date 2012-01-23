@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi], [3.2a9])
+AC_INIT([twapi], [3.2a10])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -94,7 +94,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     TEA_ADD_CFLAGS([-DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1])
 
     TEA_ADD_SOURCES([twapi/base/adsi.c twapi/base/async.c twapi/base/calls.c twapi/base/clipboard.c twapi/base/com.c
- twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/eventlog.c
+ twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/etw.c twapi/base/eventlog.c
  twapi/base/file.c twapi/base/hotkey.c twapi/base/gdi.c twapi/base/guids.c twapi/base/keylist.c twapi/base/lzmadec.c twapi/base/lzmainterface.c
  twapi/base/memlifo.c twapi/base/mstask.c twapi/base/mycrt.c twapi/base/namedpipe.c twapi/base/nls.c twapi/base/network.c twapi/base/os.c twapi/base/parseargs.c
  twapi/base/pdh.c twapi/base/power.c twapi/base/printer.c twapi/base/process.c twapi/base/recordarray.c twapi/base/resolve.c twapi/base/resource.c
