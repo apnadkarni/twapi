@@ -425,6 +425,26 @@ TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     return TCL_OK;
 }
 
+TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    TRACEHANDLE htrace;
+    ULONG err;
+    Tcl_Interp *interp = ticP->interp;
+
+    if (objc != 1)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (ObjToTRACEHANDLE(interp, objv[0], &htrace) != TCL_OK)
+        return TCL_ERROR;
+
+    err = CloseTrace(htrace);
+    if (err == ERROR_SUCCESS)
+        return TCL_OK;
+    else
+        return Twapi_AppendSystemError(interp, err);
+}
+
+
 TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     FILETIME start, end, *startP, *endP;
@@ -471,6 +491,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     } else {
         // TBD - clean up
 
-        return TCL_ERROR;
+        return Twapi_AppendSystemError(interp, winerr);
     }
 }
