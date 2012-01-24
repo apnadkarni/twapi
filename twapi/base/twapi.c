@@ -461,7 +461,7 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     InitializeCriticalSection(&gTwapiInterpContextsCS);
     ZLIST_INIT(&gTwapiInterpContexts);
 
-    InitializeCriticalSection(&gEventTraceCS);
+    InitializeCriticalSection(&gETWCS);
 
     if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
         gTclIsThreaded = 1;
