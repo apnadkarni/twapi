@@ -696,6 +696,7 @@ typedef struct {
 #define GETVAR(v, fn)  ARGVAR, &(v), fn
 #define GETVARWITHDEFAULT(v, fn)  ARGVARWITHDEFAULT, &(v), fn
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
+#define GETUUID(v)     GETVAR(v, ObjToUUID)
 /* For GETAARGV/GETWARGV, v is of type char *v[n], or WCHAR *v[n] */
 #define GETAARGV(v, I, n) ARGAARGV, (v), (I), &(n)
 #define GETWARGV(v, I, n) ARGWARGV, (v), (I), &(n)
@@ -947,7 +948,7 @@ extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 extern int gTclIsThreaded;
 extern TwapiId volatile gIdGenerator;
-extern CRITICAL_SECTION gEventTraceCS;
+extern CRITICAL_SECTION gETWCS;
 
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \
@@ -1400,6 +1401,8 @@ int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD offset);
 
 /* ETW */
+TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
