@@ -41,18 +41,35 @@ static const char * g_event_trace_fields[] = {
 };
 
 
-struct TwapiEventTraceContext {
+/* Event Trace Consumer Support */
+struct TwapiETWContext {
     ULONG pointer_size;
     ULONG timer_resolution;
     ULONG user_mode;
 };
+
 struct {
     int initialized;
     Tcl_HashTable contexts;
-} gEventTraceContexts;
+} gETWContexts;
 
-CRITICAL_SECTION gEventTraceCS; /* Access to gEventTraceContexts */
+CRITICAL_SECTION gETWCS; /* Access to gETWContexts */
 
+
+/*
+ * Event Trace Provider Support
+ *
+ * Currently only support *one* provider, shared among all interps and
+ * modules. The extra code for locking/bookkeeping etc. for multiple 
+ * providers not likely to be used.
+ */
+GUID   gETWProviderGuid;
+GUID   gETWProviderEventClassGuid;
+HANDLE gETWProviderEventClassRegistrationHandle;
+ULONG  gETWProviderTraceEnableFlags;
+ULONG  gETWProviderTraceEnableLevel;
+TRACEHANDLE gETWProviderRegistrationHandle;
+TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
@@ -285,6 +302,144 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
 }
 
 
+static ULONG WINAPI TwapiETWProviderControlCallback(
+    WMIDPREQUESTCODE request,
+    PVOID contextP,
+    ULONG* reserved, 
+    PVOID headerP
+    )
+{
+    ULONG rc = ERROR_SUCCESS;
+    TRACEHANDLE session;
+    ULONG enable_level;
+    ULONG enable_flags;
+
+    /* Mostly cloned from the SDK docs */
+
+    switch (request) {
+    case WMI_ENABLE_EVENTS:
+        SetLastError(0);
+        session = GetTraceLoggerHandle(headerP);
+        if ((TRACEHANDLE) INVALID_HANDLE_VALUE == session) {
+            /* Bad handle, ignore, but return the error code */
+            rc = GetLastError();
+            break;
+        }
+
+        /* If we are already logging to a session we will ignore nonmatching */
+        if (gETWProviderSessionHandle != (TRACEHANDLE) INVALID_HANDLE_VALUE &&
+            session != gETWProviderSessionHandle) {
+            rc = ERROR_INVALID_PARAMETER;
+            break;
+        }
+
+        SetLastError(0);
+        enable_level = GetTraceEnableLevel(session); 
+        if (enable_level == 0) {
+            /* *Possible* error */
+            rc = GetLastError();
+            if (rc)
+                break; /* Yep, real error */
+        }
+
+        SetLastError(0);
+        enable_flags = GetTraceEnableFlags(session);
+        if (enable_flags == 0) {
+            /* *Possible* error */
+            rc = GetLastError();
+            if (rc)
+                break;
+        }
+
+        /* OK, all calls succeeded. Set up the global values */
+        gETWProviderSessionHandle = session;
+        gETWProviderTraceEnableLevel = enable_level;
+        gETWProviderTraceEnableFlags = enable_flags;
+        break;
+ 
+    case WMI_DISABLE_EVENTS:  //Disable Provider.
+        /* Don't we need to check session handle ? Sample MSDN does not */
+        gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
+        break;
+
+    default:
+        rc = ERROR_INVALID_PARAMETER;
+        break;
+    }
+
+    return rc;
+}
+
+
+TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Interp *interp = ticP->interp;
+    DWORD rc;
+    GUID provider_guid, event_class_guid;
+    TRACE_GUID_REGISTRATION event_class_reg;
+    
+    if (TwapiGetArgs(interp, objc, objv, GETUUID(provider_guid),
+                     GETUUID(event_class_guid), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (IsEqualGUID(&provider_guid, &gTwapiNullGuid) ||
+        IsEqualGUID(&event_class_guid, &gTwapiNullGuid)) {
+        Tcl_SetResult(interp, "NULL provider GUID specified.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    /* We should not already have registered a different provider */
+    if (! IsEqualGUID(&gETWProviderGuid, &gTwapiNullGuid)) {
+        if (IsEqualGUID(&gETWProviderGuid, &provider_guid))
+            return TCL_OK;      /* Same GUID - ok */
+        else {
+            Tcl_SetResult(interp, "ETW Provider GUID already registered", TCL_STATIC);
+            return TCL_ERROR;
+        }
+    }
+
+    ZeroMemory(&event_class_reg, sizeof(event_class_reg));
+    event_class_reg.Guid = &event_class_guid;
+    rc = RegisterTraceGuids(
+        (WMIDPREQUEST)TwapiETWProviderControlCallback,
+        NULL,                          // No context
+        &provider_guid,         // GUID that identifies the provider
+        1,                      /* Number of event class GUIDs */
+        &event_class_reg,      /* Event class GUID array */
+        NULL,                          // Not used
+        NULL,                          // Not used
+        &gETWProviderRegistrationHandle // Used for UnregisterTraceGuids
+        );
+
+    if (rc == ERROR_SUCCESS) {
+        gETWProviderGuid = provider_guid;
+        gETWProviderEventClassGuid = event_class_guid;
+        gETWProviderEventClassRegistrationHandle = event_class_reg.RegHandle;
+        return TCL_OK;
+    } else {
+        return Twapi_AppendSystemError(interp, rc);
+    }
+}
+
+TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Interp *interp = ticP->interp;
+    DWORD rc;
+
+    if (objc != 0)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    rc = UnregisterTraceGuids(gETWProviderRegistrationHandle);
+    if (rc == ERROR_SUCCESS) {
+        gETWProviderRegistrationHandle = 0;
+        gETWProviderGuid = gTwapiNullGuid;
+        return TCL_OK;
+    } else {
+        return Twapi_AppendSystemError(interp, rc);
+    }
+}
+
+
 TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     EVENT_TRACE_PROPERTIES *etP;
@@ -366,7 +521,7 @@ TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETINT(enable), GETINT(flags), GETINT(level),
-                     GETGUID(guid), GETWIDE(htrace),
+                     GETUUID(guid), GETWIDE(htrace),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
@@ -451,7 +606,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
     ULONG winerr;
-    struct TwapiEventTraceContext *tetcP;
+    struct TwapiETWContext *tetcP;
 
     if (objc == 0 || objc > 3)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -473,16 +628,16 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         endP = &end;
     }
 
-    EnterCriticalSection(&gEventTraceCS);
+    EnterCriticalSection(&gETWCS);
     
-    if (! gEventTraceContexts.initialized) {
-        Tcl_InitObjHashTable(&gEventTraceContexts.contexts);
-        gEventTraceContexts.initialized = 1;
+    if (! gETWContexts.initialized) {
+        Tcl_InitObjHashTable(&gETWContexts.contexts);
+        gETWContexts.initialized = 1;
     }
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
 
-    LeaveCriticalSection(&gEventTraceCS);
+    LeaveCriticalSection(&gETWCS);
 
     if (winerr == ERROR_SUCCESS) {
         // TBD - deal with data
