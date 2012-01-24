@@ -63,12 +63,13 @@ CRITICAL_SECTION gETWCS; /* Access to gETWContexts */
  * modules. The extra code for locking/bookkeeping etc. for multiple 
  * providers not likely to be used.
  */
-GUID   gETWProviderGuid;
-GUID   gETWProviderEventClassGuid;
-HANDLE gETWProviderEventClassRegistrationHandle;
-ULONG  gETWProviderTraceEnableFlags;
-ULONG  gETWProviderTraceEnableLevel;
-TRACEHANDLE gETWProviderRegistrationHandle;
+GUID   gETWProviderGuid;        /* GUID for our ETW Provider */
+TRACEHANDLE gETWProviderRegistrationHandle; /* HANDLE for registered instance of provider */
+GUID   gETWProviderEventClassGuid; /* GUID for the event class we use */
+HANDLE gETWProviderEventClassRegistrationHandle; /* Handle returned by ETW for above */
+ULONG  gETWProviderTraceEnableFlags;             /* Flags set by ETW controller */
+ULONG  gETWProviderTraceEnableLevel;             /* Level set by ETW controller */
+/* Session our provider is attached to */
 TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
@@ -425,6 +426,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
 {
     Tcl_Interp *interp = ticP->interp;
     DWORD rc;
+    
 
     if (objc != 0)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -437,6 +439,44 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
     } else {
         return Twapi_AppendSystemError(interp, rc);
     }
+}
+
+TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    ULONG rc;
+    struct {
+        EVENT_TRACE_HEADER eth;
+        MOF_FIELD mof;
+    } event;
+    WCHAR *msgP;
+    int    msglen;
+    int    type;
+    int    level;
+
+    /* If no tracing is on, just ignore, do not raise error */
+    if (gETWProviderSessionHandle == 0)
+        return TCL_OK;
+
+    if (TwapiGetArgs(ticP->interp, objc, objv, GETWSTRN(msgP, msglen),
+                     ARGUSEDEFAULT, GETINT(type), GETINT(level),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    ZeroMemory(&event, sizeof(event));
+    event.eth.Size = sizeof(event);
+    event.eth.Flags = WNODE_FLAG_TRACED_GUID |
+        WNODE_FLAG_USE_GUID_PTR | WNODE_FLAG_USE_MOF_PTR;
+    event.eth.GuidPtr = (ULONGLONG) &gETWProviderEventClassGuid;
+    event.eth.Class.Type = type;
+    event.eth.Class.Level = level;
+
+    event.mof.DataPtr = (ULONG64) msgP;
+    event.mof.Length = msglen * sizeof(WCHAR);
+    event.mof.DataType = 0;           /* Init to 0 (Reserved as per MSDN) */
+
+    rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
+    return rc == ERROR_SUCCESS ?
+        TCL_OK : Twapi_AppendSystemError(ticP->interp, rc);
 }
 
 
