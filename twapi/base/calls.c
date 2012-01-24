@@ -597,6 +597,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ProcessTrace, Call, 10141); // Tcl
     CALL_(RegisterTraceGuids, Call, 10142); // Tcl
     CALL_(UnregisterTraceGuids, Call, 10143); // Tcl
+    CALL_(TraceEvent, Call, 10144); // Tcl
 
 
     // CallU API
@@ -2780,6 +2781,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10143: // UnregisterTraceGuids
             return Twapi_UnregisterTraceGuids(ticP, objc-2, objv+2);
+
+        case 10144: // TraceEvent
+            return Twapi_TraceEvent(ticP, objc-2, objv+2);
         }
     }
 
