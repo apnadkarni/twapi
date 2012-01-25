@@ -27,7 +27,7 @@ EXTRA_TCLFILES= \
         network.tcl console.tcl synch.tcl desktop.tcl \
         printer.tcl mstask.tcl msi.tcl crypto.tcl \
         device.tcl power.tcl namedpipe.tcl resource.tcl rds.tcl \
-	wmi.tcl
+	wmi.tcl etw.tcl
 
 TCLFILES = $(BASE_TCLFILES)
 
