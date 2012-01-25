@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2010 Ashok P. Nadkarni
+# Copyright (c) 2006-2012 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -29,8 +29,6 @@ namespace eval twapi {
     }
 
     # Cache of Interface names - IID mappings
-    array set _iid_to_name_cache {
-    }
     array set _name_to_iid_cache {
         iunknown  {{00000000-0000-0000-C000-000000000046}}
         idispatch {{00020400-0000-0000-C000-000000000046}}
@@ -49,6 +47,7 @@ namespace eval twapi {
         itask {{148BD524-A2AB-11CE-B11F-00AA00530503}}
         ienumworkitems {{148BD528-A2AB-11CE-B11F-00AA00530503}}
         itaskscheduler {{148BD527-A2AB-11CE-B11F-00AA00530503}}
+        imofcompiler {{6daf974e-2e37-11d2-aec9-00c04fb68820}}
     }
 
     # Controls debug checks
