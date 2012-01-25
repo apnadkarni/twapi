@@ -598,7 +598,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(RegisterTraceGuids, Call, 10142); // Tcl
     CALL_(UnregisterTraceGuids, Call, 10143); // Tcl
     CALL_(TraceEvent, Call, 10144); // Tcl
-
+    CALL_(IMofCompiler_CompileBuffer, Call, 10145); // Tcl
+    CALL_(IMofCompiler_CompileFile, Call, 10146); // Tcl
+    CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2784,6 +2786,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10144: // TraceEvent
             return Twapi_TraceEvent(ticP, objc-2, objv+2);
+
+        case 10145: // IMofCompiler_CompileBuffer
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 0, objc-2, objv+2);
+
+        case 10146: // IMofCompiler_CompileFile
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 1, objc-2, objv+2);
+
+        case 10147: // IMofCompiler_CreateBMOF
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
+
         }
     }
 

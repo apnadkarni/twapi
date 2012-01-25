@@ -26,7 +26,8 @@ EXTRA_TCLFILES= \
 	adsi.tcl pdh.tcl process2.tcl accounts.tcl share.tcl \
         network.tcl console.tcl synch.tcl desktop.tcl \
         printer.tcl mstask.tcl msi.tcl crypto.tcl \
-        device.tcl power.tcl namedpipe.tcl resource.tcl rds.tcl
+        device.tcl power.tcl namedpipe.tcl resource.tcl rds.tcl \
+	wmi.tcl
 
 TCLFILES = $(BASE_TCLFILES)
 

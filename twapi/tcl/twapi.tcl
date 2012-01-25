@@ -1684,6 +1684,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
             namedpipe.tcl
             resource.tcl
             rds.tcl
+            wmi.tcl
         } {
             source [file join [file dirname [info script]] $::twapi::_field_]
         }

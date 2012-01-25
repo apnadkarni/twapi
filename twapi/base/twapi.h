@@ -1438,6 +1438,10 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 TCL_RESULT Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
+/* WMI */
+TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);
+
+
 /* Resource manipulation */
 int Twapi_LoadImage(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_UpdateResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
@@ -1459,7 +1463,6 @@ typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HW
 int Twapi_CreateHiddenWindow(TwapiInterpContext *,
                              TwapiHiddenWindowCallbackProc *winProc,
                              LONG_PTR clientdata, HWND *winP);
-
 
 
 /* Built-in commands */
