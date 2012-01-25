@@ -94,6 +94,7 @@ OBJS  = \
 	$(OBJDIR)\ui.obj \
 	$(OBJDIR)\util.obj \
 	$(OBJDIR)\win.obj \
+	$(OBJDIR)\wmi.obj \
 	$(OBJDIR)\wts.obj
 
 !IFNDEF SERVERONLY

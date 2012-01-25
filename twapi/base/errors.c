@@ -163,7 +163,14 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     static HMODULE hNetmsg;
     static HMODULE hPdh;
     static HMODULE hNtdll;
+    static HMODULE hWmi;
     Tcl_Obj *objP;
+
+    /* TBD -
+       - loop instead of separately trying each module
+       - construct full path to modules
+       - write test cases for all modules
+    */
 
     /* First try mapping as a system error */
     objP  = Twapi_FormatMsgFromModule(error, NULL);
@@ -192,6 +199,16 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
     if (objP)
         return objP;
 
+    /* How about WMI ? */
+    if (hWmi == NULL)
+        hWmi = LoadLibraryExW(L"wmiutils.dll", NULL,
+                              LOAD_LIBRARY_AS_DATAFILE);
+    if (hWmi)
+        objP = Twapi_FormatMsgFromModule(error, hWmi);
+    if (objP)
+        return objP;
+
+
     /* Still no joy, try the PDH */
     if (hPdh == NULL)
         hPdh = LoadLibraryExW(L"pdh.dll", NULL,
@@ -200,7 +217,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
         objP = Twapi_FormatMsgFromModule(error, hPdh);
     if (objP)
         return objP;
-    
+
     /* Perhaps a TWAPI error ? */
     if (IS_TWAPI_WIN32_ERROR(error))
         return TwapiGetErrorMsg(TWAPI_WIN32_ERROR_TO_CODE(error));
