@@ -33,8 +33,10 @@ proc twapi::etw_register_mof {} {
         {
         };
 
+        // NOTE: The EventTypeName is REQUIRED else the MS LogParser app
+        // crashes (even though it should not)
         [dynamic: ToInstance, Description("Tcl Windows API child event type class used to describe the standard event."): Amended,
-         EventType(1)]
+         EventType(10), EventTypeName("Twapi Trace")]
         class TwapiETWEventClass_TwapiETWEventTypeClass : TwapiETWEventClass
         {
             [WmiDataId(1), Description("Message"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Message;
