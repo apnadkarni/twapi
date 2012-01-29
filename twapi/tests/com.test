@@ -440,8 +440,6 @@ namespace eval twapi::com::test {
 
     test comobj-14.0 {
         Iterate over a comobj collection using -iterate
-    } -constraints {
-        nt
     } -setup {
         set fso [twapi::comobj Scripting.FileSystemObject]
         set drive_coll [$fso Drives]
@@ -450,16 +448,15 @@ namespace eval twapi::com::test {
         $fso -destroy
     } -body {
         set drives [list ]
-        $drive_coll -iterate drive_obj {
+        set result [$drive_coll -iterate drive_obj {
             lappend drives [$drive_obj DriveLetter]
-        }
-        llength $drives
-    } -result [llength [twapi::get_logical_drives]]
+        }]
+        # $result should be empty as -iterate returns ""
+        list $result [llength $drives]
+    } -result [list "" [llength [twapi::get_logical_drives]]] -match list
 
     test comobj-14.1 {
         Iterate over a comobj collection using -iterate - Bug 3185933
-    } -constraints {
-        nt
     } -setup {
         set oCat  [::twapi::comobj ComAdmin.COMAdminCatalog]
         set oApps [$oCat GetCollection Applications]
