@@ -18,6 +18,7 @@ tools/h2c/*
 TAGS
 \#*#
 *.vfs
+Thumbs.db
 
 # TEA based intermediate files
 autom4te.cache/*
