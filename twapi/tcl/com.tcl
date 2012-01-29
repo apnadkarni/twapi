@@ -2872,6 +2872,8 @@ twapi::class create ::twapi::Automation {
     }
 
     method -iterate {varname script} {
+        # TBD - need more comprehensive test cases when return/break/continue
+        # are used in the script
         upvar 1 $varname var
         # First get IEnumVariant iterator using the _NewEnum method
         set enumerator [my -get _NewEnum]
@@ -2889,6 +2891,10 @@ twapi::class create ::twapi::Automation {
                         set var [::twapi::_variant_value [lindex $values 0]]
                         set ret [catch {uplevel 1 $script} msg]
                         switch -exact -- $ret {
+                            0 -
+                            4 {
+                                # Body executed successfully, or invoked continue
+                            }
                             1 {
                                 error $msg $::errorInfo $::errorCode
                             }
