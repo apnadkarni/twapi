@@ -379,6 +379,59 @@ namespace eval twapi::misc::test {
         twapi::tcltype [twapi::tclcast boolean [expr {0+0}]]
     } -result booleanString
 
+    ################################################################
+
+    test IsEqualGUID-1.0 {
+        Verify two UUIDs are equal
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID $uuid $uuid
+    } -result 1
+
+    test IsEqualGUID-1.1 {
+        Verify two GUIDs are equal
+    } -body {
+        set guid "{[twapi::new_uuid]}"
+        twapi::IsEqualGUID $guid $guid
+    } -result 1
+
+    test IsEqualGUID-1.2 {
+        Verify a UUID and GUID are equal
+    } -body {
+        set uuid [twapi::new_uuid]
+        set guid "{$uuid}"
+        twapi::IsEqualGUID $uuid $guid
+    } -result 1
+
+    test IsEqualGUID-1.3 {
+        Verify case insensitivity in GUIDs
+    } -body {
+        set guid "{[twapi::new_uuid]}"
+        twapi::IsEqualGUID [string tolower $guid] [string toupper $guid]
+    } -result 1
+
+    test IsEqualGUID-1.4 {
+        Verify case insensitivity in UUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID [string tolower $uuid] [string toupper $uuid]
+    } -result 1
+
+    test IsEqualGUID-2.0 {
+        Verify mismatched UUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID "[string range $uuid 0 end-1]0" "[string range $uuid 0 end-1]1"
+    } -result 0
+
+    test IsEqualGUID-2.1 {
+        Verify mismatched GUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID "{[string range $uuid 0 end-1]0}" "{[string range $uuid 0 end-1]1}"
+    } -result 0
+
+
 
     ################################################################
 
