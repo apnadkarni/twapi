@@ -31,3 +31,80 @@ twapi::class create ::twapi::IMofCompilerProxy {
 
     twapi_exportall
 }
+
+
+#
+# Get WMI service
+proc twapi::_wmi {{top cimv2}} {
+    return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/$top"]
+}
+
+proc twapi::wmi_find_classes {swbemservices args} {
+    array set opts [parseargs args {
+        {parent.arg {}}
+        shallow
+        first
+        matchproperties.arg
+        matchsystemproperties.arg
+        matchqualifiers.arg
+    } -maxleftover 0]
+    
+    
+    # Create a forward only enumerator for efficiency
+    # wbemFlagUseAmendedQualifiers | wbemFlagReturnImmediately | wbemFlagForwardOnly
+    set flags 0x20030
+    if {$opts(shallow)} {
+        incr flags 1;           # 0x1 -> wbemQueryFlagsShallow
+    }
+
+    set classes [$swbemservices SubclassesOf $opts(parent) $flags]
+    set matches {}
+    twapi::trap {
+        $classes -iterate class {
+            set matched 1
+            foreach {opt fn} {
+                matchproperties Properties_
+                matchsystemproperties SystemProperties_
+                matchqualifiers Qualifiers_
+            } {
+                if {[info exists opts($opt)]} {
+                    foreach {name matcher} $opts($opt) {
+                        if {[catch {
+                            if {! [{*}$matcher [$class -with [list [list -get $fn] [list Item $name]] Value]]} {
+                                set matched 0
+                                break; # Value does not match
+                            }
+                        } msg ]} {
+                            # No such property or no access
+                            set matched 0
+                            break
+                        }
+                    }
+                }
+                if {! $matched} {
+                    # Already failed to match, no point continuing looping
+                    break
+                }
+            }
+
+            if {$matched} {
+                if {$opts(first)} {
+                    return $class
+                } else {
+                    lappend matches $class
+                }
+            }
+        }
+    } onerror {} {
+        foreach class $matches {
+            $class destroy
+        }
+        error $::errorResult $::errorInfo $::errorCode
+    } finally {
+        $classes destroy
+    }
+
+    return $matches
+
+}
+
