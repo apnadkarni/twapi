@@ -628,6 +628,9 @@ if the item is itself a COM object, [arg VARNAME] will contain the
 name of a TCL command corresponding to that object and must be destroyed
 when no longer needed (not necessarily within [arg SCRIPT]).
 [nl]
+Like the Tcl iteration commands, [cmd -iterate] always returns the empty
+string.
+[nl]
 See [sectref "COM Collections"] for an example.
 
 [call "[arg COMOBJ] [cmd -print]"]
