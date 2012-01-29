@@ -842,12 +842,26 @@ Tcl_Obj *ObjFromGUID(GUID *guidP)
 int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
 {
     HRESULT hr;
+    WCHAR *wsP;
     if (objP) {
-        /* We *used* to use CLSIDFromString but it turns out that 
-           accepts Prog IDs as valid GUIDs as well */
-        if ((hr = IIDFromString(Tcl_GetUnicode(objP), guidP)) != NOERROR) {
-            Twapi_AppendSystemError(interp, hr);
-            return TCL_ERROR;
+        wsP = Tcl_GetUnicode(objP);
+
+        /* Accept both GUID and UUID forms */
+        if (*wsP == L'{') {
+            /* GUID form */
+            /* We *used* to use CLSIDFromString but it turns out that 
+               accepts Prog IDs as valid GUIDs as well */
+            if ((hr = IIDFromString(wsP, guidP)) != NOERROR) {
+                Twapi_AppendSystemError(interp, hr);
+                return TCL_ERROR;
+            }
+        } else {
+            /* Might be UUID form */
+            RPC_STATUS status = UuidFromStringW(wsP, guidP);
+            if (status != RPC_S_OK) {
+                Twapi_AppendSystemError(interp, status);
+                return TCL_ERROR;
+            }
         }
     } else
         ZeroMemory(guidP, sizeof(*guidP));
@@ -881,13 +895,13 @@ Tcl_Obj *ObjFromUUID (UUID *uuidP)
 int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP)
 {
     /* NOTE UUID and GUID have same binary format but are formatted
-       differently based on the component. */
+       differently based on the component.  We accept both forms here */
 
     if (objP) {
         RPC_STATUS status = UuidFromStringA(Tcl_GetString(objP), uuidP);
         if (status != RPC_S_OK) {
-            Twapi_AppendSystemError(interp, status);
-            return TCL_ERROR;
+            /* Try as GUID form */
+            return ObjToGUID(interp, objP, uuidP);
         }
     } else {
         ZeroMemory(uuidP, sizeof(*uuidP));

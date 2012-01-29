@@ -601,6 +601,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileBuffer, Call, 10145); // Tcl
     CALL_(IMofCompiler_CompileFile, Call, 10146); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
+    CALL_(IsEqualGUID, Call, 10148); // Tcl
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -1175,6 +1176,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         struct sockaddr_in sinaddr;
         SYSTEM_POWER_STATUS power_status;
         TwapiId twapi_id;
+        GUID guid;
     } u;
     DWORD_PTR dwp;
     HMODULE hmod;
@@ -2796,6 +2798,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10147: // IMofCompiler_CreateBMOF
             return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
 
+        case 10148: // IsEqualGuid
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETGUID(guid), GETGUID(u.guid), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_BOOL;
+            result.value.bval = IsEqualGUID(&guid, &u.guid);
+            break;
         }
     }
 
