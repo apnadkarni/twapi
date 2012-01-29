@@ -843,11 +843,6 @@ proc twapi::_vtcode_to_string {vt} {
     } $vt $vt]
 }
 
-#
-# Get WMI service
-proc twapi::_wmi {{top cimv2}} {
-    return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/$top"]
-}
 
 #
 # Get ADSI provider service
@@ -2897,12 +2892,14 @@ twapi::class create ::twapi::Automation {
                             1 {
                                 error $msg $::errorInfo $::errorCode
                             }
-                            2 {
-                                return; # TCL_RETURN
-                            }
                             3 {
                                 set more 0; # TCL_BREAK
                             }
+                            2 -
+                            default {
+                                return -code $ret $msg
+                            }
+
                         }
                     }
                 }
