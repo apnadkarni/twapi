@@ -6,8 +6,8 @@
 
 namespace eval twapi {
     # GUID's and event types for ETW.
-    variable _etw_provider_uuid "B358E9D9-4D82-4A82-A129-BAC098C54746"
-    variable _etw_event_class_uuid "D5B52E95-8447-40C1-B316-539894449B36"
+    variable _etw_provider_uuid "{B358E9D9-4D82-4A82-A129-BAC098C54746}"
+    variable _etw_event_class_uuid "{D5B52E95-8447-40C1-B316-539894449B36}"
     
 }
 
@@ -22,13 +22,13 @@ proc twapi::etw_register_mof {} {
         #pragma namespace("\\\\.\\root\\wmi")
 
         [dynamic: ToInstance, Description("Tcl Windows API ETW Provider"),
-         Guid("{%s}")]
+         Guid("%s")]
         class TwapiETWProvider : EventTrace
         {
         };
 
         [dynamic: ToInstance, Description("Tcl Windows API ETW event class"): Amended,
-         Guid("{%s}")]
+         Guid("%s")]
         class TwapiETWEventClass : TwapiETWProvider
         {
         };
@@ -61,5 +61,6 @@ proc twapi::etw_register {} {
 interp alias {} twapi::etw_unregister {} twapi::UnregisterTraceGuids
 
 interp alias {} twapi::etw_trace {} twapi::TraceEvent
+
 
 
