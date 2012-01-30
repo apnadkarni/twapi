@@ -3038,3 +3038,9 @@ twapi::class create twapi::NullAutomation {
 
 twapi::NullAutomation create twapi::comobj_null
 # twapi::Automation create twapi::comobj_null [twapi::make_interface_proxy {0 IDispatch}]
+
+proc twapi::_comobj_cleanup {} {
+    foreach obj [comobj_instances] {
+        $obj destroy
+    }
+}
