@@ -39,7 +39,7 @@ proc twapi::_wmi {{top cimv2}} {
     return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/$top"]
 }
 
-proc twapi::wmi_find_classes {swbemservices args} {
+proc twapi::wmi_collect_classes {swbemservices args} {
     array set opts [parseargs args {
         {parent.arg {}}
         shallow
@@ -47,6 +47,7 @@ proc twapi::wmi_find_classes {swbemservices args} {
         matchproperties.arg
         matchsystemproperties.arg
         matchqualifiers.arg
+        {collector.arg {lindex}}
     } -maxleftover 0]
     
     
@@ -59,6 +60,7 @@ proc twapi::wmi_find_classes {swbemservices args} {
 
     set classes [$swbemservices SubclassesOf $opts(parent) $flags]
     set matches {}
+    set delete_on_error {}
     twapi::trap {
         $classes -iterate class {
             set matched 1
@@ -69,12 +71,14 @@ proc twapi::wmi_find_classes {swbemservices args} {
             } {
                 if {[info exists opts($opt)]} {
                     foreach {name matcher} $opts($opt) {
+                        puts "matching $name: $matcher"
                         if {[catch {
                             if {! [{*}$matcher [$class -with [list [list -get $fn] [list Item $name]] Value]]} {
                                 set matched 0
                                 break; # Value does not match
                             }
                         } msg ]} {
+                            # TBD - log debug error if not property found
                             # No such property or no access
                             set matched 0
                             break
@@ -88,16 +92,26 @@ proc twapi::wmi_find_classes {swbemservices args} {
             }
 
             if {$matched} {
+                # Note collector code is responsible for disposing
+                # of $class as appropriate. But we take care of deleting
+                # when an error occurs after some accumulation has
+                # already occurred.
+                lappend delete_on_error $class
                 if {$opts(first)} {
-                    return $class
+                    return [{*}$opts(collector) $class]
                 } else {
-                    lappend matches $class
+                    lappend matches [{*}$opts(collector) $class]
                 }
+            } else {
+                $class destroy
             }
         }
     } onerror {} {
-        foreach class $matches {
-            $class destroy
+        # TBD - log debug error
+        foreach class $delete_on_error {
+            if {[comobj? $class]} {
+                $class destroy
+            }
         }
         error $::errorResult $::errorInfo $::errorCode
     } finally {
@@ -105,6 +119,98 @@ proc twapi::wmi_find_classes {swbemservices args} {
     }
 
     return $matches
-
 }
 
+proc twapi::wmi_extract_qualifier {qual} {
+    foreach prop {name value isamended propagatestoinstance propagatestosubclass isoverridable} {
+        dict set result $prop [$qual -get $prop]
+    }
+    return $result
+}
+
+proc twapi::wmi_extract_property {propobj} {
+    foreach prop {name value cimtype isarray islocal origin} {
+        dict set result $prop [$propobj -get $prop]
+    }
+
+    $propobj -with Qualifiers_ -iterate qual {
+        set rec [wmi_extract_qualifier $qual]
+        dict set result qualifiers [string tolower [dict get $rec name]] $rec
+        $qual destroy
+    }
+
+    return $result
+}
+
+proc twapi::wmi_extract_systemproperty {propobj} {
+    # Separate from wmi_extract_property because system properties do not
+    # have Qualifiers_
+    foreach prop {name value cimtype isarray islocal origin} {
+        dict set result $prop [$propobj -get $prop]
+    }
+
+    return $result
+}
+
+
+proc twapi::wmi_extract_method {mobj} {
+    foreach prop {name origin} {
+        dict set result $prop [$mobj -get $prop]
+    }
+
+    # The InParameters and OutParameters properties are SWBEMObjects
+    # the properties of which describe the parameters.
+    foreach inout {inparameters outparameters} {
+        set paramsobj [$mobj -get $inout]
+        if {[$paramsobj -isnull]} {
+            dict set result $inout {}
+        } else {
+            $paramsobj -with Properties_ -iterate pobj {
+                set rec [wmi_extract_property $pobj]
+                dict set result $inout [string tolower [dict get $rec name]] $rec
+                $pobj destroy
+            }
+        }
+    }
+
+    $mobj -with Qualifiers_ -iterate qual {
+        set rec [wmi_extract_qualifier $qual]
+        dict set result qualifiers [string tolower [dict get $rec name]] $rec
+        $qual destroy
+    }
+
+    return $result
+}
+
+
+proc twapi::wmi_extract_class {obj} {
+    
+    set result [dict create]
+
+    # Class qualifiers
+    $obj -with Qualifiers_ -iterate qualobj {
+        set rec [wmi_extract_qualifier $qualobj]
+        dict set result qualifiers [string tolower [dict get $rec name]] $rec
+        $qualobj destroy
+    }
+
+    $obj -with Properties_ -iterate propobj {
+        set rec [wmi_extract_property $propobj]
+        dict set result properties [string tolower [dict get $rec name]] $rec
+        $propobj destroy
+    }
+
+    $obj -with SystemProperties_ -iterate propobj {
+        set rec [wmi_extract_systemproperty $propobj]
+        dict set result systemproperties [string tolower [dict get $rec name]] $rec
+        $propobj destroy
+    }
+    
+    $obj -with Methods_ -iterate mobj {
+        set rec [wmi_extract_method $mobj]
+        dict set result methods [string tolower [dict get $rec name]] $rec
+        $mobj destroy
+    }
+
+    return $result
+}
