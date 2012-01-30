@@ -473,7 +473,6 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     event.mof.DataPtr = (ULONG64) msgP;
     /* Null Termination included to match event definition */
     event.mof.Length = (msglen+1) * sizeof(WCHAR);
-    event.mof.DataType = 0;           /* Init to 0 (Reserved as per MSDN) */
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
     return rc == ERROR_SUCCESS ?
