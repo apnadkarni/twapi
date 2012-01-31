@@ -43,18 +43,16 @@ static const char * g_event_trace_fields[] = {
 
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
+    TRACEHANDLE traceH;
+    DWORD win32_error;
     ULONG pointer_size;
     ULONG timer_resolution;
     ULONG user_mode;
-};
+    Tcl_Obj *eventList;
+    TwapiInterpContext *ticP;
+} gETWContext;
 
-struct {
-    int initialized;
-    Tcl_HashTable contexts;
-} gETWContexts;
-
-CRITICAL_SECTION gETWCS; /* Access to gETWContexts */
-
+CRITICAL_SECTION gETWCS; /* Access to gETWContext */
 
 /*
  * Event Trace Provider Support
@@ -71,6 +69,24 @@ ULONG  gETWProviderTraceEnableFlags;             /* Flags set by ETW controller 
 ULONG  gETWProviderTraceEnableLevel;             /* Level set by ETW controller */
 /* Session our provider is attached to */
 TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
+
+
+/*
+ * Functions
+ */
+
+static Tcl_Obj *ObjFromTwapiETWContext(struct TwapiETWContext *etwcP)
+{
+    Tcl_Obj *objs[5];
+    objs[0] = ObjFromTRACEHANDLE(etwcP->traceH);
+    objs[1] = Tcl_NewLongObj(etwcP->pointer_size);
+    objs[2] = Tcl_NewLongObj(etwcP->timer_resolution);
+    objs[3] = Tcl_NewLongObj(etwcP->user_mode);
+    objs[4] = etwcP->eventList ? etwcP->eventList : Tcl_NewObj();
+    return Tcl_NewListObj(ARRAYSIZE(objs), objs);
+}
+
+
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
@@ -574,9 +590,23 @@ TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 
 
 void WINAPI TwapiETWEventCallback(
-  PEVENT_TRACE pEvent
+  PEVENT_TRACE eventP
 )
 {
+    Tcl_Obj *objs[2];
+
+    /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
+    TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.eventList != NULL);
+
+    objs[0] =  Tcl_NewByteArrayObj((unsigned char *)eventP, sizeof(*eventP));
+    if (eventP->MofData && eventP->MofLength)
+        objs[1] = Tcl_NewByteArrayObj(eventP->MofData, eventP->MofLength);
+    else
+        objs[1] = Tcl_NewObj();
+
+    Tcl_ListObjAppendElement(gETWContext.ticP->interp, gETWContext.eventList, Tcl_NewListObj(2, objs));
+
     return;
 }
 
@@ -646,7 +676,8 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
     ULONG winerr;
-    struct TwapiETWContext *tetcP;
+    struct TwapiETWContext etwc;
+    
 
     if (objc == 0 || objc > 3)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
@@ -670,22 +701,32 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     EnterCriticalSection(&gETWCS);
     
-    if (! gETWContexts.initialized) {
-        Tcl_InitObjHashTable(&gETWContexts.contexts);
-        gETWContexts.initialized = 1;
-    }
+    TWAPI_ASSERT(gETWContext.eventList == NULL);
+    TWAPI_ASSERT(gETWContext.ticP == NULL);
+
+    gETWContext.win32_error = ERROR_SUCCESS;
+    gETWContext.traceH = htraces[0];
+    gETWContext.eventList = Tcl_NewListObj(0, NULL);
+    gETWContext.ticP = ticP;
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
+
+    etwc = gETWContext;
+    gETWContext.eventList = NULL;
+    gETWContext.ticP = NULL;
 
     LeaveCriticalSection(&gETWCS);
 
     if (winerr == ERROR_SUCCESS) {
-        // TBD - deal with data
+        if (etwc.win32_error == ERROR_SUCCESS) {
+            Tcl_SetObjResult(interp, ObjFromTwapiETWContext(&etwc));
+            return TCL_OK;
+        }
 
-        return TCL_OK;
-    } else {
-        // TBD - clean up
-
-        return Twapi_AppendSystemError(interp, winerr);
+        if (etwc.eventList)
+            Tcl_DecrRefCount(etwc.eventList);
+        winerr = etwc.win32_error;
     }
+
+    return Twapi_AppendSystemError(interp, winerr);
 }
