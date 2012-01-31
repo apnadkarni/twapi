@@ -1614,6 +1614,17 @@ proc twapi::_log_timestamp {} {
     return [clock format [clock seconds] -format "%a %T"]
 }
 
+proc twapi::_pdict {d {indent ""}} {
+  dict for {k v} $d {
+    if {[twapi::tcltype $v] eq "dict"} {
+      puts "${indent}$k:"
+      pdict $v "${indent}  "
+    } else {
+      puts "${indent}$k: $v"
+    }
+  }
+}
+
 # If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
 # we expect all source files to have been appended to this file. So do not
 # source them.
