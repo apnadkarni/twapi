@@ -663,15 +663,65 @@ void WINAPI TwapiETWEventCallback(
 }
 
 ULONG WINAPI TwapiETWBufferCallback(
-  PEVENT_TRACE_LOGFILEW Buffer
+  PEVENT_TRACE_LOGFILEW etlP
 )
 {
+    Tcl_Obj *objP;
+    Tcl_Obj *args[10];
+    int code;
+
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
+    TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.cmdObj != NULL);
 
-    // TBD - invoke buffer callback
-
-    if (gETWContext.errorObj)   /* If some previous error occurred, stop */
+    if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return FALSE;
+
+    /*
+     * Construct a command to call with the event. gETWContext.cmdObj could
+     * be a shared object, either initially itself or result in a shared 
+     * object in the callback. So we need to check for that and Dup it
+     * if necessary
+     */
+    if (Tcl_IsShared(gETWContext.cmdObj)) {
+        objP = Tcl_DuplicateObj(gETWContext.cmdObj);
+        Tcl_IncrRefCount(objP);
+    } else
+        objP = gETWContext.cmdObj;
+
+    /* Build up the arguments */
+    args[0] = STRING_LITERAL_OBJ("buffer");
+    args[1] = Tcl_NewUnicodeObj(etlP->LogFileName ? etlP->LogFileName : L"", -1);
+    args[2] = Tcl_NewUnicodeObj(etlP->LoggerName ? etlP->LoggerName : L"", -1);
+    args[3] = ObjFromULONGLONG(etlP->CurrentTime);
+    args[4] = Tcl_NewLongObj(etlP->BuffersRead);
+    args[5] = Tcl_NewLongObj(etlP->LogFileMode);
+    args[6] = Tcl_NewLongObj(etlP->BufferSize);
+    args[7] = Tcl_NewLongObj(etlP->Filled);
+    args[8] = Tcl_NewLongObj(etlP->EventsLost);
+    args[9] = Tcl_NewLongObj(etlP->IsKernelTrace);
+    // TBD - should we add the LogfileHeader field ?
+
+    /*
+     * Note: Do not need to Tcl_IncrRefCount args[] because we are putting
+     * the objects on the objP list
+     */
+
+    if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args)) != TCL_OK ||
+        (code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
+        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
+                                                    code);
+        Tcl_IncrRefCount(gETWContext.errorObj);
+    }
+
+    /* Get rid of the command obj if we created it */
+    if (objP != gETWContext.cmdObj)
+        Tcl_DecrRefCount(objP);
+
+    if (gETWContext.errorObj)
+        return FALSE;
+
+    /* TBD - maybe check the return value of the Tcl_Eval and return that ? */
 
     return TRUE;
 }
