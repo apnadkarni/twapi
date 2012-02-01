@@ -41,6 +41,36 @@ static const char * g_event_trace_fields[] = {
 };
 
 
+/* IMPORTANT : 
+ * Do not change order without changing  ObjFromTRACE_LOGFILE_HEADER
+ */
+static const char * g_trace_logfile_header_fields[] = {
+    "-buffersize",
+    "-majorversion",
+    "-minorversion",
+    "-subversion",
+    "-subminorversion",
+    "-providerversion",
+    "-numberofprocessors",
+    "-endtime",
+    "-timerresolution",
+    "-maximumfilesize",
+    "-logfilemode",
+    "-bufferswritten",
+    "-pointersize",
+    "-eventslost",
+    "-cpuspeedinmhz",
+    "-loggername",
+    "-logfilename",
+    "-timezone",
+    "-boottime",
+    "-perffreq",
+    "-starttime",
+    "-bufferslost",
+    NULL,
+};
+
+
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
     Tcl_Obj *cmdObj;
@@ -76,18 +106,79 @@ TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
  * Functions
  */
 
-#ifdef OBSOLETE
-static Tcl_Obj *ObjFromTwapiETWContext(struct TwapiETWContext *etwcP)
+static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 {
-    Tcl_Obj *objs[5];
-    objs[0] = ObjFromTRACEHANDLE(etwcP->traceH);
-    objs[1] = Tcl_NewLongObj(etwcP->pointer_size);
-    objs[2] = Tcl_NewLongObj(etwcP->timer_resolution);
-    objs[3] = Tcl_NewLongObj(etwcP->user_mode);
-    objs[4] = etwcP->eventList ? etwcP->eventList : Tcl_NewObj();
-    return Tcl_NewListObj(ARRAYSIZE(objs), objs);
-}
+    int i;
+    Tcl_Obj *objs[44];
+    TRACE_LOGFILE_HEADER *adjustedP;
+    WCHAR *ws;
+
+    for (i = 0; g_trace_logfile_header_fields[i]; ++i) {
+        objs[2*i] = Tcl_NewStringObj(g_trace_logfile_header_fields[i], -1);
+    }
+    TWAPI_ASSERT((2*i) == ARRAYSIZE(objs));
+
+    objs[1] = ObjFromULONG(tlhP->BufferSize);
+    objs[3] = Tcl_NewIntObj(tlhP->VersionDetail.MajorVersion);
+    objs[5] = Tcl_NewIntObj(tlhP->VersionDetail.MinorVersion);
+    objs[7] = Tcl_NewIntObj(tlhP->VersionDetail.SubVersion);
+    objs[9] = Tcl_NewIntObj(tlhP->VersionDetail.SubMinorVersion);
+    objs[11] = ObjFromULONG(tlhP->ProviderVersion);
+    objs[13] = ObjFromULONG(tlhP->NumberOfProcessors);
+    objs[15] = ObjFromLARGE_INTEGER(tlhP->EndTime);
+    objs[17] = ObjFromULONG(tlhP->TimerResolution);
+    objs[19] = ObjFromULONG(tlhP->MaximumFileSize);
+    objs[21] = ObjFromULONG(tlhP->LogFileMode);
+    objs[23] = ObjFromULONG(tlhP->BuffersWritten);
+    objs[25] = ObjFromULONG(tlhP->PointerSize);
+    objs[27] = ObjFromULONG(tlhP->EventsLost);
+    objs[29] = ObjFromULONG(tlhP->CpuSpeedInMHz);
+
+    /* Actual position of remaining fields may not match.
+     * if the file came from a different architecture
+     * so we have to adjust pointer accordingly. See 
+     * "Implementing an Event Callback Function" in the SDK docs
+     */
+
+    if (tlhP->PointerSize != sizeof(PVOID)) {
+        adjustedP = (PTRACE_LOGFILE_HEADER)
+            ((PUCHAR)tlhP + 2 * (tlhP->PointerSize - sizeof(PVOID)));
+    } else
+        adjustedP = tlhP;
+
+    /* Now continue with remaining fields */
+    
+    /*
+     * LoggerName and LogFileName fields are not to be used. Rather they
+     * refer to null terminated fields right after this struct.
+     * HOWEVER, it is not clear what happens when the struct is 
+     * embedded inside another so for now we just punt and return
+     * empty strings;
+    */
+#if 1
+    objs[31] = Tcl_NewObj();
+    objs[33] = objs[31];    /* OK, Tcl_NewListObj will just incr ref twice */
+#else
+    ws = (WCHAR *)(sizeof(*adjustedP)+(char *)adjustedP);
+    objs[31] = ObjFromUnicode(ws);
+    Tcl_GetUnicodeFromObj(objs[31], &i); /* Get length of LoggerName... */
+    ws += (i+1);                         /* so we can point beyond it... */
+    objs[33] = ObjFromUnicode(ws);       /* to the LogFileName */
 #endif
+
+    objs[35] = ObjFromTIME_ZONE_INFORMATION(&adjustedP->TimeZone);
+    
+    objs[37] = ObjFromLARGE_INTEGER(adjustedP->BootTime);
+    objs[39] = ObjFromLARGE_INTEGER(adjustedP->PerfFreq);
+    objs[41] = ObjFromLARGE_INTEGER(adjustedP->StartTime);
+    objs[43] = ObjFromULONG(adjustedP->BuffersLost);
+
+    return Tcl_NewListObj(ARRAYSIZE(objs), objs);
+
+
+
+
+}
 
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
@@ -288,6 +379,7 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     for (i = 0; g_event_trace_fields[i]; ++i) {
         objs[2*i] = Tcl_NewStringObj(g_event_trace_fields[i], -1);
     }
+    TWAPI_ASSERT((2*i) == ARRAYSIZE(objs));
 
     if (etP->LogFileNameOffset)
         objs[1] = Tcl_NewUnicodeObj((WCHAR *)(etP->LogFileNameOffset + (char *) etP), -1);
@@ -667,7 +759,7 @@ ULONG WINAPI TwapiETWBufferCallback(
 )
 {
     Tcl_Obj *objP;
-    Tcl_Obj *args[10];
+    Tcl_Obj *args[11];
     int code;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
@@ -700,7 +792,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     args[7] = Tcl_NewLongObj(etlP->Filled);
     args[8] = Tcl_NewLongObj(etlP->EventsLost);
     args[9] = Tcl_NewLongObj(etlP->IsKernelTrace);
-    // TBD - should we add the LogfileHeader field ?
+    args[10] = ObjFromTRACE_LOGFILE_HEADER(&etlP->LogfileHeader);
 
     /*
      * Note: Do not need to Tcl_IncrRefCount args[] because we are putting
