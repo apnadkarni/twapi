@@ -43,13 +43,14 @@ static const char * g_event_trace_fields[] = {
 
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
+    Tcl_Obj *cmdObj;
+    Tcl_Obj *errorObj;
+    TwapiInterpContext *ticP;
     TRACEHANDLE traceH;
-    DWORD win32_error;
+    int   cmdlen;
     ULONG pointer_size;
     ULONG timer_resolution;
     ULONG user_mode;
-    Tcl_Obj *eventList;
-    TwapiInterpContext *ticP;
 } gETWContext;
 
 CRITICAL_SECTION gETWCS; /* Access to gETWContext */
@@ -75,6 +76,7 @@ TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
  * Functions
  */
 
+#ifdef OBSOLETE
 static Tcl_Obj *ObjFromTwapiETWContext(struct TwapiETWContext *etwcP)
 {
     Tcl_Obj *objs[5];
@@ -85,7 +87,7 @@ static Tcl_Obj *ObjFromTwapiETWContext(struct TwapiETWContext *etwcP)
     objs[4] = etwcP->eventList ? etwcP->eventList : Tcl_NewObj();
     return Tcl_NewListObj(ARRAYSIZE(objs), objs);
 }
-
+#endif
 
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
@@ -590,22 +592,72 @@ TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 
 
 void WINAPI TwapiETWEventCallback(
-  PEVENT_TRACE eventP
+  PEVENT_TRACE evP
 )
 {
-    Tcl_Obj *objs[2];
+    Tcl_Obj *objP;
+    Tcl_Obj *args[14];
+    int code;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
-    TWAPI_ASSERT(gETWContext.eventList != NULL);
+    TWAPI_ASSERT(gETWContext.cmdObj != NULL);
 
-    objs[0] =  Tcl_NewByteArrayObj((unsigned char *)eventP, sizeof(*eventP));
-    if (eventP->MofData && eventP->MofLength)
-        objs[1] = Tcl_NewByteArrayObj(eventP->MofData, eventP->MofLength);
+    if (gETWContext.errorObj)   /* If some previous error occurred, return */
+        return;
+
+    /*
+     * Construct a command to call with the event. gETWContext.cmdObj could
+     * be a shared object, either initially itself or result in a shared 
+     * object in the callback. So we need to check for that and Dup it
+     * if necessary
+     */
+    if (Tcl_IsShared(gETWContext.cmdObj)) {
+        objP = Tcl_DuplicateObj(gETWContext.cmdObj);
+        Tcl_IncrRefCount(objP);
+    } else
+        objP = gETWContext.cmdObj;
+
+    /* Build up the arguments */
+    args[0] = STRING_LITERAL_OBJ("event");
+    args[1] = Tcl_NewIntObj(evP->Header.Class.Type);
+    args[2] = Tcl_NewIntObj(evP->Header.Class.Level);
+    args[3] = Tcl_NewIntObj(evP->Header.Class.Version);
+    args[4] = Tcl_NewLongObj(evP->Header.ThreadId);
+    args[5] = ObjFromLARGE_INTEGER(evP->Header.TimeStamp);
+    args[6] = ObjFromGUID(&evP->Header.Guid);
+    /*
+     * Note - for user mode sessions, KernelTime/UserTime are not valid
+     * and the ProcessorTime member has to be used instead. However,
+     * we do not know the type of session at this point so we leave it
+     * to the app to figure out what to use
+     */
+    args[7] = ObjFromULONG(evP->Header.KernelTime);
+    args[8] = ObjFromULONG(evP->Header.UserTime);
+    args[9] = Tcl_NewWideIntObj(evP->Header.ProcessorTime);
+    args[10] = ObjFromULONG(evP->InstanceId);
+    args[11] = ObjFromULONG(evP->ParentInstanceId);
+    args[12] = ObjFromGUID(&evP->ParentGuid);
+    if (evP->MofData && evP->MofLength)
+        args[13] = Tcl_NewByteArrayObj(evP->MofData, evP->MofLength);
     else
-        objs[1] = Tcl_NewObj();
+        args[13] = Tcl_NewObj();
 
-    Tcl_ListObjAppendElement(gETWContext.ticP->interp, gETWContext.eventList, Tcl_NewListObj(2, objs));
+    /*
+     * Note: Do not need to Tcl_IncrRefCount args[] because we are putting
+     * the objects on the objP list
+     */
+
+    if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args)) != TCL_OK ||
+        (code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
+        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
+                                                    code);
+        Tcl_IncrRefCount(gETWContext.errorObj);
+    }
+
+    /* Get rid of the command obj if we created it */
+    if (objP != gETWContext.cmdObj)
+        Tcl_DecrRefCount(objP);
 
     return;
 }
@@ -614,7 +666,14 @@ ULONG WINAPI TwapiETWBufferCallback(
   PEVENT_TRACE_LOGFILEW Buffer
 )
 {
-    return FALSE;
+    /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
+
+    // TBD - invoke buffer callback
+
+    if (gETWContext.errorObj)   /* If some previous error occurred, stop */
+        return FALSE;
+
+    return TRUE;
 }
 
 
@@ -675,58 +734,67 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     FILETIME start, end, *startP, *endP;
     TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
-    ULONG winerr;
     struct TwapiETWContext etwc;
+    int cmdlen;
+    int code;
+    DWORD winerr;
     
 
-    if (objc == 0 || objc > 3)
+    if (objc < 2 || objc > 4)
         return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
 
     if (ObjToTRACEHANDLE(interp, objv[0], &htraces[0]) != TCL_OK)
         return TCL_ERROR;
 
+    /* Verify command prefix is a list */
+    if (Tcl_ListObjLength(interp, objv[1], &cmdlen) != TCL_OK)
+        return TCL_ERROR;
+
     startP = NULL;
-    if (objc > 1) {
-        if (ObjToFILETIME(interp, objv[1], &start) != TCL_OK)
+    if (objc > 2) {
+        if (ObjToFILETIME(interp, objv[2], &start) != TCL_OK)
             return TCL_ERROR;
         startP = &start;
     }
     
     endP = NULL;
-    if (objc > 2) {
-        if (ObjToFILETIME(interp, objv[2], &end) != TCL_OK)
+    if (objc > 3) {
+        if (ObjToFILETIME(interp, objv[3], &end) != TCL_OK)
             return TCL_ERROR;
         endP = &end;
     }
 
     EnterCriticalSection(&gETWCS);
     
-    TWAPI_ASSERT(gETWContext.eventList == NULL);
+    TWAPI_ASSERT(gETWContext.cmdObj == NULL);
     TWAPI_ASSERT(gETWContext.ticP == NULL);
 
-    gETWContext.win32_error = ERROR_SUCCESS;
     gETWContext.traceH = htraces[0];
-    gETWContext.eventList = Tcl_NewListObj(0, NULL);
+    gETWContext.cmdObj = objv[1];
+    gETWContext.cmdlen = cmdlen;
+    gETWContext.errorObj = NULL;
     gETWContext.ticP = ticP;
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
 
+    /* Copy and reset context before unlocking */
     etwc = gETWContext;
-    gETWContext.eventList = NULL;
+    gETWContext.cmdObj = NULL;
+    gETWContext.errorObj = NULL;
     gETWContext.ticP = NULL;
 
     LeaveCriticalSection(&gETWCS);
 
-    if (winerr == ERROR_SUCCESS) {
-        if (etwc.win32_error == ERROR_SUCCESS) {
-            Tcl_SetObjResult(interp, ObjFromTwapiETWContext(&etwc));
-            return TCL_OK;
-        }
-
-        if (etwc.eventList)
-            Tcl_DecrRefCount(etwc.eventList);
-        winerr = etwc.win32_error;
+    if (etwc.errorObj) {
+        code = Tcl_SetReturnOptions(interp, etwc.errorObj);
+        Tcl_DecrRefCount(etwc.errorObj); /* Match one in the event callback */
+        return code;
     }
 
-    return Twapi_AppendSystemError(interp, winerr);
+    Tcl_ResetResult(interp);    /* The callback might have set a result */
+
+    if (winerr)
+        return Twapi_AppendSystemError(interp, winerr);
+
+    return TCL_OK;
 }
