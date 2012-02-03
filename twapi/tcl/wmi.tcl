@@ -41,7 +41,7 @@ proc twapi::_wmi {{top cimv2}} {
 
 proc twapi::wmi_collect_classes {swbemservices args} {
     array set opts [parseargs args {
-        {parent.arg {}}
+        {ancestor.arg {}}
         shallow
         first
         matchproperties.arg
@@ -58,7 +58,7 @@ proc twapi::wmi_collect_classes {swbemservices args} {
         incr flags 1;           # 0x1 -> wbemQueryFlagsShallow
     }
 
-    set classes [$swbemservices SubclassesOf $opts(parent) $flags]
+    set classes [$swbemservices SubclassesOf $opts(ancestor) $flags]
     set matches {}
     set delete_on_error {}
     twapi::trap {
@@ -71,7 +71,6 @@ proc twapi::wmi_collect_classes {swbemservices args} {
             } {
                 if {[info exists opts($opt)]} {
                     foreach {name matcher} $opts($opt) {
-                        puts "matching $name: $matcher"
                         if {[catch {
                             if {! [{*}$matcher [$class -with [list [list -get $fn] [list Item $name]] Value]]} {
                                 set matched 0
