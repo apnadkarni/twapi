@@ -78,11 +78,9 @@ int Twapi_Init(Tcl_Interp *interp)
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
      */
-#ifdef USE_TCL_STUBS
     if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
         return TCL_ERROR;
     }
-#endif
 
     /* Init unless already done. */
     if (! TwapiDoOneTimeInit(&gTwapiInitialized, TwapiOneTimeInit, interp))
