@@ -599,7 +599,7 @@ proc twapi::_resolve_params_for_prototype {ti paramdescs} {
 # $addref controls whether we do an AddRef when the value is a pointer to
 # an interface. $raw controls whether interface pointers are returned
 # as raw interface handles or objects.
-proc twapi::_variant_value {variant {raw false} {addref false}} {
+proc twapi::variant_value {variant {raw false} {addref false}} {
     # TBD - format appropriately depending on variant type for dates and
     # currency
     if {[llength $variant] == 0} {
@@ -609,6 +609,8 @@ proc twapi::_variant_value {variant {raw false} {addref false}} {
 
     if {$vt & 0x2000} {
         # VT_ARRAY
+        # TBD - [lindex $variant 1] is dimensions.
+        # Use to format nested list appropriately
         if {[llength $variant] < 3} {
             return [list ]
         }
@@ -617,7 +619,7 @@ proc twapi::_variant_value {variant {raw false} {addref false}} {
             # Array of variants. Recursively convert values
             set result [list ]
             foreach elem [lindex $variant 2] {
-                lappend result [_variant_value $elem $raw $addref]
+                lappend result [variant_value $elem $raw $addref]
             }
             return $result
         } else {
@@ -650,6 +652,9 @@ proc twapi::_variant_value {variant {raw false} {addref false}} {
     return [lindex $variant 1]
 }
 
+proc twapi::variant_type {variant} {
+    return [lindex $variant 0]
+}
 
 #
 # General dispatcher for callbacks from event sinks. Invokes the actual
@@ -668,9 +673,9 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
         set dispid [twapi::kl_get_default $dispidmap $dispid $dispid]
         set converted_params [list ]
         foreach param $params {
-            # Note we do NOT ask _variant_value to do AddRef.
+            # Note we do NOT ask variant_value to do AddRef.
             # Called script has to do that if holding on to them.
-            lappend converted_params [_variant_value $param true]
+            lappend converted_params [variant_value $param true]
         }
         set result [uplevel \#0 $script [list $dispid] $converted_params]
     } result]
@@ -2742,14 +2747,27 @@ twapi::class create ::twapi::Automation {
     # Intended to be called only from another method. Not directly.
     # Does an uplevel 2 to get to application context.
     # On failures, retries with IDispatchEx interface
-    method _invoke {name invkinds params {namedargs {}}} {
+    # TBD - get rid of this uplevel business by having internal
+    # callers to equivalent of "uplevel 1 my _invoke ...
+    method _invoke {name invkinds params args} {
         my variable  _proxy  _lcid
 
         if {[$_proxy @Null?]} {
             error "Attempt to invoke method $name on NULL COM object"
         }
+
+        array set opts [twapi::parseargs args {
+            raw.bool
+            namedargs.arg
+        } -nulldefault -maxleftover 0]
+
         ::twapi::trap {
-            return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $namedargs]]]
+            set vtval [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $opts(namedargs)]]
+            if {$opts(raw)} {
+                return $vtval
+            } else {
+                return [::twapi::variant_value $vtval]
+            }
         } onerror {} {
             set erinfo $::errorInfo
             set ercode $::errorCode
@@ -2777,7 +2795,12 @@ twapi::class create ::twapi::Automation {
         set _proxy $proxy_ex
         
         # Retry with the IDispatchEx interface
-        return [::twapi::_variant_value [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $namedargs]]]
+        set vtval [uplevel 2 [list $_proxy @Invoke $name $invkinds $_lcid $params $opts(namedargs)]]
+        if {$opts(raw)} {
+            return $vtval
+        } else {
+            return [::twapi::variant_value $vtval]
+        }
     }
 
     method -get {name args} {
@@ -2793,7 +2816,14 @@ twapi::class create ::twapi::Automation {
     }
 
     method -callnamedargs {name args} {
-        return [my _invoke $name [list 1] {} $args]
+        return [my _invoke $name [list 1] {} -namedargs $args]
+    }
+
+    # Need a wrapper around _invoke in order for latter's uplevel 2
+    # to work correctly
+    # TBD - document, test
+    method -invoke {name invkinds params args} {
+        return [my _invoke $name $invkinds $params {*}$args]
     }
 
     method -destroy {} {
@@ -2808,7 +2838,7 @@ twapi::class create ::twapi::Automation {
 
     method -default {} {
         my variable _proxy
-        return [::twapi::_variant_value [$_proxy Invoke ""]]
+        return [::twapi::variant_value [$_proxy Invoke ""]]
     }
 
     # Caller must call release on the proxy
@@ -2888,7 +2918,7 @@ twapi::class create ::twapi::Automation {
                     set next [$iter Next 1]
                     lassign $next more values
                     if {[llength $values]} {
-                        set var [::twapi::_variant_value [lindex $values 0]]
+                        set var [::twapi::variant_value [lindex $values 0]]
                         set ret [catch {uplevel 1 $script} msg]
                         switch -exact -- $ret {
                             0 -
@@ -3010,8 +3040,6 @@ twapi::class create ::twapi::Automation {
             set invkinds [list 1 4 2]
         }
 
-        # Invoke the function. We do a uplevel instead of eval
-        # here so variables if any are in caller's context
         return [my _invoke $name $invkinds $args]
     }
 
