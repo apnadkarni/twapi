@@ -550,6 +550,60 @@ Tcl_Obj *ObjFromBSTR (BSTR bstr)
     return bstr ? ObjFromUnicodeN(bstr, SysStringLen(bstr)) : Tcl_NewStringObj("", 0);
 }
 
+Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
+{
+    int len;
+
+    if (max < 0) {
+        if (remainP)
+            *remainP = 0;
+        return Tcl_NewStringObj(strP, -1);
+    }        
+
+    for (len = 0; len < max && strP[len]; ++len)
+        ;
+        
+    /* We have to be careful about setting *remainP since the loop may
+       terminate because of max exceeded or because \0 encountered.
+    */
+    if (remainP) {
+        if ((len+1) <= max)
+            *remainP = (max - (len+1)); /* \0 case */
+        else
+            *remainP = 0;       /* max reached case */
+    }        
+
+    return Tcl_NewStringObj(strP, len);
+}
+
+Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
+{
+    int len;
+
+    if (max < 0) {
+        if (remainP)
+            *remainP = 0;
+        return ObjFromUnicode(strP);
+    }        
+
+    for (len = 0; len < max && strP[len]; ++len)
+        ;
+        
+    /* We have to be careful about setting *remainP since the loop may
+       terminate because of max exceeded or because \0 encountered.
+    */
+    if (remainP) {
+        if ((len+1) <= max)
+            *remainP = (max - (len+1)); /* \0 case */
+        else
+            *remainP = 0;       /* max reached case */
+    }        
+
+    return ObjFromUnicodeN(strP, len);
+}
+
+
+
 /*
  * Gets an integer from an object within the specified range
  * Returns TCL_OK if integer within range [low,high], else error
