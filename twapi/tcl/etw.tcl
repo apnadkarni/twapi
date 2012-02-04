@@ -55,7 +55,6 @@ namespace eval twapi {
         objectwmitime 35
         datetime 36
     }
-
 }
 
 
@@ -124,7 +123,7 @@ proc twapi::etw_parse_event_class {ocls} {
     # Second level keys:
     #   eventtypename - string (may be empty)
     #   eventtype - same as first level key
-    #   record - list of field types
+    #   record - list of field types indexed by wmiid
     # The record is an ordered list of enums that describe
     # the type of each field.
 
@@ -186,10 +185,24 @@ proc twapi::etw_parse_event_class {ocls} {
                 $quals destroy
             }
                     
-            foreach event_type $event_types event_type_name $event_type_names {
-                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name record $record]
+            # Process the records to put the fields in order based on
+            # their wmidataid. If any info is missing or inconsistent
+            # we will mark the whole event type class has undecodable.
+            # Ids begin from 1.
+            set typeenums {}
+            for {set id 1} {$id <= [dict size $record]} {incr id} {
+                if {![dict exists $record $id]} {
+                    # Discard all type info - missing type info
+                    debuglog "Missing id $id for event type(s) $event_types for  EventTrace Mof Class [$ocls -with {{SystemProperties_} {Item __CLASS}} Value]"
+                    set typeenums {}
+                    break;
+                }
+                lappend typeenums [dict get $record $id typeenum]
             }
 
+            foreach event_type $event_types event_type_name $event_type_names {
+                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name record $record typenums $typeenums]
+            }
         }
     }
 
@@ -230,17 +243,17 @@ proc twapi::_etw_decipher_event_field_type {oprop oquals} {
                 set quals(extension) [string tolower $quals(extension)]
                 # Not all extensions affect how the event field is extracted
                 # e.g. the noprint value
-                if {$quals(extension) in {ipaddr ipaddrv4 ipaddrv6 port variant wmitime guid sid} {
+                if {$quals(extension) in {ipaddr ipaddrv4 ipaddrv6 port variant wmitime guid sid}} {
                     append type $quals(extension)
                 }
             }
         }
     }
 
-    if {![dict exists $_etw_typeenums]} {
+    if {![info exists _etw_typeenums($type)]} {
         set typeenum 0
     } else {
-        set typeenum [dict get $_etw_typeenums $type]
+        set typeenum $_etw_typeenums($type)
     }
 
     return [dict create type $type typeenum $typeenum extension $quals(extension)]
