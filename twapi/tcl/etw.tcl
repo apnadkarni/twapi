@@ -10,7 +10,7 @@ namespace eval twapi {
     variable _etw_event_class_uuid "{D5B52E95-8447-40C1-B316-539894449B36}"
     
     # Maps event field type strings to enums to pass to the C code
-    variable _etw_typenums
+    variable _etw_typeenums
     # 0 should be unmapped. Note some are duplicates because they
     # are the same format
     array set _etw_typeenums {
@@ -201,7 +201,7 @@ proc twapi::etw_parse_event_class {ocls} {
             }
 
             foreach event_type $event_types event_type_name $event_type_names {
-                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name record $record typenums $typeenums]
+                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name record $record typeenums $typeenums]
             }
         }
     }

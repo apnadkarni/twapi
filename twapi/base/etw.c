@@ -940,3 +940,84 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     return TCL_OK;
 }
+
+TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    int       i;
+    int eaten;
+    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj **types;            /* Field types */
+    int       ntypes;           /* Number of fields/types */
+    char     *bytesP;
+    int       nbytes;
+    int       remain;
+    Tcl_Obj  *resultObj = NULL;
+    VARIANT   var;
+    TCL_RESULT code = TCL_OK;
+
+    VariantInit(&var);
+
+    if (objc != 2)
+        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+
+    if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK)
+        return TCL_ERROR;
+
+    bytesP = Tcl_GetByteArrayFromObj(objv[0], &nbytes);
+    
+    resultObj = Tcl_NewListObj(0, NULL);
+
+    for (i = 0, remain = nbytes; i < ntypes && remain > 0; ++i, bytesP += eaten, remain -= eaten) {
+        int typeenum;
+        Tcl_Obj *objP;
+
+        if (Tcl_GetIntFromObj(interp, types[i], &typeenum) != TCL_OK) {
+            goto error_handler;
+        }
+
+        if (typeenum == 0) {
+            /*
+             * The type is valid but we don't support it and have no idea
+             * how long it is so we cannot loop further.
+             */
+            break;
+        }
+
+        /* IMPORTANT: switch values are based on script _etw_typeenum defs */
+        switch (typeenum) {
+        case 1: // Null terminated ascii string
+            /* We cannot rely on event being formatted correctly with a \0
+               do not directly call Tcl_NewStringObj */
+            objP = ObjFromStringLimited(bytesP, remain, &eaten);
+            /* eaten is num remaining. Prime for loop iteration to
+               be num used */
+            eaten = remain - eaten;
+            break;
+
+        case 2: // Null terminated Unicode string
+            /* Data may not be aligned ! Copy to align if necessary? TBD */
+            /* We cannot rely on event being formatted correctly with a \0
+               do not directly call Tcl_NewStringObj */
+            objP = ObjFromUnicodeLimited((WCHAR *)bytesP, remain/sizeof(WCHAR), &eaten);
+            /* eaten is num WCHARS remaining. Prime for loop iteration to
+               be num used */
+            eaten = remain - (sizeof(WCHAR)*eaten);
+            break;
+
+        default:
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
+            goto error_handler;
+        }
+
+        Tcl_ListObjAppendElement(interp, resultObj, objP);
+    }
+    
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+
+error_handler:
+    /* Tcl interp should already hold error code and result */
+    if (resultObj)
+        Tcl_DecrRefCount(resultObj);
+    return TCL_ERROR;
+}
