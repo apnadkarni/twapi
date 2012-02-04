@@ -1410,6 +1410,7 @@ TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST 
 TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* UI and window related */
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
@@ -1602,7 +1603,8 @@ TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
 #endif
 
 #define ObjFromUnicode(p_)    ObjFromUnicodeN(p_, -1)
-
+TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
+TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *remain);
 
 TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
