@@ -1137,8 +1137,9 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
      * For robustness, we set a limit on number of tries. Note required
      * size can keep changing so we try multiple times.
      */
-    for (bufsz = 4000, tries=0; tries < 10 ; ++tries) {
-        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+    bufsz = 4000;
+    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+    for (tries=0; tries < 10 ; ++tries) {
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
         else
@@ -1149,9 +1150,10 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
             break;
         }
         
-        /* bufsz contains requried size as returned by the functions */
-
+        /* Retry with bigger buffer */
+        /* bufsz contains required size as returned by the functions */
         MemLifoPopFrame(&ticP->memlifo);
+        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
     }
 
     if (error == NO_ERROR) {
@@ -1232,17 +1234,20 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
      * can keep changing (unlikely, but possible ) so we try multiple times.
      * TBD - check for appropriate initial size
      */
-    for (bufsz = 1000, tries=0; tries < 10 ; ++tries) {
-        iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
-                                                        bufsz, &bufsz);
+    bufsz = 1000;
+    iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
+                                                     bufsz, &bufsz);
+    for (tries=0; tries < 10 ; ++tries) {
         error = GetAdaptersAddresses(family, flags, NULL, iaaP, &bufsz);
         if (error != ERROR_BUFFER_OVERFLOW) {
             /* Either success or error unrelated to buffer size */
             break;
         }
         
-        /* bufsz contains required size as returned by the functions */
+        /* realloc - bufsz contains required size as returned by the functions */
         MemLifoPopFrame(&ticP->memlifo);
+        iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
+                                                         bufsz, &bufsz);
     }
 
     if (error != ERROR_SUCCESS) {
