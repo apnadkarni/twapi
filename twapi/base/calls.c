@@ -602,6 +602,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileFile, Call, 10146); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
     CALL_(IsEqualGUID, Call, 10148); // Tcl
+    CALL_(TwapiParseEventMofData, Call, 10149); // Tcl
+
+
 
     // CallU API
     CALL_(IsClipboardFormatAvailable, CallU, 1);
@@ -2805,6 +2808,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = IsEqualGUID(&guid, &u.guid);
             break;
+
+        case 10149:
+            return TwapiParseEventMofData(ticP, objc-2, objv+2);
         }
     }
 
