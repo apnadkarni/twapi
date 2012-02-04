@@ -28,10 +28,10 @@ namespace eval twapi {
         csint8 10
         cuint8 11
         sint16 12
-        sint32 13
-        sint64 14
-        uint16 15
-        uint32 16
+        uint16 13
+        uint32 14
+        sint32 15
+        sint64 16
         uint64 17
         xsint16 18
         xsint32 19
@@ -54,6 +54,8 @@ namespace eval twapi {
         uint64wmitime 35
         objectwmitime 35
         datetime 36
+        stringnotcounted 37
+        wstringnotcounted 38
     }
 }
 
@@ -232,11 +234,13 @@ proc twapi::_etw_decipher_event_field_type {oprop oquals} {
 
                 # The following qualifiers may or may not exist
                 # TBD - not all may be required to be retrieved
-                foreach qual {bitmap bitvalues extension format pointer stringtermination valuemap values valuetype xmlfragment} {
+                # NOTE: MSDN says some qualifiers are case sensitive!
+                foreach qual {BitMap BitValues Extension Format Pointer StringTermination ValueMap Values ValueType XMLFragment} {
                     # catch in case it does not exist
-                    set quals($qual) ""
+                    set lqual [string tolower $qual]
+                    set quals($lqual) ""
                     catch {
-                        set quals($qual) [$oquals -with [list [list Item $qual]] Value]
+                        set quals($lqual) [$oquals -with [list [list Item $qual]] Value]
                     }
                 }
                 set type [string tolower "$quals(format)${type}$quals(stringtermination)"]
