@@ -539,7 +539,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
     
 
     if (objc != 0)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     rc = UnregisterTraceGuids(gETWProviderRegistrationHandle);
     if (rc == ERROR_SUCCESS) {
@@ -598,12 +598,12 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     Tcl_Obj *objs[2];
     
     if (objc != 1)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[0], &etP) != TCL_OK)
         return TCL_ERROR;
 
     if (etP->LoggerNameOffset == 0) {
-        return TwapiReturnTwapiError(ticP->interp, "Session name not specified", TWAPI_INVALID_ARGS);
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Session name not specified.");
     }
 
     if (StartTraceW(&htrace,
@@ -639,7 +639,7 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         if (Tcl_GetWideIntFromObj(interp, objv[2], &htrace) != TCL_OK)
             return TCL_ERROR;
     } else {
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     }
 
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[1], &etP) != TCL_OK)
@@ -828,7 +828,7 @@ TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     Tcl_Interp *interp = ticP->interp;
 
     if (objc != 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (Tcl_GetIntFromObj(interp, objv[1], &real_time) != TCL_OK)
         return TCL_ERROR;
@@ -858,7 +858,7 @@ TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     Tcl_Interp *interp = ticP->interp;
 
     if (objc != 1)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (ObjToTRACEHANDLE(interp, objv[0], &htrace) != TCL_OK)
         return TCL_ERROR;
@@ -883,7 +883,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     
 
     if (objc < 2 || objc > 4)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (ObjToTRACEHANDLE(interp, objv[0], &htraces[0]) != TCL_OK)
         return TCL_ERROR;
@@ -953,12 +953,11 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
     int       remain;
     Tcl_Obj  *resultObj = NULL;
     VARIANT   var;
-    TCL_RESULT code = TCL_OK;
 
     VariantInit(&var);
 
     if (objc != 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK)
         return TCL_ERROR;
@@ -970,6 +969,7 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
     for (i = 0, remain = nbytes; i < ntypes && remain > 0; ++i, bytesP += eaten, remain -= eaten) {
         int typeenum;
         Tcl_Obj *objP;
+        Tcl_Obj *tempobjP;
 
         if (Tcl_GetIntFromObj(interp, types[i], &typeenum) != TCL_OK) {
             goto error_handler;
@@ -985,7 +985,7 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
 
         /* IMPORTANT: switch values are based on script _etw_typeenum defs */
         switch (typeenum) {
-        case 1: // Null terminated ascii string
+        case 1: // string / stringnullterminated
             /* We cannot rely on event being formatted correctly with a \0
                do not directly call Tcl_NewStringObj */
             objP = ObjFromStringLimited(bytesP, remain, &eaten);
@@ -994,7 +994,7 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
             eaten = remain - eaten;
             break;
 
-        case 2: // Null terminated Unicode string
+        case 2: // wstring / wstringnullterminated
             /* Data may not be aligned ! Copy to align if necessary? TBD */
             /* We cannot rely on event being formatted correctly with a \0
                do not directly call Tcl_NewStringObj */
@@ -1004,6 +1004,112 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
             eaten = remain - (sizeof(WCHAR)*eaten);
             break;
 
+        case 3: // stringcounted
+        case 4: // stringreversecounted
+            if (remain < 2)
+                goto done;      /* Data truncation */
+            eaten = *(unsigned short UNALIGNED *)bytesP;
+            if (typeenum == 4)  /* Need to swap bytes */
+                eaten = ((eaten & 0xff) << 8) | (eaten >> 8);
+            if ((remain-2) < eaten) {
+                /* truncated */
+                eaten = remain-2;
+            }
+            objP = Tcl_NewStringObj(bytesP+2, eaten);
+            eaten += 2;         /* include the length field */
+            break;
+
+        case 5: // wstringcounted
+        case 6: // wstringreversecounted
+            if (remain < 2)
+                goto done;      /* Data truncation */
+            eaten = *(unsigned short UNALIGNED *)bytesP;
+            if (typeenum == 6)  /* Need to swap bytes */
+                eaten = ((eaten & 0xff) << 8) | (eaten >> 8);
+            /* Note eaten is num *characters*, not bytes at this point */
+            if ((remain-2) < (sizeof(WCHAR)*eaten)) {
+                /* truncated */
+                objP = ObjFromUnicodeN((WCHAR *)(bytesP+2), (remain-2)/sizeof(WCHAR));
+                eaten = remain; /* We used up all */
+            } else {
+                objP = ObjFromUnicodeN((WCHAR *)(bytesP+2), eaten);
+                eaten = (sizeof(WCHAR)*eaten) + 2; /* include length field */
+            }
+            break;
+
+        case 7: // boolean
+            if (remain < sizeof(int))
+                goto done;      /* Data truncation */
+            objP = Tcl_NewBooleanObj((*(int UNALIGNED *)bytesP) ? 1 : 0);
+            eaten = sizeof(int);
+            break;
+
+        case 8: // sint8
+        case 9: // uint8
+            objP = Tcl_NewIntObj(typeenum == 8 ? *(signed char *)bytesP : *(unsigned char *)bytesP);
+            eaten = sizeof(char);
+            break;
+            
+        case 10: // csint8
+        case 11: // cuint8
+            /* Return as an ascii char */
+            objP = Tcl_NewStringObj(bytesP, 1);
+            eaten = sizeof(char);
+            break;
+
+        case 12: // sint16
+        case 13: // uint16
+            if (remain < sizeof(short))
+                goto done;      /* Data truncation */
+            objP = Tcl_NewIntObj(typeenum == 12 ?
+                                 *(signed short UNALIGNED *)bytesP :
+                                 *(unsigned short UNALIGNED *)bytesP);
+            eaten = sizeof(short);
+            break;
+
+        case 14: // sint32
+            if (remain < sizeof(int))
+                goto done;      /* Data truncation */
+            objP = Tcl_NewIntObj(*(signed int UNALIGNED *)bytesP);
+            eaten = sizeof(int);
+            break;
+
+        case 15: // uint32
+            if (remain < sizeof(int))
+                goto done;      /* Data truncation */
+            objP = ObjFromDWORD(*(unsigned int UNALIGNED *)bytesP);
+            eaten = sizeof(int);
+            break;
+
+        case 16: // sint64
+        case 17: // uint64
+            if (remain < sizeof(__int64))
+                goto done;      /* Data truncation */
+            if (typeenum == 17) {
+                objP = ObjFromULONGLONG(*(unsigned __int64 UNALIGNED *)bytesP);
+            } else {
+                objP = Tcl_NewWideIntObj(*(__int64 UNALIGNED *)bytesP);
+            }
+            eaten = sizeof(__int64);
+            break;
+
+        case 18: // xsint16
+        case 19: // xuint16
+            objP = Tcl_ObjPrintf("0x%x", *(unsigned short UNALIGNED *)bytesP);
+            eaten = sizeof(short);
+            break;
+
+        case 20: // xsint32
+        case 21: // xuint32
+            objP = Tcl_ObjPrintf("0x%x", *(unsigned int UNALIGNED *)bytesP);
+            eaten = sizeof(int);
+            break;
+
+        case 22: //xsint64
+        case 23: //xuint64
+            break;
+
+
         default:
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
             goto error_handler;
@@ -1012,11 +1118,15 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
         Tcl_ListObjAppendElement(interp, resultObj, objP);
     }
     
+    done:
+    VariantClear(&var);
     Tcl_SetObjResult(interp, resultObj);
     return TCL_OK;
 
 error_handler:
     /* Tcl interp should already hold error code and result */
+
+    VariantClear(&var);
     if (resultObj)
         Tcl_DecrRefCount(resultObj);
     return TCL_ERROR;
