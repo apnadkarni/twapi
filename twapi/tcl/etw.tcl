@@ -34,10 +34,10 @@ namespace eval twapi {
         sint64 16
         uint64 17
         xsint16 18
-        xsint32 19
-        xsint64 20
-        xuint16 21
-        xuint32 22
+        xuint16 19
+        xsint32 20
+        xuint32 21
+        xsint64 22
         xuint64 23
         real32 24
         real64 25
