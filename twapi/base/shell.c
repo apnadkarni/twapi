@@ -1339,10 +1339,9 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (ShellExecuteExW(&sei) == 0) {
         DWORD winerr = GetLastError();
-        Tcl_Obj *objP = Tcl_NewStringObj("ShellExecuteEx specific error: ", -1);
-        Tcl_AppendObjToObj(objP, ObjFromDWORD_PTR(sei.hInstApp));
+        Tcl_Obj *objP = Tcl_ObjPrintf("ShellExecute specific error: %d.", (int) sei.hInstApp);
         TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
-        return Twapi_AppendSystemError2(interp, winerr, objP);
+        return Twapi_AppendSystemErrorEx(interp, winerr, objP);
     }
 
     TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */

@@ -106,17 +106,21 @@
 #include <wmistr.h>             /* Needed for WNODE_HEADER for evntrace */
 #include <evntrace.h>
 
-#if 0
-// Do not use for now as it pulls in C RTL _vsnprintf
-//#define STRSAFE_LIB             /* Use lib, not inline strsafe functions */
-#include <strsafe.h>
-#endif
 #include "tcl.h"
 
 #include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
 #include "zlist.h"
 #include "memlifo.h"
+
+#if 0
+// Do not use for now as it pulls in C RTL _vsnprintf AND docs claim
+// needs XP *SP2*.
+// Note has to be included after all headers
+//#define STRSAFE_LIB             /* Use lib, not inline strsafe functions */
+//#include <strsafe.h>
+#endif
+
 
 typedef DWORD WIN32_ERROR;
 typedef int TCL_RESULT;
@@ -979,9 +983,7 @@ void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE 
 void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP);
 
 
-#define Twapi_AppendSystemError(interp_, error_) \
-    Twapi_AppendSystemError2(interp_, error_, NULL)
-int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
+TWAPI_EXTERN int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
 
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -1536,13 +1538,18 @@ TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
-TWAPI_EXTERN TCL_RESULT TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code);
+TWAPI_EXTERN TCL_RESULT TwapiReturnError(Tcl_Interp *interp, int code);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg);
+
 TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
 TWAPI_EXTERN Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD err);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD err, Tcl_Obj *);
 TWAPI_EXTERN TCL_RESULT Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long err);
-TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError2(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
+TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemErrorEx(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
+#define Twapi_AppendSystemError2 Twapi_AppendSystemErrorEx
+TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError(Tcl_Interp *, unsigned long err);
 TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
 
 /* Async handling related */
@@ -1583,17 +1590,19 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 
 #ifdef _WIN64
 #define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
-#define ObjFromDWORD_PTR(p_)  Tcl_NewWideIntObj((DWORD_PTR)(p_))
-#else  // _WIN64
+#define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG(((ULONGLONG)(p_))
+#else  // ! _WIN64
 #define ObjToDWORD_PTR        Tcl_GetLongFromObj
-#define ObjFromDWORD_PTR(p_)  Tcl_NewLongObj((DWORD_PTR)(p_))
+#define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
 #endif // _WIN64
 #define ObjToULONG_PTR    ObjToDWORD_PTR
 #define ObjFromULONG_PTR  ObjFromDWORD_PTR
 #define ObjFromSIZE_T     ObjFromDWORD_PTR
 
 #define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
-#define ObjFromULONGLONG(val_)     Tcl_NewWideIntObj(val_)
+TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
+TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
+TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
 #if defined(USE_UNICODE_OBJ)
@@ -1710,4 +1719,5 @@ TWAPI_EXTERN int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
+
 #endif // TWAPI_H

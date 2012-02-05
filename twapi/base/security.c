@@ -1641,7 +1641,8 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("id");
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", level));
         return NULL;
     }
 
@@ -1693,7 +1694,8 @@ Tcl_Obj *ObjFromUSE_INFO(
         break;
 
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", level));
         return NULL;
     }
 
@@ -1750,7 +1752,8 @@ Tcl_Obj *ObjFromSHARE_INFO(
         break;
 
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", level));
         return NULL;
     }
 
@@ -1792,7 +1795,8 @@ Tcl_Obj *ObjFromFILE_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("id");
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", level));
         return NULL;
     }
 
@@ -1857,7 +1861,8 @@ Tcl_Obj *ObjFromSESSION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("idle_time");
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", level));
         return NULL;
     }
 
@@ -1939,7 +1944,8 @@ Tcl_Obj *ObjFromUSER_INFO(
         ADD_LPWSTR_(name);
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2001,7 +2007,8 @@ Tcl_Obj *ObjFromGROUP_INFO(
         ADD_LPWSTR_(name);
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2045,7 +2052,8 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
         ADD_LPWSTR_(name);
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2085,7 +2093,8 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
         ADD_LPWSTR_(name);
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2123,7 +2132,8 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
         ADD_LPWSTR_(name);
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2171,7 +2181,8 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
         break;
         
     default:
-        TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
         return NULL;
     }
 
@@ -2378,7 +2389,8 @@ int TwapiReturnNetEnum(
         }
         break;
     default:
-        TwapiReturnTwapiError(interp, "Invalid enum type", TWAPI_INVALID_ARGS);
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid enum type %d.", necP->tag));
         goto error_return;
     }
 
@@ -2410,7 +2422,7 @@ error_return:
     return TCL_ERROR;
 
 invalid_level_error:
-    TwapiReturnTwapiError(interp, "Invalid info level", TWAPI_INVALID_ARGS);
+    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid info level.");
     goto error_return;
 
 }
@@ -2884,7 +2896,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
     if (objc != 1 ||
         ObjToLUID(interp, objv[0], &luid) != TCL_OK)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_ARGS);
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
 
     status = LsaGetLogonSessionData(&luid, &sessionP);
     if (status != STATUS_SUCCESS) {
@@ -2945,7 +2957,7 @@ int Twapi_LsaQueryInformationPolicy (
     if (objc != 2 ||
         ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
         Tcl_GetLongFromObj(interp, objv[1], &infoclass) != TCL_OK) {
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_ARGS);
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
     }    
 
     ntstatus = LsaQueryInformationPolicy(lsaH, infoclass, &buf);
