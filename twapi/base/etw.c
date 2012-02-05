@@ -111,7 +111,6 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     int i;
     Tcl_Obj *objs[44];
     TRACE_LOGFILE_HEADER *adjustedP;
-    WCHAR *ws;
 
     for (i = 0; g_trace_logfile_header_fields[i]; ++i) {
         objs[2*i] = Tcl_NewStringObj(g_trace_logfile_header_fields[i], -1);
@@ -944,25 +943,38 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     int       i;
-    int eaten;
+    ULONG eaten;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **types;            /* Field types */
     int       ntypes;           /* Number of fields/types */
     char     *bytesP;
     int       nbytes;
-    int       remain;
+    ULONG     remain;
     Tcl_Obj  *resultObj = NULL;
     VARIANT   var;
+    WCHAR     wc;
+    GUID      guid;
+    int       pointer_size;     /* Of target system, NOT us */
+    union {
+        SID sid;                /* For alignment */
+        char buf[SECURITY_MAX_SID_SIZE];
+    } u;
 
     VariantInit(&var);
 
-    if (objc != 2)
+    if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK)
-        return TCL_ERROR;
-
+    
     bytesP = Tcl_GetByteArrayFromObj(objv[0], &nbytes);
+    if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK ||
+        Tcl_GetIntFromObj(interp, objv[2], &pointer_size) != TCL_OK)
+        return TCL_ERROR;
+        
+    if (pointer_size != 4 && pointer_size != 8) {
+        return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invali pointer size parameter (%d), must be 4 or 8", pointer_size));
+    }
     
     resultObj = Tcl_NewListObj(0, NULL);
 
@@ -1011,7 +1023,7 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
             eaten = *(unsigned short UNALIGNED *)bytesP;
             if (typeenum == 4)  /* Need to swap bytes */
                 eaten = ((eaten & 0xff) << 8) | (eaten >> 8);
-            if ((remain-2) < eaten) {
+            if (remain < (2+eaten)) {
                 /* truncated */
                 eaten = remain-2;
             }
@@ -1095,18 +1107,136 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
 
         case 18: // xsint16
         case 19: // xuint16
+            if (remain < sizeof(short))
+                goto done;      /* Data truncation */
             objP = Tcl_ObjPrintf("0x%x", *(unsigned short UNALIGNED *)bytesP);
             eaten = sizeof(short);
             break;
 
         case 20: // xsint32
         case 21: // xuint32
-            objP = Tcl_ObjPrintf("0x%x", *(unsigned int UNALIGNED *)bytesP);
+            if (remain < sizeof(int))
+                goto done;      /* Data truncation */
+            objP = ObjFromULONGHex((ULONG) *(int UNALIGNED *)bytesP);
             eaten = sizeof(int);
             break;
 
         case 22: //xsint64
         case 23: //xuint64
+            if (remain < sizeof(__int64))
+                goto done;      /* Data truncation */
+            objP = ObjFromULONGLONGHex(*(unsigned __int64 UNALIGNED *)bytesP);
+            eaten = sizeof(__int64);
+            break;
+            
+        case 24: // real32
+            if (remain < 4)
+                goto done;      /* Data truncation */
+            objP = Tcl_NewDoubleObj((double)(*(float UNALIGNED *)bytesP));
+            eaten = 4;
+            break;
+
+        case 25: // real64
+            if (remain < 8)
+                goto done;      /* Data truncation */
+            objP = Tcl_NewDoubleObj((*(double UNALIGNED *)bytesP));
+            eaten = 8;
+            break;
+
+        case 26: // object
+            /* We should never see this except for a bad MoF definition where
+             * the object does not have an associated qualifier. We can
+             * only punt 
+             */
+            goto done;
+
+        case 27: // char16
+            if (remain < sizeof(WCHAR))
+                goto done;      /* Data truncation */
+            wc = *(WCHAR UNALIGNED *) bytesP;
+            objP = Tcl_NewUnicodeObj(&wc, 1);
+            eaten = sizeof(WCHAR);
+            break;
+
+        case 28: // uint8guid
+        case 29: // objectguid
+            if (remain < sizeof(GUID))
+                goto done;      /* Data truncation */
+            CopyMemory(&guid, bytesP, sizeof(GUID)); /* For alignment reasons */
+            objP = ObjFromGUID(&guid);
+            eaten = sizeof(GUID);
+            break;
+
+        case 30: // objectipaddr, objectipaddrv4, uint32ipaddr
+            if (remain < sizeof(DWORD))
+                goto done;      /* Data truncation */
+            objP = IPAddrObjFromDWORD(*(DWORD UNALIGNED *)bytesP);
+            eaten = sizeof(DWORD);
+            break;
+            
+        case 31: // objectipaddrv6
+            if (remain < sizeof(IN6_ADDR))
+                goto done;      /* Data truncation */
+            objP = ObjFromIPv6Addr(bytesP, 0);
+            eaten = sizeof(IN6_ADDR);
+            break;
+
+        case 32: // objectvariant
+            eaten = *(ULONG UNALIGNED *)bytesP;
+            if (remain < (eaten + sizeof(ULONG)))
+                goto done;      /* Data truncation */
+            objP = Tcl_NewByteArrayObj(sizeof(ULONG)+bytesP, eaten);
+            eaten += sizeof(ULONG);
+            break;
+
+        case 33: // objectsid
+            if (remain < sizeof(ULONG))
+                goto done;      /* Data truncation */
+            if (*(ULONG UNALIGNED *)bytesP == 0) {
+                /* Empty SID */
+                eaten = sizeof(ULONG);
+                objP = Tcl_NewObj();
+                break;
+            }
+
+            /* From MSDN -
+             * A property with the Sid extension is actually a 
+             * TOKEN_USER structure followed by the SID. The size
+             * of the TOKEN_USER structure differs depending on 
+             * whether the events were generated on a 32-bit or 
+             * 64-bit architecture. Also the structure is aligned
+             * on an 8-byte boundary, so its size is 8 bytes on a
+             * 32-bit computer and 16 bytes on a 64-bit computer.
+             * Doubling the pointer size handles both cases.
+             *
+             * Note that the ULONG * check above is part of this
+             * structure so don't double count that and move bytesP
+             * by another 4 bytes.
+             */
+            eaten = pointer_size * 2; /* Skip TOKEN_USER */
+            remain -= eaten;
+            bytesP += eaten;
+            if (remain < sizeof(SID))
+                goto done;      /* Truncation. Note sizeof(sid) is MIN size */
+            MoveMemory(u.buf, bytesP,
+                       remain > sizeof(u.buf) ? sizeof(u.buf) : remain);
+            /* Sanity check before passing to SID converter */
+            if (u.sid.Revision != SID_REVISION ||
+                u.sid.SubAuthorityCount > SID_MAX_SUB_AUTHORITIES)
+                goto done;
+
+            eaten = TWAPI_SID_LENGTH(&u.sid);
+            if (eaten > sizeof(u.buf) || eaten > remain)
+                goto done;      /* Bad SID length */
+
+            objP = ObjFromSIDNoFail(&u.sid);
+
+            /* We have adjusted remain and bytesP for TOKEN_USER. eaten
+             * contains actual SID length only without TOKEN_USER. SO
+             * we are all set up for top of loop. Note as an aside
+             * that not all bytes that were copied to u.buf[]
+             * were necessarily used up
+             */
             break;
 
 
@@ -1115,6 +1245,9 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
             goto error_handler;
         }
 
+        /* Some calls may result in objP being NULL */
+        if (objP == NULL)
+            objP = Tcl_NewObj();
         Tcl_ListObjAppendElement(interp, resultObj, objP);
     }
     
