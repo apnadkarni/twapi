@@ -109,7 +109,7 @@ int Twapi_BecomeAService(
     ERROR_IF_UNTHREADED(interp);
 
     if (objc < 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (Tcl_GetLongFromObj(interp, objv[0], &service_type) != TCL_OK)
         return TCL_ERROR;

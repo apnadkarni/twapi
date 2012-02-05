@@ -1349,7 +1349,7 @@ int Twapi_IDispatch_InvokeObjCmd(
             Tcl_ListObjAppendElement(NULL, errorcode_extra,
                                      Tcl_NewLongObj(einfo.wCode));
 
-            Twapi_AppendSystemError2(interp, hr, errorcode_extra);
+            Twapi_AppendSystemErrorEx(interp, hr, errorcode_extra);
             if (einfo.bstrDescription) {
                 errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                 Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
@@ -1432,7 +1432,7 @@ int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei,
     if (ei) {
         BSTR msg;
         ei->lpVtbl->GetDescription(ei, &msg);
-        Twapi_AppendSystemError2(interp, hr,
+        Twapi_AppendSystemErrorEx(interp, hr,
                                  ObjFromUnicodeN(msg,SysStringLen(msg)));
 
         SysFreeString(msg);
@@ -1481,7 +1481,8 @@ static int TwapiGetIDsOfNamesHelper(
         hr = ((ITypeInfo *)ifcP)->lpVtbl->GetIDsOfNames((ITypeInfo *)ifcP, names, nitems, ids);
         break;
     default:
-        TwapiReturnTwapiError(interp, "TwapiGetIDsOfNamesHelper: unknown ifc_type", TWAPI_BUG);
+        TwapiReturnErrorEx(interp, TWAPI_BUG,
+                           Tcl_ObjPrintf("TwapiGetIDsOfNamesHelper: unknown ifc_type %d", ifc_type));
         goto vamoose;
     }
 
@@ -3801,7 +3802,7 @@ vamoose:
     return tcl_status;
 
 badargs:
-    TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+    TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
 ret_error:
     tcl_status = TCL_ERROR;

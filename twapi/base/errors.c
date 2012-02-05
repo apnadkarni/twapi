@@ -92,8 +92,8 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
     return NULL;
 }
 
-
-Tcl_Obj *TwapiGetErrorMsg(int error)
+/* Returns ptr to static string or NULL */
+static const char *TwapiMapErrorCode(int error)
 {
     char *msg = NULL;
 
@@ -113,6 +113,12 @@ Tcl_Obj *TwapiGetErrorMsg(int error)
 	}
     }
 
+    return msg;
+}
+
+Tcl_Obj *TwapiGetErrorMsg(int error)
+{
+    const char *msg = TwapiMapErrorCode(error);
     if (msg)
         return Tcl_NewStringObj(msg, -1);
     else
@@ -130,17 +136,43 @@ Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int error)
     return Tcl_NewListObj(3, objv);
 }
 
-/* Sets the interpreter result to a TWAPI error */
-int TwapiReturnTwapiError(Tcl_Interp *interp, char *msg, int code)
+int TwapiReturnError(Tcl_Interp *interp, int code)
 {
     if (interp) {
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(code));
-        if (msg)
-            Tcl_SetObjResult(interp, Tcl_NewStringObj(msg, -1));
-        else
-            Tcl_SetObjResult(interp, TwapiGetErrorMsg(code));
+        Tcl_SetObjResult(interp, TwapiGetErrorMsg(code));
     }
     return TCL_ERROR;           /* Always, so caller can just return */
+}
+
+int TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg)
+{
+    if (msg)
+        return TwapiReturnErrorEx(interp, code, Tcl_NewStringObj(msg, -1));
+    else
+        return TwapiReturnError(interp, code);
+}
+
+/* Sets the interpreter result to a TWAPI error with addition message */
+int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
+{
+    if (interp) {
+        Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(code));
+        if (objP) {
+            const char *msgP;
+            if (Tcl_IsShared(objP))
+                objP = Tcl_DuplicateObj(objP); /* since we are modifying it */
+            msgP = TwapiMapErrorCode(code);
+            if (msgP)
+                Tcl_AppendStringsToObj(objP, " TWAPI error: ", msgP, NULL);
+            else
+                Tcl_AppendPrintfToObj(objP, " TWAPI error code: %d", code);
+            Tcl_SetObjResult(interp, objP);
+        } else {
+            TwapiReturnError(interp, code);
+        }
+    }
+    return TCL_ERROR; /* Always, so caller can just return */
 }
 
 int TwapiReturnSystemError(Tcl_Interp *interp)
@@ -246,10 +278,10 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
  * Format system error codes as the interpreter results. Also sets
  * the global errorCode Tcl variable.
  * Always returns TCL_ERROR so caller can just do a
- *  return Twapi_AppendSystemError2(interp, error)
+ *  return Twapi_AppendSystemErrorEx(interp, error)
  * to return after an error.
  */
-int Twapi_AppendSystemError2(
+int Twapi_AppendSystemErrorEx(
     Tcl_Interp *interp,	/* Current interpreter. If NULL, this is a NO-OP
                            except for return value */
     DWORD error,	/* Result code from error. */
@@ -278,6 +310,16 @@ int Twapi_AppendSystemError2(
     Tcl_SetObjErrorCode(interp, errorCodeObj);
 
     return TCL_ERROR;           /* Always return TCL_ERROR */
+}
+
+
+int Twapi_AppendSystemError(
+    Tcl_Interp *interp,	/* Current interpreter. If NULL, this is a NO-OP
+                           except for return value */
+    DWORD error	/* Result code from error. */
+    )
+{
+    return Twapi_AppendSystemErrorEx(interp, error, NULL);
 }
 
 

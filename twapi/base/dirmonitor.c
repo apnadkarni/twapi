@@ -229,7 +229,7 @@ int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
     
     ZLIST_LOCATE(dmcP, &ticP->directory_monitors, directory_handle, dirhandle);
     if (dmcP == NULL)
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_UNKNOWN_OBJECT);
+        return TwapiReturnError(ticP->interp, TWAPI_UNKNOWN_OBJECT);
 
     // ASSERT ticP == dmcP->ticP
 

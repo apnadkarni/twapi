@@ -92,7 +92,7 @@ int ObjToWINDOWPLACEMENT(Tcl_Interp *interp, Tcl_Obj *objP, WINDOWPLACEMENT *wpP
         return TCL_ERROR;
 
     if (objc != 5)
-        return TwapiReturnTwapiError(interp, "Incorrect format of WINDOWPLACEMENT argument.", TWAPI_INVALID_ARGS);
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Incorrect format of WINDOWPLACEMENT argument.");
 
     if (Tcl_GetLongFromObj(interp, objv[0], &wpP->flags) != TCL_OK ||
         Tcl_GetLongFromObj(interp, objv[1], &wpP->showCmd) != TCL_OK ||

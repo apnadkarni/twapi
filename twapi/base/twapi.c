@@ -7,6 +7,7 @@
 
 #include "twapi.h"
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
+#include "tclTomMath.h"
 
 #if _WIN32_WINNT < 0x0500
 #error _WIN32_WINNT too low
@@ -64,7 +65,9 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
     return TRUE;
 }
 
+/* Why is this decl needed ? TBD */
 const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
+
 /* Main entry point */
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
@@ -79,6 +82,9 @@ int Twapi_Init(Tcl_Interp *interp)
        done for EVERY interp creation or move into one-time above ? TBD
      */
     if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+        return TCL_ERROR;
+    }
+    if (Tcl_TomMath_InitStubs(interp, 0) == NULL) {
         return TCL_ERROR;
     }
 
@@ -229,7 +235,7 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_Obj *elemP;
 
     if (objc != 1)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     /* Return a keyed list */
     

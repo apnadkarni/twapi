@@ -66,7 +66,9 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
         break;
 
     default:
-        return TwapiReturnTwapiError(ticP->interp, "Invalid IMofCompiler function code", TWAPI_BUG);
+        return TwapiReturnErrorEx(ticP->interp,
+                                  TWAPI_BUG,
+                                  Tcl_ObjPrintf("Invalid IMofCompiler function code %d", type));
     }
 
     switch (hr) {
@@ -74,7 +76,7 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
     case WBEM_S_NO_ERROR:
         return TCL_OK;
 
-    WBEM_S_FALSE: /* Fall thru */
+    case WBEM_S_FALSE: /* Fall thru */
     default:
         Tcl_SetObjResult(ticP->interp,
                          Tcl_ObjPrintf("IMofCompiler error: phase: %d, object number: %d, first line: %d, last line: %d.",

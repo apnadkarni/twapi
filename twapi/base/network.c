@@ -192,7 +192,7 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
         return TCL_ERROR;
 
     if (objc > 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (objc == 0) {
         /* Assume IP v4 0.0.0.0 */
@@ -1678,7 +1678,7 @@ int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     Tcl_Obj *objP;
 
     if (objc != 1)
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(ticP->interp, TWAPI_BAD_ARG_COUNT);
 
     fn = Twapi_GetProc_GetBestInterfaceEx();
     if (fn) {

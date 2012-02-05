@@ -186,8 +186,7 @@ int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     return TCL_OK;
 
 overrun:
-    return TwapiReturnTwapiError(interp, "Buffer too small.",
-                                 TWAPI_BUFFER_OVERRUN);
+    return TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
 }
 
 

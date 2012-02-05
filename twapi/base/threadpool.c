@@ -164,7 +164,7 @@ TCL_RESULT TwapiThreadPoolRegister(
         TwapiThreadPoolRegistrationUnref(tprP, 1);
         TwapiThreadPoolRegistrationShutdown(tprP);
 
-        return TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_REGISTER_WAIT_FAILED);
+        return TwapiReturnError(ticP->interp, TWAPI_REGISTER_WAIT_FAILED);
     }
 }
     

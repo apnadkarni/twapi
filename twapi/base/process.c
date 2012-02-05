@@ -759,10 +759,11 @@ int TwapiCreateProcessHelper(Tcl_Interp *interp, int asuser, int objc, Tcl_Obj *
     LPWSTR appname, cmdline, curdir;
 
     if (asuser != 0 && asuser != 1)
-        return TwapiReturnTwapiError(interp, "Invalid asuser value", TWAPI_BUG);
-
+        return TwapiReturnErrorEx(interp, TWAPI_BUG,
+                                  Tcl_ObjPrintf("Invalid asuser value %d.",
+                                                asuser));
     if (objc != (9+asuser))
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (asuser) {
         if (ObjToHANDLE(interp, objv[0], &tokH) != TCL_OK)

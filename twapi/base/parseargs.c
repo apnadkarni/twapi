@@ -124,9 +124,8 @@ int Twapi_ParseargsObjCmd(
         return TCL_ERROR;
 
     if (nopts > (sizeof(opts)/sizeof(opts[0]))) {
-        return TwapiReturnTwapiError(interp,
-                                     "Too many options specified.",
-                                     TWAPI_INTERNAL_LIMIT);
+        return TwapiReturnErrorMsg(interp, TWAPI_INTERNAL_LIMIT,
+                                   "Too many options specified.");
     }
 
     for (k = 0; k < nopts ; ++k) {
