@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include "tclTomMath.h"
 
 /*
  * Used for deciphering  unknown types when passing to COM. Note
@@ -71,7 +72,7 @@ int Twapi_GetTclTypeObjCmd(
 )
 {
     if (objc != 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (objv[1]->typePtr != NULL) {
         Tcl_SetObjResult(interp, Tcl_NewStringObj(objv[1]->typePtr->name, -1));
@@ -94,7 +95,7 @@ int Twapi_InternalCastObjCmd(
     int i;
 
     if (objc != 3)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     typename = Tcl_GetString(objv[1]);
 
@@ -406,10 +407,10 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         break;
 
     case TRT_BADFUNCTIONCODE:
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
+        return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
 
     case TRT_TWAPI_ERROR:
-        return TwapiReturnTwapiError(interp, NULL, resultP->value.ival);
+        return TwapiReturnError(interp, resultP->value.ival);
 
     default:
         Tcl_SetResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult", TCL_STATIC);
@@ -1441,9 +1442,9 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
     if ((objc+1) > argc) {
-        return TwapiReturnTwapiError(interp,
-                                     "Number of strings in list exceeds size of argument array.",
-                                     TWAPI_INTERNAL_LIMIT);
+        return TwapiReturnErrorEx(interp,
+                                  TWAPI_INTERNAL_LIMIT,
+                                  Tcl_ObjPrintf("Number of strings (%d) in list exceeds size of argument array.", objc));
     }
 
     for (i = 0; i < objc; ++i)
@@ -1461,9 +1462,9 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
     if ((objc+1) > argc) {
-        return TwapiReturnTwapiError(interp,
-                                     "Number of strings in list exceeds size of argument array.",
-                                     TWAPI_INTERNAL_LIMIT);
+        return TwapiReturnErrorEx(interp,
+                                  TWAPI_INTERNAL_LIMIT,
+                                  Tcl_ObjPrintf("Number of strings (%d) in list exceeds size of argument array.", objc));
     }
 
     for (i = 0; i < objc; ++i)
@@ -1640,16 +1641,77 @@ Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
     return Tcl_NewByteArrayObj((unsigned char *)tzP, sizeof(*tzP));
 }
 
-TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp, Tcl_Obj *tzObj, TIME_ZONE_INFORMATION *tzP)
+TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
+                                      Tcl_Obj *tzObj,
+                                      TIME_ZONE_INFORMATION *tzP)
 {
     unsigned char *p;
     int len;
 
     p = Tcl_GetByteArrayFromObj(tzObj, &len);
     if (len != sizeof(*tzP)) {
-        return TwapiReturnTwapiError(interp, "Invalid TIME_ZONE_INFORMATION size", TWAPI_INVALID_ARGS);
+        return TwapiReturnErrorEx(interp,
+                                  TWAPI_INVALID_ARGS,
+                                  Tcl_ObjPrintf("Invalid TIME_ZONE_INFORMATION size %d", len));
     }
 
     *tzP = *((TIME_ZONE_INFORMATION *)p);
     return TCL_OK;
+}
+
+Tcl_Obj *ObjFromULONGHex(ULONG val)
+{
+    return Tcl_ObjPrintf("0x%8.8x", val);
+}
+
+Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull)
+{
+    Tcl_Obj *objP;
+    /* Unfortunately, Tcl_Objprintf does not handle 64 bits currently */
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+    Tcl_Obj *wideObj;
+    wideobj = Tcl_NewWideIntObj((Tcl_WideInt) ull);
+    objP = Tcl_Format(NULL, "0x%16.16lx", 1, &wideobj);
+    Tcl_DecrRefCount(wideobj);
+#else
+    char buf[40];
+    _snprintf(buf, sizeof(buf), "0x%16.16I64x", ull);
+    objP = Tcl_NewStringObj(buf, -1);
+#endif
+    return objP;
+}
+
+
+Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull)
+{
+    /*
+     * Unsigned 64-bit ints with the high bit set will not fit in Tcl_WideInt.
+     * We need to convert to a bignum from a hex string.
+     */
+
+    if (ull & 0x8000000000000000) {
+        Tcl_Obj *objP;
+        mp_int mpi;
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+        Tcl_Obj *mpobj;
+        objP = Tcl_NewWideIntObj((Tcl_WideInt) ull);
+        mpobj = Tcl_Format(NULL, "0x%lx", 1, &objP);
+        Tcl_DecrRefCount(objP);
+        objP = mpobj;
+#else
+        char buf[40];
+        _snprintf(buf, sizeof(buf), "%I64u", ull);
+        objP = Tcl_NewStringObj(buf, -1);
+#endif
+        /* Force to bignum because COM interface sometimes needs to check type*/
+        if (Tcl_GetBignumFromObj(NULL, objP, &mpi) == TCL_ERROR)
+            return objP;
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+        Tcl_InvalidateStringRep(objP); /* So we get a decimal string rep */
+#endif
+        TclBN_mp_clear(&mpi);
+        return objP;
+    } else {
+        return Tcl_NewWideIntObj((Tcl_WideInt) ull);
+    }
 }

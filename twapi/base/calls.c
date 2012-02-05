@@ -113,7 +113,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
         if (++argno >= objc) {
             /* No more Tcl_Obj's. See if we can use defaults, else break */
             if (! use_default) {
-                TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
                 goto argerror;
             }
             objP = NULL;
@@ -234,7 +234,8 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (objP && Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
                 goto argerror;
             if (ival & ~0xffff) {
-                TwapiReturnTwapiError(interp, "Value does not fit in 16 bits.", TWAPI_INVALID_ARGS);
+                TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                                   Tcl_ObjPrintf("Value %d does not fit in 16 bits.", ival));
                 goto argerror;
             }
             if (p)
@@ -286,7 +287,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
            inside the loop.
         */
         if (argno < (objc-1)) {
-            TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             goto argerror;
         }
     } else if (fmtch == ARGTERM) {
@@ -603,7 +604,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
     CALL_(IsEqualGUID, Call, 10148); // Tcl
     CALL_(TwapiParseEventMofData, Call, 10149); // Tcl
-
+    CALL_(scratch, Call, 20000);                    /* For testing purposes */
 
 
     // CallU API
@@ -1209,7 +1210,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     TIME_ZONE_INFORMATION *tzinfoP;
 
     if (objc < 2)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
 
     result.type = TRT_BADFUNCTIONCODE;
@@ -1217,7 +1218,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     if (func < 1000) {
         /* Functions taking no arguments */
         if (objc != 2)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 1:
@@ -1540,7 +1541,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         /* We should have exactly one additional argument. */
 
         if (objc != 3)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         
         switch (func) {
         case 1001:
@@ -2642,7 +2643,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_NPipeClient(ticP, objc-2, objv+2);
         case 10119: // IsEqualPtr
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             if (ObjToOpaque(interp, objv[2], &pv, NULL) != TCL_OK ||
                 ObjToOpaque(interp, objv[3], &pv2, NULL) != TCL_OK) {
                 return TCL_ERROR;
@@ -2652,7 +2653,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10120: // IsNullPtr
             if (objc < 3 || objc > 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
             if (objc == 4) {
                 cP = Tcl_GetString(objv[3]);
@@ -2665,7 +2666,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10121: // IsPtr
             if (objc < 3 || objc > 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
             if (objc == 4) {
                 cP = Tcl_GetString(objv[3]);
@@ -2755,7 +2756,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 }
                 tzinfoP = &u.tzinfo;
             } else {
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             }
             if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
                 return TCL_ERROR;
@@ -2811,6 +2812,25 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10149:
             return TwapiParseEventMofData(ticP, objc-2, objv+2);
+
+        case 20000:
+            /* DO NOT ASSIGN - use as general scratch pad for adding
+               test code */
+#if 0
+        {
+            Tcl_Obj *xx[10];
+            xx[0] = ObjFromULONGLONG(0x8000000000000000);
+            xx[1] = ObjFromULONGLONG(0x7000000000000000);
+            xx[2] = ObjFromULONGLONGHex(0x7000000000000000);
+            xx[3] = ObjFromULONGLONGHex(0x7000000000000000);
+            xx[4] = ObjFromULONGLONGHex(10);
+            xx[5] = ObjFromULONGHex(10);
+
+            Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(6, xx));
+            return TCL_OK;
+        }
+#endif
+            break;
         }
     }
 
@@ -2840,7 +2860,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 1000) {
         if (objc != 3)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 1:
@@ -3004,7 +3024,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         /* Check we have exactly one more integer argument */
         if (objc != 4)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
         switch (func) {
@@ -3104,7 +3124,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     } else if (func < 11000) {
         /* Exactly on additional argument */
         if (objc != 4)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 10001:
@@ -3146,14 +3166,11 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 10006: // Shell_NotifyIcon
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
             u.niP = (NOTIFYICONDATAW *) Tcl_GetByteArrayFromObj(objv[3], &dw2);
             if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
-                result.type = TRT_DWORD;
-                result.value.ival = sizeof(NOTIFYICONDATAW);
-                break;
-                return TwapiReturnTwapiError(interp, "Inconsistent size of NOTIFYICONDATAW structure.", TWAPI_INVALID_ARGS);
+                return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
             }
             result.type = TRT_EMPTY;
             if (Shell_NotifyIconW(dw, u.niP) == FALSE) {
@@ -3164,7 +3181,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     } else {
         /* Any number (> 0) of additional arguments */
         if (objc < 4)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 11001: // CreateConsoleScreenBuffer
@@ -3365,7 +3382,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         /* One additional integer argument */
 
         if (objc != 4)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
         switch (func) {
         case 501:
@@ -3510,7 +3527,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     if (func < 1000) {
         /* Command with a single handle argument */
         if (objc != 3)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 1:
@@ -3827,7 +3844,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         // A single additional DWORD arg is present
         if (objc != 4)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
 
         switch (func) {
@@ -3993,7 +4010,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         switch (func) {
         case 10001:
             if (objc != 6)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             for (i = 0; i < 3; ++i) {
                 if (Tcl_GetCharLength(objv[3+i]) == 0)
                     ftP[i] = NULL;
@@ -4010,7 +4027,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 #ifndef TWAPI_LEAN
         case 10002: // SetThreadToken
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             
             if (ObjToHANDLE(interp, objv[3], &h2) != TCL_OK)
                 return TCL_ERROR;
@@ -4019,7 +4036,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 10003:
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             ObjToLSA_UNICODE_STRING(objv[3], &u.lsa_ustr);
             return Twapi_LsaEnumerateAccountsWithUserRight(interp, h,
                                                            &u.lsa_ustr);
@@ -4027,7 +4044,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 #ifndef TWAPI_LEAN
         case 10004:
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             if (ObjToSID_AND_ATTRIBUTES(interp, objv[3], &u.ttml.Label) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -4040,7 +4057,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 #endif
         case 10005:
             if (objc != 4)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             rectP = &u.rect;
             if (ObjToRECT_NULL(interp, objv[3], &rectP) != TCL_OK)
                 return TCL_ERROR;
@@ -4125,7 +4142,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 
     case 3: // NetShareSetInfo
         if (objc != 7)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         if (ObjToPSECURITY_DESCRIPTOR(interp, objv[6], &u.secdP) != TCL_OK)
             return TCL_ERROR;
@@ -4142,7 +4159,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         break;
     case 5:
         if (objc != 7)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw2, objv[6]);
         EMPTIFY_NULL(s1);      /* Username must not be NULL - pass as "" */
         NULLIFY_EMPTY(s2);      /* Domain - NULL if empty string */
@@ -4153,7 +4170,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         break;
     case 6: // CreateDesktopW
         if (objc != 8)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw2, objv[6]);
         if (ObjToPSECURITY_ATTRIBUTES(interp, objv[6], &u.secattrP) != TCL_OK)
             return TCL_ERROR;
@@ -4511,7 +4528,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
     /* At least one additional arg */
     if (objc < 4)
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     switch (func) {
     case 1001: // SetWindowText
@@ -4705,7 +4722,7 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
             break;
         case 10003:
             if (objc != 5)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             if (ObjToDWORD_PTR(interp, objv[4], &dwp) != TCL_OK)
                 return TCL_ERROR;
             result.type = Twapi_SetWindowLongPtr(hwnd, dw, dwp, &result.value.dwp)
@@ -4781,7 +4798,7 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         break;
     case 6:
         if (objc != 6)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         if (ObjToCOORD(interp, objv[5], &u.coord) != TCL_OK)
             return TCL_ERROR;
         if (FillConsoleOutputCharacterW(h, s[0], dw, u.coord, &result.value.ival))
@@ -4797,7 +4814,8 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.value.hval = OpenServiceW(h, s, dw);
         break;
     default:
-        return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_FUNCTION_CODE);
+        return TwapiReturnErrorEx(interp, TWAPI_INVALID_FUNCTION_CODE,
+                                  Tcl_ObjPrintf("Unknown function code (CallHSU %d)", func));
     }
 
     return TwapiSetResult(interp, &result);
@@ -4889,11 +4907,11 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                 break;
             case 1006:
                 if (objc != 6)
-                    return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                    return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
                 /* FALLTHRU */
             case 1007:
                 if (objc != 6 && objc != 5)
-                    return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+                    return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
                 result.value.ival = ObjToLSASTRINGARRAY(interp, objv[func == 1006 ? 5 : 4], &lsa_strings, &lsa_count);
                 if (result.value.ival != TCL_OK) {
@@ -5135,7 +5153,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     if (func < 100) {
         /* No arguments */
         if (objc != 2)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 1:
             dw = PdhGetDllVersion(&result.value.ival);
@@ -5152,12 +5170,12 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     } else if (func < 200) {
         /* Single argument */
         if (objc != 3)
-            return TwapiReturnTwapiError(interp, NULL, TWAPI_BAD_ARG_COUNT);
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 101:
             if (Tcl_GetLongFromObj(interp, objv[2], &dw) != TCL_OK)
-                return TwapiReturnTwapiError(interp, NULL, TWAPI_INVALID_ARGS);
+                return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = PdhSetDefaultRealTimeDataSource(dw);
             break;

@@ -256,7 +256,7 @@ TwapiCallback *TwapiCallbackNew(
 
     if (sz < sizeof(TwapiCallback)) {
         if (ticP && ticP->interp)
-            TwapiReturnTwapiError(ticP->interp, NULL, TWAPI_BUG);
+            TwapiReturnErrorEx(ticP->interp, TWAPI_BUG, Tcl_ObjPrintf("Requested Callback size too small (%d).", sz));
         return NULL;
     }
         
