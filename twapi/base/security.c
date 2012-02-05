@@ -167,13 +167,6 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 }
 
 
-/* Like ObjFromSID but returns empty object on error */
-Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
-{
-    Tcl_Obj *objP;
-    return (ObjFromSID(NULL, sidP, &objP) == TCL_OK ? objP : Tcl_NewStringObj("", 0));
-}
-
 
 /* interp may be NULL */
 Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (

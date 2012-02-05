@@ -12,7 +12,8 @@ namespace eval twapi {
     # Maps event field type strings to enums to pass to the C code
     variable _etw_typeenums
     # 0 should be unmapped. Note some are duplicates because they
-    # are the same format
+    # are the same format. Some are legacy formats not explicitly documented
+    # in MSDN but found in the sample code.
     array set _etw_typeenums {
         string  1
         stringnullterminated 1
@@ -44,18 +45,20 @@ namespace eval twapi {
         object 26
         char16 27
         uint8guid 28
-        uint32ipaddr 29
-        objectipaddr 29
+        objectguid 29
         objectipaddrv4 30
+        uint32ipaddr 30
+        objectipaddr 30
         objectipaddrv6 31
-        uint16port 32
+        objectvariant 32
         objectsid 33
-        objectvariant 34
-        uint64wmitime 35
+        uint64wmitime 34
         objectwmitime 35
-        datetime 36
-        stringnotcounted 37
-        wstringnotcounted 38
+        uint16port 38
+        objectport 39
+        datetime 40
+        stringnotcounted 41
+        wstringnotcounted 42
     }
 }
 

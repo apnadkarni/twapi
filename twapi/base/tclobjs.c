@@ -1004,6 +1004,14 @@ int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
     return TCL_OK;
 }
 
+/* Like ObjFromSID but returns empty object on error */
+Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
+{
+    Tcl_Obj *objP;
+    return (ObjFromSID(NULL, sidP, &objP) == TCL_OK ? objP : Tcl_NewStringObj("", 0));
+}
+
+
 /*
  * Convert a Tcl list to a "MULTI_SZ" list of Unicode strings, terminated
  * with two nulls. Returns TCL_OK on success with a dynamically alloced multi_sz

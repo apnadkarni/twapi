@@ -1294,6 +1294,7 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
 /* Network related */
 Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
 int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
+Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id);
 int Twapi_GetNetworkParams(TwapiInterpContext *ticP);
     int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG, ULONG, void *);
 int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP);
@@ -1677,6 +1678,7 @@ TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP);
 
 /* Security stuff */
+#define TWAPI_SID_LENGTH(sid_) (8 + (4 * ((SID *)sid_)->SubAuthorityCount))
 TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
 TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
