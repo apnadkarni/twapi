@@ -959,6 +959,7 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
         SID sid;                /* For alignment */
         char buf[SECURITY_MAX_SID_SIZE];
     } u;
+    short     port;
 
     VariantInit(&var);
 
@@ -1237,6 +1238,37 @@ TCL_RESULT TwapiParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *C
              * that not all bytes that were copied to u.buf[]
              * were necessarily used up
              */
+            break;
+
+        case 34: // uint64wmitime - TBD
+        case 35: // objectwmitime - TBD
+            if (remain < sizeof(ULONGLONG))
+                goto done;      /* Data truncation */
+            objP = ObjFromULONGLONG(*(ULONGLONG UNALIGNED *)bytesP);
+            eaten = sizeof(ULONGLONG);
+            break;
+
+        case 38: // uint16port
+        case 39: // objectport
+            if (remain < sizeof(short))
+                goto done;      /* Data truncation */
+            port = *(short UNALIGNED *)bytesP;
+            objP = Tcl_NewIntObj((WORD)port);
+            eaten = sizeof(short);
+            break;
+
+        case 40: // datetime - TBD
+            goto done;          /* TBD */
+            break;
+            
+        case 41: // stringnotcounted
+            objP = Tcl_NewStringObj(bytesP, remain);
+            eaten = remain;
+            break;
+
+        case 42: // wstringnotcounted
+            objP = ObjFromUnicodeN((WCHAR *)bytesP, remain/sizeof(WCHAR));
+            eaten = remain;
             break;
 
 
