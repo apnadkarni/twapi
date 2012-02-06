@@ -269,3 +269,4 @@ proc twapi::_etw_decipher_event_field_type {oprop oquals} {
 proc twapi::etw_get_all_event_classes {oswbemservices} {
     return [twapi::wmi_collect_classes $wmi -ancestor EventTrace -matchqualifiers [list Guid ::twapi::true]]
 }
+
