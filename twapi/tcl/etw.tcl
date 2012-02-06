@@ -292,8 +292,8 @@ proc twapi::etw_get_all_mof_event_classes {oswbemservices} {
 
 proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
     variable _etw_event_defs
+    set quals [$ocls Qualifiers_]
     trap {
-        set quals [$ocls Qualifiers_]
         set guid [$quals -with {{Item Guid}} Value]
         set vers ""
         catch {set vers [$quals -with {{Item EventVersion}} Value]}
@@ -304,25 +304,27 @@ proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
             dict set _etw_event_defs [string toupper $guid] $vers $def
         }
     } finally {
-        $ocls destroy
-        if {[info exists quals]} {
-            $quals destroy
-            unset quals
+        $quals destroy
+    }
+}
+
+proc twapi::etw_load_mof_event_classes {oswbemservices args} {
+    if {[llength $args] == 0} {
+        set oclasses [etw_get_all_mof_event_classes $oswbemservices]
+    } else {
+        set oclasses {}
+        foreach guid_or_name $args {
+            # Note there can be more than one class for a guid
+            lappend oclasses {*}[etw_find_mof_event_classes $oswbemservices $guid_or_name]
+        }
+    }
+
+    foreach ocls $oclasses {
+        trap {
+            etw_load_mof_event_class_obj $oswbemservices $ocls
+        } finally {
+            $ocls destroy
         }
     }
 }
 
-proc twapi::etw_load_mof_event_class {oswbemservices guid_or_name} {
-    # Note there may be more than on matching class
-    foreach ocls [etw_find_mof_event_classes $oswbemservices $guid_or_name] {
-        etw_load_mof_event_class_obj $oswbemservices $ocls
-        $ocls destroy
-    }
-}
-
-proc twapi::etw_load_all_mof_event_classes {oswbemservices} {
-    foreach ocls [etw_get_all_mof_event_classes $oswbemservices] {
-        etw_load_mof_event_class_obj $oswbemservices $ocls
-        $ocls destroy
-    }
-}
