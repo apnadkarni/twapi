@@ -10,11 +10,11 @@ namespace eval twapi {
     variable _etw_event_class_uuid "{D5B52E95-8447-40C1-B316-539894449B36}"
     
     # Maps event field type strings to enums to pass to the C code
-    variable _etw_typeenums
+    variable _etw_fieldtypes
     # 0 should be unmapped. Note some are duplicates because they
     # are the same format. Some are legacy formats not explicitly documented
     # in MSDN but found in the sample code.
-    array set _etw_typeenums {
+    array set _etw_fieldtypes {
         string  1
         stringnullterminated 1
         wstring 2
@@ -60,10 +60,32 @@ namespace eval twapi {
         stringnotcounted 41
         wstringnotcounted 42
     }
+
+    # Cache of event definitions for parsing event. Nested
+    # dictionary indexed by event class GUID, version number ("" if no
+    # version in class def), event type. The value is itself a dictionary
+    # with the fields:
+    #   eventtype - same as the last level index
+    #   eventtypename - name / description for the event type
+    #   fieldtypes - ordered list of field types for that event
+    #   fields - more detailed description of the fields (see below)
+    #
+    # The fields element above is in turn a dictionary indexed by
+    # the index of the field in the event whose value is yet another
+    # dictionary:
+    #   type - the field type in string format
+    #   fieldtype - the corresponding numeric value used when parsing events
+    #   extension - the MoF extension qualifier for the field, if any
+    #
+    # The cache assumes that MOF event definitions are globally identical
+    # (ie. same on local and remote systems)
+    variable _etw_event_defs
+    set _etw_event_defs [dict create]
+
 }
 
 
-proc twapi::etw_register_mof {} {
+proc twapi::etw_install_mof {} {
     variable _etw_provider_uuid
     variable _etw_event_class_uuid
     
@@ -102,35 +124,21 @@ proc twapi::etw_register_mof {} {
     }
 }
 
-proc twapi::etw_register {} {
+proc twapi::etw_register_provider {} {
     variable _etw_provider_uuid
     variable _etw_event_class_uuid
 
     twapi::RegisterTraceGuids $_etw_provider_uuid $_etw_event_class_uuid
 }
 
-interp alias {} twapi::etw_unregister {} twapi::UnregisterTraceGuids
+interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 
 interp alias {} twapi::etw_trace {} twapi::TraceEvent
 
-
-proc twapi::etw_find_event_classes {oswbemservices guid} {
-    # Return all classes where the GUID matches
-    # Note there can be multiple versions sharing a single guid so
-    # we cannot use the "-first" option to stop the search when
-    # one is found.
-    return [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchqualifiers [list Guid [list twapi::IsEqualGUID $guid]]]
-}
-
-proc twapi::etw_parse_event_class {ocls} {
+proc twapi::etw_parse_mof_event_class {ocls} {
     # Returns a dict 
     # First level key - event type (integer)
-    # Second level keys:
-    #   eventtypename - string (may be empty)
-    #   eventtype - same as first level key
-    #   record - list of field types indexed by wmiid
-    # The record is an ordered list of enums that describe
-    # the type of each field.
+    # See description of _etw_event_defs for rest of the structure
 
     set result [dict create]
 
@@ -178,14 +186,14 @@ proc twapi::etw_parse_event_class {ocls} {
 
             # The subclass has a EventType property. Pick up the
             # field definitions.
-            set record [dict create]
+            set fields [dict create]
             $osub -with Properties_ -iterate oprop {
                 set quals [$oprop Qualifiers_]
                 # Event fields will have a WmiDataId qualifier
                 if {![catch {$quals -with {{Item WmiDataId}} Value} wmidataid]} {
                     # Yep this is a field, figure out its type
-                    set type [_etw_decipher_event_field_type $oprop $quals]
-                    dict set record $wmidataid $type
+                    set type [_etw_decipher_mof_event_field_type $oprop $quals]
+                    dict set fields $wmidataid $type
                 }
                 $quals destroy
             }
@@ -194,19 +202,19 @@ proc twapi::etw_parse_event_class {ocls} {
             # their wmidataid. If any info is missing or inconsistent
             # we will mark the whole event type class has undecodable.
             # Ids begin from 1.
-            set typeenums {}
-            for {set id 1} {$id <= [dict size $record]} {incr id} {
-                if {![dict exists $record $id]} {
+            set fieldtypes {}
+            for {set id 1} {$id <= [dict size $fields]} {incr id} {
+                if {![dict exists $fields $id]} {
                     # Discard all type info - missing type info
                     debuglog "Missing id $id for event type(s) $event_types for  EventTrace Mof Class [$ocls -with {{SystemProperties_} {Item __CLASS}} Value]"
-                    set typeenums {}
+                    set fieldtypes {}
                     break;
                 }
-                lappend typeenums [dict get $record $id typeenum]
+                lappend fieldtypes [dict get $fields $id fieldtype]
             }
 
             foreach event_type $event_types event_type_name $event_type_names {
-                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name record $record typeenums $typeenums]
+                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name fields $fields fieldtypes $fieldtypes]
             }
         }
     }
@@ -214,9 +222,9 @@ proc twapi::etw_parse_event_class {ocls} {
     return $result
 }
 
-# Deciphers an event record field type
-proc twapi::_etw_decipher_event_field_type {oprop oquals} {
-    variable _etw_typeenums
+# Deciphers an event  field type
+proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
+    variable _etw_fieldtypes
 
     # On any errors, we will set type to unknown or unsupported
     set type unknown
@@ -257,16 +265,53 @@ proc twapi::_etw_decipher_event_field_type {oprop oquals} {
         }
     }
 
-    if {![info exists _etw_typeenums($type)]} {
-        set typeenum 0
+    if {![info exists _etw_fieldtypes($type)]} {
+        set fieldtype 0
     } else {
-        set typeenum $_etw_typeenums($type)
+        set fieldtype $_etw_fieldtypes($type)
     }
 
-    return [dict create type $type typeenum $typeenum extension $quals(extension)]
+    return [dict create type $type fieldtype $fieldtype extension $quals(extension)]
 }
 
-proc twapi::etw_get_all_event_classes {oswbemservices} {
+proc twapi::etw_find_mof_event_classes {oswbemservices guid_or_name} {
+    # Return all classes where the GUID matches
+    # Note there can be multiple versions sharing a single guid so
+    # we cannot use the "-first" option to stop the search when
+    # one is found.
+    if {![Twapi_IsValidGUID $guid_or_name]} {
+        return [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchsystemproperties [list __CLASS [list string equal -nocase $guid_or_name]]]
+    } else {
+        return [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchqualifiers [list Guid [list twapi::IsEqualGUID $guid_or_name]]]
+    }
+}
+
+proc twapi::etw_get_all_mof_event_classes {oswbemservices} {
     return [twapi::wmi_collect_classes $wmi -ancestor EventTrace -matchqualifiers [list Guid ::twapi::true]]
+}
+
+proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
+    variable _etw_event_defs
+    trap {
+        set quals [$ocls Qualifiers_]
+        set guid [$quals -with {{Item Guid}} Value]
+        set vers ""
+        catch {set vers [$quals -with {{Item EventVersion}} Value]}
+        set def [etw_parse_mof_event_class $ocls]
+        dict set _etw_event_defs [string toupper $guid] $vers $def
+    } finally {
+        $ocls destroy
+        if {[info exists quals]} {
+            $quals destroy
+            unset quals
+        }
+    }
+}
+
+proc twapi::etw_load_mof_event_class {oswbemservices guid_or_name} {
+    # Note there may be more than on matching class
+    foreach ocls [etw_find_mof_event_classes $oswbemservices $guid_or_name] {
+        etw_load_mof_event_class_obj $oswbemservices $ocls
+    }
 }
 
