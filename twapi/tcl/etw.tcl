@@ -287,7 +287,7 @@ proc twapi::etw_find_mof_event_classes {oswbemservices guid_or_name} {
 }
 
 proc twapi::etw_get_all_mof_event_classes {oswbemservices} {
-    return [twapi::wmi_collect_classes $wmi -ancestor EventTrace -matchqualifiers [list Guid ::twapi::true]]
+    return [twapi::wmi_collect_classes $oswbemservices -ancestor EventTrace -matchqualifiers [list Guid ::twapi::true]]
 }
 
 proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
@@ -298,7 +298,11 @@ proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
         set vers ""
         catch {set vers [$quals -with {{Item EventVersion}} Value]}
         set def [etw_parse_mof_event_class $ocls]
-        dict set _etw_event_defs [string toupper $guid] $vers $def
+        # Class may be a provider, not a event class in which case
+        # def will be empty
+        if {[dict size $def]} {
+            dict set _etw_event_defs [string toupper $guid] $vers $def
+        }
     } finally {
         $ocls destroy
         if {[info exists quals]} {
@@ -312,6 +316,13 @@ proc twapi::etw_load_mof_event_class {oswbemservices guid_or_name} {
     # Note there may be more than on matching class
     foreach ocls [etw_find_mof_event_classes $oswbemservices $guid_or_name] {
         etw_load_mof_event_class_obj $oswbemservices $ocls
+        $ocls destroy
     }
 }
 
+proc twapi::etw_load_all_mof_event_classes {oswbemservices} {
+    foreach ocls [etw_get_all_mof_event_classes $oswbemservices] {
+        etw_load_mof_event_class_obj $oswbemservices $ocls
+        $ocls destroy
+    }
+}
