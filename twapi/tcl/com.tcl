@@ -5,7 +5,7 @@
 # See the file LICENSE for license
 
 # TBD - tests  comobj? works with derived classes of Automation
-
+# TBD - document and test -iterate -cleanup option
 
 # TBD - object identity comparison 
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
@@ -2901,10 +2901,19 @@ twapi::class create ::twapi::Automation {
         }
     }
 
-    method -iterate {varname script} {
+    method -iterate {args} {
+        array set opts [::twapi::parseargs args {
+            cleanup
+        }]
+
+        if {[llength $args] < 2} {
+            error "Syntax: COMOBJ -iterate ?options? VARNAME SCRIPT"
+        }
+        upvar 1 [lindex $args 0] var
+        set script [lindex $args 1]
+
         # TBD - need more comprehensive test cases when return/break/continue
         # are used in the script
-        upvar 1 $varname var
         # First get IEnumVariant iterator using the _NewEnum method
         set enumerator [my -get _NewEnum]
         # This gives us an IUnknown.
@@ -2924,15 +2933,29 @@ twapi::class create ::twapi::Automation {
                             0 -
                             4 {
                                 # Body executed successfully, or invoked continue
+                                if {$opts(cleanup)} {
+                                    $var destroy
+                                }
                             }
                             1 {
-                                error $msg $::errorInfo $::errorCode
+                                set erinfo $::errorInfo
+                                set ercode $::errorCode
+                                if {$opts(cleanup)} {
+                                    $var destroy
+                                }
+                                error $msg  $erinfo $ercode
                             }
                             3 {
+                                if {$opts(cleanup)} {
+                                    $var destroy
+                                }
                                 set more 0; # TCL_BREAK
                             }
                             2 -
                             default {
+                                if {$opts(cleanup)} {
+                                    $var destroy
+                                }
                                 return -code $ret $msg
                             }
 
