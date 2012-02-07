@@ -274,16 +274,51 @@ proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
     return [dict create type $type fieldtype $fieldtype extension $quals(extension)]
 }
 
-proc twapi::etw_find_mof_event_classes {oswbemservices guid_or_name} {
-    # Return all classes where the GUID matches
-    # Note there can be multiple versions sharing a single guid so
-    # we cannot use the "-first" option to stop the search when
-    # one is found.
-    if {![Twapi_IsValidGUID $guid_or_name]} {
-        return [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchsystemproperties [list __CLASS [list string equal -nocase $guid_or_name]]]
-    } else {
-        return [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchqualifiers [list Guid [list twapi::IsEqualGUID $guid_or_name]]]
+proc twapi::etw_find_mof_event_classes {oswbemservices args} {
+    # Return all classes where a GUID or name matches
+
+    # To avoid iterating the tree multiple times, separate out the guids
+    # and the names and use separator comparators
+
+    set guids {}
+    set names {}
+
+    foreach arg $args {
+        if {[Twapi_IsValidGUID $arg]} {
+            lappend guids $arg
+        } else {
+            lappend names $arg
+        }
     }
+
+    # Note there can be multiple versions sharing a single guid so
+    # we cannot use the wmi_collect_classes "-first" option to stop the search when
+    # one is found.
+
+    set name_matcher [list apply {{names val} {::tcl::mathop::>= [lsearch -exact -nocase $names $val] 0}} $names]
+    # Note GUIDS can be specified in multiple format so we cannot just lsearch
+    set guid_matcher [list apply {{guids val} {
+        puts $val
+        foreach guid $guids {
+            if {[twapi::IsEqualGUID $guid $val]} { return 1 }
+        }
+        return 0
+    }} $guids]
+
+    set named_classes {}
+    if {[llength $names]} {
+        foreach name $names {
+            catch {lappend named_classes [$oswbemservices Get $name]}
+        }
+    }
+
+    if {[llength $guids]} {
+        set guid_classes [wmi_collect_classes $oswbemservices -ancestor EventTrace -matchqualifiers [list Guid $guid_matcher]]
+    } else {
+        set guid_classes {}
+    }
+
+    return [concat $guid_classes $named_classes]
 }
 
 proc twapi::etw_get_all_mof_event_classes {oswbemservices} {
@@ -312,11 +347,7 @@ proc twapi::etw_load_mof_event_classes {oswbemservices args} {
     if {[llength $args] == 0} {
         set oclasses [etw_get_all_mof_event_classes $oswbemservices]
     } else {
-        set oclasses {}
-        foreach guid_or_name $args {
-            # Note there can be more than one class for a guid
-            lappend oclasses {*}[etw_find_mof_event_classes $oswbemservices $guid_or_name]
-        }
+        set oclasses [etw_find_mof_event_classes $oswbemservices {*}$args]
     }
 
     foreach ocls $oclasses {
