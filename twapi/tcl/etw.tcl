@@ -147,7 +147,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
     # wbemFlagUseAmendedQualifiers|wbemFlagReturnImmediately|wbemFlagForwardOnly
     # wbemQueryFlagsShallow
     # -> 0x20031
-    $ocls -with {{SubClasses_ 0x20031}} -iterate osub {
+    $ocls -with {{SubClasses_ 0x20031}} -iterate -cleanup osub {
         # The subclass must have the eventtype property
         # We fetch as a raw value so we can tell the
         # original type
@@ -187,7 +187,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
             # The subclass has a EventType property. Pick up the
             # field definitions.
             set fields [dict create]
-            $osub -with Properties_ -iterate oprop {
+            $osub -with Properties_ -iterate -cleanup oprop {
                 set quals [$oprop Qualifiers_]
                 # Event fields will have a WmiDataId qualifier
                 if {![catch {$quals -with {{Item WmiDataId}} Value} wmidataid]} {
