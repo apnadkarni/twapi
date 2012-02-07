@@ -889,7 +889,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     DWORD winerr;
     
 
-    if (objc < 2 || objc > 5)
+    if (objc != 5)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (ObjToTRACEHANDLE(interp, objv[0], &htraces[0]) != TCL_OK)
@@ -901,26 +901,24 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
      */
     event_cmdlen = 0;
     buffer_cmdlen = 0;
-    if (Tcl_ListObjLength(interp, objv[1], &event_cmdlen) != TCL_OK)
+    if (Tcl_ListObjLength(interp, objv[1], &event_cmdlen) != TCL_OK ||
+        Tcl_ListObjLength(interp, objv[2], &buffer_cmdlen) != TCL_OK) {
         return TCL_ERROR;
-    if (objc > 2) {
-        if (Tcl_ListObjLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
-            return TCL_ERROR;
     }
-    startP = NULL;
-    if (objc > 3) {
-        if (ObjToFILETIME(interp, objv[3], &start) != TCL_OK)
+    if (Tcl_GetCharLength(objv[3]) == 0)
+        startP = NULL;
+    else if (ObjToFILETIME(interp, objv[3], &start) != TCL_OK)
             return TCL_ERROR;
+    else
         startP = &start;
-    }
     
-    endP = NULL;
-    if (objc > 4) {
-        if (ObjToFILETIME(interp, objv[4], &end) != TCL_OK)
+    if (Tcl_GetCharLength(objv[4]) == 0)
+        endP = NULL;
+    else if (ObjToFILETIME(interp, objv[4], &end) != TCL_OK)
             return TCL_ERROR;
+    else
         endP = &end;
-    }
-
+    
     EnterCriticalSection(&gETWCS);
     
     TWAPI_ASSERT(gETWContext.event_cmdObj == NULL);

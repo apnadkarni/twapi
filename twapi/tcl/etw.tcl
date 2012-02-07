@@ -61,27 +61,31 @@ namespace eval twapi {
         wstringnotcounted 42
     }
 
-    # Cache of event definitions for parsing event. Nested
-    # dictionary indexed by event class GUID, version number ("" if no
-    # version in class def), event type. The value is itself a dictionary
-    # with the fields:
-    #   eventtype - same as the last level index
-    #   eventtypename - name / description for the event type
-    #   fieldtypes - ordered list of field types for that event
-    #   fields - more detailed description of the fields (see below)
-    #
-    # The fields element above is in turn a dictionary indexed by
-    # the index of the field in the event whose value is yet another
-    # dictionary:
-    #   type - the field type in string format
-    #   fieldtype - the corresponding numeric value used when parsing events
-    #   extension - the MoF extension qualifier for the field, if any
+    # Cache of event definitions for parsing event. Nested dictionary
+    # with the following structure (uppercase keys are variables,
+    # lower case are constant/tokens, "->" is nested dict, "-" is scalar):
+    #  EVENTCLASSGUID ->
+    #    classname - name of the class
+    #    definitions ->
+    #      VERSION ->
+    #        EVENTTYPE ->
+    #          eventtype - same as EVENTTYPE
+    #          eventtypename - name / description for the event type
+    #          fieldtypes - ordered list of field types for that event
+    #          fields ->
+    #            FIELDINDEX ->
+    #              type - the field type in string format
+    #              fieldtype - the corresponding field type numeric value
+    #              extension - the MoF extension qualifier for the field
     #
     # The cache assumes that MOF event definitions are globally identical
     # (ie. same on local and remote systems)
     variable _etw_event_defs
     set _etw_event_defs [dict create]
 
+    # Keeps track of open trace handles
+    variable _etw_open_traces
+    array set _etw_open_traces {}
 }
 
 
@@ -214,12 +218,17 @@ proc twapi::etw_parse_mof_event_class {ocls} {
             }
 
             foreach event_type $event_types event_type_name $event_type_names {
-                dict set result $event_type [dict create eventtype $event_type eventtypename $event_type_name fields $fields fieldtypes $fieldtypes]
+                dict set result definitions $event_type [dict create eventtype $event_type eventtypename $event_type_name fields $fields fieldtypes $fieldtypes]
             }
         }
     }
 
-    return $result
+    if {[dict size $result] == 0} {
+        return {}
+    } else {
+        dict set result classname [$ocls -with {SystemProperties_ {Item __CLASS}} Value]
+        return $result
+    }
 }
 
 # Deciphers an event  field type
@@ -359,3 +368,40 @@ proc twapi::etw_load_mof_event_classes {oswbemservices args} {
     }
 }
 
+proc twapi::etw_open_trace {path args} {
+    variable _etw_open_traces
+
+    array set opts [parseargs args {
+        realtime
+    } -maxleftover 0]
+
+    if {! $opts(realtime)} {
+        set path [file normalize $path]
+    }
+
+    set htrace [OpenTrace $path $opts(realtime)]
+    set _etw_open_traces($htrace) $path
+    return $htrace
+}
+
+proc twapi::etw_close_trace {htrace} {
+    variable _etw_open_traces
+
+    if {[info exists _etw_open_traces($htrace)]} {
+        CloseTrace $htrace
+        unset _etw_open_traces($htrace)
+    }
+    return
+}
+
+
+proc twapi::etw_process_events {htrace args} {
+    array set opts [parseargs args {
+        eventcallback.arg
+        buffercallback.arg
+        start.arg
+        end.arg
+    } -maxleftover 0 -nulldefault]
+
+    return [ProcessTrace $htrace $opts(eventcallback) $opts(buffercallback) $opts(start) $opts(end)]
+}
