@@ -734,17 +734,22 @@ int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP)
 
 Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP)
 {
-    return Tcl_NewWideIntObj(*(Tcl_WideInt *)ftimeP);
+    LARGE_INTEGER large;
+    large.LowPart = ftimeP->dwLowDateTime;
+    large.HighPart = ftimeP->dwHighDateTime;
+    return ObjFromLARGE_INTEGER(large);
 }
 
 int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *ftimeP)
 {
-    Tcl_WideInt wi;
-    if (Tcl_GetWideIntFromObj(interp, obj, &wi) != TCL_OK)
+    LARGE_INTEGER large;
+    if (Tcl_GetWideIntFromObj(interp, obj, &large.QuadPart) != TCL_OK)
         return TCL_ERROR;
 
-    if (ftimeP)
-        *ftimeP = *(FILETIME *)&wi;
+    if (ftimeP) {
+        ftimeP->dwLowDateTime = large.LowPart;
+        ftimeP->dwHighDateTime = large.HighPart;
+    }
 
     return TCL_OK;
 }
