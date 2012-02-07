@@ -106,7 +106,7 @@ proc twapi::wmi_collect_classes {swbemservices args} {
             }
         }
     } onerror {} {
-        # TBD - log debug error
+        debuglog "Error: $::errorResult (inside [info level 0])"
         foreach class $delete_on_error {
             if {[comobj? $class]} {
                 $class destroy
@@ -132,10 +132,9 @@ proc twapi::wmi_extract_property {propobj} {
         dict set result $prop [$propobj -get $prop]
     }
 
-    $propobj -with Qualifiers_ -iterate qual {
+    $propobj -with Qualifiers_ -iterate -cleanup qual {
         set rec [wmi_extract_qualifier $qual]
         dict set result qualifiers [string tolower [dict get $rec name]] $rec
-        $qual destroy
     }
 
     return $result
@@ -164,10 +163,9 @@ proc twapi::wmi_extract_method {mobj} {
         if {[$paramsobj -isnull]} {
             dict set result $inout {}
         } else {
-            $paramsobj -with Properties_ -iterate pobj {
+            $paramsobj -with Properties_ -iterate -cleanup pobj {
                 set rec [wmi_extract_property $pobj]
                 dict set result $inout [string tolower [dict get $rec name]] $rec
-                $pobj destroy
             }
         }
     }
@@ -187,28 +185,24 @@ proc twapi::wmi_extract_class {obj} {
     set result [dict create]
 
     # Class qualifiers
-    $obj -with Qualifiers_ -iterate qualobj {
+    $obj -with Qualifiers_ -iterate -cleanup qualobj {
         set rec [wmi_extract_qualifier $qualobj]
         dict set result qualifiers [string tolower [dict get $rec name]] $rec
-        $qualobj destroy
     }
 
-    $obj -with Properties_ -iterate propobj {
+    $obj -with Properties_ -iterate -cleanup propobj {
         set rec [wmi_extract_property $propobj]
         dict set result properties [string tolower [dict get $rec name]] $rec
-        $propobj destroy
     }
 
-    $obj -with SystemProperties_ -iterate propobj {
+    $obj -with SystemProperties_ -iterate -cleanup propobj {
         set rec [wmi_extract_systemproperty $propobj]
         dict set result systemproperties [string tolower [dict get $rec name]] $rec
-        $propobj destroy
     }
     
-    $obj -with Methods_ -iterate mobj {
+    $obj -with Methods_ -iterate -cleanup mobj {
         set rec [wmi_extract_method $mobj]
         dict set result methods [string tolower [dict get $rec name]] $rec
-        $mobj destroy
     }
 
     return $result
