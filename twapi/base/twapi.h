@@ -442,26 +442,9 @@ struct TwapiTclVersion {
     int reltype;
 };
 
-/*
- * We may want to sometimes use 8.5 functions when running against 8.5
- * even though we built against 8.4. This structure emulates the 8.5
- * stubs structure. We define explicit fields for the routines we use.
- * Note these should be called only after verifying at run time we
- * are running against 8.5!
- */
-struct TwapiTcl85Stubs {
-    int   magic;
-    void *hooks;
-    int (*fn[535])();
-    void * (*tcl_SaveInterpState) (Tcl_Interp * interp, int status); /* 535 */
-    int (*tcl_RestoreInterpState) (Tcl_Interp * interp, void * state); /* 536 */
-    void (*tcl_DiscardInterpState) (void * state); /* 537 */
-    int (*fn2[42])(); /* Totally 580 fns, (index 0-579) */
-};
-#define TWAPI_TCL85_STUB(fn_) (((struct TwapiTcl85Stubs *)tclStubsPtr)->fn_)
 
 /*
- * Similarly, we need to access platform-dependent internal stubs. For
+ * We need to access platform-dependent internal stubs. For
  * example, the Tcl channel system relies on specific values to be used
  * for EAGAIN, EWOULDBLOCK etc. These are actually compiler-dependent.
  * so the only way to make sure we are using a consistent Win32->Posix
