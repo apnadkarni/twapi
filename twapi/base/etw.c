@@ -1154,23 +1154,32 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
 
     
     bytesP = Tcl_GetByteArrayFromObj(objv[0], &nbytes);
+
+    /* The field descriptor is a list of alternating field types and names */
     if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK ||
         Tcl_GetIntFromObj(interp, objv[2], &pointer_size) != TCL_OK)
         return TCL_ERROR;
         
+    if (ntypes & 1) {
+        return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Field descriptor argument has odd number of elements (%d).", ntypes));
+    }
+
     if (pointer_size != 4 && pointer_size != 8) {
         return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invali pointer size parameter (%d), must be 4 or 8", pointer_size));
+                           Tcl_ObjPrintf("Invalid pointer size parameter (%d), must be 4 or 8", pointer_size));
     }
     
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = Tcl_NewDictObj();
 
-    for (i = 0, remain = nbytes; i < ntypes && remain > 0; ++i, bytesP += eaten, remain -= eaten) {
+    for (i = 0, remain = nbytes; i < ntypes && remain > 0; i += 2, bytesP += eaten, remain -= eaten) {
         int typeenum;
         Tcl_Obj *objP;
         Tcl_Obj *tempobjP;
 
-        if (Tcl_GetIntFromObj(interp, types[i], &typeenum) != TCL_OK) {
+        /* Index i is field name, i+1 is field type */
+
+        if (Tcl_GetIntFromObj(interp, types[i+1], &typeenum) != TCL_OK) {
             goto error_handler;
         }
 
@@ -1466,7 +1475,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         /* Some calls may result in objP being NULL */
         if (objP == NULL)
             objP = Tcl_NewObj();
-        Tcl_ListObjAppendElement(interp, resultObj, objP);
+        Tcl_DictObjPut(interp, resultObj, types[i], objP);
     }
     
     done:

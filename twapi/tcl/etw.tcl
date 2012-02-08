@@ -197,6 +197,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
                 if {![catch {$quals -with {{Item WmiDataId}} Value} wmidataid]} {
                     # Yep this is a field, figure out its type
                     set type [_etw_decipher_mof_event_field_type $oprop $quals]
+                    dict set type -fieldname [$oprop -get Name]
                     dict set fields $wmidataid $type
                 }
                 $quals destroy
@@ -214,7 +215,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
                     set fieldtypes {}
                     break;
                 }
-                lappend fieldtypes [dict get $fields $id -fieldtype]
+                lappend fieldtypes [dict get $fields $id -fieldname] [dict get $fields $id -fieldtype]
             }
 
             foreach event_type $event_types event_type_name $event_type_names {
@@ -239,8 +240,8 @@ proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
     set type unknown
     set quals(extension)  "";   # Hint for formatting for display
 
-    if {! [$oprop -get IsArray]} {
         # Cannot handle arrays yet - TBD
+    if {! [$oprop -get IsArray]} {
 
         # If the Pointer qualifier exists, ignore everything else
         if {![catch {
@@ -404,7 +405,7 @@ proc twapi::etw_process_events {htrace args} {
     return [ProcessTrace $htrace $opts(callback) $opts(start) $opts(end)]
 }
 
-proc twapi::etw_format_event {oswbemservices bufdesc events} {
+proc twapi::etw_format_events {oswbemservices bufdesc events} {
     variable _etw_event_defs
     array set missing {}
     foreach event $events {
