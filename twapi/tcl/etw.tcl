@@ -214,11 +214,11 @@ proc twapi::etw_parse_mof_event_class {ocls} {
                     set fieldtypes {}
                     break;
                 }
-                lappend fieldtypes [dict get $fields $id fieldtype]
+                lappend fieldtypes [dict get $fields $id -fieldtype]
             }
 
             foreach event_type $event_types event_type_name $event_type_names {
-                dict set result definitions $event_type [dict create eventtype $event_type eventtypename $event_type_name fields $fields fieldtypes $fieldtypes]
+                dict set result -definitions $event_type [dict create -eventtype $event_type -eventtypename $event_type_name -fields $fields -fieldtypes $fieldtypes]
             }
         }
     }
@@ -226,7 +226,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
     if {[dict size $result] == 0} {
         return {}
     } else {
-        dict set result classname [$ocls -with {SystemProperties_ {Item __CLASS}} Value]
+        dict set result -classname [$ocls -with {SystemProperties_ {Item __CLASS}} Value]
         return $result
     }
 }
@@ -280,7 +280,7 @@ proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
         set fieldtype $_etw_fieldtypes($type)
     }
 
-    return [dict create type $type fieldtype $fieldtype extension $quals(extension)]
+    return [dict create -type $type -fieldtype $fieldtype -extension $quals(extension)]
 }
 
 proc twapi::etw_find_mof_event_classes {oswbemservices args} {
@@ -307,7 +307,6 @@ proc twapi::etw_find_mof_event_classes {oswbemservices args} {
     set name_matcher [list apply {{names val} {::tcl::mathop::>= [lsearch -exact -nocase $names $val] 0}} $names]
     # Note GUIDS can be specified in multiple format so we cannot just lsearch
     set guid_matcher [list apply {{guids val} {
-        puts $val
         foreach guid $guids {
             if {[twapi::IsEqualGUID $guid $val]} { return 1 }
         }
@@ -345,7 +344,7 @@ proc twapi::etw_load_mof_event_class_obj {oswbemservices ocls} {
         # Class may be a provider, not a event class in which case
         # def will be empty
         if {[dict size $def]} {
-            dict set _etw_event_defs [string toupper $guid] $vers $def
+            dict set _etw_event_defs [canonicalize_guid $guid] $vers $def
         }
     } finally {
         $quals destroy
@@ -403,4 +402,43 @@ proc twapi::etw_process_events {htrace args} {
     } -maxleftover 0 -nulldefault]
 
     return [ProcessTrace $htrace $opts(callback) $opts(start) $opts(end)]
+}
+
+proc twapi::etw_format_event {oswbemservices bufdesc events} {
+    variable _etw_event_defs
+    array set missing {}
+    foreach event $events {
+        if {! [dict exists $_etw_event_defs [dict get $event -guid]]} {
+            set missing([dict get $event -guid]) 1
+        }
+    }
+
+    if {[array size missing]} {
+        parray missing
+        etw_load_mof_event_classes $oswbemservices {*}[array names missing]
+    }
+
+    set formatted {}
+    foreach event $events {
+        set guid [dict get $event -guid]
+        set vers [dict get $event -version]
+        set type [dict get $event -eventtype]
+        if {[dict exists $_etw_event_defs $guid $vers -definitions $type]} {
+            set mof [dict get $_etw_event_defs $guid $vers -definitions $type]
+        } elseif {[dict exists $_etw_event_defs $guid "" -definitions $type]} {
+            # If exact version not present, use one without
+            # a version
+            set mof [dict get $_etw_event_defs $guid "" -definitions $type]
+        } else {
+            # Nothing we can add to the event. Pass on as is
+            lappend formatted $event
+            continue
+        }
+
+        dict set event -eventtypename [dict get $mof -eventtypename]
+        dict set event -mofformatteddata [Twapi_ParseEventMofData [dict get $event -mofdata] [dict get $mof -fieldtypes] [dict get $bufdesc -hdr_pointersize]]
+        lappend formatted $event
+    }
+
+    return $formatted
 }
