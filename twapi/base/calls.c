@@ -423,17 +423,18 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DebugBreak, Call, 75);
     CALL_(GetPerformanceInformation, Call, 76);
     CALL_(Twapi_GetNotificationWindow, Call, 77);
-    CALL_(GetSystemWindowsDirectory, Call, 78); /* Tcl */
-    CALL_(GetWindowsDirectory, Call, 79);       /* Tcl */
-    CALL_(GetSystemDirectory, Call, 80);        /* Tcl */
-    CALL_(GetFocus, Call, 81);                  /* Tcl */
-    CALL_(GetDefaultPrinter, Call, 82);         /* Tcl */
-    CALL_(GetTimeZoneInformation, Call, 83);    /* Tcl */
+    CALL_(GetSystemWindowsDirectory, Call, 78); /* TBD Tcl */
+    CALL_(GetWindowsDirectory, Call, 79);       /* TBD Tcl */
+    CALL_(GetSystemDirectory, Call, 80);        /* TBD Tcl */
+    CALL_(GetFocus, Call, 81);                  /* TBD Tcl */
+    CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
+    CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
+    CALL_(canonicalize_guid, Call, 1005); // TBD Document
     CALL_(QuerySecurityContextToken, Call, 1008);
     CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
@@ -603,7 +604,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileFile, Call, 10146); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
     CALL_(IsEqualGUID, Call, 10148); // Tcl
-    CALL_(TwapiParseEventMofData, Call, 10149); // Tcl
+    CALL_(Twapi_ParseEventMofData, Call, 10149); // Tcl
     CALL_(scratch, Call, 20000);                    /* For testing purposes */
 
 
@@ -1568,7 +1569,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = SystemTimeToVariantTime(&systime, &result.value.dval) ?
                 TRT_DOUBLE : TRT_GETLASTERROR;
             break;
-        case 1005://UNUSED
+        case 1005: // canonicalize_guid
+            /* Turn a GUID into canonical form */
+            if (ObjToGUID(interp, objv[2], &result.value.guid) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_GUID;
+            break;
         case 1006://UNUSED
         case 1007://UNUSED
             break;
@@ -2811,7 +2817,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
 
         case 10149:
-            return TwapiParseEventMofData(ticP, objc-2, objv+2);
+            return Twapi_ParseEventMofData(ticP, objc-2, objv+2);
 
         case 20000:
             /* DO NOT ASSIGN - use as general scratch pad for adding
