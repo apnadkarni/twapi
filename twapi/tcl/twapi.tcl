@@ -1705,7 +1705,16 @@ proc twapi::_get_public_procs {} {
     # Init with C built-ins - there does not seem an easy auto way
     # of getting these. Also, ensembles although probably there is
     # a way of doing this.
-    lappend public_procs kl_get parseargs recordarray twine trap systemtray
+    lappend public_procs {*}{
+        canonicalize_guid
+        is_valid_sid_syntax
+        kl_get
+        parseargs
+        recordarray
+        systemtray
+        trap
+        twine
+    }
 
     # Also export aliases but not "try" as it conflicts
     # with 8.6 try
