@@ -84,12 +84,27 @@ static const char * g_trace_logfile_header_fields[] = {
 
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
-    Tcl_Obj *event_cmdObj;      /* Callback for events */
-    Tcl_Obj *buffer_cmdObj;     /* Callback for buffers */
-    Tcl_Obj *errorObj;
     TwapiInterpContext *ticP;
+
+#if 0
+    Tcl_Obj *event_cmdObj;      /* Callback for events */
+#endif
+    Tcl_Obj *buffer_cmdObj;     /* Callback for buffers */
+
+    /*
+     * When inside a ProcessTrace,
+     * EXACTLY ONE of eventsObj and errorObj must be non-NULL. Moreover,
+     * when non-NULL, an Tcl_IncrRefCount must have been done on it
+     * with a corresponding Tcl_DecrRefCount when setting to NULL
+      */
+    Tcl_Obj *eventsObj;
+    Tcl_Obj *errorObj;
+
     TRACEHANDLE traceH;
+
+#if 0
     int   event_cmdlen;         /* length of event_cmdObj */
+#endif
     int   buffer_cmdlen;        /* length of buffer_cmdObj */
     ULONG pointer_size;
     ULONG timer_resolution;
@@ -100,8 +115,8 @@ struct TwapiETWContext {
  * Used for events recieved in TwapiETWEventCallback.
  * Do not change order without changing the code there.
  */
-struct TwapiObjKeyCache gETWEventKeys[] = 
-{
+/* IMPORTANT : Sync access via gETWCS */
+struct TwapiObjKeyCache gETWEventKeys[] = {
     {"-eventtype"},
     {"-level"},
     {"-version"},
@@ -117,8 +132,26 @@ struct TwapiObjKeyCache gETWEventKeys[] =
     {"-mofdata"},
 };
 
+/* IMPORTANT : 
+ * Used for events recieved in TwapiETWBufferCallback.
+ * Do not change order without changing the code there.
+ */
+/* IMPORTANT : Sync access via gETWCS */
+struct TwapiObjKeyCache gETWBufferKeys[] = {
+    {"-logfilename"},
+    {"-loggername"},
+    {"-currenttime"},
+    {"-buffersread"},
+    {"-logfilemode"},
+    {"-buffersize"},
+    {"-filled"},
+    {"-eventslost"},
+    {"-iskerneltrace"},
+    {"-logfileheader"},
+};
 
-CRITICAL_SECTION gETWCS; /* Access to gETWContext and gETWEventKeys */
+
+CRITICAL_SECTION gETWCS; /* Access to gETWContext, gETWEventKeys, gETWBufferKeys */
 
 /*
  * Event Trace Provider Support
@@ -722,7 +755,9 @@ void WINAPI TwapiETWEventCallback(
 )
 {
     Tcl_Interp *interp;
+#if 0
     Tcl_Obj *objP;
+#endif
     Tcl_Obj *args[13];
     int code;
     Tcl_Obj *evObj;
@@ -735,6 +770,7 @@ void WINAPI TwapiETWEventCallback(
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return;
 
+#if 0
     if (gETWContext.event_cmdObj == NULL)
         return;                 /* No event callback specified */
 
@@ -751,6 +787,7 @@ void WINAPI TwapiETWEventCallback(
         Tcl_IncrRefCount(objP);
     } else
         objP = gETWContext.event_cmdObj;
+#endif
 
     /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
     evObj = Tcl_NewDictObj();
@@ -777,6 +814,9 @@ void WINAPI TwapiETWEventCallback(
     else
         Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, Tcl_NewObj());
     
+    Tcl_ListObjAppendElement(interp, gETWContext.eventsObj, evObj);
+
+#if 0
     /* Note - don't need to  Tcl_IncrRefCount(evObj) because we are placing
        it on the command list */
     if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.event_cmdlen, 1, 1, &evObj)) != TCL_OK ||
@@ -789,6 +829,7 @@ void WINAPI TwapiETWEventCallback(
     /* Get rid of the command obj if we created it */
     if (objP != gETWContext.event_cmdObj)
         Tcl_DecrRefCount(objP);
+#endif
 
     return;
 }
@@ -798,12 +839,15 @@ ULONG WINAPI TwapiETWBufferCallback(
 )
 {
     Tcl_Obj *objP;
-    Tcl_Obj *args[10];
+    Tcl_Obj *bufObj;
+    Tcl_Obj *args[2];
+    Tcl_Interp *interp;
     int code;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
     TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+    interp = gETWContext.ticP->interp;
 
     if (Tcl_InterpDeleted(gETWContext.ticP->interp))
         return FALSE;
@@ -814,6 +858,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     if (gETWContext.buffer_cmdObj == NULL)
         return TRUE;            /* No buffer callback specified */
 
+    TWAPI_ASSERT(gETWContext.eventsObj); /* since errorObj not NULL at this point */
 
     /*
      * Construct a command to call with the event. gETWContext.buffer_cmdObj
@@ -828,27 +873,36 @@ ULONG WINAPI TwapiETWBufferCallback(
         objP = gETWContext.buffer_cmdObj;
 
     /* Build up the arguments */
-    args[0] = Tcl_NewUnicodeObj(etlP->LogFileName ? etlP->LogFileName : L"", -1);
-    args[1] = Tcl_NewUnicodeObj(etlP->LoggerName ? etlP->LoggerName : L"", -1);
-    args[2] = ObjFromULONGLONG(etlP->CurrentTime);
-    args[3] = Tcl_NewLongObj(etlP->BuffersRead);
-    args[4] = Tcl_NewLongObj(etlP->LogFileMode);
-    args[5] = Tcl_NewLongObj(etlP->BufferSize);
-    args[6] = Tcl_NewLongObj(etlP->Filled);
-    args[7] = Tcl_NewLongObj(etlP->EventsLost);
-    args[8] = Tcl_NewLongObj(etlP->IsKernelTrace);
-    args[9] = ObjFromTRACE_LOGFILE_HEADER(&etlP->LogfileHeader);
+    bufObj = Tcl_NewDictObj();
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[0].keyObj, Tcl_NewUnicodeObj(etlP->LogFileName ? etlP->LogFileName : L"", -1));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[1].keyObj, Tcl_NewUnicodeObj(etlP->LoggerName ? etlP->LoggerName : L"", -1));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[2].keyObj, ObjFromULONGLONG(etlP->CurrentTime));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[3].keyObj, Tcl_NewLongObj(etlP->BuffersRead));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[4].keyObj, Tcl_NewLongObj(etlP->LogFileMode));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[5].keyObj, Tcl_NewLongObj(etlP->BufferSize));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[6].keyObj, Tcl_NewLongObj(etlP->Filled));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[7].keyObj, Tcl_NewLongObj(etlP->EventsLost));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[8].keyObj, Tcl_NewLongObj(etlP->IsKernelTrace));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[9].keyObj, ObjFromTRACE_LOGFILE_HEADER(&etlP->LogfileHeader));
 
     /*
-     * Note: Do not need to Tcl_IncrRefCount args[] because we are putting
-     * the objects on the objP list
+     * Note: Do not need to Tcl_IncrRefCount bufObj[] because we are adding
+     * it to the command list
      */
+    args[0] = bufObj;
+    args[1] = gETWContext.eventsObj;
+    Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
+    Tcl_DecrRefCount(gETWContext.eventsObj); /* AFTER we place on list */
 
-    if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args)) != TCL_OK ||
-        (code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
+    gETWContext.eventsObj = Tcl_NewListObj(0, NULL);/* For next set of events */
+    Tcl_IncrRefCount(gETWContext.eventsObj);
+
+    if ((code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
         gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
                                                     code);
         Tcl_IncrRefCount(gETWContext.errorObj);
+        Tcl_DecrRefCount(gETWContext.eventsObj);
+        gETWContext.eventsObj = NULL;
     }
 
     /* Get rid of the command obj if we created it */
@@ -923,7 +977,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
     struct TwapiETWContext etwc;
-    int event_cmdlen;
     int buffer_cmdlen;
     int code;
     DWORD winerr;
@@ -961,15 +1014,21 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     
     EnterCriticalSection(&gETWCS);
     
+#if 0
     TWAPI_ASSERT(gETWContext.event_cmdObj == NULL);
+#endif
     TWAPI_ASSERT(gETWContext.buffer_cmdObj == NULL);
     TWAPI_ASSERT(gETWContext.ticP == NULL);
 
     gETWContext.traceH = htraces[0];
+#if 0
     gETWContext.event_cmdlen = event_cmdlen;
     gETWContext.event_cmdObj = event_cmdlen ? objv[1] : NULL;
+#endif
     gETWContext.buffer_cmdlen = buffer_cmdlen;
     gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[2] : NULL;
+    gETWContext.eventsObj = Tcl_NewListObj(0, NULL);
+    Tcl_IncrRefCount(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
     gETWContext.ticP = ticP;
 
@@ -982,13 +1041,20 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         gETWEventKeys[i].keyObj = Tcl_NewStringObj(gETWEventKeys[i].keystring, -1);
         Tcl_IncrRefCount(gETWEventKeys[i].keyObj);
     }
+    for (i = 0; i < ARRAYSIZE(gETWBufferKeys); ++i) {
+        gETWBufferKeys[i].keyObj = Tcl_NewStringObj(gETWBufferKeys[i].keystring, -1);
+        Tcl_IncrRefCount(gETWBufferKeys[i].keyObj);
+    }
 
     winerr = ProcessTrace(htraces, 1, startP, endP);
 
     /* Copy and reset context before unlocking */
     etwc = gETWContext;
+#if 0
     gETWContext.event_cmdObj = NULL;
+#endif
     gETWContext.buffer_cmdObj = NULL;
+    gETWContext.eventsObj = NULL;
     gETWContext.errorObj = NULL;
     gETWContext.ticP = NULL;
 
@@ -999,14 +1065,22 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         Tcl_DecrRefCount(gETWEventKeys[i].keyObj);
         gETWEventKeys[i].keyObj = NULL; /* Just to catch bad access */
     }
+    for (i = 0; i < ARRAYSIZE(gETWBufferKeys); ++i) {
+        Tcl_DecrRefCount(gETWBufferKeys[i].keyObj);
+        gETWBufferKeys[i].keyObj = NULL; /* Just to catch bad access */
+    }
 
+    if (etwc.eventsObj)
+        Tcl_DecrRefCount(etwc.eventsObj);
+
+    /* If the processing was successful, errorObj is NULL */
     if (etwc.errorObj) {
         code = Tcl_SetReturnOptions(interp, etwc.errorObj);
         Tcl_DecrRefCount(etwc.errorObj); /* Match one in the event callback */
         return code;
     }
 
-    Tcl_ResetResult(interp);    /* The callback might have set a result */
+    Tcl_ResetResult(interp); /* For any holdover from callbacks */
 
     if (winerr)
         return Twapi_AppendSystemError(interp, winerr);
