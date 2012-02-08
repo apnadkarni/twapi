@@ -141,7 +141,28 @@ struct TwapiObjKeyCache gETWBufferKeys[] = {
     {"-filled"},
     {"-eventslost"},
     {"-iskerneltrace"},
-    {"-logfileheader"},
+
+
+    {"-hdr_cpuspeedinmhz"},
+    {"-hdr_buffersize"},
+    {"-hdr_majorversion"},
+    {"-hdr_minorversion"},
+    {"-hdr_subversion"},
+    {"-hdr_subminorversion"},
+    {"-hdr_providerversion"},
+    {"-hdr_numberofprocessors"},
+    {"-hdr_endtime"},
+    {"-hdr_timerresolution"},
+    {"-hdr_maximumfilesize"},
+    {"-hdr_logfilemode"},
+    {"-hdr_bufferswritten"},
+    {"-hdr_pointersize"},
+    {"-hdr_eventslost"},
+    {"-hdr_bufferslost"},
+    {"-hdr_timezone"},
+    {"-hdr_boottime"},
+    {"-hdr_perffreq"},
+    {"-hdr_starttime"},
 };
 
 
@@ -167,7 +188,35 @@ TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
 /*
  * Functions
  */
-
+#ifdef NOTUSEDYET
+/* IMPORTANT : 
+ * Do not change order without changing  ObjFromTRACE_LOGFILE_HEADER
+ */
+static const char * g_trace_logfile_header_fields[] = {
+    "-buffersize",
+    "-majorversion",
+    "-minorversion",
+    "-subversion",
+    "-subminorversion",
+    "-providerversion",
+    "-numberofprocessors",
+    "-endtime",
+    "-timerresolution",
+    "-maximumfilesize",
+    "-logfilemode",
+    "-bufferswritten",
+    "-pointersize",
+    "-eventslost",
+    "-cpuspeedinmhz",
+    "-loggername",
+    "-logfilename",
+    "-timezone",
+    "-boottime",
+    "-perffreq",
+    "-starttime",
+    "-bufferslost",
+    NULL,
+};
 static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 {
     int i;
@@ -235,11 +284,8 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     objs[43] = ObjFromULONG(adjustedP->BuffersLost);
 
     return Tcl_NewListObj(ARRAYSIZE(objs), objs);
-
-
-
-
 }
+#endif
 
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
@@ -795,6 +841,8 @@ ULONG WINAPI TwapiETWBufferCallback(
   PEVENT_TRACE_LOGFILEW etlP
 )
 {
+    TRACE_LOGFILE_HEADER *tlhP;
+    TRACE_LOGFILE_HEADER *adjustedP;
     Tcl_Obj *objP;
     Tcl_Obj *bufObj;
     Tcl_Obj *args[2];
@@ -840,7 +888,54 @@ ULONG WINAPI TwapiETWBufferCallback(
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[6].keyObj, Tcl_NewLongObj(etlP->Filled));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[7].keyObj, Tcl_NewLongObj(etlP->EventsLost));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[8].keyObj, Tcl_NewLongObj(etlP->IsKernelTrace));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[9].keyObj, ObjFromTRACE_LOGFILE_HEADER(&etlP->LogfileHeader));
+
+
+    /* Add the fields from the logfile header */
+
+    tlhP = &etlP->LogfileHeader;
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[9].keyObj, ObjFromULONG(tlhP->CpuSpeedInMHz));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[10].keyObj, ObjFromULONG(tlhP->BufferSize));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[11].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.MajorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[12].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.MinorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[13].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.SubVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[14].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.SubMinorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[15].keyObj, ObjFromULONG(tlhP->ProviderVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[16].keyObj, ObjFromULONG(tlhP->NumberOfProcessors));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[17].keyObj, ObjFromLARGE_INTEGER(tlhP->EndTime));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[18].keyObj, ObjFromULONG(tlhP->TimerResolution));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[19].keyObj, ObjFromULONG(tlhP->MaximumFileSize));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[20].keyObj, ObjFromULONG(tlhP->LogFileMode));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[21].keyObj, ObjFromULONG(tlhP->BuffersWritten));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[22].keyObj, ObjFromULONG(tlhP->PointerSize));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[23].keyObj, ObjFromULONG(tlhP->EventsLost));
+
+    /* Actual position of remaining fields may not match.
+     * if the file came from a different architecture
+     * so we have to adjust pointer accordingly. See 
+     * "Implementing an Event Callback Function" in the SDK docs
+     */
+
+    if (tlhP->PointerSize != sizeof(PVOID)) {
+        adjustedP = (PTRACE_LOGFILE_HEADER)
+            ((PUCHAR)tlhP + 2 * (tlhP->PointerSize - sizeof(PVOID)));
+    } else
+        adjustedP = tlhP;
+
+    /* Now continue with remaining fields */
+    
+    /* NOTE: 
+     * LoggerName and LogFileName fields are not to be used. Rather they
+     * refer to null terminated fields right after this struct.
+     * HOWEVER, it is not clear what happens when the struct is 
+     * embedded inside another so for now we just do not include them
+     * in the returned dictionary.
+    */
+
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[24].keyObj, ObjFromULONG(adjustedP->BuffersLost));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[25].keyObj, ObjFromTIME_ZONE_INFORMATION(&adjustedP->TimeZone));    
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[26].keyObj, ObjFromLARGE_INTEGER(adjustedP->BootTime));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[27].keyObj, ObjFromLARGE_INTEGER(adjustedP->PerfFreq));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[28].keyObj, ObjFromLARGE_INTEGER(adjustedP->StartTime));
 
     /*
      * Note: Do not need to Tcl_IncrRefCount bufObj[] because we are adding
