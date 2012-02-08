@@ -397,11 +397,10 @@ proc twapi::etw_close_trace {htrace} {
 
 proc twapi::etw_process_events {htrace args} {
     array set opts [parseargs args {
-        eventcallback.arg
-        buffercallback.arg
+        callback.arg
         start.arg
         end.arg
     } -maxleftover 0 -nulldefault]
 
-    return [ProcessTrace $htrace $opts(eventcallback) $opts(buffercallback) $opts(start) $opts(end)]
+    return [ProcessTrace $htrace $opts(callback) $opts(start) $opts(end)]
 }
