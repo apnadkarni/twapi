@@ -13,6 +13,17 @@
 #define ObjFromTRACEHANDLE(val_) Tcl_NewWideIntObj(val_)
 #define ObjToTRACEHANDLE(ip_, objP_, valP_) Tcl_GetWideIntFromObj((ip_), (objP_), (valP_))
 
+
+/* For efficiency reasons, when constructing many "records" each of which is
+ * a keyed list or dictionary, we do not want to recreate the
+ * key Tcl_Obj for every record. So we create them once and reuse them.
+*/
+struct TwapiObjKeyCache {
+    const char *keystring;
+    Tcl_Obj *keyObj;
+};
+
+
 /* IMPORTANT : 
  * Do not change order without changing ObjToPEVENT_TRACE_PROPERTIES()
  * and ObjFromEVENT_TRACE_PROPERTIES
@@ -83,9 +94,31 @@ struct TwapiETWContext {
     ULONG pointer_size;
     ULONG timer_resolution;
     ULONG user_mode;
-} gETWContext;
+} gETWContext;                  /* IMPORTANT : Sync access via gETWCS */
 
-CRITICAL_SECTION gETWCS; /* Access to gETWContext */
+/* IMPORTANT : 
+ * Used for events recieved in TwapiETWEventCallback.
+ * Do not change order without changing the code there.
+ */
+struct TwapiObjKeyCache gETWEventKeys[] = 
+{
+    {"-eventtype"},
+    {"-level"},
+    {"-version"},
+    {"-threadid"},
+    {"-timestamp"},
+    {"-guid"},
+    {"-kerneltime"},
+    {"-usertime"},
+    {"-processortime"},
+    {"-instanceid"},
+    {"-parentinstanceid"},
+    {"-parentguid"},
+    {"-mofdata"},
+};
+
+
+CRITICAL_SECTION gETWCS; /* Access to gETWContext and gETWEventKeys */
 
 /*
  * Event Trace Provider Support
@@ -688,12 +721,16 @@ void WINAPI TwapiETWEventCallback(
   PEVENT_TRACE evP
 )
 {
+    Tcl_Interp *interp;
     Tcl_Obj *objP;
     Tcl_Obj *args[13];
     int code;
+    Tcl_Obj *evObj;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+    interp = gETWContext.ticP->interp;
 
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return;
@@ -715,36 +752,34 @@ void WINAPI TwapiETWEventCallback(
     } else
         objP = gETWContext.event_cmdObj;
 
-    /* Build up the arguments */
-    args[0] = Tcl_NewIntObj(evP->Header.Class.Type);
-    args[1] = Tcl_NewIntObj(evP->Header.Class.Level);
-    args[2] = Tcl_NewIntObj(evP->Header.Class.Version);
-    args[3] = Tcl_NewLongObj(evP->Header.ThreadId);
-    args[4] = ObjFromLARGE_INTEGER(evP->Header.TimeStamp);
-    args[5] = ObjFromGUID(&evP->Header.Guid);
+    /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
+    evObj = Tcl_NewDictObj();
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[0].keyObj, Tcl_NewIntObj(evP->Header.Class.Type));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[1].keyObj, Tcl_NewIntObj(evP->Header.Class.Level));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[2].keyObj, Tcl_NewIntObj(evP->Header.Class.Version));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[3].keyObj, Tcl_NewLongObj(evP->Header.ThreadId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, ObjFromLARGE_INTEGER(evP->Header.TimeStamp));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[5].keyObj, ObjFromGUID(&evP->Header.Guid));
     /*
      * Note - for user mode sessions, KernelTime/UserTime are not valid
      * and the ProcessorTime member has to be used instead. However,
      * we do not know the type of session at this point so we leave it
      * to the app to figure out what to use
      */
-    args[6] = ObjFromULONG(evP->Header.KernelTime);
-    args[7] = ObjFromULONG(evP->Header.UserTime);
-    args[8] = Tcl_NewWideIntObj(evP->Header.ProcessorTime);
-    args[9] = ObjFromULONG(evP->InstanceId);
-    args[10] = ObjFromULONG(evP->ParentInstanceId);
-    args[11] = ObjFromGUID(&evP->ParentGuid);
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[6].keyObj, ObjFromULONG(evP->Header.KernelTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[7].keyObj, ObjFromULONG(evP->Header.UserTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[8].keyObj, Tcl_NewWideIntObj(evP->Header.ProcessorTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[9].keyObj, ObjFromULONG(evP->InstanceId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[10].keyObj, ObjFromULONG(evP->ParentInstanceId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[11].keyObj, ObjFromGUID(&evP->ParentGuid));
     if (evP->MofData && evP->MofLength)
-        args[12] = Tcl_NewByteArrayObj(evP->MofData, evP->MofLength);
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, Tcl_NewByteArrayObj(evP->MofData, evP->MofLength));
     else
-        args[12] = Tcl_NewObj();
-
-    /*
-     * Note: Do not need to Tcl_IncrRefCount args[] because we are putting
-     * the objects on the objP list
-     */
-
-    if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.event_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args)) != TCL_OK ||
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, Tcl_NewObj());
+    
+    /* Note - don't need to  Tcl_IncrRefCount(evObj) because we are placing
+       it on the command list */
+    if ((code = Tcl_ListObjReplace(gETWContext.ticP->interp, objP, gETWContext.event_cmdlen, 1, 1, &evObj)) != TCL_OK ||
         (code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
         gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
                                                     code);
@@ -768,6 +803,10 @@ ULONG WINAPI TwapiETWBufferCallback(
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+
+    if (Tcl_InterpDeleted(gETWContext.ticP->interp))
+        return FALSE;
 
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return FALSE;
@@ -879,6 +918,7 @@ TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 
 TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
+    int i;
     FILETIME start, end, *startP, *endP;
     TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
@@ -933,6 +973,16 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     gETWContext.errorObj = NULL;
     gETWContext.ticP = ticP;
 
+    /*
+     * Initialize the dictionary objects we will use as keys. These are
+     * tied to interp so have to redo on every call since the interp
+     * may not be the same.
+     */
+    for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
+        gETWEventKeys[i].keyObj = Tcl_NewStringObj(gETWEventKeys[i].keystring, -1);
+        Tcl_IncrRefCount(gETWEventKeys[i].keyObj);
+    }
+
     winerr = ProcessTrace(htraces, 1, startP, endP);
 
     /* Copy and reset context before unlocking */
@@ -943,6 +993,12 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     gETWContext.ticP = NULL;
 
     LeaveCriticalSection(&gETWCS);
+
+    /* Deallocated the cached key objects */
+    for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
+        Tcl_DecrRefCount(gETWEventKeys[i].keyObj);
+        gETWEventKeys[i].keyObj = NULL; /* Just to catch bad access */
+    }
 
     if (etwc.errorObj) {
         code = Tcl_SetReturnOptions(interp, etwc.errorObj);
