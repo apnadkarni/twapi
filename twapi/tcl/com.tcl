@@ -2928,7 +2928,7 @@ twapi::class create ::twapi::Automation {
                     lassign $next more values
                     if {[llength $values]} {
                         set var [::twapi::variant_value [lindex $values 0]]
-                        set ret [catch {uplevel 1 $script} msg]
+                        set ret [catch {uplevel 1 $script} msg options]
                         switch -exact -- $ret {
                             0 -
                             4 {
@@ -2937,26 +2937,20 @@ twapi::class create ::twapi::Automation {
                                     $var destroy
                                 }
                             }
-                            1 {
-                                set erinfo $::errorInfo
-                                set ercode $::errorCode
-                                if {$opts(cleanup)} {
-                                    $var destroy
-                                }
-                                error $msg  $erinfo $ercode
-                            }
                             3 {
                                 if {$opts(cleanup)} {
                                     $var destroy
                                 }
                                 set more 0; # TCL_BREAK
                             }
+                            1 -
                             2 -
                             default {
                                 if {$opts(cleanup)} {
                                     $var destroy
                                 }
-                                return -code $ret $msg
+                                dict incr options -level
+                                return -options $options $msg
                             }
 
                         }
