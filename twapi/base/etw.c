@@ -949,24 +949,27 @@ ULONG WINAPI TwapiETWBufferCallback(
     gETWContext.eventsObj = Tcl_NewListObj(0, NULL);/* For next set of events */
     Tcl_IncrRefCount(gETWContext.eventsObj);
 
-    if ((code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL)) != TCL_OK) {
-        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
-                                                    code);
-        Tcl_IncrRefCount(gETWContext.errorObj);
-        Tcl_DecrRefCount(gETWContext.eventsObj);
-        gETWContext.eventsObj = NULL;
-    }
+    code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
     /* Get rid of the command obj if we created it */
     if (objP != gETWContext.buffer_cmdObj)
         Tcl_DecrRefCount(objP);
 
-    if (gETWContext.errorObj)
+    switch (code) {
+    case TCL_BREAK:
+        /* Any other value - not an error, but stop processing */
         return FALSE;
-
-    /* TBD - maybe check the return value of the Tcl_Eval and return that ? */
-
-    return TRUE;
+    case TCL_ERROR:
+        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
+                                                    code);
+        Tcl_IncrRefCount(gETWContext.errorObj);
+        Tcl_DecrRefCount(gETWContext.eventsObj);
+        gETWContext.eventsObj = NULL;
+        return FALSE;
+    default:
+        /* Any other value - proceed as normal */
+        return TRUE;
+    }
 }
 
 
@@ -1120,7 +1123,10 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     Tcl_ResetResult(interp); /* For any holdover from callbacks */
 
-    if (winerr)
+    /* A winerr of ERROR_CANCELLED means the callback returned TCL_BREAK
+     * to terminate the processing. That is not treated as an error
+     */
+    if (winerr && winerr != ERROR_CANCELLED)
         return Twapi_AppendSystemError(interp, winerr);
 
     return TCL_OK;
@@ -1466,6 +1472,13 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             eaten = remain;
             break;
 
+        case 43: // pointer
+            if (pointer_size == 8)
+                objP = ObjFromULONGLONGHex(*(ULONGLONG UNALIGNED *)bytesP);
+            else
+                objP = ObjFromULONGHex(*(ULONG UNALIGNED *)bytesP);
+            eaten = pointer_size;
+            break;
 
         default:
             Tcl_SetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
