@@ -59,6 +59,8 @@ namespace eval twapi {
         datetime 40
         stringnotcounted 41
         wstringnotcounted 42
+        pointer 43
+        sizet   43
     }
 
     # Cache of event definitions for parsing event. Nested dictionary
@@ -240,39 +242,48 @@ proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
     set type unknown
     set quals(extension)  "";   # Hint for formatting for display
 
-        # Cannot handle arrays yet - TBD
-    if {! [$oprop -get IsArray]} {
-
+    if {![catch {
+        $oquals -with {{Item Pointer}} Value
+    }]} {
+        # Actual value does not matter
         # If the Pointer qualifier exists, ignore everything else
-        if {![catch {
-            $oquals -with {{Item Pointer}} Value
-        }]} {
-            # Actual value does not matter
-            set type pointer
-        } else {
-            catch {
-                set type [string tolower [$oquals -with {{Item CIMTYPE}} Value]]
+        set type pointer
+    } elseif {![catch {
+        $oquals -with {{Item PointerType}} Value
+    }]} {
+        # Actual value does not matter
+        # Some apps mistakenly use PointerType instead of Pointer
+        set type pointer
+    } else {
+        catch {
+            set type [string tolower [$oquals -with {{Item CIMTYPE}} Value]]
 
-                # The following qualifiers may or may not exist
-                # TBD - not all may be required to be retrieved
-                # NOTE: MSDN says some qualifiers are case sensitive!
-                foreach qual {BitMap BitValues Extension Format Pointer StringTermination ValueMap Values ValueType XMLFragment} {
-                    # catch in case it does not exist
-                    set lqual [string tolower $qual]
-                    set quals($lqual) ""
-                    catch {
-                        set quals($lqual) [$oquals -with [list [list Item $qual]] Value]
-                    }
-                }
-                set type [string tolower "$quals(format)${type}$quals(stringtermination)"]
-                set quals(extension) [string tolower $quals(extension)]
-                # Not all extensions affect how the event field is extracted
-                # e.g. the noprint value
-                if {$quals(extension) in {ipaddr ipaddrv4 ipaddrv6 port variant wmitime guid sid}} {
-                    append type $quals(extension)
+            # The following qualifiers may or may not exist
+            # TBD - not all may be required to be retrieved
+            # NOTE: MSDN says some qualifiers are case sensitive!
+            foreach qual {BitMap BitValues Extension Format Pointer StringTermination ValueMap Values ValueType XMLFragment} {
+                # catch in case it does not exist
+                set lqual [string tolower $qual]
+                set quals($lqual) ""
+                catch {
+                    set quals($lqual) [$oquals -with [list [list Item $qual]] Value]
                 }
             }
+            set type [string tolower "$quals(format)${type}$quals(stringtermination)"]
+            set quals(extension) [string tolower $quals(extension)]
+            # Not all extensions affect how the event field is extracted
+            # e.g. the noprint value
+            if {$quals(extension) in {ipaddr ipaddrv4 ipaddrv6 port variant wmitime guid sid}} {
+                append type $quals(extension)
+            } elseif {$quals(extension) eq "sizet"} {
+                set type sizet
+            }
         }
+    }
+
+    # Cannot handle arrays yet - TBD
+    if {[$oprop -get IsArray]} {
+        set type "arrayof$type"
     }
 
     if {![info exists _etw_fieldtypes($type)]} {
@@ -415,7 +426,7 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
     }
 
     if {[array size missing]} {
-        parray missing
+parray missing
         etw_load_mof_event_classes $oswbemservices {*}[array names missing]
     }
 
@@ -426,20 +437,69 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
         set type [dict get $event -eventtype]
         if {[dict exists $_etw_event_defs $guid $vers -definitions $type]} {
             set mof [dict get $_etw_event_defs $guid $vers -definitions $type]
+            set eventclass [dict get $_etw_event_defs $guid $vers -classname]
         } elseif {[dict exists $_etw_event_defs $guid "" -definitions $type]} {
             # If exact version not present, use one without
             # a version
             set mof [dict get $_etw_event_defs $guid "" -definitions $type]
+            set eventclass [dict get $_etw_event_defs $guid "" -classname]
         } else {
-            # Nothing we can add to the event. Pass on as is
+            # No definition.
+            # Nothing we can add to the event. Pass on with defaults
+            dict set event -eventtypename [dict get $event -eventtype]
+            # Try to get at least the class name
+            if {[dict exists $_etw_event_defs $guid $vers -classname]} {
+                dict set event -classname [dict get $_etw_event_defs $guid $vers -classname]
+            } elseif {[dict exists $_etw_event_defs $guid "" -classname]} {
+                dict set event -classname [dict get $_etw_event_defs $guid "" -classname]
+            } else {
+                dict set event -classname ""
+            }
             lappend formatted $event
             continue
         }
 
         dict set event -eventtypename [dict get $mof -eventtypename]
+        dict set event -classname $eventclass
         dict set event -mofformatteddata [Twapi_ParseEventMofData [dict get $event -mofdata] [dict get $mof -fieldtypes] [dict get $bufdesc -hdr_pointersize]]
         lappend formatted $event
     }
 
     return $formatted
+}
+
+
+proc twapi::etw_dump_file {path args} {
+    array set opts [parseargs args {
+        {outfd.arg stdout}
+        {limit.int -1}
+    } -maxleftover 0]
+
+    trap {
+        set wmi [twapi::_wmi wmi]
+        set htrace [etw_open_trace $path]
+        set varname ::twapi::_etw_dump_ctr[TwapiId]
+        set $varname 0;         # Yes, set $varname, not set varname
+        etw_process_events $htrace -callback [list apply {
+            {fd counter_varname max wmi bufd events}
+            {
+                foreach event [etw_format_events $wmi $bufd $events] {
+                    if {$max >= 0 && [set $counter_varname] >= $max} { return -code break }
+                    incr $counter_varname
+                    if {[dict exists $event -mofformatteddata]} {
+                        set fmtdata [dict get $event -mofformatteddata]
+                    } else {
+                        binary scan [string range [dict get $event -mofdata] 0 31] H* hex
+                        set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
+                    }
+                    puts $fd "[dict get $event -timestamp] [dict get $event -classname]/[dict get $event -eventtypename] $fmtdata"
+                }
+            }
+        } $opts(outfd) $varname $opts(limit) $wmi]
+    } finally {
+        unset -nocomplain $varname
+        if {[info exists htrace]} {etw_close_trace $htrace}
+        if {[info exists wmi]} {$wmi destroy}
+        flush $opts(outfd)
+    }
 }
