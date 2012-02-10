@@ -444,7 +444,10 @@ parray missing
             set mof [dict get $_etw_event_defs $guid "" -definitions $type]
             set eventclass [dict get $_etw_event_defs $guid "" -classname]
         } else {
-            # No definition.
+            # No definition. Create an entry so we know we already tried
+            # looking this up and don't keep retrying later
+            dict set _etw_event_defs $guid {}
+
             # Nothing we can add to the event. Pass on with defaults
             dict set event -mof [dict create -eventtypename [dict get $event -eventtype]]
             # Try to get at least the class name
