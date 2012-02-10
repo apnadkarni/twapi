@@ -446,7 +446,7 @@ parray missing
         } else {
             # No definition.
             # Nothing we can add to the event. Pass on with defaults
-            dict set event -eventtypename [dict get $event -eventtype]
+            dict set event -mof [dict create -eventtypename [dict get $event -eventtype]]
             # Try to get at least the class name
             if {[dict exists $_etw_event_defs $guid $vers -classname]} {
                 dict set event -classname [dict get $_etw_event_defs $guid $vers -classname]
@@ -459,7 +459,7 @@ parray missing
             continue
         }
 
-        dict set event -eventtypename [dict get $mof -eventtypename]
+        dict set event -mof $mof
         dict set event -classname $eventclass
         dict set event -mofformatteddata [Twapi_ParseEventMofData [dict get $event -mofdata] [dict get $mof -fieldtypes] [dict get $bufdesc -hdr_pointersize]]
         lappend formatted $event
@@ -470,10 +470,21 @@ parray missing
 
 
 proc twapi::etw_dump_file {path args} {
+
+    uplevel #0 {package require csv}
+
     array set opts [parseargs args {
         {outfd.arg stdout}
         {limit.int -1}
+        {format.arg list {csv list}}
+        {separator.arg ,}
     } -maxleftover 0]
+
+    if {$opts(format) eq "csv"} {
+        set lambda [list apply [list args "puts $opts(outfd) \[csv::join \$args \"$opts(separator)\"]"]]
+    } else {
+        set lambda [list apply [list args "puts $opts(outfd) \$args"]]
+    }
 
     trap {
         set wmi [twapi::_wmi wmi]
@@ -481,7 +492,7 @@ proc twapi::etw_dump_file {path args} {
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
         etw_process_events $htrace -callback [list apply {
-            {fd counter_varname max wmi bufd events}
+            {lambda counter_varname max wmi bufd events}
             {
                 foreach event [etw_format_events $wmi $bufd $events] {
                     if {$max >= 0 && [set $counter_varname] >= $max} { return -code break }
@@ -492,10 +503,10 @@ proc twapi::etw_dump_file {path args} {
                         binary scan [string range [dict get $event -mofdata] 0 31] H* hex
                         set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
                     }
-                    puts $fd "[dict get $event -timestamp] [dict get $event -classname]/[dict get $event -eventtypename] $fmtdata"
+                    {*}$lambda [dict get $event -timestamp] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
                 }
             }
-        } $opts(outfd) $varname $opts(limit) $wmi]
+        } $lambda $varname $opts(limit) $wmi]
     } finally {
         unset -nocomplain $varname
         if {[info exists htrace]} {etw_close_trace $htrace}
