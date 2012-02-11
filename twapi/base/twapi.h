@@ -936,6 +936,9 @@ extern struct TwapiTclVersion gTclVersion;
 extern int gTclIsThreaded;
 extern TwapiId volatile gIdGenerator;
 extern CRITICAL_SECTION gETWCS;
+extern ULONG  gETWProviderTraceEnableFlags;
+extern ULONG  gETWProviderTraceEnableLevel;
+
 
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \

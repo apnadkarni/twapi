@@ -429,6 +429,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetFocus, Call, 81);                  /* TBD Tcl */
     CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
     CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
+    CALL_(etw_provider_enable_flags, Call, 84);     /* TBD docs */
+    CALL_(etw_provider_enable_level, Call, 85);     /* TBD docs */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1532,6 +1534,14 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
                 break;
             }
+            break;
+        case 84:
+            result.type = TRT_DWORD;
+            result.value.ival = gETWProviderTraceEnableFlags;
+            break;
+        case 85:
+            result.type = TRT_DWORD;
+            result.value.ival = gETWProviderTraceEnableLevel;
             break;
         }
 
