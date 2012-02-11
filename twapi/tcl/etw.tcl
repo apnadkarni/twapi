@@ -6,9 +6,14 @@
 
 namespace eval twapi {
     # GUID's and event types for ETW.
-    variable _etw_provider_uuid "{B358E9D9-4D82-4A82-A129-BAC098C54746}"
-    variable _etw_event_class_uuid "{D5B52E95-8447-40C1-B316-539894449B36}"
-    
+    variable _etw_mof
+    array set _etw_mof {
+        provider_name "TwapiETWProvider"
+        provider_guid "{B358E9D9-4D82-4A82-A129-BAC098C54746}"
+        eventclass_name "TwapiETWEventClass"
+        eventclass_guid "{D5B52E95-8447-40C1-B316-539894449B36}"
+    }
+
     # Maps event field type strings to enums to pass to the C code
     variable _etw_fieldtypes
     # 0 should be unmapped. Note some are duplicates because they
@@ -92,41 +97,73 @@ namespace eval twapi {
 
 
 proc twapi::etw_install_mof {} {
-    variable _etw_provider_uuid
-    variable _etw_event_class_uuid
+    variable _etw_mof
     
     # MOF definition for our ETW trace event. This is loaded into
     # the system WMI registry so event readers can decode our events
-    set mof [format {
+    set mof_template {
         #pragma namespace("\\\\.\\root\\wmi")
 
-        [dynamic: ToInstance, Description("Tcl Windows API ETW Provider"),
-         Guid("%s")]
-        class TwapiETWProvider : EventTrace
+        [dynamic: ToInstance, Description("TWAPI ETW Provider"),
+         Guid("@provider_guid")]
+        class @provider_name : EventTrace
         {
         };
 
-        [dynamic: ToInstance, Description("Tcl Windows API ETW event class"): Amended,
-         Guid("%s")]
-        class TwapiETWEventClass : TwapiETWProvider
+        [dynamic: ToInstance, Description("TWAPI ETW event class"): Amended,
+         Guid("@eventclass_guid")]
+        class @eventclass_name : @provider_name
         {
         };
 
         // NOTE: The EventTypeName is REQUIRED else the MS LogParser app
         // crashes (even though it should not)
-        [dynamic: ToInstance, Description("Tcl Windows API child event type class used to describe the standard event."): Amended,
-         EventType(10), EventTypeName("Twapi Trace")]
-        class TwapiETWEventClass_TwapiETWEventTypeClass : TwapiETWEventClass
+
+        [dynamic: ToInstance, Description("TWAPI log message"): Amended,
+         EventType(10), EventTypeName("Message")]
+        class @eventclass_name_Message : @eventclass_name
         {
             [WmiDataId(1), Description("Log message"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Message;
         };
-    } $_etw_provider_uuid $_etw_event_class_uuid]
+
+        [dynamic: ToInstance, Description("TWAPI variable trace"): Amended,
+         EventType(11), EventTypeName("VariableTrace")]
+        class @eventclass_name_VariableTrace : @eventclass_name
+        {
+            [WmiDataId(1), Description("Variable name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Name;
+            [WmiDataId(2), Description("Array index"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Index;
+            [WmiDataId(3), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
+            [WmiDataId(4), Description("Value"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Value;
+        };
+    }
+
+    set mof [string map \
+                 [list @provider_name $_etw_mof(provider_name) \
+                      @provider_guid $_etw_mof(provider_guid) \
+                      @eventclass_name $_etw_mof(eventclass_name) \
+                      @eventclass_guid $_etw_mof(eventclass_guid) \
+                     ] $mof_template]
 
     set mofc [twapi::IMofCompilerProxy new]
     twapi::trap {
         $mofc CompileBuffer $mof
     } finally {
         $mofc Release
+    }
+}
+
+proc twapi::etw_uninstall_mof {} {
+    variable _etw_mof
+
+    set wmi [twapi::_wmi wmi]
+    trap {
+        set omof [$wmi Get $_etw_mof(provider_name)]
+        $omof Delete_
+    } finally {
+        if {[info exists omof]} {
+            $omof destroy
+        }
+        $wmi destroy
     }
 }
 
