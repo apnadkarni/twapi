@@ -11,7 +11,7 @@
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
 #define ObjFromTRACEHANDLE(val_) Tcl_NewWideIntObj(val_)
-#define ObjToTRACEHANDLE(ip_, objP_, valP_) Tcl_GetWideIntFromObj((ip_), (objP_), (valP_))
+#define ObjToTRACEHANDLE Tcl_GetWideIntFromObj
 
 
 /* For efficiency reasons, when constructing many "records" each of which is
@@ -630,9 +630,16 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
         );
 
     if (rc == ERROR_SUCCESS) {
+        Tcl_LinkVar(interp, "::twapi::etw_provider_enable_flags",
+                    (char *) &gETWProviderTraceEnableFlags,
+                    TCL_LINK_ULONG | TCL_LINK_READ_ONLY);
+        Tcl_LinkVar(interp, "::twapi::etw_provider_enable_level",
+                    (char *) &gETWProviderTraceEnableLevel,
+                    TCL_LINK_ULONG | TCL_LINK_READ_ONLY);
         gETWProviderGuid = provider_guid;
         gETWProviderEventClassGuid = event_class_guid;
         gETWProviderEventClassRegistrationHandle = event_class_reg.RegHandle;
+        Tcl_SetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
@@ -642,16 +649,26 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
 TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Interp *interp = ticP->interp;
+    TRACEHANDLE traceH;
     DWORD rc;
     
-
-    if (objc != 0)
+    if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    if (ObjToTRACEHANDLE(interp, objv[0], &traceH) != TCL_OK)
+        return TCL_ERROR;
+
+    if (traceH != gETWProviderRegistrationHandle) {
+        Tcl_SetResult(interp, "Unknown ETW provider registration handle", TCL_STATIC);
+        return TCL_ERROR;
+    }
 
     rc = UnregisterTraceGuids(gETWProviderRegistrationHandle);
     if (rc == ERROR_SUCCESS) {
         gETWProviderRegistrationHandle = 0;
         gETWProviderGuid = gTwapiNullGuid;
+        Tcl_UnlinkVar(interp, "::twapi::etw_provider_enable_flags");
+        Tcl_UnlinkVar(interp, "::twapi::etw_provider_enable_level");
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
@@ -660,36 +677,47 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
 
 TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
-    ULONG rc;
+    int i;
     struct {
         EVENT_TRACE_HEADER eth;
-        MOF_FIELD mof;
+        MOF_FIELD mof[16];
     } event;
     WCHAR *msgP;
     int    msglen;
     int    type;
     int    level;
+    TRACEHANDLE htrace;
+    ULONG rc;
+
+    /* Args: provider handle, type, level, ?binary strings...? */
 
     /* If no tracing is on, just ignore, do not raise error */
     if (gETWProviderSessionHandle == 0)
         return TCL_OK;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv, GETWSTRN(msgP, msglen),
-                     ARGUSEDEFAULT, GETINT(type), GETINT(level),
-                     ARGEND) != TCL_OK)
+    if (TwapiGetArgs(ticP->interp, objc, objv,
+                     GETVAR(htrace, ObjToTRACEHANDLE),
+                     GETINT(type), GETINT(level), ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
-    ZeroMemory(&event, sizeof(event));
-    event.eth.Size = sizeof(event);
+    objc -= 3;
+    objv += 3;
+
+    /* We will only log up to 16 strings. Additional will be silently ignored */
+    if (objc > 16)
+        objc = 16;
+
+    ZeroMemory(&event, sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD));
+    event.eth.Size = sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD);
     event.eth.Flags = WNODE_FLAG_TRACED_GUID |
         WNODE_FLAG_USE_GUID_PTR | WNODE_FLAG_USE_MOF_PTR;
     event.eth.GuidPtr = (ULONGLONG) &gETWProviderEventClassGuid;
     event.eth.Class.Type = type;
     event.eth.Class.Level = level;
 
-    event.mof.DataPtr = (ULONG64) msgP;
-    /* Null Termination included to match event definition */
-    event.mof.Length = (msglen+1) * sizeof(WCHAR);
+    for (i = 0; i < objc; ++i) {
+        event.mof[i].DataPtr = (ULONG64) Tcl_GetByteArrayFromObj(objv[i], &event.mof[i].Length);
+    }
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
     return rc == ERROR_SUCCESS ?
