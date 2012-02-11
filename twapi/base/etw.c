@@ -630,12 +630,6 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
         );
 
     if (rc == ERROR_SUCCESS) {
-        Tcl_LinkVar(interp, "::twapi::etw_provider_enable_flags",
-                    (char *) &gETWProviderTraceEnableFlags,
-                    TCL_LINK_ULONG | TCL_LINK_READ_ONLY);
-        Tcl_LinkVar(interp, "::twapi::etw_provider_enable_level",
-                    (char *) &gETWProviderTraceEnableLevel,
-                    TCL_LINK_ULONG | TCL_LINK_READ_ONLY);
         gETWProviderGuid = provider_guid;
         gETWProviderEventClassGuid = event_class_guid;
         gETWProviderEventClassRegistrationHandle = event_class_reg.RegHandle;
@@ -667,8 +661,6 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
     if (rc == ERROR_SUCCESS) {
         gETWProviderRegistrationHandle = 0;
         gETWProviderGuid = gTwapiNullGuid;
-        Tcl_UnlinkVar(interp, "::twapi::etw_provider_enable_flags");
-        Tcl_UnlinkVar(interp, "::twapi::etw_provider_enable_level");
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
