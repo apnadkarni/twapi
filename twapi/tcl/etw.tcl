@@ -120,14 +120,14 @@ proc twapi::etw_install_mof {} {
         // crashes (even though it should not)
 
         [dynamic: ToInstance, Description("TWAPI log message"): Amended,
-         EventType(10), EventTypeName("Message")]
+         EventType(1), EventTypeName("Message")]
         class @eventclass_name_Message : @eventclass_name
         {
             [WmiDataId(1), Description("Log message"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Message;
         };
 
         [dynamic: ToInstance, Description("TWAPI variable trace"): Amended,
-         EventType(11), EventTypeName("VariableTrace")]
+         EventType(2), EventTypeName("VariableTrace")]
         class @eventclass_name_VariableTrace : @eventclass_name
         {
             [WmiDataId(1), Description("Variable name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Name;
@@ -135,6 +135,17 @@ proc twapi::etw_install_mof {} {
             [WmiDataId(3), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
             [WmiDataId(4), Description("Value"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Value;
         };
+
+        [dynamic: ToInstance, Description("TWAPI execution trace"): Amended,
+         EventType(3), EventTypeName("ExecutionTrace")]
+        class @eventclass_name_ExecutionTrace : @eventclass_name
+        {
+            [WmiDataId(1), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
+            [WmiDataId(2), Description("Executed command"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Command;
+            [WmiDataId(3), Description("Status code"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Code;
+            [WmiDataId(4), Description("Result"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Result;
+        };
+
     }
 
     set mof [string map \
@@ -168,15 +179,16 @@ proc twapi::etw_uninstall_mof {} {
 }
 
 proc twapi::etw_register_provider {} {
-    variable _etw_provider_uuid
-    variable _etw_event_class_uuid
+    variable _etw_mof
 
-    twapi::RegisterTraceGuids $_etw_provider_uuid $_etw_event_class_uuid
+    return [twapi::RegisterTraceGuids $_etw_mof(provider_guid) $_etw_mof(eventclass_guid)]
 }
 
 interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 
-interp alias {} twapi::etw_trace {} twapi::TraceEvent
+proc twapi::etw_trace_message {htrace message} {
+    TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
+}
 
 proc twapi::etw_parse_mof_event_class {ocls} {
     # Returns a dict 
