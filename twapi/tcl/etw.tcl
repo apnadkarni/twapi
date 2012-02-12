@@ -660,10 +660,9 @@ proc twapi::_etw_construct_event_strings {args} {
     set result ""
     foreach arg $args {
         if {[string length $arg] > $max} {
-            set s [string range $arg 0 $max-1]
+            set arg "[string range $arg 0 $max-3]..."
         }
         append result [encoding convertto unicode "$arg\0"]
-#        append result "[binary format s [string length $arg]][encoding convertto unicode $arg]"
     }
     return $result
 }
