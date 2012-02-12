@@ -130,10 +130,11 @@ proc twapi::etw_install_mof {} {
          EventType(2), EventTypeName("VariableTrace")]
         class @eventclass_name_VariableTrace : @eventclass_name
         {
-            [WmiDataId(1), Description("Variable name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Name;
-            [WmiDataId(2), Description("Array index"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Index;
-            [WmiDataId(3), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
+            [WmiDataId(1), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
+            [WmiDataId(2), Description("Variable name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Name;
+            [WmiDataId(3), Description("Array index"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Index;
             [WmiDataId(4), Description("Value"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Value;
+            [WmiDataId(5), Description("Context"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Context;
         };
 
         [dynamic: ToInstance, Description("TWAPI execution trace"): Amended,
@@ -144,7 +145,20 @@ proc twapi::etw_install_mof {} {
             [WmiDataId(2), Description("Executed command"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Command;
             [WmiDataId(3), Description("Status code"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Code;
             [WmiDataId(4), Description("Result"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Result;
+            [WmiDataId(5), Description("Context"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Context;
         };
+
+        [dynamic: ToInstance, Description("TWAPI command trace"): Amended,
+         EventType(4), EventTypeName("CommandTrace")]
+        class @eventclass_name_CommandTrace : @eventclass_name
+        {
+            [WmiDataId(1), Description("Operation"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Operation;
+            [WmiDataId(2), Description("Old command name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string OldName;
+            [WmiDataId(3), Description("New command name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string NewName;
+            [WmiDataId(4), Description("Context"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Context;
+        };
+
+
 
     }
 
@@ -186,9 +200,76 @@ proc twapi::etw_register_provider {} {
 
 interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 
-proc twapi::etw_trace_message {htrace message} {
+proc twapi::etw_log_message {htrace message} {
+    # Must match Message event type in MoF definition
     TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
 }
+
+proc twapi::etw_variable_tracker {htrace name1 name2 op} {
+    switch -exact -- $op {
+        array -
+        unset { set var "" }
+        default {
+            if {$name2 eq ""} {
+                upvar 1 $name1 var
+            } else {
+                upvar 1 $name1($name2) var
+            }
+        }
+    }
+
+    if {[info level] > 1} {
+        set context [info level -1]
+    } else {
+        set context ""
+    }
+
+    # Must match VariableTrace event type in MoF definition
+    TraceEvent $htrace 2 0 \
+        [encoding convertto unicode "$op\0$name1\0$name2\0$var\0$context\0"]
+}
+
+
+proc twapi::etw_execution_tracker {htrace command args} {
+    set op [lindex $args end]
+
+    switch -exact -- $op {
+        enter -
+        enterstep {
+            set code ""
+            set result ""
+        }
+        leave -
+        leavestep {
+            lassign $args code result
+        }
+    }
+
+    if {[info level] > 1} {
+        set context [info level -1]
+    } else {
+        set context ""
+    }
+
+    # Must match Execution event type in MoF definition
+    TraceEvent $htrace 3 0 \
+        [encoding convertto unicode "$op\0$command\0$code\0$result\0$context\0"]
+}
+
+
+proc twapi::etw_command_tracker {htrace oldname newname op} {
+    if {[info level] > 1} {
+        set context [info level -1]
+    } else {
+        set context ""
+    }
+
+    # Must match CommandTrace event type in MoF definition
+    TraceEvent $htrace 4 0 \
+        [encoding convertto unicode "$op\0oldname\0$newname\0$context\0"]
+}
+
+
 
 proc twapi::etw_parse_mof_event_class {ocls} {
     # Returns a dict 
@@ -555,7 +636,7 @@ proc twapi::etw_dump_file {path args} {
                         binary scan [string range [dict get $event -mofdata] 0 31] H* hex
                         set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
                     }
-                    {*}$lambda [dict get $event -timestamp] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
+                    {*}$lambda [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
                 }
             }
         } $lambda $varname $opts(limit) $wmi]
