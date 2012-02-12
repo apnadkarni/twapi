@@ -101,6 +101,15 @@ proc twapi::etw_install_mof {} {
     
     # MOF definition for our ETW trace event. This is loaded into
     # the system WMI registry so event readers can decode our events
+    #
+    # Note all strings are NullTerminated and not Counted so embedded nulls
+    # will not be handled correctly. The problem with using Counted strings
+    # is that the MSDN docs are inconsistent as to whether the count
+    # is number of *bytes* or number of *characters* and the existing tools
+    # are similarly confused. We avoid this by choosing null terminated
+    # strings despite the embedded nulls drawback.
+    # TBD - revisit this and see if counted can always be treated as
+    # bytes and not characters.
     set mof_template {
         #pragma namespace("\\\\.\\root\\wmi")
 
@@ -157,9 +166,6 @@ proc twapi::etw_install_mof {} {
             [WmiDataId(3), Description("New command name"): Amended, read, StringTermination("NullTerminated"), Format("w")] string NewName;
             [WmiDataId(4), Description("Context"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Context;
         };
-
-
-
     }
 
     set mof [string map \
@@ -202,7 +208,7 @@ interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 
 proc twapi::etw_log_message {htrace message} {
     # Must match Message event type in MoF definition
-    TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
+    TraceEvent $htrace 1 0 [_etw_construct_event_strings $message]
 }
 
 proc twapi::etw_variable_tracker {htrace name1 name2 op} {
@@ -226,7 +232,7 @@ proc twapi::etw_variable_tracker {htrace name1 name2 op} {
 
     # Must match VariableTrace event type in MoF definition
     TraceEvent $htrace 2 0 \
-        [encoding convertto unicode "$op\0$name1\0$name2\0$var\0$context\0"]
+        [_etw_construct_event_strings $op $name1 $name2 $var $context]
 }
 
 
@@ -253,7 +259,7 @@ proc twapi::etw_execution_tracker {htrace command args} {
 
     # Must match Execution event type in MoF definition
     TraceEvent $htrace 3 0 \
-        [encoding convertto unicode "$op\0$command\0$code\0$result\0$context\0"]
+        [_etw_construct_event_strings $op $command $code $result $context]
 }
 
 
@@ -266,10 +272,8 @@ proc twapi::etw_command_tracker {htrace oldname newname op} {
 
     # Must match CommandTrace event type in MoF definition
     TraceEvent $htrace 4 0 \
-        [encoding convertto unicode "$op\0oldname\0$newname\0$context\0"]
+        [_etw_construct_event_strings $op $oldname $newname $context]
 }
-
-
 
 proc twapi::etw_parse_mof_event_class {ocls} {
     # Returns a dict 
@@ -646,4 +650,20 @@ proc twapi::etw_dump_file {path args} {
         if {[info exists wmi]} {$wmi destroy}
         flush $opts(outfd)
     }
+}
+
+proc twapi::_etw_construct_event_strings {args} {
+    set max 80
+    if {0 && [llength $args] == 0} {
+        return [binary format s 0]
+    }
+    set result ""
+    foreach arg $args {
+        if {[string length $arg] > $max} {
+            set s [string range $arg 0 $max-1]
+        }
+        append result [encoding convertto unicode "$arg\0"]
+#        append result "[binary format s [string length $arg]][encoding convertto unicode $arg]"
+    }
+    return $result
 }
