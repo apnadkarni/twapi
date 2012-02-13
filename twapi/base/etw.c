@@ -366,12 +366,11 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
      */
     if (session_name_i > 0) {
         etP->LoggerNameOffset = sizeof(*etP);
-        /* TBD - not clear we need to actually copy this here or
-           sufficient just to leave space for and StartTrace does it
-           itself
-        */
+#if 0
+        We do not need to actually copy this here as StartTrace does it itself
         CopyMemory(etP->LoggerNameOffset + (char *)etP,
                    session_name, sizeof(WCHAR) * (session_name_i + 1));
+#endif
         etP->LogFileNameOffset = sizeof(*etP) + (sizeof(WCHAR) * (session_name_i + 1));
     } else {
         etP->LoggerNameOffset = 0; /* TBD or should it be sizeof(*etP) even in this case with an empty string? */
@@ -759,17 +758,13 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (Tcl_GetLongFromObj(interp, objv[0], &code) != TCL_OK)
         return TCL_ERROR;
 
-    if (objc == 2) {
-        /* Two arguments - code and EVENT_TRACE_PROPERTIES structure */
-        htrace = 0;
-    } else if (objc == 3) {
-        if (Tcl_GetWideIntFromObj(interp, objv[2], &htrace) != TCL_OK)
-            return TCL_ERROR;
-    } else {
+    if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    }
 
-    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[1], &etP) != TCL_OK)
+    if (Tcl_GetWideIntFromObj(interp, objv[1], &htrace) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
         return TCL_ERROR;
 
     if (etP->LoggerNameOffset)

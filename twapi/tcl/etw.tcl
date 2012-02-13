@@ -652,11 +652,151 @@ proc twapi::etw_dump_file {path args} {
     }
 }
 
+proc twapi::etw_start_trace {session_name args} {
+
+    array set opts [parseargs args {
+        sessionguid.arg
+        logfile.arg
+        buffersize.int
+        minbuffers.int
+        maxbuffers.int
+        maximumfilesize.int
+        flushtimer.int
+        enableflags.int
+        {clockresolution.arg 1}
+        {bufferingmode {} 0x400}
+        {filemodeappend {} 0x4}
+        {filemodecircular {} 0x2}
+        {filemodenewfile {} 0x8}
+        {filemodesequential {} 0x1}
+        {noperprocessorbuffering {} 0x10000000}
+        {privateloggermode {} 0x800}
+        {realtimemode {} 0x100}
+        {securemode {} 0x80}
+        {usekbytesforsize {} 0x2000}
+        {privateinproc {} 0x20000}
+        {useglobalsequence {} 0x4000}
+        {uselocalsequence {} 0x8000}
+        {usepagedmemory {} 0x01000000}
+        {preallocate {} 0x20}
+    } -maxleftover 0]
+
+    set params [list -sessioname $session_name]
+
+    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers maximumfilesize flushtimer enableflags} {
+        if {[info exists opts($opt)]} {
+            lappend params -$opt $opts($opt)
+        }
+    }
+
+    set logfilemode 0
+    # Check for all bad combinations. Note the pairings are not symmetrical
+    # to avoid needless double checks
+    foreach {opt badopts} {
+        bufferingmode {}
+        filemodeappend {filemodecircular filemodenewfile privateloggermode}
+        filemodecircular {filemodenewfile filemodesequential}
+        filemodenewfile {filemodesequential privateloggermode}
+        filemodesequential {}
+        noperprocessorbuffering {} 
+        privateloggermode {}
+        realtimemode {bufferingmode privateloggermode filemodeappend}
+        securemode {}
+        usekbytesforsize {}
+        privateinproc {}
+        useglobalsequence {uselocalsequence}
+        uselocalsequence {}
+        usepagedmemory {}
+        preallocate {}
+    } {
+        if {$opts($opt)} {
+            foreach badopt $badopts {
+                if {$opts($badopt)} {
+                    error "Options -$opt and -$badopt cannot be specified togeth
+er."
+                }
+            }
+            set logfilemode [expr {$logfilemode | $opts($opt)}]
+        }
+    }
+
+    if {$opts(filemodeappend) &&
+        $opts(clockresolution) ni {2 system}} {
+        error "Option -clockresolution must be set to 'system' if -filemodeappend is specified"
+    }
+
+    if {($opts(filemodenewfile) || $opts(preallocate)) &&
+        ![info exists opts(maximumfilesize)]} {
+        error "Option -maximumfilesize must also be specified with -preallocate or -filemodenewfile."
+    }
+
+    lappend params -logfilemode $logfilemode
+    if {[string is integer $opts(clockresolution)]} {
+        lappend params -clockresolution $opts(clockresolution)
+    } else {
+        lappend params -clockresolution [dict get {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
+    }
+
+    return [StartTrace $params]
+}
+
+interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
+
+
+proc twapi::etw_control_trace {action args} {
+
+    if {$action ni {update query stop flush}} {
+        error "Parameter 'action' must be one of update, query, flush, or stop"
+    }
+
+    array set opts [parseargs args {
+        {sessionhandle.arg 0}
+        sessionname.arg
+        sessionguid.arg
+        logfile.arg
+        maxbuffers.int
+        flushtimer.int
+        enableflags.int
+        realtimemode.bool
+    } -maxleftover 0]
+
+    set params {}
+
+    if {(![info exists opts(sessionhandle)]) &&
+        (![info exists opts(sessionname)])} {
+        error "One of -sessionhandle or -sessionname must be specified."
+    }
+
+    if {[info exists opts(realtimemode)]} {
+        if {$opts(realtimemode)} {
+            lappend params -logfilemode 0x100
+        } else {
+            lappend params -logfilemode 0
+        }
+    }
+        
+    foreach opt {sessionguid sessionname} {
+        if {[info exists opts($opt)]} {
+            lappend params -$opt $opts($opt)
+        }
+    }
+
+    if {$action eq "update"} {
+        foreach opt {logfile flushtimer enableflags maxbuffers} {
+            if {[info exists opts($opt)]} {
+                lappend params -$opt $opts($opt)
+            }
+        }
+    }
+
+    return [ControlTrace $opts(sessionhandle) $params]
+}
+
+
+
+
 proc twapi::_etw_construct_event_strings {args} {
     set max 80
-    if {0 && [llength $args] == 0} {
-        return [binary format s 0]
-    }
     set result ""
     foreach arg $args {
         if {[string length $arg] > $max} {
