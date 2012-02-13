@@ -1054,19 +1054,25 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 {
     int i;
     FILETIME start, end, *startP, *endP;
-    TRACEHANDLE htraces[1];
     Tcl_Interp *interp = ticP->interp;
     struct TwapiETWContext etwc;
     int buffer_cmdlen;
     int code;
     DWORD winerr;
-    
+    Tcl_Obj **htraceObjs;
+    TRACEHANDLE htraces[8];
+    int       ntraces;
 
     if (objc != 4)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjToTRACEHANDLE(interp, objv[0], &htraces[0]) != TCL_OK)
+    if (Tcl_ListObjGetElements(interp, objv[0], &ntraces, &htraceObjs) != TCL_OK)
         return TCL_ERROR;
+
+    for (i = 0; i < ntraces; ++i) {
+        if (ObjToTRACEHANDLE(interp, htraceObjs[i], &htraces[i]) != TCL_OK)
+            return TCL_ERROR;
+    }
 
     /* Verify command prefix is a list. It's OK to be empty, we
      * effectively drain the buffer without doing anything
@@ -1115,7 +1121,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         Tcl_IncrRefCount(gETWBufferKeys[i].keyObj);
     }
 
-    winerr = ProcessTrace(htraces, 1, startP, endP);
+    winerr = ProcessTrace(htraces, ntraces, startP, endP);
 
     /* Copy and reset context before unlocking */
     etwc = gETWContext;

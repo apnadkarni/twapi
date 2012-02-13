@@ -540,14 +540,14 @@ proc twapi::etw_close_trace {htrace} {
 }
 
 
-proc twapi::etw_process_events {htrace args} {
+proc twapi::etw_process_events {args} {
     array set opts [parseargs args {
         callback.arg
         start.arg
         end.arg
-    } -maxleftover 0 -nulldefault]
+    } -nulldefault]
 
-    return [ProcessTrace $htrace $opts(callback) $opts(start) $opts(end)]
+    return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
 
 proc twapi::etw_format_events {oswbemservices bufdesc events} {
@@ -606,7 +606,7 @@ parray missing
 }
 
 
-proc twapi::etw_dump_file {path args} {
+proc twapi::etw_dump_files {args} {
 
     uplevel #0 {package require csv}
 
@@ -615,7 +615,7 @@ proc twapi::etw_dump_file {path args} {
         {limit.int -1}
         {format.arg list {csv list}}
         {separator.arg ,}
-    } -maxleftover 0]
+    }]
 
     if {$opts(format) eq "csv"} {
         set lambda [list apply [list args "puts $opts(outfd) \[csv::join \$args \"$opts(separator)\"]"]]
@@ -623,12 +623,16 @@ proc twapi::etw_dump_file {path args} {
         set lambda [list apply [list args "puts $opts(outfd) \$args"]]
     }
 
+
     trap {
-        set wmi [twapi::_wmi wmi]
-        set htrace [etw_open_trace $path]
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
-        etw_process_events $htrace -callback [list apply {
+        set htraces {}
+        set wmi [twapi::_wmi wmi]
+        foreach arg $args {
+            lappend htraces [etw_open_trace $arg]
+        }
+        set callback [list apply {
             {lambda counter_varname max wmi bufd events}
             {
                 foreach event [etw_format_events $wmi $bufd $events] {
@@ -644,9 +648,15 @@ proc twapi::etw_dump_file {path args} {
                 }
             }
         } $lambda $varname $opts(limit) $wmi]
+
+        # Process the events using the callback
+        etw_process_events -callback $callback {*}$htraces
+
     } finally {
         unset -nocomplain $varname
-        if {[info exists htrace]} {etw_close_trace $htrace}
+        foreach htrace $htraces {
+            etw_close_trace $htrace
+        }
         if {[info exists wmi]} {$wmi destroy}
         flush $opts(outfd)
     }
@@ -882,3 +892,4 @@ proc twapi::_etw_get_types {} {
     }
     return $types
 }
+
