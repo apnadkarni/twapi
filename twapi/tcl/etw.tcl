@@ -677,11 +677,11 @@ proc twapi::etw_start_trace {session_name args} {
         {privateinproc {} 0x20000}
         {useglobalsequence {} 0x4000}
         {uselocalsequence {} 0x8000}
-        {usepagedmemory {} 0x01000000}
-        {preallocate {} 0x20}
+        {usepagedmemory.bool 0x01000000 0x01000000}
+        {preallocate.bool 0 0x20}
     } -maxleftover 0]
 
-    set params [list -sessioname $session_name]
+    set params {}
 
     foreach opt {sessionguid logfile buffersize minbuffers maxbuffers maximumfilesize flushtimer enableflags} {
         if {[info exists opts($opt)]} {
@@ -689,9 +689,9 @@ proc twapi::etw_start_trace {session_name args} {
         }
     }
 
-    set logfilemode 0
     # Check for all bad combinations. Note the pairings are not symmetrical
     # to avoid needless double checks
+
     foreach {opt badopts} {
         bufferingmode {}
         filemodeappend {filemodecircular filemodenewfile privateloggermode}
@@ -716,9 +716,11 @@ proc twapi::etw_start_trace {session_name args} {
 er."
                 }
             }
-            set logfilemode [expr {$logfilemode | $opts($opt)}]
+            incr logfilemode $opts($opt)
         }
     }
+
+    lappend params -logfilemode $logfilemode
 
     if {$opts(filemodeappend) &&
         $opts(clockresolution) ni {2 system}} {
@@ -730,14 +732,13 @@ er."
         error "Option -maximumfilesize must also be specified with -preallocate or -filemodenewfile."
     }
 
-    lappend params -logfilemode $logfilemode
     if {[string is integer $opts(clockresolution)]} {
         lappend params -clockresolution $opts(clockresolution)
     } else {
         lappend params -clockresolution [dict get {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
     }
 
-    return [StartTrace $params]
+    return [StartTrace $session_name $params]
 }
 
 interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
