@@ -691,7 +691,7 @@ proc twapi::etw_start_trace {session_name args} {
 
     # Check for all bad combinations. Note the pairings are not symmetrical
     # to avoid needless double checks
-
+    set logfilemode 0
     foreach {opt badopts} {
         bufferingmode {}
         filemodeappend {filemodecircular filemodenewfile privateloggermode}
@@ -741,14 +741,66 @@ er."
     return [StartTrace $session_name $params]
 }
 
-interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
+proc twapi::etw_start_kernel_trace {args} {
+    
+    set optlist {
+        {process.bool 0 0x00000001}
+        {thread.bool 0 0x00000002}
+        {imageload.bool 0x00000004}
+        {diskio.bool 0 0x00000100}
+        {diskfileio.bool 0 0x00000200}
+        {pagefault.bool 0 0x00001000}
+        {hardfault.bool 0 0x00002000}
+        {tcpip.bool 0 0x00010000}
+        {registry.bool 0 0x00020000}
+        {dbgprint.bool 0 0x00040000}
+    }
 
+    if {[min_os_version 6]} {
+        lappend optlist {*}{
+            {processcounter.bool 0 0x00000008}
+            {contextswitch.bool 0 0x00000010}
+            {dpc.bool 0 0x00000020}
+            {interrupt.bool 0 0x00000040}
+            {systemcall.bool 0 0x00000080}
+            {diskioinit.bool 0 0x00000400}
+            {alpc.bool 0 0x00100000}
+            {splitio.bool 0 0x00200000}
+            {driver.bool 0 0x00800000}
+            {profile.bool 0 0x01000000}
+            {fileio.bool 0 0x02000000}
+            {fileioinit.bool 0 0x04000000}
+        }
+    }
+
+    if {[min_os_version 6]} {
+        lappend optlist {*}{
+            {dispatcher.bool 0 0x00000800}
+            {virtualalloc.bool 0 0x00004000}
+        }
+    }
+
+    array set opts [parseargs args $optlist -ignoreunknown]
+    set enableflags 0
+    foreach {opt val} [array get opts] {
+        incr enableflags $val
+    }
+
+    # Name "NT Kernel Logger" is hardcoded in Windows
+    # GUID is 9e814aad-3204-11d2-9a82-006008a86939
+    return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args]
+}
+
+interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
 
 proc twapi::etw_control_trace {action args} {
 
-    if {$action ni {update query stop flush}} {
-        error "Parameter 'action' must be one of update, query, flush, or stop"
-    }
+    set action [dict get {
+        query  0
+        stop   1
+        update 2
+        flush  3
+    } $action]
 
     array set opts [parseargs args {
         {sessionhandle.arg 0}
@@ -790,10 +842,19 @@ proc twapi::etw_control_trace {action args} {
         }
     }
 
-    return [ControlTrace $opts(sessionhandle) $params]
+    return [ControlTrace $action $opts(sessionhandle) $params]
 }
 
+interp alias {} twapi::etw_stop_trace {} twapi::etw_control_trace stop
+interp alias {} twapi::etw_flush_trace {} twapi::etw_control_trace flush
+interp alias {} twapi::etw_query_trace {} twapi::etw_control_trace query
+interp alias {} twapi::etw_update_trace {} twapi::etw_control_trace update
 
+
+
+#
+# Helper functions
+#
 
 
 proc twapi::_etw_construct_event_strings {args} {
