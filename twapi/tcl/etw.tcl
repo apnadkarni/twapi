@@ -666,3 +666,17 @@ proc twapi::_etw_construct_event_strings {args} {
     }
     return $result
 }
+
+# Used for development/debug to see what all types are in use
+proc twapi::_etw_get_types {} {
+    dict for {g gval} $::twapi::_etw_event_defs {
+        dict for {ver verval} $gval {
+            dict for {eventtype eval} [dict get $verval -definitions] {
+                dict for {id idval} [dict get $eval -fields] {
+                    dict set types [dict get $idval -type] [dict get $verval -classname] $eventtype $id
+                }
+            }
+        }
+    }
+    return $types
+}

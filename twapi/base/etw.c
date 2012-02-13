@@ -1261,6 +1261,16 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             if (typeenum == 6)  /* Need to swap bytes */
                 eaten = ((eaten & 0xff) << 8) | (eaten >> 8);
             /* Note eaten is num *characters*, not bytes at this point */
+            /* TBD - there is much confusion as to whether the this
+               is actually true. The latest SDK docs (Windows 7) states
+               this is the case and its code example also treats it
+               this way. On the other hand, older SDK's treat this
+               as number of *bytes* in their sample code as does the
+               well know LogParser utility. On XP there does not seem
+               to be a MoF that actually uses this so maybe it is moot.
+               For now leave as is 
+            */
+
             if ((remain-2) < (sizeof(WCHAR)*eaten)) {
                 /* truncated */
                 objP = ObjFromUnicodeN((WCHAR *)(bytesP+2), (remain-2)/sizeof(WCHAR));
