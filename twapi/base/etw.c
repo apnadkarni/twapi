@@ -296,8 +296,8 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     int i, buf_sz;
     Tcl_Obj **objv;
     int       objc;
-    int       logfile_name_i = -1;
-    int       session_name_i = -1;
+    int       logfile_name_i;
+    int       session_name_i;
     WCHAR    *logfile_name;
     WCHAR    *session_name;
     EVENT_TRACE_PROPERTIES *etP;
@@ -313,6 +313,8 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     }
 
     /* First loop and find out required buffers size */
+    session_name_i = -1;
+    logfile_name_i = -1;
     for (i = 0 ; i < objc ; i += 2) {
         if (Tcl_GetIndexFromObj(interp, objv[i], g_event_trace_fields, "event trace field", TCL_EXACT, &field) != TCL_OK)
             return TCL_ERROR;
@@ -346,14 +348,14 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
         buf_sz += sizeof(WCHAR) * (session_name_i+1);
     } else {
         /* Leave max space in case kernel wants to fill it in */
-        buf_sz += sizeof(WCHAR) * MAX_TRACE_NAME_CHARS;
+        buf_sz += sizeof(WCHAR) * (MAX_TRACE_NAME_CHARS+1);
     }
     if (logfile_name_i > 0) {
         /* Logfile name may be appended with numeric strings (PID/sequence) */
         buf_sz += sizeof(WCHAR) * (logfile_name_i+1 + 20);
     } else {
         /* Leave max space in case kernel wants to fill it in on a query */
-        buf_sz += sizeof(WCHAR) * MAX_TRACE_NAME_CHARS;
+        buf_sz += sizeof(WCHAR) * (MAX_TRACE_NAME_CHARS + 1);
     }
 
     etP = TwapiAlloc(buf_sz);
@@ -364,25 +366,29 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     /* Copy the session name and log file name to end of struct.
      * Note that the session name MUST come first
      */
+    etP->LoggerNameOffset = sizeof(*etP);
     if (session_name_i > 0) {
-        etP->LoggerNameOffset = sizeof(*etP);
-#if 0
-        We do not need to actually copy this here as StartTrace does it itself
+        /*
+         * We do not need to actually copy this here for StartTrace as it does
+         * itself. But our own Twapi_ControlTrace picks up the name from
+         * this structure so we need to copy it.
+         */
         CopyMemory(etP->LoggerNameOffset + (char *)etP,
                    session_name, sizeof(WCHAR) * (session_name_i + 1));
-#endif
         etP->LogFileNameOffset = sizeof(*etP) + (sizeof(WCHAR) * (session_name_i + 1));
     } else {
-        etP->LoggerNameOffset = 0; /* TBD or should it be sizeof(*etP) even in this case with an empty string? */
         /* We left max space for unknown session name */
-        etP->LogFileNameOffset = sizeof(*etP) + (sizeof(WCHAR) * MAX_TRACE_NAME_CHARS);
+        etP->LogFileNameOffset = sizeof(*etP) + (sizeof(WCHAR) * (MAX_TRACE_NAME_CHARS+1));
     }
         
     if (logfile_name_i > 0) {
         CopyMemory(etP->LogFileNameOffset + (char *) etP,
                    logfile_name, sizeof(WCHAR) * (logfile_name_i + 1));
     } else {
+#if 0
+        Do not set to 0 as ControlTrace Query may need to store filename
         etP->LogFileNameOffset = 0;
+#endif
     }
 
     /* Now deal with the rest of the fields, after setting some defaults */
@@ -729,6 +735,11 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[1], &etP) != TCL_OK)
         return TCL_ERROR;
 
+    /* If no log file specified, set logfilenameoffset to 0 
+       since ObjToPEVENT_TRACE_PROPERTIES does not do that as it
+       is also used by ControlTrace */
+    if (*(WCHAR *) (etP->LogFileNameOffset + (char *)etP) == 0)
+        etP->LogFileNameOffset = 0;
 
     if (StartTraceW(&htrace,
                     Tcl_GetUnicode(objv[0]),
@@ -765,7 +776,8 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
         return TCL_ERROR;
 
-    if (etP->LoggerNameOffset)
+    if (etP->LoggerNameOffset &&
+        (*(WCHAR *) (etP->LoggerNameOffset + (char *)etP) != 0))
         session_name = (WCHAR *)(etP->LoggerNameOffset + (char *)etP);
     else
         session_name = NULL;
