@@ -301,7 +301,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     WCHAR    *logfile_name;
     WCHAR    *session_name;
     EVENT_TRACE_PROPERTIES *etP;
-
+    Tcl_WideInt wide;
     int field;
 
     if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
@@ -388,7 +388,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     /* Now deal with the rest of the fields, after setting some defaults */
     etP->Wnode.ClientContext = 2; /* Default - system timer resolution is cheape
 st */
-    etP->LogFileMode = EVENT_TRACE_USE_PAGED_MEMORY | EVENT_TRACE_FILE_MODE_APPEND;
+    etP->LogFileMode = EVENT_TRACE_USE_PAGED_MEMORY;
 
     for (i = 0 ; i < objc ; i += 2) {
         ULONG *ulP;
@@ -451,8 +451,9 @@ st */
             ulP = &etP->RealTimeBuffersLost;
             break;
         case 18: // -loggerthread
-            if (ObjToHANDLE(interp, objv[i+1], &etP->LoggerThreadId) != TCL_OK)
+            if (Tcl_GetWideIntFromObj(interp, objv[i+1], &wide) != TCL_OK)
                 goto error_handler;
+            etP->LoggerThreadId = (HANDLE) wide;
             break;
         default:
             Tcl_SetResult(interp, "Internal error: Unexpected field index.", TCL_STATIC);
@@ -513,7 +514,7 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     objs[31] = Tcl_NewLongObj(etP->BuffersWritten);
     objs[33] = Tcl_NewLongObj(etP->LogBuffersLost);
     objs[35] = Tcl_NewLongObj(etP->RealTimeBuffersLost);
-    objs[37] = ObjFromHANDLE(etP->LoggerThreadId);
+    objs[37] = Tcl_NewWideIntObj((Tcl_WideInt) etP->LoggerThreadId);
 
     return Tcl_NewListObj(ARRAYSIZE(objs), objs);
 }
@@ -723,18 +724,15 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *objs[2];
     
-    if (objc != 1)
+    if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[0], &etP) != TCL_OK)
+    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[1], &etP) != TCL_OK)
         return TCL_ERROR;
 
-    if (etP->LoggerNameOffset == 0) {
-        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Session name not specified.");
-    }
 
     if (StartTraceW(&htrace,
-                   (WCHAR *) (etP->LoggerNameOffset + (char *)etP),
-                   etP) != ERROR_SUCCESS) {
+                    Tcl_GetUnicode(objv[0]),
+                    etP) != ERROR_SUCCESS) {
         Twapi_AppendSystemError(interp, GetLastError());
         TwapiFree(etP);
         return TCL_ERROR;
