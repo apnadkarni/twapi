@@ -51,6 +51,7 @@ MANFILES= \
 	security.man \
 	crypto.man \
 	eventlog.man \
+	etw.man \
 	inifile.man \
 	console.man \
 	desktop.man \

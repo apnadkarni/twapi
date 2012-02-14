@@ -1,0 +1,194 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Event Tracing" n ""]
+[copyright "2012 Ashok P. Nadkarni"]
+[moddesc "Event Tracing for Windows"]
+[titledesc "Commands related to Event Tracing for Windows"]
+[require twapi]
+[description]
+[para]
+
+Windows includes a facility, Event Tracing for Windows (ETW), that allows
+the kernel and applications to log events that can either be written to
+a file or consumed in real time. This module provides access to this facility.
+
+[section "Overview"]
+
+[para]
+In ETW, events are written to a [uri #tracesessions "trace session"] by
+[uri #eventproviders "event providers"] under the control of
+[uri #eventcontrollers "event controllers"] which manage the mapping between
+the two.
+[uri eventconsumers "Event consumers"] read events from one or more such
+trace sessions for display to the user or any other purpose. TWAPI provides
+support for implementing all of the above.
+
+[para]
+There are two different technologies on which ETW is based. All modern
+(post-Windows XP up to Windows 7) 
+versions of Windows support ETW based on Managed Object 
+Format (MOF) event definitions. Windows Vista and later versions also
+implement a newer version of ETW based on XML manifests. TWAPI
+currently supports only MOF based event tracing.
+
+
+[section "Trace sessions"]
+
+A event trace session consists of a set of buffers, and optionally an 
+associated file, to which events are written. The session has other
+associated parameters such as the time stamping granularity,
+access control information and buffer limits. Event providers always
+write events to a specific trace session.
+
+[section "Event controllers"]
+
+[para]
+An event controller manages event trace sessions and their association
+with event providers. The following TWAPI commands can be used
+to implement an event controller:
+[list_begin bullet]
+[bullet] To create a new event trace session, use the 
+command [uri #etw_start_trace [cmd etw_start_trace]] which
+creates a new trace session with configurable parameters.
+[bullet] To create and remove associations between event providers
+and trace sessions, use the [uri #etw_enable_trace [cmd etw_enable_trace]]
+command. This command can also be used to communicate to the event providers
+what events are to be logged.
+[bullet] Use [uri #etw_query_trace [cmd etw_query_trace]]
+and [uri #etw_query_trace [cmd etw_query_trace]] to query and change
+the parameters of an existing trace session.
+[bullet] To stop a trace session, use the
+[uri #etw_stop_trace [cmd etw_stop_trace]] command. To flush the event
+trace buffers without terminating the trace session, use
+[uri #etw_flush_trace [cmd etw_flush_trace]] command.
+[list_end]
+
+[para]
+Note that the above commands can be used with [emph any] trace session,
+not just those created using [uri #etw_start_trace [cmd etw_start_trace]].
+For example, trace sessions created with the Windows 
+[cmd logman] or [cmd tracelog]
+command can be controlled with the above command and vice versa.
+
+[section "Event providers"]
+
+[para]
+Event providers are components that write events to a trace session.
+Association with a specific trace session is [emph not] under the control
+of the provider; that is a controller function. Of course, a single
+application may host both an event provider as well as an event controller.
+
+[para]
+Controllers send configuration information to providers in the form
+of [emph "enable flags"] and the [emph "enable level"]. The interpretation
+of these is [emph entirely] to the discretion of the event provider.
+Neither Windows, nor TWAPI, interpret these in any way.
+[para]
+By convention,
+applications treat the enable flags as a bit mask that indicates
+the class(es) of events to log. For example, each bit might correspond
+to a specific subsystem. Note that a value of [const 0] does not
+mean the provider is disabled. It is up to the application as to how
+a value of [const 0] is interpreted. To determine whether a provider
+is actually enabled in the sense of being attached to a trace session,
+use the [uri #etw_trace_enabled [cmd etw_trace_enabled]] command.
+[para]
+Similarly, the enable level is generally treated as a
+severity level, but again, this is not mandated. The TWAPI commands
+[uri #etw_provider_enable_flags [cmd etw_provider_enable_flags]] and
+[uri #etw_provider_enable_level [cmd etw_provider_enable_level]] can
+be used to obtain the current values.
+
+[para]
+Before any controller can add a provider to a trace session, the provider
+has to register itself through the 
+[uri #etw_register_provider [cmd etw_register_provider]] call.
+Correspondingly, the command 
+[uri #etw_unregister_provider [cmd etw_unregister_provider]] unregisters
+the provider. Note that this must be done after the provider is detached
+from any sessions else Windows exhibits anomalous but harmless behaviour
+where the provider's calls to write events to the session still work
+but the provider is not notified of changes in the enable flags and level
+or when the trace session is stopped.
+
+[para]
+Once a provider is registered and attached to a trace session, events
+can be logged to the session with the
+[uri #etw_log_message [cmd etw_log_message]] command.
+
+[section "Event consumers"]
+
+[para]
+ETW event consumers read events from trace sessions in real time or from
+a log file. An example of an event consumers is the command line program
+[cmd tracerpt] which comes with Windows. The ETW interface allows 
+a consumer to read events from multiple trace sessions and merges
+them as needed.
+
+[para]
+TWAPI provides the high-level [uri #etw_dump_files [cmd etw_dump_files]]
+command which can read events and write them in multiple output formats.
+Alternatively, call [uri #etw_open_trace [cmd etw_open_trace]] to
+open each logfile or real time session of interest. Then invoke
+the commands
+[uri #etw_process_events [cmd etw_process_events]] and
+[uri #etw_format_events [cmd etw_format_events]] to process the events.
+Trace sessions opened with [cmd etw_open_trace] should be closed
+with [uri #etw_close_trace [cmd etw_close_trace]] after processing.
+
+[section "Event definitions"]
+[para]
+Events written via ETW can have arbitrary binary formats. In order
+for consumers to be able to parse and extract data, they need to
+know the event definition. Providers use either Managed Object Format
+or XML manifests (Vista and later) to provide consumers with this
+information. TWAPI currently supports only the former for both
+reading and writing events.
+[para]
+When reading events, TWAPI will automatically look up MOF definitions
+as needed. Applications can preload these definitions for a slight
+gain in performance by calling
+[uri #etw_load_mof_event_classes [cmd etw_load_mof_event_classes]].
+[para]
+In order for event consumers to correctly parse events, TWAPI also
+has to make the MOF definitions for its ETW events available.
+This is done by calling the [uri #etw_install_mof [cmd etw_install_mof]]
+command. This must be done on the system where the event consumer runs.
+It is not required on the system where the events are generated.
+
+[section "Tracing kernel events"]
+
+
+[section "Tracing Tcl"]
+
+[section "ETW Controller Commands"]
+
+[list_begin definitions]
+
+[call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
+
+Starts a new ETW trace session.
+
+[list_begin opt]
+[opt_def [cmd -sessionguid] [arg GUID]] The GUID to assign to the session.
+If not specified, Windows will internally generate the GUID for the
+trace session. The primary purpose for specifying this is to allow
+for setting access control on the session.
+[list_end]
+
+[list_end]
+
+[section "ETW Provider Commands"]
+
+
+[list_begin definitions]
+
+[call [cmd etw_register_provider] [arg SESSIONNAME] [opt [arg options]]]
+
+Registers the provider so that it can be added to a trace session.
+
+
+[list_end]
+
+[keywords "ETW" "event tracing" "tracing"]
+
+[manpage_end]
