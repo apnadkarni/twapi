@@ -680,8 +680,6 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         EVENT_TRACE_HEADER eth;
         MOF_FIELD mof[16];
     } event;
-    WCHAR *msgP;
-    int    msglen;
     int    type;
     int    level;
     TRACEHANDLE htrace;
@@ -690,7 +688,7 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     /* Args: provider handle, type, level, ?binary strings...? */
 
     /* If no tracing is on, just ignore, do not raise error */
-    if (gETWProviderSessionHandle == 0)
+    if ((HANDLE) gETWProviderSessionHandle == INVALID_HANDLE_VALUE)
         return TCL_OK;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
@@ -820,7 +818,6 @@ void WINAPI TwapiETWEventCallback(
 )
 {
     Tcl_Interp *interp;
-    int code;
     Tcl_Obj *evObj;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
@@ -1212,7 +1209,6 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     for (i = 0, remain = nbytes; i < ntypes && remain > 0; i += 2, bytesP += eaten, remain -= eaten) {
         int typeenum;
         Tcl_Obj *objP;
-        Tcl_Obj *tempobjP;
 
         /* Index i is field name, i+1 is field type */
 
