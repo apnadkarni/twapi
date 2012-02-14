@@ -938,7 +938,7 @@ extern TwapiId volatile gIdGenerator;
 extern CRITICAL_SECTION gETWCS;
 extern ULONG  gETWProviderTraceEnableFlags;
 extern ULONG  gETWProviderTraceEnableLevel;
-
+extern TRACEHANDLE gETWProviderSessionHandle;
 
 #define ERROR_IF_UNTHREADED(interp_)        \
     do {                                        \

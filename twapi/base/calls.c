@@ -431,6 +431,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
     CALL_(etw_provider_enable_flags, Call, 84);     /* TBD docs */
     CALL_(etw_provider_enable_level, Call, 85);     /* TBD docs */
+    CALL_(etw_provider_enabled, Call, 86);          /* TBD docs */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1535,13 +1536,17 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 break;
             }
             break;
-        case 84:
+        case 84: // etw_provider_enable_flags
             result.type = TRT_DWORD;
             result.value.ival = gETWProviderTraceEnableFlags;
             break;
-        case 85:
+        case 85: // etw_provider_enable_level
             result.type = TRT_DWORD;
             result.value.ival = gETWProviderTraceEnableLevel;
+            break;
+        case 86: // etw_provider_enabled
+            result.type = TRT_BOOL;
+            result.value.bval = ((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
             break;
         }
 
