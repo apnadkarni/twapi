@@ -10,9 +10,13 @@ Summarizes the list of changes for each version of TWAPI.
 [section "Version 3.2 Alpha"]
 
 [para]
-Major changes in this release pertain to COM module enhancements.
+Major changes in this release are support for Windows event tracing
+and enhancements to the COM module.
 
 [list_begin bullet]
+
+[bullet]
+New [uri etw.html "Event Tracing for Windows"] module.
 
 [bullet]
 Added [cmd -active] option to
