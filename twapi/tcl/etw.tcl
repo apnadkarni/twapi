@@ -726,7 +726,6 @@ proc twapi::etw_start_trace {session_name args} {
         privateloggermode {}
         realtimemode {bufferingmode privateloggermode filemodeappend}
         securemode {}
-        usekbytesforsize {}
         privateinproc {}
         useglobalsequence {uselocalsequence}
         uselocalsequence {}
@@ -875,6 +874,17 @@ interp alias {} twapi::etw_flush_trace {} twapi::etw_control_trace flush
 interp alias {} twapi::etw_query_trace {} twapi::etw_control_trace query
 interp alias {} twapi::etw_update_trace {} twapi::etw_control_trace update
 
+proc twapi::etw_query_trace {args} {
+    set d [etw_control_trace query {*}$args]
+    set cr [lindex  {{} qpc system cpucycle} [dict get $d -clockresolution]]
+    if {$cr ne ""} {
+        dict set d -clockresolution $cr
+    }
+
+    #TBD - check whether -maximumfilesize needs to be massaged
+
+    return $d
+}
 
 
 #
