@@ -128,7 +128,9 @@ them as needed.
 [para]
 TWAPI provides the high-level [uri #etw_dump_files [cmd etw_dump_files]]
 command which can read events and write them in multiple output formats.
-Alternatively, call [uri #etw_open_trace [cmd etw_open_trace]] to
+Alternatively, call [uri #etw_open_file [cmd etw_open_file]]
+or [uri #etw_open_session [cmd etw_open_session]]
+to
 open each logfile or real time session of interest. Then invoke
 the commands
 [uri #etw_process_events [cmd etw_process_events]] and
@@ -170,7 +172,7 @@ cannot be used with kernel logging sessions.
 Note there is only one kernel trace session.
 If it is already in use by some other application the call will fail.
 
-[section "Tracing Tcl"]
+[section "Tcl ETW traces"]
 [para]
 TWAPI includes commands
 [uri #etw_variable_tracker [cmd etw_variable_tracker]],
@@ -189,7 +191,63 @@ trace add execution p {enter leave enterstep leavestep} [lb]list twapi::etw_exec
 
 [section "ETW Controller Commands"]
 
+This section describes the commands that allow implementation of
+an ETW controller.
+
 [list_begin definitions]
+
+[call [cmd etw_flush_trace] [opt [arg options]]]
+Flushes the buffers belonging to a tracing session.
+The session may be specified either by its name 
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
+through the options [cmd -sessionname] and [cmd -sessionhandle]
+respectively.
+
+[call [cmd etw_query_trace] [opt [arg options]]]
+Returns a dictionary containing a trace session's settings and status.
+The session may be specified either by its name 
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
+through the options [cmd -sessionname] and [cmd -sessionhandle]
+respectively. The returned dictionary has the following fields:
+
+[list_begin opt]
+[opt_def [cmd -buffersize]]
+Size of the buffers for the session.
+[opt_def [cmd -bufferswritten]]
+Number of buffers flushed.
+[opt_def [cmd -clockresolution]]
+One of [const qpc], [const system] or [const cpucycle] as described
+in [uri #etw_start_trace [cmd etw_start_trace]].
+[opt_def [cmd -eventslost]]
+Number of events lost in the session that were not recorded.
+[opt_def [cmd -flushtimer]]
+Number of seconds after which buffers are automatically flushed.
+[opt_def [cmd -freebuffers]]
+Number of free buffers in the trace session.
+[opt_def [cmd -logbufferslost]]
+Number of buffers lost without being consumed.
+[opt_def [cmd -logfile]]
+The log file associated with the session.
+[opt_def [cmd -logfilemode]]
+Bit flags indicating logging mode for the session.
+[opt_def [cmd -loggerthread]]
+Thread doing the logging for the session.
+[opt_def [cmd -maxbuffers]]
+Maximum number of buffers that can be allocated for the session.
+[opt_def [cmd -maximumfilesize]]
+Maximum size specified for the file.
+[opt_def [cmd -minbuffers]]
+Minimum number of buffers that can be allocated for the session.
+[opt_def [cmd -numbuffers]]
+Number of buffers in use.
+[opt_def [cmd -realtimebufferslost]]
+Number of buffers used for real time tracing that could not be written
+to the log file.
+[opt_def [cmd -sessionguid]]
+The GUID associated with the session.
+[opt_def [cmd -sessionname]]
+The name of the session.
+[list_end]
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 
@@ -286,21 +344,137 @@ If [const true] (default), paged memory is used for the session buffers.
 Otherwise nonpaged memory, of which there is a limited amount, is used.
 
 [list_end]
-
-[nl]
 For more details on the options, refer to the
 [uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
+
+[call [cmd etw_stop_trace] [opt [arg options]]]
+Stops a tracing session. The session may be specified either by
+its name 
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
+through the options [cmd -sessionname] and [cmd -sessionhandle]
+respectively.
+
+[call [cmd etw_update_trace] [opt [arg options]]]
+Updates the attributes associated with a session. If the session is inactive
+(e.g. from a log files without an associated active session), the command
+has no effect.
+The session may be specified either by its name 
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
+through the options [cmd -sessionname] and [cmd -sessionhandle]
+respectively.
+
+The command returns a dictionary containing a trace session's settings 
+and status in the same format as
+[uri #etw_query_trace [cmd etw_query_trace]].
+
+The following session attributes may be updated:
+
+[list_begin opt]
+[opt_def [cmd -flushtimer]]
+Changes the number of seconds after which buffers are automatically flushed.
+[opt_def [cmd -logbufferslost]]
+Number of buffers lost without being consumed.
+[opt_def [cmd -logfile]]
+The log file associated with the session.
+[opt_def [cmd -logfilemode]]
+Changes the logging mode for the session.
+[opt_def [cmd -maxbuffers]]
+Changes the maximum number of buffers that can be allocated for the session.
+[list_end]
+
+
 
 [list_end]
 
 [section "ETW Provider Commands"]
 
+This section describes the commands that allow implementation of
+an ETW provider.
 
 [list_begin definitions]
 
-[call [cmd etw_register_provider] [arg SESSIONNAME] [opt [arg options]]]
+[call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE]]
+Writes an event containing the [arg MESSAGE] string to the trace session
+attached to the provider handle [arg HPROVIDER] returned
+by [uri #etw_register_provider [cmd etw_register_provider]].
 
-Registers the provider so that it can be added to a trace session.
+[call [cmd etw_command_tracker] [arg HPROVIDER] [arg OLDNAME] [arg NEWNAME] [arg OP]]
+Writes a CommandTrace event to the trace session associated with
+the provider handle [arg HPROVIDER] returned
+by [uri #etw_register_provider [cmd etw_register_provider]].
+The remaining arguments correspond to those passed to the callback
+function by Tcl's [cmd "trace add command"] command. 
+[cmd etw_command_tracker] can be used as the callback similar
+to the example in [sectref "Tcl ETW traces"].
+
+[call [cmd etw_execution_tracker] [arg HPROVIDER] [arg ARGS...]]
+Writes a ExecutionTrace event to the trace session associated with
+the provider handle [arg HPROVIDER] returned
+by [uri #etw_register_provider [cmd etw_register_provider]].
+The remaining arguments correspond to those passed to the callback
+function by Tcl's [cmd "trace add execution"] command. 
+[cmd etw_execution_tracker] can be used as the callback similar
+to the example in [sectref "Tcl ETW traces"].
+
+[call [cmd etw_variable_tracker] [arg HPROVIDER] [arg NAME1] [arg NAME2] [arg OP]]
+Writes a VariableTrace event to the trace session associated with
+the provider handle [arg HPROVIDER] returned
+by [uri #etw_register_provider [cmd etw_register_provider]].
+The remaining arguments correspond to those passed to the callback
+function by Tcl's [cmd "trace add variable"] command and this command
+can be used as the callback as in the example
+in [sectref "Tcl ETW traces"].
+
+
+[call [cmd etw_register_provider]]
+
+Registers the TWAPI ETW provider so that it can be added to a trace session.
+The GUID corresponding to the provider is defined in the variable
+[var twapi::_etw_mof(provider_guid)] and can be used in
+[uri #etw_enable_trace [cmd etw_enable_trace]] or any ETW controller
+program to add the TWAPI provider to a trace session. Returns a handle
+to the registered provider.
+[nl]
+The provider can be unregistered by calling
+the [uri #etw_unregister_provider [cmd etw_unregister_provider]] command.
+
+[call [cmd etw_unregister_provider] [arg PROVIDERHANDLE]]
+Unregisters a previously registered provider. [arg PROVIDERHANDLE] is
+a handle returned by a previous call to
+[uri #etw_register_provider [cmd etw_register_provider]] command.
+
+
+[list_end]
+
+[section "ETW Consumer Commands"]
+
+This section describes the commands that deal with consuming events from ETW.
+
+[list_begin definitions]
+[call [cmd etw_install_mof]]
+Installs the TWAPI Managed Object Format (MOF) definition for the event
+trace formats used by TWAPI. This command needs to be called on the
+system where a ETW consumer will be parsing TWAPI logged events.
+The definition can be removed by calling 
+[uri #etw_uninstall_mof [cmd etw_uninstall_mof]].
+
+[call [cmd etw_open_file] [arg PATH]]
+Opens a log file containing ETW events and returns a trace handle to it
+which can be passed to [uri #etw_process_events [cmd etw_process_events]].
+The handle must be closed later by passing it to
+[uri #etw_close_trace [cmd etw_close_trace]].
+
+[call [cmd etw_open_session] [arg SESSIONNAME]]
+Opens a real time ETW session and returns a trace handle to it
+which can be passed to [uri #etw_process_events [cmd etw_process_events]].
+The handle must be closed later by passing it to
+[uri #etw_close_trace [cmd etw_close_trace]].
+
+[call [cmd etw_uninstall_mof]]
+Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
+trace formats used by TWAPI.
+
+
 
 
 [list_end]
