@@ -625,8 +625,11 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
 
     /* We should not already have registered a different provider */
     if (! IsEqualGUID(&gETWProviderGuid, &gTwapiNullGuid)) {
-        if (IsEqualGUID(&gETWProviderGuid, &provider_guid))
+        if (IsEqualGUID(&gETWProviderGuid, &provider_guid)) {
+            Tcl_SetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
+
             return TCL_OK;      /* Same GUID - ok */
+        }
         else {
             Tcl_SetResult(interp, "ETW Provider GUID already registered", TCL_STATIC);
             return TCL_ERROR;
