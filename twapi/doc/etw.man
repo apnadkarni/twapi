@@ -36,7 +36,8 @@ currently supports only MOF based event tracing.
 A event trace session consists of a set of buffers, and optionally an 
 associated file, to which events are written. The session has other
 associated parameters such as the time stamping granularity,
-access control information and buffer limits. Event providers always
+access control information and buffer limits. These are configured
+through event controllers. Event providers always
 write events to a specific trace session.
 
 [section "Event controllers"]
@@ -54,7 +55,7 @@ and trace sessions, use the [uri #etw_enable_trace [cmd etw_enable_trace]]
 command. This command can also be used to communicate to the event providers
 what events are to be logged.
 [bullet] Use [uri #etw_query_trace [cmd etw_query_trace]]
-and [uri #etw_query_trace [cmd etw_query_trace]] to query and change
+and [uri #etw_update_trace [cmd etw_update_trace]] to query and change
 the parameters of an existing trace session.
 [bullet] To stop a trace session, use the
 [uri #etw_stop_trace [cmd etw_stop_trace]] command. To flush the event
@@ -81,7 +82,10 @@ application may host both an event provider as well as an event controller.
 Controllers send configuration information to providers in the form
 of [emph "enable flags"] and the [emph "enable level"]. The interpretation
 of these is [emph entirely] to the discretion of the event provider.
-Neither Windows, nor TWAPI, interpret these in any way.
+Neither Windows, nor TWAPI, interpret these in any way. The TWAPI commands
+[uri #etw_provider_enable_flags [cmd etw_provider_enable_flags]] and
+[uri #etw_provider_enable_level [cmd etw_provider_enable_level]] can
+be used to obtain the current values.
 [para]
 By convention,
 applications treat the enable flags as a bit mask that indicates
@@ -93,10 +97,7 @@ is actually enabled in the sense of being attached to a trace session,
 use the [uri #etw_trace_enabled [cmd etw_trace_enabled]] command.
 [para]
 Similarly, the enable level is generally treated as a
-severity level, but again, this is not mandated. The TWAPI commands
-[uri #etw_provider_enable_flags [cmd etw_provider_enable_flags]] and
-[uri #etw_provider_enable_level [cmd etw_provider_enable_level]] can
-be used to obtain the current values.
+severity level, but again, this is not mandated.
 
 [para]
 Before any controller can add a provider to a trace session, the provider
@@ -156,9 +157,35 @@ command. This must be done on the system where the event consumer runs.
 It is not required on the system where the events are generated.
 
 [section "Tracing kernel events"]
+[para]
+There is a special trace session associated with the Windows kernel. The
+kernel logs events such as network events, process events, disk I/O etc.
+to this session when enabled. This session can be started and configured
+through the [uri #etw_start_kernel_trace [cmd etw_start_kernel_trace]]
+command. The specific events to be logged are also specified as options
+to this command as the [uri #etw_enable_trace [cmd etw_enable_trace]]
+cannot be used with kernel logging sessions.
 
+[para]
+Note there is only one kernel trace session.
+If it is already in use by some other application the call will fail.
 
 [section "Tracing Tcl"]
+[para]
+TWAPI includes commands
+[uri #etw_variable_tracker [cmd etw_variable_tracker]],
+[uri #etw_command_tracker [cmd etw_command_tracker]] and
+[uri #etw_execution_tracker [cmd etw_execution_tracker]]
+that aid in logging Tcl variable, command and execution traces, respectively,
+to an ETW session.
+
+[example_begin]
+set hprovider [lb]etw_register_provider[rb]
+# Assume provider is added to trace session by some other means
+
+# Add an execution trace to proc p
+trace add execution p {enter leave enterstep leavestep} [lb]list twapi::etw_execution_tracker $hprovider[rb]
+[example_end]
 
 [section "ETW Controller Commands"]
 
@@ -166,14 +193,103 @@ It is not required on the system where the events are generated.
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 
-Starts a new ETW trace session.
+Starts a new ETW trace session with the name [arg SESSIONNAME]. The
+following options may be specified:
 
 [list_begin opt]
+
+[opt_def [cmd -buffersize] [arg BUFFERSIZE]]
+Specifies the size in kilobytes of the buffers used in the session. This is only
+an requested size and will be adjusted by ETW.
+[opt_def [cmd -clockresolution.arg] [arg RESOLUTION]]
+The clock resolution to use when timestamping events in the session.
+Specify [arg RESOLUTION] as [const qpc] to use the query performance
+counter. This is the highest resolution and is the default. Specify
+[const system] to use system time. This is lower resolution but is
+cheaper in run time cost. Specify [const cpucycle] to use the CPU
+cycle counter. This has the highest resolution and is the cheapest
+to obtain. However it can be very inaccurate as it is affected by power
+and temperature management features of the CPU.
+[opt_def [cmd -flushtimer] [arg SECONDS]]
+Normally, ETW buffers are flushed as they become full. Use this option
+to force flushing of buffers every [arg SECONDS] seconds even when
+they are not full. However note that ETW flushes entire buffers to
+log files so flushing half empty buffers can greatly increase the log
+file size. Generally, use this option only for real time sessions.
+[opt_def [cmd -filemodeappend]]
+Normally, existing logfiles are overwritten. If this option is specified,
+events are appended to the logfile instead. The [cmd -clockresolution]
+option must be specified as [const system]. This option cannot be used
+with [cmd -realtimemode], [cmd -filemodecircular] or [cmd -filemodenewfile].
+[opt_def [cmd -filemodecircular]]
+Events are written to the log file in circular fashion with newer events
+overwriting older events once the maximum file size is reached.
+This option cannot be used
+with [cmd -filemodeappend], [cmd -filemodesequential] or [cmd -filemodenewfile].
+[opt_def [cmd -filemodenewfile]]
+Automatically creates a new file when the maximum file size is reached.
+The path specified with the [cmd -logfile] option must contain the
+string [const %d] which is replaced with a incremented counter every time
+a new file is created.
+This option cannot be used
+with [cmd -filemodeappend], [cmd -filemodesequential]
+or [cmd -filemodecircular].
+[opt_def [cmd -filemodesequential]]
+Writes events sequentially to a log file and stops when the maximum size
+is reached.
+This option cannot be used
+with [cmd -filemodecircular] or [cmd -filemodenewfile].
+[opt_def [cmd -logfile] [arg FILEPATH]]
+The name of the log file in which to write events. This option need
+not be specified if the session is only a real time session. [arg FILEPATH]
+may be relative or absolute but should have the [const .etl] extension.
+Depending on the other options specified, the actual file name may be
+modified.
+[opt_def [cmd -maxbuffers] [arg MINBUFS]]
+Specifies the minimum number of buffers to allocate.
+[opt_def [cmd -minbuffers] [arg MAXBUFS]]
+Specifies the maximum number of buffers to allocate.
+[opt_def [cmd -maximumfilesize] [arg MAXSIZE]]
+The maximum size of the log file in bytes.
+[opt_def [cmd -noperprocessorbuffering]]
+Normally, event buffers are allocated on a per-processor basis for
+performance reasons. This may cause events to appear out of order on
+multiprocessor systems. Specifying this option forces writing to
+a common buffer to avoid these anomalies at a cost in tracing performance.
+[opt_def [cmd -preallocate] [arg BOOLEAN]]
+[opt_def [cmd -privateloggermode]]
+Specifies a private trace session. This has the benefit of lower
+overhead but also several limitations as detailed in the
+[uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
+[opt_def [cmd -privateinproc]]
+Specifies an in-process trace session and enforces that only the process
+that registered a provider guid can start a trace session with that guid.
+Requires Vista or later.
+[opt_def [cmd -realtimemode]]
+If specified, events are delivered to any subscribed consumers in real time
+when event buffers are flushed. Certain guidelines have to be followed
+when real time mode is requested. Please refer to 
+[uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
+[opt_def [cmd -securemode]]
+Specifies logging to the session requires the TRACELOG_LOG_EVENT permission.
+Requires Vista or later.
 [opt_def [cmd -sessionguid] [arg GUID]] The GUID to assign to the session.
 If not specified, Windows will internally generate the GUID for the
 trace session. The primary purpose for specifying this is to allow
 for setting access control on the session.
+[opt_def [cmd -useglobalsequence]]
+Specifies use of sequence numbers that are global across multiple sessions.
+[opt_def [cmd -uselocalsequence]]
+Specifies use of sequence numbers that are unique to a session.
+[opt_def [cmd -usepagedmemory] [arg BOOLEAN]]
+If [const true] (default), paged memory is used for the session buffers.
+Otherwise nonpaged memory, of which there is a limited amount, is used.
+
 [list_end]
+
+[nl]
+For more details on the options, refer to the
+[uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
 
 [list_end]
 
