@@ -209,6 +209,7 @@ interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 proc twapi::etw_log_message {htrace message} {
     # Must match Message event type in MoF definition
     TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
+    return
 }
 
 proc twapi::etw_variable_tracker {htrace name1 name2 op} {
@@ -519,19 +520,21 @@ proc twapi::etw_load_mof_event_classes {oswbemservices args} {
     }
 }
 
-proc twapi::etw_open_trace {path args} {
+proc twapi::etw_open_file {path} {
     variable _etw_open_traces
 
-    array set opts [parseargs args {
-        realtime
-    } -maxleftover 0]
+    set path [file normalize $path]
 
-    if {! $opts(realtime)} {
-        set path [file normalize $path]
-    }
-
-    set htrace [OpenTrace $path $opts(realtime)]
+    set htrace [OpenTrace $path 0]
     set _etw_open_traces($htrace) $path
+    return $htrace
+}
+
+proc twapi::etw_open_session {sessionname} {
+    variable _etw_open_traces
+
+    set htrace [OpenTrace $sessionname 1]
+    set _etw_open_traces($htrace) $sessionname
     return $htrace
 }
 
