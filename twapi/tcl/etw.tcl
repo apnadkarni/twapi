@@ -689,7 +689,6 @@ proc twapi::etw_start_trace {session_name args} {
         {privateloggermode {} 0x800}
         {realtimemode {} 0x100}
         {securemode {} 0x80}
-        {usekbytesforsize {} 0x2000}
         {privateinproc {} 0x20000}
         {useglobalsequence {} 0x4000}
         {uselocalsequence {} 0x8000}
@@ -699,9 +698,18 @@ proc twapi::etw_start_trace {session_name args} {
 
     set params {}
 
-    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers maximumfilesize flushtimer enableflags} {
+    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags} {
         if {[info exists opts($opt)]} {
             lappend params -$opt $opts($opt)
+        }
+    }
+
+    if {[info exists opts(maximumfilesize)]} {
+        if {$opts(maximumfilesize) > (10*1048576)} {
+            lappend params -maximumfilesize [expr {$opts(-maximumfilesize)/1048576}]
+        } else {
+            # For smaller values specify in KB for better accuracy
+            lappend params -maximumfilesize [expr {$opts(-maximumfilesize)/1024}] -usekbytesforsize
         }
     }
 
