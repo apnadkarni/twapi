@@ -13,6 +13,16 @@
 #define ObjFromTRACEHANDLE(val_) Tcl_NewWideIntObj(val_)
 #define ObjToTRACEHANDLE Tcl_GetWideIntFromObj
 
+/*
+ * The Microsoft docs are not clear about invalid trace session handles.
+ * The sample code shows comparisons against INVALID_HANDLE_VALUE. On the
+ * other hand, the StartTrace documentation warns that invalid session
+ * handles are 0, NOT INVALID_HANDLE_VALUE. For more confusion, also see -
+ * http://msdn.microsoft.com/en-us/library/windows/desktop/aa364089(v=vs.85).aspx
+ * For now, treat both as invalid. TBD
+ */
+#define INVALID_SESSIONTRACE_HANDLE(ht_) \
+    ((ht_) == 0 || (HANDLE) (ht_) == INVALID_HANDLE_VALUE)
 
 /* For efficiency reasons, when constructing many "records" each of which is
  * a keyed list or dictionary, we do not want to recreate the
@@ -115,6 +125,7 @@ struct TwapiObjKeyCache gETWEventKeys[] = {
     {"-level"},
     {"-version"},
     {"-threadid"},
+    {"-processid"},
     {"-timestamp"},
     {"-guid"},
     {"-kerneltime"},
@@ -528,7 +539,7 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
 
 static ULONG WINAPI TwapiETWProviderControlCallback(
     WMIDPREQUESTCODE request,
-    PVOID contextP,
+    PVOID contextP,             /* TBD - can we use this ? */
     ULONG* reserved, 
     PVOID headerP
     )
@@ -544,14 +555,14 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
     case WMI_ENABLE_EVENTS:
         SetLastError(0);
         session = GetTraceLoggerHandle(headerP);
-        if ((TRACEHANDLE) INVALID_HANDLE_VALUE == session) {
+        if (INVALID_SESSIONTRACE_HANDLE(session)) {
             /* Bad handle, ignore, but return the error code */
             rc = GetLastError();
             break;
         }
 
         /* If we are already logging to a session we will ignore nonmatching */
-        if (gETWProviderSessionHandle != (TRACEHANDLE) INVALID_HANDLE_VALUE &&
+        if (! INVALID_SESSIONTRACE_HANDLE(gETWProviderSessionHandle) &&
             session != gETWProviderSessionHandle) {
             rc = ERROR_INVALID_PARAMETER;
             break;
@@ -626,7 +637,7 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
     event_class_reg.Guid = &event_class_guid;
     rc = RegisterTraceGuids(
         (WMIDPREQUEST)TwapiETWProviderControlCallback,
-        NULL,                          // No context
+        NULL,                   // No context TBD - can we use this ?
         &provider_guid,         // GUID that identifies the provider
         1,                      /* Number of event class GUIDs */
         &event_class_reg,      /* Event class GUID array */
@@ -688,7 +699,7 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     /* Args: provider handle, type, level, ?binary strings...? */
 
     /* If no tracing is on, just ignore, do not raise error */
-    if ((HANDLE) gETWProviderSessionHandle == INVALID_HANDLE_VALUE)
+    if (INVALID_SESSIONTRACE_HANDLE(gETWProviderSessionHandle))
         return TCL_OK;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
@@ -834,24 +845,25 @@ void WINAPI TwapiETWEventCallback(
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[1].keyObj, Tcl_NewIntObj(evP->Header.Class.Level));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[2].keyObj, Tcl_NewIntObj(evP->Header.Class.Version));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[3].keyObj, Tcl_NewLongObj(evP->Header.ThreadId));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, ObjFromLARGE_INTEGER(evP->Header.TimeStamp));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[5].keyObj, ObjFromGUID(&evP->Header.Guid));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, Tcl_NewLongObj(evP->Header.ProcessId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[5].keyObj, ObjFromLARGE_INTEGER(evP->Header.TimeStamp));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[6].keyObj, ObjFromGUID(&evP->Header.Guid));
     /*
      * Note - for user mode sessions, KernelTime/UserTime are not valid
      * and the ProcessorTime member has to be used instead. However,
      * we do not know the type of session at this point so we leave it
      * to the app to figure out what to use
      */
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[6].keyObj, ObjFromULONG(evP->Header.KernelTime));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[7].keyObj, ObjFromULONG(evP->Header.UserTime));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[8].keyObj, Tcl_NewWideIntObj(evP->Header.ProcessorTime));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[9].keyObj, ObjFromULONG(evP->InstanceId));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[10].keyObj, ObjFromULONG(evP->ParentInstanceId));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[11].keyObj, ObjFromGUID(&evP->ParentGuid));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[7].keyObj, ObjFromULONG(evP->Header.KernelTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[8].keyObj, ObjFromULONG(evP->Header.UserTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[9].keyObj, Tcl_NewWideIntObj(evP->Header.ProcessorTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[10].keyObj, ObjFromULONG(evP->InstanceId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[11].keyObj, ObjFromULONG(evP->ParentInstanceId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, ObjFromGUID(&evP->ParentGuid));
     if (evP->MofData && evP->MofLength)
-        Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, Tcl_NewByteArrayObj(evP->MofData, evP->MofLength));
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, Tcl_NewByteArrayObj(evP->MofData, evP->MofLength));
     else
-        Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, Tcl_NewObj());
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, Tcl_NewObj());
     
     Tcl_ListObjAppendElement(interp, gETWContext.eventsObj, evObj);
 
@@ -1020,7 +1032,7 @@ TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     etl.EventCallback = TwapiETWEventCallback;
 
     htrace = OpenTraceW(&etl);
-    if ((TRACEHANDLE) INVALID_HANDLE_VALUE == htrace)
+    if (INVALID_SESSIONTRACE_HANDLE(htrace))
         return TwapiReturnSystemError(ticP->interp);
 
     Tcl_SetObjResult(ticP->interp, ObjFromTRACEHANDLE(htrace));

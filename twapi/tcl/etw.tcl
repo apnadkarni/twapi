@@ -208,7 +208,7 @@ interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
 
 proc twapi::etw_log_message {htrace message} {
     # Must match Message event type in MoF definition
-    TraceEvent $htrace 1 0 [_etw_construct_event_strings $message]
+    TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
 }
 
 proc twapi::etw_variable_tracker {htrace name1 name2 op} {
@@ -232,7 +232,8 @@ proc twapi::etw_variable_tracker {htrace name1 name2 op} {
 
     # Must match VariableTrace event type in MoF definition
     TraceEvent $htrace 2 0 \
-        [_etw_construct_event_strings $op $name1 $name2 $var $context]
+        [encoding convertto unicode "$op\0$name1\0$name2\0$var\0"] \
+        [_etw_make_limited_unicode $context]
 }
 
 
@@ -259,7 +260,11 @@ proc twapi::etw_execution_tracker {htrace command args} {
 
     # Must match Execution event type in MoF definition
     TraceEvent $htrace 3 0 \
-        [_etw_construct_event_strings $op $command $code $result $context]
+        [encode convertto unicode "$op\0"] \
+        [_etw_make_limited_unicode $command] \
+        [encode convertto unicode "$code\0"] \
+        [_etw_make_limited_unicode $result] \
+        [_etw_make_limited_unicode $context]
 }
 
 
@@ -272,7 +277,8 @@ proc twapi::etw_command_tracker {htrace oldname newname op} {
 
     # Must match CommandTrace event type in MoF definition
     TraceEvent $htrace 4 0 \
-        [_etw_construct_event_strings $op $oldname $newname $context]
+        [encode converto unicode "$op\0$oldname\0$newname\0"] \
+        [_etw_make_limited_unicode $context]
 }
 
 proc twapi::etw_parse_mof_event_class {ocls} {
@@ -644,7 +650,7 @@ proc twapi::etw_dump_files {args} {
                         binary scan [string range [dict get $event -mofdata] 0 31] H* hex
                         set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
                     }
-                    {*}$lambda [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
+                    {*}$lambda [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
                 }
             }
         } $lambda $varname $opts(limit) $wmi]
@@ -798,7 +804,8 @@ proc twapi::etw_start_kernel_trace {args} {
 
     # Name "NT Kernel Logger" is hardcoded in Windows
     # GUID is 9e814aad-3204-11d2-9a82-006008a86939
-    return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args]
+    # Note kernel logger cannot use paged memory
+    return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -usepagedmemory 0]
 }
 
 interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
@@ -867,16 +874,12 @@ interp alias {} twapi::etw_update_trace {} twapi::etw_control_trace update
 #
 
 
-proc twapi::_etw_construct_event_strings {args} {
-    set max 80
-    set result ""
-    foreach arg $args {
-        if {[string length $arg] > $max} {
-            set arg "[string range $arg 0 $max-3]..."
-        }
-        append result [encoding convertto unicode "$arg\0"]
+# Return binary unicode with truncation if necessary
+proc twapi::_etw_make_limited_unicode {s {max 80}} {
+    if {[string length $s] > $max} {
+        set s "[string range $s 0 $max-3]..."
     }
-    return $result
+    return [encoding convertto unicode "$s\0"]
 }
 
 # Used for development/debug to see what all types are in use
