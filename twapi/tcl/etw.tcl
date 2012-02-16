@@ -521,6 +521,7 @@ proc twapi::etw_load_mof_event_classes {oswbemservices args} {
 }
 
 proc twapi::etw_open_file {path} {
+# TBD - PROCESS_TRACE_MODE_RAW_TIMESTAMP
     variable _etw_open_traces
 
     set path [file normalize $path]
@@ -531,6 +532,7 @@ proc twapi::etw_open_file {path} {
 }
 
 proc twapi::etw_open_session {sessionname} {
+# TBD - PROCESS_TRACE_MODE_RAW_TIMESTAMP
     variable _etw_open_traces
 
     set htrace [OpenTrace $sessionname 1]
@@ -555,6 +557,10 @@ proc twapi::etw_process_events {args} {
         start.arg
         end.arg
     } -nulldefault]
+
+    if {[llength $args] == 0} {
+        error "At least one trace handle must be specified."
+    }
 
     return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
@@ -620,16 +626,28 @@ proc twapi::etw_dump_files {args} {
     uplevel #0 {package require csv}
 
     array set opts [parseargs args {
-        {outfd.arg stdout}
+        {output.arg stdout}
         {limit.int -1}
         {format.arg list {csv list}}
         {separator.arg ,}
     }]
 
-    if {$opts(format) eq "csv"} {
-        set lambda [list apply [list args "puts $opts(outfd) \[csv::join \$args \"$opts(separator)\"]"]]
+    if {$opts(output) in [chan names]} {
+        # Writing to a channel
+        set outfd $opts(output)
+        set do_close 0
     } else {
-        set lambda [list apply [list args "puts $opts(outfd) \$args"]]
+        if {[file exists $opts(output)]} {
+            error "File $opts(output) already exists."
+        }
+        set outfd [open $opts(output) a]
+        set do_close 1
+    }
+
+    if {$opts(format) eq "csv"} {
+        set lambda [list apply [list args "puts $outfd \[csv::join \$args \"$opts(separator)\"]"]]
+    } else {
+        set lambda [list apply [list args "puts $outfd \$args"]]
     }
 
 
@@ -637,9 +655,9 @@ proc twapi::etw_dump_files {args} {
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
         set htraces {}
-        set wmi [twapi::_wmi wmi]
+        set wmi [wmi_root -root wmi]
         foreach arg $args {
-            lappend htraces [etw_open_trace $arg]
+            lappend htraces [etw_open_file $arg]
         }
         set callback [list apply {
             {lambda counter_varname max wmi bufd events}
@@ -667,7 +685,11 @@ proc twapi::etw_dump_files {args} {
             etw_close_trace $htrace
         }
         if {[info exists wmi]} {$wmi destroy}
-        flush $opts(outfd)
+        if {$do_close} {
+            close $outfd
+        } else {
+            flush $outfd
+        }
     }
 }
 
@@ -888,7 +910,6 @@ proc twapi::etw_query_trace {args} {
 
     return $d
 }
-
 
 #
 # Helper functions
