@@ -1186,7 +1186,6 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     int       nbytes;
     ULONG     remain;
     Tcl_Obj  *resultObj = NULL;
-    VARIANT   var;
     WCHAR     wc;
     GUID      guid;
     int       pointer_size;     /* Of target system, NOT us */
@@ -1195,8 +1194,6 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         char buf[SECURITY_MAX_SID_SIZE];
     } u;
     short     port;
-
-    VariantInit(&var);
 
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1544,14 +1541,12 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     }
     
     done:
-    VariantClear(&var);
     Tcl_SetObjResult(interp, resultObj);
     return TCL_OK;
 
 error_handler:
     /* Tcl interp should already hold error code and result */
 
-    VariantClear(&var);
     if (resultObj)
         Tcl_DecrRefCount(resultObj);
     return TCL_ERROR;
