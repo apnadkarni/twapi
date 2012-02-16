@@ -34,9 +34,19 @@ twapi::class create ::twapi::IMofCompilerProxy {
 
 
 #
-# Get WMI service
+# Get WMI service - TBD document
+proc twapi::wmi_root {args} {
+    array set opts [parseargs args {
+        {root.arg cimv2}
+        {impersonationlevel.arg impersonate {default anonymous identify delegate impersonate} }
+    } -maxleftover 0]
+
+    # TBD - any injection attacks possible ? Need to quote ?
+    return [comobj_object "winmgmts:{impersonationLevel=$opts(impersonationlevel)}!//./root/$opts(root)"]
+}
+# Backwards compat
 proc twapi::_wmi {{top cimv2}} {
-    return [comobj_object "winmgmts:{impersonationLevel=impersonate}!//./root/$top"]
+    return [wmi_root -root $top]
 }
 
 proc twapi::wmi_collect_classes {swbemservices args} {
