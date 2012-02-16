@@ -2,7 +2,7 @@
 [manpage_begin "Event Tracing" n ""]
 [copyright "2012 Ashok P. Nadkarni"]
 [moddesc "Event Tracing for Windows"]
-[titledesc "Commands related to Event Tracing for Windows"]
+[titledesc "Commands for generating, reading and controlling Event Tracing for Windows"]
 [require twapi]
 [description]
 [para]
@@ -249,6 +249,20 @@ The GUID associated with the session.
 The name of the session.
 [list_end]
 
+[call [cmd etw_start_kernel_trace] [opt [arg options]]]
+Starts trace session with the Windows kernel provider. Windows only
+supports one such session so an error is generated if another
+application already has a kernel trace session open.
+[nl]
+The following options specify the kernel components that should be
+enabled for generating events. Note that kernel components cannot
+be enabled or disabled using the [uri #etw_enable_trace [cmd etw_enable_trace]]
+command.
+
+[list_begin opt]
+
+[list_end]
+
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 
 Starts a new ETW trace session with the name [arg SESSIONNAME]. The
@@ -451,12 +465,142 @@ a handle returned by a previous call to
 This section describes the commands that deal with consuming events from ETW.
 
 [list_begin definitions]
+
+[call [cmd etw_dump_files] [opt [arg options]] [opt [arg "LOGFILE LOGFILE ..."]]]
+Extracts events from one or more ETW log files and writes them out in
+human readable form. The command takes the following options:
+[list_begin opt]
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies the output format. [arg FORMAT] must be [const list] or [const csv].
+The CSV format requires that the Tcl package [cmd csv] be available.
+[opt_def [cmd -limit] [arg LIMIT]]
+Stops after [arg LIMIT] events are written.
+[opt_def [cmd -output] [arg OUTPUT]]
+Specifies where to write the events. [arg OUTPUT] may be a channel
+or a file path. If the latter, the file must not exist. The default
+is standard output.
+[opt_def [cmd -separator] [arg SEPARATOR]]
+Specifies the separator character to use. Only used for CSV format. Defaults
+to the comma character.
+[list_end]
+
+Each record written consistes of a fixed number of fields followed by
+event-specific data. The fixed fields include the time stamp, the
+thread id, the process id, the event's MOF class and the event name.
+The remaining fields are varying in number and consist of alternating
+pairs of the field name from the event's MOF definition and the corresponding
+value. If the MOF definition is not available, the field name is
+[const MofData] and the corresponding value is a hexadecimal representation
+of the binary data.
+
 [call [cmd etw_install_mof]]
 Installs the TWAPI Managed Object Format (MOF) definition for the event
 trace formats used by TWAPI. This command needs to be called on the
 system where a ETW consumer will be parsing TWAPI logged events.
 The definition can be removed by calling 
 [uri #etw_uninstall_mof [cmd etw_uninstall_mof]].
+
+[call [cmd etw_close_session] [arg HTRACE]]
+Closes a trace session previously opened by a call to
+[uri #etw_open_file [cmd etw_open_file]] or 
+[uri #etw_open_session [cmd etw_open_session]].
+
+[call [cmd etw_format_events] [arg WMIOBJ] [arg BUFDESC] [arg EVENTLIST]]
+Processes the list of raw ETW events passed in [arg EVENTLIST] and 
+returns a list of formatted events. This command is intended to be
+called from the callback script passed to
+[uri #etw_process_events [cmd etw_process_events]].
+[arg BUFDESC] and [arg EVENTLIST] should be the last two arguments
+passed to the callback from [cmd etw_process_events].
+[nl]
+[arg WMIOBJ] should be a 
+[uri com.html#comobj COMOBJ] object returned by a call to
+[cmd "wmi_root -root wmi"].
+It is required to retrieve the definitions of events so that event-specific
+data can be parsed correctly.
+[nl]
+The command returns a list of formatted events. Each element is a dictionary
+with the following keys (other keys may be present but should be ignored
+and cannot be relied upon):
+
+[list_begin opt]
+[opt_def [cmd -classname]]
+The name of the parent MOF event class for the event. This may be the empty
+string if no MOF definition was found for the event.
+[opt_def [cmd -eventtype]]
+The numeric event type for the event.
+[opt_def [cmd -guid]]
+The GUID identifying the MOF event definition for the event.
+
+[opt_def [cmd -instanceid]]
+Refer to Windows SDK.
+
+[opt_def [cmd -kerneltime]]
+Amount of time kernel mode CPU time charged to the logging thread
+up till the time event was logged. This is in CPU time units and
+is not valid for private sessions.
+The value of a single CPU time unit is given in the 
+[cmd -hdr_timerresolution] key of [arg BUFDESC].
+
+[opt_def [cmd -level]]
+The event level at which the event was logged.
+
+[opt_def [cmd -mof]]
+The MOF definition for the event. This is a dictionary with
+keys [cmd -classname] and [cmd -eventtypename] corresponding to the
+MOF event class and the human readable event type for the event.
+If no MOF definition was found for the event, the class name will
+be empty and the event type name will be the numeric event type.
+
+[opt_def [cmd -mofdata]]
+The event-specific data in the event in binary format. The key
+[cmd -mofformatteddata] provides the formatted version of this data.
+
+[opt_def [cmd -mofformatteddata]]
+[emph "This key will not be present if no MOF definition was found"]
+[nl]
+This key contains a formatted subset of the binary data in the
+[cmd -mofdata] entry. This is a dictionary whose keys correspond to the
+(case-sensitive) event specific field names in the MOF definition for
+the event. If the binary data does not match the MOF definition, only
+the keys for those fields that were successfully extracted will be present.
+
+[opt_def [cmd -parentguid]]
+Refer to Windows SDK.
+
+[opt_def [cmd -parentinstanceid]]
+Refer to Windows SDK.
+
+[opt_def [cmd -processid]]
+The process id for the process that logged the event.
+
+[opt_def [cmd -processortime]]
+Amount of time user mode processor time charged to the logging thread
+up till the time event was logged. This is in CPU time units and
+is only valid for private sessions.
+The value of a single CPU time unit is given in the 
+[cmd -hdr_timerresolution] key of [arg BUFDESC].
+
+[opt_def [cmd -threadid]]
+The thread id for the thread that logged the event.
+
+[opt_def [cmd -timestamp]]
+The time at which the event was logged in 100ns units since
+Jan 1 1601. Use
+[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
+to convert to the format used by Tcl's [cmd clock] command.
+
+[opt_def [cmd -usertime]]
+Amount of time user mode CPU time charged to the logging thread
+up till the time event was logged. This is in CPU time units and
+is not valid for private sessions.
+The value of a single CPU time unit is given in the 
+[cmd -hdr_timerresolution] key of [arg BUFDESC].
+
+[opt_def [cmd -version]]
+The version of the event format.
+
+[list_end]
 
 [call [cmd etw_open_file] [arg PATH]]
 Opens a log file containing ETW events and returns a trace handle to it
@@ -470,12 +614,72 @@ which can be passed to [uri #etw_process_events [cmd etw_process_events]].
 The handle must be closed later by passing it to
 [uri #etw_close_trace [cmd etw_close_trace]].
 
+[call [cmd etw_process_events] [opt "[cmd -callback] [arg CALLBACK]"] [opt "[cmd -start] [arg STARTTIME]"] [opt "[cmd -end] [arg ENDTIME]"] [arg HTRACE] [opt [arg HTRACE...]]]
+Passes events recorded in one or more event traces to the callback
+command prefix specified by [cmd -callback] for processing. If [cmd -callback]
+is not specified, any events accumulated in the ETW buffers are drained
+without processing. The trace session handles [arg HTRACE] are handles
+returned by [uri #etw_open_file [cmd etw_open_file]] or 
+[uri #etw_open_session [cmd etw_open_session]].
+
+[nl]
+The options [cmd -start] and [cmd end] can be specified to limit the
+time interval for which events are processed. Both
+[arg STARTTIME] and [arg ENDTIME] must be specified in the same format as
+[uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
+[uri misc.html\#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
+to convert the format used by Tcl's [cmd clock] command to this format.
+
+[nl]
+When ETW begins processing events, the callback is invoked repeatedly until
+there are no more unread events in the trace. On each invocation, two
+additional arguments are appended to the callback command prefix - the
+event buffer descriptor, and a list of raw event records. 
+[nl]
+The buffer descriptor is a dictionary that should be treated as opaque except
+for the following keys
+[list_begin opt]
+[opt_def [cmd -hdr_timerresolution]]
+Number of 100ns corresponding to one CPU clock tick. See
+[uri #etw_format_events [cmd etw_format_events]] for its use.
+[opt_def [cmd -hdr_majorversion]]
+The major version of the operating system on which events were recorded.
+[opt_def [cmd -hdr_minorversion]]
+The minor version of the operating system on which events were recorded.
+[opt_def [cmd -hdr_providerversion]]
+The build number of the operating system on which events were recorded.
+[opt_def [cmd -iskerneltrace]]
+A boolean value which is true id the events were from Windows
+kernel provider and false otherwise.
+[opt_def [cmd -logfilename]]
+The log file, if any, from which the events were read.
+[opt_def [cmd -loggername]]
+The name of the trace session.
+[list_end]
+
+The callback should pass both
+these arguments to [uri #etw_format_events [cmd etw_format_events]] which
+in turn will return a list of formatted events.
+
+[nl]
+To terminate processing of events before all events from the traces are
+consumed, the callback can execute
+[example "return -code break"]
+
 [call [cmd etw_uninstall_mof]]
 Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
 trace formats used by TWAPI.
 
 
-
+[call [cmd etw_load_mof_event_classes] [arg WMIOBJ] [opt [arg "CLASSNAME..."]]]
+Loads and caches the MOF event definitions for the specified MOF classes.
+If no classes are specified, loads all event class definitions. The event
+formatting routines will look up and cache definitions as needed but
+using this command can speed up the process by prepopulating the MOF cache.
+[nl]
+[arg WMIOBJ] should be a 
+[uri com.html#comobj COMOBJ] object returned by a call to
+[cmd "wmi_root -root wmi"].
 
 [list_end]
 
