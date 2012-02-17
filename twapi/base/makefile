@@ -1,49 +1,8 @@
-TWAPI_SRCROOT = $(MAKEDIR)\..
-!include ..\common.inc
+MODULENAME=twapi
+
+!include ..\include\common.inc
 
 CONFIGFLAGS = -DTWAPI_CORE_BUILD
-
-!IFDEF SERVERONLY
-!IFDEF DESKTOPONLY
-!ERROR Must define only one of SERVERONLY or DESKTOPONLY
-!ENDIF
-CONFIGFLAGS = $(CONFIGFLAGS) -DTWAPI_NODESKTOP -DTWAPI_LEAN
-!ELSE
-!IFDEF DESKTOPONLY
-CONFIGFLAGS = $(CONFIGFLAGS) -DTWAPI_NOSERVER -DTWAPI_LEAN
-!ELSE
-# No special flags
-!ENDIF
-!ENDIF
-
-!if "$(MACHINE)" == "AMD64"
-MODULE        = $(PACKAGE)64.dll
-MODULELIB     = $(PACKAGE)64.lib
-!else
-MODULE        = $(PACKAGE).dll
-MODULELIB     = $(PACKAGE).lib
-!endif
-
-# Output directories
-!IFNDEF OUTDIR
-OUTDIR = build\$(MACHINE)
-!ENDIF
-
-!IFDEF DEBUG
-OBJDIR = $(OUTDIR)\debug$(CONFIGNAME)
-!ELSE
-OBJDIR = $(OUTDIR)\release$(CONFIGNAME)
-!ENDIF
-
-!IF "x$(EMBED_SCRIPT)" == "xlzma"
-OBJDIR = $(OBJDIR)_embed_lzma
-!ELSEIF "x$(EMBED_SCRIPT)" == "xplain"
-OBJDIR = $(OBJDIR)_embed
-!ENDIF
-
-!IF "x$(TWAPI_STATIC_BUILD)" != "x"
-OBJDIR = $(OBJDIR)_static
-!ENDIF
 
 OBJS  = \
 	$(OBJDIR)\adsi.obj \
@@ -97,71 +56,6 @@ OBJS  = \
 	$(OBJDIR)\wmi.obj \
 	$(OBJDIR)\wts.obj
 
-!IFNDEF SERVERONLY
-OBJS  = $(OBJS) \
-!ENDIF
-
-
-IFILE         = $(MODULENAME)
-CINCLUDES     = twapi.h twapi_wm.h twapi_ddkdefs.h twapi_sdkdefs.h zlist.h memlifo.h
-
-
-# General tools
-DEL           = del
-COPY          = copy
-
-# Make the directory
-!if ![if not exist $(OBJDIR) mkdir $(OBJDIR)]
-!message Output directory is $(OBJDIR)
-!else
-!message Output directory $(OBJDIR) exists
-!endif
-
-# Visual C++ version
-VCVER=0
-!if ![echo VCVERSION=_MSC_VER > $(OBJDIR)\vercl.x] \
-    && ![cl -nologo -TC -E $(OBJDIR)\vercl.x > $(OBJDIR)\vercl.p 2>NUL]
-!include $(OBJDIR)\vercl.p
-!endif
-
-!if $(VCVERSION) >= 1600
-VCVER=10
-!elseif $(VCVERSION) >= 1500
-VCVER=9
-!elseif $(VCVERSION) >= 1400
-VCVER=8
-!elseif $(VCVERSION) >= 1300
-VCVER=7
-!elseif $(VCVERSION) >= 1200
-VCVER=6
-!endif
-
-!if $(VCVER) == 0
-!error Could not determine compiler version
-!else
-!message Compiling with Visual C++ $(VCVER).
-!endif
-
-
-!ifdef MSSDK
-SDK           = "$(MSSDK)"
-!else
-SDK           = "c:\program files\microsoft platform sdk"
-!endif
-CC            = cl.exe
-LINK          = link.exe
-LIBTOOL       = lib.exe
-MT            = mt.exe
-
-# TCL resources. By default, we will use 8.5 
-!if "x$(TCLVER)" == "x"
-TCLVER        = 85
-!endif
-!if "x$(TCLDIR)" == "x"
-TCLDIR        = "$(TWAPI_SRCROOT)\..\tcl-tk\$(TCLVER)"
-!endif
-TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
-
 
 # Windows libraries
 # If building with Visual C++ 6.0, we need SDK libraries for newer API's.
@@ -169,6 +63,7 @@ TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
 # understand some of the newer SDK library format in which case we have
 # to stick with the compiler libraries. For newer compilers, we never
 # use the SDK libraries.
+
 !if $(VCVER) > 6
 SDKLIB =
 !else
@@ -209,46 +104,6 @@ WINLIB = $(WINLIB) bufferoverflowU.lib
 # Libraries common to all DLLs
 LIBS          = $(TCLLIB) $(DLLIBC) $(WINLIB)
 
-!IFDEF DEBUG
-CDEBUG = -Z7 -Od -D_DEBUG
-!ELSE
-!IFDEF NOOPTIMIZE
-CDEBUG = -Zi -Od
-!ELSE
-CDEBUG = -O1 -Zi -DNDEBUG -W3
-!ENDIF
-!ENDIF
-
-!IFDEF ENABLE_ASSERTS
-CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT=$(ENABLE_ASSERTS)
-!ENDIF
-
-# C compiler flags
-
-INCFLAGS       =  -I. -I$(TCLDIR)\include
-
-!ifndef TWAPI_WIN_HEADER_VERSION
-TWAPI_WIN_HEADER_VERSION = 0x0501
-!endif
-
-
-CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS) 
-
-!ifdef USE_UNICODE_OBJ
-CFLAGS = $(CFLAGS) /DUSE_UNICODE_OBJ=1
-!endif
-
-# What version of shell32.dll ?
-!if $(TWAPI_WIN_HEADER_VERSION) >= 0x0501
-CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0600
-!else
-CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0500
-!endif
-
-
-!if "$(MACHINE)" == "AMD64"
-CFLAGS = $(CFLAGS) /Wp64
-!endif
 
 !IF "x$(TWAPI_STATIC_BUILD)" == "x"
 CFLAGS = $(CFLAGS) -DUSE_TCL_STUBS
