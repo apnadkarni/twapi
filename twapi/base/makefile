@@ -1,4 +1,4 @@
-MODULENAME=twapi
+MODULENAME=twapi_base
 
 !include ..\include\common.inc
 
@@ -58,31 +58,12 @@ OBJS  = \
 
 
 
+# Targets
 
 
-# Resource definitions
-RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\"
-
-!IF "x$(EMBED_SCRIPT)" == "xlzma"
-TWAPI_SCRIPT_RESOURCE_LZMA=combined_twapi_script.lzma
-TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
-TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE_LZMA)
-RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE_LZMA="$(TWAPI_SCRIPT_RESOURCE_PATH)"
-!ELSEIF "x$(EMBED_SCRIPT)" == "xplain"
-TWAPI_SCRIPT_RESOURCE=combined_twapi_script.tcl
-TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
-TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
-RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE="$(TWAPI_SCRIPT_RESOURCE_PATH)"
-!ENDIF
-
-
-all: $(OBJDIR)\$(MODULE)
-
+$(OBJDIR)\$(MODULE): $(OBJS) 
 
 $(OBJS): $(CINCLUDES) makefile
-
-$(OBJDIR)\twapi.res: $(OBJDIR) twapi.rc makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
-        rc $(INCFLAGS) $(RCFLAGS) -fo $@ twapi.rc
 
 !ifdef TWAPI_SCRIPT_RESOURCE
 $(TWAPI_SCRIPT_RESOURCE_PATH):
@@ -95,15 +76,7 @@ $(TWAPI_SCRIPT_RESOURCE_PATH):
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !endif
 
-$(OBJDIR):
-	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
-
-lib: $(OBJDIR)\$(MODULELIB)
-
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) makefile
-	cd ..\tcl && nmake PACKAGEDIR="..\base\$(OBJDIR)\tcl" COMBINEOUTPUT="combined_twapi_script.lzma.raw" combine
-	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_twapi_script.lzma.raw" "$(OBJDIR)\combined_twapi_script.lzma"
-	$(LIBTOOL) /OUT:$@ $(OBJS)
+$(OBJDIR)\$(MODULELIB): $(OBJS)
 
 distribution:
         $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
