@@ -58,44 +58,7 @@ OBJS  = \
 
 
 
-# Libraries common to all DLLs
-LIBS          = $(TCLLIB) $(DLLIBC) $(WINLIB)
 
-
-!IF "x$(TWAPI_STATIC_BUILD)" == "x"
-CFLAGS = $(CFLAGS) -DUSE_TCL_STUBS
-!ELSE
-CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD -DSTATIC_BUILD=1
-!ENDIF
-
-
-# CRT=none support is not complete as yet
-!IF "$(CRT)x" == "nonex"
-CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
-LENTRYFLAG = /ENTRY:DllMain
-!ELSE
-!IF "$(CRT)x" == "staticx"
-CFLAGS = $(CFLAGS) /MT /Oi /DTWAPI_MINIMIZE_CRT
-!ELSE
-CFLAGS = $(CFLAGS) /D_DLL /MD
-!ENDIF
-!ENDIF
-
-# Linker options
-LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
-
-!IFDEF ENABLE_DELAYLOAD
-LIBS = $(LIBS) delayimp.lib
-LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll
-!ENDIF
-
-
-!if $(VCVER) == 6
-# VC 6 - /OPT:NOWIN98 reduces code size by using 512 byte section alignment
-LOPT = $(LOPT) /debug:full /debugtype:cv /OPT:NOWIN98
-!else
-LOPT = $(LOPT) /debug
-!endif
 
 # Resource definitions
 RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\"
@@ -115,11 +78,6 @@ RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE="$(TWAPI_SCRIPT_RESOURCE_PATH)"
 
 all: $(OBJDIR)\$(MODULE)
 
-$(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(OBJDIR)\twapi.res makefile
-        $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(OBJDIR)\twapi.res
-!if $(VCVER) > 8
-	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
-!endif
 
 $(OBJS): $(CINCLUDES) makefile
 
