@@ -57,49 +57,6 @@ OBJS  = \
 	$(OBJDIR)\wts.obj
 
 
-# Windows libraries
-# If building with Visual C++ 6.0, we need SDK libraries for newer API's.
-# However, we cannot use all SDK libraries since the 6.0 linker does not
-# understand some of the newer SDK library format in which case we have
-# to stick with the compiler libraries. For newer compilers, we never
-# use the SDK libraries.
-
-!if $(VCVER) > 6
-SDKLIB =
-!else
-SDKLIB = $(SDK)\lib\ # This comment to ensure line does not end in backslash
-LIB=$(MSVCDIR)\lib
-!endif
-
-WINLIB        = \
-	$(SDKLIB)kernel32.lib \
-	$(SDKLIB)advapi32.lib \
-	$(SDKLIB)user32.lib \
-	rpcrt4.lib \
-	gdi32.lib \
-	$(SDKLIB)psapi.lib \
-	$(SDKLIB)netapi32.lib \
-	$(SDKLIB)pdh.lib \
-	winmm.lib \
-	mpr.lib \
-	$(SDKLIB)ws2_32.lib \
-	ole32.lib \
-	oleaut32.lib \
-	shell32.lib  \
-	$(SDKLIB)winspool.lib \
-	$(SDKLIB)version.lib \
-	$(SDKLIB)iphlpapi.lib \
-	$(SDKLIB)powrprof.lib \
-	$(SDKLIB)secur32.lib \
-	$(SDKLIB)userenv.lib \
-	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)setupapi.lib \
-	$(SDKLIB)uxtheme.lib
-# Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
-
-!if $(VCVER) > 6 && $(VCVER) < 9
-WINLIB = $(WINLIB) bufferoverflowU.lib
-!endif
 
 # Libraries common to all DLLs
 LIBS          = $(TCLLIB) $(DLLIBC) $(WINLIB)

@@ -75,8 +75,12 @@ USE_UNICODE_OBJ = 1
 OUTDIR = $(SRCROOT)\build
 !endif
 
-
-
+# Define TWAPI_STATIC_BUILD=1 if building static twapi libraries
+!ifdef TWAPI_STATIC_BUILD
+!if ! $(TWAPI_STATIC_BUILD)
+!undef TWAPI_STATIC_BUILD
+!endif
+!endif
 
 
 ################# TARGET ARCHITECTURE ###################
@@ -139,10 +143,21 @@ MODULELIB     = $(PACKAGE).lib
 
 ################# COMPILER AND SDK #####################
 
+# Now the SDK
+
+!ifdef MSSDK
+SDK           = "$(MSSDK)"
+!else
+SDK           = "c:\program files\microsoft platform sdk"
+!endif
+
 CC            = cl.exe
 LINK          = link.exe
 LIBTOOL       = lib.exe
 MT            = mt.exe
+
+# Compiler
+# --------
 
 # Visual C++ version
 VCVER=0
@@ -211,14 +226,27 @@ CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0600
 CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0500
 !endif
 
+# CRT=none support is not complete as yet
+!IF "$(CRT)x" == "nonex"
+CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
+LENTRYFLAG = /ENTRY:DllMain
+!ELSE
+!IF "$(CRT)x" == "staticx"
+CFLAGS = $(CFLAGS) /MT /Oi /DTWAPI_MINIMIZE_CRT
+!ELSE
+CFLAGS = $(CFLAGS) /D_DLL /MD
+!ENDIF
+!ENDIF
 
-# Now the SDK
+!IF "x$(TWAPI_STATIC_BUILD)" == "x"
+CFLAGS = $(CFLAGS) -DUSE_TCL_STUBS
+!ELSE
+CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD -DSTATIC_BUILD=1
+!ENDIF
 
-!ifdef MSSDK
-SDK           = "$(MSSDK)"
-!else
-SDK           = "c:\program files\microsoft platform sdk"
-!endif
+
+# Libraries
+# ---------
 
 # Windows libraries
 # If building with Visual C++ 6.0, we need SDK libraries for newer API's.
@@ -229,9 +257,63 @@ SDK           = "c:\program files\microsoft platform sdk"
 !if $(VCVER) > 6
 SDKLIB =
 !else
-SDKLIB = $(SDK)\lb\ # This comment to ensure line does not end in backslash
+SDKLIB = $(SDK)\lib\ # This comment to ensure line does not end in backslash
 LIB=$(MSVCDIR)\lib
 !endif
+
+
+WINLIB        = \
+	$(SDKLIB)kernel32.lib \
+	$(SDKLIB)advapi32.lib \
+	$(SDKLIB)user32.lib \
+	rpcrt4.lib \
+	gdi32.lib \
+	$(SDKLIB)psapi.lib \
+	$(SDKLIB)netapi32.lib \
+	$(SDKLIB)pdh.lib \
+	winmm.lib \
+	mpr.lib \
+	$(SDKLIB)ws2_32.lib \
+	ole32.lib \
+	oleaut32.lib \
+	shell32.lib  \
+	$(SDKLIB)winspool.lib \
+	$(SDKLIB)version.lib \
+	$(SDKLIB)iphlpapi.lib \
+	$(SDKLIB)powrprof.lib \
+	$(SDKLIB)secur32.lib \
+	$(SDKLIB)userenv.lib \
+	$(SDKLIB)wtsapi32.lib \
+	$(SDKLIB)setupapi.lib \
+	$(SDKLIB)uxtheme.lib
+# Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
+
+!if $(VCVER) > 6 && $(VCVER) < 9
+WINLIB = $(WINLIB) bufferoverflowU.lib
+!endif
+
+LIBS          = $(TCLLIB) $(WINLIB)
+
+
+# Linking
+# -------
+LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
+
+!ifdef ENABLE_DELAYLOAD
+LIBS = $(LIBS) delayimp.lib
+LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll
+!endif
+
+
+!if $(VCVER) == 6
+# VC 6 - /OPT:NOWIN98 reduces code size by using 512 byte section alignment
+LOPT = $(LOPT) /debug:full /debugtype:cv /OPT:NOWIN98
+!else
+LOPT = $(LOPT) /debug
+!endif
+
+
+
 
 ###################### TOOL PATHS ########################
 
@@ -252,13 +334,6 @@ TCLVER        = 85
 TCLDIR        = "$(SRCROOT)\..\tcl-tk\$(TCLVER)"
 !endif
 TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
-
-
-# General tools
-DEL           = del
-COPY          = copy
-
-
 
 
 ################################################################
@@ -300,5 +375,5 @@ ZIP           = "$(TOOLDIR)"\zip.exe
 
 
 
-{.}.c{$(OBJDIR)}.obj::
+.c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
