@@ -1592,7 +1592,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
-#if defined(USE_UNICODE_OBJ)
+#if USE_UNICODE_OBJ
 #define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
 #else
 #define ObjFromUnicodeN(p_, n_) TwapiUtf8ObjFromUnicode((p_), (n_))

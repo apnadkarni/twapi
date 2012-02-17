@@ -203,13 +203,11 @@ printdevices: printdevices.exe
 printdevices.exe: printdevices.c makefile
         $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
 
-makefile: ../common.inc
+makefile: ../include/common.inc
 
 clean:
         -$(DEL) *.i~ *.c~ *.h~
         -rmdir /s /q $(OBJDIR)
         -$(DEL) printioctl.obj
 
-.c{$(OBJDIR)}.obj::
-       $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
 
