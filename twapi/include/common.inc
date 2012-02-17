@@ -377,3 +377,9 @@ ZIP           = "$(TOOLDIR)"\zip.exe
 
 .c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
+
+$(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(OBJDIR)\$(MODULENAME).res makefile
+        $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(OBJDIR)\twapi.res
+!if $(VCVER) > 8
+	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
+!endif
