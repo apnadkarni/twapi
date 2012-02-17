@@ -83,6 +83,23 @@ OUTDIR = $(SRCROOT)\build
 !endif
 
 
+################ Product version definitions ################
+
+# Internal version as used within Tcl code
+MODULEVERSION = $(MODULEMAJOR).$(MODULEMINOR)$(RELEASETYPE)$(MODULEBUILD)
+FILE_VERSION_STR = "$(MODULEVERSION)"
+
+# External version string as stored in a resource file
+!if "x$(RELEASETYPE)" == "xa"
+MODULE_VERSION_STR = "$(FILE_VERSION_STR) Alpha"
+!elseif "x$(RELEASETYPE)" == "xb"
+MODULE_VERSION_STR = "$(FILE_VERSION_STR) Beta"
+!else
+MODULE_VERSION_STR = $(FILE_VERSION_STR)
+!endif
+
+
+
 ################# TARGET ARCHITECTURE ###################
 
 # Following the Tcl build style, we assume that either the vcvars32.bat
@@ -295,6 +312,24 @@ WINLIB = $(WINLIB) bufferoverflowU.lib
 LIBS          = $(TCLLIB) $(WINLIB)
 
 
+
+# Resource definitions
+
+RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\"
+
+!IF "x$(EMBED_SCRIPT)" == "xlzma"
+TWAPI_SCRIPT_RESOURCE_LZMA=combined_twapi_script.lzma
+TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
+TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE_LZMA)
+RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE_LZMA="$(TWAPI_SCRIPT_RESOURCE_PATH)"
+!ELSEIF "x$(EMBED_SCRIPT)" == "xplain"
+TWAPI_SCRIPT_RESOURCE=combined_twapi_script.tcl
+TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
+TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
+RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE="$(TWAPI_SCRIPT_RESOURCE_PATH)"
+!ENDIF
+
+
 # Linking
 # -------
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
@@ -340,18 +375,6 @@ TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
 # TWAPI feature options
 
 
-# Internal version as used within Tcl code
-MODULEVERSION = $(MODULEMAJOR).$(MODULEMINOR)$(RELEASETYPE)$(MODULEBUILD)
-FILE_VERSION_STR = "$(MODULEVERSION)"
-
-# External version string as stored in a resource file
-!if "x$(RELEASETYPE)" == "xa"
-MODULE_VERSION_STR = "$(FILE_VERSION_STR) Alpha"
-!elseif "x$(RELEASETYPE)" == "xb"
-MODULE_VERSION_STR = "$(FILE_VERSION_STR) Beta"
-!else
-MODULE_VERSION_STR = $(FILE_VERSION_STR)
-!endif
 
 ################################################################
 
@@ -374,12 +397,32 @@ RMDIR	      = rmdir /S /Q
 ZIP           = "$(TOOLDIR)"\zip.exe
 
 
+################ TARGETS AND RULES ################
 
+all: $(OBJDIR)\$(MODULE)
+
+$(OBJDIR):
+	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
+
+$(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(MODULENAME).rc makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
+        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(MODULENAME).rc
+
+# Static library
+lib: $(OBJDIR)\$(MODULELIB)
+
+$(OBJDIR)\$(MODULELIB): $(OBJDIR)
+	cd ..\tcl && nmake PACKAGEDIR="..\base\$(OBJDIR)\tcl" COMBINEOUTPUT="combined_$(MODULENAME)_script.lzma.raw" combine
+	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_$(MODULENAME)_script.lzma.raw" "$(OBJDIR)\combined_$(MODULENAME)_script.lzma"
+	$(LIBTOOL) /OUT:$@ $**
+
+# Compile a file
 .c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
 
-$(OBJDIR)\$(MODULE): $(OBJDIR) $(OBJS) $(OBJDIR)\$(MODULENAME).res makefile
-        $(LINK) $(LOPT) -out:$@ $(LIBS) $(OBJS) $(OBJDIR)\twapi.res
+# Link the module
+$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res
+        $(LINK) $(LOPT) -out:$@ $(LIBS) $**
 !if $(VCVER) > 8
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
 !endif
+
