@@ -10,7 +10,7 @@ syntax: glob
 *.pdb
 *.sav
 temp
-base/build
+build
 doc/chm-build
 doc/website-build
 doc/website
