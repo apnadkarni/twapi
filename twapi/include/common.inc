@@ -11,6 +11,10 @@
 !error MODULENAME not defined
 !endif
 
+!ifndef OBJS
+#!error OBJS not defined.
+!endif
+
 ########################## OPTIONAL DEFINES #######################
 #
 # In addition, the following may be *optionally* defined by each module
@@ -58,7 +62,9 @@ TWAPI_WIN_HEADER_VERSION = 0x0501
 # Note both support same range of characters. The choice depends
 # on speed of object creation versus memory.
 # Note it is OK to mix modules that define this with those that do not
-
+!ifndef USE_UNICODE_OBJ
+USE_UNICODE_OBJ = 1
+!endif
 
 
 ################ Command line Defines ################
@@ -195,7 +201,7 @@ CFLAGS = $(CFLAGS) /Wp64
 !endif
 
 !ifdef USE_UNICODE_OBJ
-CFLAGS = $(CFLAGS) /DUSE_UNICODE_OBJ=1
+CFLAGS = $(CFLAGS) /DUSE_UNICODE_OBJ=$(USE_UNICODE_OBJ)
 !endif
 
 # What version of shell32.dll to use. XP or later -> IE 6
@@ -294,3 +300,5 @@ ZIP           = "$(TOOLDIR)"\zip.exe
 
 
 
+.c{$(OBJDIR)}.obj::
+       $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
