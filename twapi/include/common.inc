@@ -300,5 +300,5 @@ ZIP           = "$(TOOLDIR)"\zip.exe
 
 
 
-.c{$(OBJDIR)}.obj::
+{.}.c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
