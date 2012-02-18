@@ -1699,11 +1699,12 @@ TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
 TWAPI_EXTERN void TwapiLzmaFreeBuffer(unsigned char *buf);
 
 /* General utility */
+TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
-TWAPI_EXTERN int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-TWAPI_EXTERN int TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TWAPI_EXTERN TCL_RESULT TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TWAPI_EXTERN TCL_RESULT TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
