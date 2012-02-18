@@ -373,13 +373,6 @@ TCLDIR        = "$(SRCROOT)\..\tcl-tk\$(TCLVER)"
 TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
 
 
-################################################################
-# TWAPI feature options
-
-
-
-################################################################
-
 # TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
 # to invoke build scripts.
 TCLSH         = "$(SRCROOT)\..\tools\tclkitsh.exe"
@@ -412,6 +405,11 @@ $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(MODULENAME).rc makefile $(TWAPI_SCRIPT_
 # Static library
 lib: $(OBJDIR)\$(MODULELIB)
 
+makefile: $(SRCROOT)\include\common.inc
+
+distribution:
+        $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
+
 $(OBJDIR)\$(MODULELIB): $(OBJDIR)
 	cd ..\tcl && nmake PACKAGEDIR="$(OBJDIR)\tcl" COMBINEOUTPUT="combined_$(MODULENAME)_script.lzma.raw" PACKAGE="$(PACKAGE)" combine
 	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_$(MODULENAME)_script.lzma.raw" "$(OBJDIR)\combined_$(MODULENAME)_script.lzma"
@@ -439,3 +437,6 @@ $(TWAPI_SCRIPT_RESOURCE_PATH):
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !endif
 
+
+clean:
+        -$(RMDIR) "$(OBJDIR)"

@@ -210,14 +210,6 @@ proc twapi::get_build_config {{key ""}} {
     }
 }
 
-# win32calls.tcl must be sourced early to make WIN32 APIs available right away
-# If this is a built .tm module or embedded, no need to source any files.
-if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_type] eq "none"} {
-    source [file join [file dirname [info script]] win32calls.tcl]
-}
-
-
-
 # Adds the specified Windows header defines into a global array
 # We will set a trace to do a lazy initialization on first read of array.
 array set twapi::windefs {}

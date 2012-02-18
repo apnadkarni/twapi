@@ -10,9 +10,9 @@ PACKAGEDIR=$(SRCROOT)\dist
 
 BUILDIDPATH="$(PACKAGEDIR)\twapi_buildid.tcl"
 
-# Mandatory files. win32calls.tcl twapi.tcl must come first since this
+# Mandatory files. twapi.tcl must come first since this
 # is the order in which files are combined as well.
-BASE_TCLFILES=win32calls.tcl twapi.tcl handle.tcl metoo.tcl osinfo.tcl security.tcl process.tcl disk.tcl 
+BASE_TCLFILES=twapi.tcl handle.tcl metoo.tcl osinfo.tcl security.tcl process.tcl disk.tcl 
 
 # Desktop files
 DESKTOP_TCLFILES= ui.tcl clipboard.tcl nls.tcl shell.tcl com.tcl

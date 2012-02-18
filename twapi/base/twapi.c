@@ -170,25 +170,26 @@ int Twapi_Init(Tcl_Interp *interp)
 /*
  * Loads the initialization script from image file resource
  */
-static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
+TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name)
 {
     HRSRC hres = NULL;
-    int compressed = 0;
     unsigned char *dataP;
     DWORD sz;
     HGLOBAL hglob;
     int result;
+    int compressed;
 
     /*
      * Locate the twapi resource and load it if found. First check for
      * uncompressed type. Then compressed.
      */
-    hres = FindResource(gTwapiModuleHandle,
-                        TWAPI_SCRIPT_RESOURCE_NAME,
+    compressed = 0;
+    hres = FindResource(dllH,
+                        name,
                         TWAPI_SCRIPT_RESOURCE_TYPE);
     if (!hres) {
-        hres = FindResource(gTwapiModuleHandle,
-                            TWAPI_SCRIPT_RESOURCE_NAME,
+        hres = FindResource(dllH,
+                            name,
                             TWAPI_SCRIPT_RESOURCE_TYPE_LZMA);
         compressed = 1;
     }
@@ -196,10 +197,8 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     if (!hres)
         return Twapi_AppendSystemError(ticP->interp, GetLastError());
 
-    gTwapiEmbedType = compressed ? "lzma" : "plain";
-
-    sz = SizeofResource(gTwapiModuleHandle, hres);
-    hglob = LoadResource(gTwapiModuleHandle, hres);
+    sz = SizeofResource(dllH, hres);
+    hglob = LoadResource(dllH, hres);
     if (sz && hglob) {
         dataP = LockResource(hglob);
         if (dataP) {
@@ -222,6 +221,21 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     }
 
     return Twapi_AppendSystemError(ticP->interp, GetLastError());
+    
+}
+
+/*
+ * Loads the initialization script from image file resource
+ */
+static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
+{
+    int result;
+    gTwapiEmbedType = "embedded";
+    result = Twapi_SourceResource(ticP, gTwapiModuleHandle, TWAPI_SCRIPT_RESOURCE_NAME);
+    if (result != TCL_OK) {
+        gTwapiModuleHandle = "none"; /* Reset */
+    }
+    return result;
 }
 
 int Twapi_GetTwapiBuildInfo(
