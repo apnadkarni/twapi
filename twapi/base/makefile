@@ -65,17 +65,6 @@ $(OBJDIR)\$(MODULE): $(OBJS)
 
 $(OBJS): $(CINCLUDES) makefile
 
-!ifdef TWAPI_SCRIPT_RESOURCE
-$(TWAPI_SCRIPT_RESOURCE_PATH):
-	cd ..\tcl && nmake PACKAGEDIR="..\base\$(TWAPI_SCRIPT_RESOURCE_DIR)" COMBINEOUTPUT="$(TWAPI_SCRIPT_RESOURCE)" combine
-!endif
-
-!ifdef TWAPI_SCRIPT_RESOURCE_LZMA
-$(TWAPI_SCRIPT_RESOURCE_PATH):
-	cd ..\tcl && nmake PACKAGEDIR="..\base\$(TWAPI_SCRIPT_RESOURCE_DIR)" COMBINEOUTPUT="$(TWAPI_SCRIPT_RESOURCE_LZMA).raw" combine
-	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
-!endif
-
 $(OBJDIR)\$(MODULELIB): $(OBJS)
 
 distribution:
@@ -91,7 +80,7 @@ printdevices: printdevices.exe
 printdevices.exe: printdevices.c makefile
         $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
 
-makefile: ../include/common.inc
+makefile: ..\include\common.inc
 
 clean:
         -$(DEL) *.i~ *.c~ *.h~

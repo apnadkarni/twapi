@@ -8,18 +8,14 @@
 # Each module should define the following before including this file
 
 !ifndef MODULENAME
-!error MODULENAME not defined
-!endif
-
-!ifndef OBJS
-#!error OBJS not defined.
+# !error MODULENAME not defined
 !endif
 
 ########################## OPTIONAL DEFINES #######################
 #
 # In addition, the following may be *optionally* defined by each module
 
-# Define TWAPI_SRCROOT if module is in a non-standard place in directory tree
+# Define SRCROOT if module is in a non-standard place in directory tree
 !ifndef SRCROOT
 SRCROOT=$(MAKEDIR)\..
 !endif
@@ -49,7 +45,11 @@ RELEASETYPE = .
 
 # Name of the package defaults to module name
 !ifndef PACKAGE
+!ifndef MODULENAME
+!error Neither PACKAGE nor MODULENAME are defined
+!else
 PACKAGE=$(MODULENAME)
+!endif
 !endif
 
 # Some modules that only run on later versions of Windows may
@@ -82,6 +82,8 @@ OUTDIR = $(SRCROOT)\build
 !endif
 !endif
 
+# Define EMBED_SCRIPT as "plain" or "lzma" to embed Tcl scripts
+# as a resource
 
 ################ Product version definitions ################
 
@@ -318,12 +320,12 @@ LIBS          = $(TCLLIB) $(WINLIB)
 RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\"
 
 !IF "x$(EMBED_SCRIPT)" == "xlzma"
-TWAPI_SCRIPT_RESOURCE_LZMA=combined_twapi_script.lzma
+TWAPI_SCRIPT_RESOURCE_LZMA=combined_$(MODULENAME)_script.lzma
 TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
 TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE_LZMA)
 RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE_LZMA="$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !ELSEIF "x$(EMBED_SCRIPT)" == "xplain"
-TWAPI_SCRIPT_RESOURCE=combined_twapi_script.tcl
+TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script.tcl
 TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
 TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
 RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE="$(TWAPI_SCRIPT_RESOURCE_PATH)"
@@ -380,7 +382,7 @@ TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
 
 # TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
 # to invoke build scripts.
-TCLSH         = "$(TWAPI_SRCROOT)\..\tools\tclkitsh.exe"
+TCLSH         = "$(SRCROOT)\..\tools\tclkitsh.exe"
 
 # TCLSH_TARGET is the Tcl shell path on target installations. Used to install
 # twapi. Need not be defined unless you are using the makefile to install
@@ -411,7 +413,7 @@ $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(MODULENAME).rc makefile $(TWAPI_SCRIPT_
 lib: $(OBJDIR)\$(MODULELIB)
 
 $(OBJDIR)\$(MODULELIB): $(OBJDIR)
-	cd ..\tcl && nmake PACKAGEDIR="..\base\$(OBJDIR)\tcl" COMBINEOUTPUT="combined_$(MODULENAME)_script.lzma.raw" combine
+	cd ..\tcl && nmake PACKAGEDIR="$(OBJDIR)\tcl" COMBINEOUTPUT="combined_$(MODULENAME)_script.lzma.raw" PACKAGE="$(PACKAGE)" combine
 	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_$(MODULENAME)_script.lzma.raw" "$(OBJDIR)\combined_$(MODULENAME)_script.lzma"
 	$(LIBTOOL) /OUT:$@ $**
 
@@ -424,5 +426,16 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res
         $(LINK) $(LOPT) -out:$@ $(LIBS) $**
 !if $(VCVER) > 8
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
+!endif
+
+!ifdef TWAPI_SCRIPT_RESOURCE
+$(TWAPI_SCRIPT_RESOURCE_PATH):
+	cd ..\tcl && nmake PACKAGEDIR="$(TWAPI_SCRIPT_RESOURCE_DIR)" COMBINEOUTPUT="$(TWAPI_SCRIPT_RESOURCE)" PACKAGE=$(PACKAGE) combine
+!endif
+
+!ifdef TWAPI_SCRIPT_RESOURCE_LZMA
+$(TWAPI_SCRIPT_RESOURCE_PATH):
+	cd ..\tcl && nmake PACKAGEDIR="$(TWAPI_SCRIPT_RESOURCE_DIR)" COMBINEOUTPUT="$(TWAPI_SCRIPT_RESOURCE_LZMA).raw" PACKAGE=$(PACKAGE) combine
+	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !endif
 
