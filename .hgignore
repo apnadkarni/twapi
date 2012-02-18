@@ -19,6 +19,7 @@ TAGS
 \#*#
 *.vfs
 Thumbs.db
+SyncToy*
 
 # TEA based intermediate files
 autom4te.cache/*
