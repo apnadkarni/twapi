@@ -19,9 +19,10 @@
  * a static library version of TWAPI. Clients should define this when
  * linking to the static library version of TWAPI.
  *
- * TWAPI_CORE_BUILD - the TWAPI core build and ONLY the TWAPI core build
+ * twapi_base_BUILD - the TWAPI core build and ONLY the TWAPI core build
  * should define this, both for static as well dll builds. Clients should never 
- * define it for their builds, nor should other twapi components
+ * define it for their builds, nor should other twapi components. (lower
+ * case "twapi_base" because it is derived from the build system)
  *
  * USE_TWAPI_STUBS - for future use should not be currently defined.
  */
@@ -34,7 +35,7 @@
 # define TWAPI_IMPORT __declspec(dllimport)
 #endif
 
-#ifdef TWAPI_CORE_BUILD
+#ifdef twapi_base_BUILD
 #   define TWAPI_STORAGE_CLASS TWAPI_EXPORT
 #else
 #   ifdef USE_TWAPI_STUBS
@@ -471,12 +472,8 @@ extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
 typedef DWORD_PTR TwapiId;
 #define ObjFromTwapiId ObjFromDWORD_PTR
 #define ObjToTwapiId ObjToDWORD_PTR
-#ifdef _WIN64
-#define TWAPI_NEWID(ticP_) InterlockedIncrement64(&gIdGenerator)
-#else
-#define TWAPI_NEWID(ticP_) InterlockedIncrement(&gIdGenerator)
-#endif
 #define INVALID_TwapiId    0
+#define TWAPI_NEWID Twapi_NewId
 
 /* Used to maintain context for common NetEnum* interfaces */
 typedef struct _TwapiEnumCtx {
@@ -825,7 +822,7 @@ typedef struct _TwapiTls {
     Tcl_ThreadId thread;
 #define TWAPI_TLS_SLOTS 8
     DWORD_PTR slots[TWAPI_TLS_SLOTS];
-#define TWAPI_TLS_SLOT(slot_) (TwapiGetTls()->slots[slot_])
+#define TWAPI_TLS_SLOT(slot_) (Twapi_GetTls()->slots[slot_])
 } TwapiTls;
 
 /*
@@ -948,9 +945,6 @@ extern TRACEHANDLE gETWProviderSessionHandle;
     } while (0)
 
 
-TwapiTls *TwapiGetTls();
-int TwapiAssignTlsSlot();
-
 /* Thread pool handle registration */
 TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
@@ -973,8 +967,6 @@ TWAPI_EXTERN int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char 
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
 
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
-#define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
-void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
@@ -1707,5 +1699,14 @@ TWAPI_EXTERN TCL_RESULT TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj 
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
+TWAPI_EXTERN TwapiId Twapi_NewId();
+
+/* Interp context */
+TWAPI_EXTERN TwapiInterpContext * TwapiInterpContextNew(Tcl_Interp *interp);
+#define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
+TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
+TWAPI_EXTERN TwapiTls *Twapi_GetTls();
+TWAPI_EXTERN int Twapi_AssignTlsSlot();
+
 
 #endif // TWAPI_H

@@ -144,6 +144,8 @@ OBJDIR = $(OBJDIR)_embed
 OBJDIR = $(OBJDIR)_static
 !endif
 
+OBJDIR = $(OBJDIR)\$(MODULENAME)
+
 # Make the directory
 !if ![if not exist $(OBJDIR) mkdir $(OBJDIR)]
 !message Output directory is $(OBJDIR)
@@ -229,7 +231,7 @@ CINCLUDES     = $(SRCROOT)\include\twapi.h \
 		$(SRCROOT)\include\zlist.h \
 		$(SRCROOT)\include\memlifo.h
 
-CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) $(CONFIGFLAGS) -DMODULENAME=\"$(MODULENAME)\"
+CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) -DMODULENAME=\"$(MODULENAME)\" -D$(MODULENAME)_BUILD
 
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
@@ -314,7 +316,10 @@ WINLIB = $(WINLIB) bufferoverflowU.lib
 
 LIBS          = $(TCLLIB) $(WINLIB)
 
-
+# Modules have to link with the twapi_base dll
+!if "$(MODULENAME)" != "twapi_base"
+LIBS = "$(OBJDIR)\..\twapi_base\twapi_base.lib" $(LIBS)
+!endif
 
 # Resource definitions
 

@@ -58,12 +58,14 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
 
+#ifndef TWAPI_STATIC_BUILD
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
     if (reason == DLL_PROCESS_ATTACH)
         gTwapiModuleHandle = hmod;
     return TRUE;
 }
+#endif
 
 /* Why is this decl needed ? TBD */
 const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
@@ -341,7 +343,7 @@ static void Twapi_Cleanup(ClientData clientdata)
 }
 
 
-static TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
+TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
 {
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
@@ -531,7 +533,7 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     return TCL_ERROR;
 }
 
-int TwapiAssignTlsSlot()
+int Twapi_AssignTlsSlot()
 {
     DWORD slot;
     slot = InterlockedIncrement(&gTlsNextSlot);
@@ -542,7 +544,7 @@ int TwapiAssignTlsSlot()
     return slot-1;
 }
 
-TwapiTls *TwapiGetTls()
+TwapiTls *Twapi_GetTls()
 {
     TwapiTls *tlsP;
 
@@ -557,3 +559,12 @@ TwapiTls *TwapiGetTls()
     return tlsP;
 }
 
+TwapiId Twapi_NewId(TwapiInterpContext *ticP)
+{
+#ifdef _WIN64
+    return InterlockedIncrement64(&gIdGenerator);
+#else
+    return InterlockedIncrement(&gIdGenerator);
+#endif
+
+}
