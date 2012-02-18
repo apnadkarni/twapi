@@ -16,8 +16,8 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 
 $(OBJS): $(CINCLUDES) makefile
 
-$(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(MODULENAME).rc makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
-        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(MODULENAME).rc
+$(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_NAME) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
+        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_NAME)
 
 # Static library
 lib: $(OBJDIR)\$(MODULELIB)
