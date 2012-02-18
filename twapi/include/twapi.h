@@ -126,7 +126,6 @@ typedef DWORD WIN32_ERROR;
 typedef int TCL_RESULT;
 
 #define TWAPI_TCL_NAMESPACE "twapi"
-#define TWAPI_SCRIPT_RESOURCE_NAME "twapiscript"
 #define TWAPI_SCRIPT_RESOURCE_TYPE "tclscript"
 #define TWAPI_SCRIPT_RESOURCE_TYPE_LZMA "tclscriptlzma"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
