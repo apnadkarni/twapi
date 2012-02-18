@@ -54,6 +54,24 @@ namespace eval twapi {
     variable com_debug 0
 }
 
+proc twapi::IUnknown_QueryInterface {ifc iid} {
+    set iidname void
+    catch {set iidname [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]}
+    return [Twapi_IUnknown_QueryInterface $ifc $iid $iidname]
+}
+
+proc twapi::CoGetObject {name bindopts iid} {
+    set iidname void
+    catch {set iidname [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]}
+    return [Twapi_CoGetObject $name $bindopts $iid $iidname]
+}
+
+proc twapi::CoCreateInstance {clsid iunknown context iid} {
+    set iidname void
+    catch {set iidname [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]}
+    return [Twapi_CoCreateInstance $clsid $iunknown $context $iid $iidname]
+}
+
 # Get the CLSID for a ProgID
 proc twapi::progid_to_clsid {progid} {
     return [CLSIDFromProgID $progid]
