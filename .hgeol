@@ -4,6 +4,7 @@
 **.h = native
 **.cpp = native
 **.inc = native
+**.rcinc = native
 **.tcl = native
 **.wtf = native
 **.htm = native
