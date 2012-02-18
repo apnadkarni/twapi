@@ -57,14 +57,7 @@ OBJS  = \
 	$(OBJDIR)\wts.obj
 
 
-# The following target add dependencies since OBJS is not defined
-# at the point common.inc is included
-
-$(OBJDIR)\$(MODULE): $(OBJS) 
-
-$(OBJS): $(CINCLUDES) makefile
-
-$(OBJDIR)\$(MODULELIB): $(OBJS)
+!include ..\include\rules.inc
 
 printioctl: printioctl.exe
 
