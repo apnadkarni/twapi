@@ -233,7 +233,7 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     gTwapiEmbedType = "embedded";
     result = Twapi_SourceResource(ticP, gTwapiModuleHandle, TWAPI_SCRIPT_RESOURCE_NAME);
     if (result != TCL_OK) {
-        gTwapiModuleHandle = "none"; /* Reset */
+        gTwapiEmbedType = "none"; /* Reset */
     }
     return result;
 }
