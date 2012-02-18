@@ -23,7 +23,15 @@ FILETYPE VFT_DLL
 }
 
 
+
 #ifdef TWAPI_SCRIPT_RESOURCE
+/*
+ NOTE: 
+ If you get strange errors on the next line, confirm that your
+ TWAPI_SCRIPT_RESOURCE file path does not contain a "-" (e.g.
+ c:\src\twapi-new\blah blah). The rc compiler stops parsing at
+ the "-" and complains file not found. What a crock!
+ */
 twapiscript tclscript TWAPI_SCRIPT_RESOURCE
 #endif
 
