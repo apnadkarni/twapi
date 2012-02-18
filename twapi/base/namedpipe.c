@@ -185,7 +185,7 @@ static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
 
 static int NPipeModuleInit(TwapiInterpContext *ticP)
 {
-    gNPipeTlsSlot = TwapiAssignTlsSlot();
+    gNPipeTlsSlot = Twapi_AssignTlsSlot();
     if (gNPipeTlsSlot < 0) {
         if (ticP && ticP->interp) {
             Tcl_SetResult(ticP->interp, "Could not assign private TLS slot", TCL_STATIC);

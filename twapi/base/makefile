@@ -2,8 +2,6 @@ MODULENAME=twapi_base
 
 !include ..\include\common.inc
 
-CONFIGFLAGS = -DTWAPI_CORE_BUILD
-
 OBJS  = \
 	$(OBJDIR)\adsi.obj \
 	$(OBJDIR)\async.obj \
