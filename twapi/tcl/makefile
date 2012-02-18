@@ -1,12 +1,11 @@
-TWAPI_SRCROOT = $(MAKEDIR)\..
-!include ..\common.inc
+!include ..\include\common.inc
 
 !ifndef PACKAGE
 !error Macro PACKAGE is not defined.
 !endif
 
 !ifndef PACKAGEDIR
-PACKAGEDIR=$(TWAPI_SRCROOT)\dist
+PACKAGEDIR=$(SRCROOT)\dist
 !endif
 
 BUILDIDPATH="$(PACKAGEDIR)\twapi_buildid.tcl"
@@ -84,7 +83,7 @@ $(BUILDIDPATH) :
         -@mkdir "$(PACKAGEDIR)"
         echo puts "namespace eval twapi {variable build_id [clock seconds]}" | $(TCLSH) >> $@
 
-makefile: ../common.inc
+makefile: ..\include\common.inc
 
 clean:
         -del *.*~
