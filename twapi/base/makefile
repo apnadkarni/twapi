@@ -57,9 +57,8 @@ OBJS  = \
 	$(OBJDIR)\wts.obj
 
 
-
-# Targets
-
+# The following target add dependencies since OBJS is not defined
+# at the point common.inc is included
 
 $(OBJDIR)\$(MODULE): $(OBJS) 
 
@@ -67,24 +66,15 @@ $(OBJS): $(CINCLUDES) makefile
 
 $(OBJDIR)\$(MODULELIB): $(OBJS)
 
-distribution:
-        $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
-
 printioctl: printioctl.exe
 
 printioctl.exe: printioctl.c makefile
-        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printioctl.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
+        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printioctl.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib /Fe"$(OBJDIR)\printioctl.exe"
 
 printdevices: printdevices.exe
 
 printdevices.exe: printdevices.c makefile
-        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib
+        $(CC) -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -nologo $(INCFLAGS) printdevices.c $(SDKLIB)ole32.lib $(SDKLIB)setupapi.lib /Fe"$(OBJDIR)\printdevices.exe"
 
-makefile: ..\include\common.inc
-
-clean:
-        -$(DEL) *.i~ *.c~ *.h~
-        -rmdir /s /q $(OBJDIR)
-        -$(DEL) printioctl.obj
 
 

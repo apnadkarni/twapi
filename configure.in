@@ -117,8 +117,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 # which allow for desktop- and server-only builds like the original
 # VC makefile.
 
-    TEA_ADD_TCL_SOURCES([twapi/tcl/win32calls.tcl
- twapi/tcl/twapi.tcl twapi/tcl/handle.tcl 
+    TEA_ADD_TCL_SOURCES([twapi/tcl/twapi.tcl twapi/tcl/handle.tcl 
  twapi/tcl/metoo.tcl twapi/tcl/osinfo.tcl
  twapi/tcl/security.tcl twapi/tcl/process.tcl twapi/tcl/disk.tcl])
 
