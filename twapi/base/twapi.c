@@ -72,7 +72,7 @@ const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
 #endif
-int Twapi_Init(Tcl_Interp *interp)
+int Twapi_base_Init(Tcl_Interp *interp)
 {
     static LONG twapi_initialized;
     TwapiInterpContext *ticP;
@@ -231,7 +231,7 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
 {
     int result;
     gTwapiEmbedType = "embedded";
-    result = Twapi_SourceResource(ticP, gTwapiModuleHandle, TWAPI_SCRIPT_RESOURCE_NAME);
+    result = Twapi_SourceResource(ticP, gTwapiModuleHandle, MODULENAME);
     if (result != TCL_OK) {
         gTwapiEmbedType = "none"; /* Reset */
     }
