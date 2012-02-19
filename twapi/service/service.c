@@ -6,10 +6,13 @@
  */
 
 #include "twapi.h"
+
 #if !defined(TWAPI_REPLACE_CRT) && !defined(TWAPI_MINIMIZE_CRT)
 # include <process.h>
 #endif
 #include <dbt.h>                /* For DBT_* decls */
+
+#include "twapi_service.h"
 
 /* There can be only one....*/
 static TwapiInterpContext *gServiceInterpContextP;

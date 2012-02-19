@@ -473,16 +473,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_RegisterDirectoryMonitor, Call, 10035);
     CALL_(LookupPrivilegeName, Call, 10036);
     CALL_(PlaySound, Call, 10037);
-    CALL_(EnumServicesStatusEx, Call, 10040);
     CALL_(SetSecurityInfo, Call, 10041);
     CALL_(WTSSendMessage, Call, 10044);
     CALL_(DuplicateTokenEx, Call, 10045);
     CALL_(ReadProcessMemory, Call, 10046);
     CALL_(Twapi_AdjustTokenPrivileges, Call, 10047);
     CALL_(Twapi_PrivilegeCheck, Call, 10048);
-    CALL_(ChangeServiceConfig, Call, 10049);
-    CALL_(CreateService, Call, 10050);
-    CALL_(StartService, Call, 10051);
     CALL_(GetModuleFileNameEx, Call, 10054);
     CALL_(GetModuleBaseName, Call, 10055);
     CALL_(GetModuleInformation, Call, 10056);
@@ -510,8 +506,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(UnloadUserProfile, Call, 10079);
     CALL_(SetSuspendState, Call, 10080);
     CALL_(win32_error, Call, 10081);
-    CALL_(Twapi_SetServiceStatus, Call, 10082);
-    CALL_(Twapi_BecomeAService, Call, 10083);
     CALL_(Twapi_WNetUseConnection, Call, 10084);
     CALL_(NetShareAdd, Call, 10085);
     CALL_(SHGetFolderPath, Call, 10086);
@@ -697,8 +691,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetExitCodeProcess, CallH, 25);
     CALL_(LsaClose, CallH, 26);
     CALL_(ImpersonateLoggedOnUser, CallH, 27);
-    CALL_(DeleteService, CallH, 28);
-    CALL_(CloseServiceHandle, CallH, 29);
     CALL_(CloseThemeData, CallH, 30);
     CALL_(CloseDesktop, CallH, 31);
     CALL_(SwitchDesktop, CallH, 32);
@@ -710,7 +702,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindNextVolume, CallH, 38);
     CALL_(FindNextVolumeMountPoint, CallH, 39);
     CALL_(GetFileType, CallH, 40); /* TBD - TCL wrapper */
-    CALL_(QueryServiceConfig, CallH, 41);
     CALL_(ReleaseMutex, CallH, 42);
     CALL_(CloseHandle, CallH, 43);
     CALL_(CastToHANDLE, CallH, 44);
@@ -742,9 +733,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetDeviceDriverFileName, CallH, 70);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
-    CALL_(ControlService, CallH, 1002);
-    CALL_(EnumDependentServices, CallH, 1003);
-    CALL_(QueryServiceStatusEx, CallH, 1004);
     CALL_(OpenProcessToken, CallH, 1005);
     CALL_(GetTokenInformation, CallH, 1006);
     CALL_(Twapi_SetTokenVirtualizationEnabled, CallH, 1007);
@@ -782,9 +770,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallHSU - function(HANDLE, LPCWSTR, DWORD)
     CALL_(BackupEventLog, CallHSU, 1);
     CALL_(ClearEventLog, CallHSU, 2);
-    CALL_(GetServiceKeyName, CallHSU, 3);
-    CALL_(GetServiceDisplayName, CallHSU, 4);
-    CALL_(OpenService, CallHSU, 7);
 
     // CallW - function(HWND)
     CALL_(IsIconic, CallW, 1);
@@ -1919,15 +1904,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10038: // UNUSED
         case 10039: // UNUSED
+        case 10040: // UNUSED
             break;
 
-        case 10040:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETPTR(h, SC_HANDLE), GETINT(dw), GETINT(dw2),
-                             GETINT(dw3), GETNULLTOKEN(s),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_EnumServicesStatusEx(ticP, h, dw, dw2, dw3, s);
 #ifndef TWAPI_LEAN
         case 10041:
             /* Init to NULL as they may be partially init'ed on error
@@ -2024,12 +2003,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
             break;
-        case 10049:
-            return Twapi_ChangeServiceConfig(interp, objc-2, objv+2);
-        case 10050:
-            return Twapi_CreateService(interp, objc-2, objv+2);
-        case 10051:
-            return Twapi_StartService(interp, objc-2, objv+2);
+
+        case 10049: // UNUSED
+        case 10050: // UNUSED
+        case 10051: // UNUSED
         case 10052: // UNUSED
         case 10053: // UNUSED
             break;
@@ -2292,10 +2269,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             NULLIFY_EMPTY(cP);
             return Twapi_GenerateWin32Error(interp, dw, cP);
-        case 10082:
-            return Twapi_SetServiceStatus(ticP, objc-2, objv+2);
-        case 10083:
-            return Twapi_BecomeAService(ticP, objc-2, objv+2);
+        case 10082: // UNUSED
+        case 10083: // UNUSED
         case 10084:
             return Twapi_WNetUseConnection(interp, objc-2, objv+2);
         case 10085:
@@ -3261,7 +3236,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         TWAPI_TOKEN_MANDATORY_POLICY ttmp;
         TWAPI_TOKEN_MANDATORY_LABEL ttml;
         MODULEINFO moduleinfo;
-        SERVICE_STATUS svcstatus;
         LSA_UNICODE_STRING lsa_ustr;
         SECURITY_ATTRIBUTES *secattrP;
         MONITORINFOEXW minfo;
@@ -3378,14 +3352,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ImpersonateLoggedOnUser(h);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        case 28:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeleteService(h);
-            break;
-        case 29:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseServiceHandle(h);
-            break;
+            // 28-29 UNUSED
         case 30:
             result.type = TRT_EMPTY;
             CloseThemeData(h);
@@ -3421,8 +3388,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 40:
             return Twapi_GetFileType(interp, h);
-        case 41:
-            return Twapi_QueryServiceConfig(ticP, h);
+        case 41: // UNUSED
+            break;
 #ifndef TWAPI_LEAN
         case 42:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -3589,16 +3556,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 TRT_DWORD : TRT_GETLASTERROR;
             break;
 #endif
-        case 1002:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            /* svcstatus is not returned because it is not always filled
-               in and is not very useful even when it is */
-            result.value.ival = ControlService(h, dw, &u.svcstatus);
-            break;
-        case 1003:
-            return Twapi_EnumDependentServices(ticP, h, dw);
-        case 1004:
-            return Twapi_QueryServiceStatusEx(interp, h, dw);
+            // 1002-1004 UNUSED
         case 1005:
             result.type = OpenProcessToken(h, dw, &result.value.hval) ?
                 TRT_HANDLE : TRT_GETLASTERROR;
@@ -4476,10 +4434,6 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     DWORD dw;
     TwapiResult result;
     int func;
-    union {
-        WCHAR buf[MAX_PATH+1];
-        COORD coord;
-    } u;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETHANDLE(h), GETWSTR(s),
@@ -4490,6 +4444,7 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
     result.type = TRT_BADFUNCTIONCODE;
 
+    /* TBD - get rid of this function, only 2 cases ! */
     switch (func) {
     case 1:
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -4500,36 +4455,6 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = ClearEventLogW(h, s);
         break;
-    case 3:
-        result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-        if (GetServiceKeyNameW(h, s, u.buf, &result.value.unicode.len)) {
-            result.value.unicode.str = u.buf;
-            result.type = TRT_UNICODE;
-        } else
-            result.type = TRT_GETLASTERROR;
-        break;
-    case 4:
-        result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-        if (GetServiceDisplayNameW(h, s, u.buf, &result.value.unicode.len)) {
-            result.value.unicode.str = u.buf;
-            result.type = TRT_UNICODE;
-        } else
-            result.type = TRT_GETLASTERROR;
-        break;
-    case 5: // UNUSED
-        break;
-    case 6: // UNUSED
-        break;
-    case 7:
-        /* If access type not specified, use SERVICE_ALL_ACCESS */
-        if (objc < 5)
-            dw = SERVICE_ALL_ACCESS;
-        result.type = TRT_SC_HANDLE;
-        result.value.hval = OpenServiceW(h, s, dw);
-        break;
-    default:
-        return TwapiReturnErrorEx(interp, TWAPI_INVALID_FUNCTION_CODE,
-                                  Tcl_ObjPrintf("Unknown function code (CallHSU %d)", func));
     }
 
     return TwapiSetResult(interp, &result);

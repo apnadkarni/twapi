@@ -51,9 +51,9 @@ MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6E
 typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
 MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
-
+#ifndef TWAPI_STATIC_BUILD
 HMODULE gModuleHandle;
-
+#endif
 
 /* Returns address family or AF_UNSPEC if s could not be parsed */
 /* GetLastError() is set in latter case */
@@ -2085,7 +2085,7 @@ int Twapi_network_Init(Tcl_Interp *interp)
        looked at when DLL is being loaded */
 
     /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, gModuleHandle, NULL);
+    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, NULL);
     if (ticP == NULL)
         return TCL_ERROR;
 
@@ -2094,7 +2094,7 @@ int Twapi_network_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (Twapi_SourceResource(ticP, gModuleHandle, MODULENAME) != TCL_OK) {
+    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* return TCL_ERROR; */
         Tcl_ResetResult(interp); /* Get rid of any error messages */

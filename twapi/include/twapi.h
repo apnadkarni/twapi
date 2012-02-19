@@ -935,6 +935,12 @@ extern "C" {
 /* GLOBALS */
 extern OSVERSIONINFO gTwapiOSVersionInfo;
 extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
+#ifdef TWAPI_STATIC_BUILD
+#define MODULE_HANDLE gTwapiModuleHandle
+#else
+/* When building separate components, each module has its own DLL handle */
+#define MODULE_HANDLE gModuleHandle
+#endif
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 extern CRITICAL_SECTION gETWCS;
@@ -970,7 +976,11 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
-void Twapi_FreeNewTclObj(Tcl_Obj *objPtr);
+#if 0
+void Twapi_FreeNewTclObj(Tcl_Obj *objPtr) 
+#endif
+#define Twapi_FreeNewTclObj(o_) do { if (o_) { Tcl_DecrRefCount(o_); } } while (0)
+
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromPOINTS(POINTS *ptP);
@@ -1297,23 +1307,6 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
                                      DWORD  sess_id, WTS_INFO_CLASS info_class);
-
-/* Services */
-int Twapi_CreateService(Tcl_Interp *interp, int objc,
-                        Tcl_Obj *CONST objv[]);
-int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc,
-                              Tcl_Obj *CONST objv[]);
-int Twapi_EnumServicesStatusEx(TwapiInterpContext *, SC_HANDLE hService,
-                               int infolevel, DWORD dwServiceType,
-                               DWORD dwServiceState,  LPCWSTR groupname);
-int Twapi_EnumDependentServices(TwapiInterpContext *interp, SC_HANDLE hService, DWORD state);
-int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h, SC_STATUS_TYPE level);
-int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService);
-int Twapi_BecomeAService(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-
-int Twapi_SetServiceStatus(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-
 
 /* Task scheduler related */
 int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
