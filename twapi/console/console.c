@@ -573,34 +573,16 @@ __declspec(dllexport)
 #endif
 int Twapi_console_Init(Tcl_Interp *interp)
 {
-    TwapiInterpContext *ticP;
-
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-
-    /* NOTE: no point setting Tcl_SetResult for errors as they are not
-       looked at when DLL is being loaded */
-
-    /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, TwapiConsoleCleanup);
-    if (ticP == NULL)
-        return TCL_ERROR;
-
-    /* Do our own commands. */
-    if (Twapi_ConsoleInitCalls(interp, ticP) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
-        /* We keep going as scripts might be external, not bound into DLL */
-        /* return TCL_ERROR; */
-        Tcl_ResetResult(interp); /* Get rid of any error messages */
-    }
-
-    return TCL_OK;
+    /* Note ticP->module.data.ival is initialized to 0 which we use
+     * as an indicator whether this interp has hooked ctrl-c or not
+     */
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_ConsoleInitCalls, TwapiConsoleCleanup) ? TCL_OK : TCL_ERROR;
 }
 

@@ -602,7 +602,7 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 
 
 /* Does basic default initialization of a module */
-TCL_RESULT Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
+TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
 {
     TwapiInterpContext *ticP;
 
@@ -612,20 +612,19 @@ TCL_RESULT Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMODULE hmod,
     /* Allocate a context that will be passed around in all interpreters */
     ticP = Twapi_AllocateInterpContext(interp, hmod, cleanerFn);
     if (ticP == NULL)
-        return TCL_ERROR;
+        return NULL;
 
     /* Do our own commands. */
     if (initFn(interp, ticP) != TCL_OK) {
-        return TCL_ERROR;
+        return NULL;
     }
 
     if (Twapi_SourceResource(ticP, hmod, nameP) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* Twapi_AppendLog tbd */
-        /* return TCL_ERROR; */
+        /* return NULL; */
         Tcl_ResetResult(interp); /* Get rid of any error messages */
     }
 
-    return TCL_OK;
-
+    return ticP;
 }

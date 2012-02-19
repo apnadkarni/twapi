@@ -2071,8 +2071,6 @@ __declspec(dllexport)
 #endif
 int Twapi_network_Init(Tcl_Interp *interp)
 {
-    TwapiInterpContext *ticP;
-
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
@@ -2081,25 +2079,7 @@ int Twapi_network_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    /* NOTE: no point setting Tcl_SetResult for errors as they are not
-       looked at when DLL is being loaded */
-
-    /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, NULL);
-    if (ticP == NULL)
-        return TCL_ERROR;
-
-    /* Do our own commands. */
-    if (Twapi_NetworkInitCalls(interp, ticP) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
-        /* We keep going as scripts might be external, not bound into DLL */
-        /* return TCL_ERROR; */
-        Tcl_ResetResult(interp); /* Get rid of any error messages */
-    }
-
-    return TCL_OK;
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_NetworkInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
 

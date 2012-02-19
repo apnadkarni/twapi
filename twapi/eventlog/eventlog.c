@@ -308,6 +308,6 @@ int Twapi_eventlog_Init(Tcl_Interp *interp)
 
 
     return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
-                            Twapi_EventlogInitCalls, NULL);
+                            Twapi_EventlogInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
 
