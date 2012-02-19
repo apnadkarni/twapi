@@ -85,6 +85,12 @@ OUTDIR = $(SRCROOT)\build
 
 # Define EMBED_SCRIPT as "plain" or "lzma" to embed Tcl scripts
 # as a resource
+# EMBED_SCRIPT=
+
+# Define a BUILDID for each build. This is passed to a Tcl script.
+!ifndef BUILDID
+BUILDID = [clock seconds]
+!endif
 
 ################ Product version definitions ################
 
@@ -404,5 +410,5 @@ DEL           = del
 COPY          = copy /y >NUL
 RMDIR	      = rmdir /S /Q
 ZIP           = "$(TOOLDIR)"\zip.exe
-
+MKDIR         = mkdir
 

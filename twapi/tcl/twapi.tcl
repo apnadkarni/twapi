@@ -26,10 +26,14 @@ namespace eval twapi {
 
 }
 
-if {![info exists twapi::version]} {
+if {![info exists twapi::twapi_base_version]} {
     # set dir $twapi::scriptdir;          # Needed by pkgIndex
-    source [file join $twapi::scriptdir twapi_version.tcl]
+    source [file join $twapi::scriptdir twapi_base_version.tcl]
 }
+
+# Make twapi versions the same as the base module versions
+set twapi::version $::twapi::twapi_base_version
+set twapi::patchlevel $::twapi::twapi_base_patchlevel
 
 # log for tracing / debug messages.
 proc twapi::debuglog {args} {
