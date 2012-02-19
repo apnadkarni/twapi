@@ -83,7 +83,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
      */
-    if (Tcl_InitStubs(interp, "8.5", 0) == NULL) {
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
     if (Tcl_TomMath_InitStubs(interp, 0) == NULL) {
