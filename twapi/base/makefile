@@ -8,7 +8,6 @@ OBJS  = \
 	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
-	$(OBJDIR)\console.obj \
 	$(OBJDIR)\crypto.obj \
 	$(OBJDIR)\device.obj \
 	$(OBJDIR)\dirmonitor.obj \

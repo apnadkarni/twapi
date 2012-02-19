@@ -308,7 +308,7 @@ argerror:
 }
 
 
-static TwapiMakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code)
+void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code)
 {
    /*
     * Why a single line function ?
@@ -339,7 +339,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
     do {                                                                \
-        TwapiMakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
     } while (0);
 
     /*
@@ -356,13 +356,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetActiveWindow, Call, 8);
     CALL_(GetClipboardOwner, Call, 9);
     CALL_(Twapi_EnumClipboardFormats,Call, 10);
-    CALL_(AllocConsole, Call, 11);
-    CALL_(FreeConsole, Call, 12);
-    CALL_(GetConsoleCP, Call, 13);
-    CALL_(GetConsoleOutputCP, Call, 14);
-    CALL_(GetNumberOfConsoleMouseButtons, Call, 15);
-    CALL_(GetConsoleTitle, Call, 16);
-    CALL_(GetConsoleWindow, Call, 17);
     CALL_(GetLogicalDrives, Call, 18);
     CALL_(GetNetworkParams, Call, 19);
     CALL_(GetAdaptersInfo, Call, 20);
@@ -410,7 +403,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCaretPos, Call, 62);
     CALL_(GetCaretBlinkTime, Call, 63);
     CALL_(EnumWindows, Call, 64);
-    CALL_(Twapi_StopConsoleEventNotifier, Call, 65);
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
@@ -418,7 +410,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_ClipboardMonitorStop, Call, 70);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
-    CALL_(Twapi_StartConsoleEventNotifier, Call, 73);
     CALL_(TwapiId, Call, 74);
     CALL_(DebugBreak, Call, 75);
     CALL_(GetPerformanceInformation, Call, 76);
@@ -495,12 +486,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_RegisterDirectoryMonitor, Call, 10035);
     CALL_(LookupPrivilegeName, Call, 10036);
     CALL_(PlaySound, Call, 10037);
-    CALL_(SetConsoleWindowInfo, Call, 10038);
-    CALL_(FillConsoleOutputAttribute, Call, 10039);
     CALL_(EnumServicesStatusEx, Call, 10040);
     CALL_(SetSecurityInfo, Call, 10041);
-    CALL_(ScrollConsoleScreenBuffer, Call, 10042);
-    CALL_(WriteConsoleOutputCharacter, Call, 10043);
     CALL_(WTSSendMessage, Call, 10044);
     CALL_(DuplicateTokenEx, Call, 10045);
     CALL_(ReadProcessMemory, Call, 10046);
@@ -509,8 +496,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ChangeServiceConfig, Call, 10049);
     CALL_(CreateService, Call, 10050);
     CALL_(StartService, Call, 10051);
-    CALL_(SetConsoleCursorPosition, Call, 10052);
-    CALL_(SetConsoleScreenBufferSize, Call, 10053);
     CALL_(GetModuleFileNameEx, Call, 10054);
     CALL_(GetModuleBaseName, Call, 10055);
     CALL_(GetModuleInformation, Call, 10056);
@@ -616,8 +601,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetClipboardData, CallU, 2);
     CALL_(GetClipboardFormatName, CallU, 3);
     CALL_(GetStdHandle, CallU, 4);
-    CALL_(SetConsoleCP, CallU, 5);
-    CALL_(SetConsoleOutputCP, CallU, 6);
     CALL_(VerLanguageName, CallU, 7);
     CALL_(GetPerAdapterInfo, CallU, 8);
     CALL_(GetIfEntry, CallU, 9);
@@ -657,7 +640,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetCursorPos, CallU, 1005);
     CALL_(GetLocaleInfo, CallU, 1006);
     CALL_(ExitWindowsEx, CallU, 1007);
-    CALL_(GenerateConsoleCtrlEvent, CallU, 1008);
     CALL_(AllocateAndGetTcpExTableFromStack, CallU, 1009);
     CALL_(AllocateAndGetUdpExTableFromStack, CallU, 1010);
 
@@ -678,11 +660,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleHandleEx, CallU, 10005);
     CALL_(Shell_NotifyIcon, CallU, 10006);
 
-    CALL_(CreateConsoleScreenBuffer, CallU, 11001);
-
     // CallS - function(LPWSTR)
     CALL_(RegisterClipboardFormat, CallS, 1);
-    CALL_(SetConsoleTitle, CallS, 2);
     CALL_(GetDriveType, CallS, 3);
     CALL_(DeleteVolumeMountPoint, CallS, 4);
     CALL_(GetVolumeNameForVolumeMountPoint, CallS, 5);
@@ -726,12 +705,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 
     // CallH - function(HANDLE)
-    CALL_(FlushConsoleInputBuffer, CallH, 1);
-    CALL_(GetConsoleMode, CallH, 2);
-    CALL_(GetConsoleScreenBufferInfo, CallH, 3);
-    CALL_(GetLargestConsoleWindowSize, CallH, 4);
-    CALL_(GetNumberOfConsoleInputEvents, CallH, 5);
-    CALL_(SetConsoleActiveScreenBuffer, CallH, 6);
     CALL_(FindVolumeClose, CallH, 7);
     CALL_(FindVolumeMountPointClose, CallH, 8);
     CALL_(DeregisterEventSource, CallH, 9);
@@ -809,9 +782,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WaitForInputIdle, CallH, 1010);
     CALL_(SetPriorityClass, CallH, 1011);
     CALL_(SetThreadPriority, CallH, 1012);
-    CALL_(SetConsoleMode, CallH, 1013);
-    CALL_(SetConsoleTextAttribute, CallH, 1014);
-    CALL_(ReadConsole, CallH, 1015);
     CALL_(GetDeviceCaps, CallH, 1016);
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
@@ -843,8 +813,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ClearEventLog, CallHSU, 2);
     CALL_(GetServiceKeyName, CallHSU, 3);
     CALL_(GetServiceDisplayName, CallHSU, 4);
-    CALL_(WriteConsole, CallHSU, 5);
-    CALL_(FillConsoleOutputCharacter, CallHSU, 6);
     CALL_(OpenService, CallHSU, 7);
 
     // CallW - function(HWND)
@@ -986,7 +954,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallCOM
 #define CALLCOM_(fn_, code_)                                         \
     do {                                                                \
-        TwapiMakeCallAlias(interp, "twapi::" #fn_, "twapi::CallCOM", # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::CallCOM", # code_); \
     } while (0);
     CALLCOM_(IUnknown_Release, 1);
     CALLCOM_(IUnknown_AddRef, 2);
@@ -1171,7 +1139,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         POINT  pt;
         LARGE_INTEGER largeint;
         RECT rect;
-        SMALL_RECT srect[2];
         TOKEN_PRIVILEGES *tokprivsP;
         MODULEINFO moduleinfo;
         struct {
@@ -1188,8 +1155,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     } u;
     DWORD_PTR dwp;
     HMODULE hmod;
-    COORD coord;
-    CHAR_INFO chinfo;
     SECURITY_DESCRIPTOR *secdP;
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
@@ -1206,7 +1171,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     HWND   hwnd;
     PSID osidP, gsidP;
     ACL *daclP, *saclP;
-    WORD w;
     GUID guid;
     GUID *guidP;
     LPITEMIDLIST idlP;
@@ -1263,37 +1227,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10:
             return Twapi_EnumClipboardFormats(interp);
-        case 11:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = AllocConsole();
-            break;
-        case 12:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = FreeConsole();
-            break;
-        case 13:
-            result.type = TRT_DWORD;
-            result.value.ival = GetConsoleCP();
-            break;
-        case 14:
-            result.type = TRT_DWORD;
-            result.value.ival = GetConsoleOutputCP();
-            break;
-        case 15:
-            result.type = GetNumberOfConsoleMouseButtons(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 16:
-            /* Note : GetLastError == 0 means title is empty string */
-            if ((result.value.unicode.len = GetConsoleTitleW(u.buf, sizeof(u.buf)/sizeof(u.buf[0]))) != 0 || GetLastError() == 0) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 17:
-            result.value.hwin = GetConsoleWindow();
-            result.type = result.value.hwin ? TRT_HWND : TRT_GETLASTERROR;
-            break;
+            // UNUSED 11-17
         case 18:
             result.value.ival = GetLogicalDrives();
             result.type = TRT_DWORD;
@@ -1446,8 +1380,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 64:
             return Twapi_EnumWindows(interp);
-        case 65:
-            return Twapi_StopConsoleEventNotifier(ticP);
+        case 65: //UNUSED
+            break;
         case 66:
             return TwapiFirstVolume(interp, NULL); /* FindFirstVolume */
         case 67:
@@ -1474,8 +1408,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_PowerNotifyStart(ticP);
         case 72:
             return Twapi_PowerNotifyStop(ticP);
-        case 73:
-            return Twapi_StartConsoleEventNotifier(ticP);
+        case 73: // UNUSED
+            break;
         case 74:
             result.type = TRT_WIDE;
             result.value.wide = TWAPI_NEWID(ticP);
@@ -2051,25 +1985,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.ival = PlaySoundW(s, hmod, dw);
             break;
-        case 10038: // SetConsoleWindowInfo
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETBOOL(dw), GETVAR(u.srect[0], ObjToSMALL_RECT),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleWindowInfo(h, dw, &u.srect[0]);
-            break;
-        case 10039: // FillConsoleOutputAttribute
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETWORD(w), GETINT(dw),
-                             GETVAR(coord, ObjToCOORD),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-
-            if (FillConsoleOutputAttribute(h, w, dw, coord, &result.value.ival))
-                result.type = TRT_DWORD;
-            else
-                result.type = TRT_GETLASTERROR;
+        case 10038: // UNUSED
+        case 10039: // UNUSED
             break;
 
         case 10040:
@@ -2105,30 +2022,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (saclP) TwapiFree(saclP);
             break;
 #endif
-        case 10042: // ScrollConsoleScreenBuffer
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h),
-                             GETVAR(u.srect[0], ObjToSMALL_RECT),
-                             GETVAR(u.srect[1], ObjToSMALL_RECT),
-                             GETVAR(coord, ObjToCOORD),
-                             GETVAR(chinfo, ObjToCHAR_INFO),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ScrollConsoleScreenBufferW(
-                h, &u.srect[0], &u.srect[1], coord, &chinfo);
-            break;
-        case 10043:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETWSTRN(s, dw),
-                             GETVAR(coord, ObjToCOORD),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (WriteConsoleOutputCharacterW(h, s, dw, coord, &result.value.ival))
-                result.type = TRT_DWORD;
-            else
-                result.type = TRT_GETLASTERROR;    
+        case 10042: // UNUSED
+        case 10043: // UNUSED
             break;
         case 10044:
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2203,16 +2098,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_CreateService(interp, objc-2, objv+2);
         case 10051:
             return Twapi_StartService(interp, objc-2, objv+2);
-        case 10052: // SetConsoleCursorPosition
-        case 10053: // SetConsoleScreenBufferSize
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETVAR(coord, ObjToCOORD),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival =
-                (func == 10052 ? SetConsoleCursorPosition : SetConsoleScreenBufferSize)
-                (h, coord);
+        case 10052: // UNUSED
+        case 10053: // UNUSED
             break;
         case 10054: // GetModuleFileName
         case 10055: // GetModuleBaseName
@@ -2907,13 +2794,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else
                 result.type = TRT_HANDLE;
             break;
-        case 5:
-            result.value.ival = SetConsoleCP(dw);
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-        case 6:
-            result.value.ival = SetConsoleOutputCP(dw);
-            result.type = TRT_EXCEPTION_ON_FALSE;
+        case 5: // UNUSED
+        case 6: // UNUSED
             break;
         case 7:
             result.value.unicode.len = VerLanguageNameW(dw, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
@@ -3089,9 +2971,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ExitWindowsEx(dw, dw2);
             break;
-        case 1008:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = GenerateConsoleCtrlEvent(dw, dw2);
+        case 1008: // UNUSED
             break;
         case 1009:
             return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
@@ -3142,7 +3022,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.hval = CreateRoundRectRgn(dw, dw2, dw3, dw4, dw5, dw6);
             break;
         }
-    } else if (func < 11000) {
+    } else {
         /* Exactly on additional argument */
         if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -3199,24 +3079,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             }
             break;
         }
-    } else {
-        /* Any number (> 0) of additional arguments */
-        if (objc < 4)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        switch (func) {
-        case 11001: // CreateConsoleScreenBuffer
-            if (TwapiGetArgs(interp, objc-3, objv+3,
-                             GETINT(dw2),
-                             GETVAR(u.secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             GETINT(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HANDLE;
-            result.value.hval = CreateConsoleScreenBuffer(dw, dw2, u.secattrP, dw3, NULL);
-            TwapiFreeSECURITY_ATTRIBUTES(u.secattrP);
-            break;
-        }
     }
 
     return TwapiSetResult(interp, &result);
@@ -3253,9 +3115,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_NONZERO_RESULT;
             result.value.ival = RegisterClipboardFormatW(arg);
             break;
-        case 2:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleTitleW(arg);
+        case 2: // Unused
             break;
         case 3:
             result.type = TRT_DWORD;
@@ -3515,7 +3375,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     DWORD dw, dw2;
     TwapiResult result;
     union {
-        CONSOLE_SCREEN_BUFFER_INFO csbi;
         COORD coord;
         WCHAR buf[MAX_PATH+1];
         TWAPI_TOKEN_MANDATORY_POLICY ttmp;
@@ -3551,33 +3410,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
-        case 1:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = FlushConsoleInputBuffer(h);
-            break;
-        case 2:
-            result.type = GetConsoleMode(h, &result.value.ival)
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 3:
-            if (GetConsoleScreenBufferInfo(h, &u.csbi) == 0)
-                result.type = TRT_GETLASTERROR;
-            else {
-                Tcl_SetObjResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
-                return TCL_OK;
-            }
-            break;
-        case 4:
-            u.coord = GetLargestConsoleWindowSize(h);
-            Tcl_SetObjResult(interp, ObjFromCOORD(interp, &u.coord));
-            return TCL_OK;
-        case 5:
-            result.type = GetNumberOfConsoleInputEvents(h, &result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 6:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleActiveScreenBuffer(h);
-            break;
+            // 1-6 UNUSED
         case 7:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = FindVolumeClose(h);
@@ -3921,16 +3754,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetThreadPriority(h, dw);
             break;
-        case 1013:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleMode(h, dw);
-            break;
-        case 1014:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleTextAttribute(h, (WORD) dw);
-            break;
-        case 1015:
-            return Twapi_ReadConsole(ticP, h, dw);
+        // 1013-1015 UNUSED
         case 1016:
             result.type = TRT_DWORD;
             result.value.ival = GetDeviceCaps(h, dw);
@@ -4811,21 +4635,9 @@ int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         } else
             result.type = TRT_GETLASTERROR;
         break;
-    case 5: // WriteConsole
-        if (WriteConsoleW(h, s, dw, &result.value.ival, NULL))
-            result.type = TRT_DWORD;
-        else
-            result.type = TRT_GETLASTERROR;
+    case 5: // UNUSED
         break;
-    case 6:
-        if (objc != 6)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        if (ObjToCOORD(interp, objv[5], &u.coord) != TCL_OK)
-            return TCL_ERROR;
-        if (FillConsoleOutputCharacterW(h, s[0], dw, u.coord, &result.value.ival))
-            result.type = TRT_DWORD;
-        else
-            result.type = TRT_GETLASTERROR;
+    case 6: // UNUSED
         break;
     case 7:
         /* If access type not specified, use SERVICE_ALL_ACCESS */
