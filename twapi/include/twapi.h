@@ -1553,7 +1553,7 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 
 #ifdef _WIN64
 #define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
-#define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG(((ULONGLONG)(p_))
+#define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
 #else  // ! _WIN64
 #define ObjToDWORD_PTR        Tcl_GetLongFromObj
 #define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
