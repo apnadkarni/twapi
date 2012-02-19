@@ -1638,6 +1638,6 @@ TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcm
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
-TWAPI_EXTERN TCL_RESULT Twapi_ModuleInit(Tcl_Interp *interp, const char *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
+TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const char *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
 
 #endif // TWAPI_H

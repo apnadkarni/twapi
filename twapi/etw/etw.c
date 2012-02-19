@@ -1691,8 +1691,6 @@ __declspec(dllexport)
 #endif
 int Twapi_etw_Init(Tcl_Interp *interp)
 {
-    TwapiInterpContext *ticP;
-
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
@@ -1703,25 +1701,7 @@ int Twapi_etw_Init(Tcl_Interp *interp)
     if (! TwapiDoOneTimeInit(&gETWInitialized, TwapiOneTimeInit, interp))
         return TCL_ERROR;
 
-    /* NOTE: no point setting Tcl_SetResult for errors as they are not
-       looked at when DLL is being loaded */
-
-    /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, TwapiETWCleanup);
-    if (ticP == NULL)
-        return TCL_ERROR;
-
-    /* Do our own commands. */
-    if (Twapi_ETWInitCalls(interp, ticP) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
-        /* We keep going as scripts might be external, not bound into DLL */
-        /* return TCL_ERROR; */
-        Tcl_ResetResult(interp); /* Get rid of any error messages */
-    }
-
-    return TCL_OK;
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_ETWInitCalls, TwapiETWCleanup) ? TCL_OK : TCL_ERROR;
 }
 
