@@ -54,6 +54,40 @@ OBJS  = \
 	$(OBJDIR)\wts.obj
 
 
+TCLFILES=..\tcl\twapi.tcl \
+	..\tcl\handle.tcl \
+	..\tcl\metoo.tcl \
+	..\tcl\osinfo.tcl \
+	..\tcl\security.tcl \
+	..\tcl\process.tcl \
+	..\tcl\disk.tcl \
+	..\tcl\ui.tcl \
+	..\tcl\clipboard.tcl \
+	..\tcl\nls.tcl \
+	..\tcl\shell.tcl \
+	..\tcl\com.tcl \
+	..\tcl\services.tcl \
+	..\tcl\eventlog.tcl \
+	..\tcl\adsi.tcl \
+	..\tcl\pdh.tcl \
+	..\tcl\process2.tcl \
+	..\tcl\accounts.tcl \
+	..\tcl\share.tcl \
+        ..\tcl\network.tcl \
+	..\tcl\synch.tcl \
+	..\tcl\desktop.tcl \
+        ..\tcl\printer.tcl \
+	..\tcl\mstask.tcl \
+	..\tcl\msi.tcl \
+	..\tcl\crypto.tcl \
+        ..\tcl\device.tcl \
+	..\tcl\power.tcl \
+	..\tcl\namedpipe.tcl \
+	..\tcl\resource.tcl \
+	..\tcl\rds.tcl \
+	..\tcl\wmi.tcl \
+	..\tcl\etw.tcl
+
 !include ..\include\rules.inc
 
 printioctl: printioctl.exe
