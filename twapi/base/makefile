@@ -27,7 +27,6 @@ OBJS  = \
 	$(OBJDIR)\mycrt.obj \
 	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\nls.obj \
-	$(OBJDIR)\network.obj \
 	$(OBJDIR)\os.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\pdh.obj \
@@ -35,7 +34,6 @@ OBJS  = \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
-	$(OBJDIR)\resolve.obj \
 	$(OBJDIR)\resource.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\scm.obj \
@@ -73,7 +71,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\process2.tcl \
 	..\tcl\accounts.tcl \
 	..\tcl\share.tcl \
-        ..\tcl\network.tcl \
 	..\tcl\synch.tcl \
 	..\tcl\desktop.tcl \
         ..\tcl\printer.tcl \

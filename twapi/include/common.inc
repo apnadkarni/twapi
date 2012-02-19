@@ -169,6 +169,37 @@ MODULELIB     = $(PACKAGE).lib
 !endif
 
 
+###################### TOOL PATHS ########################
+
+!ifndef TOOLDIR
+TOOLDIR=$(SRCROOT)\..\tools
+!endif
+
+# TBD - why required ?
+!ifndef HOME
+HOME=%HOMEDRIVE%\%HOMEPATH%
+!endif
+
+# TCL resources. By default, we will use 8.5 
+!if "x$(TCLVER)" == "x"
+TCLVER        = 85
+!endif
+!if "x$(TCLDIR)" == "x"
+TCLDIR        = $(SRCROOT)\..\tcl-tk\$(TCLVER)
+!endif
+TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
+
+
+# TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
+# to invoke build scripts.
+TCLSH         = "$(SRCROOT)\..\tools\tclkitsh.exe"
+
+# TCLSH_TARGET is the Tcl shell path on target installations. Used to install
+# twapi. Need not be defined unless you are using the makefile to install
+!ifndef TCLSH_TARGET
+TCLSH_TARGET = tclsh86t
+!endif
+
 ################# COMPILER AND SDK #####################
 
 # Now the SDK
@@ -372,36 +403,6 @@ LOPT = $(LOPT) /debug
 
 
 
-###################### TOOL PATHS ########################
-
-!ifndef TOOLDIR
-TOOLDIR=$(SRCROOT)\..\tools
-!endif
-
-# TBD - why required ?
-!ifndef HOME
-HOME=%HOMEDRIVE%\%HOMEPATH%
-!endif
-
-# TCL resources. By default, we will use 8.5 
-!if "x$(TCLVER)" == "x"
-TCLVER        = 85
-!endif
-!if "x$(TCLDIR)" == "x"
-TCLDIR        = "$(SRCROOT)\..\tcl-tk\$(TCLVER)"
-!endif
-TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
-
-
-# TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
-# to invoke build scripts.
-TCLSH         = "$(SRCROOT)\..\tools\tclkitsh.exe"
-
-# TCLSH_TARGET is the Tcl shell path on target installations. Used to install
-# twapi. Need not be defined unless you are using the makefile to install
-!ifndef TCLSH_TARGET
-TCLSH_TARGET = tclsh86t
-!endif
 
 
 ################################################################
