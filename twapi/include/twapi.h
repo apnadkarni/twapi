@@ -832,6 +832,7 @@ typedef struct _TwapiTls {
  * for deletion purposes and also placed on a global list for cleanup
  * purposes when a thread exits.
  */
+typedef void TwapiInterpContextCleanup(TwapiInterpContext *);
 typedef struct _TwapiInterpContext {
     ZLINK_DECL(TwapiInterpContext); /* Links all the contexts, primarily
                                        to track cleanup requirements */
@@ -846,6 +847,15 @@ typedef struct _TwapiInterpContext {
     Tcl_Interp *interp;
 
     Tcl_ThreadId thread;     /* Id of interp thread */
+
+    struct {
+        HMODULE      hmod;        /* Handle of allocating module */
+        TwapiInterpContextCleanup *cleaner;
+        union {
+            void *pval;
+            int   ival;
+        } data;              /* For use by module, initialized to 0 */
+    } module;
 
     MemLifo memlifo;            /* Must ONLY be used in interp thread */
 
@@ -874,12 +884,10 @@ typedef struct _TwapiInterpContext {
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
      */
-    Tcl_AsyncHandler async_handler;
+    Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
     HWND          notification_win; /* Window used for various notifications */
     HWND          clipboard_win;    /* Window used for clipboard notifications */
     int           power_events_on; /* True-> send through power notifications */
-    int           console_ctrl_hooked; /* True -> This interp is handling
-                                          console ctrol signals */
     DWORD         device_notification_tid; /* device notification thread id */
     
 
@@ -929,20 +937,12 @@ extern OSVERSIONINFO gTwapiOSVersionInfo;
 extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
-extern int gTclIsThreaded;
-extern TwapiId volatile gIdGenerator;
 extern CRITICAL_SECTION gETWCS;
 extern ULONG  gETWProviderTraceEnableFlags;
 extern ULONG  gETWProviderTraceEnableLevel;
 extern TRACEHANDLE gETWProviderSessionHandle;
 
-#define ERROR_IF_UNTHREADED(interp_)        \
-    do {                                        \
-        if (! gTclIsThreaded) {                                          \
-            if (interp_) Tcl_SetResult((interp_), "This command requires a threaded build of Tcl.", TCL_STATIC); \
-            return TCL_ERROR;                                           \
-        }                                                               \
-    } while (0)
+#define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
 
 /* Thread pool handle registration */
@@ -973,16 +973,7 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 void Twapi_FreeNewTclObj(Tcl_Obj *objPtr);
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
-Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
-    Tcl_Interp *interp,
-    const CONSOLE_SCREEN_BUFFER_INFO *csbiP
-    );
 Tcl_Obj *ObjFromPOINTS(POINTS *ptP);
-int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP);
-Tcl_Obj *ObjFromCOORD(Tcl_Interp *interp, const COORD *coordP);
-int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP);
-int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP);
-Tcl_Obj *ObjFromSMALL_RECT(Tcl_Interp *interp, const SMALL_RECT *rectP);
 int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP);
 Tcl_Obj *ObjFromWINDOWINFO (WINDOWINFO *wiP);
 Tcl_Obj *ObjFromWINDOWPLACEMENT(WINDOWPLACEMENT *wpP);
@@ -1252,16 +1243,10 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *,
 /* Printers */
 int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
 
-/* Console related */
-int Twapi_ReadConsole(TwapiInterpContext *, HANDLE conh, unsigned int numchars);
-
 /* Clipboard related */
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
 int Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP);
 int Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP);
-int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP);
-int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP);
-
 
 /* ADSI related */
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
@@ -1702,11 +1687,13 @@ TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 TWAPI_EXTERN TwapiId Twapi_NewId();
 
 /* Interp context */
-TWAPI_EXTERN TwapiInterpContext * TwapiInterpContextNew(Tcl_Interp *interp);
+TWAPI_EXTERN TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
 TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 TWAPI_EXTERN TwapiTls *Twapi_GetTls();
 TWAPI_EXTERN int Twapi_AssignTlsSlot();
+TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
+TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 
 #endif // TWAPI_H
