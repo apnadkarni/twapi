@@ -7,6 +7,11 @@
 
 /* Define interface to Windows NT services */
 #include "twapi.h"
+#include "twapi_service.h"
+
+#ifndef TWAPI_STATIC_BUILD
+static HMODULE gModuleHandle;
+#endif
 
 /* Map service state int to string */
 static Tcl_Obj *ObjFromServiceState(DWORD state)
@@ -245,16 +250,14 @@ int  Twapi_QueryServiceLockStatus(
 /*
  * Helper function to retrieve list of services and status
  */
-int Twapi_EnumServicesStatusEx(
-    TwapiInterpContext *ticP,
-    SC_HANDLE hService,
-    SC_ENUM_TYPE infolevel,
-    DWORD     dwServiceType,
-    DWORD     dwServiceState,
-    LPCWSTR   groupname
-    )
+int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Interp *interp = ticP->interp;
+    SC_HANDLE hService;
+    SC_ENUM_TYPE infolevel;
+    DWORD     dwServiceType;
+    DWORD     dwServiceState;
+    LPCWSTR   groupname;
     ENUM_SERVICE_STATUS_PROCESSW *sbuf;
     DWORD buf_sz;
     DWORD buf_needed;
@@ -268,6 +271,13 @@ int Twapi_EnumServicesStatusEx(
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
     Tcl_Obj *service_typemap[6];
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETPTR(hService, SC_HANDLE), GETINT(infolevel),
+                     GETINT(dwServiceType),
+                     GETINT(dwServiceState), GETNULLTOKEN(groupname),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
         Tcl_SetResult(interp, "Unsupported information level", TCL_STATIC);
@@ -648,4 +658,200 @@ int Twapi_QueryServiceLockStatus(
     );
 #endif // NOOP_BEYOND_VISTA
 
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+
+static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    int func;
+    union {
+        SERVICE_STATUS svcstatus;
+        WCHAR buf[MAX_PATH+1];
+    } u;
+    DWORD dw;
+    LPWSTR s;
+    HANDLE h;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 100) {
+        /* Expect a single handle argument */
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 1:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeleteService(h);
+            break;
+        case 2:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CloseServiceHandle(h);
+            break;
+        case 3:
+            return Twapi_QueryServiceConfig(ticP, h);
+        }
+    } else if (func < 200) {
+        /* Expect a handle and a int */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 101:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            /* svcstatus is not returned because it is not always filled
+               in and is not very useful even when it is */
+            result.value.ival = ControlService(h, dw, &u.svcstatus);
+            break;
+        case 102:
+            return Twapi_EnumDependentServices(ticP, h, dw);
+        case 103:
+            return Twapi_QueryServiceStatusEx(interp, h, dw);
+        }
+    } else if (func < 300) {
+        /* Handle, string, int */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETWSTR(s), ARGUSEDEFAULT,
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 201:
+            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
+            if (GetServiceKeyNameW(h, s, u.buf, &result.value.unicode.len)) {
+                result.value.unicode.str = u.buf;
+                result.type = TRT_UNICODE;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 202:
+            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
+            if (GetServiceDisplayNameW(h, s, u.buf, &result.value.unicode.len)) {
+                result.value.unicode.str = u.buf;
+                result.type = TRT_UNICODE;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 203:
+            /* If access type not specified, use SERVICE_ALL_ACCESS */
+            if (objc < 5)
+                dw = SERVICE_ALL_ACCESS;
+            result.type = TRT_SC_HANDLE;
+            result.value.hval = OpenServiceW(h, s, dw);
+            break;
+        }
+    } else {
+        /* Free for all */
+        switch (func) {
+        case 10001:
+            return Twapi_EnumServicesStatusEx(ticP, objc-2, objv+2);
+        case 10002:
+            return Twapi_ChangeServiceConfig(interp, objc-2, objv+2);
+        case 10003:
+            return Twapi_CreateService(interp, objc-2, objv+2);
+        case 10004:
+            return Twapi_StartService(interp, objc-2, objv+2);
+        case 10005:
+            return Twapi_SetServiceStatus(ticP, objc-2, objv+2);
+        case 10006:
+            return Twapi_BecomeAService(ticP, objc-2, objv+2);
+        }
+    }
+    
+
+
+
+    return TwapiSetResult(interp, &result);
+
+}
+
+static int Twapi_ServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::ServiceCall", Twapi_ServiceCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Service" #call_, # code_); \
+    } while (0);
+
+    CALL_(DeleteService, Call, 1);
+    CALL_(CloseServiceHandle, Call, 2);
+    CALL_(QueryServiceConfig, Call, 3);
+
+    CALL_(ControlService, Call, 101);
+    CALL_(EnumDependentServices, Call, 102);
+    CALL_(QueryServiceStatusEx, Call, 103);
+
+    CALL_(GetServiceKeyName, Call, 201);
+    CALL_(GetServiceDisplayName, Call, 202);
+    CALL_(OpenService, Call, 203);
+
+    CALL_(EnumServicesStatusEx, Call, 10001);
+    CALL_(ChangeServiceConfig, Call, 10002);
+    CALL_(CreateService, Call, 10003);
+    CALL_(StartService, Call, 10004);
+    CALL_(Twapi_SetServiceStatus, Call, 10005);
+    CALL_(Twapi_BecomeAService, Call, 10006);
+
+
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_service_Init(Tcl_Interp *interp)
+{
+    TwapiInterpContext *ticP;
+
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+
+    /* NOTE: no point setting Tcl_SetResult for errors as they are not
+       looked at when DLL is being loaded */
+
+    /* Allocate a context that will be passed around in all interpreters */
+    /* TBD - do we need a cleanup in case a service is running ? */
+    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, NULL);
+    if (ticP == NULL)
+        return TCL_ERROR;
+
+    /* Do our own commands. */
+    if (Twapi_ServiceInitCalls(interp, ticP) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
+        /* We keep going as scripts might be external, not bound into DLL */
+        /* return TCL_ERROR; */
+        Tcl_ResetResult(interp); /* Get rid of any error messages */
+    }
+
+    return TCL_OK;
+}
 

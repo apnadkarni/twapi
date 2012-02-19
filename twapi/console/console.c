@@ -7,7 +7,9 @@
 
 #include "twapi.h"
 
+#ifndef TWAPI_STATIC_BUILD
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
 
 static TwapiInterpContext * volatile console_control_ticP;
 
@@ -574,9 +576,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
     TwapiInterpContext *ticP;
 
     /* IMPORTANT */
-    /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
-       done for EVERY interp creation or move into one-time above ? TBD
-     */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
@@ -586,9 +586,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
        looked at when DLL is being loaded */
 
     /* Allocate a context that will be passed around in all interpreters */
-    /* TBD - last param should not be NULL - add a cleanup instead of
-       hardcoding in Twapi_InterpCleanup */
-    ticP = Twapi_AllocateInterpContext(interp, gModuleHandle, TwapiConsoleCleanup);
+    ticP = Twapi_AllocateInterpContext(interp, MYHANDLE, TwapiConsoleCleanup);
     if (ticP == NULL)
         return TCL_ERROR;
 
@@ -597,7 +595,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (Twapi_SourceResource(ticP, gModuleHandle, MODULENAME) != TCL_OK) {
+    if (Twapi_SourceResource(ticP, MYHANDLE, MODULENAME) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* return TCL_ERROR; */
         Tcl_ResetResult(interp); /* Get rid of any error messages */
