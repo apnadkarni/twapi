@@ -246,12 +246,12 @@ VCVER=6
 # Compiler flags 
 
 !ifdef DEBUG
-CDEBUG = -Z7 -Od -D_DEBUG
+CDEBUG = -Zi -Od -D_DEBUG  -Fd"$(OBJDIR)"
 !else
 !ifdef NOOPTIMIZE
-CDEBUG = -Zi -Od
+CDEBUG = -Zi -Od -Fd"$(OBJDIR)"
 !else
-CDEBUG = -O1 -Zi -DNDEBUG -W3
+CDEBUG = -O1 -Zi -DNDEBUG -W3 -Fd"$(OBJDIR)"
 !endif
 !endif
 
