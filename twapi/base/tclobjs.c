@@ -460,19 +460,6 @@ void TwapiClearResult(TwapiResult *resultP)
 }
 
 
-/*
- * Function to free a newly allocated Tcl_Obj that has not yet been referenced
- * from elsewhere. I can't find the call to directly free a list object so
- * do it indirectly by incr/decr ref count
- */
-void Twapi_FreeNewTclObj(Tcl_Obj *objPtr)
-{
-    if (objPtr) {
-        Tcl_IncrRefCount(objPtr);
-        Tcl_DecrRefCount(objPtr);
-    }
-}
-
 /* Appends the given strings objv[] to a result object, separated by
  * the passed string. The passed resultObj must not be a shared object!
  */

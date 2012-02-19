@@ -36,8 +36,6 @@ OBJS  = \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\resource.obj \
 	$(OBJDIR)\security.obj \
-	$(OBJDIR)\scm.obj \
-	$(OBJDIR)\service.obj \
 	$(OBJDIR)\share.obj \
 	$(OBJDIR)\shell.obj \
 	$(OBJDIR)\tclobjs.obj \
@@ -64,7 +62,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\shell.tcl \
 	..\tcl\com.tcl \
-	..\tcl\services.tcl \
 	..\tcl\eventlog.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\pdh.tcl \
