@@ -270,28 +270,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     union {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         WCHAR buf[MAX_PATH+1];
-        FLASHWINFO flashw;
-        LASTINPUTINFO lastin;
-        double d;
-        FILETIME   filetime;
-        TIME_ZONE_INFORMATION tzinfo;
-        POINT  pt;
-        LARGE_INTEGER largeint;
-        RECT rect;
         SMALL_RECT srect[2];
-        TOKEN_PRIVILEGES *tokprivsP;
-        MODULEINFO moduleinfo;
-        struct {
-            SP_DEVINFO_DATA sp_devinfo_data;
-            SP_DEVINFO_DATA *sp_devinfo_dataP;
-            SP_DEVICE_INTERFACE_DATA sp_device_interface_data;
-        } dev;
-        DISPLAY_DEVICEW display_device;
-        MIB_TCPROW tcprow;
-        struct sockaddr_in sinaddr;
-        SYSTEM_POWER_STATUS power_status;
-        TwapiId twapi_id;
-        GUID guid;
     } u;
     COORD coord;
     CHAR_INFO chinfo;
