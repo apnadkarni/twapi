@@ -67,7 +67,6 @@
 #define ARRAYSIZE(A) RTL_NUMBER_OF(A)
 #endif
 #include <ws2tcpip.h>
-#include <winsvc.h>
 #include <psapi.h>
 #include <pdhmsg.h>
 #include <sddl.h>
@@ -1311,11 +1310,6 @@ int Twapi_IScheduledWorkItem_GetRunTimes(Tcl_Interp *interp,
 int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
                                              IScheduledWorkItem *swiP);
 
-/* Event log */
-BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP);
-int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD offset);
-
 /* UI and window related */
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
 int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
@@ -1643,5 +1637,7 @@ TWAPI_EXTERN int Twapi_AssignTlsSlot();
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
+typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
+TWAPI_EXTERN TCL_RESULT Twapi_ModuleInit(Tcl_Interp *interp, const char *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
 
 #endif // TWAPI_H

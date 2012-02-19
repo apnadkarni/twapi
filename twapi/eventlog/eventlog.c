@@ -7,6 +7,10 @@
 
 #include "twapi.h"
 
+#ifndef TWAPI_STATIC_BUILD
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
 /* Wrapper around ReportEvent just to rearrange argument to match typemap
  * definitions
  */
@@ -165,4 +169,145 @@ vamoose:
 }
 
 
+static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    int func;
+    DWORD dw, dw2;
+    LPWSTR s, s2;
+    HANDLE h, h2;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+    if (func < 100) {
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), ARGUSEDEFAULT, GETHANDLE(h2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        
+        if ((func == 1 && objc != 4) || objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 1:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = NotifyChangeEventLog(h, h2);
+            break;
+        case 2:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CloseEventLog(h);
+            break;
+        case 3:
+            result.type = GetNumberOfEventLogRecords(h,
+                                                     &result.value.ival)
+                ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 4:
+            result.type = GetOldestEventLogRecord(h,
+                                                  &result.value.ival) 
+                ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 5:
+            result.type = Twapi_IsEventLogFull(h,
+                                               &result.value.ival) 
+                ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 6:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeregisterEventSource(h);
+            break;
+        }
+    } else {
+        /* Arbitrary args */
+        switch (func) {
+        case 1001:
+            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_ReadEventLog(ticP, h, dw, dw2);
+        case 1002:
+        case 1003:
+            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                             GETWSTR(s), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = (func == 1002 ? BackupEventLogW : ClearEventLogW)(h, s);
+            break;
+        case 1004:
+        case 1005:
+        case 1006:
+            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                             GETWSTR(s), GETWSTR(s2), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HANDLE;
+            result.value.hval = (func == 1004 ? OpenEventLogW :
+                                 (func == 1006 ? OpenBackupEventLogW : RegisterEventSourceW))(s, s2);
+            break;
+        case 1007:
+            return Twapi_ReportEvent(interp, objc-2, objv+2);
+        }
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::EventlogCall", Twapi_EventlogCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Eventlog" #call_, # code_); \
+    } while (0);
+
+    CALL_(NotifyChangeEventLog, Call, 1);
+    CALL_(CloseEventLog, Call, 2);
+    CALL_(GetNumberOfEventLogRecords, Call, 3);
+    CALL_(GetOldestEventLogRecord, Call, 4);
+    CALL_(Twapi_IsEventLogFull, Call, 5);
+    CALL_(DeregisterEventSource, CallH, 6);
+    CALL_(ReadEventLog, Call, 1001);
+    CALL_(BackupEventLog, Call, 1002);
+    CALL_(ClearEventLog, Call, 1003);
+    CALL_(OpenEventLog, Call, 1004);
+    CALL_(OpenBackupEventLog, Call, 1005);
+    CALL_(RegisterEventSource, Call, 1006);
+    CALL_(ReportEvent, Call, 1007);
+
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_eventlog_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_EventlogInitCalls, NULL);
+}
 
