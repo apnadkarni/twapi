@@ -586,7 +586,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
        looked at when DLL is being loaded */
 
     /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, MYHANDLE, TwapiConsoleCleanup);
+    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, TwapiConsoleCleanup);
     if (ticP == NULL)
         return TCL_ERROR;
 
@@ -595,7 +595,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (Twapi_SourceResource(ticP, MYHANDLE, MODULENAME) != TCL_OK) {
+    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* return TCL_ERROR; */
         Tcl_ResetResult(interp); /* Get rid of any error messages */
