@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include <evntrace.h>
 
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
@@ -179,6 +180,8 @@ struct TwapiObjKeyCache gETWBufferKeys[] = {
 
 CRITICAL_SECTION gETWCS; /* Access to gETWContext, gETWEventKeys, gETWBufferKeys */
 
+
+
 /*
  * Event Trace Provider Support
  *
@@ -194,6 +197,35 @@ ULONG  gETWProviderTraceEnableFlags;             /* Flags set by ETW controller 
 ULONG  gETWProviderTraceEnableLevel;             /* Level set by ETW controller */
 /* Session our provider is attached to */
 TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
+
+
+/*
+ * Whether the callback dll/libray has been initialized.
+ * The value must be managed using the InterlockedCompareExchange functions to
+ * ensure thread safety. The value returned by InterlockedCompareExhange
+ * 0 -> first to call, do init,  1 -> init in progress by some other thread
+ * 2 -> Init done
+ */
+static TwapiOneTimeInitState gETWInitialized;
+
+#ifndef TWAPI_STATIC_BUILD
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
+static GUID gNullGuid;             /* Initialized to all zeroes */
+
+/* Prototypes */
+TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+
 
 
 /*
@@ -617,14 +649,14 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
                      GETUUID(event_class_guid), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (IsEqualGUID(&provider_guid, &gTwapiNullGuid) ||
-        IsEqualGUID(&event_class_guid, &gTwapiNullGuid)) {
+    if (IsEqualGUID(&provider_guid, &gNullGuid) ||
+        IsEqualGUID(&event_class_guid, &gNullGuid)) {
         Tcl_SetResult(interp, "NULL provider GUID specified.", TCL_STATIC);
         return TCL_ERROR;
     }
 
     /* We should not already have registered a different provider */
-    if (! IsEqualGUID(&gETWProviderGuid, &gTwapiNullGuid)) {
+    if (! IsEqualGUID(&gETWProviderGuid, &gNullGuid)) {
         if (IsEqualGUID(&gETWProviderGuid, &provider_guid)) {
             Tcl_SetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
 
@@ -680,7 +712,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
     rc = UnregisterTraceGuids(gETWProviderRegistrationHandle);
     if (rc == ERROR_SUCCESS) {
         gETWProviderRegistrationHandle = 0;
-        gETWProviderGuid = gTwapiNullGuid;
+        gETWProviderGuid = gNullGuid;
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
@@ -1551,3 +1583,145 @@ error_handler:
         Tcl_DecrRefCount(resultObj);
     return TCL_ERROR;
 }
+
+
+static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+    Tcl_Obj *objP;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    objP = NULL;
+    switch (func) {
+    case 1: // etw_provider_enable_flags
+        objP = Tcl_NewLongObj(gETWProviderTraceEnableFlags);
+        break;
+    case 2: // etw_provider_enable_level
+        objP = Tcl_NewLongObj(gETWProviderTraceEnableLevel);
+        break;
+    case 3: // etw_provider_enabled
+        objP = Tcl_NewBooleanObj((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
+        break;
+    case 4: // StartTrace
+        return Twapi_StartTrace(ticP, objc-2, objv+2);
+    case 5: // ControlTrace
+        return Twapi_ControlTrace(ticP, objc-2, objv+2);
+    case 6: // EnableTrace
+        return Twapi_EnableTrace(ticP, objc-2, objv+2);
+    case 7: // OpenTrace
+        return Twapi_OpenTrace(ticP, objc-2, objv+2);
+    case 8: // CloseTrace
+        return Twapi_CloseTrace(ticP, objc-2, objv+2);
+    case 9: // ProcessTrace
+        return Twapi_ProcessTrace(ticP, objc-2, objv+2);
+    case 10: // RegisterTraceGuids
+        return Twapi_RegisterTraceGuids(ticP, objc-2, objv+2);
+    case 11: // UnregisterTraceGuids
+        return Twapi_UnregisterTraceGuids(ticP, objc-2, objv+2);
+    case 12: // TraceEvent
+        return Twapi_TraceEvent(ticP, objc-2, objv+2);
+    case 13:
+        return Twapi_ParseEventMofData(ticP, objc-2, objv+2);
+    default:
+        return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
+    }
+
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+
+
+static int Twapi_ETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::ETWCall", Twapi_ETWCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ETW" #call_, # code_); \
+    } while (0);
+
+    CALL_(etw_provider_enable_flags, Call, 1);     /* TBD docs */
+    CALL_(etw_provider_enable_level, Call, 2);     /* TBD docs */
+    CALL_(etw_provider_enabled, Call, 3);          /* TBD docs */
+    CALL_(StartTrace, Call, 4); // Tcl
+    CALL_(ControlTrace, Call, 5); // Tcl
+    CALL_(EnableTrace, Call, 6); // Tcl
+    CALL_(OpenTrace, Call, 7); // Tcl
+    CALL_(CloseTrace, Call, 8); // Tcl
+    CALL_(ProcessTrace, Call, 9); // Tcl
+    CALL_(RegisterTraceGuids, Call, 10); // Tcl
+    CALL_(UnregisterTraceGuids, Call, 11); // Tcl
+    CALL_(TraceEvent, Call, 12); // Tcl
+    CALL_(Twapi_ParseEventMofData, Call, 13); // Tcl
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+static int TwapiOneTimeInit(Tcl_Interp *interp)
+{
+    InitializeCriticalSection(&gETWCS);
+    return TCL_OK;
+}
+
+/* Called when interp is deleted */
+static void TwapiETWCleanup(TwapiInterpContext *ticP)
+{
+    /* TBD - should we unregister providers or close sessions ? */
+}
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_etw_Init(Tcl_Interp *interp)
+{
+    TwapiInterpContext *ticP;
+
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    /* Init unless already done. */
+    if (! TwapiDoOneTimeInit(&gETWInitialized, TwapiOneTimeInit, interp))
+        return TCL_ERROR;
+
+    /* NOTE: no point setting Tcl_SetResult for errors as they are not
+       looked at when DLL is being loaded */
+
+    /* Allocate a context that will be passed around in all interpreters */
+    ticP = Twapi_AllocateInterpContext(interp, MODULE_HANDLE, TwapiETWCleanup);
+    if (ticP == NULL)
+        return TCL_ERROR;
+
+    /* Do our own commands. */
+    if (Twapi_ETWInitCalls(interp, ticP) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    if (Twapi_SourceResource(ticP, MODULE_HANDLE, MODULENAME) != TCL_OK) {
+        /* We keep going as scripts might be external, not bound into DLL */
+        /* return TCL_ERROR; */
+        Tcl_ResetResult(interp); /* Get rid of any error messages */
+    }
+
+    return TCL_OK;
+}
+

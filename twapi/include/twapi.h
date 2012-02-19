@@ -105,7 +105,6 @@
 #include <userenv.h>
 #include <setupapi.h>
 #include <wmistr.h>             /* Needed for WNODE_HEADER for evntrace */
-#include <evntrace.h>
 
 #include "tcl.h"
 
@@ -943,10 +942,6 @@ extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 #endif
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
-extern CRITICAL_SECTION gETWCS;
-extern ULONG  gETWProviderTraceEnableFlags;
-extern ULONG  gETWProviderTraceEnableLevel;
-extern TRACEHANDLE gETWProviderSessionHandle;
 
 #define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
@@ -1320,18 +1315,6 @@ int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
 BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP);
 int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadEventLog(TwapiInterpContext *, HANDLE evlH, DWORD  flags, DWORD offset);
-
-/* ETW */
-TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* UI and window related */
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
