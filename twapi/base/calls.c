@@ -327,7 +327,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallHSU", Twapi_CallHSUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallW", Twapi_CallWObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
@@ -445,7 +444,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(MonitorFromPoint, Call, 10010);
     CALL_(MonitorFromRect, Call, 10011);
     CALL_(EnumDisplayDevices, Call, 10012);
-    CALL_(ReportEvent, Call, 10013);
     CALL_(Twapi_RegisterDeviceNotification, Call, 10014);
     CALL_(CreateProcess, Call, 10015);
     CALL_(CreateProcessAsUser, Call, 10016);
@@ -542,7 +540,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
-    CALL_(NotifyChangeEventLog, Call, 10123);
     CALL_(UpdateResource, Call, 10124);
     CALL_(FindResourceEx, Call, 10125);
     CALL_(Twapi_LoadResource, Call, 10126);
@@ -659,11 +656,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallH - function(HANDLE)
     CALL_(FindVolumeClose, CallH, 7);
     CALL_(FindVolumeMountPointClose, CallH, 8);
-    CALL_(DeregisterEventSource, CallH, 9);
-    CALL_(CloseEventLog, CallH, 10);
-    CALL_(GetNumberOfEventLogRecords, CallH, 11);
-    CALL_(GetOldestEventLogRecord, CallH, 12);
-    CALL_(Twapi_IsEventLogFull, CallH, 13);
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
     CALL_(GetDevicePowerState, CallH, 16);
@@ -741,7 +733,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSQuerySessionInformation, CallH, 2003); /* TBD - tcl wrapper */
     CALL_(GetSecurityInfo, CallH, 2004);
     CALL_(OpenThreadToken, CallH, 2005);
-    CALL_(ReadEventLog, CallH, 2006);
     CALL_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
@@ -753,10 +744,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_LsaEnumerateAccountsWithUserRight, CallH, 10003);
     CALL_(Twapi_SetTokenIntegrityLevel, CallH, 10004);
     CALL_(EnumDisplayMonitors, CallH, 10005);
-
-    // CallHSU - function(HANDLE, LPCWSTR, DWORD)
-    CALL_(BackupEventLog, CallHSU, 1);
-    CALL_(ClearEventLog, CallHSU, 2);
 
     // CallW - function(HWND)
     CALL_(IsIconic, CallW, 1);
@@ -847,9 +834,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(MoveFileEx, CallSSSD, 39);
     CALL_(SetVolumeLabel, CallSSSD, 40);
     CALL_(QueryDosDevice, CallSSSD, 41);
-    CALL_(RegisterEventSource, CallSSSD, 44);
-    CALL_(OpenEventLog, CallSSSD, 45);
-    CALL_(OpenBackupEventLog, CallSSSD, 45);
 
     // CallPSID - function(ANY, SID, ...)
     CALL_(LookupAccountSid, CallPSID, 2);
@@ -1621,8 +1605,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             break;
                       
-        case 10013:
-            return Twapi_ReportEvent(interp, objc-2, objv+2);
+        case 10013: // UNUSED
+            break;
+
         case 10014:
             return Twapi_RegisterDeviceNotification(ticP, objc-2, objv+2);
         case 10015: // CreateProcess
@@ -2487,16 +2472,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-        case 10123:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETHANDLE(h2),
-                             ARGEND) == TCL_OK) {
-                result.type = TRT_EXCEPTION_ON_FALSE;
-                result.value.ival = NotifyChangeEventLog(h, h2);
-            } else {
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = TCL_ERROR;
-            }
+        case 10123: // UNUSED
             break;
         case 10124:
             return Twapi_UpdateResource(interp, objc-2, objv+2);
@@ -3200,29 +3176,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = FindVolumeMountPointClose(h);
             break;
-        case 9:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeregisterEventSource(h);
-            break;
-        case 10:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseEventLog(h);
-            break;
-        case 11:
-            result.type = GetNumberOfEventLogRecords(h,
-                                                     &result.value.ival)
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 12:
-            result.type = GetOldestEventLogRecord(h,
-                                                  &result.value.ival) 
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 13:
-            result.type = Twapi_IsEventLogFull(h,
-                                               &result.value.ival) 
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
+            // 9-13 UNUSED
         case 14:
             result.type = GetHandleInformation(h, &result.value.ival)
                 ? TRT_DWORD : TRT_GETLASTERROR;
@@ -3592,8 +3546,8 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = OpenThreadToken(h, dw, dw2, &result.value.hval) ?
                 TRT_HANDLE : TRT_GETLASTERROR;
             break;
-        case 2006:
-            return Twapi_ReadEventLog(ticP, h, dw, dw2);
+        case 2006: // UNUSED
+            break;
         case 2007:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);
@@ -3933,17 +3887,9 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
         result.value.ival = SetVolumeMountPointW(s2, s3);
         break;
-    case 44:
-        result.type = TRT_HANDLE;
-        result.value.hval = RegisterEventSourceW(s1, s2);
-        break;
-    case 45:
-        result.type = TRT_HANDLE;
-        result.value.hval = OpenEventLogW(s1, s2);
-        break;
-    case 46:
-        result.type = TRT_HANDLE;
-        result.value.hval = OpenBackupEventLogW(s1, s2);
+    case 44: // UNUSED
+    case 45: // UNUSED
+    case 46: // UNUSED
         break;
 
 #ifndef TWAPI_LEAN
@@ -4352,39 +4298,6 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
     return TwapiSetResult(interp, &result);
 }
 
-
-int Twapi_CallHSUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    HANDLE h;
-    LPCWSTR s;
-    DWORD dw;
-    TwapiResult result;
-    int func;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETHANDLE(h), GETWSTR(s),
-                     ARGUSEDEFAULT,
-                     GETINT(dw),
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    result.type = TRT_BADFUNCTIONCODE;
-
-    /* TBD - get rid of this function, only 2 cases ! */
-    switch (func) {
-    case 1:
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = BackupEventLogW(h, s);
-        break;
-    case 2:
-        NULLIFY_EMPTY(s);
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = ClearEventLogW(h, s);
-        break;
-    }
-
-    return TwapiSetResult(interp, &result);
-}
 
 /*
  * PSID - based calls. These are handled separately because we want to

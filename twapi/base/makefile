@@ -13,7 +13,6 @@ OBJS  = \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
-	$(OBJDIR)\eventlog.obj \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\hotkey.obj \
 	$(OBJDIR)\gdi.obj \
@@ -61,7 +60,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\shell.tcl \
 	..\tcl\com.tcl \
-	..\tcl\eventlog.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\pdh.tcl \
 	..\tcl\process2.tcl \
