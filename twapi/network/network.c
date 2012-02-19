@@ -15,6 +15,29 @@ typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
 } TCPIP_OWNER_MODULE_BASIC_INFO;
 #endif
 
+typedef struct _TwapiHostnameEvent {
+    Tcl_Event tcl_ev;           /* Must be first field */
+    TwapiInterpContext *ticP;
+    TwapiId    id;             /* Passed from script as a request id */
+    DWORD  status;         /* 0 -> success, else Win32 error code */
+    union {
+        struct addrinfo *addrinfolist; /* Returned by getaddrinfo, to be
+                                          freed via freeaddrinfo
+                                          Used for host->addr */
+        char *hostname;      /* ckalloc'ed (used for addr->hostname) */
+    };
+    int family;                 /* AF_UNSPEC, AF_INET or AF_INET6 */
+    char name[1];           /* Holds query for hostname->addr */
+    /* VARIABLE SIZE SINCE name[] IS ARBITRARY SIZE */
+} TwapiHostnameEvent;
+/*
+ * Macro to calculate struct size. Note terminating null and the sizeof
+ * the name[] array cancel each other out. (namelen_) does not include
+ * terminating null.
+ */
+#define SIZE_TwapiHostnameEvent(namelen_) \
+    (sizeof(TwapiHostnameEvent) + (namelen_))
+
 /* Undocumented functions */
 typedef DWORD (WINAPI *GetOwnerModuleFromTcpEntry_t)(PVOID, int, PVOID, PDWORD);
 MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcpEntry, iphlpapi, GetOwnerModuleFromTcpEntry_t)
@@ -29,118 +52,7 @@ typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
 MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
 
-/* Given a IP address as a DWORD, returns a Tcl string */
-Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
-{
-    struct in_addr inaddr;
-    inaddr.S_un.S_addr = addr;
-    return Tcl_NewStringObj(inet_ntoa(inaddr), -1);
-}
-
-/* Given a string, return the IP address */
-int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
-{
-    DWORD addr;
-    char *p = Tcl_GetString(objP);
-    if ((addr = inet_addr(p)) == INADDR_NONE) {
-        /* Bad format or 255.255.255.255 */
-        if (! STREQ("255.255.255.255", p)) {
-            if (interp) {
-                Tcl_AppendResult(interp, "Invalid IP address format: ", p, NULL);
-            }
-            return TCL_ERROR;
-        }
-        /* Fine, addr contains 0xffffffff */
-    }
-    *addrP = addr;
-    return TCL_OK;
-}
-
-/* Given a IP_ADDR_STRING list, return a Tcl_Obj */
-Tcl_Obj *ObjFromIP_ADDR_STRING (
-    Tcl_Interp *interp, const IP_ADDR_STRING *ipaddrstrP
-)
-{
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
-    while (ipaddrstrP) {
-        Tcl_Obj *objv[3];
-
-        if (ipaddrstrP->IpAddress.String[0]) {
-            objv[0] = Tcl_NewStringObj(ipaddrstrP->IpAddress.String, -1);
-            objv[1] = Tcl_NewStringObj(ipaddrstrP->IpMask.String, -1);
-            objv[2] = Tcl_NewIntObj(ipaddrstrP->Context);
-            Tcl_ListObjAppendElement(interp, resultObj,
-                                     Tcl_NewListObj(3, objv));
-        }
-
-        ipaddrstrP = ipaddrstrP->Next;
-    }
-
-    return resultObj;
-}
-
-
-/* Note - port is not returned - only address */
-Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
-{
-    char buf[50];
-    DWORD bufsz = ARRAYSIZE(buf);
-    
-    if (WSAAddressToStringA(saP,
-                            ((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
-                            NULL,
-                            buf,
-                            &bufsz) == 0) {
-        if (bufsz && buf[bufsz-1] == 0)
-            --bufsz;        /* Terminating \0 */
-        return Tcl_NewStringObj(buf, bufsz);
-    }
-    /* Error already set */
-    return NULL;
-}
-
-/* Can return NULL on error */
-Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
-{
-    short save_port;
-    Tcl_Obj *objv[2];
-
-    /* Stash port as 0 so does not show in address string */
-    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
-        save_port = ((SOCKADDR_IN6 *)saP)->sin6_port;
-        ((SOCKADDR_IN6 *)saP)->sin6_port = 0;
-    } else {
-        save_port = ((SOCKADDR_IN *)saP)->sin_port;
-        ((SOCKADDR_IN *)saP)->sin_port = 0;
-    }
-    
-    objv[0] = ObjFromSOCKADDR_address(saP);
-    if (objv[0] == NULL)
-        return NULL;
-
-    objv[1] = Tcl_NewIntObj((WORD)(ntohs(save_port)));
-
-    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
-        ((SOCKADDR_IN6 *)saP)->sin6_port = save_port;
-    } else {
-        ((SOCKADDR_IN *)saP)->sin_port = save_port;
-    }
-
-    return Tcl_NewListObj(2, objv);
-}
-
-
-Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
-{
-    SOCKADDR_IN6 si;
-
-    si.sin6_family = AF_INET6;
-    si.sin6_port = 0;
-    si.sin6_flowinfo = 0;
-    CopyMemory(si.sin6_addr.u.Byte, addrP, 16);
-    si.sin6_scope_id = scope_id;
-    return ObjFromSOCKADDR_address((SOCKADDR *)&si);
-}
+HMODULE gModuleHandle;
 
 
 /* Returns address family or AF_UNSPEC if s could not be parsed */
@@ -1706,6 +1618,488 @@ int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     }
 
     Tcl_SetObjResult(ticP->interp, Tcl_NewLongObj(ifindex));
+    return TCL_OK;
+}
+
+
+
+/* Called from the Tcl event loop with the result of a hostname lookup */
+static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
+{
+    TwapiHostnameEvent *theP = (TwapiHostnameEvent *) tclevP;
+
+    if (theP->ticP->interp != NULL &&
+        ! Tcl_InterpDeleted(theP->ticP->interp)) {
+        /* Invoke the script */
+        Tcl_Interp *interp = theP->ticP->interp;
+        Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+
+        Tcl_ListObjAppendElement(
+            interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_hostname_resolve_handler"));
+        Tcl_ListObjAppendElement(interp, objP, ObjFromTwapiId(theP->id));
+        if (theP->status == ERROR_SUCCESS) {
+            /* Success */
+            Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("success"));
+            Tcl_ListObjAppendElement(interp, objP, TwapiCollectAddrInfo(theP->addrinfolist, theP->family));
+        } else {
+            /* Failure */
+            Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("fail"));
+            Tcl_ListObjAppendElement(interp, objP,
+                                     Tcl_NewLongObj(theP->status));
+        }
+        /* Invoke the script */
+        Tcl_IncrRefCount(objP);
+        (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
+        Tcl_DecrRefCount(objP);
+        /* TBD - check for error and add to background ? */
+    }
+
+    /* Done with the interp context */
+    TwapiInterpContextUnref(theP->ticP, 1);
+
+    /* Assumes we can free this from different thread than allocated it ! */
+    if (theP->addrinfolist)
+        freeaddrinfo(theP->addrinfolist);
+
+    return 1;                   /* So Tcl removes from queue */
+}
+
+
+/* Called from the Win2000 thread pool */
+static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
+{
+    struct addrinfo hints;
+
+    TwapiZeroMemory(&hints, sizeof(hints));
+    hints.ai_family = theP->family;
+
+    theP->tcl_ev.proc = TwapiHostnameEventProc;
+    theP->status = getaddrinfo(theP->name, "0", &hints, &theP->addrinfolist);
+    TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
+    return 0;               /* Return value does not matter */
+}
+
+
+int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiId id;
+    char *name;
+    int   len;
+    TwapiHostnameEvent *theP;
+    DWORD winerr;
+    int family;
+
+    ERROR_IF_UNTHREADED(ticP->interp);
+
+    if (TwapiGetArgs(ticP->interp, objc, objv,
+                     GETASTRN(name, len), ARGUSEDEFAULT, GETINT(family),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    id =  TWAPI_NEWID(ticP);
+    /* Allocate the callback context, must be allocated via ckalloc
+     * as it will be passed to Tcl_QueueEvent.
+     */
+    theP = (TwapiHostnameEvent *) ckalloc(SIZE_TwapiHostnameEvent(len));
+    theP->tcl_ev.proc = NULL;
+    theP->tcl_ev.nextPtr = NULL;
+    theP->id = id;
+    theP->status = ERROR_SUCCESS;
+    theP->ticP = ticP;
+    TwapiInterpContextRef(ticP, 1); /* So it does not go away */
+    theP->addrinfolist = NULL;
+    theP->family = family;
+    CopyMemory(theP->name, name, len+1);
+
+    if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT)) {
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
+        return TCL_OK;
+    }
+
+    winerr = GetLastError();    /* Remember the error */
+
+    TwapiInterpContextUnref(ticP, 1); /* Undo above ref */
+    Tcl_Free((char*) theP);
+    return Twapi_AppendSystemError(ticP->interp, winerr);
+}
+
+
+/* Called from the Tcl event loop with the result of a address lookup */
+static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
+{
+    TwapiHostnameEvent *theP = (TwapiHostnameEvent *) tclevP;
+
+    if (theP->ticP->interp != NULL &&
+        ! Tcl_InterpDeleted(theP->ticP->interp)) {
+        /* Invoke the script */
+        Tcl_Interp *interp = theP->ticP->interp;
+        Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+
+        Tcl_ListObjAppendElement(
+            interp, objP, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_address_resolve_handler"));
+        Tcl_ListObjAppendElement(interp, objP, ObjFromTwapiId(theP->id));
+        if (theP->status == ERROR_SUCCESS) {
+            /* Success. Note theP->hostname may still be NULL */
+            Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("success"));
+            Tcl_ListObjAppendElement(
+                interp, objP,
+                Tcl_NewStringObj((theP->hostname ? theP->hostname : ""), -1));
+        } else {
+            /* Failure */
+            Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("fail"));
+            Tcl_ListObjAppendElement(interp, objP,
+                                     Tcl_NewLongObj(theP->status));
+        }
+        /* Invoke the script */
+        /* Do we need TclSave/RestoreResult ? */
+        Tcl_IncrRefCount(objP);
+        (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
+        Tcl_DecrRefCount(objP);
+        /* TBD - check for error and add to background ? */
+    }
+    
+    /* Done with the interp context */
+    TwapiInterpContextUnref(theP->ticP, 1);
+    if (theP->hostname)
+        TwapiFree(theP->hostname);
+    
+    return 1;                   /* So Tcl removes from queue */
+}
+
+
+/* Called from the Win2000 thread pool */
+static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
+{
+    SOCKADDR_STORAGE ss;
+    char hostname[NI_MAXHOST];
+    char portname[NI_MAXSERV];
+    int family;
+
+    theP->tcl_ev.proc = TwapiAddressEventProc;
+    family = TwapiStringToSOCKADDR_STORAGE(theP->name, &ss, theP->family);
+    if (family == AF_UNSPEC) {
+        // Fail, invalid address string
+        theP->status = 10022;         /* WSAINVAL error code */
+    } else {    
+        theP->status = getnameinfo((struct sockaddr *)&ss,
+                                   ss.ss_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
+                                   hostname, sizeof(hostname)/sizeof(hostname[0]),
+                                   portname, sizeof(portname)/sizeof(portname[0]),
+                                   NI_NUMERICSERV);
+    }
+    if (theP->status == 0) {
+        /* If the function just returned back the address, then there
+           was really no name found so return empty string (NULL) */
+        theP->hostname = NULL;
+        if (lstrcmpA(theP->name, hostname)) {
+            /* Really do have a name */
+            theP->hostname = TwapiAllocAString(hostname, -1);
+        }
+    }
+
+    TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
+    return 0;                   /* Return value ignored anyways */
+}
+
+int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiId id;
+    char *addrstr;
+    int   len;
+    TwapiHostnameEvent *theP;
+    DWORD winerr;
+    int family;
+
+    ERROR_IF_UNTHREADED(ticP->interp);
+
+    if (TwapiGetArgs(ticP->interp, objc, objv,
+                     GETASTRN(addrstr, len), ARGUSEDEFAULT, GETINT(family),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    id =  TWAPI_NEWID(ticP);
+
+    /* Allocate the callback context, must be allocated via ckalloc
+     * as it will be passed to Tcl_QueueEvent.
+     */
+    theP = (TwapiHostnameEvent *) ckalloc(SIZE_TwapiHostnameEvent(len));
+    theP->tcl_ev.proc = NULL;
+    theP->tcl_ev.nextPtr = NULL;
+    theP->id = id;
+    theP->status = ERROR_SUCCESS;
+    theP->ticP = ticP;
+    TwapiInterpContextRef(ticP, 1); /* So it does not go away */
+    theP->hostname = NULL;
+    theP->family = family;
+
+    /* We do not syntactically validate address string here. All failures
+       are delivered asynchronously */
+    CopyMemory(theP->name, addrstr, len+1);
+
+    if (QueueUserWorkItem(TwapiAddressHandler, theP, WT_EXECUTEDEFAULT)) {
+        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
+        return TCL_OK;
+    }
+    winerr = GetLastError();    /* Remember the error */
+
+    TwapiInterpContextUnref(ticP, 1); /* Undo above ref */
+    Tcl_Free((char*) theP);
+    return Twapi_AppendSystemError(ticP->interp, winerr);
+}
+
+
+static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    int func;
+    union {
+        MIB_TCPROW tcprow;
+        SOCKADDR_STORAGE ss;
+    } u;
+    DWORD dw, dw2, dw3, dw4;
+    LPWSTR s;
+    LPVOID pv;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 100) {
+        /* Functions taking no arguments */
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 1:
+            return Twapi_GetNetworkParams(ticP);
+        case 2:
+            return Twapi_GetAdaptersInfo(ticP);
+        case 3:
+            return Twapi_GetInterfaceInfo(ticP);
+        case 4:
+            result.type = GetNumberOfInterfaces(&result.value.ival) ? TRT_GETLASTERROR : TRT_DWORD;
+            break;
+
+        }
+    } else if (func < 300) {
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (func == 101) {
+            if (ObjToMIB_TCPROW(interp, objv[2], &u.tcprow) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = SetTcpEntry(&u.tcprow);
+        } else if (func < 250) {
+            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            switch (func) {
+            case 201:
+                return Twapi_GetPerAdapterInfo(ticP, dw);
+            case 202:
+                return Twapi_GetIfEntry(interp, dw);
+            case 203:
+                return Twapi_GetIfTable(ticP, dw);
+            case 204:
+                return Twapi_GetIpAddrTable(ticP, dw);
+            case 205:
+                return Twapi_GetIpNetTable(ticP, dw);
+            case 206:
+                return Twapi_GetIpForwardTable(ticP, dw);
+            case 207:
+                result.value.ival = FlushIpNetTable(dw);
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                break;
+            }
+        } else {
+            s = Tcl_GetUnicode(objv[2]);
+            switch (func) {
+            case 251:
+                result.type = GetAdapterIndex((LPWSTR)s, &result.value.ival)
+                    ? TRT_GETLASTERROR
+                    : TRT_DWORD;
+                break;
+            case 252: // Twapi_IPAddressFamily - TBD - optimizable?
+                result.value.ival = 0;
+                result.type = TRT_DWORD;
+                dw = sizeof(u.ss);
+                dw2 = sizeof(u.ss); /* Since first call might change dw */
+                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
+                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                    result.value.ival = u.ss.ss_family;
+                }
+                break;
+
+            case 26: // Twapi_NormalizeIPAddress
+                dw = sizeof(u.ss);
+                dw2 = sizeof(u.ss); /* Since first call might change dw */
+                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
+                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                    result.type = TRT_OBJ;
+                    if (u.ss.ss_family == AF_INET6) {
+                        /* Do not want scope id in normalized form */
+                        ((SOCKADDR_IN6 *)&u.ss)->sin6_scope_id = 0;
+                    }
+                    result.value.obj = ObjFromSOCKADDR_address((struct sockaddr *)&u.ss);
+                } else {
+                    result.type = TRT_GETLASTERROR;
+                }
+                break;
+            }
+        }
+    } else if (func < 400) {
+        if (objc != 4)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
+        switch (func) {
+        case 301:
+            return Twapi_GetAdaptersAddresses(ticP, dw, dw2, NULL);
+        case 302:
+            return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
+        case 303:
+            return Twapi_AllocateAndGetUdpExTableFromStack(ticP, dw, dw2);
+        }
+    } else {
+        /* Free-for-all - each func responsible for checking arguments */
+        /* At least one arg present */
+        if (objc < 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 10000: // Twapi_FormatExtendedTcpTable
+        case 10001: // Twapi_FormatExtendedUdpTable
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVOIDP(pv), GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
+                (interp, pv, dw, dw2);
+        case 10002: // GetExtendedTcpTable
+        case 10003: // GetExtendedUdpTable
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
+                             GETINT(dw3), GETINT(dw4),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
+                (interp, pv, dw, dw2, dw3, dw4);
+
+        case 10004: // ResolveAddressAsync
+        case 10005: // ResolveHostnameAsync
+            return (func == 10004 ? Twapi_ResolveAddressAsync : Twapi_ResolveHostnameAsync)
+                (ticP, objc-2, objv+2);
+        case 10006:
+            return Twapi_GetAddrInfo(interp, objc-2, objv+2);
+        case 10007:
+            return Twapi_GetNameInfo(interp, objc-2, objv+2);
+        case 10008:
+            return Twapi_GetBestRoute(ticP, objc-2, objv+2);
+        case 10009: // GetBestInterface
+            return Twapi_GetBestInterface(ticP, objc-2, objv+2);
+
+
+
+
+        }
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+static int Twapi_NetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::NetworkCall", Twapi_NetworkCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Network" #call_, # code_); \
+    } while (0);
+
+    CALL_(GetNetworkParams, Call, 1);
+    CALL_(GetAdaptersInfo, Call, 2);
+    CALL_(GetInterfaceInfo, Call, 3);
+    CALL_(GetNumberOfInterfaces, Call, 4);
+    CALL_(SetTcpEntry, Call, 101);
+    CALL_(GetPerAdapterInfo, Call, 201);
+    CALL_(GetIfEntry, Call, 202);
+    CALL_(GetIfTable, Call, 203);
+    CALL_(GetIpAddrTable, Call, 204);
+    CALL_(GetIpNetTable, Call, 205);
+    CALL_(GetIpForwardTable, Call, 206);
+    CALL_(FlushIpNetTable, Call, 207);
+    CALL_(GetAdapterIndex, Call, 251);
+    CALL_(Twapi_IPAddressFamily, Call, 252); // TBD - Tcl interface
+    CALL_(Twapi_NormalizeIPAddress, Call, 253); // TBD - Tcl interface
+    CALL_(GetAdaptersAddresses, Call, 301);
+    CALL_(AllocateAndGetTcpExTableFromStack, Call, 302);
+    CALL_(AllocateAndGetUdpExTableFromStack, Call, 303);
+    CALL_(Twapi_FormatExtendedTcpTable, Call, 10000);
+    CALL_(Twapi_FormatExtendedUdpTable, Call, 10001);
+    CALL_(GetExtendedTcpTable, Call, 10002);
+    CALL_(GetExtendedUdpTable, Call, 10003);
+    CALL_(Twapi_ResolveAddressAsync, Call, 10004);
+    CALL_(Twapi_ResolveHostnameAsync, Call, 10005);
+    CALL_(getaddrinfo, Call, 10006);
+    CALL_(getnameinfo, Call, 10007);
+    CALL_(GetBestRoute, Call, 10008);
+    CALL_(GetBestInterface, Call, 10009); /* Also mapped to GetBestInterfaceEx */
+    CALL_(GetBestInterfaceEx, Call, 10009);
+
+
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_network_Init(Tcl_Interp *interp)
+{
+    TwapiInterpContext *ticP;
+
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
+       done for EVERY interp creation or move into one-time above ? TBD
+     */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    /* NOTE: no point setting Tcl_SetResult for errors as they are not
+       looked at when DLL is being loaded */
+
+    /* Allocate a context that will be passed around in all interpreters */
+    ticP = Twapi_AllocateInterpContext(interp, gModuleHandle, NULL);
+    if (ticP == NULL)
+        return TCL_ERROR;
+
+    /* Do our own commands. */
+    if (Twapi_NetworkInitCalls(interp, ticP) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    if (Twapi_SourceResource(ticP, gModuleHandle, MODULENAME) != TCL_OK) {
+        /* We keep going as scripts might be external, not bound into DLL */
+        /* return TCL_ERROR; */
+        Tcl_ResetResult(interp); /* Get rid of any error messages */
+    }
+
     return TCL_OK;
 }
 

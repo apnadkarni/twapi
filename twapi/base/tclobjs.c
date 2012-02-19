@@ -1610,3 +1610,117 @@ Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull)
         return Tcl_NewWideIntObj((Tcl_WideInt) ull);
     }
 }
+
+/* Given a IP address as a DWORD, returns a Tcl string */
+Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
+{
+    struct in_addr inaddr;
+    inaddr.S_un.S_addr = addr;
+    return Tcl_NewStringObj(inet_ntoa(inaddr), -1);
+}
+
+/* Given a string, return the IP address */
+int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
+{
+    DWORD addr;
+    char *p = Tcl_GetString(objP);
+    if ((addr = inet_addr(p)) == INADDR_NONE) {
+        /* Bad format or 255.255.255.255 */
+        if (! STREQ("255.255.255.255", p)) {
+            if (interp) {
+                Tcl_AppendResult(interp, "Invalid IP address format: ", p, NULL);
+            }
+            return TCL_ERROR;
+        }
+        /* Fine, addr contains 0xffffffff */
+    }
+    *addrP = addr;
+    return TCL_OK;
+}
+
+
+/* Given a IP_ADDR_STRING list, return a Tcl_Obj */
+Tcl_Obj *ObjFromIP_ADDR_STRING (
+    Tcl_Interp *interp, const IP_ADDR_STRING *ipaddrstrP
+)
+{
+    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    while (ipaddrstrP) {
+        Tcl_Obj *objv[3];
+
+        if (ipaddrstrP->IpAddress.String[0]) {
+            objv[0] = Tcl_NewStringObj(ipaddrstrP->IpAddress.String, -1);
+            objv[1] = Tcl_NewStringObj(ipaddrstrP->IpMask.String, -1);
+            objv[2] = Tcl_NewIntObj(ipaddrstrP->Context);
+            Tcl_ListObjAppendElement(interp, resultObj,
+                                     Tcl_NewListObj(3, objv));
+        }
+
+        ipaddrstrP = ipaddrstrP->Next;
+    }
+
+    return resultObj;
+}
+
+
+/* Note - port is not returned - only address */
+Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
+{
+    char buf[50];
+    DWORD bufsz = ARRAYSIZE(buf);
+    
+    if (WSAAddressToStringA(saP,
+                            ((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
+                            NULL,
+                            buf,
+                            &bufsz) == 0) {
+        if (bufsz && buf[bufsz-1] == 0)
+            --bufsz;        /* Terminating \0 */
+        return Tcl_NewStringObj(buf, bufsz);
+    }
+    /* Error already set */
+    return NULL;
+}
+
+/* Can return NULL on error */
+Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
+{
+    short save_port;
+    Tcl_Obj *objv[2];
+
+    /* Stash port as 0 so does not show in address string */
+    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
+        save_port = ((SOCKADDR_IN6 *)saP)->sin6_port;
+        ((SOCKADDR_IN6 *)saP)->sin6_port = 0;
+    } else {
+        save_port = ((SOCKADDR_IN *)saP)->sin_port;
+        ((SOCKADDR_IN *)saP)->sin_port = 0;
+    }
+    
+    objv[0] = ObjFromSOCKADDR_address(saP);
+    if (objv[0] == NULL)
+        return NULL;
+
+    objv[1] = Tcl_NewIntObj((WORD)(ntohs(save_port)));
+
+    if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
+        ((SOCKADDR_IN6 *)saP)->sin6_port = save_port;
+    } else {
+        ((SOCKADDR_IN *)saP)->sin_port = save_port;
+    }
+
+    return Tcl_NewListObj(2, objv);
+}
+
+
+Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
+{
+    SOCKADDR_IN6 si;
+
+    si.sin6_family = AF_INET6;
+    si.sin6_port = 0;
+    si.sin6_flowinfo = 0;
+    CopyMemory(si.sin6_addr.u.Byte, addrP, 16);
+    si.sin6_scope_id = scope_id;
+    return ObjFromSOCKADDR_address((SOCKADDR *)&si);
+}

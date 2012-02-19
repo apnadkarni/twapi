@@ -357,10 +357,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetClipboardOwner, Call, 9);
     CALL_(Twapi_EnumClipboardFormats,Call, 10);
     CALL_(GetLogicalDrives, Call, 18);
-    CALL_(GetNetworkParams, Call, 19);
-    CALL_(GetAdaptersInfo, Call, 20);
-    CALL_(GetInterfaceInfo, Call, 21);
-    CALL_(GetNumberOfInterfaces, Call, 22);
     CALL_(GetUserDefaultLangID, Call, 23);
     CALL_(GetSystemDefaultLangID, Call, 24);
     CALL_(GetUserDefaultLCID, Call, 25);
@@ -436,7 +432,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DeleteSecurityContext, Call, 1012);
     CALL_(ImpersonateSecurityContext, Call, 1013);
     CALL_(IsValidAcl, Call, 1014);
-    CALL_(SetTcpEntry, Call, 1015);
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
@@ -448,14 +443,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DestroyIcon, Call, 1024);
     CALL_(DestroyCursor, Call, 1025);
 
-    CALL_(Twapi_FormatExtendedTcpTable, Call, 10000);
-    CALL_(Twapi_FormatExtendedUdpTable, Call, 10001);
-    CALL_(GetExtendedTcpTable, Call, 10002);
-    CALL_(GetExtendedUdpTable, Call, 10003);
-    CALL_(Twapi_ResolveAddressAsync, Call, 10004);
-    CALL_(Twapi_ResolveHostnameAsync, Call, 10005);
-    CALL_(getaddrinfo, Call, 10006);
-    CALL_(getnameinfo, Call, 10007);
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(MonitorFromPoint, Call, 10010);
@@ -501,7 +488,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleInformation, Call, 10056);
     CALL_(Twapi_VerQueryValue_STRING, Call, 10057);
     CALL_(DsGetDcName, Call, 10058);
-    CALL_(GetBestRoute, Call, 10059);
     CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
     CALL_(SetupDiGetClassDevsEx, Call, 10061);
     CALL_(SetupDiEnumDeviceInfo, Call, 10062);
@@ -575,8 +561,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
     CALL_(LoadImage, Call, 10132);
-    CALL_(GetBestInterface, Call, 10133); /* Also mapped to GetBestInterfaceEx */
-    CALL_(GetBestInterfaceEx, Call, 10133);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
     CALL_(StartTrace, Call, 10136); // Tcl
@@ -602,13 +586,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetClipboardFormatName, CallU, 3);
     CALL_(GetStdHandle, CallU, 4);
     CALL_(VerLanguageName, CallU, 7);
-    CALL_(GetPerAdapterInfo, CallU, 8);
-    CALL_(GetIfEntry, CallU, 9);
-    CALL_(GetIfTable, CallU, 10);
-    CALL_(GetIpAddrTable, CallU, 11);
-    CALL_(GetIpNetTable, CallU, 12);
-    CALL_(GetIpForwardTable, CallU, 13);
-    CALL_(FlushIpNetTable, CallU, 14);
     CALL_(GetComputerNameEx, CallU, 15);
     CALL_(Wow64EnableWow64FsRedirection, CallU, 16);
     CALL_(GetSystemMetrics, CallU, 17);
@@ -633,15 +610,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
-    CALL_(GetAdaptersAddresses, CallU, 1001);
     CALL_(Beep, CallU, 1002);
     CALL_(MapVirtualKey, CallU, 1003);
     CALL_(SetCaretPos, CallU, 1004);
     CALL_(SetCursorPos, CallU, 1005);
     CALL_(GetLocaleInfo, CallU, 1006);
     CALL_(ExitWindowsEx, CallU, 1007);
-    CALL_(AllocateAndGetTcpExTableFromStack, CallU, 1009);
-    CALL_(AllocateAndGetUdpExTableFromStack, CallU, 1010);
 
     CALL_(OpenProcess, CallU, 2001);
     CALL_(OpenThread, CallU, 2002);
@@ -666,7 +640,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DeleteVolumeMountPoint, CallS, 4);
     CALL_(GetVolumeNameForVolumeMountPoint, CallS, 5);
     CALL_(GetVolumePathName, CallS, 6);
-    CALL_(GetAdapterIndex, CallS, 7);
     CALL_(CommandLineToArgv, CallS, 8);
     CALL_(WNetGetUniversalName, CallS, 9);
     CALL_(WNetGetUser, CallS, 10);
@@ -686,8 +659,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
-    CALL_(Twapi_IPAddressFamily, CallS, 25); // TBD - Tcl interface
-    CALL_(Twapi_NormalizeIPAddress, CallS, 26); // TBD - Tcl interface
     CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
@@ -1232,15 +1203,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = GetLogicalDrives();
             result.type = TRT_DWORD;
             break;
-        case 19:
-            return Twapi_GetNetworkParams(ticP);
-        case 20:
-            return Twapi_GetAdaptersInfo(ticP);
-        case 21:
-            return Twapi_GetInterfaceInfo(ticP);
-        case 22:
-            result.type = GetNumberOfInterfaces(&result.value.ival) ? TRT_GETLASTERROR : TRT_DWORD;
-            break;
+            // UNUSED 19-22
         case 23:
             result.type = TRT_DWORD;
             result.value.ival = GetUserDefaultLangID();
@@ -1582,11 +1545,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (daclP)
                 TwapiFree(daclP);
             break;
-        case 1015:
-            if (ObjToMIB_TCPROW(interp, objv[2], &u.tcprow) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = SetTcpEntry(&u.tcprow);
+        case 1015: // UNUSED
             break;
         case 1016:
             if (ObjToFILETIME(interp, objv[2], &u.filetime) != TCL_OK)
@@ -1653,34 +1612,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
-        case 10000: // Twapi_FormatExtendedTcpTable
-        case 10001: // Twapi_FormatExtendedUdpTable
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv), GETINT(dw), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
-                (interp, pv, dw, dw2);
-        case 10002: // GetExtendedTcpTable
-        case 10003: // GetExtendedUdpTable
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
-                             GETINT(dw3), GETINT(dw4),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
-                (interp, pv, dw, dw2, dw3, dw4);
-
-        case 10004: // ResolveAddressAsync
-        case 10005: // ResolveHostnameAsync
-            return (func == 10004 ? Twapi_ResolveAddressAsync : Twapi_ResolveHostnameAsync)
-                (ticP, objc-2, objv+2);
-
-        case 10006:
-            return Twapi_GetAddrInfo(interp, objc-2, objv+2);
-        case 10007:
-            return Twapi_GetNameInfo(interp, objc-2, objv+2);
-
+            // 10001-10007 UNUSED
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -2145,9 +2077,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-        case 10059:
-            return Twapi_GetBestRoute(ticP, objc-2, objv+2);
-
+        case 10059: // UNUSED
+            break;
 #ifndef TWAPI_LEAN
         case 10060: // SetupDiCreateDeviceInfoListExW
             guidP = &guid;
@@ -2652,8 +2583,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10132: // LoadImage
             return Twapi_LoadImage(interp, objc-2, objv+2);
-        case 10133: // GetBestInterface
-            return Twapi_GetBestInterface(ticP, objc-2, objv+2);
+            // 10133 UNUSED
         case 10134: // TzLocalSpecificTimeToSystemTime
         case 10135: // SystemTimeToTzSpecificLocalTime
             if (objc == 3) {
@@ -2802,22 +2732,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.unicode.str = u.buf;
             result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
             break;
-        case 8:
-            return Twapi_GetPerAdapterInfo(ticP, dw);
-        case 9:
-            return Twapi_GetIfEntry(interp, dw);
-        case 10:
-            return Twapi_GetIfTable(ticP, dw);
-        case 11:
-            return Twapi_GetIpAddrTable(ticP, dw);
-        case 12:
-            return Twapi_GetIpNetTable(ticP, dw);
-        case 13:
-            return Twapi_GetIpForwardTable(ticP, dw);
-        case 14:
-            result.value.ival = FlushIpNetTable(dw);
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            break;
+            // 8-14 UNUSED
         case 15:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
             if (GetComputerNameExW(dw, u.buf, &result.value.unicode.len)) {
@@ -2931,8 +2846,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
         switch (func) {
-        case 1001:
-            return Twapi_GetAdaptersAddresses(ticP, dw, dw2, NULL);
+        case 1001: // UNUSED
+            break;
         case 1002:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Beep(dw, dw2);
@@ -2971,12 +2886,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ExitWindowsEx(dw, dw2);
             break;
-        case 1008: // UNUSED
-            break;
-        case 1009:
-            return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
-        case 1010:
-            return Twapi_AllocateAndGetUdpExTableFromStack(ticP, dw, dw2);
         }
     } else if (func < 3000) {
         /* Check we have exactly two more integer arguments */
@@ -3139,10 +3048,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.type = TRT_UNICODE;
             }
             break;
-        case 7:
-            result.type = GetAdapterIndex((LPWSTR)arg, &result.value.ival)
-                ? TRT_GETLASTERROR
-                : TRT_DWORD;
+        case 7: // UNUSED
             break;
         case 8:
             return Twapi_CommandLineToArgv(interp, arg);
@@ -3225,32 +3131,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.wide = u.largeint.QuadPart;
             result.type = TRT_WIDE;
             break;
-        case 25: // Twapi_IPAddressFamily - TBD - optimizable?
-            result.value.ival = 0;
-            result.type = TRT_DWORD;
-            dw = sizeof(u.ss);
-            dw2 = sizeof(u.ss); /* Since first call might change dw */
-            if (WSAStringToAddressW(arg, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
-                WSAStringToAddressW(arg, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
-                result.value.ival = u.ss.ss_family;
-            }
-            break;
-
-        case 26: // Twapi_NormalizeIPAddress
-            dw = sizeof(u.ss);
-            dw2 = sizeof(u.ss); /* Since first call might change dw */
-            if (WSAStringToAddressW(arg, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
-                WSAStringToAddressW(arg, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
-                result.type = TRT_OBJ;
-                if (u.ss.ss_family == AF_INET6) {
-                    /* Do not want scope id in normalized form */
-                    ((SOCKADDR_IN6 *)&u.ss)->sin6_scope_id = 0;
-                }
-                result.value.obj = ObjFromSOCKADDR_address((struct sockaddr *)&u.ss);
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
+            // 25-26 UNUSED
         case 27: // IsValidSidSyntax
             u.sidP = NULL;
             result.type = TRT_BOOL;

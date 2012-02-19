@@ -998,8 +998,6 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP);
-int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP);
 Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP);
 Tcl_Obj *ObjFromMIB_IPNETTABLE(Tcl_Interp *interp, MIB_IPNETTABLE *nettP);
 Tcl_Obj *ObjFromMIB_IPFORWARDROW(Tcl_Interp *interp, const MIB_IPFORWARDROW *ipfrP);
@@ -1008,7 +1006,6 @@ Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *i
 Tcl_Obj *ObjFromIP_INTERFACE_INFO(Tcl_Interp *interp, IP_INTERFACE_INFO *iiP);
 Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size);
 int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj, MIB_TCPROW *row);
-Tcl_Obj *ObjFromIP_ADDR_STRING (Tcl_Interp *, const IP_ADDR_STRING *ipaddrstrP);
 Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP);
 Tcl_Obj *ObjFromMIB_IPADDRTABLE(Tcl_Interp *interp, MIB_IPADDRTABLE *ipatP);
 Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP);
@@ -1253,40 +1250,6 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR domainnameP, UUID *guidP,
                       LPCWSTR sitenameP, ULONG flags);
 
-/* Network related */
-Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
-int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
-Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id);
-int Twapi_GetNetworkParams(TwapiInterpContext *ticP);
-    int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG, ULONG, void *);
-int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP);
-int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP);
-int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index);
-int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index);
-int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort);
-int Twapi_GetIpAddrTable(TwapiInterpContext *ticP, int sort);
-int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort);
-int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort);
-
-int Twapi_GetBestRoute(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetBestInterface(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_AllocateAndGetTcpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
-int Twapi_AllocateAndGetUdpExTableFromStack(TwapiInterpContext *,BOOL sort,DWORD flags);
-int Twapi_FormatExtendedTcpTable(Tcl_Interp *, void *buf, int family, int table_class);
-int Twapi_FormatExtendedUdpTable(Tcl_Interp *, void *buf, int family, int table_class);
-int Twapi_GetExtendedTcpTable(Tcl_Interp *interp, void *buf, DWORD buf_sz,
-                              BOOL sorted, ULONG family, int table_class);
-int Twapi_GetExtendedUdpTable(Tcl_Interp *interp, void *buf, DWORD buf_sz,
-                              BOOL sorted, ULONG family, int table_class);
-Tcl_Obj *ObjFromIP_ADAPTER_INFO(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfoP);
-Tcl_Obj *ObjFromIP_ADAPTER_INFO_table(Tcl_Interp *, IP_ADAPTER_INFO *ainfoP);
-int ObjToSOCKADDR_IN(Tcl_Interp *, Tcl_Obj *objP, struct sockaddr_in *sinP);
-Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family);
-int TwapiStringToSOCKADDR_STORAGE(char *s, SOCKADDR_STORAGE *ssP, int family);
-int Twapi_GetNameInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetAddrInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ResolveAddressAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ResolveHostnameAsync(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 
 /* NLS */
 
@@ -1638,6 +1601,15 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP);
 TWAPI_EXTERN int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
 TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP);
+
+/* Network stuff */
+TWAPI_EXTERN Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
+TWAPI_EXTERN int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
+TWAPI_EXTERN Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id);
+TWAPI_EXTERN Tcl_Obj *ObjFromIP_ADDR_STRING (Tcl_Interp *, const IP_ADDR_STRING *ipaddrstrP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
+
 
 /* Security stuff */
 #define TWAPI_SID_LENGTH(sid_) (8 + (4 * ((SID *)sid_)->SubAuthorityCount))
