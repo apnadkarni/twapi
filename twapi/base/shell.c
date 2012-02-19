@@ -1339,7 +1339,8 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (ShellExecuteExW(&sei) == 0) {
         DWORD winerr = GetLastError();
-        Tcl_Obj *objP = Tcl_ObjPrintf("ShellExecute specific error: %d.", (int) sei.hInstApp);
+        /* Note: double cast (int)(ULONG_PTR) is to prevent 64-bit warnings */
+        Tcl_Obj *objP = Tcl_ObjPrintf("ShellExecute specific error: %d.", (int) (ULONG_PTR) sei.hInstApp);
         TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
         return Twapi_AppendSystemErrorEx(interp, winerr, objP);
     }
