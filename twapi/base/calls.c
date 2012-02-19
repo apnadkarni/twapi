@@ -416,9 +416,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetFocus, Call, 81);                  /* TBD Tcl */
     CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
     CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
-    CALL_(etw_provider_enable_flags, Call, 84);     /* TBD docs */
-    CALL_(etw_provider_enable_level, Call, 85);     /* TBD docs */
-    CALL_(etw_provider_enabled, Call, 86);          /* TBD docs */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -557,21 +554,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LoadImage, Call, 10132);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
-    CALL_(StartTrace, Call, 10136); // Tcl
-    CALL_(ControlTrace, Call, 10137); // Tcl
-    CALL_(EnableTrace, Call, 10138); // Tcl
-    CALL_(OpenTrace, Call, 10139); // Tcl
-    CALL_(CloseTrace, Call, 10140); // Tcl
-    CALL_(ProcessTrace, Call, 10141); // Tcl
-    CALL_(RegisterTraceGuids, Call, 10142); // Tcl
-    CALL_(UnregisterTraceGuids, Call, 10143); // Tcl
-    CALL_(TraceEvent, Call, 10144); // Tcl
-    CALL_(IMofCompiler_CompileBuffer, Call, 10145); // Tcl
-    CALL_(IMofCompiler_CompileFile, Call, 10146); // Tcl
-    CALL_(IMofCompiler_CreateBMOF, Call, 10147); // Tcl
-    CALL_(IsEqualGUID, Call, 10148); // Tcl
-    CALL_(Twapi_ParseEventMofData, Call, 10149); // Tcl
-    CALL_(scratch, Call, 20000);                    /* For testing purposes */
+    CALL_(IsEqualGUID, Call, 10136); // Tcl
+    CALL_(IMofCompiler_CompileBuffer, Call, 10137); // Tcl
+    CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
+    CALL_(IMofCompiler_CreateBMOF, Call, 10139); // Tcl
+
 
 
     // CallU API
@@ -1417,18 +1404,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
                 break;
             }
-            break;
-        case 84: // etw_provider_enable_flags
-            result.type = TRT_DWORD;
-            result.value.ival = gETWProviderTraceEnableFlags;
-            break;
-        case 85: // etw_provider_enable_level
-            result.type = TRT_DWORD;
-            result.value.ival = gETWProviderTraceEnableLevel;
-            break;
-        case 86: // etw_provider_enabled
-            result.type = TRT_BOOL;
-            result.value.bval = ((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
             break;
         }
 
@@ -2579,43 +2554,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;
             break;
 
-        case 10136: // StartTrace
-            return Twapi_StartTrace(ticP, objc-2, objv+2);
-
-        case 10137: // ControlTrace
-            return Twapi_ControlTrace(ticP, objc-2, objv+2);
-
-        case 10138: // EnableTrace
-            return Twapi_EnableTrace(ticP, objc-2, objv+2);
-
-        case 10139: // OpenTrace
-            return Twapi_OpenTrace(ticP, objc-2, objv+2);
-
-        case 10140: // CloseTrace
-            return Twapi_CloseTrace(ticP, objc-2, objv+2);
-
-        case 10141: // ProcessTrace
-            return Twapi_ProcessTrace(ticP, objc-2, objv+2);
-
-        case 10142: // RegisterTraceGuids
-            return Twapi_RegisterTraceGuids(ticP, objc-2, objv+2);
-
-        case 10143: // UnregisterTraceGuids
-            return Twapi_UnregisterTraceGuids(ticP, objc-2, objv+2);
-
-        case 10144: // TraceEvent
-            return Twapi_TraceEvent(ticP, objc-2, objv+2);
-
-        case 10145: // IMofCompiler_CompileBuffer
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 0, objc-2, objv+2);
-
-        case 10146: // IMofCompiler_CompileFile
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 1, objc-2, objv+2);
-
-        case 10147: // IMofCompiler_CreateBMOF
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
-
-        case 10148: // IsEqualGuid
+        case 10136: // IsEqualGuid
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETGUID(guid), GETGUID(u.guid), ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -2623,27 +2562,14 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.bval = IsEqualGUID(&guid, &u.guid);
             break;
 
-        case 10149:
-            return Twapi_ParseEventMofData(ticP, objc-2, objv+2);
+        case 10137: // IMofCompiler_CompileBuffer
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 0, objc-2, objv+2);
 
-        case 20000:
-            /* DO NOT ASSIGN - use as general scratch pad for adding
-               test code */
-#if 0
-        {
-            Tcl_Obj *xx[10];
-            xx[0] = ObjFromULONGLONG(0x8000000000000000);
-            xx[1] = ObjFromULONGLONG(0x7000000000000000);
-            xx[2] = ObjFromULONGLONGHex(0x7000000000000000);
-            xx[3] = ObjFromULONGLONGHex(0x7000000000000000);
-            xx[4] = ObjFromULONGLONGHex(10);
-            xx[5] = ObjFromULONGHex(10);
+        case 10138: // IMofCompiler_CompileFile
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 1, objc-2, objv+2);
 
-            Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(6, xx));
-            return TCL_OK;
-        }
-#endif
-            break;
+        case 10139: // IMofCompiler_CreateBMOF
+            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
         }
     }
 

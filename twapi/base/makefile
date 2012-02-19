@@ -13,7 +13,6 @@ OBJS  = \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
-	$(OBJDIR)\etw.obj \
 	$(OBJDIR)\eventlog.obj \
 	$(OBJDIR)\file.obj \
 	$(OBJDIR)\hotkey.obj \
@@ -79,8 +78,7 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\namedpipe.tcl \
 	..\tcl\resource.tcl \
 	..\tcl\rds.tcl \
-	..\tcl\wmi.tcl \
-	..\tcl\etw.tcl
+	..\tcl\wmi.tcl
 
 !include ..\include\rules.inc
 
