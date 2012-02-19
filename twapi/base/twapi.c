@@ -31,7 +31,7 @@ static const char *gTwapiEmbedType = "none"; /* Must point to static string */
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
-int gTclIsThreaded;
+static int gTclIsThreaded;
 static DWORD gTlsIndex;         /* As returned by TlsAlloc */
 static ULONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
 
@@ -53,7 +53,7 @@ static TwapiOneTimeInitState gTwapiInitialized;
 
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
-static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp);
+static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiInterpContextCleanup * );
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
@@ -76,7 +76,7 @@ __declspec(dllexport)
 #endif
 int Twapi_base_Init(Tcl_Interp *interp)
 {
-    static LONG twapi_initialized;
+    static LONG twapi_initialized; /* TBD - where used ? */
     TwapiInterpContext *ticP;
 
     /* IMPORTANT */
@@ -108,25 +108,11 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { variable settings ; set settings(log_limit) 100}");
 
     /* Allocate a context that will be passed around in all interpreters */
-    ticP = TwapiInterpContextNew(interp);
+    /* TBD - last param should not be NULL - add a cleanup instead of
+       hardcoding in Twapi_InterpCleanup */
+    ticP = Twapi_AllocateInterpContext(interp, gTwapiModuleHandle, NULL);
     if (ticP == NULL)
         return TCL_ERROR;
-
-    /* For all the commands we register with the Tcl interp, we add a single
-     * ref for the context, not one per command. This is sufficient since
-     * when the interp gets deleted, all the commands get deleted as well.
-     * The corresponding Unref happens when the interp is deleted.
-     *
-     * In addition, we add one more ref because we will place it on the global
-     * queue.
-     */
-    TwapiInterpContextRef(ticP, 1+1);
-    EnterCriticalSection(&gTwapiInterpContextsCS);
-    ZLIST_PREPEND(&gTwapiInterpContexts, ticP);
-    LeaveCriticalSection(&gTwapiInterpContextsCS);
-
-
-    Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, ticP);
 
     /* Do our own commands. */
     if (Twapi_InitCalls(interp, ticP) != TCL_OK) {
@@ -343,7 +329,7 @@ static void Twapi_Cleanup(ClientData clientdata)
 }
 
 
-TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
+static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *cleaner)
 {
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
@@ -358,6 +344,9 @@ TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->nrefs = 0;
     ticP->interp = interp;
     ticP->thread = Tcl_GetCurrentThread();
+    ticP->module.hmod = hmodule;
+    ticP->module.cleaner = cleaner;
+    ticP->module.data.pval = NULL;
 
     /* Initialize the critical section used for controlling
      * various attached lists
@@ -381,11 +370,42 @@ TwapiInterpContext* TwapiInterpContextNew(Tcl_Interp *interp)
     ticP->notification_win = NULL; /* Created only on demand */
     ticP->clipboard_win = NULL;    /* Created only on demand */
     ticP->power_events_on = 0;
-    ticP->console_ctrl_hooked = 0;
     ticP->device_notification_tid = 0;
 
     return ticP;
 }
+
+TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *cleaner)
+{
+    TwapiInterpContext *ticP;
+
+    /*
+     * Allocate a context that will be passed around in all commands
+     * Different modules may call this for the same interp
+     */
+    ticP = TwapiInterpContextNew(interp, hmodule, cleaner);
+    if (ticP == NULL)
+        return NULL;
+
+    /* For all the commands we register with the Tcl interp, we add a single
+     * ref for the context, not one per command. This is sufficient since
+     * when the interp gets deleted, all the commands get deleted as well.
+     * The corresponding Unref happens when the interp is deleted.
+     *
+     * In addition, we add one more ref because we will place it on the global
+     * queue.
+     */
+    TwapiInterpContextRef(ticP, 1+1);
+    EnterCriticalSection(&gTwapiInterpContextsCS);
+    ZLIST_PREPEND(&gTwapiInterpContexts, ticP);
+    LeaveCriticalSection(&gTwapiInterpContextsCS);
+
+    Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, ticP);
+
+    return ticP;
+}
+
+
 
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
@@ -427,8 +447,12 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     TwapiInterpContext *tic2P;
     TwapiThreadPoolRegistration *tprP;
 
-    if (ticP->interp == NULL)
-        return;
+    TWAPI_ASSERT(ticP->interp == interp);
+
+    if (ticP->module.cleaner) {
+        ticP->module.cleaner(ticP);
+        ticP->module.cleaner = NULL;
+    }
 
     EnterCriticalSection(&gTwapiInterpContextsCS);
     ZLIST_LOCATE(tic2P, &gTwapiInterpContexts, interp, ticP->interp);
@@ -445,9 +469,6 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     EnterCriticalSection(&ticP->lock);
     ticP->pending_suspended = 1;
     LeaveCriticalSection(&ticP->lock);
-
-    if (ticP->console_ctrl_hooked)
-        Twapi_StopConsoleEventNotifier(ticP);
 
     /*
      * Clean up the thread pool registrations. No need to lock but do
@@ -567,4 +588,16 @@ TwapiId Twapi_NewId(TwapiInterpContext *ticP)
     return InterlockedIncrement(&gIdGenerator);
 #endif
 
+}
+
+TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
+{
+    if (! gTclIsThreaded) {
+        if (interp)
+            Tcl_SetResult(interp,
+                          "This command requires a threaded build of Tcl.",
+                          TCL_STATIC);
+        return TCL_ERROR;
+    }
+    return TCL_OK;
 }
