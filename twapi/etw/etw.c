@@ -1664,7 +1664,7 @@ static int Twapi_ETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
-static int TwapiOneTimeInit(Tcl_Interp *interp)
+static int ETWModuleOneTimeInit(Tcl_Interp *interp)
 {
     InitializeCriticalSection(&gETWCS);
     return TCL_OK;
@@ -1698,7 +1698,7 @@ int Twapi_etw_Init(Tcl_Interp *interp)
     }
 
     /* Init unless already done. */
-    if (! TwapiDoOneTimeInit(&gETWInitialized, TwapiOneTimeInit, interp))
+    if (! TwapiDoOneTimeInit(&gETWInitialized, ETWModuleOneTimeInit, interp))
         return TCL_ERROR;
 
     return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
