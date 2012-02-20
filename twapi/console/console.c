@@ -356,7 +356,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         /* A single handle arguments */
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        if (ObjToHANDLE(interp, objv[3], &h) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
                 return TCL_ERROR;
         switch (func) {
         case 201:
