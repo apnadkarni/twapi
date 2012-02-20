@@ -1,13 +1,33 @@
 /* 
- * Copyright (c) 2003-2010, Ashok P. Nadkarni
+ * Copyright (c) 2003-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
 #include "twapi.h"
+#include <pdhmsg.h>
+#include <pdh.h>         /* Include AFTER lm.h due to HLOG def conflict */
+
+#ifndef TWAPI_STATIC_BUILD
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
 
 /* Define interfaces to the PDH performance monitoring library */
+
+/* PDH */
+void TwapiPdhRestoreLocale(void);
+int Twapi_PdhParseCounterPath(TwapiInterpContext *, LPCWSTR buf, DWORD dwFlags);
+int Twapi_PdhGetFormattedCounterValue(Tcl_Interp *, HANDLE hCtr, DWORD fmt);
+int Twapi_PdhLookupPerfNameByIndex(Tcl_Interp *,  LPCWSTR machine, DWORD ctr);
+int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_PdhBrowseCounters(Tcl_Interp *interp);
+int Twapi_PdhEnumObjects(TwapiInterpContext *ticP,
+                         LPCWSTR source, LPCWSTR machine,
+                         DWORD  dwDetailLevel, BOOL bRefresh);
+int Twapi_PdhEnumObjectItems(TwapiInterpContext *,
+                             LPCWSTR source, LPCWSTR machine,
+                              LPCWSTR objname, DWORD detail, DWORD dwFlags);
 
 #if (TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 5)
 /* Reset locale back to C if necessary. */
@@ -380,8 +400,216 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
 }
 
 #if 0
-PdhExpandCounterPath has a bug on Win2K. So we do not wrap it;
+PdhExpandCounterPath has a bug on Win2K. So we do not wrap it; TBD
 #endif
+
+
+/* Call PDH API. This is special-cased because we have to do a restore
+   locale after every PDH call on some platforms */
+int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+    LPWSTR s, s2, s3;
+    DWORD   dw, dw2;
+    HANDLE h;
+    TwapiResult result;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETINT(func),
+                     ARGTERM) != TCL_OK)
+        return TCL_ERROR;
+
+    result.type = TRT_BADFUNCTIONCODE;
+    if (func < 100) {
+        /* No arguments */
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 1:
+            dw = PdhGetDllVersion(&result.value.ival);
+            if (dw == 0)
+                result.type = TRT_DWORD;
+            else {
+                result.value.ival = dw;
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            }
+            break;
+        case 2:
+            return Twapi_PdhBrowseCounters(interp);
+        }
+    } else if (func < 200) {
+        /* Single argument */
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 101:
+            if (Tcl_GetLongFromObj(interp, objv[2], &dw) != TCL_OK)
+                return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhSetDefaultRealTimeDataSource(dw);
+            break;
+        case 102:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhConnectMachineW(ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
+            break;
+        case 103:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhValidatePathW(Tcl_GetUnicode(objv[2]));
+            break;
+        }
+    } else if (func < 300) {
+        /* Single string with integer arg */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETWSTR(s), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 201: 
+            return Twapi_PdhParseCounterPath(ticP, s, dw);
+        case 202: 
+            NULLIFY_EMPTY(s);
+            return Twapi_PdhLookupPerfNameByIndex(interp, s, dw);
+        case 203:
+            NULLIFY_EMPTY(s);
+            dw = PdhOpenQueryW(s, dw, &result.value.hval);
+            if (dw == 0)
+                result.type = TRT_HANDLE;
+            else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = dw;
+            }
+            break;
+        }
+    } else if (func < 400) {
+        /* Single handle */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 301:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhRemoveCounter(h);
+            break;
+        case 302:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhCollectQueryData(h);
+            break;
+        case 303:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = PdhCloseQuery(h);
+            break;
+        }
+    } else {
+        /* Free for all */
+        switch (func) {
+        case 1001:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_PdhGetFormattedCounterValue(interp, h, dw);
+        case 1002:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETWSTR(s), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            dw = PdhAddCounterW(h, s, dw, &result.value.hval);
+            if (dw == 0)
+                result.type = TRT_HANDLE;
+            else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = dw;
+            }
+            break;
+        case 1003:
+            return Twapi_PdhMakeCounterPath(ticP, objc-2, objv+2);
+        case 1004:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             GETWSTR(s3), GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_PdhEnumObjectItems(ticP, s, s2, s3, dw, dw2);
+        case 1005:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             GETINT(dw), GETBOOL(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_PdhEnumObjects(ticP, s, s2, dw, dw2);
+        }
+    }
+
+    /* Set Tcl status before restoring locale as the latter might change
+       value of GetLastError() */
+    dw = TwapiSetResult(interp, &result);
+
+#if (TCL_MAJOR_VERSION == 8 && TCL_MINOR_VERSION < 5)
+    TwapiPdhRestoreLocale();
+#endif
+
+    return dw;
+}
+
+static int Twapi_PdhInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::CallPdh", Twapi_CallPdhObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
+    } while (0);
+
+    CALL_(PdhGetDllVersion, CallPdh, 1);
+    CALL_(PdhBrowseCounters, CallPdh, 2);
+    CALL_(PdhSetDefaultRealTimeDataSource, CallPdh, 101);
+    CALL_(PdhConnectMachine, CallPdh, 102);
+    CALL_(PdhValidatePath, CallPdh, 103);
+    CALL_(PdhParseCounterPath, CallPdh, 201);
+    CALL_(PdhLookupPerfNameByIndex, CallPdh, 202);
+    CALL_(PdhOpenQuery, CallPdh, 203);
+    CALL_(PdhRemoveCounter, CallPdh, 301);
+    CALL_(PdhCollectQueryData, CallPdh, 302);
+    CALL_(PdhCloseQuery, CallPdh, 303);
+    CALL_(PdhGetFormattedCounterValue, CallPdh, 1001);
+    CALL_(PdhAddCounter, CallPdh, 1002);
+    CALL_(PdhMakeCounterPath, CallPdh, 1003);
+    CALL_(PdhEnumObjectItems, CallPdh, 1004);
+    CALL_(PdhEnumObjects, CallPdh, 1005);
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_pdh_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_PdhInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
 
 
                            

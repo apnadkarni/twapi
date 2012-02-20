@@ -68,7 +68,6 @@
 #endif
 #include <ws2tcpip.h>
 #include <psapi.h>
-#include <pdhmsg.h>
 #include <sddl.h>
 #include <lmerr.h>
 #include <lm.h>
@@ -76,7 +75,6 @@
 #include <errno.h>
 #include <lmat.h>
 #include <lm.h>
-#include <pdh.h>         /* Include AFTER lm.h due to HLOG def conflict */
 #include <sddl.h>        /* For SECURITY_DESCRIPTOR <-> string conversions */
 #include <aclapi.h>
 #include <winnetwk.h>
@@ -1167,20 +1165,6 @@ int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
 int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle);
 
-/* PDH */
-void TwapiPdhRestoreLocale(void);
-int Twapi_PdhParseCounterPath(TwapiInterpContext *, LPCWSTR buf, DWORD dwFlags);
-int Twapi_PdhGetFormattedCounterValue(Tcl_Interp *, HANDLE hCtr, DWORD fmt);
-int Twapi_PdhLookupPerfNameByIndex(Tcl_Interp *,  LPCWSTR machine, DWORD ctr);
-int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_PdhBrowseCounters(Tcl_Interp *interp);
-int Twapi_PdhEnumObjects(TwapiInterpContext *ticP,
-                         LPCWSTR source, LPCWSTR machine,
-                         DWORD  dwDetailLevel, BOOL bRefresh);
-int Twapi_PdhEnumObjectItems(TwapiInterpContext *,
-                             LPCWSTR source, LPCWSTR machine,
-                              LPCWSTR objname, DWORD detail, DWORD dwFlags);
-
 
 /* Printers */
 int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
@@ -1333,7 +1317,6 @@ TwapiTclObjCmd Twapi_CallWObjCmd;
 TwapiTclObjCmd Twapi_CallWUObjCmd;
 TwapiTclObjCmd Twapi_CallPSIDObjCmd;
 TwapiTclObjCmd Twapi_CallNetEnumObjCmd;
-TwapiTclObjCmd Twapi_CallPdhObjCmd;
 TwapiTclObjCmd Twapi_CallCOMObjCmd;
 
 

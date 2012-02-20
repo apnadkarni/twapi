@@ -22,11 +22,9 @@ OBJS  = \
 	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\mycrt.obj \
-	$(OBJDIR)\namedpipe.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\os.obj \
 	$(OBJDIR)\parseargs.obj \
-	$(OBJDIR)\pdh.obj \
 	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
@@ -60,7 +58,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\shell.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
-	..\tcl\pdh.tcl \
 	..\tcl\process2.tcl \
 	..\tcl\accounts.tcl \
 	..\tcl\share.tcl \
@@ -71,7 +68,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\msi.tcl \
         ..\tcl\device.tcl \
 	..\tcl\power.tcl \
-	..\tcl\namedpipe.tcl \
 	..\tcl\resource.tcl \
 	..\tcl\rds.tcl \
 	..\tcl\wmi.tcl
