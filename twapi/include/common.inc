@@ -329,7 +329,6 @@ WINLIB        = \
 	gdi32.lib \
 	$(SDKLIB)psapi.lib \
 	$(SDKLIB)netapi32.lib \
-	$(SDKLIB)pdh.lib \
 	winmm.lib \
 	mpr.lib \
 	$(SDKLIB)ws2_32.lib \
@@ -338,12 +337,10 @@ WINLIB        = \
 	shell32.lib  \
 	$(SDKLIB)winspool.lib \
 	$(SDKLIB)version.lib \
-	$(SDKLIB)iphlpapi.lib \
 	$(SDKLIB)powrprof.lib \
 	$(SDKLIB)secur32.lib \
 	$(SDKLIB)userenv.lib \
 	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)setupapi.lib \
 	$(SDKLIB)uxtheme.lib
 # Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 

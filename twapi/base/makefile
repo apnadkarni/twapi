@@ -8,7 +8,6 @@ OBJS  = \
 	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
-	$(OBJDIR)\device.obj \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
@@ -66,7 +65,6 @@ TCLFILES=..\tcl\twapi.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\mstask.tcl \
 	..\tcl\msi.tcl \
-        ..\tcl\device.tcl \
 	..\tcl\power.tcl \
 	..\tcl\resource.tcl \
 	..\tcl\rds.tcl \

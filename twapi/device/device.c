@@ -7,6 +7,7 @@
 
 #include "twapi.h"
 #include "twapi_wm.h"
+#include <setupapi.h>
 #if !defined(TWAPI_REPLACE_CRT) && !defined(TWAPI_MINIMIZE_CRT)
 # include <process.h>
 #endif
@@ -14,6 +15,11 @@
 #include <initguid.h>           // Instantiate ioevent.h guids
 #include <ioevent.h>            // Custom GUID definitions
 
+#ifndef TWAPI_STATIC_BUILD
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
+static GUID gNullGuid;                 /* Init'ed to 0 */
 
 typedef struct _TwapiDeviceNotificationContext TwapiDeviceNotificationContext;
 ZLINK_CREATE_TYPEDEFS(TwapiDeviceNotificationContext); 
@@ -71,6 +77,13 @@ typedef struct _TwapiDeviceNotificationCallback {
 static TwapiOneTimeInitState TwapiDeviceNotificationInitialized;
 static DWORD TwapiDeviceNotificationTid;
 
+int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
+int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
+                              SP_DEVINFO_DATA **sddPP);
+Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP);
+int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP,
+                                  SP_DEVICE_INTERFACE_DATA *sdidP);
+Tcl_Obj *ObjFromSP_DEVICE_INTERFACE_DATA(SP_DEVICE_INTERFACE_DATA *sdidP);
 TwapiDeviceNotificationContext *TwapiDeviceNotificationContextNew(
     TwapiInterpContext *ticP);
 void TwapiDeviceNotificationContextDelete(TwapiDeviceNotificationContext *dncP);
@@ -85,6 +98,13 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP);
 static Tcl_Obj *ObjFromDevtype(DWORD devtype);
 static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(TwapiId id);
 static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND);
+int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *, int objc,
+                                          Tcl_Obj *CONST objv[]);
+int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *, int objc,
+                                      Tcl_Obj *CONST objv[]);
+int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
+int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id);
 
 
 Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP)
@@ -550,7 +570,7 @@ static LRESULT TwapiDeviceNotificationWinProc(
             return TRUE;
         
         if (dbhP->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE &&
-            (! IsEqualGUID(&dncP->device.guid, &gTwapiNullGuid)) &&
+            (! IsEqualGUID(&dncP->device.guid, &gNullGuid)) &&
             (! IsEqualGUID(&dncP->device.guid,
                            & (((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid)))) {
             // We want a specific GUID and this one does not
@@ -678,17 +698,11 @@ static int TwapiCreateDeviceNotificationWindow(TwapiDeviceNotificationContext *d
         di_filter.dbcc_size = sizeof(di_filter);
         di_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
         notify_flags = DEVICE_NOTIFY_WINDOW_HANDLE;
-        if (! IsEqualGUID(&dncP->device.guid, &gTwapiNullGuid)) {
+        if (! IsEqualGUID(&dncP->device.guid, &gNullGuid)) {
             // Specific GUID requested
             di_filter.dbcc_classguid = dncP->device.guid;
         }
         else {
-            // XP and later allow notification of ALL interfaces
-            if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
-                gTwapiOSVersionInfo.dwMinorVersion == 0) {
-                TwapiReportDeviceNotificationError(dncP, "Device interface must be specified on Windows 2000.", ERROR_INVALID_FUNCTION);
-                return FALSE;
-            }
             notify_flags |= 0x4; // DEVICE_NOTIFY_ALL_INTERFACE_CLASSES
         }
         dncP->hnotification =
@@ -777,7 +791,7 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
 }
 
 
-static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
+static int TwapiDeviceNotificationModuleInit(Tcl_Interp *interp)
 {
     /*
      * We have to create the device notification thread. Moreover, we
@@ -814,7 +828,7 @@ static int TwapiDeviceNotificationModuleInit(TwapiInterpContext *ticP)
 
 
     if (status != TCL_OK)
-        Twapi_AppendSystemError(ticP->interp, winerr);
+        Twapi_AppendSystemError(interp, winerr);
 
     return status;
 }
@@ -853,7 +867,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     /* guidP == NULL -> empty string - use a NULL guid */
     if (guidP == NULL)
-        dncP->device.guid = gTwapiNullGuid;
+        dncP->device.guid = gNullGuid;
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0)) {
@@ -1058,3 +1072,231 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hw
     ZLIST_LOCATE(dncP, &gTwapiDeviceNotificationRegistry, hwnd, hwnd);
     return dncP;
 }
+
+
+static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+    GUID guid;
+    GUID *guidP;
+    HWND   hwnd;
+    LPVOID pv, pv2, pv3;
+    LPWSTR s, s2;
+    DWORD dw, dw2, dw3;
+    union {
+        WCHAR buf[MAX_PATH+1];
+        struct {
+            SP_DEVINFO_DATA sp_devinfo_data;
+            SP_DEVINFO_DATA *sp_devinfo_dataP;
+            SP_DEVICE_INTERFACE_DATA sp_device_interface_data;
+        } dev;
+    } u;
+    HANDLE h;
+    TwapiResult result;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+    switch (func) {
+    case 10060: // SetupDiCreateDeviceInfoListExW
+        guidP = &guid;
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETVAR(guidP, ObjToGUID_NULL),
+                         GETHWND(hwnd),
+                         GETNULLIFEMPTY(s),
+                         GETVOIDP(pv),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_HDEVINFO;
+        result.value.hval = SetupDiCreateDeviceInfoListExW(guidP, hwnd, s, pv);
+        break;
+
+    case 10061:
+        guidP = &guid;
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETVAR(guidP, ObjToGUID_NULL),
+                         GETNULLIFEMPTY(s),
+                         GETHWND(hwnd),
+                         GETINT(dw),
+                         GETHANDLET(h, HDEVINFO),
+                         GETNULLIFEMPTY(s2),
+                         ARGUSEDEFAULT,
+                         GETVOIDP(pv),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_HDEVINFO;
+        result.value.hval = SetupDiGetClassDevsExW(guidP, s, hwnd, dw,
+                                                   h, s2, pv);
+        break;
+    case 10062: // SetupDiEnumDeviceInfo
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLET(h, HDEVINFO),
+                         GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
+        if (SetupDiEnumDeviceInfo(h, dw, &u.dev.sp_devinfo_data)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromSP_DEVINFO_DATA(&u.dev.sp_devinfo_data);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+
+    case 10063: // Twapi_SetupDiGetDeviceRegistryProperty
+        return Twapi_SetupDiGetDeviceRegistryProperty(ticP, objc-2, objv+2);
+    case 10064: // SetupDiEnumDeviceInterfaces
+        u.dev.sp_devinfo_dataP = & u.dev.sp_devinfo_data;
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLET(h, HDEVINFO),
+                         GETVAR(u.dev.sp_devinfo_dataP, ObjToSP_DEVINFO_DATA_NULL),
+                         GETGUID(guid),
+                         GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        
+        u.dev.sp_device_interface_data.cbSize = sizeof(u.dev.sp_device_interface_data);
+        if (SetupDiEnumDeviceInterfaces(
+                h, u.dev.sp_devinfo_dataP,  &guid,
+                dw, &u.dev.sp_device_interface_data)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromSP_DEVICE_INTERFACE_DATA(&u.dev.sp_device_interface_data);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+
+    case 10065:
+        return Twapi_SetupDiGetDeviceInterfaceDetail(ticP, objc-2, objv+2);
+    case 10066:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETGUID(guid),
+                         ARGUSEDEFAULT,
+                         GETNULLIFEMPTY(s),
+                         GETVOIDP(pv),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (SetupDiClassNameFromGuidExW(&guid, u.buf, ARRAYSIZE(u.buf),
+                                        NULL, s, pv)) {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = u.buf;
+            result.value.unicode.len = -1;
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 10067:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(h, HDEVINFO),
+                         GETVAR(u.dev.sp_devinfo_data, ObjToSP_DEVINFO_DATA),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (SetupDiGetDeviceInstanceIdW(h, &u.dev.sp_devinfo_data,
+                                        u.buf, ARRAYSIZE(u.buf), NULL)) {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = u.buf;
+            result.value.unicode.len = -1;
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 10068:
+        return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
+    case 10069:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h),   GETINT(dw),
+                         GETVOIDP(pv),   GETINT(dw2),
+                         GETVOIDP(pv2),  GETINT(dw3),
+                         ARGUSEDEFAULT,
+                         GETVOIDP(pv3),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (DeviceIoControl(h, dw, pv, dw2, pv2, dw3,
+                            &result.value.ival, pv3))
+            result.type = TRT_DWORD;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 10070:
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = SetupDiDestroyDeviceInfoList(h);
+        break;
+    case 10071:
+        return Twapi_RegisterDeviceNotification(ticP, objc-2, objv+2);
+    case 10072:
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        return Twapi_UnregisterDeviceNotification(ticP, dw);
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+static int Twapi_DeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::DeviceCall", Twapi_DeviceCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Device" #call_, # code_); \
+    } while (0);
+
+    /* Dispatch function codes start at 10060 for historical reasons.
+       Nothing magic but change Twapi_DeviceCallObjCmd accordingly 
+    */
+    CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
+    CALL_(SetupDiGetClassDevsEx, Call, 10061);
+    CALL_(SetupDiEnumDeviceInfo, Call, 10062);
+    CALL_(SetupDiGetDeviceRegistryProperty, Call, 10063);
+    CALL_(SetupDiEnumDeviceInterfaces, Call, 10064);
+    CALL_(SetupDiGetDeviceInterfaceDetail, Call, 10065);
+    CALL_(SetupDiClassNameFromGuidEx, Call, 10066);
+    CALL_(SetupDiGetDeviceInstanceId, Call, 10067);
+    CALL_(SetupDiClassGuidsFromNameEx, Call, 10068);
+    CALL_(DeviceIoControl, Call, 10069);
+    CALL_(SetupDiDestroyDeviceInfoList, CallH, 10070);
+    CALL_(Twapi_RegisterDeviceNotification, Call, 10071);
+    CALL_(Twapi_UnregisterDeviceNotification, CallU, 10072);
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_device_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
+                             TwapiDeviceNotificationModuleInit, interp))
+        return TCL_ERROR;
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_DeviceInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
+
