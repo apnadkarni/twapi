@@ -4,5 +4,4 @@
 #include <initguid.h> 
 
 /* GUIDs in all included files below this will be instantiated */
-                         
-#include <mstask.h>
+

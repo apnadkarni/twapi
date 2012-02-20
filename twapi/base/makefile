@@ -19,7 +19,6 @@ OBJS  = \
 	$(OBJDIR)\lzmadec.obj \
 	$(OBJDIR)\lzmainterface.obj \
 	$(OBJDIR)\memlifo.obj \
-	$(OBJDIR)\mstask.obj \
 	$(OBJDIR)\mycrt.obj \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\os.obj \
@@ -63,7 +62,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\synch.tcl \
 	..\tcl\desktop.tcl \
         ..\tcl\printer.tcl \
-	..\tcl\mstask.tcl \
 	..\tcl\msi.tcl \
 	..\tcl\power.tcl \
 	..\tcl\resource.tcl \
