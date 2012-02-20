@@ -438,7 +438,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(MonitorFromPoint, Call, 10010);
     CALL_(MonitorFromRect, Call, 10011);
     CALL_(EnumDisplayDevices, Call, 10012);
-    CALL_(Twapi_RegisterDeviceNotification, Call, 10014);
     CALL_(CreateProcess, Call, 10015);
     CALL_(CreateProcessAsUser, Call, 10016);
     CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, Call, 10017);
@@ -462,16 +461,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleInformation, Call, 10056);
     CALL_(Twapi_VerQueryValue_STRING, Call, 10057);
     CALL_(DsGetDcName, Call, 10058);
-    CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
-    CALL_(SetupDiGetClassDevsEx, Call, 10061);
-    CALL_(SetupDiEnumDeviceInfo, Call, 10062);
-    CALL_(SetupDiGetDeviceRegistryProperty, Call, 10063);
-    CALL_(SetupDiEnumDeviceInterfaces, Call, 10064);
-    CALL_(SetupDiGetDeviceInterfaceDetail, Call, 10065);
-    CALL_(SetupDiClassNameFromGuidEx, Call, 10066);
-    CALL_(SetupDiGetDeviceInstanceId, Call, 10067);
-    CALL_(SetupDiClassGuidsFromNameEx, Call, 10068);
-    CALL_(DeviceIoControl, Call, 10069);
     CALL_(GetNumberFormat, Call, 10070);
     CALL_(GetCurrencyFormat, Call, 10071);
     CALL_(InitiateSystemShutdown, Call, 10072);
@@ -562,7 +551,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetCaretBlinkTime, CallU, 29);
     CALL_(MessageBeep, CallU, 30);
     CALL_(GetGUIThreadInfo, CallU, 31);
-    CALL_(Twapi_UnregisterDeviceNotification, CallU, 32);
     CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(ProcessIdToSessionId, CallU, 35);
@@ -676,7 +664,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterDirectoryMonitor, CallH, 53);
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
-    CALL_(SetupDiDestroyDeviceInfoList, CallH, 57);
     CALL_(GetMonitorInfo, CallH, 58);
     CALL_(GetObject, CallH, 59);
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
@@ -1030,11 +1017,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         RECT rect;
         TOKEN_PRIVILEGES *tokprivsP;
         MODULEINFO moduleinfo;
-        struct {
-            SP_DEVINFO_DATA sp_devinfo_data;
-            SP_DEVINFO_DATA *sp_devinfo_dataP;
-            SP_DEVICE_INTERFACE_DATA sp_device_interface_data;
-        } dev;
         DISPLAY_DEVICEW display_device;
         MIB_TCPROW tcprow;
         struct sockaddr_in sinaddr;
@@ -1050,7 +1032,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     LPWSTR s, s2, s3, s4;
     unsigned char *cP, *cP2;
     LUID luid;
-    void *pv, *pv2, *pv3;
+    void *pv, *pv2;
     Tcl_Obj *objs[2];
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2, h3;
@@ -1539,10 +1521,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
                       
         case 10013: // UNUSED
+        case 10014: // UNUSED
             break;
 
-        case 10014:
-            return Twapi_RegisterDeviceNotification(ticP, objc-2, objv+2);
         case 10015: // CreateProcess
         case 10016: // CreateProcessAsUser
             return TwapiCreateProcessHelper(interp, func==10016, objc-2, objv+2);
@@ -1808,126 +1789,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-        case 10059: // UNUSED
-            break;
-#ifndef TWAPI_LEAN
-        case 10060: // SetupDiCreateDeviceInfoListExW
-            guidP = &guid;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVAR(guidP, ObjToGUID_NULL),
-                             GETHWND(hwnd),
-                             GETNULLIFEMPTY(s),
-                             GETVOIDP(pv),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HDEVINFO;
-            result.value.hval = SetupDiCreateDeviceInfoListExW(guidP, hwnd, s, pv);
-            break;
-
-        case 10061:
-            guidP = &guid;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVAR(guidP, ObjToGUID_NULL),
-                             GETNULLIFEMPTY(s),
-                             GETHWND(hwnd),
-                             GETINT(dw),
-                             GETHANDLET(h, HDEVINFO),
-                             GETNULLIFEMPTY(s2),
-                             ARGUSEDEFAULT,
-                             GETVOIDP(pv),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HDEVINFO;
-            result.value.hval = SetupDiGetClassDevsExW(guidP, s, hwnd, dw,
-                                                       h, s2, pv);
-            break;
-        case 10062: // SetupDiEnumDeviceInfo
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLET(h, HDEVINFO),
-                             GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
-            if (SetupDiEnumDeviceInfo(h, dw, &u.dev.sp_devinfo_data)) {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromSP_DEVINFO_DATA(&u.dev.sp_devinfo_data);
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-
-        case 10063: // Twapi_SetupDiGetDeviceRegistryProperty
-            return Twapi_SetupDiGetDeviceRegistryProperty(ticP, objc-2, objv+2);
-        case 10064: // SetupDiEnumDeviceInterfaces
-            u.dev.sp_devinfo_dataP = & u.dev.sp_devinfo_data;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLET(h, HDEVINFO),
-                             GETVAR(u.dev.sp_devinfo_dataP, ObjToSP_DEVINFO_DATA_NULL),
-                             GETGUID(guid),
-                             GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-
-            u.dev.sp_device_interface_data.cbSize = sizeof(u.dev.sp_device_interface_data);
-            if (SetupDiEnumDeviceInterfaces(
-                    h, u.dev.sp_devinfo_dataP,  &guid,
-                    dw, &u.dev.sp_device_interface_data)) {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromSP_DEVICE_INTERFACE_DATA(&u.dev.sp_device_interface_data);
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-
-        case 10065:
-            return Twapi_SetupDiGetDeviceInterfaceDetail(ticP, objc-2, objv+2);
-#endif
-        case 10066:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETGUID(guid),
-                             ARGUSEDEFAULT,
-                             GETNULLIFEMPTY(s),
-                             GETVOIDP(pv),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (SetupDiClassNameFromGuidExW(&guid, u.buf, ARRAYSIZE(u.buf),
-                                            NULL, s, pv)) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 10067:
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLET(h, HDEVINFO),
-                             GETVAR(u.dev.sp_devinfo_data, ObjToSP_DEVINFO_DATA),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (SetupDiGetDeviceInstanceIdW(h, &u.dev.sp_devinfo_data,
-                                            u.buf, ARRAYSIZE(u.buf), NULL)) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 10068:
-            return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
-        case 10069:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h),   GETINT(dw),
-                             GETVOIDP(pv),   GETINT(dw2),
-                             GETVOIDP(pv2),  GETINT(dw3),
-                             ARGUSEDEFAULT,
-                             GETVOIDP(pv3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (DeviceIoControl(h, dw, pv, dw2, pv2, dw3,
-                                &result.value.ival, pv3))
-                result.type = TRT_DWORD;
-            else
-                result.type = TRT_GETLASTERROR;
-            break;
+        // 10059 - 10069 UNUSED
         case 10070:
             return Twapi_GetNumberFormat(ticP, objc-2, objv+2);
         case 10071:
@@ -2477,8 +2339,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 31:
             return Twapi_GetGUIThreadInfo(interp, dw);
-        case 32:
-            return Twapi_UnregisterDeviceNotification(ticP, dw);
+        case 32: // UNUSED
+            break;
         case 33:
             Sleep(dw);
             result.type = TRT_EMPTY;
@@ -3129,10 +2991,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = MemLifoPopFrame((MemLifo *)h);
             break;
         case 56: // UNUSED
-            break;
-        case 57:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetupDiDestroyDeviceInfoList(h);
+        case 57: // UNUSED
             break;
         case 58:
             u.minfo.cbSize = sizeof(u.minfo);

@@ -5,4 +5,7 @@ MODULENAME=twapi_network
 OBJS  = $(OBJDIR)\network.obj
 TCLFILES=..\tcl\network.tcl 
 
+LIBS = $(LIBS) $(SDKLIB)iphlpapi.lib
+
+
 !include ..\include\rules.inc
