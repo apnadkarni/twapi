@@ -90,7 +90,6 @@
 #include <intshcut.h>
 #include <dispex.h>
 #include <ocidl.h>
-#include <mstask.h>
 #include <dsgetdc.h>
 #include <powrprof.h>
 #if _MSC_VER <= 1400
@@ -983,9 +982,6 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
-Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
-
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
@@ -1202,7 +1198,6 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
     } while (0)
 
 
-int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid);
 
 
 /* WTS */
@@ -1211,14 +1206,6 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
                                      DWORD  sess_id, WTS_INFO_CLASS info_class);
-
-/* Task scheduler related */
-int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
-        IEnumWorkItems *ewiP, unsigned long count);
-int Twapi_IScheduledWorkItem_GetRunTimes(Tcl_Interp *interp,
-        IScheduledWorkItem *swiP, SYSTEMTIME *, SYSTEMTIME *, WORD );
-int Twapi_IScheduledWorkItem_GetWorkItemData(Tcl_Interp *interp,
-                                             IScheduledWorkItem *swiP);
 
 /* UI and window related */
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
@@ -1343,6 +1330,7 @@ TWAPI_EXTERN TCL_RESULT Twapi_AppendWNetError(Tcl_Interp *interp, unsigned long 
 TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemErrorEx(Tcl_Interp *, unsigned long err, Tcl_Obj *extra);
 #define Twapi_AppendSystemError2 Twapi_AppendSystemErrorEx
 TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError(Tcl_Interp *, unsigned long err);
+TWAPI_EXTERN int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid);
 TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
 
 /* Async handling related */
