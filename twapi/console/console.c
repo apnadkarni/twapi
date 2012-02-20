@@ -8,7 +8,7 @@
 #include "twapi.h"
 
 #ifndef TWAPI_STATIC_BUILD
-HMODULE gModuleHandle;     /* DLL handle to ourselves */
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 static TwapiInterpContext * volatile console_control_ticP;

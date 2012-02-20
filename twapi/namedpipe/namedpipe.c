@@ -8,7 +8,7 @@
 #include "twapi.h"
 
 #ifndef TWAPI_STATIC_BUILD
-HMODULE gModuleHandle;     /* DLL handle to ourselves */
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 typedef struct _NPipeChannel NPipeChannel;
@@ -187,13 +187,11 @@ static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
     return Tcl_GetErrno();
 }
 
-static int NPipeModuleInit(TwapiInterpContext *ticP)
+static int NPipeModuleInit(Tcl_Interp *interp)
 {
     gNPipeTlsSlot = Twapi_AssignTlsSlot();
     if (gNPipeTlsSlot < 0) {
-        if (ticP && ticP->interp) {
-            Tcl_SetResult(ticP->interp, "Could not assign private TLS slot", TCL_STATIC);
-        }
+        Tcl_SetResult(ticP->interp, "Could not assign private TLS slot", TCL_STATIC);
         return TCL_ERROR;
     }
 

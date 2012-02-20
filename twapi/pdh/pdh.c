@@ -10,7 +10,7 @@
 #include <pdh.h>         /* Include AFTER lm.h due to HLOG def conflict */
 
 #ifndef TWAPI_STATIC_BUILD
-HMODULE gModuleHandle;     /* DLL handle to ourselves */
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 /* Define interfaces to the PDH performance monitoring library */
