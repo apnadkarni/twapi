@@ -615,9 +615,8 @@ TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMO
         return NULL;
 
     /* Do our own commands. */
-    if (initFn(interp, ticP) != TCL_OK) {
+    if (initFn && initFn(interp, ticP) != TCL_OK)
         return NULL;
-    }
 
     if (Twapi_SourceResource(ticP, hmod, nameP) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
