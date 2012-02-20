@@ -916,66 +916,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALLCOM_(ITypeComp_Bind, 1401);
 
-    CALLCOM_(ITaskScheduler_Activate, 5001);
-    CALLCOM_(ITaskScheduler_AddWorkItem, 5002);
-    CALLCOM_(ITaskScheduler_Delete, 5003);
-    CALLCOM_(ITaskScheduler_Enum, 5004);
-    CALLCOM_(ITaskScheduler_IsOfType, 5005);
-    CALLCOM_(ITaskScheduler_NewWorkItem, 5006);
-    CALLCOM_(ITaskScheduler_SetTargetComputer, 5007);
-    CALLCOM_(ITaskScheduler_GetTargetComputer, 5008);
-
-    CALLCOM_(IEnumWorkItems_Clone, 5101);
-    CALLCOM_(IEnumWorkItems_Reset, 5102);
-    CALLCOM_(IEnumWorkItems_Skip, 5103);
-    CALLCOM_(IEnumWorkItems_Next, 5104);
-
-    CALLCOM_(IScheduledWorkItem_CreateTrigger, 5201);
-    CALLCOM_(IScheduledWorkItem_DeleteTrigger, 5202);
-    CALLCOM_(IScheduledWorkItem_EditWorkItem, 5203);
-    CALLCOM_(IScheduledWorkItem_GetAccountInformation, 5204);
-    CALLCOM_(IScheduledWorkItem_GetComment, 5205);
-    CALLCOM_(IScheduledWorkItem_GetCreator, 5206);
-    CALLCOM_(IScheduledWorkItem_GetErrorRetryCount, 5207);
-    CALLCOM_(IScheduledWorkItem_GetErrorRetryInterval, 5208);
-    CALLCOM_(IScheduledWorkItem_GetExitCode, 5209);
-    CALLCOM_(IScheduledWorkItem_GetFlags, 5210);
-    CALLCOM_(IScheduledWorkItem_GetIdleWait, 5211);
-    CALLCOM_(IScheduledWorkItem_GetMostRecentRunTime, 5212);
-    CALLCOM_(IScheduledWorkItem_GetNextRunTime, 5213);
-    CALLCOM_(IScheduledWorkItem_GetStatus, 5214);
-    CALLCOM_(IScheduledWorkItem_GetTrigger, 5215);
-    CALLCOM_(IScheduledWorkItem_GetTriggerCount, 5216);
-    CALLCOM_(IScheduledWorkItem_GetTriggerString, 5217);
-    CALLCOM_(IScheduledWorkItem_Run, 5218);
-    CALLCOM_(IScheduledWorkItem_SetAccountInformation, 5219);
-    CALLCOM_(IScheduledWorkItem_SetComment, 5220);
-    CALLCOM_(IScheduledWorkItem_SetCreator, 5221);
-    CALLCOM_(IScheduledWorkItem_SetErrorRetryCount, 5222);
-    CALLCOM_(IScheduledWorkItem_SetErrorRetryInterval, 5223);
-    CALLCOM_(IScheduledWorkItem_SetFlags, 5224);
-    CALLCOM_(IScheduledWorkItem_SetIdleWait, 5225);
-    CALLCOM_(IScheduledWorkItem_Terminate, 5226);
-    CALLCOM_(IScheduledWorkItem_SetWorkItemData, 5227);
-    CALLCOM_(IScheduledWorkItem_GetWorkItemData, 5228);
-    CALLCOM_(IScheduledWorkItem_GetRunTimes, 5229);
-
-    CALLCOM_(ITask_GetApplicationName, 5301);
-    CALLCOM_(ITask_GetMaxRunTime, 5302);
-    CALLCOM_(ITask_GetParameters, 5303);
-    CALLCOM_(ITask_GetPriority, 5304);
-    CALLCOM_(ITask_GetTaskFlags, 5305);
-    CALLCOM_(ITask_GetWorkingDirectory, 5306);
-    CALLCOM_(ITask_SetApplicationName, 5307);
-    CALLCOM_(ITask_SetParameters, 5308);
-    CALLCOM_(ITask_SetWorkingDirectory, 5309);
-    CALLCOM_(ITask_SetMaxRunTime, 5310);
-    CALLCOM_(ITask_SetPriority, 5311);
-    CALLCOM_(ITask_SetTaskFlags, 5312);
-
-    CALLCOM_(ITaskTrigger_GetTrigger, 5401);
-    CALLCOM_(ITaskTrigger_GetTriggerString, 5402);
-    CALLCOM_(ITaskTrigger_SetTrigger, 5403);
 
     CALLCOM_(IPersistFile_GetCurFile, 5501);
     CALLCOM_(IPersistFile_IsDirty, 5502);
@@ -995,6 +935,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALLCOM_(ProgIDFromCLSID, 10010);
     CALLCOM_(CLSIDFromProgID, 10011);
     CALLCOM_(Twapi_CoCreateInstance, 10012);
+#undef CALLCOM_
 
     return Tcl_Eval(interp, apiprocs);
 }
