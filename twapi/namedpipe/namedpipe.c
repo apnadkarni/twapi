@@ -7,6 +7,10 @@
 
 #include "twapi.h"
 
+#ifndef TWAPI_STATIC_BUILD
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
 typedef struct _NPipeChannel NPipeChannel;
 ZLINK_CREATE_TYPEDEFS(NPipeChannel); 
 ZLIST_CREATE_TYPEDEFS(NPipeChannel);
@@ -1211,7 +1215,7 @@ static void NPipeConfigureChannelDefaults(Tcl_Interp *interp, NPipeChannel *pcP)
     Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
 }
 
-int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPCWSTR name;
     DWORD open_mode, pipe_mode, max_instances;
@@ -1219,13 +1223,9 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     SECURITY_ATTRIBUTES *secattrP = NULL;
     NPipeChannel *pcP;
     DWORD winerr = ERROR_SUCCESS;
-    Tcl_Interp *interp = ticP->interp;
     NPipeTls *tlsP;
 
-    if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, ticP))
-        return TCL_ERROR;
-
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETWSTR(name), GETINT(open_mode), GETINT(pipe_mode),
                      GETINT(max_instances), GETINT(outbuf_sz),
                      GETINT(inbuf_sz), GETINT(timeout),
@@ -1330,7 +1330,7 @@ int Twapi_NPipeServer(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 }
 
 
-int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPCWSTR name;
     DWORD desired_access, share_mode, creation_disposition;
@@ -1338,14 +1338,10 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
     SECURITY_ATTRIBUTES *secattrP = NULL;
     NPipeChannel *pcP;
     DWORD winerr;
-    Tcl_Interp *interp = ticP->interp;
     NPipeTls *tlsP;
     HANDLE hpipe;
 
-    if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, ticP))
-        return TCL_ERROR;
-
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETWSTR(name),
                      GETINT(desired_access),
                      GETINT(share_mode),
@@ -1435,4 +1431,42 @@ int Twapi_NPipeClient(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 }
 
 
+
+static int Twapi_NPipeInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    Tcl_CreateObjCommand(interp, "twapi::namedpipe_client", Twapi_NPipeClientObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::namedpipe_server", Twapi_NPipeServerObjCmd, ticP, NULL);
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_namedpipe_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    /* Init unless already done. */
+    if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, interp))
+        return TCL_ERROR;
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_NPipeInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
 
