@@ -518,8 +518,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_WriteMemoryUnicode, Call, 10114);
     CALL_(Twapi_WriteMemoryPointer, Call, 10115);
     CALL_(Twapi_WriteMemoryWide, Call, 10116);
-    CALL_(Twapi_NPipeServer, Call, 10117);
-    CALL_(Twapi_NPipeClient, Call, 10118);
     CALL_(Twapi_IsEqualPtr, Call, 10119);
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
@@ -2225,10 +2223,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             // We are passing the func code as well, hence only skip one arg
             return TwapiWriteMemory(interp, objc-1, objv+1);
 
-        case 10117:
-            return Twapi_NPipeServer(ticP, objc-2, objv+2);
-        case 10118:
-            return Twapi_NPipeClient(ticP, objc-2, objv+2);
+        case 10117: // UNUSED
+        case 10118: // UNUSED
+            break;
+
         case 10119: // IsEqualPtr
             if (objc != 4)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -3195,6 +3193,9 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 63:
             return Twapi_MemLifoDump(ticP, h);
         case 64:
+            /* This could be in the namedpip package, but we leave it
+               here for now.
+            */
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ImpersonateNamedPipeClient(h);
             break;
