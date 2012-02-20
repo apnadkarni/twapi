@@ -9,6 +9,48 @@
 
 #include "twapi.h"
 
+#ifndef TWAPI_STATIC_BUILD
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
+
+Tcl_Obj *ObjFromSecHandle(SecHandle *shP);
+int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP);
+int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP);
+Tcl_Obj *ObjFromSecPkgInfo(SecPkgInfoW *spiP);
+void TwapiFreeSecBufferDesc(SecBufferDesc *sbdP);
+int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, int readonly);
+int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
+int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
+Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
+
+int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
+int Twapi_InitializeSecurityContext(
+    Tcl_Interp *interp,
+    SecHandle *credentialP,
+    SecHandle *contextP,
+    LPWSTR     targetP,
+    ULONG      contextreq,
+    ULONG      reserved1,
+    ULONG      targetdatarep,
+    SecBufferDesc *sbd_inP,
+    ULONG     reserved2);
+int Twapi_AcceptSecurityContext(Tcl_Interp *interp, SecHandle *credentialP,
+                                SecHandle *contextP, SecBufferDesc *sbd_inP,
+                                ULONG contextreq, ULONG targetdatarep);
+int Twapi_QueryContextAttributes(Tcl_Interp *interp, SecHandle *INPUT,
+                                 ULONG attr);
+SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
+    LPCWSTR user, LPCWSTR domain, LPCWSTR password);
+void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP);
+int Twapi_MakeSignature(TwapiInterpContext *ticP, SecHandle *INPUT,
+                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
+int Twapi_EncryptMessage(TwapiInterpContext *ticP, SecHandle *INPUT,
+                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
+int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
+
+
+
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
     Tcl_Obj *objv[2];
@@ -199,15 +241,6 @@ int Twapi_InitializeSecurityContext(
     ULONG         new_context_attr;
     Tcl_Obj      *objv[5];
     TimeStamp     expiration;
-    TimeStamp    *expirationP;
-
-    if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
-        gTwapiOSVersionInfo.dwMinorVersion >= 1) {
-        /* XP and above */
-        expirationP = &expiration;
-    } else {
-        expirationP = NULL;
-    }
 
     /* We will ask the function to allocate buffer for us */
     sb_out.BufferType = SECBUFFER_TOKEN;
@@ -230,7 +263,7 @@ int Twapi_InitializeSecurityContext(
         &new_context,
         &sbd_out,
         &new_context_attr,
-        expirationP);
+        &expiration);
 
     switch (status) {
     case SEC_E_OK:
@@ -252,11 +285,9 @@ int Twapi_InitializeSecurityContext(
     objv[1] = ObjFromSecHandle(&new_context);
     objv[2] = ObjFromSecBufferDesc(&sbd_out);
     objv[3] = Tcl_NewLongObj(new_context_attr);
-    if (expirationP)
-        objv[4] = Tcl_NewWideIntObj(expirationP->QuadPart);
+    objv[4] = Tcl_NewWideIntObj(expiration.QuadPart);
 
-    Tcl_SetObjResult(interp,
-                     Tcl_NewListObj(expirationP ? 5 : 4, objv));
+    Tcl_SetObjResult(interp, Tcl_NewListObj(5, objv));
 
     if (sb_out.pvBuffer)
         FreeContextBuffer(sb_out.pvBuffer);
@@ -280,15 +311,6 @@ int Twapi_AcceptSecurityContext(
     ULONG         new_context_attr;
     Tcl_Obj      *objv[5];
     TimeStamp     expiration;
-    TimeStamp    *expirationP;
-
-    if (gTwapiOSVersionInfo.dwMajorVersion == 5 &&
-        gTwapiOSVersionInfo.dwMinorVersion >= 1) {
-        /* XP and above */
-        expirationP = &expiration;
-    } else {
-        expirationP = NULL;
-    }
 
     /* We will ask the function to allocate buffer for us */
     sb_out.BufferType = SECBUFFER_TOKEN;
@@ -299,6 +321,11 @@ int Twapi_AcceptSecurityContext(
     sbd_out.pBuffers  = &sb_out;
     sbd_out.ulVersion = SECBUFFER_VERSION;
 
+    /* TBD - MSDN says expiration pointer should be NULL until
+       last call in negotiation sequence. Does it really need
+       to be NULL or can we expect caller just ignore the result?
+       We assume the latter rfor now.
+    */
     status = AcceptSecurityContext(
         credentialP,
         contextP,
@@ -333,11 +360,10 @@ int Twapi_AcceptSecurityContext(
     objv[1] = ObjFromSecHandle(&new_context);
     objv[2] = ObjFromSecBufferDesc(&sbd_out);
     objv[3] = Tcl_NewLongObj(new_context_attr);
-    if (expirationP)
-        objv[4] = Tcl_NewWideIntObj(expirationP->QuadPart);
+    objv[4] = Tcl_NewWideIntObj(expiration.QuadPart);
 
     Tcl_SetObjResult(interp,
-                     Tcl_NewListObj(expirationP ? 5 : 4, objv));
+                     Tcl_NewListObj(5, objv));
 
 
     if (sb_out.pvBuffer)
@@ -606,3 +632,296 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
         return TwapiReturnSystemError(interp);
     }
 }
+
+static int Twapi_CryptoCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    int func;
+    DWORD dw, dw2, dw3, dw4;
+    DWORD_PTR dwp;
+    LPVOID pv;
+    LPWSTR s1, s2, s3;
+    HANDLE h;
+    SecHandle sech, sech2, *sech2P;
+    SecBufferDesc sbd, *sbdP;
+    LUID luid, *luidP;
+    LARGE_INTEGER largeint;
+    Tcl_Obj *objs[2];
+    unsigned char *cP;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 100) {
+        /* Functions taking no arguments */
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 1:
+            return Twapi_EnumerateSecurityPackages(interp);
+            break;
+        }
+    } else if (func < 200) {
+        /* Single arg is a sechandle */
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (ObjToSecHandle(interp, objv[2], &sech) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 101:
+            result.type = TRT_HANDLE;
+            dw = QuerySecurityContextToken(&sech, &result.value.hval);
+            if (dw) {
+                result.value.ival =  dw;
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            } else {
+                result.type = TRT_HANDLE;
+            }
+            break;
+        case 102: // FreeCredentialsHandle
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = FreeCredentialsHandle(&sech);
+            break;
+        case 103: // DeleteSecurityContext
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = DeleteSecurityContext(&sech);
+            break;
+        case 104: // ImpersonateSecurityContext
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = ImpersonateSecurityContext(&sech);
+            break;
+        }
+    } else {
+        /* Free-for-all - each func responsible for checking arguments */
+        switch (func) {
+        case 10018:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s1), ARGUSEDEFAULT,
+                             GETWSTR(s2), GETWSTR(s3),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_SEC_WINNT_AUTH_IDENTITY;
+            result.value.hval = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(s1, s2, s3);
+            break;
+        case 10019:
+            if (objc != 3)
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EMPTY;
+            Twapi_Free_SEC_WINNT_AUTH_IDENTITY(h);
+            break;
+        case 10020:
+            luidP = &luid;
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s1), GETWSTR(s2), GETINT(dw),
+                             GETVAR(luidP, ObjToLUID_NULL),
+                             GETVOIDP(pv), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.value.ival = AcquireCredentialsHandleW(
+                s1, s2,
+                dw, luidP, pv, NULL, NULL, &sech, &largeint);
+            if (result.value.ival) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                break;
+            }
+            objs[0] = ObjFromSecHandle(&sech);
+            objs[1] = Tcl_NewWideIntObj(largeint.QuadPart);
+            result.type = TRT_OBJV;
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 2;
+            break;
+        case 10021:
+            sech2P = &sech2;
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETVAR(sech2P, ObjToSecHandle_NULL),
+                             GETWSTR(s1),
+                             GETINT(dw),
+                             GETINT(dw2),
+                             GETINT(dw3),
+                             GETVAR(sbd, ObjToSecBufferDescRO),
+                             GETINT(dw4),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            sbdP = sbd.cBuffers ? &sbd : NULL;
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = Twapi_InitializeSecurityContext(
+                interp, &sech, sech2P, s1,
+                dw, dw2, dw3, sbdP, dw4);
+            TwapiFreeSecBufferDesc(sbdP);
+            break;
+
+        case 10022: // AcceptSecurityContext
+            sech2P = &sech2;
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETVAR(sech2P, ObjToSecHandle_NULL),
+                             GETVAR(sbd, ObjToSecBufferDescRO),
+                             GETINT(dw),
+                             GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            sbdP = sbd.cBuffers ? &sbd : NULL;
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = Twapi_AcceptSecurityContext(
+                interp, &sech, sech2P, sbdP, dw, dw2);
+            TwapiFreeSecBufferDesc(sbdP);
+            break;
+        
+        case 10023: // QueryContextAttributes
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_QueryContextAttributes(interp, &sech, dw);
+        case 10024: // MakeSignature
+        case 10025: // EncryptMessage
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETINT(dw),
+                             GETBIN(cP, dw2),
+                             GETINT(dw3),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return (func == 10024 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
+                ticP, &sech, dw, dw2, cP, dw3);
+
+        case 10026: // VerifySignature
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETVAR(sbd, ObjToSecBufferDescRO),
+                             GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            sbdP = sbd.cBuffers ? &sbd : NULL;
+            dw2 = VerifySignature(&sech, sbdP, dw, &result.value.ival);
+            TwapiFreeSecBufferDesc(sbdP);
+            if (dw2 == 0)
+                result.type = TRT_DWORD;
+            else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = dw2;
+            }
+            break;
+
+        case 10027: // DecryptMessage
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(sech, ObjToSecHandle),
+                             GETVAR(sbd, ObjToSecBufferDescRW),
+                             GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            dw2 = DecryptMessage(&sech, &sbd, dw, &result.value.ival);
+            if (dw2 == 0) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromSecBufferDesc(&sbd);
+            } else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = dw2;
+            }
+            TwapiFreeSecBufferDesc(&sbd);
+            break;
+
+        case 10028: // CryptAcquireContext
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (CryptAcquireContextW(&result.value.dwp, s1, s2, dw, dw2))
+                result.type = TRT_DWORD_PTR;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
+
+        case 10029:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETDWORD_PTR(dwp), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CryptReleaseContext(dwp, dw);
+            break;
+
+        case 10030:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETDWORD_PTR(dwp), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_CryptGenRandom(interp, dwp, dw);
+        }
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+static int Twapi_CryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::CryptoCall", Twapi_CryptoCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Crypto" #call_, # code_); \
+    } while (0);
+
+
+    CALL_(EnumerateSecurityPackages, Call, 1);
+    CALL_(QuerySecurityContextToken, Call, 101);
+    CALL_(FreeCredentialsHandle, Call, 102);
+    CALL_(DeleteSecurityContext, Call, 103);
+    CALL_(ImpersonateSecurityContext, Call, 104);
+    CALL_(Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY, Call, 10018);
+    CALL_(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, Call, 10019);
+    CALL_(AcquireCredentialsHandle, Call, 10020);
+    CALL_(InitializeSecurityContext, Call, 10021);
+    CALL_(AcceptSecurityContext, Call, 10022);
+    CALL_(QueryContextAttributes, Call, 10023);
+    CALL_(MakeSignature, Call, 10024);
+    CALL_(EncryptMessage, Call, 10025);
+    CALL_(VerifySignature, Call, 10026);
+    CALL_(DecryptMessage, Call, 10027);
+    CALL_(CryptAcquireContext, Call, 10028);
+    CALL_(CryptReleaseContext, Call, 10029);
+    CALL_(CryptGenRandom, Call, 10030);
+
+
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_crypto_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_CryptoInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
+
