@@ -982,15 +982,6 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP);
 Tcl_Obj *ObjFromWINDOWINFO (WINDOWINFO *wiP);
 Tcl_Obj *ObjFromWINDOWPLACEMENT(WINDOWPLACEMENT *wpP);
 int ObjToWINDOWPLACEMENT(Tcl_Interp *, Tcl_Obj *objP, WINDOWPLACEMENT *wpP);
-Tcl_Obj *ObjFromSecHandle(SecHandle *shP);
-int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP);
-int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP);
-Tcl_Obj *ObjFromSecPkgInfo(SecPkgInfoW *spiP);
-void TwapiFreeSecBufferDesc(SecBufferDesc *sbdP);
-int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, int readonly);
-int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
-int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
-Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
                               SP_DEVINFO_DATA **sddPP);
@@ -1002,33 +993,9 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP);
-Tcl_Obj *ObjFromMIB_IPNETTABLE(Tcl_Interp *interp, MIB_IPNETTABLE *nettP);
-Tcl_Obj *ObjFromMIB_IPFORWARDROW(Tcl_Interp *interp, const MIB_IPFORWARDROW *ipfrP);
-Tcl_Obj *ObjFromMIB_IPFORWARDTABLE(Tcl_Interp *interp, MIB_IPFORWARDTABLE *fwdP);
-Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *iaimP);
-Tcl_Obj *ObjFromIP_INTERFACE_INFO(Tcl_Interp *interp, IP_INTERFACE_INFO *iiP);
-Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size);
-int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj, MIB_TCPROW *row);
-Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP);
-Tcl_Obj *ObjFromMIB_IPADDRTABLE(Tcl_Interp *interp, MIB_IPADDRTABLE *ipatP);
-Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP);
-Tcl_Obj *ObjFromMIB_IFTABLE(Tcl_Interp *interp, MIB_IFTABLE *iftP);
-Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *, IP_ADAPTER_INDEX_MAP *iaimP);
-Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size);
-Tcl_Obj *ObjFromMIB_TCPTABLE(Tcl_Interp *interp, MIB_TCPTABLE *tab);
-Tcl_Obj *ObjFromMIB_TCPTABLE_OWNER_PID(Tcl_Interp *i, MIB_TCPTABLE_OWNER_PID *tab);
-Tcl_Obj *ObjFromMIB_TCPTABLE_OWNER_MODULE(Tcl_Interp *, MIB_TCPTABLE_OWNER_MODULE *tab);
-Tcl_Obj *ObjFromMIB_UDPTABLE(Tcl_Interp *, MIB_UDPTABLE *tab);
-Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_PID(Tcl_Interp *, MIB_UDPTABLE_OWNER_PID *tab);
-Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_MODULE(Tcl_Interp *, MIB_UDPTABLE_OWNER_MODULE *tab);
-Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
-Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
 int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP);
 Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP);
 
-int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
-int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
 Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
@@ -1179,32 +1146,6 @@ int Twapi_LsaEnumerateAccountRights(Tcl_Interp *interp,
 int Twapi_LsaEnumerateAccountsWithUserRight(
     Tcl_Interp *, LSA_HANDLE PolicyHandle, LSA_UNICODE_STRING *UserRights);
 
-
-/* Crypto API */
-int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
-int Twapi_InitializeSecurityContext(
-    Tcl_Interp *interp,
-    SecHandle *credentialP,
-    SecHandle *contextP,
-    LPWSTR     targetP,
-    ULONG      contextreq,
-    ULONG      reserved1,
-    ULONG      targetdatarep,
-    SecBufferDesc *sbd_inP,
-    ULONG     reserved2);
-int Twapi_AcceptSecurityContext(Tcl_Interp *interp, SecHandle *credentialP,
-                                SecHandle *contextP, SecBufferDesc *sbd_inP,
-                                ULONG contextreq, ULONG targetdatarep);
-int Twapi_QueryContextAttributes(Tcl_Interp *interp, SecHandle *INPUT,
-                                 ULONG attr);
-SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
-    LPCWSTR user, LPCWSTR domain, LPCWSTR password);
-void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP);
-int Twapi_MakeSignature(TwapiInterpContext *ticP, SecHandle *INPUT,
-                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
-int Twapi_EncryptMessage(TwapiInterpContext *ticP, SecHandle *INPUT,
-                        ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
-int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 /* Device related */
 int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
@@ -1595,6 +1536,8 @@ TWAPI_EXTERN void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
 TWAPI_EXTERN void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
 TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
+TWAPI_EXTERN int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
+TWAPI_EXTERN int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
 TWAPI_EXTERN int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
                               LUID_AND_ATTRIBUTES *luidattrP);

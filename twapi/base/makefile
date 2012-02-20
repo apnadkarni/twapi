@@ -8,7 +8,6 @@ OBJS  = \
 	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
-	$(OBJDIR)\crypto.obj \
 	$(OBJDIR)\device.obj \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
@@ -70,7 +69,6 @@ TCLFILES=..\tcl\twapi.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\mstask.tcl \
 	..\tcl\msi.tcl \
-	..\tcl\crypto.tcl \
         ..\tcl\device.tcl \
 	..\tcl\power.tcl \
 	..\tcl\namedpipe.tcl \
