@@ -100,7 +100,6 @@
 #define SECURITY_WIN32 1
 #include <security.h>
 #include <userenv.h>
-#include <setupapi.h>
 #include <wmistr.h>             /* Needed for WNODE_HEADER for evntrace */
 
 #include "tcl.h"
@@ -980,13 +979,6 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP);
 Tcl_Obj *ObjFromWINDOWINFO (WINDOWINFO *wiP);
 Tcl_Obj *ObjFromWINDOWPLACEMENT(WINDOWPLACEMENT *wpP);
 int ObjToWINDOWPLACEMENT(Tcl_Interp *, Tcl_Obj *objP, WINDOWPLACEMENT *wpP);
-int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
-int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
-                              SP_DEVINFO_DATA **sddPP);
-Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP);
-int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP,
-                                  SP_DEVICE_INTERFACE_DATA *sdidP);
-Tcl_Obj *ObjFromSP_DEVICE_INTERFACE_DATA(SP_DEVICE_INTERFACE_DATA *sdidP);
 Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
@@ -1148,13 +1140,6 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
 /* Device related */
 int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
 int Twapi_QueryDosDevice(TwapiInterpContext *, LPCWSTR lpDeviceName);
-int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *, int objc,
-                                          Tcl_Obj *CONST objv[]);
-int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *, int objc,
-                                      Tcl_Obj *CONST objv[]);
-int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id);
 
 /* File and disk related */
 int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
@@ -1275,14 +1260,6 @@ TCL_RESULT Twapi_SplitStringResource(Tcl_Interp *interp, int objc,
 Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s);
 TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *wsP);
 
-/* Typedef for callbacks invoked from the hidden window proc. Parameters are
- * those for a window procedure except for an additional interp pointer (which
- * may be NULL)
- */
-typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
-int Twapi_CreateHiddenWindow(TwapiInterpContext *,
-                             TwapiHiddenWindowCallbackProc *winProc,
-                             LONG_PTR clientdata, HWND *winP);
 
 
 /* Built-in commands */
@@ -1369,6 +1346,14 @@ TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError(Tcl_Interp *, unsigned long err)
 TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
 
 /* Async handling related */
+/* Typedef for callbacks invoked from the hidden window proc. Parameters are
+ * those for a window procedure except for an additional interp pointer (which
+ * may be NULL)
+ */
+typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
+TWAPI_EXTERN int Twapi_CreateHiddenWindow(TwapiInterpContext *,
+                             TwapiHiddenWindowCallbackProc *winProc,
+                             LONG_PTR clientdata, HWND *winP);
 TWAPI_EXTERN void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
 #define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
 TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *pcbP, int);
