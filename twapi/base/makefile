@@ -6,7 +6,6 @@ OBJS  = \
 	$(OBJDIR)\adsi.obj \
 	$(OBJDIR)\async.obj \
 	$(OBJDIR)\calls.obj \
-	$(OBJDIR)\clipboard.obj \
 	$(OBJDIR)\com.obj \
 	$(OBJDIR)\dirmonitor.obj \
 	$(OBJDIR)\disk.obj \
@@ -49,7 +48,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\process.tcl \
 	..\tcl\disk.tcl \
 	..\tcl\ui.tcl \
-	..\tcl\clipboard.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
