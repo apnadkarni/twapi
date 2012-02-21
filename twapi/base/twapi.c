@@ -133,15 +133,10 @@ int Twapi_base_Init(Tcl_Interp *interp)
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::GetTwapiBuildInfo",
                          Twapi_GetTwapiBuildInfo, ticP, NULL);
-#ifndef TWAPI_NODESKTOP
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke", Twapi_IDispatch_InvokeObjCmd,
                          ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::ComEventSink", Twapi_ComEventSinkObjCmd,
                          ticP, NULL);
-    /* TBD - is there a tcl wrapper for SHChangeNotify ? */
-    Tcl_CreateObjCommand(interp, "twapi::SHChangeNotify", Twapi_SHChangeNotify,
-                         ticP, NULL);
-#endif
 
     Tcl_CreateObjCommand(interp, "twapi::tclcast", Twapi_InternalCastObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);

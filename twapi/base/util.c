@@ -46,7 +46,7 @@ void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP)
 }
 
 
-void DebugOutput(char *s) {
+void TwapiDebugOutput(char *s) {
     Tcl_Channel chan = Tcl_GetStdChannel(TCL_STDERR);
     Tcl_Obj *objP;
     /* We want a terminating newline, but it has to go in a single write

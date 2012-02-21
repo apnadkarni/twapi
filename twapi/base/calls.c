@@ -45,9 +45,6 @@ static char *apiprocs =
     "    # Note first two args are interchanged\n"
     "    return [CallSSSD 36 $provider $remotename {} $restype]\n"
     "}\n"
-    "proc twapi::Twapi_WriteUrlShortcut {path url flags} {\n"
-    "    return [CallSSSD 37 $path $url {} $flags]\n"
-    "}\n"
     "proc twapi::DefineDosDevice  {flags devname path} {\n"
     "    return [CallSSSD 42 {} $devname $path $flags]\n"
     "}\n"
@@ -388,7 +385,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IsThemeActive, Call, 54);
     CALL_(IsAppThemed, Call, 55);
     CALL_(GetCurrentThemeName, Call, 56);
-    CALL_(Twapi_GetShellVersion, Call, 57);
     CALL_(GetDoubleClickTime, Call, 58);
     CALL_(EnumWindowStations, Call, 59);
     CALL_(GetProcessWindowStation, Call, 60);
@@ -475,17 +471,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(win32_error, Call, 10081);
     CALL_(Twapi_WNetUseConnection, Call, 10084);
     CALL_(NetShareAdd, Call, 10085);
-    CALL_(SHGetFolderPath, Call, 10086);
-    CALL_(SHGetSpecialFolderPath, Call, 10087);
-    CALL_(SHGetPathFromIDList, Call, 10088); // TBD - Tcl wrapper
     CALL_(GetThemeColor, Call, 10089);
     CALL_(GetThemeFont, Call, 10090);
-    CALL_(Twapi_WriteShortcut, Call, 10091);
-    CALL_(Twapi_ReadShortcut, Call, 10092);
-    CALL_(Twapi_InvokeUrlShortcut, Call, 10093);
-    CALL_(SHInvokePrinterCommand, Call, 10094); // TBD - Tcl wrapper
-    CALL_(Twapi_SHFileOperation, Call, 10095); // TBD - some more wrappers
-    CALL_(Twapi_ShellExecuteEx, Call, 10096);
     CALL_(CreateMutex, Call, 10097);
     CALL_(OpenMutex, Call, 10098);
     CALL_(OpenSemaphore, Call, 10099); /* TBD - Tcl wrapper */
@@ -579,7 +566,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetClipboardData, CallU, 10003);
     CALL_(SetStdHandle, CallU, 10004);
     CALL_(GetModuleHandleEx, CallU, 10005);
-    CALL_(Shell_NotifyIcon, CallU, 10006);
 
     // CallS - function(LPWSTR)
     CALL_(RegisterClipboardFormat, CallS, 1);
@@ -592,7 +578,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WNetGetUser, CallS, 10);
     CALL_(Twapi_AppendLog, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
-    CALL_(Twapi_ReadUrlShortcut, CallS, 13);
     CALL_(GetVolumeInformation, CallS, 14);
     CALL_(FindFirstVolumeMountPoint, CallS, 15);
     CALL_(GetDiskFreeSpaceEx, CallS, 16);
@@ -627,7 +612,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindVolumeMountPointClose, CallH, 8);
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
-    CALL_(GetDevicePowerState, CallH, 16);
+    CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
     CALL_(EnumProcessModules, CallH, 17);
     CALL_(IsWow64Process, CallH, 18);
     CALL_(ResumeThread, CallH, 19);
@@ -764,7 +749,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ShowOwnedPopups, CallWU, 6);
     CALL_(MonitorFromWindow, CallWU, 7);
     CALL_(GetWindowLongPtr, CallWU, 8);
-    CALL_(SHGetSpecialFolderLocation, CallWU, 9);
 
     CALL_(PostMessage, CallWU, 1001);
     CALL_(SendNotifyMessage, CallWU, 1002);
@@ -773,7 +757,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetLayeredWindowAttributes, CallWU, 10001);
     CALL_(MoveWindow, CallWU, 10002);
     CALL_(SetWindowLongPtr, CallWU, 10003);
-    CALL_(SHObjectProperties, CallWU, 10004);
 
     // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
     CALL_(LookupAccountName, CallSSSD, 1);
@@ -977,12 +960,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     Tcl_Obj *objs[2];
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2, h3;
-    HWND   hwnd;
     PSID osidP, gsidP;
     ACL *daclP, *saclP;
     GUID guid;
     GUID *guidP;
-    LPITEMIDLIST idlP;
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
 
@@ -1157,8 +1138,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 56:
             return Twapi_GetCurrentThemeName(interp);
-        case 57:
-            return Twapi_GetShellVersion(interp);
+        case 57: // UNUSED
+            break;
         case 58:
             result.type = TRT_DWORD;
             result.value.ival = GetDoubleClickTime();
@@ -1832,74 +1813,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_WNetUseConnection(interp, objc-2, objv+2);
         case 10085:
             return Twapi_NetShareAdd(interp, objc-2, objv+2);
-        case 10086: // SHGetFolderPath - TBD Tcl wrapper
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHWND(hwnd), GETINT(dw),
-                             GETHANDLE(h), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            dw = Twapi_SHGetFolderPath(hwnd, dw, h, dw2, u.buf);
-            if (dw == 0) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = dw;
-            }
-            break;
-        case 10087:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHWND(hwnd), GETINT(dw),
-                             GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (SHGetSpecialFolderPathW(hwnd, u.buf, dw, dw2)) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 10088: // SHGetPathFromIDList
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVAR(idlP, ObjToPIDL),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (SHGetPathFromIDListW(idlP, u.buf)) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else {
-                /* Need to get error before we call the pidl free */
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = GetLastError();
-            }
-            TwapiFreePIDL(idlP); /* OK if NULL */
-            break;
+            // 10086-88 UNUSED
         case 10089: 
             return Twapi_GetThemeColor(interp, objc-2, objv+2);
         case 10090: 
             return Twapi_GetThemeFont(interp, objc-2, objv+2);
-        case 10091:
-            return Twapi_WriteShortcut(interp, objc-2, objv+2);
-        case 10092:
-            return Twapi_ReadShortcut(interp, objc-2, objv+2);
-        case 10093:
-            return Twapi_InvokeUrlShortcut(interp, objc-2, objv+2);
-        case 10094: // SHInvokePrinterCommand
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(hwnd), GETINT(dw),
-                             GETWSTR(s), GETWSTR(s2), GETBOOL(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SHInvokePrinterCommandW(hwnd, dw, s, s2, dw2);
-            break;
-        case 10095:
-            return Twapi_SHFileOperation(interp, objc-2, objv+2);
-        case 10096:
-            return Twapi_ShellExecuteEx(interp, objc-2, objv+2);
         case 10097:
             secattrP = NULL;        /* Even on error, it might be filled */
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2162,7 +2080,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         HANDLE h;
         SECURITY_ATTRIBUTES *secattrP;
         MemLifo *lifoP;
-        NOTIFYICONDATAW *niP;
     } u;
     int func;
 
@@ -2448,19 +2365,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 10006: // Shell_NotifyIcon
-            if (objc != 4)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-            u.niP = (NOTIFYICONDATAW *) Tcl_GetByteArrayFromObj(objv[3], &dw2);
-            if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
-                return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
-            }
-            result.type = TRT_EMPTY;
-            if (Shell_NotifyIconW(dw, u.niP) == FALSE) {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
         }
     }
 
@@ -2536,8 +2440,8 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
             break;
-        case 13:
-            return Twapi_ReadUrlShortcut(interp, arg);
+        case 13: // UNUSED
+            break;
         case 14:
             NULLIFY_EMPTY(arg);
             return Twapi_GetVolumeInformation(interp, arg);
@@ -3448,9 +3352,8 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 36:
         /* Note first param is s2, second is s1 */
         return Twapi_WNetGetResourceInformation(ticP, s2,s1,dw);
-    case 37:
-        if (s1 == NULL) s1 = L"";
-        return Twapi_WriteUrlShortcut(interp, s1, s2, dw);
+    case 37: // UNUSED
+        break;
     case 38:
         NULLIFY_EMPTY(s2);
         result.type = TRT_HWND;
@@ -3762,7 +3665,6 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
     int func;
     DWORD dw, dw2, dw3, dw4, dw5;
     DWORD_PTR dwp, dwp2;
-    LPWSTR s, s2;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETHANDLET(hwnd, HWND), GETINT(dw),
@@ -3808,15 +3710,6 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
                 result.type = TRT_DWORD_PTR;
             else
                 result.type = TRT_GETLASTERROR;
-            break;
-        case 9:
-            dw = SHGetSpecialFolderLocation(hwnd, dw, &result.value.pidl);
-            if (dw == 0)
-                result.type = TRT_PIDL;
-            else {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = dw;
-            }
             break;
         }
     } else if (func < 2000) {
@@ -3875,14 +3768,6 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
                 return TCL_ERROR;
             result.type = Twapi_SetWindowLongPtr(hwnd, dw, dwp, &result.value.dwp)
                 ? TRT_DWORD_PTR : TRT_GETLASTERROR;
-            break;
-        case 10004:
-            if (TwapiGetArgs(interp, objc-4, objv+4,
-                             GETWSTR(s), GETNULLIFEMPTY(s2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Twapi_SHObjectProperties(hwnd, dw, s, s2);
             break;
         }            
     }

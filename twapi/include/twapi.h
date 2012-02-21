@@ -80,8 +80,8 @@
 #include <winnetwk.h>
 #include <iphlpapi.h>
 #include <objidl.h>
-#include <shlobj.h>
-#include <shlwapi.h>
+#include <shlobj.h>  /* Need for ITEMIDLIST */
+#include <shlwapi.h> /* Need for DLLVERSIONINFO */
 #include <locale.h>
 #include <ntsecapi.h>
 #include <wtsapi32.h>
@@ -1017,33 +1017,11 @@ int Twapi_GetPrivateProfileSection(TwapiInterpContext *ticP,
                                    LPCWSTR app, LPCWSTR fn);
 int Twapi_GetPrivateProfileSectionNames(TwapiInterpContext *,LPCWSTR filename);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
-void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
-
-/* Shell stuff */
-HRESULT Twapi_SHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken,
-                          DWORD flags, WCHAR *pathbuf);
-BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
-                              LPCWSTR szObject, LPCWSTR szPage);
 
 int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
 int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
-int Twapi_GetShellVersion(Tcl_Interp *interp);
-int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_WriteShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath);
-int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DWORD flags);
-int Twapi_InvokeUrlShortcut(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_SHFileOperation(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_VerQueryValue_FIXEDFILEINFO(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
-int Twapi_VerQueryValue_STRING(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP,
-                               LPCSTR lang_and_cp, LPSTR name);
-int Twapi_VerQueryValue_TRANSLATIONS(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
-TWAPI_FILEVERINFO * Twapi_GetFileVersionInfo(LPWSTR path);
-void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
-
 
 /* Processes and threads */
 int Twapi_GetProcessList(TwapiInterpContext *, int objc, Tcl_Obj * CONST objv[]);
@@ -1235,6 +1213,12 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
 
 
 /* Resource manipulation */
+int Twapi_VerQueryValue_FIXEDFILEINFO(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
+int Twapi_VerQueryValue_STRING(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP,
+                               LPCSTR lang_and_cp, LPSTR name);
+int Twapi_VerQueryValue_TRANSLATIONS(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
+TWAPI_FILEVERINFO * Twapi_GetFileVersionInfo(LPWSTR path);
+void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
 int Twapi_LoadImage(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_UpdateResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_FindResourceEx(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
@@ -1522,6 +1506,7 @@ typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 TWAPI_EXTERN TwapiId Twapi_NewId();
+TWAPI_EXTERN void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
 
 /* Interp context */
 TWAPI_EXTERN TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *);
