@@ -848,6 +848,7 @@ typedef struct _TwapiInterpContext {
         union {
             void *pval;
             int   ival;
+            HWND  hwnd;
         } data;              /* For use by module, initialized to 0 */
     } module;
 
@@ -880,7 +881,6 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
     HWND          notification_win; /* Window used for various notifications */
-    HWND          clipboard_win;    /* Window used for clipboard notifications */
     int           power_events_on; /* True-> send through power notifications */
     DWORD         device_notification_tid; /* device notification thread id */
     
@@ -1128,16 +1128,10 @@ int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
 /* Printers */
 int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
 
-/* Clipboard related */
-int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
-int Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP);
-int Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP);
-
 /* ADSI related */
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR domainnameP, UUID *guidP,
                       LPCWSTR sitenameP, ULONG flags);
-
 
 /* NLS */
 

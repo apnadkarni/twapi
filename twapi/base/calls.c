@@ -332,15 +332,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
      * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
-    CALL_(CloseClipboard, Call, 2);
-    CALL_(EmptyClipboard, Call, 3);
-    CALL_(GetOpenClipboardWindow, Call, 4);
     CALL_(GetDesktopWindow, Call, 5);
     CALL_(GetShellWindow, Call, 6);
     CALL_(GetForegroundWindow, Call, 7);
     CALL_(GetActiveWindow, Call, 8);
-    CALL_(GetClipboardOwner, Call, 9);
-    CALL_(Twapi_EnumClipboardFormats,Call, 10);
     CALL_(GetLogicalDrives, Call, 18);
     CALL_(GetUserDefaultLangID, Call, 23);
     CALL_(GetSystemDefaultLangID, Call, 24);
@@ -385,8 +380,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(FindFirstVolume, Call, 66);
     CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
-    CALL_(Twapi_ClipboardMonitorStart, Call, 69);
-    CALL_(Twapi_ClipboardMonitorStop, Call, 70);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
     CALL_(TwapiId, Call, 74);
@@ -493,9 +486,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 
     // CallU API
-    CALL_(IsClipboardFormatAvailable, CallU, 1);
-    CALL_(GetClipboardData, CallU, 2);
-    CALL_(GetClipboardFormatName, CallU, 3);
     CALL_(GetStdHandle, CallU, 4);
     CALL_(VerLanguageName, CallU, 7);
     CALL_(GetComputerNameEx, CallU, 15);
@@ -540,12 +530,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(GlobalAlloc, CallU, 10001);
     CALL_(LHashValOfName, CallU, 10002);
-    CALL_(SetClipboardData, CallU, 10003);
     CALL_(SetStdHandle, CallU, 10004);
     CALL_(GetModuleHandleEx, CallU, 10005);
 
     // CallS - function(LPWSTR)
-    CALL_(RegisterClipboardFormat, CallS, 1);
     CALL_(GetDriveType, CallS, 3);
     CALL_(DeleteVolumeMountPoint, CallS, 4);
     CALL_(GetVolumeNameForVolumeMountPoint, CallS, 5);
@@ -684,7 +672,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(HideCaret, CallW, 13);
     CALL_(ShowCaret, CallW, 14);
     CALL_(GetParent, CallW, 15);
-    CALL_(OpenClipboard, CallW, 16);
     CALL_(GetClientRect, CallW, 17);
     CALL_(GetWindowRect, CallW, 18);
     CALL_(GetDC, CallW, 19);
@@ -954,18 +941,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HANDLE;
             result.value.hval = GetCurrentProcess();
             break;
-        case 2:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseClipboard();
-            break;
-        case 3:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = EmptyClipboard();
-            break;
-        case 4:
-            result.type = TRT_HWND;
-            result.value.hwin = GetOpenClipboardWindow();
-            break;
+            // 2-4 UNUSED
         case 5:
             result.type = TRT_HWND;
             result.value.hwin = GetDesktopWindow();
@@ -982,13 +958,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HWND;
             result.value.hwin = GetActiveWindow();
             break;
-        case 9:
-            result.type = TRT_HWND;
-            result.value.hwin = GetClipboardOwner();
-            break;
-        case 10:
-            return Twapi_EnumClipboardFormats(interp);
-            // UNUSED 11-17
+            // 9-17 UNUSED
         case 18:
             result.value.ival = GetLogicalDrives();
             result.type = TRT_DWORD;
@@ -1153,10 +1123,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             } else
                 result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        case 69:
-            return Twapi_ClipboardMonitorStart(ticP);
-        case 70:
-            return Twapi_ClipboardMonitorStop(ticP);
+            // 69-70 UNUSED
         case 71:
             return Twapi_PowerNotifyStart(ticP);
         case 72:
@@ -2014,19 +1981,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
-        case 1:
-            result.type = TRT_BOOL;
-            result.value.bval = IsClipboardFormatAvailable(dw);
-            break;
-        case 2:
-            result.type = TRT_HANDLE;
-            result.value.hval = GetClipboardData(dw);
-            break;
-        case 3:
-            result.value.unicode.len = GetClipboardFormatNameW(dw, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
-            result.value.unicode.str = u.buf;
-            result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
-            break;
+            // 1-3 UNUSED
         case 4:
             result.value.hval = GetStdHandle(dw);
             if (result.value.hval == INVALID_HANDLE_VALUE)
@@ -2260,12 +2215,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_DWORD;
             result.value.ival = LHashValOfName(dw, Tcl_GetUnicode(objv[3]));
             break;
-        case 10003:
-            if (ObjToHANDLE(interp, objv[3], &u.h) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HANDLE;
-            result.value.hval = SetClipboardData(dw, u.h);
-            break;
+            // 10003 UNUSED
         case 10004:
             if (ObjToHANDLE(interp, objv[3], &u.h) != TCL_OK)
                 return TCL_ERROR;
@@ -2320,12 +2270,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     /* One argument commands - assign codes 1-999 */
     if (func < 500) {
         switch (func) {
-        case 1:
-            result.type = TRT_NONZERO_RESULT;
-            result.value.ival = RegisterClipboardFormatW(arg);
-            break;
-        case 2: // Unused
-            break;
+            // 1-2 UNUSED
         case 3:
             result.type = TRT_DWORD;
             result.value.ival = GetDriveTypeW(arg);
@@ -3371,10 +3316,7 @@ int Twapi_CallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         result.type = TRT_HWND;
         result.value.hwin = GetParent(hwnd);
         break;
-    case 16:
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = OpenClipboard(hwnd);
-        break;
+    // 16 - UNUSED
     case 17:
         result.type = GetClientRect(hwnd, &result.value.rect) ? TRT_RECT : TRT_GETLASTERROR;
         break;
