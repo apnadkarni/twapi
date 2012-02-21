@@ -28,10 +28,6 @@ static char *apiprocs =
     "proc twapi::NetLocalGroupGetInfo {system account level} {\n"
     "    return [twapi::CallSSSD 12 $system $account {} $level]\n"
     "}\n"
-    "proc twapi::OpenSCManager {{machine {}} {database {}} {access 0x000F003F}} { \n"
-    "    # 0x000F003f -> SC_MANAGER_ALL_ACCESS\n"
-    "    return [CallSSSD 23 $machine $database {} $access]\n"
-    "}\n"
     "proc twapi::NetUseGetInfo {server share level} {\n"
     "    return [CallSSSD 24 $server $share {} $level]\n"
     "}\n"
@@ -3312,10 +3308,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = NetLocalGroupDelMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
         break;
-    case 23:
-        result.type = TRT_SC_HANDLE;
-        NULLIFY_EMPTY(s2);
-        result.value.hval = OpenSCManagerW(s1, s2, dw);
+    case 23: // UNUSED
         break;
     case 24:
         return Twapi_NetUseGetInfo(interp, s1, s2, dw);
