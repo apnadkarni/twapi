@@ -30,7 +30,6 @@ OBJS  = \
 	$(OBJDIR)\resource.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\share.obj \
-	$(OBJDIR)\shell.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\threadpool.obj \
 	$(OBJDIR)\trap.obj \
@@ -53,7 +52,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\ui.tcl \
 	..\tcl\clipboard.tcl \
 	..\tcl\nls.tcl \
-	..\tcl\shell.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\process2.tcl \
