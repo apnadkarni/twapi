@@ -678,7 +678,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         WCHAR buf[MAX_PATH+1];
     } u;
     DWORD dw;
-    LPWSTR s;
+    LPWSTR s, s2;
     HANDLE h;
 
     if (objc < 2)
@@ -768,14 +768,18 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             return Twapi_SetServiceStatus(ticP, objc-2, objv+2);
         case 10006:
             return Twapi_BecomeAService(ticP, objc-2, objv+2);
+        case 10007:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_SC_HANDLE;
+            result.value.hval = OpenSCManagerW(s, s2, dw);
+            break;
         }
     }
     
-
-
-
     return TwapiSetResult(interp, &result);
-
 }
 
 static int Twapi_ServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
@@ -823,8 +827,6 @@ __declspec(dllexport)
 #endif
 int Twapi_service_Init(Tcl_Interp *interp)
 {
-    TwapiInterpContext *ticP;
-
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
