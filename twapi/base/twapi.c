@@ -363,7 +363,6 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
     ticP->notification_win = NULL; /* Created only on demand */
-    ticP->clipboard_win = NULL;    /* Created only on demand */
     ticP->power_events_on = 0;
     ticP->device_notification_tid = 0;
 
@@ -418,10 +417,6 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
         DestroyWindow(ticP->notification_win);
         ticP->notification_win = 0;
     }
-    if (ticP->clipboard_win) {
-        DestroyWindow(ticP->clipboard_win);
-        ticP->clipboard_win = 0;
-    }
 
     // TBD - what about pipes and directory_monitors ?
 
@@ -444,6 +439,7 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 
     TWAPI_ASSERT(ticP->interp == interp);
 
+    /* Should this be called from TwapiInterpContextDelete instead ? */
     if (ticP->module.cleaner) {
         ticP->module.cleaner(ticP);
         ticP->module.cleaner = NULL;
