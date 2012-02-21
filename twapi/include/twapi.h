@@ -1212,27 +1212,6 @@ int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);
 
 
-/* Resource manipulation */
-int Twapi_VerQueryValue_FIXEDFILEINFO(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
-int Twapi_VerQueryValue_STRING(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP,
-                               LPCSTR lang_and_cp, LPSTR name);
-int Twapi_VerQueryValue_TRANSLATIONS(Tcl_Interp *interp, TWAPI_FILEVERINFO * verP);
-TWAPI_FILEVERINFO * Twapi_GetFileVersionInfo(LPWSTR path);
-void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
-int Twapi_LoadImage(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_UpdateResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_FindResourceEx(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_LoadResource(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceNames(Tcl_Interp *,int objc,Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceLanguages(Tcl_Interp *,int objc,Tcl_Obj *CONST objv[]);
-int Twapi_EnumResourceTypes(Tcl_Interp *, HMODULE hmodule);
-TCL_RESULT Twapi_SplitStringResource(Tcl_Interp *interp, int objc,
-                                     Tcl_Obj *CONST objv[]);
-Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s);
-TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *wsP);
-
-
-
 /* Built-in commands */
 
 typedef int TwapiTclObjCmd(
