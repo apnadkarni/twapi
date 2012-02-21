@@ -27,7 +27,6 @@ OBJS  = \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
-	$(OBJDIR)\resource.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\share.obj \
 	$(OBJDIR)\tclobjs.obj \
@@ -62,7 +61,6 @@ TCLFILES=..\tcl\twapi.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \
 	..\tcl\power.tcl \
-	..\tcl\resource.tcl \
 	..\tcl\rds.tcl \
 	..\tcl\wmi.tcl
 

@@ -47,12 +47,6 @@ static char *apiprocs =
     "proc twapi::SetVolumeMountPoint  {vol name} {\n"
     "    return [CallSSSD 43 {} $vol $name]\n"
     "}\n"
-    "proc twapi::CreateScalableFontResource  {hidden fontres fontfile curpath} {\n"
-    "    return [CallSSSD 47 $fontres $fontfile $curpath $hidden]\n"
-    "}\n"
-    "proc twapi::RemoveFontResourceEx  {filename flags} {\n"
-    "    return [CallSSSD 48 {} $filename {} $flags]\n"
-    "}\n"
     "proc twapi::GetPrivateProfileInt {app key ival file} {\n"
     "    return [CallSSSD 7 $app $key $file $ival]\n"
     "}\n"
@@ -422,8 +416,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
     CALL_(DeleteObject, Call, 1023);
-    CALL_(DestroyIcon, Call, 1024);
-    CALL_(DestroyCursor, Call, 1025);
 
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
@@ -451,7 +443,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetModuleFileNameEx, Call, 10054);
     CALL_(GetModuleBaseName, Call, 10055);
     CALL_(GetModuleInformation, Call, 10056);
-    CALL_(Twapi_VerQueryValue_STRING, Call, 10057);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(GetNumberFormat, Call, 10070);
     CALL_(GetCurrencyFormat, Call, 10071);
@@ -479,9 +470,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_ReadMemoryUnicode, Call, 10104);
     CALL_(Twapi_ReadMemoryPointer, Call, 10105);
     CALL_(Twapi_ReadMemoryWide, Call, 10106);
-    CALL_(Twapi_VerQueryValue_FIXEDFILEINFO, Call, 10107);
-    CALL_(Twapi_VerQueryValue_TRANSLATIONS, Call, 10108);
-    CALL_(Twapi_FreeFileVersionInfo, Call, 10109);
     CALL_(malloc, Call, 10110);        /* TBD - document, change to memalloc */
     CALL_(Twapi_WriteMemoryInt, Call, 10111);
     CALL_(Twapi_WriteMemoryBinary, Call, 10112);
@@ -493,15 +481,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
-    CALL_(UpdateResource, Call, 10124);
-    CALL_(FindResourceEx, Call, 10125);
-    CALL_(Twapi_LoadResource, Call, 10126);
-    CALL_(Twapi_EnumResourceNames, Call, 10127);
-    CALL_(Twapi_EnumResourceLanguages, Call, 10128);
-    CALL_(Twapi_SplitStringResource, Call, 10129);
     CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
-    CALL_(LoadImage, Call, 10132);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
     CALL_(IsEqualGUID, Call, 10136); // Tcl
@@ -583,7 +564,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetPrivateProfileSectionNames, CallS, 18);
     CALL_(SendInput, CallS, 19);
     CALL_(Twapi_SendUnicode, CallS, 20);
-    CALL_(Twapi_GetFileVersionInfo, CallS, 21);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
@@ -593,15 +573,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
     CALL_(NetFileClose, CallS, 503);
     CALL_(LoadLibraryEx, CallS, 504);
-    CALL_(AddFontResourceEx, CallS, 505);
-    CALL_(BeginUpdateResource, CallS, 506);
 
     CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
     CALL_(NetFileGetInfo, CallS, 1003);
     CALL_(GetNamedSecurityInfo, CallS, 1004);
     CALL_(TranslateName, CallS, 1005);
-
 
     // CallH - function(HANDLE)
     CALL_(FindVolumeClose, CallH, 7);
@@ -655,7 +632,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetProcessImageFileName, CallH, 65); /* TBD - Tcl wrapper */
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
-    CALL_(Twapi_EnumResourceTypes, CallH, 68);
     CALL_(GetDeviceDriverBaseName, CallH, 69);
     CALL_(GetDeviceDriverFileName, CallH, 70);
 
@@ -672,7 +648,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
-    CALL_(EndUpdateResource, CallH, 1020);
     CALL_(GetThemeSysColor, CallH, 1021); /* TBD - tcl wrapper */
     CALL_(GetThemeSysFont, CallH, 1022);  /* TBD - tcl wrapper */
 
@@ -950,7 +925,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
     LPWSTR s, s2, s3, s4;
-    unsigned char *cP, *cP2;
+    unsigned char *cP;
     LUID luid;
     void *pv, *pv2;
     Tcl_Obj *objs[2];
@@ -1373,18 +1348,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteObject(pv);
             break;
-        case 1024:              /* DestroyIcon */
-            if (ObjToOpaque(interp, objv[2], &pv, "HICON") != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DestroyIcon(pv);
-            break;
-        case 1025:              /* DestroyCursor */
-            if (ObjToOpaque(interp, objv[2], &pv, "HCURSOR") != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DestroyCursor(pv);
-            break;
         }
     } else {
         /* Free-for-all - each func responsible for checking arguments */
@@ -1691,13 +1654,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 10057: // VerQueryValue_STRING
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETPTR(pv, TWAPI_FILEVERINFO),
-                             GETASTR(cP), GETASTR(cP2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_VerQueryValue_STRING(interp, pv, cP, cP2);
         case 10058: // DsGetDcName
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1885,24 +1841,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10106: // Wide
             // We are passing the func code as well, hence only skip one arg
             return TwapiReadMemory(interp, objc-1, objv+1);
-        case 10107:
-        case 10108:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETPTR(pv, TWAPI_FILEVERINFO),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return (func == 10107 
-                    ? Twapi_VerQueryValue_FIXEDFILEINFO
-                    : Twapi_VerQueryValue_TRANSLATIONS)(interp, pv);
-        case 10109:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETPTR(pv, TWAPI_FILEVERINFO),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EMPTY;
-            Twapi_FreeFileVersionInfo(pv);
-            break;
-
+            // 10107-10109 UNUSED
         case 10110:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
@@ -1983,20 +1922,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-        case 10123: // UNUSED
+            // 10123 - 10129 UNUSED
             break;
-        case 10124:
-            return Twapi_UpdateResource(interp, objc-2, objv+2);
-        case 10125:
-            return Twapi_FindResourceEx(interp, objc-2, objv+2);
-        case 10126:
-            return Twapi_LoadResource(interp, objc-2, objv+2);
-        case 10127:
-            return Twapi_EnumResourceNames(interp, objc-2, objv+2);
-        case 10128:
-            return Twapi_EnumResourceLanguages(interp, objc-2, objv+2);
-        case 10129:
-            return Twapi_SplitStringResource(interp, objc-2, objv+2);
 #ifndef TWAPI_LEAN
         case 10130:
             return Twapi_GetProcessList(ticP, objc-2, objv+2);
@@ -2018,8 +1945,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = twapi_netenum_bufsize;
             result.type = TRT_DWORD;
             break;
-        case 10132: // LoadImage
-            return Twapi_LoadImage(interp, objc-2, objv+2);
+            // 10132 UNUSED
             // 10133 UNUSED
         case 10134: // TzLocalSpecificTimeToSystemTime
         case 10135: // SystemTimeToTzSpecificLocalTime
@@ -2456,14 +2382,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return Twapi_SendInput(ticP, objv[2]);
         case 20:
             return Twapi_SendUnicode(ticP, objv[2]);
-        case 21:
-            result.value.opaque.p = Twapi_GetFileVersionInfo(arg);
-            if (result.value.opaque.p) {
-                result.type = TRT_OPAQUE;
-                result.value.opaque.name = "TWAPI_FILEVERINFO";
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
+            // 21 UNUSED
         case 22:
             bufP = u.buf;
             dw = ExpandEnvironmentStringsW(arg, bufP, ARRAYSIZE(u.buf));
@@ -2555,15 +2474,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 504: // LoadLibrary
             result.type = TRT_HANDLE;
             result.value.hval = LoadLibraryExW(arg, NULL, dw);
-            break;
-        case 505: // AddFontResourceEx
-            /* TBD - Tcl wrapper for AddFontResourceEx ? */
-            result.type = TRT_DWORD;
-            result.value.ival = AddFontResourceExW(arg, dw, NULL);
-            break;
-        case 506: // BeginUpdateResource
-            result.type = TRT_HANDLE;
-            result.value.hval = BeginUpdateResourceW(arg, dw);
             break;
         }
     } else if (func < 2000) {
@@ -2898,8 +2808,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ResetEvent(h);
             break;
-        case 68:
-            return Twapi_EnumResourceTypes(interp, h);
+        // 68 - UNUSED
 #ifndef TWAPI_LEAN
         case 69:                /* GetDeviceDriverBaseNameW */
         case 70:                /* GetDeviceDriverFileNameW */
@@ -2989,10 +2898,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoPushFrame(h, dw, NULL);
             break;
-        case 1020: // EndUpdateResource
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = EndUpdateResourceW(h, dw);
-            break;
+        // 1020 - UNUSED
         case 1021: // GetThemeSysColor
             result.type = TRT_DWORD;
             result.value.ival = GetThemeSysColor(h, dw);
@@ -3375,24 +3281,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
         result.value.ival = SetVolumeMountPointW(s2, s3);
         break;
-    case 44: // UNUSED
-    case 45: // UNUSED
-    case 46: // UNUSED
-        break;
-
-#ifndef TWAPI_LEAN
-    case 47:
-        /* TBD - is there a Tcl wrapper for CreateScalableFontResource ? */
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = CreateScalableFontResourceW(dw, s1,s2,s3);
-        break;
-    case 48:
-        /* TBD - Tcl wrapper for RemoveFontResourceEx ? */
-        result.type = TRT_BOOL;
-        result.value.bval = RemoveFontResourceExW(s2, dw, NULL);
-        break;
-#endif
-
     }
 
     return TwapiSetResult(interp, &result);
