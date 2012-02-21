@@ -1,10 +1,24 @@
 #
-# Copyright (c) 2003-2009, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
-# Contains commands available in the full twapi build only (not LEAN version).
+# Get my process id
+proc twapi::get_current_process_id {} {
+    return [::pid]
+}
+
+# Get my thread id
+proc twapi::get_current_thread_id {} {
+    return [GetCurrentThreadId]
+}
+
+# Get the exit code for a process. Returns "" if still running.
+proc twapi::get_process_exit_code {hpid} {
+    set code [GetExitCodeProcess $hpid]
+    return [expr {$code == 259 ? "" : $code}]
+}
 
 # Return list of process ids
 # Note if -path or -name is specified, then processes for which this

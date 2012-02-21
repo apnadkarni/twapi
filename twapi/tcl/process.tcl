@@ -11,16 +11,6 @@
 
 namespace eval twapi {}
 
-# Get my process id
-proc twapi::get_current_process_id {} {
-    return [::pid]
-}
-
-# Get my thread id
-proc twapi::get_current_thread_id {} {
-    return [GetCurrentThreadId]
-}
-
 
 
 # Wait until the process is ready
@@ -262,14 +252,6 @@ proc twapi::get_process_handle {pid args} {
     return [OpenProcess [_access_rights_to_mask $opts(access)] $opts(inherit) $pid]
 }
 
-# Get the exit code for a process. Returns "" if still running.
-proc twapi::get_process_exit_code {hpid} {
-    set code [GetExitCodeProcess $hpid]
-    return [expr {$code == 259 ? "" : $code}]
-}
-
-
-
 # Get the command line
 proc twapi::get_command_line {} {
     return [GetCommandLineW]
@@ -284,8 +266,6 @@ proc twapi::get_command_line_args {cmdline} {
     }
     return [CommandLineToArgv $cmdline]
 }
-
-
 
 # Return true if passed pid is system
 # TBD - update for Win2k8, vista, Windows 7, 64 bits
