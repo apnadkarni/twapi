@@ -9,35 +9,26 @@
 
 #include "twapi.h"
 
-#ifndef TWAPI_LEAN
+#ifndef TWAPI_STATIC_BUILD
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
 typedef NTSTATUS (WINAPI *NtQueryInformationProcess_t)(HANDLE, int, PVOID, ULONG, PULONG);
 MAKE_DYNLOAD_FUNC(NtQueryInformationProcess, ntdll, NtQueryInformationProcess_t)
 typedef NTSTATUS (WINAPI *NtQueryInformationThread_t)(HANDLE, int, PVOID, ULONG, PULONG);
 MAKE_DYNLOAD_FUNC(NtQueryInformationThread, ntdll, NtQueryInformationThread_t)
 MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
-#endif
 
-#ifndef TWAPI_LEAN
-BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P)
-{
-    FARPROC IsWow64ProcessPtr = Twapi_GetProc_IsWow64Process();
-
-    if (IsWow64ProcessPtr == NULL) {
-        /* If IsWow64Process not available, could not be running on 64 bits */
-        *is_wow64P = 0;
-        return TRUE;
-    }
-    
-    if (IsWow64ProcessPtr(h, is_wow64P)) {
-        return TRUE;
-    }
-    
-    return FALSE;               /* Some error */
-}
-#endif
-
-#ifndef TWAPI_LEAN
-
+/* Processes and threads */
+int Twapi_GetProcessList(TwapiInterpContext *, int objc, Tcl_Obj * CONST objv[]);
+int Twapi_EnumProcesses (TwapiInterpContext *ticP);
+int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP);
+int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle);
+int TwapiCreateProcessHelper(Tcl_Interp *interp, int func, int objc, Tcl_Obj * CONST objv[]);
+int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
+                                                    HANDLE processH);
+int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp,
+                                                   HANDLE threadH);
 /* Wrapper around NtQuerySystemInformation to process list */
 int Twapi_GetProcessList(
     TwapiInterpContext *ticP,
@@ -317,9 +308,7 @@ int Twapi_GetProcessList(
     TwapiFree(bufP);
     return TCL_OK;
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 /*
  * Helper to enumerate processes, or modules for a
  * process with a given pid
@@ -415,29 +404,21 @@ static int Twapi_EnumProcessesModules (TwapiInterpContext *ticP, int type, HANDL
 
     return result;
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 int Twapi_EnumProcesses (TwapiInterpContext *ticP) 
 {
     return Twapi_EnumProcessesModules(ticP, 0, NULL);
 }
-#endif // TWAPI_LEAN
 
-
-#ifndef TWAPI_LEAN
 int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle) 
 {
     return Twapi_EnumProcessesModules(ticP, 1, phandle);
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP)
 {
     return Twapi_EnumProcessesModules(ticP, 2, NULL);
 }
-#endif // TWAPI_LEAN
 
 int Twapi_WaitForInputIdle(
     Tcl_Interp *interp,
@@ -688,29 +669,23 @@ int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp, HANDLE th
 }
 #endif // TWAPI_LEAN
 
-int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
+
+BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P)
 {
-    LPWSTR *argv;
-    int     argc;
-    int     i;
-    Tcl_Obj *resultObj;
+    FARPROC IsWow64ProcessPtr = Twapi_GetProc_IsWow64Process();
 
-    argv = CommandLineToArgvW(cmdlineP, &argc);
-    if (argv == NULL) {
-        return TwapiReturnSystemError(interp);
+    if (IsWow64ProcessPtr == NULL) {
+        /* If IsWow64Process not available, could not be running on 64 bits */
+        *is_wow64P = 0;
+        return TRUE;
     }
-
-    resultObj = Tcl_NewListObj(0, NULL);
-    for (i= 0; i < argc; ++i) {
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
+    
+    if (IsWow64ProcessPtr(h, is_wow64P)) {
+        return TRUE;
     }
-
-    Tcl_SetObjResult(interp, resultObj);
-
-    GlobalFree(argv);
-    return TCL_OK;
+    
+    return FALSE;               /* Some error */
 }
-
 
 #ifdef FRAGILE
 /* Emulates the rundll32.exe interface */
@@ -849,4 +824,283 @@ EXCEPTION_ON_FALSE GetProcessMemoryInfo(
     );
 #endif
 
+static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+    LPWSTR s;
+    DWORD dw, dw2, dw3;
+    union {
+        DWORD_PTR dwp;
+        WCHAR buf[MAX_PATH+1];
+        MODULEINFO moduleinfo;
+    } u;
+    HANDLE h;
+    HMODULE hmod;
+    LPVOID pv;
+    TwapiResult result;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+    switch (func) {
+    case 1:
+        return Twapi_EnumProcesses(ticP);
+    case 2:
+        return Twapi_EnumDeviceDrivers(ticP);
+    case 3:
+        result.type = TRT_DWORD;
+        result.value.ival = GetCurrentThreadId();
+        break;
+    case 4:
+        result.type = TRT_HANDLE;
+        result.value.hval = GetCurrentThread();
+        break;
+    case 5: // CreateProcess
+    case 6: // CreateProcessAsUser
+        return TwapiCreateProcessHelper(interp, func==6, objc-2, objv+2);
+    case 7: // ReadProcessMemory
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETDWORD_PTR(u.dwp), GETVOIDP(pv),
+                         GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type =
+            ReadProcessMemory(h, (void *)u.dwp, pv, dw, &result.value.dwp)
+            ? TRT_DWORD_PTR : TRT_GETLASTERROR;
+        break;
+    case 8: // GetModuleFileName
+    case 9: // GetModuleBaseName
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETHANDLET(hmod, HMODULE),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if ((func == 8 ?
+             GetModuleFileNameExW
+             : GetModuleBaseNameW)
+            (h, hmod, u.buf, ARRAYSIZE(u.buf))) {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = u.buf;
+            result.value.unicode.len = -1;
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 10: // GetModuleInformation
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETHANDLET(hmod, HMODULE),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (GetModuleInformation(h, hmod,
+                                 &u.moduleinfo, sizeof(u.moduleinfo))) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromMODULEINFO(&u.moduleinfo);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 11:
+        return Twapi_GetProcessList(ticP, objc-2, objv+2);
+    case 12:
+        break; // UNUSED
+    case 13:
+    case 14:
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 13:
+            result.type = TRT_DWORD;
+            result.value.ival = SetThreadExecutionState(dw);
+            break;
+        case 14:
+            result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
+                : TRT_GETLASTERROR;
+            break;
+        }
+        break;
+    case 15:
+    case 16:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_HANDLE;
+        result.value.hval = (func == 15 ? OpenProcess : OpenThread)(dw, dw2, dw3);
+        break;
+    case 17:
+    case 18:
+    case 19:
+    case 20:
+    case 21:
+    case 22:
+    case 23:
+    case 24:
+    case 25:
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 17:
+            return Twapi_EnumProcessModules(ticP, h);
+        case 18:
+            result.type = Twapi_IsWow64Process(h, &result.value.bval)
+                ? TRT_BOOL : TRT_GETLASTERROR;
+            break;
+        case 19:
+            result.type = TRT_EXCEPTION_ON_MINUSONE;
+            result.value.ival = ResumeThread(h);
+            break;
+        case 20:
+            result.type = TRT_EXCEPTION_ON_MINUSONE;
+            result.value.ival = SuspendThread(h);
+            break;
+        case 21:
+            result.type = TRT_NONZERO_RESULT;
+            result.value.ival = GetPriorityClass(h);
+            break;
+        case 22:
+            return Twapi_NtQueryInformationProcessBasicInformation(interp, h);
+        case 23:
+            return Twapi_NtQueryInformationThreadBasicInformation(interp, h);
+        case 24:
+            result.value.ival = GetThreadPriority(h);
+            result.type = result.value.ival == THREAD_PRIORITY_ERROR_RETURN
+                ? TRT_GETLASTERROR : TRT_DWORD;
+            break;
+        case 25:
+            result.type = GetExitCodeProcess(h, &result.value.ival)
+                ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 26:
+            result.value.unicode.len = GetProcessImageFileNameW(h, u.buf, ARRAYSIZE(u.buf));
+            if (result.value.unicode.len) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = u.buf;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
+        }
+        break;
+    case 27: // GetModuleHandleEx
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETINT(dw), ARGSKIP,
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+
+        if (dw & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) {
+            /* Argument is address in a module */
+            if (ObjToDWORD_PTR(interp, objv[3], &u.dwp) != TCL_OK)
+                return TCL_ERROR;
+        } else {
+            s = Tcl_GetUnicode(objv[3]);
+            NULLIFY_EMPTY(s);
+            u.dwp = (DWORD_PTR) s;
+        }
+        if (GetModuleHandleExW(dw, (LPCWSTR) u.dwp, &result.value.hmodule))
+            result.type = TRT_HMODULE;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 28:
+    case 29:
+    case 30:
+    case 31:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 28:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = TerminateProcess(h, dw);
+            break;
+        case 29:
+            return Twapi_WaitForInputIdle(interp, h, dw);
+        case 30:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetPriorityClass(h, dw);
+            break;
+        case 31:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetThreadPriority(h, dw);
+            break;
+        }
+        break;
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+static int Twapi_ProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::ProcessCall", Twapi_ProcessCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ProcessCall", # code_); \
+    } while (0);
+
+    CALL_(EnumProcesses, 1);
+    CALL_(EnumDeviceDrivers, 2);
+    CALL_(GetCurrentThreadId, 3);
+    CALL_(GetCurrentThread, 4);
+    CALL_(CreateProcess, 5);
+    CALL_(CreateProcessAsUser, 6);
+    CALL_(ReadProcessMemory, 7);
+    CALL_(GetModuleFileNameEx, 8);
+    CALL_(GetModuleBaseName, 9);
+    CALL_(GetModuleInformation, 10);
+    CALL_(Twapi_GetProcessList, 11);
+    CALL_(SetThreadExecutionState, 13);
+    CALL_(ProcessIdToSessionId, 14);
+    CALL_(OpenProcess, 15);
+    CALL_(OpenThread, 16);
+    CALL_(EnumProcessModules, 17);
+    CALL_(IsWow64Process, 18);
+    CALL_(ResumeThread, 19);
+    CALL_(SuspendThread, 20);
+    CALL_(GetPriorityClass, 21);
+    CALL_(Twapi_NtQueryInformationProcessBasicInformation, 22);
+    CALL_(Twapi_NtQueryInformationThreadBasicInformation, 23);
+    CALL_(GetThreadPriority, 24);
+    CALL_(GetExitCodeProcess, 25);
+    CALL_(GetProcessImageFileName, 26); /* TBD - Tcl wrapper */
+    CALL_(GetModuleHandleEx, 27);
+    CALL_(TerminateProcess, 28);
+    CALL_(WaitForInputIdle, 29);
+    CALL_(SetPriorityClass, 30);
+    CALL_(SetThreadPriority, 31);
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_process_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_ProcessInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
 

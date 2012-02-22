@@ -217,6 +217,26 @@ proc twapi::create_process {path args} {
     }
 }
 
+# Wait until the process is ready
+proc twapi::process_waiting_for_input {pid args} {
+    array set opts [parseargs args {
+        {wait.int 0}
+    } -maxleftover 0]
+
+    if {$pid == [pid]} {
+        variable my_process_handle
+        return [WaitForInputIdle $my_process_handle $opts(wait)]
+    }
+
+    set hpid [get_process_handle $pid]
+    trap {
+        return [WaitForInputIdle $hpid $opts(wait)]
+    } finally {
+        CloseHandle $hpid
+    }
+}
+
+
 
 # Get a handle to a process
 proc twapi::get_process_handle {pid args} {
@@ -1570,6 +1590,17 @@ proc twapi::set_thread_relative_priority {tid priority} {
     }
 }
 
+# Return type of process elevation
+proc twapi::get_process_elevation {args} {
+    lappend args -elevation
+    return [lindex [_token_info_helper $args] 1]
+}
+
+# Return integrity level of process
+proc twapi::get_process_integrity {args} {
+    lappend args -integrity
+    return [lindex [_token_info_helper $args] 1]
+}
 
 # Return whether a process is running under WoW64
 proc twapi::wow64_process {args} {
@@ -1599,18 +1630,6 @@ proc twapi::wow64_process {args} {
     # Common case - checking about ourselves
     variable my_process_handle
     return [IsWow64Process $my_process_handle]
-}
-
-# Return type of process elevation
-proc twapi::get_process_elevation {args} {
-    lappend args -elevation
-    return [lindex [_token_info_helper $args] 1]
-}
-
-# Return integrity level of process
-proc twapi::get_process_integrity {args} {
-    lappend args -integrity
-    return [lindex [_token_info_helper $args] 1]
 }
 
 # Check whether a process is virtualized

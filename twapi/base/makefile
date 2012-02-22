@@ -24,7 +24,6 @@ OBJS  = \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
-	$(OBJDIR)\process.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\security.obj \
 	$(OBJDIR)\share.obj \
@@ -45,13 +44,11 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\metoo.tcl \
 	..\tcl\osinfo.tcl \
 	..\tcl\security.tcl \
-	..\tcl\process.tcl \
 	..\tcl\disk.tcl \
 	..\tcl\ui.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
-	..\tcl\process2.tcl \
 	..\tcl\accounts.tcl \
 	..\tcl\share.tcl \
 	..\tcl\synch.tcl \

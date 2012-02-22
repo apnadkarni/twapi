@@ -357,10 +357,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(Wow64DisableWow64FsRedirection, Call, 41);
     CALL_(GetSystemWow64Directory, Call, 42);
-    CALL_(EnumProcesses, Call, 43);
-    CALL_(EnumDeviceDrivers, Call, 44);
-    CALL_(GetCurrentThreadId, Call, 45);
-    CALL_(GetCurrentThread, Call, 46);
     CALL_(GetCommandLineW, Call, 47);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -415,8 +411,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(MonitorFromPoint, Call, 10010);
     CALL_(MonitorFromRect, Call, 10011);
     CALL_(EnumDisplayDevices, Call, 10012);
-    CALL_(CreateProcess, Call, 10015);
-    CALL_(CreateProcessAsUser, Call, 10016);
     CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, Call, 10017);
     CALL_(LsaQueryInformationPolicy, Call, 10018);
     CALL_(LsaGetLogonSessionData, Call, 10019);
@@ -430,12 +424,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetSecurityInfo, Call, 10041);
     CALL_(WTSSendMessage, Call, 10044);
     CALL_(DuplicateTokenEx, Call, 10045);
-    CALL_(ReadProcessMemory, Call, 10046);
     CALL_(Twapi_AdjustTokenPrivileges, Call, 10047);
     CALL_(Twapi_PrivilegeCheck, Call, 10048);
-    CALL_(GetModuleFileNameEx, Call, 10054);
-    CALL_(GetModuleBaseName, Call, 10055);
-    CALL_(GetModuleInformation, Call, 10056);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(GetNumberFormat, Call, 10070);
     CALL_(GetCurrencyFormat, Call, 10071);
@@ -474,7 +464,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
-    CALL_(Twapi_GetProcessList, Call, 10130);
     CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
@@ -483,8 +472,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10139); // Tcl
 
-
-
     // CallU API
     CALL_(GetStdHandle, CallU, 4);
     CALL_(VerLanguageName, CallU, 7);
@@ -492,7 +479,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Wow64EnableWow64FsRedirection, CallU, 16);
     CALL_(GetSystemMetrics, CallU, 17);
     CALL_(Sleep, CallU, 18);
-    CALL_(SetThreadExecutionState, CallU, 19);
     CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
@@ -507,7 +493,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetGUIThreadInfo, CallU, 31);
     CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
-    CALL_(ProcessIdToSessionId, CallU, 35);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
@@ -518,8 +503,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetLocaleInfo, CallU, 1006);
     CALL_(ExitWindowsEx, CallU, 1007);
 
-    CALL_(OpenProcess, CallU, 2001);
-    CALL_(OpenThread, CallU, 2002);
     CALL_(OpenInputDesktop, CallU, 2003);
     CALL_(AttachThreadInput, CallU, 2004);
     CALL_(RegisterHotKey, CallU, 2005);
@@ -531,7 +514,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GlobalAlloc, CallU, 10001);
     CALL_(LHashValOfName, CallU, 10002);
     CALL_(SetStdHandle, CallU, 10004);
-    CALL_(GetModuleHandleEx, CallU, 10005);
 
     // CallS - function(LPWSTR)
     CALL_(GetDriveType, CallS, 3);
@@ -574,15 +556,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
     CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
-    CALL_(EnumProcessModules, CallH, 17);
-    CALL_(IsWow64Process, CallH, 18);
-    CALL_(ResumeThread, CallH, 19);
-    CALL_(SuspendThread, CallH, 20);
-    CALL_(GetPriorityClass, CallH, 21);
-    CALL_(Twapi_NtQueryInformationProcessBasicInformation, CallH, 22);
-    CALL_(Twapi_NtQueryInformationThreadBasicInformation, CallH, 23);
-    CALL_(GetThreadPriority, CallH, 24);
-    CALL_(GetExitCodeProcess, CallH, 25);
     CALL_(LsaClose, CallH, 26);
     CALL_(ImpersonateLoggedOnUser, CallH, 27);
     CALL_(CloseThemeData, CallH, 30);
@@ -617,7 +590,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
-    CALL_(GetProcessImageFileName, CallH, 65); /* TBD - Tcl wrapper */
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
     CALL_(GetDeviceDriverBaseName, CallH, 69);
@@ -628,10 +600,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetTokenInformation, CallH, 1006);
     CALL_(Twapi_SetTokenVirtualizationEnabled, CallH, 1007);
     CALL_(Twapi_SetTokenMandatoryPolicy, CallH, 1008);
-    CALL_(TerminateProcess, CallH, 1009);
-    CALL_(WaitForInputIdle, CallH, 1010);
-    CALL_(SetPriorityClass, CallH, 1011);
-    CALL_(SetThreadPriority, CallH, 1012);
     CALL_(GetDeviceCaps, CallH, 1016);
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
@@ -898,7 +866,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         LARGE_INTEGER largeint;
         RECT rect;
         TOKEN_PRIVILEGES *tokprivsP;
-        MODULEINFO moduleinfo;
         DISPLAY_DEVICEW display_device;
         MIB_TCPROW tcprow;
         struct sockaddr_in sinaddr;
@@ -1035,18 +1002,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 42:
             return Twapi_GetSystemWow64Directory(interp);
-        case 43:
-            return Twapi_EnumProcesses(ticP);
-        case 44:
-            return Twapi_EnumDeviceDrivers(ticP);
-        case 45:
-            result.type = TRT_DWORD;
-            result.value.ival = GetCurrentThreadId();
-            break;
-        case 46:
-            result.type = TRT_HANDLE;
-            result.value.hval = GetCurrentThread();
-            break;
+            // 43-46 UNUSED
         case 47:
             result.value.unicode.str = GetCommandLineW();
             result.value.unicode.len = -1;
@@ -1367,14 +1323,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.value.ival = ERROR_INVALID_PARAMETER;
             }
             break;
-                      
-        case 10013: // UNUSED
-        case 10014: // UNUSED
-            break;
+        // 10013 - 10016: // UNUSED
 
-        case 10015: // CreateProcess
-        case 10016: // CreateProcessAsUser
-            return TwapiCreateProcessHelper(interp, func==10016, objc-2, objv+2);
         case 10017:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETVAR(secdP, ObjToPSECURITY_DESCRIPTOR),
@@ -1551,17 +1501,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-
-        case 10046: // ReadProcessMemory
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETDWORD_PTR(dwp), GETVOIDP(pv),
-                             GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type =
-                ReadProcessMemory(h, (void *)dwp, pv, dw, &result.value.dwp)
-                ? TRT_DWORD_PTR : TRT_GETLASTERROR;
-            break;
+        // 10046 UNUSED
         case 10047: // AdjustTokenPrivileges
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETBOOL(dw),
@@ -1592,34 +1532,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 10051: // UNUSED
         case 10052: // UNUSED
         case 10053: // UNUSED
-            break;
-        case 10054: // GetModuleFileName
-        case 10055: // GetModuleBaseName
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETHANDLET(hmod, HMODULE),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if ((func == 10054 ?
-                 GetModuleFileNameExW
-                 : GetModuleBaseNameW)
-                (h, hmod, u.buf, ARRAYSIZE(u.buf))) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 10056: // GetModuleInformation
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETHANDLET(hmod, HMODULE),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (GetModuleInformation(h, hmod,
-                                     &u.moduleinfo, sizeof(u.moduleinfo))) {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromMODULEINFO(&u.moduleinfo);
-            } else
-                result.type = TRT_GETLASTERROR;
             break;
         case 10058: // DsGetDcName
             guidP = &guid;
@@ -1889,12 +1801,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-            // 10123 - 10129 UNUSED
-            break;
-#ifndef TWAPI_LEAN
-        case 10130:
-            return Twapi_GetProcessList(ticP, objc-2, objv+2);
-#endif
+            // 10123 - 10130 UNUSED
         case 10131: // TWapi_SetNetEnumBufSize - replace with generic TWAPI configuration TBD
             if (objc > 2) {
                 result.value.ival = Tcl_GetIntFromObj(interp, objv[2], &dw);
@@ -1962,8 +1869,8 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
-        RPC_STATUS rpc_status;
         DWORD_PTR dwp;
+        RPC_STATUS rpc_status;
         char *utf8;
         LPWSTR str;
         HANDLE h;
@@ -2012,7 +1919,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 16:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
-            break;
         case 17:
             result.type = TRT_DWORD;
             result.value.ival = GetSystemMetrics(dw);
@@ -2021,10 +1927,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EMPTY;
             Sleep(dw);
             break;
-        case 19:
-            result.type = TRT_DWORD;
-            result.value.ival = SetThreadExecutionState(dw);
-            break;
+            // 19 - UNUSED
         case 20:
             return Twapi_EnumPrinters_Level4(interp, dw);
         case 21:
@@ -2084,11 +1987,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.obj = Twapi_MapWindowsErrorToString(dw);
             result.type = TRT_OBJ;
             break;
-        case 35:
-            result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
-                : TRT_GETLASTERROR;
-            break;
-//        case 36: UNUSED
+        // 35 - 36 UNUSED
         case 37:
             u.lifoP = TwapiAlloc(sizeof(MemLifo));
             result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
@@ -2162,14 +2061,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
-        case 2001:
-            result.type = TRT_HANDLE;
-            result.value.hval = OpenProcess(dw, dw2, dw3);
-            break;
-        case 2002:
-            result.type = TRT_HANDLE;
-            result.value.hval = OpenThread(dw, dw2, dw3);
-            break;
+            // 2001-2002 UNUSED
         case 2003:
             result.type = TRT_HDESK;
             result.value.hval = OpenInputDesktop(dw, dw2, dw3);
@@ -2200,7 +2092,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         }
     } else {
-        /* Exactly on additional argument */
+        /* Exactly one additional argument */
         if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -2221,21 +2113,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetStdHandle(dw, u.h);
-            break;
-        case 10005: // GetModuleHandleEx
-            if (dw & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS) {
-                /* Argument is address in a module */
-                if (ObjToDWORD_PTR(interp, objv[3], &u.dwp) != TCL_OK)
-                    return TCL_ERROR;
-            } else {
-                u.str = Tcl_GetUnicode(objv[3]);
-                NULLIFY_EMPTY(u.str);
-                u.dwp = (DWORD_PTR) u.str;  /* Actually a no-op */
-            }
-            if (GetModuleHandleExW(dw, (LPCWSTR) u.dwp, &result.value.hmodule))
-                result.type = TRT_HMODULE;
-            else
-                result.type = TRT_GETLASTERROR;
             break;
         }
     }
@@ -2489,7 +2366,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         WCHAR buf[MAX_PATH+1];
         TWAPI_TOKEN_MANDATORY_POLICY ttmp;
         TWAPI_TOKEN_MANDATORY_LABEL ttml;
-        MODULEINFO moduleinfo;
         LSA_UNICODE_STRING lsa_ustr;
         SECURITY_ATTRIBUTES *secattrP;
         MONITORINFOEXW minfo;
@@ -2541,41 +2417,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = GetDevicePowerState(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;
             break;
-
-#ifndef TWAPI_LEAN
-        case 17:
-            return Twapi_EnumProcessModules(ticP, h);
-        case 18:
-            result.type = Twapi_IsWow64Process(h, &result.value.bval)
-                ? TRT_BOOL : TRT_GETLASTERROR;
-            break;
-        case 19:
-            result.type = TRT_EXCEPTION_ON_MINUSONE;
-            result.value.ival = ResumeThread(h);
-            break;
-        case 20:
-            result.type = TRT_EXCEPTION_ON_MINUSONE;
-            result.value.ival = SuspendThread(h);
-            break;
-        case 21:
-            result.type = TRT_NONZERO_RESULT;
-            result.value.ival = GetPriorityClass(h);
-            break;
-        case 22:
-            return Twapi_NtQueryInformationProcessBasicInformation(interp, h);
-        case 23:
-            return Twapi_NtQueryInformationThreadBasicInformation(interp, h);
-        case 24:
-            result.value.ival = GetThreadPriority(h);
-            result.type = result.value.ival == THREAD_PRIORITY_ERROR_RETURN
-                ? TRT_GETLASTERROR : TRT_DWORD;
-            break;
-#endif // TWAPI_LEAN
-        
-        case 25:
-            result.type = GetExitCodeProcess(h, &result.value.ival)
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
+            // 17-25 UNUSED
         case 26:
             result.value.ival = LsaClose(h);
             result.type = TRT_DWORD;
@@ -2736,15 +2578,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ImpersonateNamedPipeClient(h);
             break;
-        case 65:
-            result.value.unicode.len = GetProcessImageFileNameW(h, u.buf, ARRAYSIZE(u.buf));
-            if (result.value.unicode.len) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
+        // 65 - UNUSED
         case 66:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetEvent(h);
@@ -2807,22 +2641,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                                                     &u.ttmp, sizeof(u.ttmp));
             break;
 #endif // TWAPI_LEAN
-
-        case 1009:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = TerminateProcess(h, dw);
-            break;
-        case 1010:
-            return Twapi_WaitForInputIdle(interp, h, dw);
-        case 1011:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetPriorityClass(h, dw);
-            break;
-        case 1012:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetThreadPriority(h, dw);
-            break;
-        // 1013-1015 UNUSED
+        // 1009-1015 UNUSED
         case 1016:
             result.type = TRT_DWORD;
             result.value.ival = GetDeviceCaps(h, dw);
