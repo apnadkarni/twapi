@@ -1310,6 +1310,21 @@ proc twapi::kl_print {kl args} {
     return
 }
 
+# Get the command line
+proc twapi::get_command_line {} {
+    return [GetCommandLineW]
+}
+
+# Parse the command line
+proc twapi::get_command_line_args {cmdline} {
+    # Special check for empty line. CommandLinetoArgv returns process
+    # exe name in this case.
+    if {[string length $cmdline] == 0} {
+        return [list ]
+    }
+    return [CommandLineToArgv $cmdline]
+}
+
 
 # Return an array as a list of -index value pairs
 proc twapi::_get_array_as_options {v_arr} {
@@ -1320,8 +1335,6 @@ proc twapi::_get_array_as_options {v_arr} {
     }
     return $result
 }
-
-
 
 # Parse a list of two integers or a x,y pair and return a list of two integers
 # Generate exception on format error using msg
@@ -1609,6 +1622,7 @@ proc twapi::Twapi_AddressToPtr {addr type} {
 proc twapi::_log_timestamp {} {
     return [clock format [clock seconds] -format "%a %T"]
 }
+
 
 # If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
 # we expect all source files to have been appended to this file. So do not
