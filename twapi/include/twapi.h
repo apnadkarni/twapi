@@ -982,8 +982,6 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
-void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
@@ -1022,18 +1020,6 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
 int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
-
-/* Processes and threads */
-int Twapi_GetProcessList(TwapiInterpContext *, int objc, Tcl_Obj * CONST objv[]);
-int Twapi_EnumProcesses (TwapiInterpContext *ticP);
-int Twapi_EnumDeviceDrivers(TwapiInterpContext *ticP);
-int Twapi_EnumProcessModules(TwapiInterpContext *ticP, HANDLE phandle);
-int TwapiCreateProcessHelper(Tcl_Interp *interp, int func, int objc, Tcl_Obj * CONST objv[]);
-int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
-                                                    HANDLE processH);
-int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp,
-                                                   HANDLE threadH);
-int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
 
 /* Shares and LANMAN */
 int Twapi_WNetGetUniversalName(TwapiInterpContext *ticP, LPCWSTR localpathP);
@@ -1170,6 +1156,8 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
     } while (0)
 
 
+
+int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
 
 
 /* WTS */
@@ -1363,7 +1351,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *re
 
 TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
-
+TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
+TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 
 TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
 TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
@@ -1373,7 +1362,6 @@ TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP);
 #define NULL_TOKEN_L L"__null__"
 TWAPI_EXTERN LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP);
 
-TWAPI_EXTERN Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP);
 TWAPI_EXTERN Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl);
 TWAPI_EXTERN int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP);
 TWAPI_EXTERN void TwapiFreePIDL(LPITEMIDLIST idlistP);

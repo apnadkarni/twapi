@@ -431,7 +431,21 @@ namespace eval twapi::misc::test {
         twapi::IsEqualGUID "{[string range $uuid 0 end-1]0}" "{[string range $uuid 0 end-1]1}"
     } -result 0
 
+    ################################################################
 
+    test get_command_line-1.0 {
+        Get the command line of the current process
+    } -body {
+        lrange [twapi::get_command_line] 1 end
+    } -result [linsert $argv 0 $argv0] -match list
+
+    ################################################################
+
+    test get_command_line_args-1.0 {
+        Get the command line of the current process
+    } -body {
+        twapi::get_command_line_args [twapi::get_command_line]
+    } -result "* $argv0 $argv" -match glob
 
     ################################################################
 
