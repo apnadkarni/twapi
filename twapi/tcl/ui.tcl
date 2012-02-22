@@ -1532,26 +1532,6 @@ proc twapi::tkpath_to_hwnd {tkpath} {
     return [cast_handle [winfo id $tkpath] HWND]
 }
 
-# Wait until the process is ready
-proc twapi::process_waiting_for_input {pid args} {
-    array set opts [parseargs args {
-        {wait.int 0}
-    } -maxleftover 0]
-
-    if {$pid == [pid]} {
-        variable my_process_handle
-        return [WaitForInputIdle $my_process_handle $opts(wait)]
-    }
-
-    set hpid [get_process_handle $pid]
-    trap {
-        return [WaitForInputIdle $hpid $opts(wait)]
-    } finally {
-        CloseHandle $hpid
-    }
-}
-
-
 ################################################################
 # Utility routines
 
