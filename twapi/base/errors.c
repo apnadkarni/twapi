@@ -32,6 +32,43 @@ static struct TWAPI_ERROR_MAP error_map[] = {
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 
+int TwapiFormatMessageHelper(
+    Tcl_Interp *interp,
+    DWORD   dwFlags,
+    LPCVOID lpSource,
+    DWORD   dwMessageId,
+    DWORD   dwLanguageId,
+    int     argc,
+    LPCWSTR *argv
+)
+{
+    WCHAR *msgP;
+
+    /* For security reasons, MSDN recommends not to use FormatMessageW
+       with arbitrary codes unless IGNORE_INSERTS is also used, in which
+       case arguments are ignored. As Richter suggested in his book,
+       TWAPI used to use __try to protect against this but note _try
+       does not protect against malicious buffer overflows.
+
+       There is also another problem in that we are passing all strings
+       but the format specifiers in the message may expect (for example)
+       integer values. We have no way of doing the right thing without
+       building a FormatMessage parser ourselves. That is what we do
+       at the script level and force IGNORE_INSERTS here.
+
+       As a side-benefit, not using __try reduces CRT dependency.
+    */
+
+    dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
+    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
+        Tcl_SetObjResult(interp, ObjFromUnicode(msgP));
+        LocalFree(msgP);
+        return TCL_OK;
+    } else {
+        return TwapiReturnSystemError(interp);
+    }
+}
+
 static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
 {
     int   length;
