@@ -1644,6 +1644,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
         security.tcl
         process.tcl
         disk.tcl
+        win.tcl
     } {
         source [file join [file dirname [info script]] $::twapi::_field_]
     }
@@ -1652,6 +1653,8 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
     if {[lsearch [::twapi::get_build_config opts] nodesktop] < 0} {
         foreach ::twapi::_field_ {
             ui.tcl
+            input.tcl
+            sound.tcl
             clipboard.tcl
             shell.tcl
             nls.tcl
@@ -1684,7 +1687,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
             network.tcl
             console.tcl
             synch.tcl
-            desktop.tcl
+            winsta.tcl
             printer.tcl
             mstask.tcl
             msi.tcl

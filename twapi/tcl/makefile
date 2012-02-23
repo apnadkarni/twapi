@@ -12,10 +12,10 @@ BUILDIDPATH="$(PACKAGEDIR)\twapi_buildid.tcl"
 
 # Mandatory files. twapi.tcl must come first since this
 # is the order in which files are combined as well.
-BASE_TCLFILES=twapi.tcl handle.tcl metoo.tcl osinfo.tcl security.tcl process.tcl disk.tcl 
+BASE_TCLFILES=twapi.tcl handle.tcl metoo.tcl osinfo.tcl security.tcl process.tcl disk.tcl win.tcl
 
 # Desktop files
-DESKTOP_TCLFILES= ui.tcl clipboard.tcl nls.tcl shell.tcl com.tcl
+DESKTOP_TCLFILES= ui.tcl input.tcl sound.tcl clipboard.tcl nls.tcl shell.tcl com.tcl
 
 # Server files
 SERVER_TCLFILES= services.tcl eventlog.tcl
@@ -23,7 +23,7 @@ SERVER_TCLFILES= services.tcl eventlog.tcl
 # Files for full build
 EXTRA_TCLFILES= \
 	adsi.tcl pdh.tcl process2.tcl accounts.tcl share.tcl \
-        network.tcl synch.tcl desktop.tcl \
+        network.tcl synch.tcl winsta.tcl \
         printer.tcl mstask.tcl msi.tcl crypto.tcl \
         device.tcl power.tcl namedpipe.tcl resource.tcl rds.tcl \
 	wmi.tcl etw.tcl

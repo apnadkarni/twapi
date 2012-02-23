@@ -107,6 +107,60 @@ proc twapi::extract_resources {hmod {withdata 0}} {
     return $result
 }
 
+# TBD - do we document this?
+proc twapi::write_bmp_file {filename bmp} {
+    # Assumes $bmp is clipboard content in format 8 (CF_DIB)
+
+    # First parse the bitmap data to collect header information
+    binary scan $bmp "iiissiiiiii" size width height planes bitcount compression sizeimage xpelspermeter ypelspermeter clrused clrimportant
+
+    # We only handle BITMAPINFOHEADER right now (size must be 40)
+    if {$size != 40} {
+        error "Unsupported bitmap format. Header size=$size"
+    }
+
+    # We need to figure out the offset to the actual bitmap data
+    # from the start of the file header. For this we need to know the
+    # size of the color table which directly follows the BITMAPINFOHEADER
+    if {$bitcount == 0} {
+        error "Unsupported format: implicit JPEG or PNG"
+    } elseif {$bitcount == 1} {
+        set color_table_size 2
+    } elseif {$bitcount == 4} {
+        # TBD - Not sure if this is the size or the max size
+        set color_table_size 16
+    } elseif {$bitcount == 8} {
+        # TBD - Not sure if this is the size or the max size
+        set color_table_size 256
+    } elseif {$bitcount == 16 || $bitcount == 32} {
+        if {$compression == 0} {
+            # BI_RGB
+            set color_table_size $clrused
+        } elseif {$compression == 3} {
+            # BI_BITFIELDS
+            set color_table_size 3
+        } else {
+            error "Unsupported compression type '$compression' for bitcount value $bitcount"
+        }
+    } elseif {$bitcount == 24} {
+        set color_table_size $clrused
+    } else {
+        error "Unsupported value '$bitcount' in bitmap bitcount field"
+    }
+
+    set filehdr_size 14;                # sizeof(BITMAPFILEHEADER)
+    set bitmap_file_offset [expr {$filehdr_size+$size+($color_table_size*4)}]
+    set filehdr [binary format "a2 i x2 x2 i" "BM" [expr {$filehdr_size + [string length $bmp]}] $bitmap_file_offset]
+
+    set fd [open $filename w]
+    fconfigure $fd -translation binary
+
+    puts -nonewline $fd $filehdr
+    puts -nonewline $fd $bmp
+
+    close $fd
+}
+
 proc twapi::_load_image {flags type hmod path args} {
     # The flags arg is generally 0x10 (load from file), or 0 (module)
     # or'ed with 0x8000 (shared). The latter can be overridden by
