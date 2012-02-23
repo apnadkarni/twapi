@@ -19,15 +19,6 @@ static char *apiprocs =
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
     "                                                                        \n"
     "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
-    "proc twapi::NetUserGetInfo {system account level} {\n"
-    "    return [twapi::CallSSSD 10 $system $account {} $level]\n"
-    "}\n"
-    "proc twapi::NetGroupGetInfo {system account level} {\n"
-    "    return [twapi::CallSSSD 11 $system $account {} $level]\n"
-    "}\n"
-    "proc twapi::NetLocalGroupGetInfo {system account level} {\n"
-    "    return [twapi::CallSSSD 12 $system $account {} $level]\n"
-    "}\n"
     "proc twapi::NetUseGetInfo {server share level} {\n"
     "    return [CallSSSD 24 $server $share {} $level]\n"
     "}\n"
@@ -55,12 +46,6 @@ static char *apiprocs =
     "}\n"
     "proc twapi::GetPrivateProfileSection {app file} {\n"
     "    return [CallSSSD 9 $file $app]\n"
-    "}\n"
-    "proc twapi::Twapi_NetUserSetInfoDWORD {func server name level} {\n"
-    "    return [CallSSSD $func $server $name {} $level];\n"
-    "}\n"
-    "proc twapi::Twapi_NetUserSetInfoLPWSTR {func server name value} {\n"
-    "    return [CallSSSD $func $server $name $value 0];\n"
     "}\n"
     "proc twapi::IsValidSid {sid} {\n"
     "    return [CallPSID 1 {} $sid]\n"
@@ -569,21 +554,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
     CALL_(LookupAccountName, CallSSSD, 1);
-    CALL_(NetUserAdd, CallSSSD, 2);
     CALL_(NetShareSetInfo, CallSSSD, 3);
     CALL_(LogonUser, CallSSSD, 5);
     CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
     CALL_(LookupPrivilegeValue, CallSSSD, 14);
-    CALL_(NetGroupAdd, CallSSSD, 15);
-    CALL_(NetLocalGroupAdd, CallSSSD, 16);
-    CALL_(NetGroupDel, CallSSSD, 17);
-    CALL_(NetLocalGroupDel, CallSSSD, 18);
-    CALL_(NetGroupAddUser, CallSSSD, 19);
-    CALL_(NetGroupDelUser, CallSSSD, 20);
-    CALL_(Twapi_NetLocalGroupAddMember, CallSSSD, 21);
-    CALL_(Twapi_NetLocalGroupDelMember, CallSSSD, 22);
     CALL_(Twapi_NetShareCheck, CallSSSD, 26);
-    CALL_(NetUserDel, CallSSSD, 29);
     CALL_(NetSessionGetInfo, CallSSSD, 32);
     CALL_(NetSessionDel, CallSSSD, 33);
     CALL_(NetGetDCName, CallSSSD, 34);
@@ -603,14 +578,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     // CallNetEnum - function(STRING, ....)
     CALL_(NetUseEnum, CallNetEnum, 1);
-    CALL_(NetUserEnum, CallNetEnum, 2);
-    CALL_(NetGroupEnum, CallNetEnum, 3);
-    CALL_(NetLocalGroupEnum, CallNetEnum, 4);
     CALL_(NetShareEnum, CallNetEnum, 5);
-    CALL_(NetUserGetGroups, CallNetEnum, 6);
-    CALL_(NetUserGetLocalGroups, CallNetEnum, 7);
-    CALL_(NetLocalGroupGetMembers, CallNetEnum, 8);
-    CALL_(NetGroupGetUsers, CallNetEnum, 9);
     CALL_(NetConnectionEnum, CallNetEnum, 10);
     CALL_(NetFileEnum, CallNetEnum, 11);
     CALL_(NetSessionEnum, CallNetEnum, 12);
@@ -2368,7 +2336,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s1, s2, s3, s4, s5, s6;
+    LPWSTR s1, s2, s3;
     DWORD   dw, dw2;
     TwapiResult result;
     union {
@@ -2388,51 +2356,10 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         return TCL_ERROR;
 
     result.type = TRT_BADFUNCTIONCODE;
-
-    if (func == 0 || (func > 1000 && func < 2000)) {
-        switch (func) {
-        case 1005: // This block of function codes maps directly to
-        case 1008: // the function codes accepted by Twapi_NetUserSetInfoDWORD.
-        case 1010: // A bit klugy but the easiest way to keep backwards
-        case 1017: // compatibility.
-        case 1024: 
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = Twapi_NetUserSetInfoDWORD(func, s1, s2, dw);
-            break;
-
-        case 0:    // See note above except that this maps to 
-        case 1003: // Twapi_NetUserSetInfoLPWSTR instead of the
-        case 1006: // Twapi_NetUserSetInfoDWORD functions
-        case 1007:
-        case 1009:
-        case 1011:
-        case 1052:
-        case 1053:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1, s2, s3);
-            break;
-
-        }
-    }
-
-    if (result.type != TRT_BADFUNCTIONCODE)
-        return TwapiSetResult(interp, &result);
-
     switch (func) {
-        // NOTE case 0: is defined above with the Twapi_NetUserSetInfoLPWSTR 
-        // section.
     case 1:
         return Twapi_LookupAccountName(interp, s1, s2);
-#ifndef TWAPI_LEAN
-    case 2: // NetUserAdd
-        if (TwapiGetArgs(interp, objc-6, objv+6,
-                         GETNULLIFEMPTY(s4), GETNULLIFEMPTY(s5),
-                         GETINT(dw2), GETNULLIFEMPTY(s6),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        return Twapi_NetUserAdd(interp, s1, s2, s3, dw, s4, s5, dw2, s6);
-#endif
-
+    // 2 - UNUSED
     case 3: // NetShareSetInfo
         if (objc != 7)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2471,12 +2398,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 9:
         // Note s2,s1, not s1,s2
         return Twapi_GetPrivateProfileSection(ticP, s2, s1);
-    case 10:
-        return Twapi_NetUserGetInfo(interp, s1, s2, dw);
-    case 11:
-        return Twapi_NetGroupGetInfo(interp, s1, s2, dw);
-    case 12:
-        return Twapi_NetLocalGroupGetInfo(interp, s1, s2, dw);
     case 13:
         result.value.unicode.len = ARRAYSIZE(u.buf);
         if (LookupPrivilegeDisplayNameW(s1,s2,u.buf,&result.value.unicode.len,&dw)) {
@@ -2491,48 +2412,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-    case 15:
-        u.gi1.grpi1_name = s2;
-        NULLIFY_EMPTY(s3);
-        u.gi1.grpi1_comment = s3;
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetGroupAdd(s1, 1, (LPBYTE)&u.gi1, NULL);
-        break;
-    case 16:
-        u.lgi1.lgrpi1_name = s2;
-        NULLIFY_EMPTY(s3);
-        u.lgi1.lgrpi1_comment = s3;
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetLocalGroupAdd(s1, 1, (LPBYTE)&u.lgi1, NULL);
-        break;
-    case 17:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetGroupDel(s1,s2);
-        break;
-    case 18:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetLocalGroupDel(s1,s2);
-        break;
-    case 19:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetGroupAddUser(s1,s2,s3);
-        break;
-    case 20:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetGroupDelUser(s1,s2,s3);
-        break;
-    case 21:
-        u.lgmi3.lgrmi3_domainandname = s3;
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetLocalGroupAddMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
-        break;
-    case 22:
-        u.lgmi3.lgrmi3_domainandname = s3;
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetLocalGroupDelMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
-        break;
-    case 23: // UNUSED
-        break;
+    // 15-23 UNUSED
     case 24:
         return Twapi_NetUseGetInfo(interp, s1, s2, dw);
     case 25:
@@ -2543,18 +2423,9 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         return Twapi_NetShareCheck(interp, s1, s2);
     case 27:
         return Twapi_NetShareGetInfo(interp, s1,s2,dw);
-//  case 28: UNUSED
-    case 29: // NetUserDel
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetUserDel(s1, s2);
-        break;
-#ifndef TWAPI_LEAN
-//  case 30: UNUSED
-//  case 31: UNUSED
-#endif
+    //  case 28-31: UNUSED
     case 32:
         return Twapi_NetSessionGetInfo(interp, s1,s2,s3,dw);
-
     case 33:
         result.type = TRT_EXCEPTION_ON_ERROR;
         NULLIFY_EMPTY(s2);
@@ -2799,7 +2670,7 @@ int Twapi_CallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 {
     int func;
     LPWSTR s1, s2, s3;
-    DWORD   dw, dwresume;
+    DWORD   dwresume;
     TwapiResult result;
     TwapiNetEnumContext netenum;
 
@@ -2832,40 +2703,6 @@ int Twapi_CallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         netenum.tag = TWAPI_NETENUM_USEINFO;
         return TwapiReturnNetEnum(interp,&netenum);
 
-    case 2:
-        // NetUserEnum system level filter resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(netenum.level), GETINT(dw), GETINT(dwresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = NetUserEnum(s1, netenum.level, dw,
-                                       &netenum.netbufP,
-                                       twapi_netenum_bufsize,
-                                       &netenum.entriesread,
-                                       &netenum.totalentries,
-                                       &dwresume);
-        netenum.hresume = (DWORD_PTR) dwresume;
-        netenum.tag = TWAPI_NETENUM_USERINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    case 3: // NetGroupEnum system level resumehandle
-    case 4: // NetLocalGroupEnum system level resumehandle
-        // Not shared with case 1: because different const qualifier on function
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status =
-            (func == 3 ? NetGroupEnum : NetLocalGroupEnum) (
-                s1, netenum.level,
-                &netenum.netbufP,
-                twapi_netenum_bufsize,
-                &netenum.entriesread,
-                &netenum.totalentries,
-                &netenum.hresume);
-        netenum.tag = (func == 3 ? TWAPI_NETENUM_GROUPINFO : TWAPI_NETENUM_LOCALGROUPINFO);
-        return TwapiReturnNetEnum(interp,&netenum);
-
     case 5: // NetShareEnum system level resumehandle
         // Not shared with above code because first param has a const
         // qualifier in above cases which results in warnings if 
@@ -2884,45 +2721,6 @@ int Twapi_CallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         netenum.tag = TWAPI_NETENUM_SHAREINFO;
         return TwapiReturnNetEnum(interp,&netenum);
 
-    case 6:
-        // NetUserGetGroups server user level
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETWSTR(s2), GETINT(netenum.level),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.hresume = 0; /* Not used for these calls */
-        netenum.status = NetUserGetGroups(
-            s1, s2, netenum.level, &netenum.netbufP,
-            twapi_netenum_bufsize, &netenum.entriesread, &netenum.totalentries);
-        netenum.tag = TWAPI_NETENUM_GROUPUSERSINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    case 7:
-        // NetUserGetLocalGroups server user level flags
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETWSTR(s2), GETINT(netenum.level), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.hresume = 0; /* Not used for these calls */
-        netenum.status = NetUserGetLocalGroups (
-            s1, s2, netenum.level, dw, &netenum.netbufP, twapi_netenum_bufsize,
-            &netenum.entriesread, &netenum.totalentries);
-        netenum.tag = TWAPI_NETENUM_LOCALGROUPUSERSINFO;
-        return TwapiReturnNetEnum(interp, &netenum);
-
-    case 8:
-    case 9:
-        // NetLocalGroupGetMembers server group level resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETWSTR(s2), GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = (func == 8 ? NetLocalGroupGetMembers : NetGroupGetUsers) (
-            s1, s2, netenum.level, &netenum.netbufP, twapi_netenum_bufsize,
-            &netenum.entriesread, &netenum.totalentries, &netenum.hresume);
-        netenum.tag = (func == 8 ?
-                       TWAPI_NETENUM_LOCALGROUPMEMBERSINFO : TWAPI_NETENUM_GROUPUSERSINFO);
-        return TwapiReturnNetEnum(interp,&netenum);
 
     case 10:  // NetConnectionEnum server group level resumehandle
         // Not shared with other code because first param has a const

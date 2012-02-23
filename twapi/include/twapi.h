@@ -1054,20 +1054,6 @@ int Twapi_NetShareAdd(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 /* Security related */
 int Twapi_LookupAccountName (Tcl_Interp *interp, LPCWSTR sysname, LPCWSTR name);
 int Twapi_LookupAccountSid (Tcl_Interp *interp, LPCWSTR sysname, PSID sidP);
-int Twapi_NetUserEnum(Tcl_Interp *interp, LPWSTR server_name, DWORD filter);
-int Twapi_NetGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
-int Twapi_NetLocalGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
-int Twapi_NetUserGetGroups(Tcl_Interp *interp, LPWSTR server, LPWSTR user);
-int Twapi_NetUserGetLocalGroups(Tcl_Interp *interp, LPWSTR server,
-                                LPWSTR user, DWORD flags);
-int Twapi_NetLocalGroupGetMembers(Tcl_Interp *interp, LPWSTR server, LPWSTR group);
-int Twapi_NetGroupGetUsers(Tcl_Interp *interp, LPCWSTR server, LPCWSTR group);
-int Twapi_NetUserGetInfo(Tcl_Interp *interp, LPCWSTR server,
-                         LPCWSTR user, DWORD level);
-int Twapi_NetGroupGetInfo(Tcl_Interp *interp, LPCWSTR server,
-                          LPCWSTR group, DWORD level);
-int Twapi_NetLocalGroupGetInfo(Tcl_Interp *interp, LPCWSTR server,
-                               LPCWSTR group, DWORD level);
 int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp);
 int Twapi_LsaQueryInformationPolicy (Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]
 );
@@ -1078,11 +1064,6 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 
 int TwapiReturnNetEnum(Tcl_Interp *interp, TwapiNetEnumContext *necP);
 int Twapi_NetUseEnum(Tcl_Interp *interp);
-int Twapi_NetUserSetInfoDWORD(int fun, LPCWSTR server, LPCWSTR user, DWORD dw);
-int Twapi_NetUserSetInfoLPWSTR(int fun, LPCWSTR server, LPCWSTR user, LPWSTR s);
-int Twapi_NetUserAdd(Tcl_Interp *interp, LPCWSTR servername, LPWSTR name,
-                     LPWSTR password, DWORD priv, LPWSTR home_dir,
-                     LPWSTR comment, DWORD flags, LPWSTR script_path);
 int Twapi_GetTokenInformation(Tcl_Interp *interp, HANDLE tokenH, int tclass);
 int Twapi_SetTokenPrimaryGroup(HANDLE tokenH, PSID sidP);
 int Twapi_SetTokenVirtualizationEnabled(HANDLE tokenH, DWORD enabled);
