@@ -935,6 +935,9 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     case 23:
     case 24:
     case 25:
+    case 26:
+    case 27:
+    case 28:
         if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -978,9 +981,48 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 result.type = TRT_GETLASTERROR;
             }
             break;
+        case 27:                /* GetDeviceDriverBaseNameW */
+        case 28:                /* GetDeviceDriverFileNameW */
+            if ((func == 27 ?
+                 GetDeviceDriverBaseNameW
+                 : GetDeviceDriverFileNameW) (
+                     (LPVOID) h,
+                     u.buf,
+                     ARRAYSIZE(u.buf))) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = u.buf;
+                result.value.unicode.len = -1;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
         break;
-    case 27: // GetModuleHandleEx
+    case 29:
+    case 30:
+    case 31:
+    case 32:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 29:
+            return Twapi_WaitForInputIdle(interp, h, dw);
+        case 30:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetPriorityClass(h, dw);
+            break;
+        case 31:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetThreadPriority(h, dw);
+            break;
+        case 32:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = TerminateProcess(h, dw);
+            break;
+        }
+        break;
+    case 33: // GetModuleHandleEx
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETINT(dw), ARGSKIP,
                          ARGEND) != TCL_OK)
@@ -999,31 +1041,6 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.type = TRT_HMODULE;
         else
             result.type = TRT_GETLASTERROR;
-        break;
-    case 28:
-    case 29:
-    case 30:
-    case 31:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLE(h), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        switch (func) {
-        case 28:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = TerminateProcess(h, dw);
-            break;
-        case 29:
-            return Twapi_WaitForInputIdle(interp, h, dw);
-        case 30:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetPriorityClass(h, dw);
-            break;
-        case 31:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetThreadPriority(h, dw);
-            break;
-        }
         break;
     }
 
@@ -1067,11 +1084,16 @@ static int Twapi_ProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetThreadPriority, 24);
     CALL_(GetExitCodeProcess, 25);
     CALL_(GetProcessImageFileName, 26); /* TBD - Tcl wrapper */
-    CALL_(GetModuleHandleEx, 27);
-    CALL_(TerminateProcess, 28);
+    CALL_(GetDeviceDriverBaseName, 27);
+    CALL_(GetDeviceDriverFileName, 28);
+
+                                                   
     CALL_(WaitForInputIdle, 29);
     CALL_(SetPriorityClass, 30);
     CALL_(SetThreadPriority, 31);
+    CALL_(TerminateProcess, 32);
+
+    CALL_(GetModuleHandleEx, 33);
 
 #undef CALL_
 
