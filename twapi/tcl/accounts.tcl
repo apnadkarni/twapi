@@ -59,21 +59,21 @@ proc twapi::delete_user {username args} {
 
 # Define various functions to set various user account fields
 foreach twapi::_field_ {
-    {name LPWSTR 0}
-    {password LPWSTR 1003}
-    {home_dir LPWSTR 1006}
-    {comment LPWSTR 1007}
-    {script_path LPWSTR 1009}
-    {full_name LPWSTR 1011}
-    {country_code DWORD 1024}
-    {profile LPWSTR 1052}
-    {home_dir_drive LPWSTR 1053}
+    {name  0}
+    {password  1003}
+    {home_dir  1006}
+    {comment  1007}
+    {script_path  1009}
+    {full_name  1011}
+    {country_code  1024}
+    {profile  1052}
+    {home_dir_drive  1053}
 } {
     proc twapi::set_user_[lindex $::twapi::_field_ 0] {username fieldval args} "
         array set opts \[parseargs args {
             system.arg
         } -nulldefault \]
-        Twapi_NetUserSetInfo[lindex $::twapi::_field_ 1] [lindex $::twapi::_field_ 2] \$opts(system) \$username \$fieldval"
+        Twapi_NetUserSetInfo [lindex $::twapi::_field_ 1] \$opts(system) \$username \$fieldval"
 }
 unset twapi::_field_
 
@@ -88,7 +88,7 @@ proc twapi::set_user_expiration {username time args} {
             set time [clock scan $time]
         }
     }
-    Twapi_NetUserSetInfoDWORD 1017 $opts(system) $username $time
+    Twapi_NetUserSetInfo 1017 $opts(system) $username $time
 }
 
 # Unlock a user account
@@ -849,7 +849,7 @@ proc twapi::_change_user_info_flags {username mask values args} {
     set flags [expr {$flags | ($values & $mask)}]
 
     # Write new flags back
-    Twapi_NetUserSetInfoDWORD 1008 $opts(system) $username $flags
+    Twapi_NetUserSetInfo 1008 $opts(system) $username $flags
 }
 
 # Map impersonation level to symbol
