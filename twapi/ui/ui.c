@@ -198,56 +198,6 @@ int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle)
     return TCL_OK;
 }
 
-/* Window station enumeration callback */
-BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARAM p_ctx) {
-    TwapiEnumCtx *p_enum_ctx =
-        (TwapiEnumCtx *) p_ctx;
-
-    Tcl_ListObjAppendElement(p_enum_ctx->interp,
-                             p_enum_ctx->objP,
-                             ObjFromUnicode(p_winsta));
-    return 1;
-}
-
-/* Window station enumeration */
-int Twapi_EnumWindowStations(Tcl_Interp *interp)
-{
-    TwapiEnumCtx enum_ctx;
-
-    enum_ctx.interp = interp;
-    enum_ctx.objP = Tcl_NewListObj(0, NULL);
-
-    
-    if (EnumWindowStationsW(Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
-        TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_ctx.objP);
-        return TCL_ERROR;
-    }
-
-    Tcl_SetObjResult(interp, enum_ctx.objP);
-    return TCL_OK;
-}
-
-/* Desktop enumeration */
-int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
-{
-    TwapiEnumCtx enum_ctx;
-
-    enum_ctx.interp = interp;
-    enum_ctx.objP = Tcl_NewListObj(0, NULL);
-
-    
-    if (EnumDesktopsW(hwinsta, Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
-        TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_ctx.objP);
-        return TCL_ERROR;
-    }
-
-    Tcl_SetObjResult(interp, enum_ctx.objP);
-    return TCL_OK;
-}
-
-
 /* Enumerate desktop windows
  */
 int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle)
@@ -1035,7 +985,6 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int iPartId;
     int iStateId;
     int iPropId;
-
     LOGFONTW lf;
     HRESULT hr;
 
@@ -1060,37 +1009,535 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     return TCL_OK;
 }
 
-static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s;
-    DWORD dw, dw2;
-    HMODULE hmod;
+    LPWSTR s, s2;
+    DWORD dw, dw2, dw3, dw4, dw5, dw6;
+    HANDLE h;
     TwapiResult result;
+    union {
+        FLASHWINFO flashw;
+        MONITORINFOEXW minfo;
+        RECT rect;
+        POINT  pt;
+        HGDIOBJ hgdiobj;
+        DISPLAY_DEVICEW display_device;
+        LOGFONTW lf;
+    } u;
+    RECT *rectP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
 
     result.type = TRT_BADFUNCTIONCODE;
-    switch (func) {
-    case 1:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
+    if (func < 1000) {
+        /* Functions taking no arguments */
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 1:
+            result.type = GetCursorPos(&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
+            break;
+        case 2:
+            result.type = GetCaretPos(&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
+            break;
+        case 3:
+            result.type = TRT_DWORD;
+            result.value.ival = GetCaretBlinkTime();
+            break;
+        case 4:
+            return Twapi_EnumWindows(interp);
+        case 5:
+            result.type = TRT_HWND;
+            result.value.hwin = GetDesktopWindow();
+            break;
+        case 6:
+            result.type = TRT_HWND;
+            result.value.hwin = GetShellWindow();
+            break;
+        case 7:
+            result.type = TRT_HWND;
+            result.value.hwin = GetForegroundWindow();
+            break;
+        case 8:
+            result.type = TRT_HWND;
+            result.value.hwin = GetActiveWindow();
+            break;
+        case 9:
+            result.type = TRT_BOOL;
+            result.value.bval = IsThemeActive();
+            break;
+        case 10:
+            result.type = TRT_BOOL;
+            result.value.bval = IsAppThemed();
+            break;
+        case 11:
+            return Twapi_GetCurrentThemeName(interp);
+        case 12:
+            result.type = TRT_HWND;
+            result.value.hwin = GetFocus();
+            break;
+        }
+    } else if (func < 2000) {
+        /* Exactly least one arg */
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 1001:
+            if (ObjToPOINT(interp, objv[2], &u.pt) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HWND;
+            result.value.hwin = WindowFromPoint(u.pt);
+            break;
+        case 1002:
+            if (ObjToFLASHWINFO(interp, objv[2], &u.flashw) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_BOOL;
+            result.value.bval = FlashWindowEx(&u.flashw);
+            break;
+        case 1003:
+            return TwapiGetThemeDefine(interp, Tcl_GetString(objv[2]));
+        case 1004:              /* DeleteObject */
+            if (ObjToOpaque(interp, objv[2], &u.hgdiobj, "HGDIOBJ") != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeleteObject(u.hgdiobj);
+            break;
+        }
+    } else if (func < 4000) {
+        /*
+         * At least one integer arg. Additional args ignored for some
+         * so arg errors are not quite accurate but that's ok, the
+         * Tcl wrappers catch them.
+         */
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGUSEDEFAULT,
+                         GETINT(dw2), GETINT(dw3), GETINT(dw4),
+                         GETINT(dw5), GETINT(dw6),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        NULLIFY_EMPTY(s);
-        result.type = TRT_BOOL;
-        result.value.ival = PlaySoundW(s, hmod, dw);
-        break;
-    case 2:
-        result.type = TRT_BOOL;
-        result.value.bval = MessageBeep(dw);
-        break;
-    case 3:
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Beep(dw, dw2);
-        break;
+        switch (func) {
+        case 3001:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetCaretBlinkTime(dw);
+            break;
+        case 3002:
+            return Twapi_GetGUIThreadInfo(interp, dw);
+        case 3003:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetCaretPos(dw, dw2);
+            break;
+        case 3004:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetCursorPos(dw, dw2);
+            break;
+        case 3005: // CreateRectRgn
+        case 3006: // CreateEllipticRgn
+            result.type = TRT_HRGN;
+            result.value.hval = (func == 3001 ? CreateRectRgn : CreateEllipticRgn)(dw, dw2, dw3, dw4);
+            break;
+        case 3007: // CreateRoundRectRgn
+            result.type = TRT_HRGN;
+            result.value.hval = CreateRoundRectRgn(dw, dw2, dw3, dw4, dw5, dw6);
+            break;
+        }
+    } else if (func < 5000) {
+        /* First arg is a handle */
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                         ARGUSEDEFAULT, GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 4001:
+            result.type = TRT_EMPTY;
+            CloseThemeData(h);
+            break;
+        case 4002:
+            return Twapi_EnumDesktopWindows(interp, h);
+        case 4003:
+            u.minfo.cbSize = sizeof(u.minfo);
+            if (GetMonitorInfoW(h, (MONITORINFO *)&u.minfo)) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromMONITORINFOEX((MONITORINFO *)&u.minfo);
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 4004: // GetThemeSysColor
+            result.type = TRT_DWORD;
+            result.value.ival = GetThemeSysColor(h, dw);
+            break;
+        case 4005: // GetThemeSysFont
+            result.type = TRT_OBJ;
+#if VER_PRODUCTVERSION <= 3790
+            /* NOTE GetThemeSysFont ExPECTS LOGFONTW although the
+             * docs/header mentions LOGFONT
+             */
+            result.value.ival =  GetThemeSysFont(h, dw, (LOGFONT*)&u.lf);
+#else
+            result.value.ival =  GetThemeSysFont(h, dw, &u.lf);
+#endif
+            if (result.value.ival == S_OK) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromLOGFONTW(&u.lf);
+            } else
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            break;
+        }
+    } else {
+        /* Arbitrary args */
+        switch (func) {
+        case 10001:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(u.pt, ObjToPOINT), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HMONITOR;
+            result.value.hval = MonitorFromPoint(u.pt, dw);
+            break;
+        case 10002:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(u.rect, ObjToRECT), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HMONITOR;
+            result.value.hval = MonitorFromRect(&u.rect, dw);
+            break;
+        case 10003: 
+            return Twapi_GetThemeColor(interp, objc-2, objv+2);
+        case 10004: 
+            return Twapi_GetThemeFont(interp, objc-2, objv+2);
+        case 10005:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            u.display_device.cb = sizeof(u.display_device);
+            if (EnumDisplayDevicesW(s, dw, &u.display_device, dw2)) {
+                result.value.obj = ObjFromDISPLAY_DEVICE(&u.display_device);
+                result.type = TRT_OBJ;
+            } else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = ERROR_INVALID_PARAMETER;
+            }
+            break;
+        case 10006:
+            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                             ARGSKIP, ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            rectP = &u.rect;
+            if (ObjToRECT_NULL(interp, objv[3], &rectP) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_EnumDisplayMonitors(interp, h, rectP);
+        case 10007:
+            if (TwapiGetArgs(interp, objc-2, objv+2, 
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HWND;
+            result.value.hwin = FindWindowW(s,s2);
+            break;
+        }
+    }
+    return TwapiSetResult(interp, &result);
+}
+
+int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HWND hwnd, hwnd2;
+    TwapiResult result;
+    DWORD dw, dw2, dw3, dw4, dw5;
+    Tcl_Obj *objs[2];
+    int func;
+    union {
+        WINDOWPLACEMENT winplace;
+        WINDOWINFO wininfo;
+        WCHAR buf[MAX_PATH+1];
+        RECT   rect;
+        HRGN   hrgn;
+    } u;
+    RECT *rectP;
+    LPWSTR s, s2;
+    HANDLE h;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETINT(func), GETHWND(hwnd),
+                     ARGTERM) != TCL_OK)
+        return TCL_ERROR;
+
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 1000) {
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 1:
+            result.type = TRT_BOOL;
+            result.value.bval = IsIconic(hwnd);
+            break;
+        case 2:
+            result.type = TRT_BOOL;
+            result.value.bval = IsZoomed(hwnd);
+            break;
+        case 3:
+            result.type = TRT_BOOL;
+            result.value.bval = IsWindowVisible(hwnd);
+            break;
+        case 4:
+            result.type = TRT_BOOL;
+            result.value.bval = IsWindow(hwnd);
+            break;
+        case 5:
+            result.type = TRT_BOOL;
+            result.value.bval = IsWindowUnicode(hwnd);
+            break;
+        case 6:
+            result.type = TRT_BOOL;
+            result.value.bval = IsWindowEnabled(hwnd);
+            break;
+        case 7:
+            result.type = TRT_BOOL;
+            result.value.bval = ArrangeIconicWindows(hwnd);
+            break;
+        case 8:
+            result.type = TRT_BOOL;
+            result.value.bval = SetForegroundWindow(hwnd);
+            break;
+        case 9:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = OpenIcon(hwnd);
+            break;
+        case 10:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CloseWindow(hwnd);
+            break;
+        case 11:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DestroyWindow(hwnd);
+            break;
+        case 12:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = UpdateWindow(hwnd);
+            break;
+        case 13:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = HideCaret(hwnd);
+            break;
+        case 14:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = ShowCaret(hwnd);
+            break;
+        case 15:
+            result.type = TRT_HWND;
+            result.value.hwin = GetParent(hwnd);
+            break;
+        case 16:
+            if (GetWindowInfo(hwnd, &u.wininfo)) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromWINDOWINFO(&u.wininfo);
+                break;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
+        case 17:
+            result.type = GetClientRect(hwnd, &result.value.rect) ? TRT_RECT : TRT_GETLASTERROR;
+            break;
+        case 18:
+            result.type = GetWindowRect(hwnd, &result.value.rect) ? TRT_RECT : TRT_GETLASTERROR;
+            break;
+        case 19:
+            result.type = TRT_HDC;
+            result.value.hval = GetDC(hwnd);
+            break;
+        case 20:
+            result.type = TRT_HWND;
+            result.value.hwin = SetFocus(hwnd);
+            break;
+        case 21:
+            result.value.hwin = SetActiveWindow(hwnd);
+            result.type = result.value.hwin ? TRT_HWND : TRT_GETLASTERROR;
+            break;
+        case 22:
+            result.value.unicode.len = GetClassNameW(hwnd, u.buf, ARRAYSIZE(u.buf));
+            result.value.unicode.str = u.buf;
+            result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
+            break;
+        case 23:
+            result.value.unicode.len = RealGetWindowClassW(hwnd, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
+            result.value.unicode.str = u.buf;
+            result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
+            break;
+        case 24:
+            dw2 = GetWindowThreadProcessId(hwnd, &dw);
+            if (dw2 == 0) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                objs[0] = Tcl_NewLongObj(dw2);
+                objs[1] = Tcl_NewLongObj(dw);
+                result.value.objv.nobj = 2;
+                result.value.objv.objPP = objs;
+                result.type = TRT_OBJV;
+            }
+            break;
+        case 25:
+            SetLastError(0);            /* Make sure error is not set */
+            result.type = TRT_UNICODE;
+            result.value.unicode.len = GetWindowTextW(hwnd, u.buf, ARRAYSIZE(u.buf));
+            result.value.unicode.str = u.buf;
+            /* Distinguish between error and empty string when count is 0 */
+            if (result.value.unicode.len == 0 && GetLastError()) {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
+        case 26:
+            result.type = TRT_HDC;
+            result.value.hval = GetWindowDC(hwnd);
+            break;
+        case 27:
+            if (GetWindowPlacement(hwnd, &u.winplace)) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromWINDOWPLACEMENT(&u.winplace);
+                break;
+            } else {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
+
+        case 28:
+            return Twapi_EnumChildWindows(interp, hwnd);
+        }
+    } else if (func < 500) {
+        /* Exactly one additional int arg */
+        if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 501:
+            result.value.hwin = GetAncestor(hwnd, dw);
+            result.type = TRT_HWND;
+            break;
+        case 502:
+            result.value.hwin = GetWindow(hwnd, dw);
+            result.type = TRT_HWND;
+            break;
+        case 503:
+            result.value.bval = ShowWindow(hwnd, dw);
+            result.type = TRT_BOOL;
+            break;
+        case 504:
+            result.value.bval = ShowWindowAsync(hwnd, dw);
+            result.type = TRT_BOOL;
+            break;
+        case 505:
+            result.value.bval = EnableWindow(hwnd, dw);
+            result.type = TRT_BOOL;
+            break;
+        case 506:
+            result.value.ival = ShowOwnedPopups(hwnd, dw);
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            break;
+        case 507:
+            result.type = TRT_HMONITOR;
+            result.value.hval = MonitorFromWindow(hwnd, dw);
+            break;
+        }        
+    } else {
+        /* At least one additional arg */
+        if (objc < 4)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+        switch (func) {
+        case 1001: // SetWindowText
+            result.value.ival = SetWindowTextW(hwnd, Tcl_GetUnicode(objv[3]));
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            break;
+        case 1002: // IsChild
+            if (ObjToHWND(interp, objv[3], &hwnd2) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_BOOL;
+            result.value.bval = IsChild(hwnd, hwnd2);
+            break;
+        case 1003: //SetWindowPlacement
+            if (ObjToWINDOWPLACEMENT(interp, objv[3], &u.winplace) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetWindowPlacement(hwnd, &u.winplace);
+            break;
+        case 1004: // InvalidateRect
+            rectP = &u.rect;
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETVAR(rectP, ObjToRECT_NULL), GETINT(dw), 
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = InvalidateRect(hwnd, rectP, dw);
+            break;
+        case 1005: // SetWindowPos
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETHANDLET(hwnd2, HWND), GETINT(dw), GETINT(dw2),
+                             GETINT(dw3), GETINT(dw4), GETINT(dw5),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetWindowPos(hwnd, hwnd2, dw, dw2, dw3, dw4, dw5);
+            break;
+        case 1006: // FindWindowEx
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETHANDLET(hwnd2, HWND),
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HWND;
+            result.value.hval = FindWindowExW(hwnd, hwnd2, s, s2);
+            break;
+        case 1007:
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETHANDLET(h, HDC),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_DWORD;
+            result.value.ival = ReleaseDC(hwnd, h);
+            break;
+        case 1008:
+            result.type = TRT_HANDLE;
+            result.value.hval = OpenThemeData(hwnd, Tcl_GetUnicode(objv[3]));
+            break;
+        case 1009: // SetWindowRgn
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETHANDLET(u.hrgn, HRGN), GETBOOL(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetWindowRgn(hwnd, u.hrgn, dw);
+            break;
+        case 1010: // GetWindowRgn
+            if (TwapiGetArgs(interp, objc-3, objv+3, 
+                             GETHANDLET(u.hrgn, HRGN),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_DWORD;
+            result.value.ival = GetWindowRgn(hwnd, u.hrgn);
+            break;
+        case 1011:
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETINT(dw), GETINT(dw2), GETINT(dw3),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetLayeredWindowAttributes(hwnd, dw, (BYTE)dw2, dw3);
+            break;
+        case 1012:
+            if (TwapiGetArgs(interp, objc-3, objv+3,
+                             GETINT(dw), GETINT(dw2), GETINT(dw3),
+                             GETINT(dw4), GETINT(dw5),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = MoveWindow(hwnd, dw, dw2, dw3, dw4, dw5);
+            break;
+        }
     }
 
     return TwapiSetResult(interp, &result);
@@ -1101,7 +1548,6 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::UiCall", Twapi_UiCallObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::UiCallW", Twapi_UiCallWObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::UiCallWU", Twapi_UiCallWUObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
@@ -1109,44 +1555,42 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Ui" #call_, # code_); \
     } while (0);
 
+    CALL_(GetCursorPos, Call, 1);
+    CALL_(GetCaretPos, Call, 2);
+    CALL_(GetCaretBlinkTime, Call, 3);
+    CALL_(EnumWindows, Call, 4);
     CALL_(GetDesktopWindow, Call, 5);
     CALL_(GetShellWindow, Call, 6);
     CALL_(GetForegroundWindow, Call, 7);
     CALL_(GetActiveWindow, Call, 8);
-    CALL_(IsThemeActive, Call, 54);
-    CALL_(IsAppThemed, Call, 55);
-    CALL_(GetCurrentThemeName, Call, 56);
-    CALL_(GetCursorPos, Call, 61);
-    CALL_(GetCaretPos, Call, 62);
-    CALL_(GetCaretBlinkTime, Call, 63);
-    CALL_(EnumWindows, Call, 64);
-    CALL_(GetFocus, Call, 81);                  /* TBD Tcl */
+    CALL_(IsThemeActive, Call, 9);
+    CALL_(IsAppThemed, Call, 10);
+    CALL_(GetCurrentThemeName, Call, 11);
+    CALL_(GetFocus, Call, 12);                  /* TBD Tcl */
 
+    CALL_(WindowFromPoint, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
-    CALL_(WindowFromPoint, Call, 1009);
-    CALL_(TwapiGetThemeDefine, Call, 1021);
-    CALL_(MonitorFromPoint, Call, 10010);
-    CALL_(MonitorFromRect, Call, 10011);
-    CALL_(EnumDisplayDevices, Call, 10012);
-    CALL_(GetThemeColor, Call, 10089);
-    CALL_(GetThemeFont, Call, 10090);
-
-    CALL_(SetCaretBlinkTime, CallU, 29);
-    CALL_(GetGUIThreadInfo, CallU, 31);
-    CALL_(SetCaretPos, CallU, 1004);
-    CALL_(SetCursorPos, CallU, 1005);
-    CALL_(CreateRectRgn, CallU, 3001);
-    CALL_(CreateEllipticRgn, CallU, 3002);
-    CALL_(CreateRoundedRectRgn, CallU, 3003);
-    CALL_(CloseThemeData, CallH, 30);
-
-    CALL_(EnumDesktopWindows, CallH, 35);
-    CALL_(GetMonitorInfo, CallH, 58);
-
-    CALL_(GetThemeSysColor, CallH, 1021); /* TBD - tcl wrapper */
-    CALL_(GetThemeSysFont, CallH, 1022);  /* TBD - tcl wrapper */
-
-    CALL_(EnumDisplayMonitors, CallH, 10005);
+    CALL_(TwapiGetThemeDefine, Call, 1003);
+    CALL_(DeleteObject, Call, 1004);
+    CALL_(SetCaretBlinkTime, Call, 3001);
+    CALL_(GetGUIThreadInfo, Call, 3002);
+    CALL_(SetCaretPos, Call, 3003);
+    CALL_(SetCursorPos, Call, 3004);
+    CALL_(CreateRectRgn, Call, 3005);
+    CALL_(CreateEllipticRgn, Call, 3006);
+    CALL_(CreateRoundedRectRgn, Call, 3007);
+    CALL_(CloseThemeData, Call, 4001);
+    CALL_(EnumDesktopWindows, Call, 4002);
+    CALL_(GetMonitorInfo, Call, 4003);
+    CALL_(GetThemeSysColor, Call, 4004); /* TBD - tcl wrapper */
+    CALL_(GetThemeSysFont, Call, 4005);  /* TBD - tcl wrapper */
+    CALL_(MonitorFromPoint, Call, 10001);
+    CALL_(MonitorFromRect, Call, 10002);
+    CALL_(GetThemeColor, Call, 10003);
+    CALL_(GetThemeFont, Call, 10004);
+    CALL_(EnumDisplayDevices, Call, 10005);
+    CALL_(EnumDisplayMonitors, Call, 10006);
+    CALL_(FindWindow, Call, 10007);
 
     // CallW - function(HWND)
     CALL_(IsIconic, CallW, 1);
@@ -1164,6 +1608,7 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(HideCaret, CallW, 13);
     CALL_(ShowCaret, CallW, 14);
     CALL_(GetParent, CallW, 15);
+    CALL_(GetWindowInfo, CallW, 16); // TBD - Tcl wrapper
     CALL_(GetClientRect, CallW, 17);
     CALL_(GetWindowRect, CallW, 18);
     CALL_(GetDC, CallW, 19);
@@ -1174,10 +1619,15 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetWindowThreadProcessId, CallW, 24);
     CALL_(GetWindowText, CallW, 25);
     CALL_(GetWindowDC, CallW, 26);
+    CALL_(GetWindowPlacement, CallW, 27); // TBD - Tcl wrapper
     CALL_(EnumChildWindows, CallW, 28);
-    CALL_(GetWindowPlacement, CallW, 30); // TBD - Tcl wrapper
-    CALL_(GetWindowInfo, CallW, 31); // TBD - Tcl wrapper
-
+    CALL_(GetAncestor, CallW, 501);
+    CALL_(GetWindow, CallW, 502);
+    CALL_(ShowWindow, CallW, 503);
+    CALL_(ShowWindowAsync, CallW, 504);
+    CALL_(EnableWindow, CallW, 505);
+    CALL_(ShowOwnedPopups, CallW, 506);
+    CALL_(MonitorFromWindow, CallW, 507);
     CALL_(SetWindowText, CallW, 1001);
     CALL_(IsChild, CallW, 1002);
     CALL_(SetWindowPlacement, CallW, 1003); // TBD - Tcl wrapper
@@ -1188,20 +1638,9 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(OpenThemeData, CallW, 1008);
     CALL_(SetWindowRgn, CallW, 1009); // TBD - Tcl wrapper
     CALL_(GetWindowRgn, CallW, 1010); // TBD - Tcl wrapper
+    CALL_(SetLayeredWindowAttributes, CallW, 1011);
+    CALL_(MoveWindow, CallW, 1012);
 
-    // CallWU - function(HWND, DWORD)
-    CALL_(GetAncestor, CallWU, 1);
-    CALL_(GetWindow, CallWU, 2);
-    CALL_(ShowWindow, CallWU, 3);
-    CALL_(ShowWindowAsync, CallWU, 4);
-    CALL_(EnableWindow, CallWU, 5);
-    CALL_(ShowOwnedPopups, CallWU, 6);
-    CALL_(MonitorFromWindow, CallWU, 7);
-
-    CALL_(SetLayeredWindowAttributes, CallWU, 10001);
-    CALL_(MoveWindow, CallWU, 10002);
-
-    CALL_(FindWindow, CallSSSD, 38);
 
 #undef CALL_
 

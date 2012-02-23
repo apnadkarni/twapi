@@ -15,17 +15,61 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+/* Window station enumeration callback */
+BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARAM p_ctx) {
+    TwapiEnumCtx *p_enum_ctx =
+        (TwapiEnumCtx *) p_ctx;
+
+    Tcl_ListObjAppendElement(p_enum_ctx->interp,
+                             p_enum_ctx->objP,
+                             ObjFromUnicode(p_winsta));
+    return 1;
+}
+
+/* Window station enumeration */
+int Twapi_EnumWindowStations(Tcl_Interp *interp)
+{
+    TwapiEnumCtx enum_ctx;
+
+    enum_ctx.interp = interp;
+    enum_ctx.objP = Tcl_NewListObj(0, NULL);
+
+    
+    if (EnumWindowStationsW(Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
+        TwapiReturnSystemError(interp);
+        Twapi_FreeNewTclObj(enum_ctx.objP);
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, enum_ctx.objP);
+    return TCL_OK;
+}
+
+/* Desktop enumeration */
+int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
+{
+    TwapiEnumCtx enum_ctx;
+
+    enum_ctx.interp = interp;
+    enum_ctx.objP = Tcl_NewListObj(0, NULL);
+
+    
+    if (EnumDesktopsW(hwinsta, Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
+        TwapiReturnSystemError(interp);
+        Twapi_FreeNewTclObj(enum_ctx.objP);
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, enum_ctx.objP);
+    return TCL_OK;
+}
+
 static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    HWND   hwnd;
-    LPWSTR s, s2;
+    LPWSTR s;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
-    union {
-        NOTIFYICONDATAW *niP;
-        WCHAR buf[MAX_PATH+1];
-    } u;
     HANDLE h;
     TwapiResult result;
 
@@ -78,7 +122,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                          GETWSTR(s), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
-        result.value.hval = OpenWindowStationW(arg, dw, dw2);
+        result.value.hval = OpenWindowStationW(s, dw, dw2);
         break;
     case 8: // CreateDesktopW
         /* Note second, third args are ignored and are reserved as NULL */
@@ -147,12 +191,12 @@ static int Twapi_WinstaInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(OpenInputDesktop, 6); // TBD - Tcl
     CALL_(OpenWindowStation, 7);
     CALL_(CreateDesktop, 8); // TBD - Tcl
-    CALL_(CloseDesktop, CallH, 31);
-    CALL_(SwitchDesktop, CallH, 32);
-    CALL_(SetThreadDesktop, CallH, 33);
-    CALL_(EnumDesktops, CallH, 34);
-    CALL_(SetProcessWindowStation, CallH, 35);
-    CALL_(CloseWindowStation, CallH, 36);
+    CALL_(CloseDesktop, 31);
+    CALL_(SwitchDesktop, 32);
+    CALL_(SetThreadDesktop, 33);
+    CALL_(EnumDesktops, 34);
+    CALL_(SetProcessWindowStation, 35);
+    CALL_(CloseWindowStation, 36);
 
 #undef CALL_
 
@@ -173,7 +217,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
 #endif
-int Twapi_shell_Init(Tcl_Interp *interp)
+int Twapi_winsta_Init(Tcl_Interp *interp)
 {
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
@@ -182,6 +226,6 @@ int Twapi_shell_Init(Tcl_Interp *interp)
     }
 
     return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
-                            Twapi_ShellInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+                            Twapi_WinstaInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
 
