@@ -235,16 +235,9 @@ static void init_keyboard_input(INPUT *pin, WORD vkey, DWORD flags)
 static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    HWND   hwnd;
-    LPWSTR s, s2;
-    DWORD dw, dw2;
-    union {
-        LASTINPUTINFO lastin;
-        WCHAR buf[MAX_PATH+1];
-    } u;
-    HANDLE h;
+    DWORD dw, dw2, dw3;
+    LASTINPUTINFO lastin;
     TwapiResult result;
-    LPITEMIDLIST idlP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -257,10 +250,10 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         result.value.ival = GetDoubleClickTime();
         break;
     case 2:
-        u.lastin.cbSize = sizeof(u.lastin);
-        if (GetLastInputInfo(&u.lastin)) {
+        lastin.cbSize = sizeof(lastin);
+        if (GetLastInputInfo(&lastin)) {
             result.type = TRT_DWORD;
-            result.value.ival = u.lastin.dwTime;
+            result.value.ival = lastin.dwTime;
         } else {
             result.type = TRT_GETLASTERROR;
         }
@@ -269,7 +262,6 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     case 4:
     case 5:
     case 6:
-    case 7:
         if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -285,11 +277,14 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
             return Twapi_BlockInput(interp, dw);
         case 6:
             return Twapi_UnregisterHotKey(ticP, dw);
-        case 7:
-            result.type = TRT_DWORD;
-            result.value.ival = MapVirtualKey(dw, dw2);
-            break;
         }
+        break;
+    case 7:
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD;
+        result.value.ival = MapVirtualKey(dw, dw2);
         break;
     case 8:
         if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
@@ -326,7 +321,7 @@ static int Twapi_InputInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(MapVirtualKey, 7);
     CALL_(RegisterHotKey, 8);
     CALL_(SendInput, 9);
-    CALL_(Twapi_SendUnicode, CallS, 10);
+    CALL_(Twapi_SendUnicode, 10);
 
 #undef CALL_
 

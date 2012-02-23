@@ -1213,7 +1213,6 @@ TwapiTclObjCmd Twapi_CallSObjCmd;
 TwapiTclObjCmd Twapi_CallHObjCmd;
 TwapiTclObjCmd Twapi_CallHSUObjCmd;
 TwapiTclObjCmd Twapi_CallSSSDObjCmd;
-TwapiTclObjCmd Twapi_CallWObjCmd;
 TwapiTclObjCmd Twapi_CallWUObjCmd;
 TwapiTclObjCmd Twapi_CallPSIDObjCmd;
 TwapiTclObjCmd Twapi_CallNetEnumObjCmd;
