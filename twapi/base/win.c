@@ -299,3 +299,21 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
 
     return lresult;
 }
+
+/*
+ * Need this to be able to distinguish between return value of 0
+ * and a failure case.
+ */
+DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP)
+{
+    SetLastError(0);            /* Reset error */
+    *retP = SetWindowLongPtrW(hWnd, nIndex, lValue);
+    if (*retP == 0) {
+        /* Possible error */
+        DWORD error = GetLastError();
+        if (error) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}

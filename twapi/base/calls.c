@@ -332,10 +332,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
      * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
-    CALL_(GetDesktopWindow, Call, 5);
-    CALL_(GetShellWindow, Call, 6);
-    CALL_(GetForegroundWindow, Call, 7);
-    CALL_(GetActiveWindow, Call, 8);
     CALL_(GetLogicalDrives, Call, 18);
     CALL_(GetUserDefaultLangID, Call, 23);
     CALL_(GetSystemDefaultLangID, Call, 24);
@@ -363,18 +359,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LsaEnumerateLogonSessions, Call, 50);
     CALL_(RevertToSelf, Call, 51);
     CALL_(Twapi_InitializeSecurityDescriptor, Call, 52);
-    CALL_(IsThemeActive, Call, 54);
-    CALL_(IsAppThemed, Call, 55);
-    CALL_(GetCurrentThemeName, Call, 56);
-    CALL_(GetDoubleClickTime, Call, 58);
-    CALL_(EnumWindowStations, Call, 59);
-    CALL_(GetProcessWindowStation, Call, 60);
-    CALL_(GetCursorPos, Call, 61);
-    CALL_(GetCaretPos, Call, 62);
-    CALL_(GetCaretBlinkTime, Call, 63);
-    CALL_(EnumWindows, Call, 64);
     CALL_(FindFirstVolume, Call, 66);
-    CALL_(GetLastInputInfo, Call, 67);
     CALL_(GetSystemPowerStatus, Call, 68);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
@@ -385,16 +370,13 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemWindowsDirectory, Call, 78); /* TBD Tcl */
     CALL_(GetWindowsDirectory, Call, 79);       /* TBD Tcl */
     CALL_(GetSystemDirectory, Call, 80);        /* TBD Tcl */
-    CALL_(GetFocus, Call, 81);                  /* TBD Tcl */
     CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
     CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
-    CALL_(FlashWindowEx, Call, 1002);
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(canonicalize_guid, Call, 1005); // TBD Document
-    CALL_(WindowFromPoint, Call, 1009);
     CALL_(IsValidSecurityDescriptor, Call, 1010);
     CALL_(IsValidAcl, Call, 1014);
     CALL_(FileTimeToSystemTime, Call, 1016);
@@ -402,25 +384,18 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
     CALL_(Twapi_IsValidGUID, Call, 1019);
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
-    CALL_(TwapiGetThemeDefine, Call, 1021);
     CALL_(free, Call, 1022);
     CALL_(DeleteObject, Call, 1023);
 
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
-    CALL_(MonitorFromPoint, Call, 10010);
-    CALL_(MonitorFromRect, Call, 10011);
-    CALL_(EnumDisplayDevices, Call, 10012);
     CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, Call, 10017);
     CALL_(LsaQueryInformationPolicy, Call, 10018);
     CALL_(LsaGetLogonSessionData, Call, 10019);
     CALL_(CreateFile, Call, 10031);
     CALL_(SetNamedSecurityInfo, Call, 10032);
-    CALL_(CreateWindowStation, Call, 10033);
-    CALL_(OpenDesktop, Call, 10034);
     CALL_(Twapi_RegisterDirectoryMonitor, Call, 10035);
     CALL_(LookupPrivilegeName, Call, 10036);
-    CALL_(PlaySound, Call, 10037);
     CALL_(SetSecurityInfo, Call, 10041);
     CALL_(WTSSendMessage, Call, 10044);
     CALL_(DuplicateTokenEx, Call, 10045);
@@ -441,8 +416,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(win32_error, Call, 10081);
     CALL_(Twapi_WNetUseConnection, Call, 10084);
     CALL_(NetShareAdd, Call, 10085);
-    CALL_(GetThemeColor, Call, 10089);
-    CALL_(GetThemeFont, Call, 10090);
     CALL_(CreateMutex, Call, 10097);
     CALL_(OpenMutex, Call, 10098);
     CALL_(OpenSemaphore, Call, 10099); /* TBD - Tcl wrapper */
@@ -483,33 +456,16 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
     CALL_(ImpersonateSelf, CallU, 23);
-    CALL_(GetAsyncKeyState, CallU, 24);
-    CALL_(GetKeyState, CallU, 25);
-    CALL_(GetThreadDesktop, CallU, 26);
-    CALL_(BlockInput, CallU, 27);
-    CALL_(UnregisterHotKey, CallU, 28);
-    CALL_(SetCaretBlinkTime, CallU, 29);
-    CALL_(MessageBeep, CallU, 30);
-    CALL_(GetGUIThreadInfo, CallU, 31);
     CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
-    CALL_(Beep, CallU, 1002);
-    CALL_(MapVirtualKey, CallU, 1003);
-    CALL_(SetCaretPos, CallU, 1004);
-    CALL_(SetCursorPos, CallU, 1005);
     CALL_(GetLocaleInfo, CallU, 1006);
     CALL_(ExitWindowsEx, CallU, 1007);
 
-    CALL_(OpenInputDesktop, CallU, 2003);
-    CALL_(AttachThreadInput, CallU, 2004);
-    CALL_(RegisterHotKey, CallU, 2005);
-
-    CALL_(CreateRectRgn, CallU, 3001);
-    CALL_(CreateEllipticRgn, CallU, 3002);
-    CALL_(CreateRoundedRectRgn, CallU, 3003);
+    CALL_(AttachThreadInput, CallU, 2004); /* Must stay in twapi_base as
+                                              potentially used by many exts */
 
     CALL_(GlobalAlloc, CallU, 10001);
     CALL_(LHashValOfName, CallU, 10002);
@@ -528,12 +484,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetVolumeInformation, CallS, 14);
     CALL_(FindFirstVolumeMountPoint, CallS, 15);
     CALL_(GetDiskFreeSpaceEx, CallS, 16);
-#ifndef TWAPI_LEAN
     CALL_(AbortSystemShutdown, CallS, 17);
-#endif
     CALL_(GetPrivateProfileSectionNames, CallS, 18);
-    CALL_(SendInput, CallS, 19);
-    CALL_(Twapi_SendUnicode, CallS, 20);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
@@ -544,7 +496,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(NetFileClose, CallS, 503);
     CALL_(LoadLibraryEx, CallS, 504);
 
-    CALL_(OpenWindowStation, CallS, 1001);
     CALL_(WNetCancelConnection2, CallS, 1002);
     CALL_(NetFileGetInfo, CallS, 1003);
     CALL_(GetNamedSecurityInfo, CallS, 1004);
@@ -558,14 +509,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
     CALL_(LsaClose, CallH, 26);
     CALL_(ImpersonateLoggedOnUser, CallH, 27);
-    CALL_(CloseThemeData, CallH, 30);
-    CALL_(CloseDesktop, CallH, 31);
-    CALL_(SwitchDesktop, CallH, 32);
-    CALL_(SetThreadDesktop, CallH, 33);
-    CALL_(EnumDesktops, CallH, 34);
-    CALL_(EnumDesktopWindows, CallH, 35);
-    CALL_(CloseWindowStation, CallH, 36);
-    CALL_(SetProcessWindowStation, CallH, 37);
     CALL_(FindNextVolume, CallH, 38);
     CALL_(FindNextVolumeMountPoint, CallH, 39);
     CALL_(GetFileType, CallH, 40); /* TBD - TCL wrapper */
@@ -583,7 +526,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterDirectoryMonitor, CallH, 53);
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
-    CALL_(GetMonitorInfo, CallH, 58);
     CALL_(GetObject, CallH, 59);
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
@@ -592,8 +534,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ImpersonateNamedPipeClient, CallH, 64);
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
-    CALL_(GetDeviceDriverBaseName, CallH, 69);
-    CALL_(GetDeviceDriverFileName, CallH, 70);
+    CALL_(GetDeviceDriverBaseName, CallH, 69); TBD - move to process module?
+    CALL_(GetDeviceDriverFileName, CallH, 70); TBD - move to process module ?
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(OpenProcessToken, CallH, 1005);
@@ -604,8 +546,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
-    CALL_(GetThemeSysColor, CallH, 1021); /* TBD - tcl wrapper */
-    CALL_(GetThemeSysFont, CallH, 1022);  /* TBD - tcl wrapper */
 
     CALL_(WTSDisconnectSession, CallH, 2001);
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
@@ -622,66 +562,13 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetThreadToken, CallH, 10002);
     CALL_(Twapi_LsaEnumerateAccountsWithUserRight, CallH, 10003);
     CALL_(Twapi_SetTokenIntegrityLevel, CallH, 10004);
-    CALL_(EnumDisplayMonitors, CallH, 10005);
 
-    // CallW - function(HWND)
-    CALL_(IsIconic, CallW, 1);
-    CALL_(IsZoomed, CallW, 2);
-    CALL_(IsWindowVisible, CallW, 3);
-    CALL_(IsWindow, CallW, 4);
-    CALL_(IsWindowUnicode, CallW, 5);
-    CALL_(IsWindowEnabled, CallW, 6);
-    CALL_(ArrangeIconicWindows, CallW, 7);
-    CALL_(SetForegroundWindow, CallW, 8);
-    CALL_(OpenIcon, CallW, 9);
-    CALL_(CloseWindow, CallW, 10);
-    CALL_(DestroyWindow, CallW, 11);
-    CALL_(UpdateWindow, CallW, 12);
-    CALL_(HideCaret, CallW, 13);
-    CALL_(ShowCaret, CallW, 14);
-    CALL_(GetParent, CallW, 15);
-    CALL_(GetClientRect, CallW, 17);
-    CALL_(GetWindowRect, CallW, 18);
-    CALL_(GetDC, CallW, 19);
-    CALL_(SetFocus, CallW, 20);
-    CALL_(SetActiveWindow, CallW, 21);
-    CALL_(GetClassName, CallW, 22);
-    CALL_(RealGetWindowClass, CallW, 23);
-    CALL_(GetWindowThreadProcessId, CallW, 24);
-    CALL_(GetWindowText, CallW, 25);
-    CALL_(GetWindowDC, CallW, 26);
-    CALL_(EnumChildWindows, CallW, 28);
-    CALL_(GetWindowPlacement, CallW, 30); // TBD - Tcl wrapper
-    CALL_(GetWindowInfo, CallW, 31); // TBD - Tcl wrapper
-
-    CALL_(SetWindowText, CallW, 1001);
-    CALL_(IsChild, CallW, 1002);
-    CALL_(SetWindowPlacement, CallW, 1003); // TBD - Tcl wrapper
-    CALL_(InvalidateRect, CallW, 1004);     // TBD - Tcl wrapper
-    CALL_(SetWindowPos, CallW, 1005);
-    CALL_(FindWindowEx, CallW, 1006);
-    CALL_(ReleaseDC, CallW, 1007);
-    CALL_(OpenThemeData, CallW, 1008);
-    CALL_(SetWindowRgn, CallW, 1009); // TBD - Tcl wrapper
-    CALL_(GetWindowRgn, CallW, 1010); // TBD - Tcl wrapper
-
-
-    // CallWU - function(HWND, DWORD)
-    CALL_(GetAncestor, CallWU, 1);
-    CALL_(GetWindow, CallWU, 2);
-    CALL_(ShowWindow, CallWU, 3);
-    CALL_(ShowWindowAsync, CallWU, 4);
-    CALL_(EnableWindow, CallWU, 5);
-    CALL_(ShowOwnedPopups, CallWU, 6);
-    CALL_(MonitorFromWindow, CallWU, 7);
     CALL_(GetWindowLongPtr, CallWU, 8);
 
     CALL_(PostMessage, CallWU, 1001);
     CALL_(SendNotifyMessage, CallWU, 1002);
     CALL_(SendMessageTimeout, CallWU, 1003);
 
-    CALL_(SetLayeredWindowAttributes, CallWU, 10001);
-    CALL_(MoveWindow, CallWU, 10002);
     CALL_(SetWindowLongPtr, CallWU, 10003);
 
     // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
@@ -689,7 +576,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(NetUserAdd, CallSSSD, 2);
     CALL_(NetShareSetInfo, CallSSSD, 3);
     CALL_(LogonUser, CallSSSD, 5);
-    CALL_(CreateDesktop, CallSSSD, 6);
     CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
     CALL_(LookupPrivilegeValue, CallSSSD, 14);
     CALL_(NetGroupAdd, CallSSSD, 15);
@@ -705,7 +591,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(NetSessionGetInfo, CallSSSD, 32);
     CALL_(NetSessionDel, CallSSSD, 33);
     CALL_(NetGetDCName, CallSSSD, 34);
-    CALL_(FindWindow, CallSSSD, 38);
     CALL_(MoveFileEx, CallSSSD, 39);
     CALL_(SetVolumeLabel, CallSSSD, 40);
     CALL_(QueryDosDevice, CallSSSD, 41);
@@ -858,7 +743,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         WCHAR buf[MAX_PATH+1];
         LPCWSTR wargv[100];     /* FormatMessage accepts up to 99 params + 1 for NULL */
         FLASHWINFO flashw;
-        LASTINPUTINFO lastin;
         double d;
         FILETIME   filetime;
         TIME_ZONE_INFORMATION tzinfo;
@@ -1036,16 +920,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 56:
             return Twapi_GetCurrentThemeName(interp);
         case 57: // UNUSED
-            break;
-        case 58:
-            result.type = TRT_DWORD;
-            result.value.ival = GetDoubleClickTime();
-            break;
-        case 59:
-            return Twapi_EnumWindowStations(interp);
-        case 60:
-            result.type = TRT_HWINSTA;
-            result.value.hval = GetProcessWindowStation();
+        case 58: // UNUSED
+        case 59: // UNUSED
+        case 60: // UNUSED
             break;
         case 61:
             result.type = GetCursorPos(&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
@@ -1063,15 +940,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 66:
             return TwapiFirstVolume(interp, NULL); /* FindFirstVolume */
-        case 67:
-            u.lastin.cbSize = sizeof(u.lastin);
-            if (GetLastInputInfo(&u.lastin)) {
-                result.type = TRT_DWORD;
-                result.value.ival = u.lastin.dwTime;
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
+            // 67 UNUSED
         case 68:
             if (GetSystemPowerStatus(&u.power_status)) {
                 result.type = TRT_OBJ;
@@ -1391,24 +1260,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (saclP) TwapiFree(saclP);
             break;
 #endif
-        case 10033:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2),
-                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HWINSTA;
-            result.value.hval = CreateWindowStationW(s, dw, dw2, secattrP);
-            TwapiFreeSECURITY_ATTRIBUTES(secattrP);
-            break;
-        case 10034:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2), GETINT(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HDESK;
-            result.value.hval = OpenDesktopW(s, dw, dw2, dw3);
-            break;
+            // 10033-34 UNUSED
         case 10035: // RegisterDirChangeNotifier
             return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
         case 10036: // LookupPrivilegeName
@@ -1426,15 +1278,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 10037: // PlaySound
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            NULLIFY_EMPTY(s);
-            result.type = TRT_BOOL;
-            result.value.ival = PlaySoundW(s, hmod, dw);
-            break;
+        case 10037: // UNUSED
         case 10038: // UNUSED
         case 10039: // UNUSED
         case 10040: // UNUSED
@@ -1951,30 +1795,12 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ImpersonateSelf(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        case 24:
-            result.type = TRT_DWORD;
-            result.value.ival = GetAsyncKeyState(dw);
-            break;
-        case 25:
-            result.type = TRT_DWORD;
-            result.value.ival = GetKeyState(dw);
-            break;
-        case 26:
-            result.value.hval = GetThreadDesktop(dw);
-            result.type = TRT_HDESK;
-            break;
-        case 27:
-            return Twapi_BlockInput(interp, dw);
-        case 28:
-            return Twapi_UnregisterHotKey(ticP, dw);
+            // 24-27 UNUSED
         case 29:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetCaretBlinkTime(dw);
             break;
-        case 30:
-            result.type = TRT_BOOL;
-            result.value.bval = MessageBeep(dw);
-            break;
+            // 30 UNUSED
         case 31:
             return Twapi_GetGUIThreadInfo(interp, dw);
         case 32: // UNUSED
@@ -2014,15 +1840,9 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
         switch (func) {
         case 1001: // UNUSED
-            break;
         case 1002:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Beep(dw, dw2);
             break;
-        case 1003:
-            result.type = TRT_DWORD;
-            result.value.ival = MapVirtualKey(dw, dw2);
-            break;
+            // 1003 UNUSED
         case 1004:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetCaretPos(dw, dw2);
@@ -2061,17 +1881,11 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
-            // 2001-2002 UNUSED
-        case 2003:
-            result.type = TRT_HDESK;
-            result.value.hval = OpenInputDesktop(dw, dw2, dw3);
-            break;
+            // 2001-2003 UNUSED
         case 2004:
             result.type = TRT_BOOL;
             result.value.bval = AttachThreadInput(dw, dw2, dw3);
             break;
-        case 2005:
-            return Twapi_RegisterHotKey(ticP, dw, dw2, dw3);
         }
     } else if (func < 4000) {
         /* Check we have exactly three more integer arguments */
@@ -2200,11 +2014,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 18:
             NULLIFY_EMPTY(arg);
             return Twapi_GetPrivateProfileSectionNames(ticP, arg);
-        case 19:
-            return Twapi_SendInput(ticP, objv[2]);
-        case 20:
-            return Twapi_SendUnicode(ticP, objv[2]);
-            // 21 UNUSED
+            // 19-21 UNUSED
         case 22:
             bufP = u.buf;
             dw = ExpandEnvironmentStringsW(arg, bufP, ARRAYSIZE(u.buf));
@@ -2307,10 +2117,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TCL_ERROR;
         
         switch (func) {
-        case 1001:
-            result.type = TRT_HWINSTA;
-            result.value.hval = OpenWindowStationW(arg, dw, dw2);
-            break;
         case 1002:
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;
             result.value.ival = WNetCancelConnection2W(arg, dw, dw2);
@@ -2431,30 +2237,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EMPTY;
             CloseThemeData(h);
             break;
-        case 31:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseDesktop(h);
-            break;
-        case 32:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SwitchDesktop(h);
-            break;
-        case 33:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetThreadDesktop(h);
-            break;
-        case 34:
-            return Twapi_EnumDesktops(interp, h);
+            // 31-34 UNUSED
         case 35:
             return Twapi_EnumDesktopWindows(interp, h);
-        case 36:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseWindowStation(h);
-            break;
-        case 37:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetProcessWindowStation(h);
-            break;
+            // 36-37 UNUSED
         case 38:
             return TwapiNextVolume(interp, 0, h);
         case 39:
@@ -2894,18 +2680,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-    case 6: // CreateDesktopW
-        if (objc != 8)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw2, objv[6]);
-        if (ObjToPSECURITY_ATTRIBUTES(interp, objv[6], &u.secattrP) != TCL_OK)
-            return TCL_ERROR;
-        /* Note s1, s2 are ignored and are reserved as NULL */
-        result.type = TRT_HDESK;
-        result.value.hval = CreateDesktopW(s1, NULL, NULL, dw, dw2, u.secattrP);
-        if (u.secattrP)
-            TwapiFreeSECURITY_ATTRIBUTES(u.secattrP);
-        break;
+        // 6 UNUSED
     case 7:
         result.type = TRT_DWORD;
         EMPTIFY_NULL(s1);      /* Undo s1 LPWSTR_NULL_IF_EMPTY semantics */

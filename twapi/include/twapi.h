@@ -1168,22 +1168,13 @@ int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
                                      DWORD  sess_id, WTS_INFO_CLASS info_class);
 
 /* UI and window related */
-int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
-int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj);
 Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP);
 int Twapi_EnumWindowStations(Tcl_Interp *interp);
 int Twapi_EnumWindows(Tcl_Interp *interp);
-int Twapi_BlockInput(Tcl_Interp *interp, BOOL block);
-int Twapi_WaitForInputIdle(Tcl_Interp *, HANDLE hProcess, DWORD dwMillisecs);
 int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
 int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta);
 int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle);
 int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
-DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP);
-int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id);
-int Twapi_RegisterHotKey(TwapiInterpContext *ticP, int id, UINT modifiers, UINT vk);
-LRESULT TwapiHotkeyHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
-HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* Power management */
 LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
@@ -1278,15 +1269,9 @@ TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError(Tcl_Interp *, unsigned long err)
 TWAPI_EXTERN int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid);
 TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
 
+
 /* Async handling related */
-/* Typedef for callbacks invoked from the hidden window proc. Parameters are
- * those for a window procedure except for an additional interp pointer (which
- * may be NULL)
- */
-typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
-TWAPI_EXTERN int Twapi_CreateHiddenWindow(TwapiInterpContext *,
-                             TwapiHiddenWindowCallbackProc *winProc,
-                             LONG_PTR clientdata, HWND *winP);
+
 TWAPI_EXTERN void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP);
 #define TwapiCallbackRef(pcb_, incr_) InterlockedExchangeAdd(&(pcb_)->nrefs, (incr_))
 TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *pcbP, int);
@@ -1455,6 +1440,19 @@ TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
                                          unsigned char *buf,
                                          DWORD sz, DWORD *outsz);
 TWAPI_EXTERN void TwapiLzmaFreeBuffer(unsigned char *buf);
+
+/* Window message related */
+
+/* Typedef for callbacks invoked from the hidden window proc. Parameters are
+ * those for a window procedure except for an additional interp pointer (which
+ * may be NULL)
+ */
+typedef LRESULT TwapiHiddenWindowCallbackProc(TwapiInterpContext *, LONG_PTR, HWND, UINT, WPARAM, LPARAM);
+TWAPI_EXTERN int Twapi_CreateHiddenWindow(TwapiInterpContext *,
+                             TwapiHiddenWindowCallbackProc *winProc,
+                             LONG_PTR clientdata, HWND *winP);
+TWAPI_EXTERN DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue, LONG_PTR *retP);
+TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* General utility */
 TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name);

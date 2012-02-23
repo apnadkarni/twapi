@@ -11,8 +11,6 @@ OBJS  = \
 	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\file.obj \
-	$(OBJDIR)\hotkey.obj \
-	$(OBJDIR)\gdi.obj \
 	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\lzmadec.obj \
@@ -32,7 +30,6 @@ OBJS  = \
 	$(OBJDIR)\trap.obj \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
-	$(OBJDIR)\ui.obj \
 	$(OBJDIR)\util.obj \
 	$(OBJDIR)\win.obj \
 	$(OBJDIR)\wmi.obj \
@@ -45,14 +42,12 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\osinfo.tcl \
 	..\tcl\security.tcl \
 	..\tcl\disk.tcl \
-	..\tcl\ui.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\accounts.tcl \
 	..\tcl\share.tcl \
 	..\tcl\synch.tcl \
-	..\tcl\desktop.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \
 	..\tcl\power.tcl \
