@@ -74,7 +74,7 @@ typedef struct _TwapiDeviceNotificationCallback {
     } data;
 } TwapiDeviceNotificationCallback;
 
-static TwapiOneTimeInitState TwapiDeviceNotificationInitialized;
+static TwapiOneTimeInitState TwapiDeviceModuleInitialized;
 static DWORD TwapiDeviceNotificationTid;
 
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
@@ -791,7 +791,7 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
 }
 
 
-static int TwapiDeviceNotificationModuleInit(Tcl_Interp *interp)
+static int TwapiDeviceModuleInit(Tcl_Interp *interp)
 {
     /*
      * We have to create the device notification thread. Moreover, we
@@ -840,12 +840,6 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
     GUID *guidP;
     TwapiId id;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
-    
-    if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
-                             TwapiDeviceNotificationModuleInit, ticP))
-        return TCL_ERROR;
-
     /* Device notification threaded guaranteed running */
     dncP = TwapiDeviceNotificationContextNew(ticP); /* Always non-NULL return */
 
@@ -882,12 +876,6 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
 int Twapi_UnregisterDeviceNotification(TwapiInterpContext *ticP, TwapiId id)
 {
-    ERROR_IF_UNTHREADED(ticP->interp);
-    
-    if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
-                             TwapiDeviceNotificationModuleInit, NULL))
-        return TCL_ERROR;
-
     if (PostThreadMessageW(TwapiDeviceNotificationTid,
                            TWAPI_WM_REMOVE_DEVICE_NOTIFICATION,
                            (WPARAM) id,
@@ -1291,8 +1279,10 @@ int Twapi_device_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    if (! TwapiDoOneTimeInit(&TwapiDeviceNotificationInitialized,
-                             TwapiDeviceNotificationModuleInit, interp))
+    ERROR_IF_UNTHREADED(interp);
+    
+    if (! TwapiDoOneTimeInit(&TwapiDeviceModuleInitialized,
+                             TwapiDeviceModuleInit, interp))
         return TCL_ERROR;
 
     return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
