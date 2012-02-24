@@ -22,9 +22,6 @@ static char *apiprocs =
     "proc twapi::DefineDosDevice  {flags devname path} {\n"
     "    return [CallSSSD 42 {} $devname $path $flags]\n"
     "}\n"
-    "proc twapi::SetVolumeMountPoint  {vol name} {\n"
-    "    return [CallSSSD 43 {} $vol $name]\n"
-    "}\n"
     "proc twapi::GetPrivateProfileInt {app key ival file} {\n"
     "    return [CallSSSD 7 $app $key $file $ival]\n"
     "}\n"
@@ -38,8 +35,6 @@ static char *apiprocs =
     "    return [CallPSID 1 {} $sid]\n"
     "}\n"
     ;
-
-DWORD twapi_netenum_bufsize = MAX_PREFERRED_LENGTH; /* Defined by LANMAN */
 
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
@@ -302,7 +297,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
      * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
-    CALL_(GetLogicalDrives, Call, 18);
     CALL_(GetUserDefaultLangID, Call, 23);
     CALL_(GetSystemDefaultLangID, Call, 24);
     CALL_(GetUserDefaultLCID, Call, 25);
@@ -329,7 +323,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LsaEnumerateLogonSessions, Call, 50);
     CALL_(RevertToSelf, Call, 51);
     CALL_(Twapi_InitializeSecurityDescriptor, Call, 52);
-    CALL_(FindFirstVolume, Call, 66);
     CALL_(GetSystemPowerStatus, Call, 68);
     CALL_(Twapi_PowerNotifyStart, Call, 71);
     CALL_(Twapi_PowerNotifyStop, Call, 72);
@@ -363,7 +356,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LsaGetLogonSessionData, Call, 10019);
     CALL_(CreateFile, Call, 10031);
     CALL_(SetNamedSecurityInfo, Call, 10032);
-    CALL_(Twapi_RegisterDirectoryMonitor, Call, 10035);
     CALL_(LookupPrivilegeName, Call, 10036);
     CALL_(SetSecurityInfo, Call, 10041);
     CALL_(WTSSendMessage, Call, 10044);
@@ -404,7 +396,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
-    CALL_(Twapi_SetNetEnumBufSize, Call, 10131);
     CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
     CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
     CALL_(IsEqualGUID, Call, 10136); // Tcl
@@ -439,21 +430,13 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetStdHandle, CallU, 10004);
 
     // CallS - function(LPWSTR)
-    CALL_(GetDriveType, CallS, 3);
-    CALL_(DeleteVolumeMountPoint, CallS, 4);
-    CALL_(GetVolumeNameForVolumeMountPoint, CallS, 5);
-    CALL_(GetVolumePathName, CallS, 6);
     CALL_(CommandLineToArgv, CallS, 8);
     CALL_(Twapi_AppendLog, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
-    CALL_(GetVolumeInformation, CallS, 14);
-    CALL_(FindFirstVolumeMountPoint, CallS, 15);
-    CALL_(GetDiskFreeSpaceEx, CallS, 16);
     CALL_(AbortSystemShutdown, CallS, 17);
     CALL_(GetPrivateProfileSectionNames, CallS, 18);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
-    CALL_(GetCompressedFileSize, CallS, 24); // TBD - Tcl interface
     CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
@@ -464,16 +447,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(TranslateName, CallS, 1005);
 
     // CallH - function(HANDLE)
-    CALL_(FindVolumeClose, CallH, 7);
-    CALL_(FindVolumeMountPointClose, CallH, 8);
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
     CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
     CALL_(LsaClose, CallH, 26);
     CALL_(ImpersonateLoggedOnUser, CallH, 27);
-    CALL_(FindNextVolume, CallH, 38);
-    CALL_(FindNextVolumeMountPoint, CallH, 39);
-    CALL_(GetFileType, CallH, 40); /* TBD - TCL wrapper */
     CALL_(ReleaseMutex, CallH, 42);
     CALL_(CloseHandle, CallH, 43);
     CALL_(CastToHANDLE, CallH, 44);
@@ -484,8 +462,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSEnumerateSessions, CallH, 49);
     CALL_(WTSEnumerateProcesses, CallH, 50);
     CALL_(WTSCloseServer, CallH, 51);
-    CALL_(GetFileTime, CallH, 52);
-    CALL_(Twapi_UnregisterDirectoryMonitor, CallH, 53);
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
     CALL_(GetObject, CallH, 59);
@@ -518,7 +494,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
     CALL_(Twapi_RegisterWaitOnHandle, CallH, 2011);
 
-    CALL_(SetFileTime, CallH, 10001);
     CALL_(SetThreadToken, CallH, 10002);
     CALL_(Twapi_LsaEnumerateAccountsWithUserRight, CallH, 10003);
     CALL_(Twapi_SetTokenIntegrityLevel, CallH, 10004);
@@ -537,9 +512,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
     CALL_(LookupPrivilegeValue, CallSSSD, 14);
     CALL_(NetGetDCName, CallSSSD, 34);
-    CALL_(MoveFileEx, CallSSSD, 39);
-    CALL_(SetVolumeLabel, CallSSSD, 40);
-    CALL_(QueryDosDevice, CallSSSD, 41);
+    CALL_(QueryDosDevice, CallSSSD, 41); /* TBD what module should this go to */
 
     // CallPSID - function(ANY, SID, ...)
     CALL_(LookupAccountSid, CallPSID, 2);
@@ -720,12 +693,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HANDLE;
             result.value.hval = GetCurrentProcess();
             break;
-            // 2-17 UNUSED
-        case 18:
-            result.value.ival = GetLogicalDrives();
-            result.type = TRT_DWORD;
-            break;
-            // UNUSED 19-22
+            // 2-22 UNUSED
         case 23:
             result.type = TRT_DWORD;
             result.value.ival = GetUserDefaultLangID();
@@ -818,10 +786,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 52:
             return Twapi_InitializeSecurityDescriptor(interp);
-            // 53-65 UNUSED
-        case 66:
-            return TwapiFirstVolume(interp, NULL); /* FindFirstVolume */
-            // 67 UNUSED
+            // 53-67 UNUSED
         case 68:
             if (GetSystemPowerStatus(&u.power_status)) {
                 result.type = TRT_OBJ;
@@ -1087,9 +1052,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (saclP) TwapiFree(saclP);
             break;
 #endif
-            // 10033-34 UNUSED
-        case 10035: // RegisterDirChangeNotifier
-            return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
+            // 10033-35 UNUSED
         case 10036: // LookupPrivilegeName
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETWSTR(s), GETVAR(luid, ObjToLUID),
@@ -1462,24 +1425,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-            // 10123 - 10130 UNUSED
-        case 10131: // TWapi_SetNetEnumBufSize - replace with generic TWAPI configuration TBD
-            if (objc > 2) {
-                result.value.ival = Tcl_GetIntFromObj(interp, objv[2], &dw);
-                if (result.value.ival != TCL_OK) {
-                    result.type = TRT_TCL_RESULT;
-                    break;
-                }    
-                if (dw != MAX_PREFERRED_LENGTH && dw < 4000) {
-                    result.type = TRT_TWAPI_ERROR;
-                    result.value.ival = TWAPI_OUT_OF_RANGE;
-                    break;
-                }
-                twapi_netenum_bufsize = dw;
-            }
-            result.value.ival = twapi_netenum_bufsize;
-            result.type = TRT_DWORD;
-            break;
+            // 10123 - 10131 UNUSED
             // 10132 UNUSED
             // 10133 UNUSED
         case 10134: // TzLocalSpecificTimeToSystemTime
@@ -1739,31 +1685,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     /* One argument commands - assign codes 1-999 */
     if (func < 500) {
         switch (func) {
-            // 1-2 UNUSED
-        case 3:
-            result.type = TRT_DWORD;
-            result.value.ival = GetDriveTypeW(arg);
-            break;
-        case 4:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeleteVolumeMountPointW(arg);
-            break;
-        case 5: // GetVolumeNameForVolumeMountPointW
-        case 6: // GetVolumePathName
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival =
-                (func == 5
-                 ? GetVolumeNameForVolumeMountPointW
-                 : GetVolumePathNameW)
-                (arg, u.buf, ARRAYSIZE(u.buf));
-            if (result.value.ival) {
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-                result.type = TRT_UNICODE;
-            }
-            break;
-        case 7: // UNUSED
-            break;
+            // 1-7 UNUSED
         case 8:
             return Twapi_CommandLineToArgv(interp, arg);
         //9- 10 - UNUSED
@@ -1773,15 +1695,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
             break;
-        case 13: // UNUSED
-            break;
-        case 14:
-            NULLIFY_EMPTY(arg);
-            return Twapi_GetVolumeInformation(interp, arg);
-        case 15:
-            return TwapiFirstVolume(interp, arg); // FindFirstVolumeMountPoint
-        case 16:
-            return Twapi_GetDiskFreeSpaceEx(interp, arg);
+        // 13-16 UNUSED
         case 17:
             result.type = TRT_EXCEPTION_ON_FALSE;
             NULLIFY_EMPTY(arg);
@@ -1817,21 +1731,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = GlobalAddAtomW(arg);
             result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
             break;
-        case 24: // GetCompressedFileSize
-            u.largeint.u.LowPart = GetCompressedFileSizeW(arg, &u.largeint.u.HighPart);
-            if (u.largeint.u.LowPart == INVALID_FILE_SIZE) {
-                /* Does not mean failure, have to actually check */
-                dw = GetLastError();
-                if (dw != NO_ERROR) {
-                    result.value.ival = dw;
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                    break;
-                }
-            }
-            result.value.wide = u.largeint.QuadPart;
-            result.type = TRT_WIDE;
-            break;
-            // 25-26 UNUSED
+        // 24-26 UNUSED
         case 27: // IsValidSidSyntax
             u.sidP = NULL;
             result.type = TRT_BOOL;
@@ -1940,9 +1840,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     } u;
     int func;
     int i;
-    FILETIME ft[3];
-    FILETIME *ftP[3];
-    Tcl_Obj *objs[3];
     void *pv;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -1959,16 +1856,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
-            // 1-6 UNUSED
-        case 7:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = FindVolumeClose(h);
-            break;
-        case 8:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = FindVolumeMountPointClose(h);
-            break;
-            // 9-13 UNUSED
         case 14:
             result.type = GetHandleInformation(h, &result.value.ival)
                 ? TRT_DWORD : TRT_GETLASTERROR;
@@ -1990,16 +1877,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ImpersonateLoggedOnUser(h);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        // 28-37 UNUSED
-        case 38:
-            return TwapiNextVolume(interp, 0, h);
-        case 39:
-            return TwapiNextVolume(interp, 1, h);
-            break;
-        case 40:
-            return Twapi_GetFileType(interp, h);
-        case 41: // UNUSED
-            break;
+        // 28-41 UNUSED
 #ifndef TWAPI_LEAN
         case 42:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -2042,19 +1920,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 WTSCloseServer(h);
             result.type = TRT_EMPTY;
             break;
-        case 52:
-            if (GetFileTime(h, &ft[0], &ft[1], &ft[2])) {
-                objs[0] = ObjFromFILETIME(&ft[0]);
-                objs[1] = ObjFromFILETIME(&ft[1]);
-                objs[2] = ObjFromFILETIME(&ft[2]);
-                result.type = TRT_OBJV;
-                result.value.objv.objPP = objs;
-                result.value.objv.nobj = 3;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 53: 
-            return Twapi_UnregisterDirectoryMonitor(ticP, h);
+            // 52-53 UNUSED
         case 54:
             MemLifoClose(h);
             TwapiFree(h);
@@ -2225,22 +2091,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         /* Arbitrary additional arguments */
 
         switch (func) {
-        case 10001:
-            if (objc != 6)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            for (i = 0; i < 3; ++i) {
-                if (Tcl_GetCharLength(objv[3+i]) == 0)
-                    ftP[i] = NULL;
-                else {
-                    if (ObjToFILETIME(interp, objv[3+i], &ft[i]) != TCL_OK)
-                        return TCL_ERROR;
-                    ftP[i] = &ft[i];
-                }
-            }
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetFileTime(h, ftP[0], ftP[1], ftP[2]);
-            break;
-
 #ifndef TWAPI_LEAN
         case 10002: // SetThreadToken
             if (objc != 4)
@@ -2286,15 +2136,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     LPWSTR s1, s2, s3;
     DWORD   dw, dw2;
     TwapiResult result;
-    union {
-        WCHAR buf[MAX_PATH+1];
-        GROUP_INFO_1 gi1;
-        LOCALGROUP_INFO_1 lgi1;
-        LOCALGROUP_MEMBERS_INFO_3 lgmi3;
-        TwapiNetEnumContext netenum;
-        SECURITY_DESCRIPTOR *secdP;
-        SECURITY_ATTRIBUTES *secattrP;
-    } u;
+    WCHAR buf[MAX_PATH+1];
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETNULLIFEMPTY(s1), ARGUSEDEFAULT,
@@ -2332,9 +2174,9 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         // Note s2,s1, not s1,s2
         return Twapi_GetPrivateProfileSection(ticP, s2, s1);
     case 13:
-        result.value.unicode.len = ARRAYSIZE(u.buf);
-        if (LookupPrivilegeDisplayNameW(s1,s2,u.buf,&result.value.unicode.len,&dw)) {
-            result.value.unicode.str = u.buf;
+        result.value.unicode.len = ARRAYSIZE(buf);
+        if (LookupPrivilegeDisplayNameW(s1,s2,buf,&result.value.unicode.len,&dw)) {
+            result.value.unicode.str = buf;
             result.type = TRT_UNICODE;
         } else
             result.type = TRT_GETLASTERROR;
@@ -2349,17 +2191,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 34:
         NULLIFY_EMPTY(s2);
         return Twapi_NetGetDCName(interp, s1,s2);
-//  case 35-38: UNUSED
-    case 39:
-        NULLIFY_EMPTY(s2);
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = MoveFileExW(s1,s2,dw);
-        break;
-    case 40:
-        NULLIFY_EMPTY(s2);
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = SetVolumeLabelW(s1,s2);
-        break;
+    // 35-40: UNUSED
     case 41:
         return Twapi_QueryDosDevice(ticP, s1);
     case 42:
@@ -2367,11 +2199,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
         NULLIFY_EMPTY(s3);
         result.value.ival = DefineDosDeviceW(dw, s2, s3);
-        break;
-    case 43:
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
-        result.value.ival = SetVolumeMountPointW(s2, s3);
         break;
     }
 
