@@ -1,8 +1,13 @@
 #
-# Copyright (c) 2003-2010 Ashok P. Nadkarni
+# Copyright (c) 2003-2012 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
+
+namespace eval twapi {
+    variable _power_monitors
+    set _power_monitors [dict create]
+}
 
 # Suspend system
 proc twapi::suspend_system {args} {
@@ -78,12 +83,11 @@ proc twapi::get_power_status {} {
 }
 
 
-# Start monitoring of the clipboard
-proc twapi::_power_handler {power_event lparam} {
+# Power notification callback
+proc twapi::_power_handler {msg power_event lparam msgpos ticks} {
     variable _power_monitors
 
-    if {![info exists _power_monitors] ||
-        [llength $_power_monitors] == 0} {
+    if {[dict size $_power_monitors] == 0} {
         return; # Not an error, could have deleted while already queued
     }
 
@@ -101,7 +105,7 @@ proc twapi::_power_handler {power_event lparam} {
         return;                 # Do not support this event
     }
 
-    foreach {id script} $_power_monitors {
+    dict for {id script} $_power_monitors {
         set code [catch {eval [linsert $script end $power_event $lparam]} msg]
         if {$code == 1} {
             # Error - put in background but we do not abort
@@ -117,35 +121,27 @@ proc twapi::start_power_monitor {script} {
     set script [lrange $script 0 end]; # Verify syntactically a list
 
     set id "power#[TwapiId]"
-    if {![info exists _power_monitors] ||
-        [llength $_power_monitors] == 0} {
+    if {[dict size $_power_monitors] == 0} {
         # No power monitoring in progress. Start it
-        Twapi_PowerNotifyStart
+        # 0x218 -> WM_POWERBROADCAST
+        _register_script_wm_handler 0x218 [list [namespace current]::_power_handler] 1
     }
 
-    lappend _power_monitors $id $script
+    dict set  _power_monitors $id $script
     return $id
 }
 
 
-
 # Stop monitoring of the power
-proc twapi::stop_power_monitor {clipid} {
+proc twapi::stop_power_monitor {id} {
     variable _power_monitors
 
-    if {![info exists _power_monitors]} {
-        return;                 # Should we raise an error instead?
+    if {![dict exists $_power_monitors $id]} {
+        return
     }
 
-    set new_monitors {}
-    foreach {id script} $_power_monitors {
-        if {$id ne $clipid} {
-            lappend new_monitors $id $script
-        }
-    }
-
-    set _power_monitors $new_monitors
-    if {[llength $_power_monitors] == 0} {
-        Twapi_PowerNotifyStop
+    dict unset _power_monitors $id
+    if {[dict size $_power_monitors] == 0} {
+        _unregister_script_wm_handler 0x218 [list [namespace current]::_power_handler]
     }
 }

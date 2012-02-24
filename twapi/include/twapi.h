@@ -859,7 +859,6 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
     HWND          notification_win; /* Window used for various notifications */
-    int           power_events_on; /* True-> send through power notifications */
     DWORD         device_notification_tid; /* device notification thread id */
     
 
@@ -1089,11 +1088,6 @@ int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
 int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta);
 int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle);
 int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
-
-/* Power management */
-LRESULT TwapiPowerHandler(TwapiInterpContext *, UINT, WPARAM, LPARAM);
-int Twapi_PowerNotifyStart(TwapiInterpContext *ticP);
-int Twapi_PowerNotifyStop(TwapiInterpContext *ticP);
 
 /* WMI */
 TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);

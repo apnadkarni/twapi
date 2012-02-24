@@ -790,13 +790,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             } else
                 result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-            // 69-70 UNUSED
-        case 71:
-            return Twapi_PowerNotifyStart(ticP);
-        case 72:
-            return Twapi_PowerNotifyStop(ticP);
-        case 73: // UNUSED
-            break;
+        // 69-73 UNUSED
         case 74:
             result.type = TRT_WIDE;
             result.value.wide = TWAPI_NEWID(ticP);
