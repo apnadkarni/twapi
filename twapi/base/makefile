@@ -24,7 +24,6 @@ OBJS  = \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\security.obj \
-	$(OBJDIR)\share.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\threadpool.obj \
 	$(OBJDIR)\trap.obj \
@@ -46,7 +45,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\accounts.tcl \
-	..\tcl\share.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \
