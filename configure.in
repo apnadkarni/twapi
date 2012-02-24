@@ -97,7 +97,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
  twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/etw.c twapi/base/eventlog.c
  twapi/base/file.c twapi/base/hotkey.c twapi/base/gdi.c twapi/base/guids.c twapi/base/keylist.c twapi/base/lzmadec.c twapi/base/lzmainterface.c
  twapi/base/memlifo.c twapi/base/mstask.c twapi/base/mycrt.c twapi/base/namedpipe.c twapi/base/nls.c twapi/base/network.c twapi/base/os.c twapi/base/parseargs.c
- twapi/base/pdh.c twapi/base/power.c twapi/base/printer.c twapi/base/process.c twapi/base/recordarray.c twapi/base/resolve.c twapi/base/resource.c
+ twapi/base/pdh.c twapi/base/printer.c twapi/base/process.c twapi/base/recordarray.c twapi/base/resolve.c twapi/base/resource.c
  twapi/base/security.c twapi/base/scm.c twapi/base/service.c twapi/base/share.c twapi/base/shell.c twapi/base/tclobjs.c
  twapi/base/threadpool.c twapi/base/trap.c twapi/base/twapi.c twapi/base/twine.c twapi/base/ui.c twapi/base/util.c twapi/base/win.c 
  twapi/base/wmi.c twapi/base/wts.c])
