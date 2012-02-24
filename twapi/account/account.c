@@ -405,42 +405,6 @@ int Twapi_NetUserGetInfo(
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, username, level, 0);
 }
 
-int Twapi_NetUserSetInfoDWORD(
-    int func,
-    LPCWSTR servername,
-    LPCWSTR username,
-    DWORD   dw
-    )
-{
-    union {
-        USER_INFO_1005 u1005;
-        USER_INFO_1008 u1008;
-        USER_INFO_1010 u1010;
-        USER_INFO_1017 u1017;
-        USER_INFO_1024 u1024;
-    } userinfo;
-
-    switch (func) {
-    case 1005:
-        userinfo.u1005.usri1005_priv = dw;
-        break;
-    case 1008:
-        userinfo.u1008.usri1008_flags = dw;
-        break;
-    case 1010:
-        userinfo.u1010.usri1010_auth_flags = dw;
-        break;
-    case 1017:
-        userinfo.u1017.usri1017_acct_expires = dw;
-        break;
-    case 1024:
-        userinfo.u1024.usri1024_country_code = dw;
-        break;
-    default:
-        return ERROR_INVALID_PARAMETER;
-    }
-    return NetUserSetInfo(servername, username, func, (LPBYTE) &userinfo, NULL);
-}
 
 int Twapi_NetGroupGetInfo(
     Tcl_Interp *interp,
@@ -466,7 +430,6 @@ int Twapi_NetLocalGroupGetInfo(
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
 }
 
-#ifndef TWAPI_LEAN
 int Twapi_NetUserAdd(
     Tcl_Interp *interp,
     LPCWSTR     servername,
@@ -514,9 +477,43 @@ int Twapi_NetUserAdd(
     }
     return Twapi_AppendSystemError(interp, status);
 }
-#endif // TWAPI_LEAN
 
+int Twapi_NetUserSetInfoDWORD(
+    int func,
+    LPCWSTR servername,
+    LPCWSTR username,
+    DWORD   dw
+    )
+{
+    union {
+        USER_INFO_1005 u1005;
+        USER_INFO_1008 u1008;
+        USER_INFO_1010 u1010;
+        USER_INFO_1017 u1017;
+        USER_INFO_1024 u1024;
+    } userinfo;
 
+    switch (func) {
+    case 1005:
+        userinfo.u1005.usri1005_priv = dw;
+        break;
+    case 1008:
+        userinfo.u1008.usri1008_flags = dw;
+        break;
+    case 1010:
+        userinfo.u1010.usri1010_auth_flags = dw;
+        break;
+    case 1017:
+        userinfo.u1017.usri1017_acct_expires = dw;
+        break;
+    case 1024:
+        userinfo.u1024.usri1024_country_code = dw;
+        break;
+    default:
+        return ERROR_INVALID_PARAMETER;
+    }
+    return NetUserSetInfo(servername, username, func, (LPBYTE) &userinfo, NULL);
+}
 
 int Twapi_NetUserSetInfoLPWSTR(
     int func,
