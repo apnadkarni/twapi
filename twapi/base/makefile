@@ -6,7 +6,6 @@ OBJS  = \
 	$(OBJDIR)\adsi.obj \
 	$(OBJDIR)\async.obj \
 	$(OBJDIR)\calls.obj \
-	$(OBJDIR)\com.obj \
 	$(OBJDIR)\errors.obj \
 	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \
@@ -37,7 +36,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\osinfo.tcl \
 	..\tcl\security.tcl \
 	..\tcl\nls.tcl \
-	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \

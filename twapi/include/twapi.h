@@ -1197,7 +1197,7 @@ TWAPI_EXTERN int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Ob
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 int TwapiInitTclTypes(void);
-int TwapiGetTclType(Tcl_Obj *objP);
+TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
