@@ -19,19 +19,6 @@ static char *apiprocs =
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
     "                                                                        \n"
     "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
-    "proc twapi::NetUseGetInfo {server share level} {\n"
-    "    return [CallSSSD 24 $server $share {} $level]\n"
-    "}\n"
-    "proc twapi::NetShareDel {server share flags} {                          \n"
-    "    return [CallSSSD 25 $server $share {} $flags]\n"
-    "}\n"
-    "proc twapi::NetShareGetInfo {server share level} {\n"
-    "    return [CallSSSD 27 $server $share {} $level]\n"
-    "}\n"
-    "proc twapi::Twapi_WNetGetResourceInformation {remotename provider restype} { \n"
-    "    # Note first two args are interchanged\n"
-    "    return [CallSSSD 36 $provider $remotename {} $restype]\n"
-    "}\n"
     "proc twapi::DefineDosDevice  {flags devname path} {\n"
     "    return [CallSSSD 42 {} $devname $path $flags]\n"
     "}\n"
@@ -302,7 +289,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallPSID", Twapi_CallPSIDObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallNetEnum", Twapi_CallNetEnumObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallCOM", Twapi_CallCOMObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
@@ -397,8 +383,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(UnloadUserProfile, Call, 10079);
     CALL_(SetSuspendState, Call, 10080);
     CALL_(win32_error, Call, 10081);
-    CALL_(Twapi_WNetUseConnection, Call, 10084);
-    CALL_(NetShareAdd, Call, 10085);
     CALL_(CreateMutex, Call, 10097);
     CALL_(OpenMutex, Call, 10098);
     CALL_(OpenSemaphore, Call, 10099); /* TBD - Tcl wrapper */
@@ -460,8 +444,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetVolumeNameForVolumeMountPoint, CallS, 5);
     CALL_(GetVolumePathName, CallS, 6);
     CALL_(CommandLineToArgv, CallS, 8);
-    CALL_(WNetGetUniversalName, CallS, 9);
-    CALL_(WNetGetUser, CallS, 10);
     CALL_(Twapi_AppendLog, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
     CALL_(GetVolumeInformation, CallS, 14);
@@ -476,11 +458,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
     CALL_(Twapi_LsaOpenPolicy, CallS, 502);
-    CALL_(NetFileClose, CallS, 503);
     CALL_(LoadLibraryEx, CallS, 504);
 
-    CALL_(WNetCancelConnection2, CallS, 1002);
-    CALL_(NetFileGetInfo, CallS, 1003);
     CALL_(GetNamedSecurityInfo, CallS, 1004);
     CALL_(TranslateName, CallS, 1005);
 
@@ -554,13 +533,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
     CALL_(LookupAccountName, CallSSSD, 1);
-    CALL_(NetShareSetInfo, CallSSSD, 3);
     CALL_(LogonUser, CallSSSD, 5);
     CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
     CALL_(LookupPrivilegeValue, CallSSSD, 14);
-    CALL_(Twapi_NetShareCheck, CallSSSD, 26);
-    CALL_(NetSessionGetInfo, CallSSSD, 32);
-    CALL_(NetSessionDel, CallSSSD, 33);
     CALL_(NetGetDCName, CallSSSD, 34);
     CALL_(MoveFileEx, CallSSSD, 39);
     CALL_(SetVolumeLabel, CallSSSD, 40);
@@ -576,12 +551,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LsaRemoveAccountRights, CallPSID, 1006);
     CALL_(LsaAddAccountRights, CallPSID, 1007);
 
-    // CallNetEnum - function(STRING, ....)
-    CALL_(NetUseEnum, CallNetEnum, 1);
-    CALL_(NetShareEnum, CallNetEnum, 5);
-    CALL_(NetConnectionEnum, CallNetEnum, 10);
-    CALL_(NetFileEnum, CallNetEnum, 11);
-    CALL_(NetSessionEnum, CallNetEnum, 12);
 
 #undef CALL_
 
@@ -1340,13 +1309,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             NULLIFY_EMPTY(cP);
             return Twapi_GenerateWin32Error(interp, dw, cP);
-        case 10082: // UNUSED
-        case 10083: // UNUSED
-        case 10084:
-            return Twapi_WNetUseConnection(interp, objc-2, objv+2);
-        case 10085:
-            return Twapi_NetShareAdd(interp, objc-2, objv+2);
-            // 10086-90 UNUSED
+        // 10082-97: // UNUSED
         case 10097:
             secattrP = NULL;        /* Even on error, it might be filled */
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1803,10 +1766,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 8:
             return Twapi_CommandLineToArgv(interp, arg);
-        case 9:
-            return Twapi_WNetGetUniversalName(ticP, arg);
-        case 10:
-            return Twapi_WNetGetUser(interp, arg);
+        //9- 10 - UNUSED
         case 11:
             return Twapi_AppendLog(interp, arg);
         case 12:
@@ -1900,7 +1860,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-#ifndef TWAPI_LEAN
         case 502: // LsaOpenPolicy
             ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
             TwapiZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
@@ -1912,12 +1871,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 result.value.ival = dw2;
             }
             break;
-#endif
-        case 503: // NetFileClose
-            NULLIFY_EMPTY(arg);
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = NetFileClose(arg, dw);
-            break;
+        // 503 UNUSED
         case 504: // LoadLibrary
             result.type = TRT_HANDLE;
             result.value.hval = LoadLibraryExW(arg, NULL, dw);
@@ -1932,13 +1886,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TCL_ERROR;
         
         switch (func) {
-        case 1002:
-            result.type = TRT_EXCEPTION_ON_WNET_ERROR;
-            result.value.ival = WNetCancelConnection2W(arg, dw, dw2);
-            break;
-        case 1003:
-            NULLIFY_EMPTY(arg);
-            return Twapi_NetFileGetInfo(interp, arg, dw, dw2);
         case 1004:
             return Twapi_GetNamedSecurityInfo(interp, arg, dw, dw2);
         case 1005:
@@ -2359,21 +2306,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     switch (func) {
     case 1:
         return Twapi_LookupAccountName(interp, s1, s2);
-    // 2 - UNUSED
-    case 3: // NetShareSetInfo
-        if (objc != 7)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[6], &u.secdP) != TCL_OK)
-            return TCL_ERROR;
-        /* u.secdP may be NULL */
-        result.value.ival = Twapi_NetShareSetInfo(interp, s1, s2, s3, dw, u.secdP);
-        if (u.secdP)
-            TwapiFreeSECURITY_DESCRIPTOR(u.secdP);
-        return result.value.ival;
-
-    case 4:  // UNUSED
-        break;
+    // 2-4 - UNUSED
     case 5:
         if (objc != 7)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2412,36 +2345,11 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-    // 15-23 UNUSED
-    case 24:
-        return Twapi_NetUseGetInfo(interp, s1, s2, dw);
-    case 25:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = NetShareDel(s1,s2,dw);
-        break;
-    case 26:
-        return Twapi_NetShareCheck(interp, s1, s2);
-    case 27:
-        return Twapi_NetShareGetInfo(interp, s1,s2,dw);
-    //  case 28-31: UNUSED
-    case 32:
-        return Twapi_NetSessionGetInfo(interp, s1,s2,s3,dw);
-    case 33:
-        result.type = TRT_EXCEPTION_ON_ERROR;
-        NULLIFY_EMPTY(s2);
-        NULLIFY_EMPTY(s3);
-        result.value.ival = NetSessionDel(s1,s2,s3);
-        break;
+    // 15-33 UNUSED
     case 34:
         NULLIFY_EMPTY(s2);
         return Twapi_NetGetDCName(interp, s1,s2);
-//  case 35: UNUSED
-    case 36:
-        /* Note first param is s2, second is s1 */
-        return Twapi_WNetGetResourceInformation(ticP, s2,s1,dw);
-    case 37: // UNUSED
-    case 38: // UNUSED
-        break;
+//  case 35-38: UNUSED
     case 39:
         NULLIFY_EMPTY(s2);
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -2665,121 +2573,4 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     return TwapiSetResult(interp, &result);
 }
 
-/* Call Net*Enum style API */
-int Twapi_CallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    int func;
-    LPWSTR s1, s2, s3;
-    DWORD   dwresume;
-    TwapiResult result;
-    TwapiNetEnumContext netenum;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETNULLIFEMPTY(s1),
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    /* WARNING:
-       Many of the cases in the switch below cannot be combined even
-       though they look similar because of slight variations in the
-       Win32 function prototypes they call like const / non-const,
-       size of resume handle etc. */
-
-    result.type = TRT_BADFUNCTIONCODE;
-    switch (func) {
-    case 1: // NetUseEnum system level resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(netenum.level), GETINT(dwresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = NetUseEnum (
-            s1, netenum.level,
-            &netenum.netbufP,
-            twapi_netenum_bufsize,
-            &netenum.entriesread,
-            &netenum.totalentries,
-            &dwresume);
-        netenum.hresume = (DWORD_PTR) dwresume;
-        netenum.tag = TWAPI_NETENUM_USEINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    case 5: // NetShareEnum system level resumehandle
-        // Not shared with above code because first param has a const
-        // qualifier in above cases which results in warnings if 
-        // combined with this case.
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(netenum.level), GETINT(dwresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = NetShareEnum(s1, netenum.level,
-                                      &netenum.netbufP,
-                                      twapi_netenum_bufsize,
-                                      &netenum.entriesread,
-                                      &netenum.totalentries,
-                                      &dwresume);
-        netenum.hresume = (DWORD_PTR) dwresume;
-        netenum.tag = TWAPI_NETENUM_SHAREINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-
-    case 10:  // NetConnectionEnum server group level resumehandle
-        // Not shared with other code because first param has a const
-        // qualifier in above cases which results in warnings if 
-        // combined with this case.
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETWSTR(s2), GETINT(netenum.level), GETINT(dwresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-
-        netenum.status = NetConnectionEnum (
-            s1,
-            Tcl_GetUnicode(objv[3]),
-            netenum.level,
-            &netenum.netbufP,
-            twapi_netenum_bufsize,
-            &netenum.entriesread,
-            &netenum.totalentries,
-            &dwresume);
-        netenum.hresume = (DWORD_PTR)dwresume;
-        netenum.tag = TWAPI_NETENUM_CONNECTIONINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    case 11:
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETNULLIFEMPTY(s2), GETNULLIFEMPTY(s3),
-                         GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = NetFileEnum (
-            s1, s2, s3, netenum.level, 
-            &netenum.netbufP,
-            twapi_netenum_bufsize,
-            &netenum.entriesread,
-            &netenum.totalentries,
-            &netenum.hresume);
-        netenum.tag = TWAPI_NETENUM_FILEINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    case 12:
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETNULLIFEMPTY(s2), GETNULLIFEMPTY(s3),
-                         GETINT(netenum.level), GETINT(dwresume),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        netenum.status = NetSessionEnum (
-            s1, s2, s3, netenum.level, 
-            &netenum.netbufP,
-            twapi_netenum_bufsize,
-            &netenum.entriesread,
-            &netenum.totalentries,
-            &dwresume);
-        netenum.hresume = dwresume;
-        netenum.tag = TWAPI_NETENUM_SESSIONINFO;
-        return TwapiReturnNetEnum(interp,&netenum);
-
-    }
-
-    return TwapiSetResult(interp, &result);
-
-}
 

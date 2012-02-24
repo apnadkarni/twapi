@@ -476,18 +476,6 @@ typedef struct _TwapiEnumCtx {
 } TwapiEnumCtx;
 
 typedef struct {
-    int    tag;  /* Type of entries in netbufP[] */
-#define TWAPI_NETENUM_USERINFO              0
-#define TWAPI_NETENUM_GROUPINFO             1
-#define TWAPI_NETENUM_LOCALGROUPINFO        2
-#define TWAPI_NETENUM_GROUPUSERSINFO        3
-#define TWAPI_NETENUM_LOCALGROUPUSERSINFO   4
-#define TWAPI_NETENUM_LOCALGROUPMEMBERSINFO 5
-#define TWAPI_NETENUM_SESSIONINFO           6
-#define TWAPI_NETENUM_FILEINFO              7
-#define TWAPI_NETENUM_CONNECTIONINFO        8
-#define TWAPI_NETENUM_SHAREINFO             9
-#define TWAPI_NETENUM_USEINFO              10
     LPBYTE netbufP;     /* If non-NULL, points to buffer to be freed
                            with NetApiBufferFree */
     NET_API_STATUS status;
@@ -987,15 +975,6 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
 int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
-Tcl_Obj *ObjFromCONNECTION_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromUSE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromSHARE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromFILE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromSESSION_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromUSER_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromLOCALGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
-Tcl_Obj *ObjFromGROUP_USERS_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 
 /* System related */
 int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
@@ -1022,34 +1001,7 @@ int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
 int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
 
 /* Shares and LANMAN */
-int Twapi_WNetGetUniversalName(TwapiInterpContext *ticP, LPCWSTR localpathP);
-int Twapi_WNetGetUser(Tcl_Interp *interp, LPCWSTR  lpName);
-int Twapi_NetScheduleJobEnum(Tcl_Interp *interp, LPCWSTR servername);
-int Twapi_NetShareEnum(Tcl_Interp *interp, LPWSTR server_name);
-int Twapi_NetUseGetInfo(Tcl_Interp *interp, LPWSTR UncServer, LPWSTR UseName, DWORD level);
-int Twapi_NetShareCheck(Tcl_Interp *interp, LPWSTR server, LPWSTR device);
-int Twapi_NetShareGetInfo(Tcl_Interp *interp, LPWSTR server,
-                          LPWSTR netname, DWORD level);
-int Twapi_NetShareSetInfo(Tcl_Interp *interp, LPWSTR server_name,
-                          LPWSTR net_name, LPWSTR remark, DWORD  max_uses,
-                          SECURITY_DESCRIPTOR *secd);
-int Twapi_NetConnectionEnum(Tcl_Interp    *interp, LPWSTR server,
-                            LPWSTR qualifier, DWORD level);
-int Twapi_NetFileEnum(Tcl_Interp *interp, LPWSTR server, LPWSTR basepath,
-                      LPWSTR user, DWORD level);
-int Twapi_NetFileGetInfo(Tcl_Interp    *interp, LPWSTR server,
-                         DWORD fileid, DWORD level);
-int Twapi_NetSessionEnum(Tcl_Interp    *interp, LPWSTR server, LPWSTR client,
-                         LPWSTR user, DWORD level);
-int Twapi_NetSessionGetInfo(Tcl_Interp *interp, LPWSTR server,
-                            LPWSTR client, LPWSTR user, DWORD level);
 int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR server, LPCWSTR domain);
-int Twapi_WNetGetResourceInformation(TwapiInterpContext *ticP,
-                                     LPWSTR remoteName, LPWSTR provider,
-                                     DWORD  resourcetype);
-int Twapi_WNetUseConnection(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_NetShareAdd(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-
 
 /* Security related */
 int Twapi_LookupAccountName (Tcl_Interp *interp, LPCWSTR sysname, LPCWSTR name);
