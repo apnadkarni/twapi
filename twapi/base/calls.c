@@ -302,17 +302,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetThreadLocale, Call, 29);
     CALL_(GetACP, Call, 30);
     CALL_(GetOEMCP, Call, 31);
-    CALL_(GetComputerName, Call, 32);
-    CALL_(GetVersionEx, Call, 33);
-    CALL_(GetSystemInfo, Call, 34);
-    CALL_(GlobalMemoryStatus, Call, 35);
-    CALL_(Twapi_SystemProcessorTimes, Call, 36);
-    CALL_(Twapi_SystemPagefileInformation, Call, 37);
     CALL_(GetProfileType, Call, 38);
-    CALL_(GetTickCount, Call, 39);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(Wow64DisableWow64FsRedirection, Call, 41);
-    CALL_(GetSystemWow64Directory, Call, 42);
     CALL_(GetCommandLineW, Call, 47);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -320,17 +312,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(RevertToSelf, Call, 51);
     CALL_(Twapi_InitializeSecurityDescriptor, Call, 52);
     CALL_(GetSystemPowerStatus, Call, 68);
-    CALL_(Twapi_PowerNotifyStart, Call, 71);
-    CALL_(Twapi_PowerNotifyStop, Call, 72);
     CALL_(TwapiId, Call, 74);
     CALL_(DebugBreak, Call, 75);
-    CALL_(GetPerformanceInformation, Call, 76);
     CALL_(Twapi_GetNotificationWindow, Call, 77);
-    CALL_(GetSystemWindowsDirectory, Call, 78); /* TBD Tcl */
-    CALL_(GetWindowsDirectory, Call, 79);       /* TBD Tcl */
-    CALL_(GetSystemDirectory, Call, 80);        /* TBD Tcl */
     CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
-    CALL_(GetTimeZoneInformation, Call, 83);    /* TBD Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(VariantTimeToSystemTime, Call, 1003);
@@ -361,15 +346,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DsGetDcName, Call, 10058);
     CALL_(GetNumberFormat, Call, 10070);
     CALL_(GetCurrencyFormat, Call, 10071);
-    CALL_(InitiateSystemShutdown, Call, 10072);
     CALL_(FormatMessageFromModule, Call, 10073);
     CALL_(FormatMessageFromString, Call, 10074);
     CALL_(WritePrivateProfileString, Call, 10075);
     CALL_(WriteProfileString, Call, 10076);
-    CALL_(SystemParametersInfo, Call, 10077);
     CALL_(Twapi_LoadUserProfile, Call, 10078);
     CALL_(UnloadUserProfile, Call, 10079);
-    CALL_(SetSuspendState, Call, 10080);
     CALL_(win32_error, Call, 10081);
     CALL_(CreateMutex, Call, 10097);
     CALL_(OpenMutex, Call, 10098);
@@ -392,8 +374,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsNullPtr, Call, 10120);
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
-    CALL_(TzSpecificLocalTimeToSystemTime, Call, 10134); // Tcl
-    CALL_(SystemTimeToTzSpecificLocalTime, Call, 10135); // Tcl
     CALL_(IsEqualGUID, Call, 10136); // Tcl
     CALL_(IMofCompiler_CompileBuffer, Call, 10137); // Tcl
     CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
@@ -402,21 +382,16 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallU API
     CALL_(GetStdHandle, CallU, 4);
     CALL_(VerLanguageName, CallU, 7);
-    CALL_(GetComputerNameEx, CallU, 15);
     CALL_(Wow64EnableWow64FsRedirection, CallU, 16);
-    CALL_(GetSystemMetrics, CallU, 17);
-    CALL_(Sleep, CallU, 18);
     CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
     CALL_(ImpersonateSelf, CallU, 23);
-    CALL_(Sleep, CallU, 33);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
 
     CALL_(GetLocaleInfo, CallU, 1006);
-    CALL_(ExitWindowsEx, CallU, 1007);
 
     CALL_(AttachThreadInput, CallU, 2004); /* Must stay in twapi_base as
                                               potentially used by many exts */
@@ -429,7 +404,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(CommandLineToArgv, CallS, 8);
     CALL_(Twapi_AppendLog, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
-    CALL_(AbortSystemShutdown, CallS, 17);
     CALL_(GetPrivateProfileSectionNames, CallS, 18);
     CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
@@ -460,7 +434,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSCloseServer, CallH, 51);
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
-    CALL_(GetObject, CallH, 59);
+    CALL_(GetObject, CallH, 59); /* TBD Move to UI */
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
@@ -474,7 +448,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetTokenInformation, CallH, 1006);
     CALL_(Twapi_SetTokenVirtualizationEnabled, CallH, 1007);
     CALL_(Twapi_SetTokenMandatoryPolicy, CallH, 1008);
-    CALL_(GetDeviceCaps, CallH, 1016);
+    CALL_(GetDeviceCaps, CallH, 1016); /* Move to UI TBD */
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
@@ -521,7 +495,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 
 #undef CALL_
-
 
     return Tcl_Eval(interp, apiprocs);
 }
@@ -616,31 +589,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_DWORD;
             result.value.ival = GetOEMCP();
             break;
-        case 32:
-            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetComputerNameW(u.buf, &result.value.unicode.len)) {
-                result.value.unicode.str = u.buf;
-                result.type = TRT_UNICODE;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 33:
-            return Twapi_GetVersionEx(interp);
-        case 34:
-            return Twapi_GetSystemInfo(interp);
-        case 35:
-            return Twapi_GlobalMemoryStatus(interp);
-        case 36:
-            return Twapi_SystemProcessorTimes(ticP);
-        case 37:
-            return Twapi_SystemPagefileInformation(ticP);
+        //  32-37 UNUSED
         case 38:
             result.type = GetProfileType(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
             break;
-        case 39:
-            result.type = TRT_DWORD;
-            result.value.ival = GetTickCount();
-            break;
+            // 39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
@@ -649,9 +602,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
                 TRT_LPVOID : TRT_GETLASTERROR;
             break;
-        case 42:
-            return Twapi_GetSystemWow64Directory(interp);
-            // 43-46 UNUSED
+            // 42-46 UNUSED
         case 47:
             result.value.unicode.str = GetCommandLineW();
             result.value.unicode.len = -1;
@@ -689,28 +640,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EMPTY;
             DebugBreak();
             break;
-        case 76:
-            return Twapi_GetPerformanceInformation(ticP->interp);
+            // 76 UNUSED
         case 77:
             result.type = TRT_HWND;
             result.value.hwin = Twapi_GetNotificationWindow(ticP);
             break;
-        case 78:                /* GetSystemWindowsDirectory */
-        case 79:                /* GetWindowsDirectory */
-        case 80:                /* GetSystemDirectory */
-            result.type = TRT_UNICODE;
-            result.value.unicode.str = u.buf;
-            result.value.unicode.len =
-                (func == 78
-                 ? GetSystemWindowsDirectoryW
-                 : (func == 79 ? GetWindowsDirectoryW : GetSystemDirectoryW)
-                    ) (u.buf, ARRAYSIZE(u.buf));
-            if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
-                result.value.unicode.len == 0) {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
-            // 81 - UNUSED
+            // 78-81 - UNUSED
         case 82:
             result.value.unicode.len = ARRAYSIZE(u.buf);
             if (GetDefaultPrinterW(u.buf, &result.value.unicode.len)) {
@@ -719,23 +654,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_UNICODE;
             } else {
                 result.type = TRT_GETLASTERROR;
-            }
-            break;
-        case 83:
-            dw = GetTimeZoneInformation(&u.tzinfo);
-            switch (dw) {
-            case TIME_ZONE_ID_UNKNOWN:
-            case TIME_ZONE_ID_STANDARD:
-            case TIME_ZONE_ID_DAYLIGHT:
-                objs[0] = Tcl_NewLongObj(dw);
-                objs[1] = ObjFromTIME_ZONE_INFORMATION(&u.tzinfo);
-                result.type = TRT_OBJV;
-                result.value.objv.objPP = objs;
-                result.value.objv.nobj = 2;
-                break;
-            default:
-                result.type = TRT_GETLASTERROR;
-                break;
             }
             break;
         }
@@ -1061,15 +979,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_GetNumberFormat(ticP, objc-2, objv+2);
         case 10071:
             return Twapi_GetCurrencyFormat(ticP, objc-2, objv+2);
-        case 10072:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
-                             GETINT(dw), GETBOOL(dw2), GETBOOL(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = InitiateSystemShutdownW(s, s2, dw, dw2, dw3);
-            break;
+            // 10072 UNUSED
         case 10073: // Twapi_FormatMessageFromModule
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), GETHANDLE(h), GETINT(dw2),
@@ -1112,15 +1022,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = WriteProfileStringW(s, s2, s3);
             break;
-        case 10077:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETINT(dw), GETINT(dw2), GETVOIDP(pv), GETINT(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SystemParametersInfoW(dw, dw2, pv, dw3);
-            break;
-#ifndef TWAPI_LEAN
+            // 10077 UNUSED
         case 10078:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETINT(dw), GETWSTR(s),
@@ -1136,15 +1038,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = UnloadUserProfile(h, h2);
             break;
-#endif
-        case 10080:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETBOOL(dw), GETBOOL(dw2), GETBOOL(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetSuspendState((BOOLEAN) dw, (BOOLEAN) dw2, (BOOLEAN) dw3);
-            break;
+            // 10080 UNUSED
         case 10081:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
@@ -1305,29 +1199,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-            // 10123 - 10131 UNUSED
-            // 10132 UNUSED
-            // 10133 UNUSED
-        case 10134: // TzLocalSpecificTimeToSystemTime
-        case 10135: // SystemTimeToTzSpecificLocalTime
-            if (objc == 3) {
-                tzinfoP = NULL;
-            } else if (objc == 4) {
-                if (ObjToTIME_ZONE_INFORMATION(ticP->interp, objv[3], &u.tzinfo) != TCL_OK) {
-                    return TCL_ERROR;
-                }
-                tzinfoP = &u.tzinfo;
-            } else {
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            }
-            if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
-                return TCL_ERROR;
-            if ((func == 10134 ? TzSpecificLocalTimeToSystemTime : SystemTimeToTzSpecificLocalTime) (tzinfoP, &systime, &result.value.systime))
-                result.type = TRT_SYSTEMTIME;
-            else
-                result.type = TRT_GETLASTERROR;
-            break;
-
+            // 10123 - 10135 UNUSED
         case 10136: // IsEqualGuid
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETGUID(guid), GETGUID(u.guid), ARGEND) != TCL_OK)
@@ -1394,27 +1266,11 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.unicode.str = u.buf;
             result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
             break;
-            // 8-14 UNUSED
-        case 15:
-            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetComputerNameExW(dw, u.buf, &result.value.unicode.len)) {
-                result.value.unicode.str = u.buf;
-                result.type = TRT_UNICODE;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
+            // 8-15 UNUSED
         case 16:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
-        case 17:
-            result.type = TRT_DWORD;
-            result.value.ival = GetSystemMetrics(dw);
-            break;
-        case 18:
-            result.type = TRT_EMPTY;
-            Sleep(dw);
-            break;
-            // 19 - UNUSED
+            // 17-19 - UNUSED
         case 20:
             return Twapi_EnumPrinters_Level4(interp, dw);
         case 21:
@@ -1438,11 +1294,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = ImpersonateSelf(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-            // 24-32 UNUSED
-        case 33:
-            Sleep(dw);
-            result.type = TRT_EMPTY;
-            break;
+            // 24-33 UNUSED
         case 34:
             result.value.obj = Twapi_MapWindowsErrorToString(dw);
             result.type = TRT_OBJ;
@@ -1491,10 +1343,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             }
             break;
 
-        case 1007:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ExitWindowsEx(dw, dw2);
-            break;
         }
     } else if (func < 3000) {
         /* Check we have exactly two more integer arguments */
@@ -1575,11 +1423,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
             break;
-        // 13-16 UNUSED
-        case 17:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            NULLIFY_EMPTY(arg);
-            result.value.ival = AbortSystemShutdownW(arg);
+        // 13-17 UNUSED
         case 18:
             NULLIFY_EMPTY(arg);
             return Twapi_GetPrivateProfileSectionNames(ticP, arg);
@@ -2215,7 +2059,6 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                 result.type = CheckTokenMembership(h, sidP, &result.value.bval)
                     ? TRT_BOOL : TRT_GETLASTERROR;
                 break;
-#ifndef TWAPI_LEAN
             case 1003:
                 u.tpg.PrimaryGroup = sidP;
                 result.type = TRT_EXCEPTION_ON_FALSE;
@@ -2258,7 +2101,6 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
                 }
                 TwapiFree(lsa_strings);
                 break;
-#endif
             }
         }
     }
@@ -2271,3 +2113,158 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 }
 
 
+
+static int TwapiGetProfileSectionHelper(
+    TwapiInterpContext *ticP,
+    LPCWSTR lpAppName, /* If NULL, section names are retrieved */
+    LPCWSTR lpFileName /* If NULL, win.ini is used */
+    )
+{
+    WCHAR *bufP;
+    DWORD  bufsz;
+    DWORD  numchars;
+
+    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &bufsz);
+    while (1) {
+        DWORD bufchars = bufsz/sizeof(WCHAR);
+        if (lpAppName) {
+            if (lpFileName)
+                numchars = GetPrivateProfileSectionW(lpAppName,
+                                                     bufP, bufchars,
+                                                     lpFileName);
+            else
+                numchars = GetProfileSectionW(lpAppName, bufP, bufchars);
+        } else {
+            /* Get section names. Note lpFileName can be NULL */
+            numchars = GetPrivateProfileSectionNamesW(bufP, bufchars, lpFileName);
+        }
+
+        if (numchars >= (bufchars-2)) {
+            /* Buffer not big enough */
+            MemLifoPopFrame(&ticP->memlifo);
+            bufsz = 2*bufsz;
+            bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
+        } else
+            break;
+    }
+
+    if (numchars)
+        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(bufP, numchars+1));
+
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return TCL_OK;
+}
+
+int Twapi_GetPrivateProfileSection(
+    TwapiInterpContext *ticP,
+    LPCWSTR lpAppName,
+    LPCWSTR lpFileName
+    )
+{
+    return TwapiGetProfileSectionHelper(ticP, lpAppName, lpFileName);
+}
+
+int Twapi_GetPrivateProfileSectionNames(
+    TwapiInterpContext *ticP,
+    LPCWSTR lpFileName
+    )
+{
+    return TwapiGetProfileSectionHelper(ticP, NULL, lpFileName);
+}
+
+int Twapi_LoadUserProfile(
+    Tcl_Interp *interp,
+    HANDLE  hToken,
+    DWORD                 flags,
+    LPWSTR username,
+    LPWSTR profilepath
+    )
+{
+    PROFILEINFOW profileinfo;
+
+    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
+    profileinfo.dwSize        = sizeof(profileinfo);
+    profileinfo.lpUserName    = username;
+    profileinfo.lpProfilePath = profilepath;
+
+    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
+        return TwapiReturnSystemError(interp);
+    }
+
+    Tcl_SetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+    return TCL_OK;
+}
+
+int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    char *chan_name;
+    int mode, direction;
+    ClientData h;
+    Tcl_Channel chan;
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETASTR(chan_name), GETINT(direction),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    chan = Tcl_GetChannel(interp, chan_name, &mode);
+    if (chan == NULL) {
+        Tcl_SetResult(interp, "Unknown channel", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    
+    direction = direction ? TCL_WRITABLE : TCL_READABLE;
+    
+    if (Tcl_GetChannelHandle(chan, direction, &h) == TCL_ERROR) {
+        Tcl_SetResult(interp, "Error getting channel handle", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, ObjFromHANDLE(h));
+    return TCL_OK;
+}
+
+
+typedef BOOLEAN (WINAPI *Wow64EnableWow64FsRedirection_t)(BOOLEAN);
+MAKE_DYNLOAD_FUNC(Wow64EnableWow64FsRedirection, kernel32, Wow64EnableWow64FsRedirection_t)
+BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection)
+{
+    Wow64EnableWow64FsRedirection_t Wow64EnableWow64FsRedirectionPtr = Twapi_GetProc_Wow64EnableWow64FsRedirection();
+    if (Wow64EnableWow64FsRedirectionPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+    } else {
+        if ((*Wow64EnableWow64FsRedirectionPtr)(enable_redirection))
+            return TRUE;
+        /* Not clear if the function sets last error so do it ourselves */
+        if (GetLastError() == 0)
+            SetLastError(ERROR_INVALID_FUNCTION); // For lack of better
+    }
+    return FALSE;
+}
+
+typedef BOOL (WINAPI *Wow64DisableWow64FsRedirection_t)(LPVOID *);
+MAKE_DYNLOAD_FUNC(Wow64DisableWow64FsRedirection, kernel32, Wow64DisableWow64FsRedirection_t)
+BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP)
+{
+    Wow64DisableWow64FsRedirection_t Wow64DisableWow64FsRedirectionPtr = Twapi_GetProc_Wow64DisableWow64FsRedirection();
+    if (Wow64DisableWow64FsRedirectionPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return FALSE;
+    } else {
+        return (*Wow64DisableWow64FsRedirectionPtr)(oldvalueP);
+    }
+}
+
+typedef BOOL (WINAPI *Wow64RevertWow64FsRedirection_t)(LPVOID);
+MAKE_DYNLOAD_FUNC(Wow64RevertWow64FsRedirection, kernel32, Wow64RevertWow64FsRedirection_t)
+BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr)
+{
+    Wow64RevertWow64FsRedirection_t Wow64RevertWow64FsRedirectionPtr = Twapi_GetProc_Wow64RevertWow64FsRedirection();
+    if (Wow64RevertWow64FsRedirectionPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return FALSE;
+    } else {
+        return (*Wow64RevertWow64FsRedirectionPtr)(addr);
+    }
+}

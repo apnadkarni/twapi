@@ -14,7 +14,6 @@ OBJS  = \
 	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mycrt.obj \
 	$(OBJDIR)\nls.obj \
-	$(OBJDIR)\os.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\recordarray.obj \
@@ -33,7 +32,6 @@ OBJS  = \
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\metoo.tcl \
-	..\tcl\osinfo.tcl \
 	..\tcl\security.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\adsi.tcl \
