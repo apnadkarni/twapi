@@ -429,6 +429,31 @@ DWORD TwapiNTSTATUSToError(NTSTATUS status)
     }
 }
 
+/*
+ * Always returns TCL_ERROR
+ */
+int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid)
+{
+    IErrorInfo *ei = NULL;
+    if (sei && iid) {
+        if (SUCCEEDED(sei->lpVtbl->InterfaceSupportsErrorInfo(sei, iid))) {
+            GetErrorInfo(0, &ei);
+        }
+    }
+    if (ei) {
+        BSTR msg;
+        ei->lpVtbl->GetDescription(ei, &msg);
+        Twapi_AppendSystemErrorEx(interp, hr,
+                                 ObjFromUnicodeN(msg,SysStringLen(msg)));
+
+        SysFreeString(msg);
+        ei->lpVtbl->Release(ei);
+    } else {
+        Twapi_AppendSystemError(interp, hr);
+    }
+
+    return TCL_ERROR;
+}
 
 /*
  * Write a message to the event log. To be used only for errors that
