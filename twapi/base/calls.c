@@ -19,9 +19,6 @@ static char *apiprocs =
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
     "                                                                        \n"
     "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
-    "proc twapi::DefineDosDevice  {flags devname path} {\n"
-    "    return [CallSSSD 42 {} $devname $path $flags]\n"
-    "}\n"
     "proc twapi::GetPrivateProfileInt {app key ival file} {\n"
     "    return [CallSSSD 7 $app $key $file $ival]\n"
     "}\n"
@@ -512,7 +509,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
     CALL_(LookupPrivilegeValue, CallSSSD, 14);
     CALL_(NetGetDCName, CallSSSD, 34);
-    CALL_(QueryDosDevice, CallSSSD, 41); /* TBD what module should this go to */
 
     // CallPSID - function(ANY, SID, ...)
     CALL_(LookupAccountSid, CallPSID, 2);
@@ -1839,7 +1835,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         MemLifo *lifoP;
     } u;
     int func;
-    int i;
     void *pv;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -2191,15 +2186,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     case 34:
         NULLIFY_EMPTY(s2);
         return Twapi_NetGetDCName(interp, s1,s2);
-    // 35-40: UNUSED
-    case 41:
-        return Twapi_QueryDosDevice(ticP, s1);
-    case 42:
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        // Note we use s2, s3 here as s1 has LPWSTR_NULL_IF_EMPTY semantics
-        NULLIFY_EMPTY(s3);
-        result.value.ival = DefineDosDeviceW(dw, s2, s3);
-        break;
     }
 
     return TwapiSetResult(interp, &result);
