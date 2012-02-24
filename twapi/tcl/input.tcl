@@ -153,9 +153,6 @@ proc twapi::send_keys {keys} {
 proc twapi::_hotkey_handler {msg atom key msgpos ticks} {
     variable _hotkeys
 
-    # TBD - it is not clear if we need to specifically return an
-    # error code, since it is ignored at C level anyways.
-
     # Note it is not an error if a hotkey does not exist since it could
     # have been deregistered in the time between hotkey input and receiving it.
     set code 0

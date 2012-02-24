@@ -17,7 +17,6 @@ OBJS  = \
 	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\os.obj \
 	$(OBJDIR)\parseargs.obj \
-	$(OBJDIR)\power.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\recordarray.obj \
 	$(OBJDIR)\security.obj \
