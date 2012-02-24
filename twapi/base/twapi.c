@@ -354,7 +354,6 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->pending_suspended = 0;
     ZLIST_INIT(&ticP->pending);
     ZLIST_INIT(&ticP->threadpool_registrations);
-    ZLIST_INIT(&ticP->directory_monitors);
 
     /* Register a async callback with Tcl. */
     /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
@@ -418,7 +417,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
         ticP->notification_win = 0;
     }
 
-    // TBD - what about pipes and directory_monitors ?
+    // TBD - what about pipes ?
 
     MemLifoClose(&ticP->memlifo);
 

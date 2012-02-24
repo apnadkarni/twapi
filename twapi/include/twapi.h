@@ -679,10 +679,6 @@ typedef struct _TwapiCallback TwapiCallback;
 ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
 ZLIST_CREATE_TYPEDEFS(TwapiCallback);
 
-typedef struct _TwapiDirectoryMonitorContext TwapiDirectoryMonitorContext;
-ZLINK_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext); 
-ZLIST_CREATE_TYPEDEFS(TwapiDirectoryMonitorContext);
-
 
 /*
  * We need to keep track of handles that are being tracked by the 
@@ -857,12 +853,6 @@ typedef struct _TwapiInterpContext {
      * only from the interp thread.
      */
     ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
-
-    /*
-     * List of directory change monitor contexts. ONLY ACCESSED
-     * FROM Tcl THREAD SO ACCESSED WITHOUT A LOCK.
-     */
-    ZLIST_DECL(TwapiDirectoryMonitorContext) directory_monitors;
 
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
@@ -1040,8 +1030,6 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
 int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path);
 int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir);
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
-int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle);
 
 
 /* Printers */
