@@ -7,10 +7,7 @@ OBJS  = \
 	$(OBJDIR)\async.obj \
 	$(OBJDIR)\calls.obj \
 	$(OBJDIR)\com.obj \
-	$(OBJDIR)\dirmonitor.obj \
-	$(OBJDIR)\disk.obj \
 	$(OBJDIR)\errors.obj \
-	$(OBJDIR)\file.obj \
 	$(OBJDIR)\guids.obj \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\lzmadec.obj \
@@ -40,11 +37,9 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\metoo.tcl \
 	..\tcl\osinfo.tcl \
 	..\tcl\security.tcl \
-	..\tcl\disk.tcl \
 	..\tcl\nls.tcl \
 	..\tcl\com.tcl \
 	..\tcl\adsi.tcl \
-	..\tcl\accounts.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \

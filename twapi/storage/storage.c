@@ -12,6 +12,8 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+/* File and disk related */
+
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)
 {
     DWORD file_type = GetFileType(h);
@@ -26,10 +28,6 @@ int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)
     Tcl_SetObjResult(interp, Tcl_NewLongObj(file_type));
     return TCL_OK;
 }
-
-
-
-
 
 int TwapiFirstVolume(
     Tcl_Interp *interp,
@@ -108,6 +106,7 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
 
     return TCL_OK;
 }
+
 
 int Twapi_QueryDosDevice(TwapiInterpContext *ticP, LPCWSTR lpDeviceName)
 {
@@ -204,7 +203,6 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     case 2:
         return TwapiFirstVolume(interp, NULL); /* FindFirstVolume */
     case 3: // RegisterDirChangeNotifier
-        return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
     case 4:
     case 5:
     case 6:
@@ -216,6 +214,8 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         if (TwapiGetArgs(interp, objc-2, objv+2, GETWSTR(s), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
+        case 3:
+            return Twapi_QueryDosDevice(ticP, s);
         case 4:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteVolumeMountPointW(s);
@@ -343,6 +343,16 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SetFileTime(h, ftP[0], ftP[1], ftP[2]);
         break;
+    case 23:
+        return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
+    case 24:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETINT(dw), GETWSTR(s), GETNULLIFEMPTY(s2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = DefineDosDeviceW(dw, s, s2);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -362,7 +372,7 @@ static int Twapi_StorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(GetLogicalDrives, 1);
     CALL_(FindFirstVolume, 2);
-    CALL_(Twapi_RegisterDirectoryMonitor, 3);
+    CALL_(QueryDosDevice, 3);
     CALL_(DeleteVolumeMountPoint, 4);
     CALL_(GetVolumeNameForVolumeMountPoint, 5);
     CALL_(GetVolumePathName, 6);
@@ -382,6 +392,8 @@ static int Twapi_StorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetVolumeLabel, 20);
     CALL_(SetVolumeMountPoint, 21);
     CALL_(SetFileTime, 22);
+    CALL_(Twapi_RegisterDirectoryMonitor, 23);
+    CALL_(DefineDosDevice, 24);
 
 #undef CALL_
 

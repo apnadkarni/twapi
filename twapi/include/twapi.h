@@ -1022,14 +1022,7 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
 
 /* Device related */
 int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
-int Twapi_QueryDosDevice(TwapiInterpContext *, LPCWSTR lpDeviceName);
 
-/* File and disk related */
-int TwapiFirstVolume(Tcl_Interp *interp, LPCWSTR path);
-int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVolume);
-int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path);
-int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir);
-int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h);
 
 
 /* Printers */

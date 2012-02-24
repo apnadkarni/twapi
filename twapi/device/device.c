@@ -1073,7 +1073,6 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hw
     return dncP;
 }
 
-
 static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
@@ -1100,7 +1099,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 10060: // SetupDiCreateDeviceInfoListExW
+    case 60: // SetupDiCreateDeviceInfoListExW
         guidP = &guid;
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETVAR(guidP, ObjToGUID_NULL),
@@ -1113,7 +1112,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.value.hval = SetupDiCreateDeviceInfoListExW(guidP, hwnd, s, pv);
         break;
 
-    case 10061:
+    case 61:
         guidP = &guid;
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETVAR(guidP, ObjToGUID_NULL),
@@ -1130,7 +1129,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.value.hval = SetupDiGetClassDevsExW(guidP, s, hwnd, dw,
                                                    h, s2, pv);
         break;
-    case 10062: // SetupDiEnumDeviceInfo
+    case 62: // SetupDiEnumDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO),
                          GETINT(dw),
@@ -1145,9 +1144,9 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.type = TRT_GETLASTERROR;
         break;
 
-    case 10063: // Twapi_SetupDiGetDeviceRegistryProperty
+    case 63: // Twapi_SetupDiGetDeviceRegistryProperty
         return Twapi_SetupDiGetDeviceRegistryProperty(ticP, objc-2, objv+2);
-    case 10064: // SetupDiEnumDeviceInterfaces
+    case 64: // SetupDiEnumDeviceInterfaces
         u.dev.sp_devinfo_dataP = & u.dev.sp_devinfo_data;
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO),
@@ -1167,9 +1166,9 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.type = TRT_GETLASTERROR;
         break;
 
-    case 10065:
+    case 65:
         return Twapi_SetupDiGetDeviceInterfaceDetail(ticP, objc-2, objv+2);
-    case 10066:
+    case 66:
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETGUID(guid),
                          ARGUSEDEFAULT,
@@ -1185,7 +1184,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         } else
             result.type = TRT_GETLASTERROR;
         break;
-    case 10067:
+    case 67:
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(h, HDEVINFO),
                          GETVAR(u.dev.sp_devinfo_data, ObjToSP_DEVINFO_DATA),
@@ -1199,9 +1198,9 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         } else
             result.type = TRT_GETLASTERROR;
         break;
-    case 10068:
+    case 68:
         return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
-    case 10069:
+    case 69:
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLE(h),   GETINT(dw),
                          GETVOIDP(pv),   GETINT(dw2),
@@ -1216,7 +1215,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         else
             result.type = TRT_GETLASTERROR;
         break;
-    case 10070:
+    case 70:
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
@@ -1224,9 +1223,9 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SetupDiDestroyDeviceInfoList(h);
         break;
-    case 10071:
+    case 71:
         return Twapi_RegisterDeviceNotification(ticP, objc-2, objv+2);
-    case 10072:
+    case 72:
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[2]);
@@ -1243,27 +1242,27 @@ static int Twapi_DeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::DeviceCall", Twapi_DeviceCallObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
+#define CALL_(fn_, code_)                                         \
     do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Device" #call_, # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::DeviceCall", # code_); \
     } while (0);
 
-    /* Dispatch function codes start at 10060 for historical reasons.
+    /* Dispatch function codes start at 60 for historical reasons.
        Nothing magic but change Twapi_DeviceCallObjCmd accordingly 
     */
-    CALL_(SetupDiCreateDeviceInfoListEx, Call, 10060);
-    CALL_(SetupDiGetClassDevsEx, Call, 10061);
-    CALL_(SetupDiEnumDeviceInfo, Call, 10062);
-    CALL_(SetupDiGetDeviceRegistryProperty, Call, 10063);
-    CALL_(SetupDiEnumDeviceInterfaces, Call, 10064);
-    CALL_(SetupDiGetDeviceInterfaceDetail, Call, 10065);
-    CALL_(SetupDiClassNameFromGuidEx, Call, 10066);
-    CALL_(SetupDiGetDeviceInstanceId, Call, 10067);
-    CALL_(SetupDiClassGuidsFromNameEx, Call, 10068);
-    CALL_(DeviceIoControl, Call, 10069);
-    CALL_(SetupDiDestroyDeviceInfoList, CallH, 10070);
-    CALL_(Twapi_RegisterDeviceNotification, Call, 10071);
-    CALL_(Twapi_UnregisterDeviceNotification, CallU, 10072);
+    CALL_(SetupDiCreateDeviceInfoListEx, 60);
+    CALL_(SetupDiGetClassDevsEx, 61);
+    CALL_(SetupDiEnumDeviceInfo, 62);
+    CALL_(SetupDiGetDeviceRegistryProperty, 63);
+    CALL_(SetupDiEnumDeviceInterfaces, 64);
+    CALL_(SetupDiGetDeviceInterfaceDetail, 65);
+    CALL_(SetupDiClassNameFromGuidEx, 66);
+    CALL_(SetupDiGetDeviceInstanceId, 67);
+    CALL_(SetupDiClassGuidsFromNameEx, 68);
+    CALL_(DeviceIoControl, 69);
+    CALL_(SetupDiDestroyDeviceInfoList, 70);
+    CALL_(Twapi_RegisterDeviceNotification, 71);
+    CALL_(Twapi_UnregisterDeviceNotification, 72);
 
 #undef CALL_
 
