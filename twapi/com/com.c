@@ -9,46 +9,9 @@
 
 #include "twapi.h"
 
-/*
- * Struct for mapping VARTYPE values to strings.
- * We search linearly so order based on most likely types.
- * Only the basic types are covered in this table. The code itself
- * handles the special/complex cases.
- */
-struct vt_token_pair {
-    VARTYPE vt;
-    char   *tok;
-};
-static struct vt_token_pair vt_base_tokens[] = {
-    {VT_BOOL, "bool"},
-    {VT_I2, "i2"},
-    {VT_I4, "i4"},
-    {VT_PTR, "ptr"},
-    {VT_R4, "r4"},
-    {VT_R8, "r8"},
-    {VT_CY, "cy"},
-    {VT_DATE, "date"},
-    {VT_BSTR, "bstr"},
-    {VT_DISPATCH, "idispatch"},
-    {VT_ERROR, "error"},
-    {VT_VARIANT, "variant"},
-    {VT_UNKNOWN, "iunknown"},
-    {VT_UI1, "ui1"},
-    {VT_DECIMAL, "decimal"},
-    {VT_I1, "i1"},
-    {VT_UI2, "ui2"},
-    {VT_UI4, "ui4"},
-    {VT_I8, "i8"},
-    {VT_UI8, "ui8"},
-    {VT_INT, "int"},
-    {VT_UINT, "uint"},
-    {VT_HRESULT, "hresult"},
-    {VT_VOID, "void"},
-    {VT_LPSTR, "lpstr"},
-    {VT_LPWSTR, "lpwstr"},
-    {VT_RECORD, "record"},
-    {VT_USERDEFINED, "userdefined"}
-};
+#ifndef TWAPI_STATIC_BUILD
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
 
 /*
  * Event sink definitions
@@ -111,51 +74,7 @@ typedef struct Twapi_EventSink {
 
 } Twapi_EventSink;
 
-static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
-{
-    if (interp) {
-        Tcl_SetObjResult(interp,
-                         Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
-                                       vt));
-    }
-}
 
-static int LookupBaseVT(Tcl_Interp *interp, VARTYPE vt, const char **tokP)
-{
-    int i;
-    for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
-        if (vt_base_tokens[i].vt == vt) {
-            if (tokP)
-                *tokP = vt_base_tokens[i].tok;
-            return TCL_OK;
-        }
-    }
-
-    TwapiInvalidVariantTypeMessage(interp, vt);
-    return TCL_ERROR;
-}
-
-static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
-{
-    int i;
-    if (tok != NULL) {
-        for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
-            if (STREQ(vt_base_tokens[i].tok, tok)) {
-                if (vtP)
-                    *vtP = vt_base_tokens[i].vt;
-                return TCL_OK;
-            }
-        }
-    }
-    if (interp) {
-        Tcl_Obj *objP; 
-        objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
-        Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
-        Tcl_SetObjResult(interp, objP);
-    }
-
-    return TCL_ERROR;
-}
 
 static HRESULT STDMETHODCALLTYPE Twapi_EventSink_QueryInterface(
     IDispatch *this,
@@ -176,50 +95,6 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_QueryInterface(
     return S_OK;
 }
 
-/* Convert a VT string rep to corresponding integer */
-int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
-{
-    int i;
-    Tcl_Obj **objv;
-    int       objc;
-    VARTYPE   vt;
-
-    /* The VT may be take one of the following forms:
-     *    - integer
-     *    - symbol
-     *    - list {ptr VT}
-     *    - list {userdefined VT}
-     */
-    if (Tcl_GetIntFromObj(NULL, obj, &i) == TCL_OK) {
-        *vtP = (VARTYPE) i;
-        return TCL_OK;
-    } else if (LookupBaseVTToken(interp, Tcl_GetString(obj), vtP) == TCL_OK) {
-        return TCL_OK;
-    }
-
-    /*
-     * See if it's a list. Note interp contains an error msg at this point
-     */
-
-    if (Tcl_ListObjGetElements(NULL, obj, &objc, &objv) != TCL_OK ||
-        objc < 2) {
-        return TCL_ERROR;
-    }
-    if (Tcl_GetIntFromObj(NULL, objv[0], &i) == TCL_OK) {
-        vt = (VARTYPE) i;
-    } else if (LookupBaseVTToken(NULL, Tcl_GetString(objv[0]), &vt) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    /* vt must be either pointer, array or UDT in the list case */
-    if (vt == VT_PTR || vt == VT_SAFEARRAY || vt == VT_USERDEFINED) {
-        *vtP = vt;
-        Tcl_ResetResult(interp); // Get rid of old error message.
-        return TCL_OK;
-    }
-    else
-        return TCL_ERROR;
-}
 
 Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
 {
@@ -229,452 +104,6 @@ Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
     return Tcl_NewListObj(2, objv);
 }
 
-
-/*
- * Return a Tcl object that is a list
- * {"safearray" dimensionlist VT_xxx valuelist}.
- * dimensionlist is a flat list of lowbound, upperbound pairs, one
- * for each dimension.
- * If VT_xxx is not recognized, valuelist is missing
- * If there is no vartype information, VT_XXX is also missing
- * Never returns NULL.
- */
-static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
-{
-    Tcl_Obj *objv[3];           /* "safearray|vt", dimensions,  value */
-    int      objc;
-    long     i;
-    VARTYPE  vt;
-    HRESULT  hr;
-    long     num_elems;
-    void     *valP;
-#define GETVAL(index_, type_) (((type_ *)valP)[index_])
-
-    /* We require the safearray to have a type associated */
-    objc = 1;
-    if (SafeArrayGetVartype(arrP, &vt) == S_OK) {
-        objv[0] = Tcl_NewIntObj(vt|VT_ARRAY);
-    } else {
-        objv[0] = Tcl_NewIntObj(VT_ARRAY);
-        goto alldone;
-    }
-
-    hr = SafeArrayAccessData(arrP, &valP);
-    if (FAILED(hr))
-        goto alldone;
-
-    objv[1] = Tcl_NewListObj(0, NULL);
-    num_elems = 1;
-    for (i = 0; i < arrP->cDims; ++i) {
-        Tcl_ListObjAppendElement(NULL, objv[1], Tcl_NewLongObj(arrP->rgsabound[i].lLbound));
-        Tcl_ListObjAppendElement(NULL, objv[1], Tcl_NewLongObj(arrP->rgsabound[i].cElements));
-        num_elems *= arrP->rgsabound[i].cElements;
-    }
-
-    /* TBD - it might be more efficient to allocate an array and then
-       use Tcl_NewListObj to create from there instead of calling
-       Tcl_ListObjAppend for each element
-    */
-
-    objv[2] = Tcl_NewListObj(0, NULL); /* Value object */
-    objc = 3;
-
-    switch (vt) {
-    case VT_EMPTY:
-    case VT_NULL:
-        break;
-
-    case VT_I2: {
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,short)));
-        }
-        break;
-    }
-
-    case VT_INT: /* FALLTHROUGH */
-    case VT_I4:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewLongObj(GETVAL(i,long)));
-        }
-        break;
-
-    case VT_R4:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewDoubleObj(GETVAL(i,float)));
-        }
-        break;
-
-    case VT_R8:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewDoubleObj(GETVAL(i,double)));
-        }
-        break;
-
-    case VT_CY:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromCY(&(((CY *)valP)[i]))
-                );
-        }
-        break;
-
-    case VT_DATE:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                Tcl_NewDoubleObj(GETVAL(i,double)));
-        }
-        break;
-
-    case VT_BSTR:
-        for (i = 0; i < num_elems; ++i) {
-            BSTR bstr = GETVAL(i,BSTR);
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromUnicodeN(bstr, SysStringLen(bstr))
-                );
-        }
-        break;
-
-    case VT_DISPATCH:
-        for (i = 0; i < num_elems; ++i) {
-            IDispatch *idispP = GETVAL(i,IDispatch *);
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromIDispatch(idispP)
-                );
-        }
-        break;
-
-    case VT_ERROR:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,SCODE)));
-        }
-        break;
-
-    case VT_BOOL:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                Tcl_NewBooleanObj(GETVAL(i,VARIANT_BOOL))
-                );
-        }
-        break;
-
-    case VT_VARIANT:
-        for (i = 0; i < num_elems; ++i) {
-            VARIANT *varP = &((( VARIANT *)valP)[i]);
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromVARIANT(varP, 0));
-        }
-        break;
-
-    case VT_DECIMAL:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromDECIMAL(&((( DECIMAL *)valP)[i]))
-                );
-        }
-        break;
-
-    case VT_UNKNOWN:
-        for (i = 0; i < num_elems; ++i) {
-            IUnknown *idispP = GETVAL(i, IUnknown *);
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromIUnknown(idispP));
-        }
-        break;
-
-    case VT_I1:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,char)));
-        }
-        break;
-
-    case VT_UI1:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,unsigned char)));
-        }
-        break;
-
-    case VT_UI2:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,unsigned short)));
-        }
-        break;
-
-    case VT_UINT: /* FALLTHROUGH */
-    case VT_UI4:
-        for (i = 0; i < num_elems; ++i) {
-            unsigned long ulval = GETVAL(i, unsigned long);
-            /* store as wide integer if it does not fit in signed 32 bits */
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                (ulval & 0x80000000) ? Tcl_NewWideIntObj(ulval) : Tcl_NewLongObj(ulval));
-        }
-        break;
-
-    case VT_I8: /* FALLTHRU */
-    case VT_UI8:
-        for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewWideIntObj(GETVAL(i,__int64)));
-        }
-        break;
-
-        /* Dunno how to handle these */
-    default:
-        break;
-
-    }
-
-    SafeArrayUnaccessData(arrP);
-
- alldone:
-    return Tcl_NewListObj(objc, objv);
-}
-
-/* 
- * If value_only is 0, returns a Tcl object that is a list {VT_xxx value}.
- * If VT_xxx is not known, value is missing (only the VT_xxx is
- * returned). 
- * If value_only is 1, returns only the value object and am empty object
- * if VT_xxx is not known.
- * Never returns NULL.
- */
-Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
-{
-    Tcl_Obj *objv[2];
-    Tcl_Obj *valObj[2];
-    unsigned long ulval;
-    VARIANT  empty;
-    void    *recdataP;
-    IDispatch *idispP;
-    IUnknown  *iunkP;
-
-    if (varP == NULL) {
-        VariantInit(&empty);
-        varP = &empty;
-    }
-
-    if (V_VT(varP) & VT_ARRAY) {
-        if (V_VT(varP) & VT_BYREF)
-            return ObjFromSAFEARRAY(*(varP->pparray));
-        else
-            return ObjFromSAFEARRAY(varP->parray);
-    }
-    if ((V_VT(varP) == (VT_BYREF|VT_VARIANT)) && varP->pvarVal)
-        return ObjFromVARIANT(varP->pvarVal, 0);
-
-    objv[0] = Tcl_NewIntObj(V_VT(varP) & ~VT_BYREF);
-    objv[1] = NULL;
-
-    switch (V_VT(varP)) {
-    case VT_EMPTY|VT_BYREF:
-    case VT_EMPTY:
-    case VT_NULL|VT_BYREF:
-    case VT_NULL:
-        break;
-
-    case VT_I2|VT_BYREF:
-    case VT_I2:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I2 ? V_I2(varP) : * V_I2REF(varP));
-        break;
-
-    case VT_I4|VT_BYREF:
-    case VT_I4:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I4 ? V_I4(varP) : * V_I4REF(varP));
-        break;
-
-    case VT_R4|VT_BYREF:
-    case VT_R4:
-        objv[1] = Tcl_NewDoubleObj(V_VT(varP) == VT_R4 ? V_R4(varP) : * V_R4REF(varP));
-        break;
-
-    case VT_R8|VT_BYREF:
-    case VT_R8:
-        objv[1] = Tcl_NewDoubleObj(V_VT(varP) == VT_R8 ? V_R8(varP) : * V_R8REF(varP));
-        break;
-
-    case VT_CY|VT_BYREF:
-    case VT_CY:
-        objv[1] = ObjFromCY(
-            V_VT(varP) == VT_CY ? & V_CY(varP) : V_CYREF(varP)
-            );
-        break;
-
-    case VT_BSTR|VT_BYREF:
-    case VT_BSTR:
-        if (V_VT(varP) == VT_BSTR)
-            objv[1] = ObjFromUnicodeN(V_BSTR(varP),
-                                        SysStringLen(V_BSTR(varP)));
-        else
-            objv[1] = ObjFromUnicodeN(* V_BSTRREF(varP),
-                                        SysStringLen(* V_BSTRREF(varP)));
-        break;
-
-    case VT_DISPATCH|VT_BYREF:
-        /* If VT_BYREF is set, then a reference to an existing
-         * IUnknown is being returned. In this case, at the script level
-         * we should not Release it but there is no way for the script
-         * to know that. We therefore do a AddRef on the pointer here
-         * so it can be released later in the script (ie. the script
-         * can treat VT_DISPATCH and VT_DISPATCH|VT_BYREF the same
-         * TBD - revisit this as to whether Release is required
-         */
-        idispP = * (V_DISPATCHREF(varP));
-        idispP->lpVtbl->AddRef(idispP);
-        objv[1] = ObjFromIDispatch(idispP);
-        break;
-
-    case VT_DISPATCH:
-        idispP = V_DISPATCH(varP);
-        objv[1] = ObjFromIDispatch(idispP);
-        break;
-
-    case VT_ERROR|VT_BYREF:
-    case VT_ERROR:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_ERROR ? V_ERROR(varP) : * V_ERRORREF(varP));
-        break;
-
-    case VT_BOOL|VT_BYREF:
-    case VT_BOOL:
-        objv[1] = Tcl_NewBooleanObj(V_VT(varP) == VT_BOOL ? V_BOOL(varP) : * V_BOOLREF(varP));
-        break;
-
-    case VT_DATE|VT_BYREF:
-    case VT_DATE:
-        objv[1] = Tcl_NewDoubleObj(V_VT(varP) == VT_DATE ? V_DATE(varP) : * V_DATEREF(varP));
-        break;
-
-    case VT_VARIANT|VT_BYREF:
-        /* This is for the case where varP->pvarVal is NULL. The non-NULL
-           case was already handled in an if stmt above */
-        break;
-
-    case VT_DECIMAL|VT_BYREF:
-    case VT_DECIMAL:
-        objv[1] = ObjFromDECIMAL(
-            V_VT(varP) == VT_DECIMAL ? & V_DECIMAL(varP) : V_DECIMALREF(varP)
-            );
-        break;
-
-
-    case VT_UNKNOWN|VT_BYREF:
-        /* If VT_BYREF is set, then a reference to an existing
-         * IUnknown is being returned. In this case, at the script level
-         * we should not Release it but there is no way for the script
-         * to know that. We therefore do a AddRef on the pointer here
-         * so it can be released later
-         * TBD - revisit this as to whether Release is required
-         */
-        iunkP = * (V_UNKNOWNREF(varP));
-        iunkP->lpVtbl->AddRef(iunkP);
-        objv[1] = ObjFromIUnknown(iunkP);
-        break;
-
-    case VT_UNKNOWN:
-        iunkP = V_UNKNOWN(varP);
-        objv[1] = ObjFromIUnknown(iunkP);
-        break;
-
-    case VT_I1|VT_BYREF:
-    case VT_I1:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I1 ? V_I1(varP) : * V_I1REF(varP));
-        break;
-
-    case VT_UI1|VT_BYREF:
-    case VT_UI1:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_UI1 ? V_UI1(varP) : * V_UI1REF(varP));
-        break;
-
-    case VT_UI2|VT_BYREF:
-    case VT_UI2:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_UI2 ? V_UI2(varP) : * V_UI2REF(varP));
-        break;
-
-    case VT_UI4|VT_BYREF:
-    case VT_UI4:
-        /* store as wide integer if it does not fit in signed 32 bits */
-        ulval = V_VT(varP) == VT_UI4 ? V_UI4(varP) : * V_UI4REF(varP);
-        if (ulval & 0x80000000) {
-            objv[1] = Tcl_NewWideIntObj(ulval);
-        }
-        else {
-            objv[1] = Tcl_NewLongObj(ulval);
-        }
-        break;
-
-    case VT_I8|VT_BYREF:
-    case VT_I8:
-        objv[1] = Tcl_NewWideIntObj(V_VT(varP) == VT_I8 ? V_I8(varP) : * V_I8REF(varP));
-        break;
-
-    case VT_UI8|VT_BYREF:
-    case VT_UI8:
-        objv[1] = Tcl_NewWideIntObj(V_VT(varP) == VT_UI8 ? V_UI8(varP) : * V_UI8REF(varP));
-        break;
-
-
-    case VT_INT|VT_BYREF:
-    case VT_INT:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_INT ? V_INT(varP) : * V_INTREF(varP));
-        break;
-
-    case VT_UINT|VT_BYREF:
-    case VT_UINT:
-        /* store as wide integer if it does not fit in signed 32 bits */
-        ulval = V_VT(varP) == VT_UINT ? V_UINT(varP) : * V_UINTREF(varP);
-        if (ulval & 0x80000000) {
-            objv[1] = Tcl_NewWideIntObj(ulval);
-        }
-        else {
-            objv[1] = Tcl_NewLongObj(ulval);
-        }
-        break;
-
-    case VT_RECORD:
-        recdataP = NULL;
-        if (V_RECORDINFO(varP) &&
-            V_RECORD(varP) &&
-            V_RECORDINFO(varP)->lpVtbl->RecordCreateCopy(V_RECORDINFO(varP), V_RECORD(varP), &recdataP) == S_OK
-            ) {
-            /*
-             * Construct return value as pair of IRecordInfo* void* (data)
-             */
-            valObj[0] = ObjFromOpaque(V_RECORDINFO(varP), "IRecordInfo");
-            // TBD - we pass pointers to record instances as void* as per
-            // the IRecordInfo interface. We should change this to be
-            // more typesafe
-            valObj[1] = ObjFromLPVOID(recdataP);
-            objv[1] = Tcl_NewListObj(2, valObj);
-        }
-        break;
-
-        /* Dunno how to handle these */
-    case VT_RECORD|VT_BYREF:
-    case VT_VARIANT: /* Note VT_VARIANT is illegal */
-    default:
-        break;
-    }
-
-    if (value_only)
-        return objv[1] ? objv[1] : Tcl_NewStringObj("", 0);
-    else
-        return Tcl_NewListObj(objv[1] ? 2 : 1, objv);
-}
 
 
 /* Returns a Tcl_Obj corresponding to a type descriptor. */
@@ -1418,31 +847,6 @@ int Twapi_IDispatch_InvokeObjCmd(
     return status;
 }
 
-/*
- * Always returns TCL_ERROR
- */
-int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid)
-{
-    IErrorInfo *ei = NULL;
-    if (sei && iid) {
-        if (SUCCEEDED(sei->lpVtbl->InterfaceSupportsErrorInfo(sei, iid))) {
-            GetErrorInfo(0, &ei);
-        }
-    }
-    if (ei) {
-        BSTR msg;
-        ei->lpVtbl->GetDescription(ei, &msg);
-        Twapi_AppendSystemErrorEx(interp, hr,
-                                 ObjFromUnicodeN(msg,SysStringLen(msg)));
-
-        SysFreeString(msg);
-        ei->lpVtbl->Release(ei);
-    } else {
-        Twapi_AppendSystemError(interp, hr);
-    }
-
-    return TCL_ERROR;
-}
 
 static int TwapiGetIDsOfNamesHelper(
     TwapiInterpContext *ticP,
@@ -2024,7 +1428,9 @@ int TwapiMakeVariantParam(
             break;
 
         default:
-            TwapiInvalidVariantTypeMessage(interp, vt);
+            Tcl_SetObjResult(interp,
+                             Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
+                                           vt));
             goto vamoose;
         }
 
@@ -3327,4 +2733,156 @@ EXCEPTION_ON_ERROR UnRegisterTypeLibForUser(
     DWORD  lcid,
     int  syskind);
 #endif
+
+
+
+
+static int Twapi_ComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    Tcl_CreateObjCommand(interp, "twapi::ComCall",
+                         Twapi_CallCOMObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
+                         Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::ComEventSink",
+                         Twapi_ComEventSinkObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+    // CallCOM
+#define CALLCOM_(fn_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::CallCOM", # code_); \
+    } while (0);
+    CALLCOM_(IUnknown_Release, 1);
+    CALLCOM_(IUnknown_AddRef, 2);
+    CALLCOM_(Twapi_IUnknown_QueryInterface, 3);
+    CALLCOM_(OleRun, 4);       /* Note - function, NOT method */
+
+    CALLCOM_(IDispatch_GetTypeInfoCount, 101);
+    CALLCOM_(IDispatch_GetTypeInfo, 102);
+    CALLCOM_(IDispatch_GetIDsOfNames, 103);
+
+    CALLCOM_(IDispatchEx_GetDispID, 201);
+    CALLCOM_(IDispatchEx_GetMemberName, 202);
+    CALLCOM_(IDispatchEx_GetMemberProperties, 203);
+    CALLCOM_(IDispatchEx_GetNextDispID, 204);
+    CALLCOM_(IDispatchEx_GetNameSpaceParent, 205);
+    CALLCOM_(IDispatchEx_DeleteMemberByName, 206);
+    CALLCOM_(IDispatchEx_DeleteMemberByDispID, 207);
+
+    CALLCOM_(ITypeInfo_GetRefTypeOfImplType, 301);
+    CALLCOM_(ITypeInfo_GetRefTypeInfo, 302);
+    CALLCOM_(ITypeInfo_GetTypeComp, 303);
+    CALLCOM_(ITypeInfo_GetContainingTypeLib, 304);
+    CALLCOM_(ITypeInfo_GetDocumentation, 305);
+    CALLCOM_(ITypeInfo_GetImplTypeFlags, 306);
+    CALLCOM_(GetRecordInfoFromTypeInfo, 307); /* Note - function, not method */
+    CALLCOM_(ITypeInfo_GetNames, 308);
+    CALLCOM_(ITypeInfo_GetTypeAttr, 309);
+    CALLCOM_(ITypeInfo_GetFuncDesc, 310);
+    CALLCOM_(ITypeInfo_GetVarDesc, 311);
+    CALLCOM_(ITypeInfo_GetIDsOfNames, 399);
+
+    CALLCOM_(ITypeLib_GetDocumentation, 401);
+    CALLCOM_(ITypeLib_GetTypeInfoCount, 402);
+    CALLCOM_(ITypeLib_GetTypeInfoType, 403);
+    CALLCOM_(ITypeLib_GetTypeInfo, 404);
+    CALLCOM_(ITypeLib_GetTypeInfoOfGuid, 405);
+    CALLCOM_(ITypeLib_GetLibAttr, 406);
+    CALLCOM_(RegisterTypeLib, 407); /* Function, not method */
+
+    CALLCOM_(IRecordInfo_GetField, 501);
+    CALLCOM_(IRecordInfo_GetGuid, 502);
+    CALLCOM_(IRecordInfo_GetName, 503);
+    CALLCOM_(IRecordInfo_GetSize, 504);
+    CALLCOM_(IRecordInfo_GetTypeInfo, 505);
+    CALLCOM_(IRecordInfo_IsMatchingType, 506);
+    CALLCOM_(IRecordInfo_RecordClear, 507);
+    CALLCOM_(IRecordInfo_RecordCopy, 508);
+    CALLCOM_(IRecordInfo_RecordCreate, 509);
+    CALLCOM_(IRecordInfo_RecordCreateCopy, 510);
+    CALLCOM_(IRecordInfo_RecordDestroy, 511);
+    CALLCOM_(IRecordInfo_RecordInit, 512);
+    CALLCOM_(IRecordInfo_GetFieldNames, 513);
+
+    CALLCOM_(IMoniker_GetDisplayName,601);
+
+    CALLCOM_(IEnumVARIANT_Clone, 701);
+    CALLCOM_(IEnumVARIANT_Reset, 702);
+    CALLCOM_(IEnumVARIANT_Skip, 703);
+    CALLCOM_(IEnumVARIANT_Next, 704);
+
+    CALLCOM_(IConnectionPoint_Advise, 801);
+    CALLCOM_(IConnectionPoint_EnumConnections, 802);
+    CALLCOM_(IConnectionPoint_GetConnectionInterface, 803);
+    CALLCOM_(IConnectionPoint_GetConnectionPointContainer, 804);
+    CALLCOM_(IConnectionPoint_Unadvise, 805);
+
+    CALLCOM_(IConnectionPointContainer_EnumConnectionPoints, 901);
+    CALLCOM_(IConnectionPointContainer_FindConnectionPoint, 902);
+
+    CALLCOM_(IEnumConnectionPoints_Clone, 1001);
+    CALLCOM_(IEnumConnectionPoints_Reset, 1002);
+    CALLCOM_(IEnumConnectionPoints_Skip, 1003);
+    CALLCOM_(IEnumConnectionPoints_Next, 1004);
+
+    CALLCOM_(IEnumConnections_Clone, 1101);
+    CALLCOM_(IEnumConnections_Reset, 1102);
+    CALLCOM_(IEnumConnections_Skip, 1103);
+    CALLCOM_(IEnumConnections_Next, 1104);
+
+    CALLCOM_(IProvideClassInfo_GetClassInfo, 1201);
+
+    CALLCOM_(IProvideClassInfo2_GetGUID, 1301);
+
+    CALLCOM_(ITypeComp_Bind, 1401);
+
+
+    CALLCOM_(IPersistFile_GetCurFile, 5501);
+    CALLCOM_(IPersistFile_IsDirty, 5502);
+    CALLCOM_(IPersistFile_Load, 5503);
+    CALLCOM_(IPersistFile_Save, 5504);
+    CALLCOM_(IPersistFile_SaveCompleted, 5505);
+
+    CALLCOM_(CreateFileMoniker, 10001);
+    CALLCOM_(CreateBindCtx, 10002);
+    CALLCOM_(GetRecordInfoFromGuids, 10003);
+    CALLCOM_(QueryPathOfRegTypeLib, 10004);
+    CALLCOM_(UnRegisterTypeLib, 10005);
+    CALLCOM_(LoadRegTypeLib, 10006);
+    CALLCOM_(LoadTypeLibEx, 10007);
+    CALLCOM_(Twapi_CoGetObject, 10008);
+    CALLCOM_(GetActiveObject, 10009);
+    CALLCOM_(ProgIDFromCLSID, 10010);
+    CALLCOM_(CLSIDFromProgID, 10011);
+    CALLCOM_(Twapi_CoCreateInstance, 10012);
+#undef CALLCOM_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_com_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_ComInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
 

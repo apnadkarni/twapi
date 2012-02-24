@@ -281,7 +281,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallPSID", Twapi_CallPSIDObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallCOM", Twapi_CallCOMObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
@@ -523,115 +522,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 #undef CALL_
 
-    // CallCOM
-#define CALLCOM_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::CallCOM", # code_); \
-    } while (0);
-    CALLCOM_(IUnknown_Release, 1);
-    CALLCOM_(IUnknown_AddRef, 2);
-    CALLCOM_(Twapi_IUnknown_QueryInterface, 3);
-    CALLCOM_(OleRun, 4);       /* Note - function, NOT method */
-
-    CALLCOM_(IDispatch_GetTypeInfoCount, 101);
-    CALLCOM_(IDispatch_GetTypeInfo, 102);
-    CALLCOM_(IDispatch_GetIDsOfNames, 103);
-
-    CALLCOM_(IDispatchEx_GetDispID, 201);
-    CALLCOM_(IDispatchEx_GetMemberName, 202);
-    CALLCOM_(IDispatchEx_GetMemberProperties, 203);
-    CALLCOM_(IDispatchEx_GetNextDispID, 204);
-    CALLCOM_(IDispatchEx_GetNameSpaceParent, 205);
-    CALLCOM_(IDispatchEx_DeleteMemberByName, 206);
-    CALLCOM_(IDispatchEx_DeleteMemberByDispID, 207);
-
-    CALLCOM_(ITypeInfo_GetRefTypeOfImplType, 301);
-    CALLCOM_(ITypeInfo_GetRefTypeInfo, 302);
-    CALLCOM_(ITypeInfo_GetTypeComp, 303);
-    CALLCOM_(ITypeInfo_GetContainingTypeLib, 304);
-    CALLCOM_(ITypeInfo_GetDocumentation, 305);
-    CALLCOM_(ITypeInfo_GetImplTypeFlags, 306);
-    CALLCOM_(GetRecordInfoFromTypeInfo, 307); /* Note - function, not method */
-    CALLCOM_(ITypeInfo_GetNames, 308);
-    CALLCOM_(ITypeInfo_GetTypeAttr, 309);
-    CALLCOM_(ITypeInfo_GetFuncDesc, 310);
-    CALLCOM_(ITypeInfo_GetVarDesc, 311);
-    CALLCOM_(ITypeInfo_GetIDsOfNames, 399);
-
-    CALLCOM_(ITypeLib_GetDocumentation, 401);
-    CALLCOM_(ITypeLib_GetTypeInfoCount, 402);
-    CALLCOM_(ITypeLib_GetTypeInfoType, 403);
-    CALLCOM_(ITypeLib_GetTypeInfo, 404);
-    CALLCOM_(ITypeLib_GetTypeInfoOfGuid, 405);
-    CALLCOM_(ITypeLib_GetLibAttr, 406);
-    CALLCOM_(RegisterTypeLib, 407); /* Function, not method */
-
-    CALLCOM_(IRecordInfo_GetField, 501);
-    CALLCOM_(IRecordInfo_GetGuid, 502);
-    CALLCOM_(IRecordInfo_GetName, 503);
-    CALLCOM_(IRecordInfo_GetSize, 504);
-    CALLCOM_(IRecordInfo_GetTypeInfo, 505);
-    CALLCOM_(IRecordInfo_IsMatchingType, 506);
-    CALLCOM_(IRecordInfo_RecordClear, 507);
-    CALLCOM_(IRecordInfo_RecordCopy, 508);
-    CALLCOM_(IRecordInfo_RecordCreate, 509);
-    CALLCOM_(IRecordInfo_RecordCreateCopy, 510);
-    CALLCOM_(IRecordInfo_RecordDestroy, 511);
-    CALLCOM_(IRecordInfo_RecordInit, 512);
-    CALLCOM_(IRecordInfo_GetFieldNames, 513);
-
-    CALLCOM_(IMoniker_GetDisplayName,601);
-
-    CALLCOM_(IEnumVARIANT_Clone, 701);
-    CALLCOM_(IEnumVARIANT_Reset, 702);
-    CALLCOM_(IEnumVARIANT_Skip, 703);
-    CALLCOM_(IEnumVARIANT_Next, 704);
-
-    CALLCOM_(IConnectionPoint_Advise, 801);
-    CALLCOM_(IConnectionPoint_EnumConnections, 802);
-    CALLCOM_(IConnectionPoint_GetConnectionInterface, 803);
-    CALLCOM_(IConnectionPoint_GetConnectionPointContainer, 804);
-    CALLCOM_(IConnectionPoint_Unadvise, 805);
-
-    CALLCOM_(IConnectionPointContainer_EnumConnectionPoints, 901);
-    CALLCOM_(IConnectionPointContainer_FindConnectionPoint, 902);
-
-    CALLCOM_(IEnumConnectionPoints_Clone, 1001);
-    CALLCOM_(IEnumConnectionPoints_Reset, 1002);
-    CALLCOM_(IEnumConnectionPoints_Skip, 1003);
-    CALLCOM_(IEnumConnectionPoints_Next, 1004);
-
-    CALLCOM_(IEnumConnections_Clone, 1101);
-    CALLCOM_(IEnumConnections_Reset, 1102);
-    CALLCOM_(IEnumConnections_Skip, 1103);
-    CALLCOM_(IEnumConnections_Next, 1104);
-
-    CALLCOM_(IProvideClassInfo_GetClassInfo, 1201);
-
-    CALLCOM_(IProvideClassInfo2_GetGUID, 1301);
-
-    CALLCOM_(ITypeComp_Bind, 1401);
-
-
-    CALLCOM_(IPersistFile_GetCurFile, 5501);
-    CALLCOM_(IPersistFile_IsDirty, 5502);
-    CALLCOM_(IPersistFile_Load, 5503);
-    CALLCOM_(IPersistFile_Save, 5504);
-    CALLCOM_(IPersistFile_SaveCompleted, 5505);
-
-    CALLCOM_(CreateFileMoniker, 10001);
-    CALLCOM_(CreateBindCtx, 10002);
-    CALLCOM_(GetRecordInfoFromGuids, 10003);
-    CALLCOM_(QueryPathOfRegTypeLib, 10004);
-    CALLCOM_(UnRegisterTypeLib, 10005);
-    CALLCOM_(LoadRegTypeLib, 10006);
-    CALLCOM_(LoadTypeLibEx, 10007);
-    CALLCOM_(Twapi_CoGetObject, 10008);
-    CALLCOM_(GetActiveObject, 10009);
-    CALLCOM_(ProgIDFromCLSID, 10010);
-    CALLCOM_(CLSIDFromProgID, 10011);
-    CALLCOM_(Twapi_CoCreateInstance, 10012);
-#undef CALLCOM_
 
     return Tcl_Eval(interp, apiprocs);
 }
