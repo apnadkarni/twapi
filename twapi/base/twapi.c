@@ -362,7 +362,6 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
     ticP->notification_win = NULL; /* Created only on demand */
-    ticP->power_events_on = 0;
     ticP->device_notification_tid = 0;
 
     return ticP;

@@ -186,12 +186,8 @@ static LRESULT TwapiNotificationWindowHandler(
             if (wm_taskbar_restart == 0)
                 wm_taskbar_restart = RegisterWindowMessageW(L"TaskbarCreated");
             break;
-        case WM_POWERBROADCAST:
-            if (ticP->power_events_on)
-                return TwapiPowerHandler(ticP, msg, wParam, lParam);
-            break;
         default:
-            if (msg == WM_HOTKEY ||
+            if (msg == WM_HOTKEY || msg == WM_POWERBROADCAST ||
                 (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST) ||
                 msg == wm_taskbar_restart) {
 #ifdef  DO_NOT_USE_WINMSG_DIRECT_CALL
