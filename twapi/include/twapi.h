@@ -1336,8 +1336,6 @@ TWAPI_EXTERN Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
                                  const TOKEN_PRIVILEGES *tokprivP);
 TWAPI_EXTERN void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 
-typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
-TWAPI_EXTERN NtQuerySystemInformation_t Twapi_GetProc_NtQuerySystemInformation();
 TWAPI_EXTERN int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
                               DWORD dwLanguageId, int argc, LPCWSTR *argv );
