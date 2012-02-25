@@ -958,8 +958,6 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
-                        LSA_UNICODE_STRING **arrayP, ULONG *countP);
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
 int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
@@ -1229,6 +1227,12 @@ TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
+TWAPI_EXTERN int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
+                        LSA_UNICODE_STRING **arrayP, ULONG *countP);
+TWAPI_EXTERN PSID TwapiGetSidFromStringRep(char *strP);
+TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
+TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 
 TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
 TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
@@ -1297,9 +1301,6 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
 
 /* Security stuff */
 #define TWAPI_SID_LENGTH(sid_) (8 + (4 * ((SID *)sid_)->SubAuthorityCount))
-TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
-TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
-TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 TWAPI_EXTERN int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
 TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
