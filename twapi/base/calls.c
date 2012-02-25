@@ -19,15 +19,6 @@ static char *apiprocs =
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
     "                                                                        \n"
     "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
-    "proc twapi::GetPrivateProfileInt {app key ival file} {\n"
-    "    return [CallSSSD 7 $app $key $file $ival]\n"
-    "}\n"
-    "proc twapi::GetProfileInt {app key ival} {\n"
-    "    return [CallSSSD 8 {} $app $key $ival]\n"
-    "}\n"
-    "proc twapi::GetPrivateProfileSection {app file} {\n"
-    "    return [CallSSSD 9 $file $app]\n"
-    "}\n"
     "proc twapi::IsValidSid {sid} {\n"
     "    return [CallPSID 1 {} $sid]\n"
     "}\n"
@@ -302,10 +293,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetThreadLocale, Call, 29);
     CALL_(GetACP, Call, 30);
     CALL_(GetOEMCP, Call, 31);
-    CALL_(GetProfileType, Call, 38);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
-    CALL_(Wow64DisableWow64FsRedirection, Call, 41);
-    CALL_(GetCommandLineW, Call, 47);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
     CALL_(LsaEnumerateLogonSessions, Call, 50);
@@ -325,7 +313,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IsValidAcl, Call, 1014);
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
-    CALL_(Wow64RevertWow64FsRedirection, Call, 1018);
     CALL_(Twapi_IsValidGUID, Call, 1019);
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(free, Call, 1022);
@@ -348,10 +335,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCurrencyFormat, Call, 10071);
     CALL_(FormatMessageFromModule, Call, 10073);
     CALL_(FormatMessageFromString, Call, 10074);
-    CALL_(WritePrivateProfileString, Call, 10075);
-    CALL_(WriteProfileString, Call, 10076);
-    CALL_(Twapi_LoadUserProfile, Call, 10078);
-    CALL_(UnloadUserProfile, Call, 10079);
     CALL_(win32_error, Call, 10081);
     CALL_(CreateMutex, Call, 10097);
     CALL_(OpenMutex, Call, 10098);
@@ -382,7 +365,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallU API
     CALL_(GetStdHandle, CallU, 4);
     CALL_(VerLanguageName, CallU, 7);
-    CALL_(Wow64EnableWow64FsRedirection, CallU, 16);
     CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
@@ -401,11 +383,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetStdHandle, CallU, 10004);
 
     // CallS - function(LPWSTR)
-    CALL_(CommandLineToArgv, CallS, 8);
     CALL_(Twapi_AppendLog, CallS, 11);
     CALL_(WTSOpenServer, CallS, 12);
-    CALL_(GetPrivateProfileSectionNames, CallS, 18);
-    CALL_(ExpandEnvironmentStrings, CallS, 22);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
@@ -522,7 +501,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     SECURITY_DESCRIPTOR *secdP;
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
-    LPWSTR s, s2, s3, s4;
+    LPWSTR s, s2, s3;
     unsigned char *cP;
     LUID luid;
     void *pv, *pv2;
@@ -534,7 +513,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     GUID guid;
     GUID *guidP;
     SYSTEMTIME systime;
-    TIME_ZONE_INFORMATION *tzinfoP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -589,25 +567,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_DWORD;
             result.value.ival = GetOEMCP();
             break;
-        //  32-37 UNUSED
-        case 38:
-            result.type = GetProfileType(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-            // 39 UNUSED
+        //  32-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
             break;
-        case 41:
-            result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
-                TRT_LPVOID : TRT_GETLASTERROR;
-            break;
-            // 42-46 UNUSED
-        case 47:
-            result.value.unicode.str = GetCommandLineW();
-            result.value.unicode.len = -1;
-            result.type = TRT_UNICODE;
-            break;
+            // 41-47 UNUSED
         case 48:
             result.type = AllocateLocallyUniqueId(&result.value.luid) ? TRT_LUID : TRT_GETLASTERROR;
             break;
@@ -737,14 +702,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 1018:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
-            break;
+            // 1018
         case 1019: // Twapi_IsValidGUID
             result.type = TRT_BOOL;
             result.value.bval = (ObjToGUID(NULL, objv[2], &guid) == TCL_OK);
@@ -1005,40 +963,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_FROM_STRING;
             dw |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
             return TwapiFormatMessageHelper(interp, dw, s, 0, 0, dw4, u.wargv);
-        case 10075: // WritePrivateProfileString
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
-                             GETWSTR(s4),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = WritePrivateProfileStringW(s, s2, s3, s4);
-            break;
-        case 10076:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETNULLTOKEN(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = WriteProfileStringW(s, s2, s3);
-            break;
-            // 10077 UNUSED
-        case 10078:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETINT(dw), GETWSTR(s),
-                             GETNULLIFEMPTY(s2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_LoadUserProfile(interp, h, dw, s, s2);
-        case 10079:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETHANDLE(h2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = UnloadUserProfile(h, h2);
-            break;
-            // 10080 UNUSED
+            // 10075 - 10080 UNUSED
         case 10081:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
@@ -1266,11 +1191,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.unicode.str = u.buf;
             result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
             break;
-            // 8-15 UNUSED
-        case 16:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
-            // 17-19 - UNUSED
+            // 8-19 UNUSED
         case 20:
             return Twapi_EnumPrinters_Level4(interp, dw);
         case 21:
@@ -1413,9 +1334,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     /* One argument commands - assign codes 1-999 */
     if (func < 500) {
         switch (func) {
-            // 1-7 UNUSED
-        case 8:
-            return Twapi_CommandLineToArgv(interp, arg);
+            // 1-10 UNUSED
         //9- 10 - UNUSED
         case 11:
             return Twapi_AppendLog(interp, arg);
@@ -1423,34 +1342,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_HANDLE;
             result.value.hval = WTSOpenServerW(arg);
             break;
-        // 13-17 UNUSED
-        case 18:
-            NULLIFY_EMPTY(arg);
-            return Twapi_GetPrivateProfileSectionNames(ticP, arg);
-            // 19-21 UNUSED
-        case 22:
-            bufP = u.buf;
-            dw = ExpandEnvironmentStringsW(arg, bufP, ARRAYSIZE(u.buf));
-            if (dw > ARRAYSIZE(u.buf)) {
-                // Need a bigger buffer
-                bufP = TwapiAlloc(dw * sizeof(WCHAR));
-                dw2 = dw;
-                dw = ExpandEnvironmentStringsW(arg, bufP, dw2);
-                if (dw > dw2) {
-                    // Should not happen since we gave what we were asked
-                    TwapiFree(bufP);
-                    return TCL_ERROR;
-                }
-            }
-            if (dw == 0)
-                result.type = TRT_GETLASTERROR;
-            else {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromUnicodeN(bufP, dw-1);
-            }
-            if (bufP != u.buf)
-                TwapiFree(bufP);
-            break;
+        // 13-22 UNUSED
         case 23: // GlobalAddAtom
             result.value.ival = GlobalAddAtomW(arg);
             result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
@@ -1884,18 +1776,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
             result.type = TRT_GETLASTERROR;
         break;
         // 6 UNUSED
-    case 7:
-        result.type = TRT_DWORD;
-        EMPTIFY_NULL(s1);      /* Undo s1 LPWSTR_NULL_IF_EMPTY semantics */
-        result.value.ival = GetPrivateProfileIntW(s1, s2, dw, s3);
-        break;
-    case 8:
-        result.type = TRT_DWORD;
-        result.value.ival = GetProfileIntW(s2, s3, dw);
-        break;
-    case 9:
-        // Note s2,s1, not s1,s2
-        return Twapi_GetPrivateProfileSection(ticP, s2, s1);
     case 13:
         result.value.unicode.len = ARRAYSIZE(buf);
         if (LookupPrivilegeDisplayNameW(s1,s2,buf,&result.value.unicode.len,&dw)) {
@@ -2114,88 +1994,6 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
 
 
 
-static int TwapiGetProfileSectionHelper(
-    TwapiInterpContext *ticP,
-    LPCWSTR lpAppName, /* If NULL, section names are retrieved */
-    LPCWSTR lpFileName /* If NULL, win.ini is used */
-    )
-{
-    WCHAR *bufP;
-    DWORD  bufsz;
-    DWORD  numchars;
-
-    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &bufsz);
-    while (1) {
-        DWORD bufchars = bufsz/sizeof(WCHAR);
-        if (lpAppName) {
-            if (lpFileName)
-                numchars = GetPrivateProfileSectionW(lpAppName,
-                                                     bufP, bufchars,
-                                                     lpFileName);
-            else
-                numchars = GetProfileSectionW(lpAppName, bufP, bufchars);
-        } else {
-            /* Get section names. Note lpFileName can be NULL */
-            numchars = GetPrivateProfileSectionNamesW(bufP, bufchars, lpFileName);
-        }
-
-        if (numchars >= (bufchars-2)) {
-            /* Buffer not big enough */
-            MemLifoPopFrame(&ticP->memlifo);
-            bufsz = 2*bufsz;
-            bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
-        } else
-            break;
-    }
-
-    if (numchars)
-        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(bufP, numchars+1));
-
-    MemLifoPopFrame(&ticP->memlifo);
-
-    return TCL_OK;
-}
-
-int Twapi_GetPrivateProfileSection(
-    TwapiInterpContext *ticP,
-    LPCWSTR lpAppName,
-    LPCWSTR lpFileName
-    )
-{
-    return TwapiGetProfileSectionHelper(ticP, lpAppName, lpFileName);
-}
-
-int Twapi_GetPrivateProfileSectionNames(
-    TwapiInterpContext *ticP,
-    LPCWSTR lpFileName
-    )
-{
-    return TwapiGetProfileSectionHelper(ticP, NULL, lpFileName);
-}
-
-int Twapi_LoadUserProfile(
-    Tcl_Interp *interp,
-    HANDLE  hToken,
-    DWORD                 flags,
-    LPWSTR username,
-    LPWSTR profilepath
-    )
-{
-    PROFILEINFOW profileinfo;
-
-    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
-    profileinfo.dwSize        = sizeof(profileinfo);
-    profileinfo.lpUserName    = username;
-    profileinfo.lpProfilePath = profilepath;
-
-    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    Tcl_SetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
-    return TCL_OK;
-}
-
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     char *chan_name;
@@ -2225,46 +2023,3 @@ int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     return TCL_OK;
 }
 
-
-typedef BOOLEAN (WINAPI *Wow64EnableWow64FsRedirection_t)(BOOLEAN);
-MAKE_DYNLOAD_FUNC(Wow64EnableWow64FsRedirection, kernel32, Wow64EnableWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection)
-{
-    Wow64EnableWow64FsRedirection_t Wow64EnableWow64FsRedirectionPtr = Twapi_GetProc_Wow64EnableWow64FsRedirection();
-    if (Wow64EnableWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-    } else {
-        if ((*Wow64EnableWow64FsRedirectionPtr)(enable_redirection))
-            return TRUE;
-        /* Not clear if the function sets last error so do it ourselves */
-        if (GetLastError() == 0)
-            SetLastError(ERROR_INVALID_FUNCTION); // For lack of better
-    }
-    return FALSE;
-}
-
-typedef BOOL (WINAPI *Wow64DisableWow64FsRedirection_t)(LPVOID *);
-MAKE_DYNLOAD_FUNC(Wow64DisableWow64FsRedirection, kernel32, Wow64DisableWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP)
-{
-    Wow64DisableWow64FsRedirection_t Wow64DisableWow64FsRedirectionPtr = Twapi_GetProc_Wow64DisableWow64FsRedirection();
-    if (Wow64DisableWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    } else {
-        return (*Wow64DisableWow64FsRedirectionPtr)(oldvalueP);
-    }
-}
-
-typedef BOOL (WINAPI *Wow64RevertWow64FsRedirection_t)(LPVOID);
-MAKE_DYNLOAD_FUNC(Wow64RevertWow64FsRedirection, kernel32, Wow64RevertWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr)
-{
-    Wow64RevertWow64FsRedirection_t Wow64RevertWow64FsRedirectionPtr = Twapi_GetProc_Wow64RevertWow64FsRedirection();
-    if (Wow64RevertWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    } else {
-        return (*Wow64RevertWow64FsRedirectionPtr)(addr);
-    }
-}
