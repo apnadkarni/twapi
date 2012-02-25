@@ -14,10 +14,12 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 typedef NTSTATUS (WINAPI *NtQueryInformationProcess_t)(HANDLE, int, PVOID, ULONG, PULONG);
-MAKE_DYNLOAD_FUNC(NtQueryInformationProcess, ntdll, NtQueryInformationProcess_t)
+static MAKE_DYNLOAD_FUNC(NtQueryInformationProcess, ntdll, NtQueryInformationProcess_t)
 typedef NTSTATUS (WINAPI *NtQueryInformationThread_t)(HANDLE, int, PVOID, ULONG, PULONG);
-MAKE_DYNLOAD_FUNC(NtQueryInformationThread, ntdll, NtQueryInformationThread_t)
-MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
+static MAKE_DYNLOAD_FUNC(NtQueryInformationThread, ntdll, NtQueryInformationThread_t)
+static MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
+
+static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
 
 /* Processes and threads */
 int Twapi_GetProcessList(TwapiInterpContext *, int objc, Tcl_Obj * CONST objv[]);
