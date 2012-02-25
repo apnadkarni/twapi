@@ -13,7 +13,6 @@ OBJS  = \
 	$(OBJDIR)\lzmainterface.obj \
 	$(OBJDIR)\memlifo.obj \
 	$(OBJDIR)\mycrt.obj \
-	$(OBJDIR)\nls.obj \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\recordarray.obj \
@@ -33,7 +32,6 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\metoo.tcl \
 	..\tcl\security.tcl \
-	..\tcl\nls.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \
