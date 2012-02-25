@@ -6,6 +6,21 @@
 
 namespace eval twapi {}
 
+# Get the command line
+proc twapi::get_command_line {} {
+    return [GetCommandLineW]
+}
+
+# Parse the command line
+proc twapi::get_command_line_args {cmdline} {
+    # Special check for empty line. CommandLinetoArgv returns process
+    # exe name in this case.
+    if {[string length $cmdline] == 0} {
+        return [list ]
+    }
+    return [CommandLineToArgv $cmdline]
+}
+
 # Return $s with all environment strings expanded
 proc twapi::expand_environment_strings {s} {
     return [ExpandEnvironmentStrings $s]

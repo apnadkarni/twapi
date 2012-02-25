@@ -1310,21 +1310,6 @@ proc twapi::kl_print {kl args} {
     return
 }
 
-# Get the command line
-proc twapi::get_command_line {} {
-    return [GetCommandLineW]
-}
-
-# Parse the command line
-proc twapi::get_command_line_args {cmdline} {
-    # Special check for empty line. CommandLinetoArgv returns process
-    # exe name in this case.
-    if {[string length $cmdline] == 0} {
-        return [list ]
-    }
-    return [CommandLineToArgv $cmdline]
-}
-
 
 # Return an array as a list of -index value pairs
 proc twapi::_get_array_as_options {v_arr} {
@@ -1702,6 +1687,7 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
         handle.tcl
         metoo.tcl
         osinfo.tcl
+        apputil.tcl
         security.tcl
         process.tcl
         disk.tcl
