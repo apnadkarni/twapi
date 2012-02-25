@@ -413,7 +413,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSCloseServer, CallH, 51);
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
-    CALL_(GetObject, CallH, 59); /* TBD Move to UI */
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
@@ -1545,24 +1544,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = MemLifoPopFrame((MemLifo *)h);
             break;
-        // 56-58 UNUSED
-        case 59:
-            /* Find the required buffer size */
-            dw = GetObject(h, 0, NULL);
-            if (dw == 0) {
-                result.type = TRT_GETLASTERROR; /* TBD - is GetLastError set? */
-                break;
-            }
-            result.value.obj = Tcl_NewByteArrayObj(NULL, dw); // Alloc storage
-            pv = Tcl_GetByteArrayFromObj(result.value.obj, &dw); // and get ptr to it
-            dw = GetObject(h, dw, pv);
-            if (dw == 0)
-                result.type = TRT_GETLASTERROR;
-            else {
-                Tcl_SetByteArrayLength(result.value.obj, dw);
-                result.type = TRT_OBJ;
-            }
-            break;
+        // 56-59 UNUSED
         case 60:
             result.type = TRT_OPAQUE;
             result.value.opaque.p = MemLifoPushMark(h);

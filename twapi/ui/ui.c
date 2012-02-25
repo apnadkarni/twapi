@@ -1026,6 +1026,7 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         LOGFONTW lf;
     } u;
     RECT *rectP;
+    LPVOID pv;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1183,6 +1184,23 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                 result.value.obj = ObjFromLOGFONTW(&u.lf);
             } else
                 result.type = TRT_EXCEPTION_ON_ERROR;
+            break;
+        case 4006:
+            /* Find the required buffer size */
+            dw = GetObjectW(h, 0, NULL);
+            if (dw == 0) {
+                result.type = TRT_GETLASTERROR; /* TBD - is GetLastError set? */
+                break;
+            }
+            result.value.obj = Tcl_NewByteArrayObj(NULL, dw); // Alloc storage
+            pv = Tcl_GetByteArrayFromObj(result.value.obj, &dw); // and get ptr to it
+            dw = GetObjectW(h, dw, pv);
+            if (dw == 0)
+                result.type = TRT_GETLASTERROR;
+            else {
+                Tcl_SetByteArrayLength(result.value.obj, dw);
+                result.type = TRT_OBJ;
+            }
             break;
         }
     } else {
@@ -1584,6 +1602,7 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetMonitorInfo, Call, 4003);
     CALL_(GetThemeSysColor, Call, 4004); /* TBD - tcl wrapper */
     CALL_(GetThemeSysFont, Call, 4005);  /* TBD - tcl wrapper */
+    CALL_(GetObject, Call, 4006); /* TBD - tcl wrapper */
     CALL_(MonitorFromPoint, Call, 10001);
     CALL_(MonitorFromRect, Call, 10002);
     CALL_(GetThemeColor, Call, 10003);
