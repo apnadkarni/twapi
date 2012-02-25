@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2007, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -600,11 +600,6 @@ proc twapi::map_windows_error {code} {
     return [string trimright [twapi::Twapi_MapWindowsErrorToString $code] "\r\n"]
 }
 
-# Return $s with all environment strings expanded
-proc twapi::expand_environment_strings {s} {
-    return [ExpandEnvironmentStrings $s]
-}
-
 # Load given library
 proc twapi::load_library {path args} {
     array set opts [parseargs args {
@@ -729,96 +724,6 @@ proc twapi::format_message {args} {
     return $msg2
 }
 
-
-
-# Read an ini file int
-proc twapi::read_inifile_key {section key args} {
-    array set opts [parseargs args {
-        {default.arg ""}
-        inifile.arg
-    } -maxleftover 0]
-
-    if {[info exists opts(inifile)]} {
-        set values [read_inifile_section $section -inifile $opts(inifile)]
-    } else {
-        set values [read_inifile_section $section]
-    }
-
-    # Cannot use kl_get or arrays here because we want case insensitive compare
-    foreach {k val} $values {
-        if {[string equal -nocase $key $k]} {
-            return $val
-        }
-    }
-    return $opts(default)
-}
-
-# Write an ini file string
-proc twapi::write_inifile_key {section key value args} {
-    array set opts [parseargs args {
-        inifile.arg
-    } -maxleftover 0]
-
-    if {[info exists opts(inifile)]} {
-        WritePrivateProfileString $section $key $value $opts(inifile)
-    } else {
-        WriteProfileString $section $key $value
-    }
-}
-
-# Delete an ini file string
-proc twapi::delete_inifile_key {section key args} {
-    array set opts [parseargs args {
-        inifile.arg
-    } -maxleftover 0]
-
-    if {[info exists opts(inifile)]} {
-        WritePrivateProfileString $section $key $twapi::nullptr $opts(inifile)
-    } else {
-        WriteProfileString $section $key $twapi::nullptr
-    }
-}
-
-# Get names of the sections in an inifile
-proc twapi::read_inifile_section_names {args} {
-    array set opts [parseargs args {
-        inifile.arg
-    } -nulldefault -maxleftover 0]
-
-    return [GetPrivateProfileSectionNames $opts(inifile)]
-}
-
-# Get keys and values in a section in an inifile
-proc twapi::read_inifile_section {section args} {
-    array set opts [parseargs args {
-        inifile.arg
-    } -nulldefault -maxleftover 0]
-
-    set result [list ]
-    foreach line [GetPrivateProfileSection $section $opts(inifile)] {
-        set pos [string first "=" $line]
-        if {$pos >= 0} {
-            lappend result [string range $line 0 [expr {$pos-1}]] [string range $line [incr pos] end]
-        }
-    }
-    return $result
-}
-
-
-# Delete an ini file section
-proc twapi::delete_inifile_section {section args} {
-    variable nullptr
-
-    array set opts [parseargs args {
-        inifile.arg
-    }]
-
-    if {[info exists opts(inifile)]} {
-        WritePrivateProfileString $section $nullptr $nullptr $opts(inifile)
-    } else {
-        WriteProfileString $section $nullptr $nullptr
-    }
-}
 
 
 # Get the primary domain controller
@@ -997,8 +902,6 @@ proc twapi::find_domain_controller {args} {
     return $result
 }
 
-
-
 # Get the primary domain info
 proc twapi::get_primary_domain_info {args} {
     array set opts [parseargs args {
@@ -1032,80 +935,6 @@ proc twapi::get_primary_domain_info {args} {
 
     return $result
 }
-
-# Get the handle for a Tcl channel
-proc twapi::get_tcl_channel_handle {chan direction} {
-    set direction [expr {[string equal $direction "write"] ? 1 : 0}]
-    return [Tcl_GetChannelHandle $chan $direction]
-}
-
-
-# Duplicate a OS handle
-proc twapi::duplicate_handle {h args} {
-    variable my_process_handle
-
-    array set opts [parseargs args {
-        sourcepid.int
-        targetpid.int
-        access.arg
-        inherit
-        closesource
-    } -maxleftover 0]
-
-    # Assume source and target processes are us
-    set source_ph $my_process_handle
-    set target_ph $my_process_handle
-
-    if {![string is integer $h]} {
-        set h [HANDLE2ADDRESS_LITERAL $h]
-    }
-
-    trap {
-        set me [pid]
-        # If source pid specified and is not us, get a handle to the process
-        if {[info exists opts(sourcepid)] && $opts(sourcepid) != $me} {
-            set source_ph [get_process_handle $opts(sourcepid) -access process_dup_handle]
-        }
-
-        # Ditto for target process...
-        if {[info exists opts(targetpid)] && $opts(targetpid) != $me} {
-            set target_ph [get_process_handle $opts(targetpid) -access process_dup_handle]
-        }
-
-        # Do we want to close the original handle (DUPLICATE_CLOSE_SOURCE)
-        set flags [expr {$opts(closesource) ? 0x1: 0}]
-
-        if {[info exists opts(access)]} {
-            set access [_access_rights_to_mask $opts(access)]
-        } else {
-            # If no desired access is indicated, we want the same access as
-            # the original handle
-            set access 0
-            set flags [expr {$flags | 0x2}]; # DUPLICATE_SAME_ACCESS
-        }
-
-
-        set dup [DuplicateHandle $source_ph $h $target_ph $access $opts(inherit) $flags]
-
-        # IF targetpid specified, return handle else literal
-        # (even if targetpid is us)
-        if {![info exists opts(targetpid)]} {
-            set dup [ADDRESS_LITERAL2HANDLE $dup]
-        }
-    } finally {
-        if {$source_ph != $my_process_handle} {
-            CloseHandle $source_ph
-        }
-        if {$target_ph != $my_process_handle} {
-            CloseHandle $source_ph
-        }
-    }
-
-    return $dup
-}
-
-
-
 
 # Get a element from SystemParametersInfo
 proc twapi::get_system_parameters_info {uiaction} {
@@ -1473,64 +1302,3 @@ proc twapi::_unsafe_format_message {args} {
     }
 }
 
-
-# Helper for Net*Enum type functions taking a common set of arguments
-proc twapi::_net_enum_helper {function args} {
-    if {[llength $args] == 1} {
-        set args [lindex $args 0]
-    }
-
-    # -namelevel is used internally to indicate what level is to be used
-    # to retrieve names. -preargs and -postargs are used internally to
-    # add additional arguments at specific positions in the generic call.
-    array set opts [parseargs args {
-        {system.arg ""}
-        level.int
-        resume.int
-        filter.int
-        {namelevel.int 0}
-        {preargs.arg {}}
-        {postargs.arg {}}
-        {namefield.arg name}
-    } -maxleftover 0]
-
-    if {[info exists opts(level)]} {
-        set level $opts(level)
-    } else {
-        set level $opts(namelevel)
-    }
-    if {[info exists opts(resume)]} {
-        set resumehandle $opts(resume)
-    } else {
-        set resumehandle 0
-    }
-
-    set moredata 1
-    set result {}
-    while {$moredata} {
-        if {[info exists opts(filter)]} {
-            lassign  [$function $opts(system) {*}$opts(preargs) $level $opts(filter) {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
-        } else {
-            lassign [$function $opts(system) {*}$opts(preargs) $level {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
-        }
-        # If caller does not want all data in one lump stop here
-        if {[info exists opts(resume)]} {
-            if {[info exists opts(level)]} {
-                return [list $moredata $resumehandle $totalentries $groups]
-            } else {
-                # Return flat list of names
-                return [list $moredata $resumehandle $totalentries [kl_flatten $groups name]]
-            }
-        }
-        # Append to existing result
-        # TBD - can the K operator makes this concatnation faster ?
-        set result [concat $result $groups]
-    }
-
-    # Return what we have. Format depend on caller options.
-    if {[info exists opts(level)]} {
-        return $result
-    } else {
-        return [kl_flatten $result $opts(namefield)]
-    }
-}

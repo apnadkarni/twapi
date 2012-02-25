@@ -966,23 +966,8 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 
 /* System related */
-int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
-                          LPWSTR username, LPWSTR profilepath);
-BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
-BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
-BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
-BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
-int Twapi_GetSystemWow64Directory(Tcl_Interp *interp);
-int Twapi_GetSystemInfo(Tcl_Interp *interp);
-TCL_RESULT Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
-TCL_RESULT Twapi_GetPerformanceInformation(Tcl_Interp *interp);
-int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
-int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP);
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetPrivateProfileSection(TwapiInterpContext *ticP,
-                                   LPCWSTR app, LPCWSTR fn);
-int Twapi_GetPrivateProfileSectionNames(TwapiInterpContext *,LPCWSTR filename);
-int Twapi_GetVersionEx(Tcl_Interp *interp);
+BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
 
 int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);

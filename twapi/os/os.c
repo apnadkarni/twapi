@@ -11,10 +11,16 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+int Twapi_GetSystemWow64Directory(Tcl_Interp *interp);
+int Twapi_GetSystemInfo(Tcl_Interp *interp);
+TCL_RESULT Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
+TCL_RESULT Twapi_GetPerformanceInformation(Tcl_Interp *interp);
+int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
+int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP);
+int Twapi_GetVersionEx(Tcl_Interp *interp);
+
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
 MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
-
-
 
 int Twapi_GetSystemInfo(Tcl_Interp *interp)
 {

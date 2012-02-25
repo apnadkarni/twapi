@@ -152,3 +152,73 @@ proc twapi::_wait_handler {id h event} {
 
     return
 }
+
+# Get the handle for a Tcl channel
+proc twapi::get_tcl_channel_handle {chan direction} {
+    set direction [expr {[string equal $direction "write"] ? 1 : 0}]
+    return [Tcl_GetChannelHandle $chan $direction]
+}
+
+# Duplicate a OS handle
+proc twapi::duplicate_handle {h args} {
+    variable my_process_handle
+
+    array set opts [parseargs args {
+        sourcepid.int
+        targetpid.int
+        access.arg
+        inherit
+        closesource
+    } -maxleftover 0]
+
+    # Assume source and target processes are us
+    set source_ph $my_process_handle
+    set target_ph $my_process_handle
+
+    if {![string is integer $h]} {
+        set h [HANDLE2ADDRESS_LITERAL $h]
+    }
+
+    trap {
+        set me [pid]
+        # If source pid specified and is not us, get a handle to the process
+        if {[info exists opts(sourcepid)] && $opts(sourcepid) != $me} {
+            set source_ph [get_process_handle $opts(sourcepid) -access process_dup_handle]
+        }
+
+        # Ditto for target process...
+        if {[info exists opts(targetpid)] && $opts(targetpid) != $me} {
+            set target_ph [get_process_handle $opts(targetpid) -access process_dup_handle]
+        }
+
+        # Do we want to close the original handle (DUPLICATE_CLOSE_SOURCE)
+        set flags [expr {$opts(closesource) ? 0x1: 0}]
+
+        if {[info exists opts(access)]} {
+            set access [_access_rights_to_mask $opts(access)]
+        } else {
+            # If no desired access is indicated, we want the same access as
+            # the original handle
+            set access 0
+            set flags [expr {$flags | 0x2}]; # DUPLICATE_SAME_ACCESS
+        }
+
+
+        set dup [DuplicateHandle $source_ph $h $target_ph $access $opts(inherit) $flags]
+
+        # IF targetpid specified, return handle else literal
+        # (even if targetpid is us)
+        if {![info exists opts(targetpid)]} {
+            set dup [ADDRESS_LITERAL2HANDLE $dup]
+        }
+    } finally {
+        if {$source_ph != $my_process_handle} {
+            CloseHandle $source_ph
+        }
+        if {$target_ph != $my_process_handle} {
+            CloseHandle $source_ph
+        }
+    }
+
+    return $dup
+}

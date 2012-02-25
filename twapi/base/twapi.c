@@ -612,25 +612,3 @@ TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMO
     return ticP;
 }
 
-int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
-{
-    LPWSTR *argv;
-    int     argc;
-    int     i;
-    Tcl_Obj *resultObj;
-
-    argv = CommandLineToArgvW(cmdlineP, &argc);
-    if (argv == NULL) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    resultObj = Tcl_NewListObj(0, NULL);
-    for (i= 0; i < argc; ++i) {
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
-    }
-
-    Tcl_SetObjResult(interp, resultObj);
-
-    GlobalFree(argv);
-    return TCL_OK;
-}

@@ -2750,7 +2750,7 @@ static int Twapi_ComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallCOM
 #define CALLCOM_(fn_, code_)                                         \
     do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::CallCOM", # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::COMCall", # code_); \
     } while (0);
     CALLCOM_(IUnknown_Release, 1);
     CALLCOM_(IUnknown_AddRef, 2);
