@@ -1289,6 +1289,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP);
 TWAPI_EXTERN int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
 TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP);
+TWAPI_EXTERN int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
 
 /* Network stuff */
 TWAPI_EXTERN Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
@@ -1301,8 +1302,6 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
 
 /* Security stuff */
 #define TWAPI_SID_LENGTH(sid_) (8 + (4 * ((SID *)sid_)->SubAuthorityCount))
-TWAPI_EXTERN int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
-TWAPI_EXTERN Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
 TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
 TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
                                  SECURITY_ATTRIBUTES **secattrPP);
@@ -1310,16 +1309,6 @@ TWAPI_EXTERN void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
 TWAPI_EXTERN void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
 TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
-TWAPI_EXTERN int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
-TWAPI_EXTERN int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
-TWAPI_EXTERN Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
-TWAPI_EXTERN int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
-                              LUID_AND_ATTRIBUTES *luidattrP);
-TWAPI_EXTERN int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
-TWAPI_EXTERN Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                                 const TOKEN_PRIVILEGES *tokprivP);
-TWAPI_EXTERN void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 
 TWAPI_EXTERN int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,

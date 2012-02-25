@@ -2053,23 +2053,6 @@ proc twapi::_init_ace_type_symbol_to_code_map {} {
     }
 }
 
-# Construct a security attributes structure out of a security descriptor
-# and inheritance flave
-proc twapi::_make_secattr {secd inherit} {
-    if {$inherit} {
-        set sec_attr [list $secd 1]
-    } else {
-        if {[llength $secd] == 0} {
-            # If a security descriptor not specified, keep
-            # all security attributes as an empty list (ie. NULL)
-            set sec_attr [list ]
-        } else {
-            set sec_attr [list $secd 0]
-        }
-    }
-    return $sec_attr
-}
-
 # Map a resource symbol type to value
 proc twapi::_map_resource_symbol_to_type {sym {named true}} {
     if {[string is integer $sym]} {
