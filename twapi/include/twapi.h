@@ -82,7 +82,6 @@
 #include <objidl.h>
 #include <shlobj.h>  /* Need for ITEMIDLIST */
 #include <shlwapi.h> /* Need for DLLVERSIONINFO */
-#include <locale.h>
 #include <ntsecapi.h>
 #include <wtsapi32.h>
 #include <uxtheme.h>
