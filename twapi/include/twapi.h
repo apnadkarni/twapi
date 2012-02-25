@@ -916,6 +916,8 @@ extern struct TwapiTclVersion gTclVersion;
 
 #define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
+typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
+
 
 /* Thread pool handle registration */
 TCL_RESULT TwapiThreadPoolRegister(
@@ -1290,6 +1292,7 @@ TWAPI_EXTERN int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP);
 TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP);
 TWAPI_EXTERN int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP);
+TWAPI_EXTERN int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP);
 
 /* Network stuff */
 TWAPI_EXTERN Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
