@@ -1624,6 +1624,67 @@ proc twapi::_log_timestamp {} {
 }
 
 
+# Helper for Net*Enum type functions taking a common set of arguments
+proc twapi::_net_enum_helper {function args} {
+    if {[llength $args] == 1} {
+        set args [lindex $args 0]
+    }
+
+    # -namelevel is used internally to indicate what level is to be used
+    # to retrieve names. -preargs and -postargs are used internally to
+    # add additional arguments at specific positions in the generic call.
+    array set opts [parseargs args {
+        {system.arg ""}
+        level.int
+        resume.int
+        filter.int
+        {namelevel.int 0}
+        {preargs.arg {}}
+        {postargs.arg {}}
+        {namefield.arg name}
+    } -maxleftover 0]
+
+    if {[info exists opts(level)]} {
+        set level $opts(level)
+    } else {
+        set level $opts(namelevel)
+    }
+    if {[info exists opts(resume)]} {
+        set resumehandle $opts(resume)
+    } else {
+        set resumehandle 0
+    }
+
+    set moredata 1
+    set result {}
+    while {$moredata} {
+        if {[info exists opts(filter)]} {
+            lassign  [$function $opts(system) {*}$opts(preargs) $level $opts(filter) {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
+        } else {
+            lassign [$function $opts(system) {*}$opts(preargs) $level {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
+        }
+        # If caller does not want all data in one lump stop here
+        if {[info exists opts(resume)]} {
+            if {[info exists opts(level)]} {
+                return [list $moredata $resumehandle $totalentries $groups]
+            } else {
+                # Return flat list of names
+                return [list $moredata $resumehandle $totalentries [kl_flatten $groups name]]
+            }
+        }
+        # Append to existing result
+        # TBD - can the K operator makes this concatnation faster ?
+        set result [concat $result $groups]
+    }
+
+    # Return what we have. Format depend on caller options.
+    if {[info exists opts(level)]} {
+        return $result
+    } else {
+        return [kl_flatten $result $opts(namefield)]
+    }
+}
+
 # If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
 # we expect all source files to have been appended to this file. So do not
 # source them.

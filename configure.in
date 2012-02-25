@@ -93,7 +93,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_CFLAGS([-DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1])
 
-    TEA_ADD_SOURCES([twapi/base/adsi.c twapi/base/async.c twapi/base/calls.c twapi/base/clipboard.c twapi/base/com.c
+    TEA_ADD_SOURCES([twapi/base/adsi.c twapi/base/async.c twapi/base/calls.c twapi/base/clipboard.c twapi/base/com.c twapi/apputil/apputil.c
  twapi/base/console.c twapi/base/crypto.c twapi/base/device.c twapi/base/dirmonitor.c twapi/base/disk.c twapi/base/errors.c twapi/base/etw.c twapi/base/eventlog.c
  twapi/base/file.c twapi/base/hotkey.c twapi/base/gdi.c twapi/base/guids.c twapi/base/keylist.c twapi/base/lzmadec.c twapi/base/lzmainterface.c
  twapi/base/memlifo.c twapi/base/mstask.c twapi/base/mycrt.c twapi/base/namedpipe.c twapi/base/nls.c twapi/base/network.c twapi/base/os.c twapi/base/parseargs.c
@@ -118,7 +118,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 # VC makefile.
 
     TEA_ADD_TCL_SOURCES([twapi/tcl/twapi.tcl twapi/tcl/handle.tcl 
- twapi/tcl/metoo.tcl twapi/tcl/osinfo.tcl
+ twapi/tcl/metoo.tcl twapi/tcl/osinfo.tcl twapi/tcl/apputil.c
  twapi/tcl/security.tcl twapi/tcl/process.tcl twapi/tcl/disk.tcl 
  twapi/tcl/win.tcl])
 
