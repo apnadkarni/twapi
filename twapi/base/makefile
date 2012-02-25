@@ -16,7 +16,6 @@ OBJS  = \
 	$(OBJDIR)\parseargs.obj \
 	$(OBJDIR)\printer.obj \
 	$(OBJDIR)\recordarray.obj \
-	$(OBJDIR)\security.obj \
 	$(OBJDIR)\tclobjs.obj \
 	$(OBJDIR)\threadpool.obj \
 	$(OBJDIR)\trap.obj \
@@ -31,7 +30,6 @@ OBJS  = \
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\metoo.tcl \
-	..\tcl\security.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \

@@ -82,12 +82,20 @@ descriptor and access is granted accordingly.
 
 [para]
 Servers can also retrieve and impersonate the client's credentials
-through [uri security.html#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]]. Conversely, the client can specify options to
+through [uri #impersonate_namedpipe_client [cmd impersonate_namedpipe_client]]. Conversely, the client can specify options to
 [uri #namedpipe_server [cmd namedpipe_client]]
 to control the degree to which the server can impersonate its security context.
 
 [section Commands]
 [list_begin definitions]
+
+[call [cmd impersonate_namedpipe_client] [arg CHANNEL]]
+Changes the security context of the calling thread to that of the client
+of a named pipe. [arg CHANNEL] is a Tcl channel identifier for the server
+end of a named pipe. This call will fail unless some data is first read
+from the channel.
+[nl]
+[emph "The caller must be careful that exceptions raised by this command are handled correctly. It should not continue with normal processing as though the security context was changed to that of the named pipe client."]
 
 [call [cmd namedpipe_client] [arg PIPENAME] [opt "[cmd -access] [arg ACCESS]"]]
 

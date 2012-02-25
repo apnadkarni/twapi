@@ -287,9 +287,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
-    CALL_(LsaEnumerateLogonSessions, Call, 50);
-    CALL_(RevertToSelf, Call, 51);
-    CALL_(Twapi_InitializeSecurityDescriptor, Call, 52);
+    CALL_(RevertToSelf, Call, 51); /* Leave here as it might be
+                                      used from multiple extensions */
     CALL_(GetSystemPowerStatus, Call, 68);
     CALL_(TwapiId, Call, 74);
     CALL_(DebugBreak, Call, 75);
@@ -300,8 +299,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(canonicalize_guid, Call, 1005); // TBD Document
-    CALL_(IsValidSecurityDescriptor, Call, 1010);
-    CALL_(IsValidAcl, Call, 1014);
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Twapi_IsValidGUID, Call, 1019);
@@ -310,17 +307,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
-    CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, Call, 10017);
-    CALL_(LsaQueryInformationPolicy, Call, 10018);
-    CALL_(LsaGetLogonSessionData, Call, 10019);
     CALL_(CreateFile, Call, 10031);
-    CALL_(SetNamedSecurityInfo, Call, 10032);
-    CALL_(LookupPrivilegeName, Call, 10036);
-    CALL_(SetSecurityInfo, Call, 10041);
     CALL_(WTSSendMessage, Call, 10044);
-    CALL_(DuplicateTokenEx, Call, 10045);
-    CALL_(Twapi_AdjustTokenPrivileges, Call, 10047);
-    CALL_(Twapi_PrivilegeCheck, Call, 10048);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
     CALL_(FormatMessageFromString, Call, 10074);
@@ -356,7 +344,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
-    CALL_(ImpersonateSelf, CallU, 23);
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
@@ -374,19 +361,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
-    CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, CallS, 501);
-    CALL_(Twapi_LsaOpenPolicy, CallS, 502);
     CALL_(LoadLibraryEx, CallS, 504);
 
-    CALL_(GetNamedSecurityInfo, CallS, 1004);
     CALL_(TranslateName, CallS, 1005);
 
     // CallH - function(HANDLE)
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
     CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
-    CALL_(LsaClose, CallH, 26);
-    CALL_(ImpersonateLoggedOnUser, CallH, 27);
     CALL_(ReleaseMutex, CallH, 42);
     CALL_(CloseHandle, CallH, 43);
     CALL_(CastToHANDLE, CallH, 44);
@@ -403,15 +385,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
-    CALL_(ImpersonateNamedPipeClient, CallH, 64);
     CALL_(SetEvent, CallH, 66);
     CALL_(ResetEvent, CallH, 67);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
-    CALL_(OpenProcessToken, CallH, 1005);
-    CALL_(GetTokenInformation, CallH, 1006);
-    CALL_(Twapi_SetTokenVirtualizationEnabled, CallH, 1007);
-    CALL_(Twapi_SetTokenMandatoryPolicy, CallH, 1008);
     CALL_(GetDeviceCaps, CallH, 1016); /* Move to UI TBD */
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
@@ -420,17 +397,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(WTSDisconnectSession, CallH, 2001);
     CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
     CALL_(WTSQuerySessionInformation, CallH, 2003); /* TBD - tcl wrapper */
-    CALL_(GetSecurityInfo, CallH, 2004);
-    CALL_(OpenThreadToken, CallH, 2005);
     CALL_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
     CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
     CALL_(Twapi_RegisterWaitOnHandle, CallH, 2011);
-
-    CALL_(SetThreadToken, CallH, 10002);
-    CALL_(Twapi_LsaEnumerateAccountsWithUserRight, CallH, 10003);
-    CALL_(Twapi_SetTokenIntegrityLevel, CallH, 10004);
 
     CALL_(GetWindowLongPtr, CallWU, 8);
 
@@ -443,19 +414,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
     CALL_(LookupAccountName, CallSSSD, 1);
     CALL_(LogonUser, CallSSSD, 5);
-    CALL_(LookupPrivilegeDisplayName, CallSSSD, 13);
-    CALL_(LookupPrivilegeValue, CallSSSD, 14);
     CALL_(NetGetDCName, CallSSSD, 34);
 
     // CallPSID - function(ANY, SID, ...)
     CALL_(LookupAccountSid, CallPSID, 2);
 
-    CALL_(CheckTokenMembership, CallPSID, 1002);
-    CALL_(Twapi_SetTokenPrimaryGroup, CallPSID, 1003);
-    CALL_(Twapi_SetTokenOwner, CallPSID, 1004);
-    CALL_(Twapi_LsaEnumerateAccountRights, CallPSID, 1005);
-    CALL_(LsaRemoveAccountRights, CallPSID, 1006);
-    CALL_(LsaAddAccountRights, CallPSID, 1007);
 
 
 #undef CALL_
@@ -483,18 +446,14 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         GUID guid;
     } u;
     DWORD_PTR dwp;
-    SECURITY_DESCRIPTOR *secdP;
     DWORD dw, dw2, dw3, dw4;
     int i, i2;
     LPWSTR s, s2, s3;
     unsigned char *cP;
-    LUID luid;
     void *pv, *pv2;
     Tcl_Obj *objs[2];
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2, h3;
-    PSID osidP, gsidP;
-    ACL *daclP, *saclP;
     GUID guid;
     GUID *guidP;
     SYSTEMTIME systime;
@@ -528,15 +487,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = LockWorkStation();
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        case 50:
-            return Twapi_LsaEnumerateLogonSessions(interp);
+            // 50
         case 51:
             result.value.ival = RevertToSelf();
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
-        case 52:
-            return Twapi_InitializeSecurityDescriptor(interp);
-            // 53-67 UNUSED
+            // 52-67 UNUSED
         case 68:
             if (GetSystemPowerStatus(&u.power_status)) {
                 result.type = TRT_OBJ;
@@ -606,34 +562,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             result.type = TRT_GUID;
             break;
-        case 1006://UNUSED
-        case 1007://UNUSED
-        case 1008://UNUSED
-        case 1009://UNUSED
-            break;
-        case 1010:
-            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[2], &secdP) != TCL_OK)
-                return TCL_ERROR;
-            // Note secdP may be NULL
-            result.type = TRT_BOOL;
-            result.value.bval = secdP ? IsValidSecurityDescriptor(secdP) : 0;
-            if (secdP)
-                TwapiFreeSECURITY_DESCRIPTOR(secdP);
-            break;
-        case 1011: // UNUSED
-        case 1012: // UNUSED
-        case 1013: // UNUSED
-        case 1014:
-            if (ObjToPACL(interp, objv[2], &daclP) != TCL_OK)
-                return TCL_ERROR;
-            // Note aclP may me NULL even on TCL_OK
-            result.type = TRT_BOOL;
-            result.value.bval = daclP ? IsValidAcl(daclP) : 0;
-            if (daclP)
-                TwapiFree(daclP);
-            break;
-        case 1015: // UNUSED
-            break;
+            // 1006 - 1015 UNUSED
         case 1016:
             if (ObjToFILETIME(interp, objv[2], &u.filetime) != TCL_OK)
                 return TCL_ERROR;
@@ -688,34 +617,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10009:
             return Twapi_TclGetChannelHandle(interp, objc-2, objv+2);
-        // 10010-16 UNUSED
+        // 10010-30 UNUSED
 
-        case 10017:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVAR(secdP, ObjToPSECURITY_DESCRIPTOR),
-                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
-                return TCL_ERROR;
-    
-            if (ConvertSecurityDescriptorToStringSecurityDescriptorW(
-                    secdP, dw, dw2, &s, &dw3)) {
-                /* Cannot use TRT_UNICODE since buffer has to be freed */
-                result.type = TRT_OBJ;
-                /* Do not use dw3 as length because it seems to be size
-                   of buffer, not string length as it includes padded nulls */
-                result.value.obj = ObjFromUnicode(s);
-                LocalFree(s);
-            } else
-                result.type = TRT_GETLASTERROR;
-            if (secdP)
-                TwapiFreeSECURITY_DESCRIPTOR(secdP);
-            break;
-#ifndef TWAPI_LEAN
-        case 10018:
-            return Twapi_LsaQueryInformationPolicy(interp, objc-2, objv+2);
-        case 10019:
-            return Twapi_LsaGetLogonSessionData(interp, objc-2, objv+2);
-            // 10020-10030 UNUSED
-#endif        
         case 10031: // CreateFile
             secattrP = NULL;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -731,82 +634,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-#ifndef TWAPI_LEAN
-        case 10032: // SetNamedSecurityInfo
-            osidP = gsidP = NULL;
-            daclP = saclP = NULL;
-            /* Note even in case of errors, sids and acls might have been alloced */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2),
-                             GETVAR(osidP, ObjToPSID),
-                             GETVAR(gsidP, ObjToPSID),
-                             GETVAR(daclP, ObjToPACL),
-                             GETVAR(saclP, ObjToPACL),
-                             ARGEND) == TCL_OK) {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = SetNamedSecurityInfoW(
-                    s, dw, dw2, osidP, gsidP, daclP, saclP);
-            } else {
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = TCL_ERROR;
-            }
-            if (osidP) TwapiFree(osidP);
-            if (gsidP) TwapiFree(gsidP);
-            if (daclP) TwapiFree(daclP);
-            if (saclP) TwapiFree(saclP);
-            break;
-#endif
-            // 10033-35 UNUSED
-        case 10036: // LookupPrivilegeName
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETVAR(luid, ObjToLUID),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-
-            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (LookupPrivilegeNameW(s, &luid,
-                                     u.buf, &result.value.unicode.len)) {
-                result.type = TRT_UNICODE;
-                result.value.unicode.str = u.buf;
-                result.value.unicode.len = -1;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 10037: // UNUSED
-        case 10038: // UNUSED
-        case 10039: // UNUSED
-        case 10040: // UNUSED
-            break;
-
-#ifndef TWAPI_LEAN
-        case 10041:
-            /* Init to NULL as they may be partially init'ed on error
-               and have to be freed */
-            osidP = gsidP = NULL;
-            daclP = saclP = NULL;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETINT(dw), GETINT(dw2),
-                             GETVAR(osidP, ObjToPSID),
-                             GETVAR(gsidP, ObjToPSID),
-                             GETVAR(daclP, ObjToPACL),
-                             GETVAR(saclP, ObjToPACL),
-                             ARGEND) == TCL_OK) {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = SetSecurityInfo(
-                    h, dw, dw2, osidP, gsidP, daclP, saclP);
-            } else {
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = TCL_ERROR;
-            }
-            if (osidP) TwapiFree(osidP);
-            if (gsidP) TwapiFree(gsidP);
-            if (daclP) TwapiFree(daclP);
-            if (saclP) TwapiFree(saclP);
-            break;
-#endif
-        case 10042: // UNUSED
-        case 10043: // UNUSED
-            break;
+        // 10032-43 UNUSED
         case 10044:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETINT(dw),
@@ -822,55 +650,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_GETLASTERROR;    
             break;
 
-        case 10045: // DuplicateTokenEx
-            secattrP = NULL;        /* Even on error, it might be filled */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETINT(dw),
-                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             GETINT(dw2), GETINT(dw3),
-                             ARGEND) == TCL_OK) {
-                if (DuplicateTokenEx(h, dw, secattrP, dw2, dw3, &result.value.hval))
-                    result.type = TRT_HANDLE;
-                else
-                    result.type = TRT_GETLASTERROR;
-            } else {
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = TCL_ERROR;
-            }
-            TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
-            break;
-        // 10046 UNUSED
-        case 10047: // AdjustTokenPrivileges
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETBOOL(dw),
-                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = Twapi_AdjustTokenPrivileges(
-                ticP, h, dw, u.tokprivsP);
-            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
-            break;
-        case 10048: // PrivilegeCheck
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h),
-                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
-                             GETBOOL(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (Twapi_PrivilegeCheck(h, u.tokprivsP, dw, &result.value.ival))
-                result.type = TRT_DWORD;
-            else
-                result.type = TRT_GETLASTERROR;
-            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
-            break;
-
-        case 10049: // UNUSED
-        case 10050: // UNUSED
-        case 10051: // UNUSED
-        case 10052: // UNUSED
-        case 10053: // UNUSED
-            break;
+       // case 10049-10057 UNUSED
         case 10058: // DsGetDcName
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1146,11 +926,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 23:
-            result.value.ival = ImpersonateSelf(dw);
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-            // 24-33 UNUSED
+            // 23-33 UNUSED
         case 34:
             result.value.obj = Twapi_MapWindowsErrorToString(dw);
             result.type = TRT_OBJ;
@@ -1227,9 +1003,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     } u;
     int func;                   /* What function to call */
     DWORD dw, dw2, dw3;
-    SECURITY_DESCRIPTOR *secdP;
-    LSA_OBJECT_ATTRIBUTES lsa_oattr;
-    LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
     WCHAR *bufP;
 
     result.type = TRT_BADFUNCTIONCODE;
@@ -1271,31 +1044,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
         switch (func) {
-        case 501:
-            if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                    arg, dw, &secdP, NULL)) {
-                result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
-                if (secdP)
-                    LocalFree(secdP);
-                if (result.value.obj)
-                    result.type = TRT_OBJ;
-                else
-                    return TCL_ERROR;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-        case 502: // LsaOpenPolicy
-            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
-            TwapiZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
-            dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
-            if (dw2 == STATUS_SUCCESS) {
-                result.type = TRT_LSA_HANDLE;
-            } else {
-                result.type = TRT_NTSTATUS;
-                result.value.ival = dw2;
-            }
-            break;
-        // 503 UNUSED
         case 504: // LoadLibrary
             result.type = TRT_HANDLE;
             result.value.hval = LoadLibraryExW(arg, NULL, dw);
@@ -1310,8 +1058,6 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TCL_ERROR;
         
         switch (func) {
-        case 1004:
-            return Twapi_GetNamedSecurityInfo(interp, arg, dw, dw2);
         case 1005:
             bufP = u.buf;
             dw3 = ARRAYSIZE(u.buf);
@@ -1350,18 +1096,9 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
 int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    HANDLE h, h2;
+    HANDLE h;
     DWORD dw, dw2;
     TwapiResult result;
-    union {
-        COORD coord;
-        WCHAR buf[MAX_PATH+1];
-        TWAPI_TOKEN_MANDATORY_POLICY ttmp;
-        TWAPI_TOKEN_MANDATORY_LABEL ttml;
-        LSA_UNICODE_STRING lsa_ustr;
-        SECURITY_ATTRIBUTES *secattrP;
-        MemLifo *lifoP;
-    } u;
     int func;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -1390,22 +1127,13 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = GetDevicePowerState(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;
             break;
-            // 17-25 UNUSED
-        case 26:
-            result.value.ival = LsaClose(h);
-            result.type = TRT_DWORD;
-            break;
-        case 27:
-            result.value.ival = ImpersonateLoggedOnUser(h);
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-        // 28-41 UNUSED
-#ifndef TWAPI_LEAN
+        // 17-41 UNUSED
+
         case 42:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ReleaseMutex(h);
             break;
-#endif
+
         case 43:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = CloseHandle(h);
@@ -1468,14 +1196,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 63:
             return Twapi_MemLifoDump(ticP, h);
-        case 64:
-            /* This could be in the namedpip package, but we leave it
-               here for now.
-            */
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ImpersonateNamedPipeClient(h);
-            break;
-        // 65 - UNUSED
+        // 64-65 - UNUSED
         case 66:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetEvent(h);
@@ -1499,29 +1220,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 TRT_DWORD : TRT_GETLASTERROR;
             break;
 #endif
-            // 1002-1004 UNUSED
-        case 1005:
-            result.type = OpenProcessToken(h, dw, &result.value.hval) ?
-                TRT_HANDLE : TRT_GETLASTERROR;
-            break;
-        case 1006:
-            return Twapi_GetTokenInformation(interp, h, dw);
-#ifndef TWAPI_LEAN
-        case 1007:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenVirtualizationEnabled,
-                                                    &dw, sizeof(dw));
-            break;
-        case 1008:
-            u.ttmp.Policy = dw;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenMandatoryPolicy,
-                                                    &u.ttmp, sizeof(u.ttmp));
-            break;
-#endif // TWAPI_LEAN
-        // 1009-1015 UNUSED
+        // 1002-1015 UNUSED
         case 1016:
             result.type = TRT_DWORD;
             result.value.ival = GetDeviceCaps(h, dw);
@@ -1562,16 +1261,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 2003:
             return Twapi_WTSQuerySessionInformation(interp, h, dw, dw2);
-#ifndef TWAPI_LEAN
-        case 2004:
-            return Twapi_GetSecurityInfo(interp, h, dw, dw2);
-#endif            
-        case 2005:
-            result.type = OpenThreadToken(h, dw, dw2, &result.value.hval) ?
-                TRT_HANDLE : TRT_GETLASTERROR;
-            break;
-        case 2006: // UNUSED
-            break;
+        // 2004 - 2006 UNUSED
         case 2007:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);
@@ -1592,40 +1282,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiThreadPoolRegister(
                 ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
         }
-    } else {
-        /* Arbitrary additional arguments */
-
-        switch (func) {
-#ifndef TWAPI_LEAN
-        case 10002: // SetThreadToken
-            if (objc != 4)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            
-            if (ObjToHANDLE(interp, objv[3], &h2) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetThreadToken(h, h2);
-            break;
-        case 10003:
-            if (objc != 4)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            ObjToLSA_UNICODE_STRING(objv[3], &u.lsa_ustr);
-            return Twapi_LsaEnumerateAccountsWithUserRight(interp, h,
-                                                           &u.lsa_ustr);
-#endif
-        case 10004:
-            if (objc != 4)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            if (ObjToSID_AND_ATTRIBUTES(interp, objv[3], &u.ttml.Label) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenIntegrityLevel,
-                                                    &u.ttml, sizeof(u.ttml));
-            if (u.ttml.Label.Sid)
-                TwapiFree(u.ttml.Label.Sid);
-            break;
-        }
     }
     return TwapiSetResult(interp, &result);
 }
@@ -1641,7 +1297,6 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     LPWSTR s1, s2, s3;
     DWORD   dw, dw2;
     TwapiResult result;
-    WCHAR buf[MAX_PATH+1];
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETNULLIFEMPTY(s1), ARGUSEDEFAULT,
@@ -1665,22 +1320,7 @@ int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-        // 6 UNUSED
-    case 13:
-        result.value.unicode.len = ARRAYSIZE(buf);
-        if (LookupPrivilegeDisplayNameW(s1,s2,buf,&result.value.unicode.len,&dw)) {
-            result.value.unicode.str = buf;
-            result.type = TRT_UNICODE;
-        } else
-            result.type = TRT_GETLASTERROR;
-        break;
-    case 14:
-        if (LookupPrivilegeValueW(s1,s2,&result.value.luid))
-            result.type = TRT_LUID;
-        else
-            result.type = TRT_GETLASTERROR;
-        break;
-    // 15-33 UNUSED
+    // 6-33 UNUSED
     case 34:
         NULLIFY_EMPTY(s2);
         return Twapi_NetGetDCName(interp, s1,s2);
@@ -1775,15 +1415,7 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     PSID sidP = NULL;
     int func;
     LPCWSTR s;
-    HANDLE h;
-    union {
-        TOKEN_PRIMARY_GROUP tpg;
-        TOKEN_OWNER towner;
-        DWORD dw;
-    } u;
     TwapiResult result;
-    LSA_UNICODE_STRING *lsa_strings;
-    ULONG  lsa_count;
 
     func = 0;
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -1805,76 +1437,18 @@ int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     /* sidP may legitimately be NULL, else it points to a Twapialloc'ed block */
 
     result.type = TRT_EXCEPTION_ON_FALSE; /* Likely result type */
-    if (func < 1000) {
-        switch (func) {
-        case 1:
-            /* The ObjToPSID above would have already checked SID validity */
-            result.type = TRT_BOOL;
-            result.value.bval = 1;
-            break;
-        case 2:
-            s = ObjToLPWSTR_NULL_IF_EMPTY(objv[2]);
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = Twapi_LookupAccountSid(interp, s, sidP);
-            break;
-        }
-    } else if (func < 2000) {
-        /* Codes expecting HANDLE as first parameter */
-        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK) {
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = TCL_ERROR;
-        } else {
-            switch (func) {
-            case 1002:
-                result.type = CheckTokenMembership(h, sidP, &result.value.bval)
-                    ? TRT_BOOL : TRT_GETLASTERROR;
-                break;
-            case 1003:
-                u.tpg.PrimaryGroup = sidP;
-                result.type = TRT_EXCEPTION_ON_FALSE;
-                result.value.ival = SetTokenInformation(h, TokenPrimaryGroup, &u.tpg, sizeof(u.tpg));
-                break;
-            case 1004:
-                u.towner.Owner = sidP;
-                result.type = TRT_EXCEPTION_ON_FALSE;
-                result.value.ival = SetTokenInformation(h, TokenOwner,
-                                                        &u.towner,
-                                                        sizeof(u.towner));
-                break;
-            case 1005:
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = Twapi_LsaEnumerateAccountRights(interp,
-                                                                    h, sidP);
-                break;
-            case 1006:
-                if (objc != 6)
-                    return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-                /* FALLTHRU */
-            case 1007:
-                if (objc != 6 && objc != 5)
-                    return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-                result.value.ival = ObjToLSASTRINGARRAY(interp, objv[func == 1006 ? 5 : 4], &lsa_strings, &lsa_count);
-                if (result.value.ival != TCL_OK) {
-                    result.type = TRT_TCL_RESULT;
-                    break;
-                }
-                result.type = TRT_NTSTATUS;
-                if (func == 1006) {
-                    CHECK_INTEGER_OBJ(interp, u.dw, objv[4]);
-                    result.value.ival = LsaRemoveAccountRights(
-                        h, sidP, (BOOLEAN) (u.dw ? 1 : 0),
-                                                               lsa_strings, lsa_count);
-                } else {
-                    result.value.ival = LsaAddAccountRights(h, sidP,
-                                                            lsa_strings, lsa_count);
-                }
-                TwapiFree(lsa_strings);
-                break;
-            }
-        }
+    switch (func) {
+    case 1:
+        /* The ObjToPSID above would have already checked SID validity */
+        result.type = TRT_BOOL;
+        result.value.bval = 1;
+        break;
+    case 2:
+        s = ObjToLPWSTR_NULL_IF_EMPTY(objv[2]);
+        result.type = TRT_TCL_RESULT;
+        result.value.ival = Twapi_LookupAccountSid(interp, s, sidP);
+        break;
     }
-
 
     if (sidP)
         TwapiFree(sidP);
@@ -1913,3 +1487,188 @@ int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     return TCL_OK;
 }
 
+int Twapi_LookupAccountSid (
+    Tcl_Interp *interp,
+    LPCWSTR     lpSystemName,
+    PSID        sidP
+)
+{
+    WCHAR       *domainP;
+    DWORD        domain_buf_size;
+    SID_NAME_USE account_type;
+    DWORD        error;
+    int          result;
+    Tcl_Obj     *objs[3];
+    LPWSTR       nameP;
+    DWORD        name_buf_size;
+    int          i;
+
+    for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
+        objs[i] = NULL;
+
+    result = TCL_ERROR;
+
+    domainP         = NULL;
+    domain_buf_size = 0;
+    nameP           = NULL;
+    name_buf_size   = 0;
+    error           = 0;
+    if (LookupAccountSidW(lpSystemName, sidP, NULL, &name_buf_size,
+                          NULL, &domain_buf_size, &account_type) == 0) {
+        error = GetLastError();
+    }
+
+    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
+        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
+        Twapi_AppendSystemError(interp, error);
+        goto done;
+    }
+
+    /* Allocate required space */
+    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+    nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
+
+    if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
+                          domainP, &domain_buf_size, &account_type) == 0) {
+        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
+        Twapi_AppendSystemError(interp, GetLastError());
+        goto done;
+    }
+
+    /*
+     * Got everything we need, now format it
+     * {NAME DOMAIN ACCOUNT}
+     */
+    objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
+    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
+    objs[2] = Tcl_NewIntObj(account_type);
+    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
+    result = TCL_OK;
+
+ done:
+    if (domainP)
+        TwapiFree(domainP);
+    if (nameP)
+        TwapiFree(nameP);
+
+    return result;
+}
+
+
+int Twapi_LookupAccountName (
+    Tcl_Interp *interp,
+    LPCWSTR     lpSystemName,
+    LPCWSTR     lpAccountName
+)
+{
+    PSID         sidP;
+    DWORD        sid_buf_size;
+    WCHAR       *domainP;
+    DWORD        domain_buf_size;
+    SID_NAME_USE account_type;
+    DWORD        error;
+    int          result;
+    Tcl_Obj     *objs[3];
+    int          i;
+
+    /*
+     * Special case check for empty string - else LookupAccountName
+     * returns the same error as for insufficient buffer .
+     */
+    if (*lpAccountName == 0) {
+        return Twapi_GenerateWin32Error(interp, ERROR_INVALID_PARAMETER, "Empty string passed for account name.");
+    }
+
+    for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
+        objs[i] = NULL;
+    result = TCL_ERROR;
+
+
+    domain_buf_size = 0;
+    sid_buf_size    = 0;
+    error           = 0;
+    if (LookupAccountNameW(lpSystemName, lpAccountName, NULL, &sid_buf_size,
+                          NULL, &domain_buf_size, &account_type) == 0) {
+        error = GetLastError();
+    }
+
+    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
+        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
+        Twapi_AppendSystemError(interp, error);
+        return TCL_ERROR;
+    }
+
+    /* Allocate required space */
+    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+    sidP = TwapiAlloc(sid_buf_size);
+
+    if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
+                          domainP, &domain_buf_size, &account_type) == 0) {
+        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
+        Twapi_AppendSystemError(interp, GetLastError());
+        goto done;
+    }
+
+    /*
+     * There is a bug in LookupAccountName (see KB 185246) where
+     * if the user name happens to be the machine name, the returned SID
+     * is for the machine, not the user. As suggested there, we look
+     * for this case by checking the account type returned and if we have hit
+     * this case, recurse using a user name of "\\domain\\username"
+     */
+    if (account_type == SidTypeDomain) {
+        /* Redo the operation */
+        WCHAR *new_accountP;
+        size_t len = 0;
+        size_t sysnamelen, accnamelen;
+        TWAPI_ASSERT(lpSystemName);
+        TWAPI_ASSERT(lpAccountName);
+        sysnamelen = lstrlenW(lpSystemName);
+        accnamelen = lstrlenW(lpAccountName);
+        len = sysnamelen + 1 + accnamelen + 1;
+        new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
+        CopyMemory(new_accountP, lpSystemName, sizeof(*new_accountP)*sysnamelen);
+        new_accountP[sysnamelen] = L'\\';
+        CopyMemory(new_accountP+sysnamelen+1, lpAccountName, sizeof(*new_accountP)*accnamelen);
+        new_accountP[sysnamelen+1+accnamelen] = 0;
+
+        /* Recurse */
+        result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
+        TwapiFree(new_accountP);
+        goto done;
+    }
+
+
+    /*
+     * Got everything we need, now format it
+     * {SID DOMAIN ACCOUNT}
+     */
+    result = ObjFromSID(interp, sidP, &objs[0]);
+    if (result != TCL_OK)
+        goto done;
+    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
+    objs[2] = Tcl_NewIntObj(account_type);
+    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
+    result = TCL_OK;
+
+ done:
+    if (domainP)
+        TwapiFree(domainP);
+    if (sidP)
+        TwapiFree(sidP);
+
+    return result;
+}
+
+int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainname)
+{
+    NET_API_STATUS status;
+    LPBYTE         bufP;
+    status = NetGetDCName(servername, domainname, &bufP);
+    if (status != NERR_Success) {
+        return Twapi_AppendSystemError(interp, status);
+    }
+    Tcl_SetObjResult(interp, ObjFromUnicode((wchar_t *)bufP));
+    NetApiBufferFree(bufP);
+    return TCL_OK;
+}

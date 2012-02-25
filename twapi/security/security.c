@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2010, Ashok P. Nadkarni
+ * Copyright (c) 2003-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -9,10 +9,26 @@
 
 #include "twapi.h"
 
+#ifndef TWAPI_STATIC_BUILD
+static HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
 /*
 TBD - get_wellknown_sid - returns well known sid's such as administrators group
 TBD - the SID data type handling needs to be cleaned up
  */
+
+int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP);
+Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
+Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
+int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
+                              LUID_AND_ATTRIBUTES *luidattrP);
+int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
+Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
+                                 const TOKEN_PRIVILEGES *tokprivP);
+void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
+
 
 /*
  * Allocate and return memory for a TOKEN_PRIVILEGES structure big enough
@@ -34,10 +50,6 @@ void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP)
     if (tokPrivP)
         TwapiFree(tokPrivP);
 }
-
-
-
-
 
 /* interp may be NULL */
 Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
@@ -194,899 +206,6 @@ int ObjToPTOKEN_PRIVILEGES(
     return TCL_OK;
 }
 
-
-
-/* Convert a ACE object to a Tcl list. interp may be NULL */
-Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
-{
-    Tcl_Obj    *resultObj = NULL;
-    Tcl_Obj    *obj = NULL;
-    ACE_HEADER *acehdrP = &((ACCESS_ALLOWED_ACE *) aceP)->Header;
-    ACCESS_ALLOWED_OBJECT_ACE *objectAceP;
-    SID        *sidP;
-
-    if (aceP == NULL) {
-        if (interp)
-            Tcl_SetResult(interp, "NULL ACE pointer", TCL_STATIC);
-        return NULL;
-    }
-
-    resultObj = Tcl_NewListObj(0, NULL);
-    if (resultObj == NULL)
-        goto allocation_error_return;
-
-    /* ACE type */
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             Tcl_NewIntObj(acehdrP->AceType));
-
-    /* ACE flags */
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             Tcl_NewIntObj(acehdrP->AceFlags));
-
-    /* Now for type specific fields */
-    switch (acehdrP->AceType) {
-    case ACCESS_ALLOWED_ACE_TYPE:
-    case ACCESS_DENIED_ACE_TYPE:
-    case SYSTEM_AUDIT_ACE_TYPE:
-    case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((ACCESS_ALLOWED_ACE *)aceP)->Mask));
-
-        /* and the SID */
-        obj = NULL;                /* In case of errors */
-        if (ObjFromSID(interp,
-                         (SID *)&((ACCESS_ALLOWED_ACE *)aceP)->SidStart,
-                         &obj)
-            != TCL_OK) {
-            goto error_return;
-        }
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
-        break;
-
-    case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
-    case ACCESS_DENIED_OBJECT_ACE_TYPE:
-    case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
-        objectAceP = (ACCESS_ALLOWED_OBJECT_ACE *)aceP;
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(objectAceP->Mask));
-        if (objectAceP->Flags & ACE_OBJECT_TYPE_PRESENT) {
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
-            if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
-                Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->InheritedObjectType));
-                sidP = (SID *) &objectAceP->SidStart;
-            } else {
-                Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
-                sidP = (SID *) &objectAceP->InheritedObjectType;
-            }
-        } else if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
-            sidP = (SID *) &objectAceP->InheritedObjectType;
-        } else {
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
-            sidP = (SID *) &objectAceP->ObjectType;
-        }
-        obj = NULL;                /* In case of errors */
-        if (ObjFromSID(interp, sidP, &obj) != TCL_OK)
-            goto error_return;
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
-        
-        break;
-
-    default:
-        /*
-         * Return a binary rep of the whole dang thing.
-         * There are no pointers in there, just values so this
-         * should work, I think :)
-         */
-        obj = Tcl_NewByteArrayObj((unsigned char *) aceP, acehdrP->AceSize);
-        if (obj == NULL)
-            goto allocation_error_return;
-
-        if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
-            goto error_return;
-
-        break;
-    }
-
-
-    return resultObj;
-
-
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate Tcl object", TCL_STATIC);
-    }
-
- error_return:
-    Twapi_FreeNewTclObj(obj); /* OK if null */
-    Twapi_FreeNewTclObj(resultObj); /* OK if null */
-    return NULL;
-}
-
-
-int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
-{
-    Tcl_Obj **objv;
-    int       objc;
-    int       acetype;
-    int       aceflags;
-    int       acesz;
-    SID      *sidP;
-    unsigned char *bytes;
-    int            bytecount;
-    ACCESS_ALLOWED_ACE    *aceP;
-
-    *acePP = NULL;
-
-    if (Tcl_ListObjGetElements(interp, aceobj, &objc, &objv) != TCL_OK)
-        return TCL_ERROR;
-
-    if (objc < 2)
-        goto format_error;
-
-    if ((Tcl_GetIntFromObj(interp, objv[0], &acetype) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &aceflags) != TCL_OK)) {
-        return TCL_ERROR;
-    }
-
-    /* Max size of an SID */
-    acesz = GetSidLengthRequired(SID_MAX_SUB_AUTHORITIES);
-
-    /* Figure out how much space is required for the ACE based on type */
-    switch (acetype) {
-    case ACCESS_ALLOWED_ACE_TYPE:
-    case ACCESS_DENIED_ACE_TYPE:
-    case SYSTEM_AUDIT_ACE_TYPE:
-    case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
-        if (objc != 4)
-            goto format_error;
-        acesz += sizeof(*aceP);
-        aceP = (ACCESS_ALLOWED_ACE *) TwapiAlloc(acesz);
-        aceP->Header.AceType = acetype;
-        aceP->Header.AceFlags = aceflags;
-        aceP->Header.AceSize  = acesz; /* TBD - this is a upper bound since we
-                                          allocated max SID size. Is that OK?*/
-        if (Tcl_GetIntFromObj(interp, objv[2], &aceP->Mask) != TCL_OK)
-            goto format_error;
-
-        sidP = TwapiGetSidFromStringRep(Tcl_GetString(objv[3]));
-        if (sidP == NULL)
-            goto system_error;
-
-        if (! CopySid(aceP->Header.AceSize - sizeof(*aceP) + sizeof(aceP->SidStart),
-                      &aceP->SidStart, sidP)) {
-            TwapiFree(sidP);
-            goto system_error;
-        }
-
-        TwapiFree(sidP);
-        sidP = NULL;
-
-        break;
-
-    default:
-        if (objc != 3)
-            goto format_error;
-        bytes = Tcl_GetByteArrayFromObj(objv[2], &bytecount);
-        acesz += bytecount;
-        aceP = (ACCESS_ALLOWED_ACE *) TwapiAlloc(acesz);
-        CopyMemory(aceP, bytes, bytecount);
-        break;
-    }
-
-    *acePP = aceP;
-    return TCL_OK;
-
- format_error:
-    if (interp)
-        Tcl_SetResult(interp, "Invalid ACE format.", TCL_STATIC);
-    return TCL_ERROR;
-
- system_error:
-    return TwapiReturnSystemError(interp);
-}
-
-Tcl_Obj *ObjFromACL (
-    Tcl_Interp *interp,
-    ACL *aclP                   /* May be NULL */
-)
-{
-    Tcl_Obj                 *objv[2] = { NULL, NULL} ;
-    ACL_REVISION_INFORMATION acl_rev;
-    ACL_SIZE_INFORMATION     acl_szinfo;
-    DWORD                    i;
-    Tcl_Obj                 *resultObj;
-
-    if (aclP == NULL) {
-        return Tcl_NewStringObj("null", -1);
-    }
-
-    if ((GetAclInformation(aclP, &acl_rev, sizeof(acl_rev),
-                           AclRevisionInformation) == 0) ||
-        GetAclInformation(aclP, &acl_szinfo, sizeof(acl_szinfo),
-                          AclSizeInformation) == 0) {
-        TwapiReturnSystemError(interp);
-        return NULL;
-    }
-
-    objv[0] = Tcl_NewIntObj(acl_rev.AclRevision);
-    objv[1] = Tcl_NewListObj(0, NULL);
-    if (objv[0] == NULL || objv[1] == NULL) {
-        goto allocation_error_return;
-    }
-
-    /* Loop and add the list of ACE's */
-    for (i = 0; i < acl_szinfo.AceCount; ++i) {
-        void    *aceP;
-        Tcl_Obj *ace_obj;
-
-        if (GetAce(aclP, i, &aceP) == 0) {
-            TwapiReturnSystemError(interp);
-            goto error_return;
-        }
-        ace_obj = ObjFromACE(interp, aceP);
-        if (ace_obj == NULL)
-            goto error_return;
-        if (Tcl_ListObjAppendElement(interp, objv[1], ace_obj) != TCL_OK) {
-            goto error_return;
-        }
-    }
-
-
-    resultObj = Tcl_NewListObj(2, objv);
-    if (resultObj == NULL)
-        goto allocation_error_return;
-
-    return resultObj;
-
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate Tcl object", TCL_STATIC);
-    }
-
- error_return:
-    Twapi_FreeNewTclObj(objv[0]); /* OK if null */
-    Twapi_FreeNewTclObj(objv[1]); /* OK if null */
-    return NULL;
-}
-
-
-/*
- * Returns a pointer to dynamic memory containing a ACL corresponding
- * to the given string representation. The string "null" is treated
- * as no acl and a NULL pointer is returned in *aclPP
- */
-int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
-{
-    int       objc;
-    Tcl_Obj **objv;
-    Tcl_Obj **aceobjv;
-    int       aceobjc;
-    void    **acePP = NULL;
-    int       i;
-    int       aclsz;
-    ACE_HEADER *acehdrP;
-    int       aclrev;
-
-    *aclPP = NULL;
-    if (!lstrcmpA("null", Tcl_GetString(aclObj)))
-        return TCL_OK;
-
-    if (Tcl_ListObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
-        return TCL_ERROR;
-
-    if (objc != 2) {
-        if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid ACL format. Should be 'null' or have exactly two elements",
-                          TCL_STATIC);
-        return TCL_ERROR;
-    }
-
-    /*
-     * First figure out how much space we need to allocate. For this, we
-     * first need to figure out space for the ACE's
-     */
-#if 0
-    objv[0] is the ACL rev. We always recalculate it, ignore value passed in.
-    if (Tcl_GetIntFromObj(interp, objv[0], &aclrev) != TCL_OK)
-        goto error_return;
-#endif
-    if (Tcl_ListObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
-        goto error_return;
-
-    aclsz = sizeof(ACL);
-    aclrev = ACL_REVISION;
-    if (aceobjc) {
-        acePP = TwapiAlloc(aceobjc*sizeof(*acePP));
-        for (i = 0; i < aceobjc; ++i)
-            acePP[i] = NULL;        /* Init for error return */
-
-        for (i = 0; i < aceobjc; ++i) {
-            if (ObjToACE(interp, aceobjv[i], &acePP[i]) != TCL_OK)
-                goto error_return;
-            acehdrP = (ACE_HEADER *)acePP[i];
-            aclsz += acehdrP->AceSize;
-            switch (acehdrP->AceType) {
-            case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
-            case ACCESS_DENIED_OBJECT_ACE_TYPE:
-            case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
-            case SYSTEM_ALARM_OBJECT_ACE_TYPE:
-            case ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE:
-            case ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE:
-            case SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE:
-            case SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE:
-                /* Change rev if object ace's present */
-                aclrev = ACL_REVISION_DS;
-                break;
-            default:
-                break;
-            }
-
-        }
-    }
-
-    /*
-     * OK, now allocate the ACL and add the ACE's to it
-     * We currently use AddAce, not AddMandatoryAce even for integrity labels.
-     * This seems to work and avoids AddMandatoryAce which is not present
-     * on XP/2k3
-     */
-    *aclPP = TwapiAlloc(aclsz);
-    InitializeAcl(*aclPP, aclsz, aclrev);
-    for (i = 0; i < aceobjc; ++i) {
-        acehdrP = (ACE_HEADER *)acePP[i];
-        if (! AddAce(*aclPP, aclrev, MAXDWORD, acePP[i], acehdrP->AceSize)) {
-            TwapiReturnSystemError(interp);
-            goto error_return;
-        }
-    }
-
-    if (! IsValidAcl(*aclPP)) {
-        if (interp)
-            Tcl_SetResult(interp,
-                          "Internal error constructing ACL",
-                          TCL_STATIC);
-        goto error_return;
-    }
-
-    /* Free up temporary ACE storage */
-    if (acePP) {
-        for (i = 0; i < aceobjc; ++i)
-            TwapiFree(acePP[i]);
-        TwapiFree(acePP);
-    }
-
-    return TCL_OK;
-
- error_return:
-    if (acePP) {
-        for (i = 0; i < aceobjc; ++i)
-            TwapiFree(acePP[i]);
-        TwapiFree(acePP);
-    }
-
-    if (*aclPP) {
-        TwapiFree(*aclPP);
-        *aclPP = NULL;
-    }
-
-    return TCL_ERROR;
-}
-
-
-/* Free the security descriptor contents as if it was allocated through
- * ObjToPSECURITY_DESCRIPTOR
- */
-void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP)
-{
-    SID      *sidP;
-    ACL      *aclP;
-    BOOL      aclpresent;
-    BOOL      defaulted;
-
-    if (secdP == NULL)
-        return;
-
-    if (!IsValidSecurityDescriptor(secdP)) {
-        return;                 /* TBD - Should log an error here */
-    }
-
-    /* Owner SID */
-    if (GetSecurityDescriptorOwner(secdP, &sidP, &defaulted) && sidP)
-        TwapiFree(sidP);
-
-    /* Group SID */
-    if (GetSecurityDescriptorGroup(secdP, &sidP, &defaulted) && sidP)
-        TwapiFree(sidP);
-
-    /* DACL */
-    if (GetSecurityDescriptorDacl(secdP, &aclpresent, &aclP, &defaulted)
-        && aclpresent
-        && aclP) {
-        TwapiFree(aclP);
-    }
-
-    /* SACL */
-    if (GetSecurityDescriptorSacl(secdP, &aclpresent, &aclP, &defaulted)
-        && aclpresent
-        && aclP) {
-
-        TwapiFree(aclP);
-    }
-
-    TwapiFree(secdP);
-}
-
-
-/* Create a list object from a security descriptor */
-Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
-    Tcl_Interp *interp,
-    SECURITY_DESCRIPTOR *secdP
-)
-{
-    SECURITY_DESCRIPTOR_CONTROL secd_control;
-    SID      *sidP;
-    ACL      *aclP;
-    BOOL      aclpresent;
-    Tcl_Obj  *objv[5] = { NULL, NULL, NULL, NULL, NULL} ;
-    DWORD    rev;
-    BOOL     defaulted;
-
-    if (secdP == NULL) {
-        return Tcl_NewListObj(0, NULL);
-    }
-
-    if (! GetSecurityDescriptorControl(secdP, &secd_control, &rev))
-        goto system_error;
-
-    if (rev != SECURITY_DESCRIPTOR_REVISION) {
-        /* Dunno how to handle this */
-        if (interp)
-            Tcl_SetResult(interp, "Unsupported SECURITY_DESCRIPTOR version", TCL_STATIC);
-        goto error_return;
-    }
-
-    /* Control bits */
-    objv[0] = Tcl_NewIntObj(secd_control);
-
-    /* Owner SID */
-    if (! GetSecurityDescriptorOwner(secdP, &sidP, &defaulted))
-        goto system_error;
-    if (sidP == NULL)
-        objv[1] = Tcl_NewStringObj("", -1);
-    else {
-        if (ObjFromSID(interp, sidP, &objv[1]) != TCL_OK)
-            goto error_return;
-    }
-
-    /* Group SID */
-    if (! GetSecurityDescriptorGroup(secdP, &sidP, &defaulted))
-        goto system_error;
-    if (sidP == NULL)
-        objv[2] = Tcl_NewStringObj("", -1);
-    else {
-        if (ObjFromSID(interp, sidP, &objv[2]) != TCL_OK)
-            goto error_return;
-    }
-
-    /* DACL */
-    if (! GetSecurityDescriptorDacl(secdP, &aclpresent, &aclP, &defaulted))
-        goto system_error;
-    if (! aclpresent)
-        aclP = NULL;
-    objv[3] = ObjFromACL(interp, aclP);
-
-    /* SACL */
-    if (! GetSecurityDescriptorSacl(secdP, &aclpresent, &aclP, &defaulted))
-        goto system_error;
-    if (! aclpresent)
-        aclP = NULL;
-    objv[4] = ObjFromACL(interp, aclP);
-
-    /* All done, phew ... */
-    return Tcl_NewListObj(5, objv);
-
- system_error:
-    TwapiReturnSystemError(interp);
-
- error_return:
-    for (rev = 0; rev < sizeof(objv)/sizeof(objv[0]); ++rev) {
-        Twapi_FreeNewTclObj(objv[rev]);
-    }
-    return NULL;
-}
-
-
-/*
- * Returns a pointer to dynamic memory containing a structure corresponding
- * to the given string representation. Note that the owner, group, sacl
- * and dacl fields of the descriptor point to dynamic memory as well!
- */
-int ObjToPSECURITY_DESCRIPTOR(
-    Tcl_Interp *interp,
-    Tcl_Obj *secdObj,
-    SECURITY_DESCRIPTOR **secdPP
-)
-{
-    int       objc;
-    Tcl_Obj **objv;
-    int       temp;
-    SECURITY_DESCRIPTOR_CONTROL      secd_control;
-    SECURITY_DESCRIPTOR_CONTROL      secd_control_mask;
-    SID      *owner_sidP;
-    SID      *group_sidP;
-    ACL      *daclP;
-    ACL      *saclP;
-    char     *s;
-    int       slen;
-
-    owner_sidP = group_sidP = NULL;
-    *secdPP = NULL;
-
-    if (Tcl_ListObjGetElements(interp, secdObj, &objc, &objv) != TCL_OK)
-        return TCL_ERROR;
-
-    if (objc == 0)
-        return TCL_OK;          /* NULL security descriptor */
-
-    if (objc != 5) {
-        if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid SECURITY_DESCRIPTOR format. Should have 0 or five elements",
-                          TCL_STATIC);
-        return TCL_ERROR;
-    }
-
-
-    *secdPP = TwapiAlloc (sizeof(SECURITY_DESCRIPTOR));
-    if (! InitializeSecurityDescriptor(*secdPP, SECURITY_DESCRIPTOR_REVISION))
-        goto system_error;
-
-    /*
-     * Set control field
-     */
-    if (Tcl_GetIntFromObj(interp, objv[0], &temp) != TCL_OK)
-        goto error_return;
-    secd_control = (SECURITY_DESCRIPTOR_CONTROL) temp;
-    if (secd_control != temp) {
-        /* Truncation error */
-        if (interp)
-            Tcl_SetResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR", TCL_STATIC);
-        goto error_return;
-    }
-
-    /* Mask of control bits to be set through SetSecurityDescriptorControl*/
-    /* Note you cannot set any other bits than these through the
-       SetSecurityDescriptorControl */
-    secd_control_mask =  (SE_DACL_AUTO_INHERIT_REQ | SE_DACL_AUTO_INHERITED |
-                          SE_DACL_PROTECTED |
-                          SE_SACL_AUTO_INHERIT_REQ | SE_SACL_AUTO_INHERITED |
-                          SE_SACL_PROTECTED);
-
-    if (! SetSecurityDescriptorControl(*secdPP, secd_control_mask, (SECURITY_DESCRIPTOR_CONTROL) (secd_control_mask & secd_control)))
-        goto system_error;
-
-    /*
-     * Set Owner field if specified
-     */
-    s = Tcl_GetStringFromObj(objv[1], &slen);
-    if (slen) {
-        owner_sidP = TwapiGetSidFromStringRep(s);
-        if (owner_sidP == NULL)
-            goto system_error;
-        if (! SetSecurityDescriptorOwner(*secdPP, owner_sidP,
-                                         secd_control & SE_OWNER_DEFAULTED))
-            goto system_error;
-        /* Note the owner field in *secdPP now points directly to owner_sidP! */
-    }
-
-    /*
-     * Set group field if specified
-     */
-    s = Tcl_GetStringFromObj(objv[2], &slen);
-    if (slen) {
-        group_sidP = TwapiGetSidFromStringRep(s);
-        if (group_sidP == NULL)
-            goto system_error;
-
-        if (! SetSecurityDescriptorGroup(*secdPP, group_sidP,
-                                         secd_control & SE_GROUP_DEFAULTED))
-            goto system_error;
-        /* Note the group field in *secdPP now points directly to group_sidP! */
-    }
-
-    /*
-     * Set the DACL. Keyword "null" means no DACL (as opposed to an empty one)
-     */
-    if (ObjToPACL(interp, objv[3], &daclP) != TCL_OK)
-        goto error_return;
-    if (! SetSecurityDescriptorDacl(*secdPP, (daclP != NULL), daclP,
-                                  (secd_control & SE_DACL_DEFAULTED)))
-        goto system_error;
-    /* Note the dacl field in *secdPP now points directly to daclP! */
-
-
-    /*
-     * Set the SACL. Keyword "null" means no SACL (as opposed to an empty one)
-     */
-    if (ObjToPACL(interp, objv[4], &saclP) != TCL_OK)
-        goto error_return;
-    if (! SetSecurityDescriptorSacl(*secdPP, (saclP != NULL), saclP,
-                                  (secd_control & SE_SACL_DEFAULTED)))
-        goto system_error;
-    /* Note the sacl field in *secdPP now points directly to saclP! */
-    return TCL_OK;
-
- system_error:
-    TwapiReturnSystemError(interp);
-    goto error_return;
-
- error_return:
-    if (owner_sidP)
-        TwapiFree(owner_sidP);
-    if (group_sidP)
-        TwapiFree(group_sidP);
-    if (daclP)
-        TwapiFree(daclP);
-    if (saclP)
-        TwapiFree(saclP);
-    if (*secdPP) {
-        TwapiFree(*secdPP);
-        *secdPP = NULL;
-    }
-    return TCL_ERROR;
-}
-
-
-/* Free the security descriptor contents as if it was allocated through
- * ObjToPSECURITY_ATTRIBUTES
- */
-void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP)
-{
-    if (secattrP == NULL)
-        return;
-    if (secattrP->lpSecurityDescriptor)
-        TwapiFreeSECURITY_DESCRIPTOR(secattrP->lpSecurityDescriptor);
-
-    TwapiFree(secattrP);
-}
-
-
-/*
- * Returns a pointer to dynamic memory containing a structure corresponding
- * to the given string representation.
- * The SECURITY_DESCRIPTOR field should be freed through
- * TwapiFreeSECURITY_DESCRIPTOR
- */
-int ObjToPSECURITY_ATTRIBUTES(
-    Tcl_Interp *interp,
-    Tcl_Obj *secattrObj,
-    SECURITY_ATTRIBUTES **secattrPP
-)
-{
-    int       objc;
-    Tcl_Obj **objv;
-    int       inherit;
-
-
-    *secattrPP = NULL;
-
-    if (Tcl_ListObjGetElements(interp, secattrObj, &objc, &objv) != TCL_OK)
-        return TCL_ERROR;
-
-    if (objc == 0)
-        return TCL_OK;          /* NULL security attributes */
-
-    if (objc != 2) {
-        if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid SECURITY_ATTRIBUTES format. Should have 0 or 2 elements",
-                          TCL_STATIC);
-        return TCL_ERROR;
-    }
-
-
-    *secattrPP = TwapiAlloc (sizeof(**secattrPP));
-    (*secattrPP)->nLength = sizeof(**secattrPP);
-
-    if (Tcl_GetIntFromObj(interp, objv[1], &inherit) == TCL_ERROR)
-        goto error_return;
-    (*secattrPP)->bInheritHandle = (inherit != 0);
-
-    if (ObjToPSECURITY_DESCRIPTOR(interp, objv[0],
-                                     &(SECURITY_DESCRIPTOR *)((*secattrPP)->lpSecurityDescriptor))
-        == TCL_ERROR) {
-        goto error_return;
-    }
-
-    return TCL_OK;
-
- error_return:
-    if (*secattrPP) {
-        TwapiFree(*secattrPP);
-        *secattrPP = NULL;
-    }
-    return TCL_ERROR;
-
-
-}
-
-
-int Twapi_LookupAccountSid (
-    Tcl_Interp *interp,
-    LPCWSTR     lpSystemName,
-    PSID        sidP
-)
-{
-    WCHAR       *domainP;
-    DWORD        domain_buf_size;
-    SID_NAME_USE account_type;
-    DWORD        error;
-    int          result;
-    Tcl_Obj     *objs[3];
-    LPWSTR       nameP;
-    DWORD        name_buf_size;
-    int          i;
-
-    for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
-        objs[i] = NULL;
-
-    result = TCL_ERROR;
-
-    domainP         = NULL;
-    domain_buf_size = 0;
-    nameP           = NULL;
-    name_buf_size   = 0;
-    error           = 0;
-    if (LookupAccountSidW(lpSystemName, sidP, NULL, &name_buf_size,
-                          NULL, &domain_buf_size, &account_type) == 0) {
-        error = GetLastError();
-    }
-
-    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
-        Twapi_AppendSystemError(interp, error);
-        goto done;
-    }
-
-    /* Allocate required space */
-    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-    nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
-
-    if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
-                          domainP, &domain_buf_size, &account_type) == 0) {
-        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
-        Twapi_AppendSystemError(interp, GetLastError());
-        goto done;
-    }
-
-    /*
-     * Got everything we need, now format it
-     * {NAME DOMAIN ACCOUNT}
-     */
-    objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
-    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
-    objs[2] = Tcl_NewIntObj(account_type);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
-    result = TCL_OK;
-
- done:
-    if (domainP)
-        TwapiFree(domainP);
-    if (nameP)
-        TwapiFree(nameP);
-
-    return result;
-}
-
-
-int Twapi_LookupAccountName (
-    Tcl_Interp *interp,
-    LPCWSTR     lpSystemName,
-    LPCWSTR     lpAccountName
-)
-{
-    PSID         sidP;
-    DWORD        sid_buf_size;
-    WCHAR       *domainP;
-    DWORD        domain_buf_size;
-    SID_NAME_USE account_type;
-    DWORD        error;
-    int          result;
-    Tcl_Obj     *objs[3];
-    int          i;
-
-    /*
-     * Special case check for empty string - else LookupAccountName
-     * returns the same error as for insufficient buffer .
-     */
-    if (*lpAccountName == 0) {
-        return Twapi_GenerateWin32Error(interp, ERROR_INVALID_PARAMETER, "Empty string passed for account name.");
-    }
-
-    for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
-        objs[i] = NULL;
-    result = TCL_ERROR;
-
-
-    domain_buf_size = 0;
-    sid_buf_size    = 0;
-    error           = 0;
-    if (LookupAccountNameW(lpSystemName, lpAccountName, NULL, &sid_buf_size,
-                          NULL, &domain_buf_size, &account_type) == 0) {
-        error = GetLastError();
-    }
-
-    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
-        Twapi_AppendSystemError(interp, error);
-        return TCL_ERROR;
-    }
-
-    /* Allocate required space */
-    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-    sidP = TwapiAlloc(sid_buf_size);
-
-    if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
-                          domainP, &domain_buf_size, &account_type) == 0) {
-        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
-        Twapi_AppendSystemError(interp, GetLastError());
-        goto done;
-    }
-
-    /*
-     * There is a bug in LookupAccountName (see KB 185246) where
-     * if the user name happens to be the machine name, the returned SID
-     * is for the machine, not the user. As suggested there, we look
-     * for this case by checking the account type returned and if we have hit
-     * this case, recurse using a user name of "\\domain\\username"
-     */
-    if (account_type == SidTypeDomain) {
-        /* Redo the operation */
-        WCHAR *new_accountP;
-        size_t len = 0;
-        size_t sysnamelen, accnamelen;
-        TWAPI_ASSERT(lpSystemName);
-        TWAPI_ASSERT(lpAccountName);
-        sysnamelen = lstrlenW(lpSystemName);
-        accnamelen = lstrlenW(lpAccountName);
-        len = sysnamelen + 1 + accnamelen + 1;
-        new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
-        CopyMemory(new_accountP, lpSystemName, sizeof(*new_accountP)*sysnamelen);
-        new_accountP[sysnamelen] = L'\\';
-        CopyMemory(new_accountP+sysnamelen+1, lpAccountName, sizeof(*new_accountP)*accnamelen);
-        new_accountP[sysnamelen+1+accnamelen] = 0;
-
-        /* Recurse */
-        result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
-        TwapiFree(new_accountP);
-        goto done;
-    }
-
-
-    /*
-     * Got everything we need, now format it
-     * {SID DOMAIN ACCOUNT}
-     */
-    result = ObjFromSID(interp, sidP, &objs[0]);
-    if (result != TCL_OK)
-        goto done;
-    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
-    objs[2] = Tcl_NewIntObj(account_type);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
-    result = TCL_OK;
-
- done:
-    if (domainP)
-        TwapiFree(domainP);
-    if (sidP)
-        TwapiFree(sidP);
-
-    return result;
-}
 
 
 /* Generic routine to retrieve token information - returns a dynamic alloc block */
@@ -1471,18 +590,6 @@ int Twapi_AdjustTokenPrivileges(
     return tcl_result;
 }
 
-int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainname)
-{
-    NET_API_STATUS status;
-    LPBYTE         bufP;
-    status = NetGetDCName(servername, domainname, &bufP);
-    if (status != NERR_Success) {
-        return Twapi_AppendSystemError(interp, status);
-    }
-    Tcl_SetObjResult(interp, ObjFromUnicode((wchar_t *)bufP));
-    NetApiBufferFree(bufP);
-    return TCL_OK;
-}
 
 int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp)
 {
@@ -1825,4 +932,493 @@ int Twapi_LsaQueryInformationPolicy (
 BOOL IsUserAnAdmin();
 #endif
 
+
+static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+    LPWSTR s, s2;
+    DWORD dw, dw2, dw3;
+    SECURITY_ATTRIBUTES *secattrP;
+    HANDLE h, h2;
+    SECURITY_DESCRIPTOR *secdP;
+    LUID luid;
+    ACL *daclP, *saclP;
+    PSID osidP, gsidP;
+    LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
+    LSA_OBJECT_ATTRIBUTES lsa_oattr;
+    union {
+        COORD coord;
+        WCHAR buf[MAX_PATH+1];
+        TWAPI_TOKEN_MANDATORY_POLICY ttmp;
+        TWAPI_TOKEN_MANDATORY_LABEL ttml;
+        TOKEN_PRIMARY_GROUP tpg;
+        TOKEN_OWNER towner;
+        LSA_UNICODE_STRING lsa_ustr;
+        TOKEN_PRIVILEGES *tokprivsP;
+    } u;
+    ULONG  lsa_count;
+    LSA_UNICODE_STRING *lsa_strings;
+    TwapiResult result;
+
+
+    /* These will be freed at end of routine if not NULL! */
+    daclP = saclP = NULL;
+    osidP = gsidP = NULL;
+
+    /* secdP is allocated multiple ways so no common free */
+   secdP = NULL;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 100) {
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 1:
+            return Twapi_LsaEnumerateLogonSessions(interp);
+        case 2:
+            return Twapi_InitializeSecurityDescriptor(interp);
+        }
+    } else if (func < 200) {
+        if (objc != 3)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 101:
+            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[2], &secdP) != TCL_OK)
+                return TCL_ERROR;
+            // Note secdP may be NULL
+            result.type = TRT_BOOL;
+            result.value.bval = secdP ? IsValidSecurityDescriptor(secdP) : 0;
+            if (secdP)
+                TwapiFreeSECURITY_DESCRIPTOR(secdP);
+            break;
+        case 102:
+            if (ObjToPACL(interp, objv[2], &daclP) != TCL_OK)
+                return TCL_ERROR;
+            // Note aclP may me NULL even on TCL_OK
+            result.type = TRT_BOOL;
+            result.value.bval = daclP ? IsValidAcl(daclP) : 0;
+            break;
+        case 103:
+            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+                return TCL_ERROR;
+            result.value.ival = LsaClose(h);
+            result.type = TRT_DWORD;
+            break;
+        case 104:
+            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+                return TCL_ERROR;
+            result.value.ival = ImpersonateLoggedOnUser(h);
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            break;
+        case 105:
+            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            result.value.ival = ImpersonateSelf(dw);
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            break;
+        }
+    } else if (func < 500) {
+        if (objc != 4)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        s = Tcl_GetUnicode(objv[2]);
+        s2 = Tcl_GetUnicode(objv[3]);
+        switch (func) {
+        case 401:
+            result.value.unicode.len = ARRAYSIZE(u.buf);
+            if (LookupPrivilegeDisplayNameW(s,s2,u.buf,&result.value.unicode.len,&dw)) {
+                result.value.unicode.str = u.buf;
+                result.type = TRT_UNICODE;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 402:
+            if (LookupPrivilegeValueW(s,s2,&result.value.luid))
+                result.type = TRT_LUID;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
+        }
+    } else if (func < 1000) {
+        /* Args - string, dw, optional dw2 */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETWSTR(s), GETINT(dw), ARGUSEDEFAULT,
+                         GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 501:
+            if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                    s, dw, &secdP, NULL)) {
+                result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
+                if (secdP)
+                    LocalFree(secdP);
+                if (result.value.obj)
+                    result.type = TRT_OBJ;
+                else
+                    return TCL_ERROR;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 502: // LsaOpenPolicy
+            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
+            TwapiZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
+            dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
+            if (dw2 == STATUS_SUCCESS) {
+                result.type = TRT_LSA_HANDLE;
+            } else {
+                result.type = TRT_NTSTATUS;
+                result.value.ival = dw2;
+            }
+            break;
+        case 503:
+            return Twapi_GetNamedSecurityInfo(interp, s, dw, dw2);
+        }
+    } else if (func < 2000) {
+        /* Args - handle, int, optional int */
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETINT(dw), ARGUSEDEFAULT,
+                         GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 1003:
+            return Twapi_GetSecurityInfo(interp, h, dw, dw2);
+        case 1004:
+            result.type = OpenThreadToken(h, dw, dw2, &result.value.hval) ?
+                TRT_HANDLE : TRT_GETLASTERROR;
+            break;
+        case 1005:
+            result.type = OpenProcessToken(h, dw, &result.value.hval) ?
+                TRT_HANDLE : TRT_GETLASTERROR;
+            break;
+        case 1006:
+            return Twapi_GetTokenInformation(interp, h, dw);
+
+        case 1007:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetTokenInformation(h,
+                                                    TwapiTokenVirtualizationEnabled,
+                                                    &dw, sizeof(dw));
+            break;
+        case 1008:
+            u.ttmp.Policy = dw;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetTokenInformation(h,
+                                                    TwapiTokenMandatoryPolicy,
+                                                    &u.ttmp, sizeof(u.ttmp));
+            break;
+        }
+    } else if (func < 3000) {
+        if (objc != 4)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 3002: // SetThreadToken
+            if (ObjToHANDLE(interp, objv[3], &h2) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetThreadToken(h, h2);
+            break;
+        case 3003:
+            ObjToLSA_UNICODE_STRING(objv[3], &u.lsa_ustr);
+            return Twapi_LsaEnumerateAccountsWithUserRight(interp, h,
+                                                           &u.lsa_ustr);
+        case 3004:
+            if (ObjToSID_AND_ATTRIBUTES(interp, objv[3], &u.ttml.Label) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetTokenInformation(h,
+                                                    TwapiTokenIntegrityLevel,
+                                                    &u.ttml, sizeof(u.ttml));
+            if (u.ttml.Label.Sid)
+                TwapiFree(u.ttml.Label.Sid);
+            break;
+        }
+    } else if (func < 5000) {
+        /* Note: pointers may have to be freed even when arg parsing
+         * fails so always fall through to end of function even on errors!
+         */
+        result.type = TRT_TCL_RESULT;
+        result.value.ival =
+            TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLE(h), GETVAR(osidP, ObjToPSID),
+                         ARGEND);
+        if (result.value.ival == TCL_OK) {
+            switch (func) {
+            case 4001:
+                u.tpg.PrimaryGroup = osidP;
+                result.type = TRT_EXCEPTION_ON_FALSE;
+                result.value.ival = SetTokenInformation(h, TokenPrimaryGroup, &u.tpg, sizeof(u.tpg));
+                break;
+            case 4002:
+                result.type = CheckTokenMembership(h, osidP, &result.value.bval)
+                    ? TRT_BOOL : TRT_GETLASTERROR;
+                break;
+            case 4003:
+                u.towner.Owner = osidP;
+                result.type = TRT_EXCEPTION_ON_FALSE;
+                result.value.ival = SetTokenInformation(h, TokenOwner,
+                                                        &u.towner,
+                                                        sizeof(u.towner));
+                break;
+            case 4004:
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = Twapi_LsaEnumerateAccountRights(interp,
+                                                                    h, osidP);
+                break;
+            }
+        }
+    } else {
+        /* Arbitrary args */
+        switch (func) {
+        case 10015:
+            result.value.ival =
+                TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETVAR(osidP, ObjToPSID),
+                             ARGSKIP, ARGEND);
+            result.type = TRT_TCL_RESULT;
+            if (result.value.ival != TCL_OK)
+                break;
+            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[4],
+                                                    &lsa_strings, &lsa_count);
+            if (result.value.ival != TCL_OK)
+                break;
+
+            result.type = TRT_NTSTATUS;
+            result.value.ival = LsaAddAccountRights(h, osidP,
+                                                    lsa_strings, lsa_count);
+            TwapiFree(lsa_strings);
+            break;
+
+        case 10016:
+            result.value.ival =
+                TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETVAR(osidP, ObjToPSID),
+                             GETINT(dw), ARGSKIP, ARGEND);
+            result.type = TRT_TCL_RESULT;
+            if (result.value.ival != TCL_OK)
+                break;
+            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[5],
+                                                    &lsa_strings, &lsa_count);
+            if (result.value.ival != TCL_OK)
+                break;
+
+            result.type = TRT_NTSTATUS;
+            result.value.ival = LsaRemoveAccountRights(
+                h, osidP, (BOOLEAN) (dw ? 1 : 0), lsa_strings, lsa_count);
+            TwapiFree(lsa_strings);
+            break;
+
+        case 10017:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETVAR(secdP, ObjToPSECURITY_DESCRIPTOR),
+                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK) {
+                if (secdP)
+                    TwapiFreeSECURITY_DESCRIPTOR(secdP);
+                return TCL_ERROR;
+            }    
+            if (ConvertSecurityDescriptorToStringSecurityDescriptorW(
+                    secdP, dw, dw2, &s, &dw3)) {
+                /* Cannot use TRT_UNICODE since buffer has to be freed */
+                result.type = TRT_OBJ;
+                /* Do not use dw3 as length because it seems to be size
+                   of buffer, not string length as it includes padded nulls */
+                result.value.obj = ObjFromUnicode(s);
+                LocalFree(s);
+            } else
+                result.type = TRT_GETLASTERROR;
+            if (secdP)
+                TwapiFreeSECURITY_DESCRIPTOR(secdP);
+            break;
+        case 10018:
+            return Twapi_LsaQueryInformationPolicy(interp, objc-2, objv+2);
+        case 10019:
+            return Twapi_LsaGetLogonSessionData(interp, objc-2, objv+2);
+        case 10020: // SetNamedSecurityInfo
+            /* Note even in case of errors, sids and acls might have been alloced */
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETINT(dw), GETINT(dw2),
+                             GETVAR(osidP, ObjToPSID),
+                             GETVAR(gsidP, ObjToPSID),
+                             GETVAR(daclP, ObjToPACL),
+                             GETVAR(saclP, ObjToPACL),
+                             ARGEND) == TCL_OK) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = SetNamedSecurityInfoW(
+                    s, dw, dw2, osidP, gsidP, daclP, saclP);
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            break;
+        case 10021: // LookupPrivilegeName
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETVAR(luid, ObjToLUID),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+
+            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
+            if (LookupPrivilegeNameW(s, &luid,
+                                     u.buf, &result.value.unicode.len)) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = u.buf;
+                result.value.unicode.len = -1;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+
+        case 10022:
+            /* Init to NULL as they may be partially init'ed on error
+               and have to be freed */
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETINT(dw), GETINT(dw2),
+                             GETVAR(osidP, ObjToPSID),
+                             GETVAR(gsidP, ObjToPSID),
+                             GETVAR(daclP, ObjToPACL),
+                             GETVAR(saclP, ObjToPACL),
+                             ARGEND) == TCL_OK) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = SetSecurityInfo(
+                    h, dw, dw2, osidP, gsidP, daclP, saclP);
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            break;
+
+        case 10023: // DuplicateTokenEx
+            secattrP = NULL;        /* Even on error, it might be filled */
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETINT(dw),
+                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                             GETINT(dw2), GETINT(dw3),
+                             ARGEND) == TCL_OK) {
+                if (DuplicateTokenEx(h, dw, secattrP, dw2, dw3, &result.value.hval))
+                    result.type = TRT_HANDLE;
+                else
+                    result.type = TRT_GETLASTERROR;
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+            break;
+
+        case 10024: // AdjustTokenPrivileges
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h), GETBOOL(dw),
+                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = Twapi_AdjustTokenPrivileges(
+                ticP, h, dw, u.tokprivsP);
+            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
+            break;
+        case 10025: // PrivilegeCheck
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLE(h),
+                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
+                             GETBOOL(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (Twapi_PrivilegeCheck(h, u.tokprivsP, dw, &result.value.ival))
+                result.type = TRT_DWORD;
+            else
+                result.type = TRT_GETLASTERROR;
+            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
+            break;
+        }
+    }
+
+    if (daclP) TwapiFree(daclP);
+    if (saclP) TwapiFree(saclP);
+    if (osidP) TwapiFree(osidP);
+    if (gsidP) TwapiFree(gsidP);
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+static int Twapi_SecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::SecCall", Twapi_SecurityCallObjCmd, ticP, NULL);
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::SecCall", # code_); \
+    } while (0);
+
+    CALL_(LsaEnumerateLogonSessions, 1);
+    CALL_(Twapi_InitializeSecurityDescriptor, 2);
+    CALL_(IsValidSecurityDescriptor, 101);
+    CALL_(IsValidAcl, 102);
+    CALL_(LsaClose, 103);
+    CALL_(ImpersonateLoggedOnUser, 104);
+    CALL_(ImpersonateSelf, 105);
+    CALL_(LookupPrivilegeDisplayName, 401);
+    CALL_(LookupPrivilegeValue, 402);
+    CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, 501);
+    CALL_(Twapi_LsaOpenPolicy, 502);
+    CALL_(GetNamedSecurityInfo, 503);
+    CALL_(GetSecurityInfo, 1003);
+    CALL_(OpenThreadToken, 1004);
+    CALL_(OpenProcessToken, 1005);
+    CALL_(GetTokenInformation, 1006);
+    CALL_(Twapi_SetTokenVirtualizationEnabled, 1007);
+    CALL_(Twapi_SetTokenMandatoryPolicy, 1008);
+    CALL_(SetThreadToken, 3002);
+    CALL_(Twapi_LsaEnumerateAccountsWithUserRight, 3003);
+    CALL_(Twapi_SetTokenIntegrityLevel, 3004);
+    CALL_(Twapi_SetTokenPrimaryGroup, 4001);
+    CALL_(CheckTokenMembership, 4002);
+    CALL_(Twapi_SetTokenOwner, 4003);
+    CALL_(Twapi_LsaEnumerateAccountRights, 4004);
+    CALL_(LsaAddAccountRights, 10015);
+    CALL_(LsaRemoveAccountRights, 10016);
+    CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017);
+    CALL_(LsaQueryInformationPolicy, 10018);
+    CALL_(LsaGetLogonSessionData, 10019);
+    CALL_(SetNamedSecurityInfo, 10020);
+    CALL_(LookupPrivilegeName, 10021);
+    CALL_(SetSecurityInfo, 10022);
+    CALL_(DuplicateTokenEx, 10023);
+    CALL_(Twapi_AdjustTokenPrivileges, 10024);
+    CALL_(Twapi_PrivilegeCheck, 10025);
+
+#undef CALL_
+
+    return TCL_OK;
+}
+
+
+#ifndef TWAPI_STATIC_BUILD
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_security_Init(Tcl_Interp *interp)
+{
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+                            Twapi_SecurityInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+}
 

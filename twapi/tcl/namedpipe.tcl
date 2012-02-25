@@ -95,3 +95,9 @@ proc twapi::namedpipe_client {name args} {
                 $secattr $create_disposition $flags]
 }
 
+# Impersonate a named pipe client
+proc twapi::impersonate_namedpipe_client {chan} {
+    set h [get_tcl_channel_handle $chan read]
+    ImpersonateNamedPipeClient $h
+}
+

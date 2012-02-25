@@ -101,9 +101,11 @@ functions for impersonation and reverting back are
 [uri \#impersonate_token [cmd impersonate_token]],
 [uri \#impersonate_user [cmd impersonate_user]],
 [uri \#impersonate_self [cmd impersonate_self]],
-[uri \#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]],
 [uri \#set_thread_token [cmd set_thread_token]]
 and [uri \#revert_to_self [cmd revert_to_self]].
+For impersonating named pipe clients, use the
+[uri namedpipe.html#impersonate_namedpipe_client [cmd impersonate_namedpipe_client]]
+command from the  [cmd twapi_namedpipe] package.
 [para]
 The command [uri \#get_current_user [cmd get_current_user]]
 returns the user account for the thread
@@ -1061,13 +1063,6 @@ use the
 or the [cmd -virtualized] option of the
 [uri process.html#get_process_info [cmd get_process_info]] command.
 
-[call [cmd impersonate_namedpipe_client] [arg CHANNEL]]
-Changes the security context of the calling thread to that of the client
-of a named pipe. [arg CHANNEL] is a Tcl channel identifier for the server
-end of a named pipe. This call will fail unless some data is first read
-from the channel.
-[nl]
-[emph "The caller must be careful that exceptions raised by this command are handled correctly. It should not continue with normal processing as though the security context was changed to that of the named pipe client."]
 
 [call [cmd impersonate_self] [arg IMPERSONATIONLEVEL]]
 Assigns an impersonation token to the current thread based on the security

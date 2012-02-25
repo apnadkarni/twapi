@@ -191,7 +191,7 @@ static int NPipeModuleInit(Tcl_Interp *interp)
 {
     gNPipeTlsSlot = Twapi_AssignTlsSlot();
     if (gNPipeTlsSlot < 0) {
-        Tcl_SetResult(ticP->interp, "Could not assign private TLS slot", TCL_STATIC);
+        Tcl_SetResult(interp, "Could not assign private TLS slot", TCL_STATIC);
         return TCL_ERROR;
     }
 
@@ -1429,11 +1429,27 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 }
 
 
+int Twapi_NPipeImpersonateObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HANDLE h;
+
+    if (objc != 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    if (ObjToHANDLE(interp, objv[1], &h) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ImpersonateNamedPipeClient(h) == 0)
+        return Twapi_AppendSystemError(interp, GetLastError());
+
+    return TCL_OK;
+}
 
 static int Twapi_NPipeInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     Tcl_CreateObjCommand(interp, "twapi::namedpipe_client", Twapi_NPipeClientObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::namedpipe_server", Twapi_NPipeServerObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::ImpersonateNamedPipeClient", Twapi_NPipeImpersonateObjCmd, ticP, NULL);
 
     return TCL_OK;
 }
