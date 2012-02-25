@@ -284,15 +284,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
      * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
-    CALL_(GetUserDefaultLangID, Call, 23);
-    CALL_(GetSystemDefaultLangID, Call, 24);
-    CALL_(GetUserDefaultLCID, Call, 25);
-    CALL_(GetSystemDefaultLCID, Call, 26);
-    CALL_(GetUserDefaultUILanguage, Call, 27);
-    CALL_(GetSystemDefaultUILanguage, Call, 28);
-    CALL_(GetThreadLocale, Call, 29);
-    CALL_(GetACP, Call, 30);
-    CALL_(GetOEMCP, Call, 31);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -331,8 +322,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_AdjustTokenPrivileges, Call, 10047);
     CALL_(Twapi_PrivilegeCheck, Call, 10048);
     CALL_(DsGetDcName, Call, 10058);
-    CALL_(GetNumberFormat, Call, 10070);
-    CALL_(GetCurrencyFormat, Call, 10071);
     CALL_(FormatMessageFromModule, Call, 10073);
     CALL_(FormatMessageFromString, Call, 10074);
     CALL_(win32_error, Call, 10081);
@@ -364,7 +353,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     // CallU API
     CALL_(GetStdHandle, CallU, 4);
-    CALL_(VerLanguageName, CallU, 7);
     CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
     CALL_(UuidCreate, CallU, 21);
     CALL_(GetUserNameEx, CallU, 22);
@@ -372,8 +360,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
     CALL_(Twapi_MemLifoInit, CallU, 37);
     CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
-
-    CALL_(GetLocaleInfo, CallU, 1006);
 
     CALL_(AttachThreadInput, CallU, 2004); /* Must stay in twapi_base as
                                               potentially used by many exts */
@@ -529,44 +515,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HANDLE;
             result.value.hval = GetCurrentProcess();
             break;
-            // 2-22 UNUSED
-        case 23:
-            result.type = TRT_DWORD;
-            result.value.ival = GetUserDefaultLangID();
-            break;
-        case 24:
-            result.type = TRT_DWORD;
-            result.value.ival = GetSystemDefaultLangID();
-            break;
-        case 25:
-            result.type = TRT_DWORD;
-            result.value.ival = GetUserDefaultLCID();
-            break;
-        case 26:
-            result.type = TRT_DWORD;
-            result.value.ival = GetSystemDefaultLCID();
-            break;
-        case 27:
-            result.type = TRT_NONZERO_RESULT;
-            result.value.ival = GetUserDefaultUILanguage();
-            break;
-        case 28:
-            result.type = TRT_NONZERO_RESULT;
-            result.value.ival = GetSystemDefaultUILanguage();
-            break;
-        case 29:
-            result.type = TRT_DWORD;
-            result.value.ival = GetThreadLocale();
-            break;
-        case 30:
-            result.type = TRT_DWORD;
-            result.value.ival = GetACP();
-            break;
-        case 31:
-            result.type = TRT_DWORD;
-            result.value.ival = GetOEMCP();
-            break;
-        //  32-39 UNUSED
+            // 2-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
@@ -931,12 +880,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-        // 10059 - 10069 UNUSED
-        case 10070:
-            return Twapi_GetNumberFormat(ticP, objc-2, objv+2);
-        case 10071:
-            return Twapi_GetCurrencyFormat(ticP, objc-2, objv+2);
-            // 10072 UNUSED
+        // 10059 - 10072 UNUSED
         case 10073: // Twapi_FormatMessageFromModule
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETINT(dw), GETHANDLE(h), GETINT(dw2),
@@ -1182,15 +1126,7 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             } else
                 result.type = TRT_HANDLE;
             break;
-        case 5: // UNUSED
-        case 6: // UNUSED
-            break;
-        case 7:
-            result.value.unicode.len = VerLanguageNameW(dw, u.buf, sizeof(u.buf)/sizeof(u.buf[0]));
-            result.value.unicode.str = u.buf;
-            result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
-            break;
-            // 8-19 UNUSED
+            // 5-19 UNUSED
         case 20:
             return Twapi_EnumPrinters_Level4(interp, dw);
         case 21:
@@ -1236,33 +1172,6 @@ int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = GetLastError();
             result.type = TRT_EXCEPTION_ON_ERROR;
             break;
-        }
-    } else if (func < 2000) {
-
-        /* Check we have exactly one more integer argument */
-        if (objc != 4)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
-        switch (func) {
-        case 1006: //GetLocaleInfo
-            result.value.unicode.len = GetLocaleInfoW(dw, dw2, u.buf,
-                                                      ARRAYSIZE(u.buf));
-            if (result.value.unicode.len == 0) {
-                result.type = TRT_GETLASTERROR;
-            } else {
-                if (dw2 & LOCALE_RETURN_NUMBER) {
-                    // u.buf actually contains a number
-                    result.value.ival = *(int *)u.buf;
-                    result.type = TRT_DWORD;
-                } else {
-                    result.value.unicode.len -= 1;
-                    result.value.unicode.str = u.buf;
-                    result.type = TRT_UNICODE;
-                }
-            }
-            break;
-
         }
     } else if (func < 3000) {
         /* Check we have exactly two more integer arguments */
@@ -1454,7 +1363,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         MemLifo *lifoP;
     } u;
     int func;
-    void *pv;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETHANDLE(h),
