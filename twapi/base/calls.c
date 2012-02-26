@@ -17,11 +17,6 @@ static char *apiprocs =
     "namespace eval twapi {}\n"
     "# Call - function(void)\n"
     "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
-    "                                                                        \n"
-    "# twapi::CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD) \n"
-    "proc twapi::IsValidSid {sid} {\n"
-    "    return [CallPSID 1 {} $sid]\n"
-    "}\n"
     ;
 
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
@@ -297,6 +292,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
+    CALL_(IsValidSid, Call, 1002);
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(canonicalize_guid, Call, 1005); // TBD Document
@@ -307,6 +303,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(free, Call, 1022);
 
     CALL_(SystemParametersInfo, Call, 10001);
+    CALL_(LookupAccountSid, Call, 10002);
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(CreateFile, Call, 10031);
@@ -409,8 +406,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LogonUser, CallSSSD, 5);
     CALL_(NetGetDCName, CallSSSD, 34);
 
-    // CallPSID - function(ANY, SID, ...)
-    CALL_(LookupAccountSid, CallPSID, 2);
 
 
 
@@ -437,6 +432,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         SYSTEM_POWER_STATUS power_status;
         TwapiId twapi_id;
         GUID guid;
+        SID *sidP;
     } u;
     DWORD_PTR dwp;
     DWORD dw, dw2, dw3, dw4;
@@ -537,7 +533,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_LPVOID;
             result.value.pv = (void *) dwp;
             break;
-            // 1002 UNUSED
+        case 1002:
+            u.sidP = NULL;
+            result.type = TRT_BOOL;
+            result.value.bval = (ObjToPSID(interp, objv[2], &u.sidP) == TCL_OK);
+            if (u.sidP)
+                TwapiFree(u.sidP);
+            break;
         case 1003:
             if (Tcl_GetDoubleFromObj(interp, objv[2], &u.d) != TCL_OK)
                 return TCL_ERROR;
@@ -604,9 +606,20 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SystemParametersInfoW(dw, dw2, pv, dw3);
             break;
-
-
-            // 10002-10007 UNUSED
+        case 10002:
+            u.sidP = NULL;
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TwapiGetArgs(interp, objc-2, objv+2,
+                                             GETNULLIFEMPTY(s),
+                                             GETVAR(u.sidP, ObjToPSID),
+                                             ARGEND);
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = Twapi_LookupAccountSid(interp, s, u.sidP);
+            if (u.sidP)
+                TwapiFree(u.sidP);
+            break;
+            
+            // 10003-10007 UNUSED
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETHANDLE(h2),
