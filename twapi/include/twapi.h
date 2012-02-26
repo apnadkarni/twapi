@@ -970,45 +970,13 @@ Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
 
-int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-int TwapiGetThemeDefine(Tcl_Interp *interp, char *name);
-int Twapi_GetCurrentThemeName(Tcl_Interp *interp);
-
 /* Shares and LANMAN */
 int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR server, LPCWSTR domain);
 
 /* Security related */
 int Twapi_LookupAccountName (Tcl_Interp *interp, LPCWSTR sysname, LPCWSTR name);
 int Twapi_LookupAccountSid (Tcl_Interp *interp, LPCWSTR sysname, PSID sidP);
-int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp);
-int Twapi_LsaQueryInformationPolicy (Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]
-);
 int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp);
-int Twapi_GetSecurityInfo(Tcl_Interp *interp, HANDLE h, int type, int wanted_fields);
-int Twapi_GetNamedSecurityInfo (Tcl_Interp *, LPWSTR name,int type,int wanted);
-int Twapi_LsaGetLogonSessionData(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
-
-int TwapiReturnNetEnum(Tcl_Interp *interp, TwapiNetEnumContext *necP);
-int Twapi_NetUseEnum(Tcl_Interp *interp);
-int Twapi_GetTokenInformation(Tcl_Interp *interp, HANDLE tokenH, int tclass);
-int Twapi_SetTokenPrimaryGroup(HANDLE tokenH, PSID sidP);
-int Twapi_SetTokenVirtualizationEnabled(HANDLE tokenH, DWORD enabled);
-int Twapi_AdjustTokenPrivileges(TwapiInterpContext *ticP, HANDLE tokenH,
-                                BOOL disableAll, TOKEN_PRIVILEGES *tokprivP);
-DWORD Twapi_PrivilegeCheck(HANDLE tokenH, const TOKEN_PRIVILEGES *tokprivP,
-                           int all_required, int *resultP);
-
-int Twapi_LsaEnumerateAccountRights(Tcl_Interp *interp,
-                                    LSA_HANDLE PolicyHandle, PSID AccountSid);
-int Twapi_LsaEnumerateAccountsWithUserRight(
-    Tcl_Interp *, LSA_HANDLE PolicyHandle, LSA_UNICODE_STRING *UserRights);
-
-
-/* Device related */
-int Twapi_EnumDisplayMonitors(Tcl_Interp *interp, HDC hdc, const RECT *rectP);
-
-
 
 /* Printers */
 int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
@@ -1017,12 +985,6 @@ int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR domainnameP, UUID *guidP,
                       LPCWSTR sitenameP, ULONG flags);
-
-/* NLS */
-
-int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-
 
 
 /* COM stuff */
@@ -1054,26 +1016,9 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
             } \
     } while (0)
 
-
-
 int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
-
-
-/* WTS */
-
-int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
-int Twapi_WTSQuerySessionInformation(Tcl_Interp *interp,  HANDLE wtsH,
-                                     DWORD  sess_id, WTS_INFO_CLASS info_class);
-
-/* UI and window related */
-Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP);
-int Twapi_EnumWindowStations(Tcl_Interp *interp);
-int Twapi_EnumWindows(Tcl_Interp *interp);
 int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
-int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta);
-int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle);
-int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle);
 
 /* WMI */
 TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);
@@ -1093,9 +1038,6 @@ TwapiTclObjCmd Twapi_KlGetObjCmd;
 TwapiTclObjCmd Twapi_TwineObjCmd;
 TwapiTclObjCmd Twapi_RecordArrayObjCmd;
 TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
-TwapiTclObjCmd Twapi_IDispatch_InvokeObjCmd;
-TwapiTclObjCmd Twapi_ComEventSinkObjCmd;
-TwapiTclObjCmd Twapi_SHChangeNotify;
 TwapiTclObjCmd Twapi_InternalCastObjCmd;
 TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 
@@ -1105,12 +1047,9 @@ TwapiTclObjCmd Twapi_CallObjCmd;
 TwapiTclObjCmd Twapi_CallUObjCmd;
 TwapiTclObjCmd Twapi_CallSObjCmd;
 TwapiTclObjCmd Twapi_CallHObjCmd;
-TwapiTclObjCmd Twapi_CallHSUObjCmd;
 TwapiTclObjCmd Twapi_CallSSSDObjCmd;
 TwapiTclObjCmd Twapi_CallWUObjCmd;
 TwapiTclObjCmd Twapi_CallPSIDObjCmd;
-TwapiTclObjCmd Twapi_CallNetEnumObjCmd;
-TwapiTclObjCmd Twapi_CallCOMObjCmd;
 
 
 /* General utility functions */
