@@ -1202,6 +1202,10 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                 result.type = TRT_OBJ;
             }
             break;
+        case 4007:
+            result.type = TRT_DWORD;
+            result.value.ival = GetDeviceCaps(h, dw);
+            break;
         }
     } else {
         /* Arbitrary args */
@@ -1603,6 +1607,7 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetThemeSysColor, Call, 4004); /* TBD - tcl wrapper */
     CALL_(GetThemeSysFont, Call, 4005);  /* TBD - tcl wrapper */
     CALL_(GetObject, Call, 4006); /* TBD - tcl wrapper */
+    CALL_(GetDeviceCaps, Call, 4007);
     CALL_(MonitorFromPoint, Call, 10001);
     CALL_(MonitorFromRect, Call, 10002);
     CALL_(GetThemeColor, Call, 10003);
