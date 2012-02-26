@@ -12,7 +12,7 @@ BUILDIDPATH="$(PACKAGEDIR)\twapi_buildid.tcl"
 
 # Mandatory files. twapi.tcl must come first since this
 # is the order in which files are combined as well.
-BASE_TCLFILES=twapi.tcl handle.tcl metoo.tcl osinfo.tcl apputil.tcl security.tcl process.tcl disk.tcl win.tcl
+BASE_TCLFILES=twapi.tcl base.tcl handle.tcl metoo.tcl osinfo.tcl apputil.tcl security.tcl process.tcl disk.tcl win.tcl
 
 # Desktop files
 DESKTOP_TCLFILES= ui.tcl input.tcl sound.tcl clipboard.tcl nls.tcl shell.tcl com.tcl
