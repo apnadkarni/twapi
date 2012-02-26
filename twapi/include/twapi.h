@@ -1017,8 +1017,12 @@ void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
     } while (0)
 
 int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP);
-int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
+
+#define Twapi_WTSFreeMemory(p_) do { if (p_) WTSFreeMemory(p_); } while (0)
+int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
+
+
 
 /* WMI */
 TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);
