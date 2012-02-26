@@ -214,29 +214,6 @@ proc twapi::get_build_config {{key ""}} {
     }
 }
 
-# Return major minor servicepack as a quad list
-proc twapi::get_os_version {} {
-    array set verinfo [GetVersionEx]
-    return [list $verinfo(dwMajorVersion) $verinfo(dwMinorVersion) \
-                $verinfo(wServicePackMajor) $verinfo(wServicePackMinor)]
-}
-
-# Returns true if the OS version is at least $major.$minor.$sp
-proc twapi::min_os_version {major {minor 0} {spmajor 0} {spminor 0}} {
-    lassign  [twapi::get_os_version]  osmajor osminor osspmajor osspminor
-
-    if {$osmajor > $major} {return 1}
-    if {$osmajor < $major} {return 0}
-    if {$osminor > $minor} {return 1}
-    if {$osminor < $minor} {return 0}
-    if {$osspmajor > $spmajor} {return 1}
-    if {$osspmajor < $spmajor} {return 0}
-    if {$osspminor > $spminor} {return 1}
-    if {$osspminor < $spminor} {return 0}
-
-    # Same version, ok
-    return 1
-}
 
 # Adds the specified Windows header defines into a global array
 # We will set a trace to do a lazy initialization on first read of array.
@@ -1078,13 +1055,6 @@ proc twapi::list_raw_api {} {
 }
 
 
-
-# Get the handle for a Tcl channel
-proc twapi::get_tcl_channel_handle {chan direction} {
-    set direction [expr {[string equal $direction "write"] ? 1 : 0}]
-    return [Tcl_GetChannelHandle $chan $direction]
-}
-
 # Wait for $wait_ms milliseconds or until $script returns $guard. $gap_ms is
 # time between retries to call $script
 # TBD - write a version that will allow other events to be processed
@@ -1113,8 +1083,6 @@ proc twapi::get_version {args} {
         return $twapi::version
     }
 }
-
-
 
 # Set all elements of the array to specified value
 proc twapi::_array_set_all {v_arr val} {
@@ -1383,27 +1351,6 @@ proc twapi::_parse_integer_pair {pair {msg "Invalid integer pair"}} {
 }
 
 
-# Map console color name to integer attribute
-proc twapi::_map_console_color {colors background} {
-    set attr 0
-    foreach color $colors {
-        switch -exact -- $color {
-            blue   {setbits attr 1}
-            green  {setbits attr 2}
-            red    {setbits attr 4}
-            white  {setbits attr 7}
-            bright {setbits attr 8}
-            black  { }
-            default {error "Unknown color name $color"}
-        }
-    }
-    if {$background} {
-        set attr [expr {$attr << 4}]
-    }
-    return $attr
-}
-
-
 # Convert file names by substituting \SystemRoot and \??\ sequences
 proc twapi::_normalize_path {path} {
     # Get rid of \??\ prefixes
@@ -1418,45 +1365,6 @@ proc twapi::_normalize_path {path} {
     }
 }
 
-# Convert a LARGE_INTEGER time value (100ns since 1601) to a formatted date
-# time
-interp alias {} twapi::large_system_time_to_secs {} twapi::large_system_time_to_secs_since_1970
-proc twapi::large_system_time_to_secs_since_1970 {ns100 {fraction false}} {
-    # No. 100ns units between 1601 to 1970 = 116444736000000000
-    set ns100_since_1970 [expr {wide($ns100)-wide(116444736000000000)}]
-
-    if {0} {
-        set secs_since_1970 [expr {wide($ns100_since_1970)/wide(10000000)}]
-        if {$fraction} {
-            append secs_since_1970 .[expr {wide($ns100_since_1970)%wide(10000000)}]
-        }
-    } else {
-        # Equivalent to above but faster
-        if {[string length $ns100_since_1970] > 7} {
-            set secs_since_1970 [string range $ns100_since_1970 0 end-7]
-            if {$fraction} {
-                set frac [string range $ns100_since_1970 end-6 end]
-                append secs_since_1970 .$frac
-            }
-        } else {
-            set secs_since_1970 0
-            if {$fraction} {
-                set frac [string range "0000000${ns100_since_1970}" end-6 end]
-                append secs_since_1970 .$frac
-            }
-        }
-    }
-    return $secs_since_1970
-}
-
-proc twapi::secs_since_1970_to_large_system_time {secs} {
-    # No. 100ns units between 1601 to 1970 = 116444736000000000
-    return [expr {($secs * 10000000) + wide(116444736000000000)}]
-}
-
-interp alias {} ::twapi::get_system_time {} ::twapi::GetSystemTimeAsFileTime
-interp alias {} ::twapi::large_system_time_to_timelist {} ::twapi::FileTimeToSystemTime
-interp alias {} ::twapi::timelist_to_large_system_time {} ::twapi::SystemTimeToFileTime
 
 # Convert seconds to a list {Year Month Day Hour Min Sec Ms}
 # (Ms will always be zero). Always return local time
@@ -1726,79 +1634,20 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
         source [file join [file dirname [info script]] twapi_buildid.tcl]
     }
 
-    # Source files based on build configuration
-    # First, all the base files
-    foreach ::twapi::_field_ {
-        handle.tcl
-        metoo.tcl
-        osinfo.tcl
-        apputil.tcl
-        security.tcl
-        process.tcl
-        disk.tcl
-        win.tcl
-    } {
-        source [file join [file dirname [info script]] $::twapi::_field_]
-    }
-
-    # Now the desktop files
-    if {[lsearch [::twapi::get_build_config opts] nodesktop] < 0} {
-        foreach ::twapi::_field_ {
-            ui.tcl
-            input.tcl
-            sound.tcl
-            clipboard.tcl
-            shell.tcl
-            nls.tcl
-            com.tcl
-        } {
-            source [file join [file dirname [info script]] $::twapi::_field_]
+    # The apply is just to prevent global var pollution from the foreach
+    apply {{filelist} {
+        foreach f $filelist {
+            source [file join [file dirname [info script]] $f]
         }
+    }} {
+        base.tcl handle.tcl metoo.tcl osinfo.tcl apputil.tcl
+        security.tcl process.tcl disk.tcl win.tcl ui.tcl input.tcl
+        sound.tcl clipboard.tcl shell.tcl nls.tcl com.tcl services.tcl
+        eventlog.tcl adsi.tcl process2.tcl accounts.tcl pdh.tcl
+        share.tcl network.tcl console.tcl synch.tcl winsta.tcl
+        printer.tcl mstask.tcl msi.tcl crypto.tcl device.tcl power.tcl
+        namedpipe.tcl resource.tcl rds.tcl wmi.tcl etw.tcl
     }
-
-
-    # Now the server files
-    if {[lsearch [::twapi::get_build_config opts] noserver] < 0} {
-        foreach ::twapi::_field_ {
-            services.tcl
-            eventlog.tcl
-        } {
-            source [file join [file dirname [info script]] $::twapi::_field_]
-        }
-    }
-
-
-    # Now the extras
-    if {[lsearch [::twapi::get_build_config opts] lean] < 0} {
-        foreach ::twapi::_field_ {
-            adsi.tcl
-            process2.tcl
-            accounts.tcl
-            pdh.tcl
-            share.tcl
-            network.tcl
-            console.tcl
-            synch.tcl
-            winsta.tcl
-            printer.tcl
-            mstask.tcl
-            msi.tcl
-            crypto.tcl
-            device.tcl
-            power.tcl
-            namedpipe.tcl
-            resource.tcl
-            rds.tcl
-            wmi.tcl
-            etw.tcl
-        } {
-            source [file join [file dirname [info script]] $::twapi::_field_]
-        }
-    }
-
-
-    # Get rid of temp variable
-    unset twapi::_field_
 }
 
 # Returns a list of twapi procs that are currently defined and should

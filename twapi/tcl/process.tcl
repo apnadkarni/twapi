@@ -1951,3 +1951,24 @@ proc twapi::_token_set_helper {args} {
 
     return $result
 }
+
+# Map console color name to integer attribute
+proc twapi::_map_console_color {colors background} {
+    set attr 0
+    foreach color $colors {
+        switch -exact -- $color {
+            blue   {setbits attr 1}
+            green  {setbits attr 2}
+            red    {setbits attr 4}
+            white  {setbits attr 7}
+            bright {setbits attr 8}
+            black  { }
+            default {error "Unknown color name $color"}
+        }
+    }
+    if {$background} {
+        set attr [expr {$attr << 4}]
+    }
+    return $attr
+}
+

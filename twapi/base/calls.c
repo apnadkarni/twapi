@@ -306,6 +306,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(free, Call, 1022);
 
+    CALL_(SystemParametersInfo, Call, 10001);
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(CreateFile, Call, 10031);
@@ -605,7 +606,17 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
-            // 10001-10007 UNUSED
+        case 10001:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETINT(dw), GETINT(dw2), GETVOIDP(pv), GETINT(dw3),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SystemParametersInfoW(dw, dw2, pv, dw3);
+            break;
+
+
+            // 10002-10007 UNUSED
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETHANDLE(h2),
