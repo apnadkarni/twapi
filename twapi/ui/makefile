@@ -8,4 +8,5 @@ LIBS =	$(LIBS) gdi32.lib $(SDKLIB)uxtheme.lib
 
 !include ..\include\rules.inc
 
+$(OBJS) : twapi_ui.h
 
