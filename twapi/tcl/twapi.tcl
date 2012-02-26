@@ -214,6 +214,30 @@ proc twapi::get_build_config {{key ""}} {
     }
 }
 
+# Return major minor servicepack as a quad list
+proc twapi::get_os_version {} {
+    array set verinfo [GetVersionEx]
+    return [list $verinfo(dwMajorVersion) $verinfo(dwMinorVersion) \
+                $verinfo(wServicePackMajor) $verinfo(wServicePackMinor)]
+}
+
+# Returns true if the OS version is at least $major.$minor.$sp
+proc twapi::min_os_version {major {minor 0} {spmajor 0} {spminor 0}} {
+    lassign  [twapi::get_os_version]  osmajor osminor osspmajor osspminor
+
+    if {$osmajor > $major} {return 1}
+    if {$osmajor < $major} {return 0}
+    if {$osminor > $minor} {return 1}
+    if {$osminor < $minor} {return 0}
+    if {$osspmajor > $spmajor} {return 1}
+    if {$osspmajor < $spmajor} {return 0}
+    if {$osspminor > $spminor} {return 1}
+    if {$osspminor < $spminor} {return 0}
+
+    # Same version, ok
+    return 1
+}
+
 # Adds the specified Windows header defines into a global array
 # We will set a trace to do a lazy initialization on first read of array.
 array set twapi::windefs {}

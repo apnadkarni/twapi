@@ -949,6 +949,8 @@ void Twapi_FreeNewTclObj(Tcl_Obj *objPtr)
 #endif
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { Tcl_DecrRefCount(o_); } } while (0)
 
+int Twapi_GetVersionEx(Tcl_Interp *interp);
+
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromPOINTS(POINTS *ptP);
