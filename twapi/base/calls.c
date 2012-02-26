@@ -7,18 +7,6 @@
 
 #include "twapi.h"
 
-static char *apiprocs = 
-    "#\n"
-    "# Definitions for Win32 API calls through a standard handler\n"
-    "# Note most are defined at C level in twapi_calls.c and this file\n"
-    "# only contains those that could not be defined there for whatever\n"
-    "# reason (generally because argument order is changed, or defaults are\n"
-    "# needed etc.)\n"
-    "namespace eval twapi {}\n"
-    "# Call - function(void)\n"
-    "proc twapi::UuidCreateNil {} { return 00000000-0000-0000-0000-000000000000 } \n"
-    ;
-
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -273,16 +261,13 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
     } while (0);
 
-    /*
-     * NOTE: Some MISSING CALL NUMBERS are defined in win32calls.tcl
-     * or as procs in the apiprocs global.
-     */
     CALL_(GetCurrentProcess, Call, 1);
     CALL_(GetVersionEx, Call, 2);
+    CALL_(UuidCreateNil, Call, 3);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
-    CALL_(RevertToSelf, Call, 51); /* Leave here as it might be
+    CALL_(RevertToSelf, Call, 51); /* Left in base module as it might be
                                       used from multiple extensions */
     CALL_(GetSystemPowerStatus, Call, 68);
     CALL_(TwapiId, Call, 74);
@@ -407,9 +392,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 #undef CALL_
 
-    return Tcl_Eval(interp, apiprocs);
+    return TCL_OK;
 }
-
 
 int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -460,12 +444,15 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 2:
             return Twapi_GetVersionEx(interp);
-        // 3-39 UNUSED
+        case 3: // UuidCreateNil
+            Tcl_SetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
+            return TCL_OK;
+        // 4-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
             break;
-            // 41-47 UNUSED
+        // 41-47 UNUSED
         case 48:
             result.type = AllocateLocallyUniqueId(&result.value.luid) ? TRT_LUID : TRT_GETLASTERROR;
             break;
