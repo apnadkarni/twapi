@@ -80,72 +80,72 @@ proc twapi::get_os_description {} {
     set osversion "$osinfo(os_major_version).$osinfo(os_minor_version)"
 
     # Base OS name
-    if {$osinfo(os_major_version) < 5} {
-        set osname "Windows NT"
-        if {[string equal $osinfo(system_type) "workstation"]} {
-            set systype "Workstation"
-        } else {
-            if {"terminal" in $osinfo(suites)} {
-                set systype "Terminal Server Edition"
-            } elseif {"enterprise" in $osinfo(suites)} {
-                set systype "Advanced Server"
+    switch -exact -- $osversion {
+        "5.0" {
+            set osname "Windows 2000"
+            if {[string equal $osinfo(system_type) "workstation"]} {
+                set systype "Professional"
             } else {
-                set systype "Server"
-            }
-        }
-    } else {
-        switch -exact -- $osversion {
-            "5.0" {
-                set osname "Windows 2000"
-                if {[string equal $osinfo(system_type) "workstation"]} {
-                    set systype "Professional"
-                } else {
-                    if {"datacenter" in $osinfo(suites)} {
-                        set systype "Datacenter Server"
-                    } elseif {"enterprise" in $osinfo(suites)} {
-                        set systype "Advanced Server"
-                    } else {
-                        set systype "Server"
-                    }
-                }
-            }
-            "5.1" {
-                set osname "Windows XP"
-                if {"personal" in $osinfo(suites)} {
-                    set systype "Home Edition"
-                } else {
-                    set systype "Professional"
-                }
-            }
-            "5.2" {
-                set osname "Windows Server 2003"
-                if {[string equal $osinfo(system_type) "workstation"]} {
-                    set systype "Professional"
-                } else {
-                    if {"datacenter" in $osinfo(suites)} {
-                        set systype "Datacenter Edition"
-                    } elseif {"enterprise" in  $osinfo(suites)} {
-                        set systype "Enterprise Edition"
-                    } elseif {"blade" in  $osinfo(suites)} {
-                        set systype "Web Edition"
-                    } else {
-                        set systype "Standard Edition"
-                    }
-                }
-            }
-            default {
-                # Future release - can't really name, just make something up
-                set osname "Windows"
-                if {[string equal $osinfo(system_type) "workstation"]} {
-                    set systype "Professional"
+                if {"datacenter" in $osinfo(suites)} {
+                    set systype "Datacenter Server"
+                } elseif {"enterprise" in $osinfo(suites)} {
+                    set systype "Advanced Server"
                 } else {
                     set systype "Server"
                 }
             }
         }
-        if {"terminal" in  $osinfo(suites)} {
-            set tserver " with Terminal Services"
+        "5.1" {
+            set osname "Windows XP"
+            if {"personal" in $osinfo(suites)} {
+                set systype "Home Edition"
+            } else {
+                set systype "Professional"
+            }
         }
+        "5.2" {
+            set osname "Windows Server 2003"
+            if {[GetSystemMetrics 89]} {
+                append osname " R2"
+            }
+            if {"datacenter" in $osinfo(suites)} {
+                set systype "Datacenter Edition"
+            } elseif {"enterprise" in  $osinfo(suites)} {
+                set systype "Enterprise Edition"
+            } elseif {"blade" in  $osinfo(suites)} {
+                set systype "Web Edition"
+            } else {
+                set systype "Standard Edition"
+            }
+        }
+        "6.0" {
+            # TBD - use GetProductInfo to distinguish home/business etc.
+            if {$osinfo(system_type) eq "workstation"} {
+                set osname "Windows Vista"
+            } else {
+                set osname "Windows Server 2008"
+            }
+        }
+        "6.1" {
+            # TBD - use GetProductInfo to distinguish home/business etc.
+            if {$osinfo(system_type) eq "workstation"} {
+                set osname "Windows 7"
+            } else {
+                set osname "Windows Server 2008 R2"
+            }
+        }
+        default {
+            # Future release - can't really name, just make something up
+            set osname "Windows"
+            if {[string equal $osinfo(system_type) "workstation"]} {
+                set systype "Professional"
+            } else {
+                set systype "Server"
+            }
+        }
+    }
+    if {"terminal" in  $osinfo(suites)} {
+        set tserver " with Terminal Services"
     }
 
     # Service pack
@@ -156,30 +156,6 @@ proc twapi::get_os_description {} {
     }
 
     return "$osname $systype ${osversion} (Build $osinfo(os_build_number))${spver}${tserver}"
-}
-
-# Return major minor servicepack as a quad list
-proc twapi::get_os_version {} {
-    array set verinfo [GetVersionEx]
-    return [list $verinfo(dwMajorVersion) $verinfo(dwMinorVersion) \
-                $verinfo(wServicePackMajor) $verinfo(wServicePackMinor)]
-}
-
-# Returns true if the OS version is at least $major.$minor.$sp
-proc twapi::min_os_version {major {minor 0} {spmajor 0} {spminor 0}} {
-    lassign  [twapi::get_os_version]  osmajor osminor osspmajor osspminor
-
-    if {$osmajor > $major} {return 1}
-    if {$osmajor < $major} {return 0}
-    if {$osminor > $minor} {return 1}
-    if {$osminor < $minor} {return 0}
-    if {$osspmajor > $spmajor} {return 1}
-    if {$osspmajor < $spmajor} {return 0}
-    if {$osspminor > $spminor} {return 1}
-    if {$osspminor < $spminor} {return 0}
-
-    # Same version, ok
-    return 1
 }
 
 # Returns proc information

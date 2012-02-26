@@ -42,33 +42,6 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp)
     return TCL_OK;
 }
 
-int Twapi_GetVersionEx(Tcl_Interp *interp)
-{
-    OSVERSIONINFOEXW vi;
-    Tcl_Obj *objP;
-
-    vi.dwOSVersionInfoSize = sizeof(vi);
-    if (GetVersionExW((OSVERSIONINFOW *)&vi) == 0) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    objP = Tcl_NewListObj(0, NULL);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwOSVersionInfoSize);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMajorVersion);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMinorVersion);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwBuildNumber);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwPlatformId);
-    //TCHAR szCSDVersion[128];
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMajor);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMinor);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wSuiteMask);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
-
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
-}
-
 int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
 {
     MEMORYSTATUSEX memstatex;
@@ -288,7 +261,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
-        case 32:
+        case 33:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
             if (GetComputerNameW(u.buf, &result.value.unicode.len)) {
                 result.value.unicode.str = u.buf;
@@ -296,8 +269,6 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 33:
-            return Twapi_GetVersionEx(interp);
         case 34:
             return Twapi_GetSystemInfo(interp);
         case 35:
@@ -446,8 +417,7 @@ static int Twapi_OsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::OsCall", # code_); \
     } while (0);
 
-    CALL_(GetComputerName, 32);
-    CALL_(GetVersionEx, 33);
+    CALL_(GetComputerName, 33);
     CALL_(GetSystemInfo, 34);
     CALL_(GlobalMemoryStatus, 35);
     CALL_(Twapi_SystemProcessorTimes, 36);
