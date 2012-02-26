@@ -1,12 +1,12 @@
 /* 
- * Copyright (c) 2006-2009, Ashok P. Nadkarni
+ * Copyright (c) 2006-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
 #include "twapi.h"
-
+#include "twapi_ui.h"
 Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP)
 {
     Tcl_Obj *objv[5];
