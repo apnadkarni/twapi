@@ -15,11 +15,7 @@
 
         
 #define TWAPI_TCL_MAJOR 8
-#ifdef _WIN64
 #define TWAPI_MIN_TCL_MINOR 5
-#else
-#define TWAPI_MIN_TCL_MINOR 4
-#endif
 
 /*
  * Globals

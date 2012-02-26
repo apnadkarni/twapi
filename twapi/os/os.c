@@ -248,7 +248,6 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         TIME_ZONE_INFORMATION tzinfo;
     } u;
     Tcl_Obj *objs[2];
-    LPVOID pv;
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
 
@@ -366,22 +365,14 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 1004:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETINT(dw), GETINT(dw2), GETVOIDP(pv), GETINT(dw3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SystemParametersInfoW(dw, dw2, pv, dw3);
-            break;
-        case 1005:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETBOOL(dw), GETBOOL(dw2), GETBOOL(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetSuspendState((BOOLEAN) dw, (BOOLEAN) dw2, (BOOLEAN) dw3);
             break;
-        case 1006: // TzLocalSpecificTimeToSystemTime
-        case 1007: // SystemTimeToTzSpecificLocalTime
+        case 1005: // TzLocalSpecificTimeToSystemTime
+        case 1006: // SystemTimeToTzSpecificLocalTime
             if (objc == 3) {
                 tzinfoP = NULL;
             } else if (objc == 4) {
@@ -435,10 +426,9 @@ static int Twapi_OsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ExitWindowsEx, 1001);
     CALL_(AbortSystemShutdown, 1002);
     CALL_(InitiateSystemShutdown, 1003);
-    CALL_(SystemParametersInfo, 1004);
-    CALL_(SetSuspendState, 1005);
-    CALL_(TzSpecificLocalTimeToSystemTime, 1006); // Tcl
-    CALL_(SystemTimeToTzSpecificLocalTime, 1007); // Tcl
+    CALL_(SetSuspendState, 1004);
+    CALL_(TzSpecificLocalTimeToSystemTime, 1005); // Tcl
+    CALL_(SystemTimeToTzSpecificLocalTime, 1006); // Tcl
 
 #undef CALL_
 
