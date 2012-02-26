@@ -30,18 +30,25 @@ static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     switch (func) {
     case 1:
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
+                         GETNULLIFEMPTY(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        NULLIFY_EMPTY(s);
         result.type = TRT_BOOL;
         result.value.ival = PlaySoundW(s, hmod, dw);
         break;
     case 2:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
         result.type = TRT_BOOL;
         result.value.bval = MessageBeep(dw);
         break;
     case 3:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = Beep(dw, dw2);
         break;
@@ -64,7 +71,7 @@ static int Twapi_MmInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(PlaySound, 1);
     CALL_(MessageBeep, 2);
-    CALL_(Beep, CallU, 3);
+    CALL_(Beep, 3);
 
 #undef CALL_
 
