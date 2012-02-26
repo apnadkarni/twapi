@@ -453,12 +453,11 @@ TCL_RESULT Twapi_LoadImage(
 static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    HWND   hwnd;
     LPWSTR s, s2, s3;
-    DWORD dw, dw2;
+    DWORD dw;
     HANDLE h;
     TwapiResult result;
-    void *pv, *pv2;
+    void *pv;
 
     /* Every command has at least one argument */
     if (objc < 3)

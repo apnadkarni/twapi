@@ -240,7 +240,7 @@ VCVER=6
 !if $(VCVER) == 0
 !error Could not determine compiler version
 !else
-!message Compiling with Visual C++ $(VCVER).
+# !message Compiling with Visual C++ $(VCVER).
 !endif
 
 # Compiler flags 
