@@ -284,6 +284,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
      * or as procs in the apiprocs global.
      */
     CALL_(GetCurrentProcess, Call, 1);
+    CALL_(GetVersionEx, Call, 2);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -474,7 +475,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HANDLE;
             result.value.hval = GetCurrentProcess();
             break;
-            // 2-39 UNUSED
+        case 2:
+            return Twapi_GetVersionEx(interp);
+        // 3-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);

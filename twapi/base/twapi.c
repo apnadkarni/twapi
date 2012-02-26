@@ -612,3 +612,30 @@ TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMO
     return ticP;
 }
 
+int Twapi_GetVersionEx(Tcl_Interp *interp)
+{
+    OSVERSIONINFOEXW vi;
+    Tcl_Obj *objP;
+
+    vi.dwOSVersionInfoSize = sizeof(vi);
+    if (GetVersionExW((OSVERSIONINFOW *)&vi) == 0) {
+        return TwapiReturnSystemError(interp);
+    }
+
+    objP = Tcl_NewListObj(0, NULL);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwOSVersionInfoSize);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMajorVersion);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMinorVersion);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwBuildNumber);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwPlatformId);
+    //TCHAR szCSDVersion[128];
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMajor);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMinor);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wSuiteMask);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
+    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
+
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+

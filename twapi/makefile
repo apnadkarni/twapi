@@ -7,10 +7,11 @@ MODULES = account apputil clipboard com console crypto device \
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)
+ACTIONS =
 
 all: $(TARGETS)
 
 base $(MODULES): force
-	cd $@ && nmake /$(MAKEFLAGS)
+	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS)
 
 force:
