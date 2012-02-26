@@ -23,8 +23,8 @@ OBJS  = \
 	$(OBJDIR)\twine.obj \
 	$(OBJDIR)\util.obj \
 	$(OBJDIR)\win.obj \
-	$(OBJDIR)\wmi.obj \
-	$(OBJDIR)\wts.obj
+	$(OBJDIR)\wmi.obj
+
 
 
 TCLFILES=..\tcl\twapi.tcl \
@@ -35,7 +35,6 @@ TCLFILES=..\tcl\twapi.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \
 	..\tcl\power.tcl \
-	..\tcl\rds.tcl \
 	..\tcl\wmi.tcl
 
 !include ..\include\rules.inc
