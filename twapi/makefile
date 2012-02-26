@@ -7,11 +7,11 @@ MODULES = account apputil clipboard com console crypto device \
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)
-ACTIONS =
+ACTIONS = build
 
-all: $(TARGETS)
+build: $(TARGETS)
 
 base $(MODULES): force
-	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS)
+	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS) TWAPI_STATIC_BUILD=$(TWAPI_STATIC_BUILD)
 
 force:

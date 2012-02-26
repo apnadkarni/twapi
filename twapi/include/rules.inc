@@ -2,7 +2,15 @@
 # This is split off from common.inc because we want to give the parent
 # makefile a chance to define $(OBJS)
 
-all: $(OBJDIR)\$(MODULE)
+all: build distribute
+
+build: $(OBJDIR)\$(MODULE)
+
+# Static library
+lib: $(OBJDIR)\$(MODULELIB)
+
+distribution:
+        $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
 
 $(OBJDIR):
 	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
@@ -19,23 +27,12 @@ $(OBJS): $(CINCLUDES) makefile
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_NAME) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
         rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_NAME)
 
-# Static library
-lib: $(OBJDIR)\$(MODULELIB)
-
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
-distribution:
-        $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
-
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS)
-	cd ..\tcl && nmake PACKAGEDIR="$(OBJDIR)\tcl" COMBINEOUTPUT="combined_$(MODULENAME)_script.lzma.raw" PACKAGE="$(PACKAGE)" combine
-	"$(TOOLDIR)\lzma.exe" e "$(OBJDIR)\tcl\combined_$(MODULENAME)_script.lzma.raw" "$(OBJDIR)\combined_$(MODULENAME)_script.lzma"
-	$(LIBTOOL) /OUT:$@ $**
 
 # Compile a file
 .c{$(OBJDIR)}.obj::
        $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
-
 
 !ifdef TWAPI_SCRIPT_RESOURCE
 $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
@@ -47,6 +44,9 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJD
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 !endif
 !endif
+
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH)
+	$(LIBTOOL) /OUT:$@ $(OBJS)
 
 $(OBJDIR)\tcl\$(MODULENAME)_version.tcl : $(SRCROOT)\include\version.inc $(SRCROOT)\include\rules.inc
 	-$(MKDIR) "$(OBJDIR)\tcl"
