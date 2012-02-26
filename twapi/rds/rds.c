@@ -128,13 +128,13 @@ int Twapi_WTSQuerySessionInformation(
 }
 
 
-static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s;
+    LPWSTR s, s2;
     DWORD dw, dw2, dw3, dw4;
-    SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
+    int i, i2;
     TwapiResult result;
 
     /* At least one arg for every command */
@@ -186,6 +186,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             break;
         case 105:
             return Twapi_WTSQuerySessionInformation(interp, h, dw, dw2);
+        }
     }
 
     return TwapiSetResult(interp, &result);
