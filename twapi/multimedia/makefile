@@ -4,5 +4,6 @@ MODULENAME=twapi_multimedia
 
 OBJS  = $(OBJDIR)\multimedia.obj
 TCLFILES=..\tcl\sound.tcl
+LIBS =	$(LIBS) winmm.lib
 
 !include ..\include\rules.inc

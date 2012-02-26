@@ -391,7 +391,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ResetEvent, CallH, 67);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
-    CALL_(GetDeviceCaps, CallH, 1016); /* Move to UI TBD */
     CALL_(WaitForSingleObject, CallH, 1017);
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
@@ -1234,11 +1233,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
                 TRT_DWORD : TRT_GETLASTERROR;
             break;
 #endif
-        // 1002-1015 UNUSED
-        case 1016:
-            result.type = TRT_DWORD;
-            result.value.ival = GetDeviceCaps(h, dw);
-            break;
+        // 1002-1016 UNUSED
         case 1017:
             result.value.ival = WaitForSingleObject(h, dw);
             if (result.value.ival == (DWORD) -1) {

@@ -154,9 +154,9 @@ OBJDIR = $(OBJDIR)\$(MODULENAME)
 
 # Make the directory
 !if ![if not exist $(OBJDIR) mkdir $(OBJDIR)]
-!message Output directory is $(OBJDIR)
+# !message Output directory is $(OBJDIR)
 !else
-!message Output directory $(OBJDIR) exists
+# !message Output directory $(OBJDIR) exists
 !endif
 
 # 
@@ -326,22 +326,18 @@ WINLIB        = \
 	$(SDKLIB)advapi32.lib \
 	$(SDKLIB)user32.lib \
 	rpcrt4.lib \
-	gdi32.lib \
 	$(SDKLIB)psapi.lib \
 	$(SDKLIB)netapi32.lib \
-	winmm.lib \
 	mpr.lib \
 	$(SDKLIB)ws2_32.lib \
 	ole32.lib \
 	oleaut32.lib \
-	shell32.lib  \
 	$(SDKLIB)winspool.lib \
 	$(SDKLIB)version.lib \
 	$(SDKLIB)powrprof.lib \
 	$(SDKLIB)secur32.lib \
-	$(SDKLIB)userenv.lib \
-	$(SDKLIB)wtsapi32.lib \
-	$(SDKLIB)uxtheme.lib
+	$(SDKLIB)wtsapi32.lib 
+
 # Disabled for now since it pulls in _vsnprintf - $(SDKLIB)strsafe.lib
 
 !if $(VCVER) > 6 && $(VCVER) < 9
@@ -391,7 +387,7 @@ LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
 
 !ifdef ENABLE_DELAYLOAD
 LIBS = $(LIBS) delayimp.lib
-LOPT = $(LOPT) /DELAYLOAD:winmm.dll /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll
+LOPT = $(LOPT) /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll  /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll
 !endif
 
 
