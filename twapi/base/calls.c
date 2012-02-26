@@ -266,7 +266,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallPSID", Twapi_CallPSIDObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
@@ -405,9 +404,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LookupAccountName, CallSSSD, 1);
     CALL_(LogonUser, CallSSSD, 5);
     CALL_(NetGetDCName, CallSSSD, 34);
-
-
-
 
 #undef CALL_
 
@@ -1375,62 +1371,6 @@ int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, T
 
     return TwapiSetResult(interp, &result);
 }
-
-
-/*
- * PSID - based calls. These are handled separately because we want to
- * ensure we do PSID conversion via ObjToPSID before any object
- * shimmering takes place. Otherwise we could have used one of the
- * string based call dispatchers Also, there is other special
- * processing required such as freeing memory.
-*/
-int Twapi_CallPSIDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    PSID sidP = NULL;
-    int func;
-    LPCWSTR s;
-    TwapiResult result;
-
-    func = 0;
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func),
-                     ARGSKIP,
-                     GETVAR(sidP, ObjToPSID),
-                     ARGTERM) != TCL_OK) {
-        if (sidP)
-            TwapiFree(sidP);         /* Might be alloc'ed even on fail */
-        /* Special case - IsValidSid check. */
-        if (func == 1 &&
-            objc == 4) {
-            /* Problem was with SID. IsValidSid return 0 with TCL_OK */
-            Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
-            return TCL_OK;
-        } else
-            return TCL_ERROR;
-    }
-    /* sidP may legitimately be NULL, else it points to a Twapialloc'ed block */
-
-    result.type = TRT_EXCEPTION_ON_FALSE; /* Likely result type */
-    switch (func) {
-    case 1:
-        /* The ObjToPSID above would have already checked SID validity */
-        result.type = TRT_BOOL;
-        result.value.bval = 1;
-        break;
-    case 2:
-        s = ObjToLPWSTR_NULL_IF_EMPTY(objv[2]);
-        result.type = TRT_TCL_RESULT;
-        result.value.ival = Twapi_LookupAccountSid(interp, s, sidP);
-        break;
-    }
-
-    if (sidP)
-        TwapiFree(sidP);
-
-    return TwapiSetResult(interp, &result);
-}
-
-
 
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
