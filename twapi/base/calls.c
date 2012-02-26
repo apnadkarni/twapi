@@ -310,7 +310,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(CreateFile, Call, 10031);
-    CALL_(WTSSendMessage, Call, 10044);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
     CALL_(FormatMessageFromString, Call, 10074);
@@ -359,12 +358,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     // CallS - function(LPWSTR)
     CALL_(Twapi_AppendLog, CallS, 11);
-    CALL_(WTSOpenServer, CallS, 12);
     CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
     CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
 
     CALL_(LoadLibraryEx, CallS, 504);
-
     CALL_(TranslateName, CallS, 1005);
 
     // CallH - function(HANDLE)
@@ -378,9 +375,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GlobalUnlock, CallH, 46);
     CALL_(GlobalSize, CallH, 47);
     CALL_(GlobalLock, CallH, 48);
-    CALL_(WTSEnumerateSessions, CallH, 49);
-    CALL_(WTSEnumerateProcesses, CallH, 50);
-    CALL_(WTSCloseServer, CallH, 51);
+    CALL_(WTSEnumerateProcesses, CallH, 50); // Stays in base module as commonly useful
     CALL_(Twapi_MemLifoClose, CallH, 54);
     CALL_(Twapi_MemLifoPopFrame, CallH, 55);
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
@@ -395,9 +390,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MemLifoAlloc, CallH, 1018);
     CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
 
-    CALL_(WTSDisconnectSession, CallH, 2001);
-    CALL_(WTSLogoffSession, CallH, 2003);        /* TBD - tcl wrapper */
-    CALL_(WTSQuerySessionInformation, CallH, 2003); /* TBD - tcl wrapper */
     CALL_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
     CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
     CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
@@ -448,7 +440,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     } u;
     DWORD_PTR dwp;
     DWORD dw, dw2, dw3, dw4;
-    int i, i2;
     LPWSTR s, s2, s3;
     unsigned char *cP;
     void *pv, *pv2;
@@ -647,23 +638,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-        // 10032-43 UNUSED
-        case 10044:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETINT(dw),
-                             GETWSTRN(s, i), GETWSTRN(s2, i2),
-                             GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
-                                s2, sizeof(WCHAR)*i2, dw2,
-                                dw3, &result.value.ival, dw4))
-                result.type = TRT_DWORD;
-            else
-                result.type = TRT_GETLASTERROR;    
-            break;
-
-       // case 10049-10057 UNUSED
+        // 10032-57 UNUSED
         case 10058: // DsGetDcName
             guidP = &guid;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1032,11 +1007,7 @@ int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         //9- 10 - UNUSED
         case 11:
             return Twapi_AppendLog(interp, arg);
-        case 12:
-            result.type = TRT_HANDLE;
-            result.value.hval = WTSOpenServerW(arg);
-            break;
-        // 13-22 UNUSED
+        // 12-22 UNUSED
         case 23: // GlobalAddAtom
             result.value.ival = GlobalAddAtomW(arg);
             result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
@@ -1173,17 +1144,9 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_NONNULL_LPVOID;
             result.value.pv = GlobalLock(h);
             break;
-        case 49:
-            return Twapi_WTSEnumerateSessions(interp, h);
         case 50:
             return Twapi_WTSEnumerateProcesses(interp, h);
-        case 51:
-            /* h == NULL -> current server and does not need to be closed */
-            if (h)
-                WTSCloseServer(h);
-            result.type = TRT_EMPTY;
-            break;
-            // 52-53 UNUSED
+            // 51-53 UNUSED
         case 54:
             MemLifoClose(h);
             TwapiFree(h);
@@ -1260,17 +1223,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TCL_ERROR;
 
         switch (func) {
-        case 2001:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = WTSDisconnectSession(h, dw, dw2);
-            break;
-        case 2002:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = WTSLogoffSession(h, dw, dw2);
-            break;
-        case 2003:
-            return Twapi_WTSQuerySessionInformation(interp, h, dw, dw2);
-        // 2004 - 2006 UNUSED
         case 2007:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);
