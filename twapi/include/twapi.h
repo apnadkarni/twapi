@@ -1051,10 +1051,7 @@ TwapiTclObjCmd Twapi_CallObjCmd;
 TwapiTclObjCmd Twapi_CallUObjCmd;
 TwapiTclObjCmd Twapi_CallSObjCmd;
 TwapiTclObjCmd Twapi_CallHObjCmd;
-TwapiTclObjCmd Twapi_CallSSSDObjCmd;
 TwapiTclObjCmd Twapi_CallWUObjCmd;
-TwapiTclObjCmd Twapi_CallPSIDObjCmd;
-
 
 /* General utility functions */
 int WINAPI TwapiGlobCmp (const char *s, const char *pat);

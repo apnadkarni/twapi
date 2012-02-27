@@ -252,7 +252,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallSSSD", Twapi_CallSSSDObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
@@ -288,6 +287,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(SystemParametersInfo, Call, 10001);
     CALL_(LookupAccountSid, Call, 10002);
+    CALL_(LookupAccountName, Call, 10003);
+    CALL_(NetGetDCName, Call, 10004);
+    CALL_(LogonUser, Call, 10005);
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(CreateFile, Call, 10031);
@@ -384,11 +386,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SendMessageTimeout, CallWU, 1003);
 
     CALL_(SetWindowLongPtr, CallWU, 10003);
-
-    // CallSSSD - function(LPWSTR_NULL_IF_EMPTY, LPWSTR, LPWSTR, DWORD)
-    CALL_(LookupAccountName, CallSSSD, 1);
-    CALL_(LogonUser, CallSSSD, 5);
-    CALL_(NetGetDCName, CallSSSD, 34);
 
 #undef CALL_
 
@@ -601,8 +598,31 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (u.sidP)
                 TwapiFree(u.sidP);
             break;
+        case 10003:
+        case 10004:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETWSTR(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (func == 10003)
+                return Twapi_LookupAccountName(interp, s, s2);
+            else {
+                NULLIFY_EMPTY(s2);
+                return Twapi_NetGetDCName(interp, s, s2);
+            }
+            break;
+        case 10005:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
+                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (LogonUserW(s, s2, s3, dw,dw2, &result.value.hval))
+                result.type = TRT_HANDLE;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
             
-            // 10003-10007 UNUSED
+            // 10006-10007 UNUSED
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -1242,50 +1262,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
     }
     return TwapiSetResult(interp, &result);
 }
-
-
-/* Call S1 S2 S3 DWORD
- * Note - s1 will be passed on as NULL if empty string (LPWSTR_NULL_IF_EMPTY
- * semantics). S2,S3,DWORD default to "", "", 0 respectively if not passed in.
-*/
-int Twapi_CallSSSDObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    int func;
-    LPWSTR s1, s2, s3;
-    DWORD   dw, dw2;
-    TwapiResult result;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETNULLIFEMPTY(s1), ARGUSEDEFAULT,
-                     GETWSTR(s2), GETWSTR(s3), GETINT(dw),
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    result.type = TRT_BADFUNCTIONCODE;
-    switch (func) {
-    case 1:
-        return Twapi_LookupAccountName(interp, s1, s2);
-    // 2-4 - UNUSED
-    case 5:
-        if (objc != 7)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw2, objv[6]);
-        EMPTIFY_NULL(s1);      /* Username must not be NULL - pass as "" */
-        NULLIFY_EMPTY(s2);      /* Domain - NULL if empty string */
-        if (LogonUserW(s1, s2, s3, dw,dw2, &result.value.hval))
-            result.type = TRT_HANDLE;
-        else
-            result.type = TRT_GETLASTERROR;
-        break;
-    // 6-33 UNUSED
-    case 34:
-        NULLIFY_EMPTY(s2);
-        return Twapi_NetGetDCName(interp, s1,s2);
-    }
-
-    return TwapiSetResult(interp, &result);
-}
-
 
 int Twapi_CallWUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
