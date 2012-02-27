@@ -249,7 +249,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::Call", Twapi_CallObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
 
@@ -286,7 +285,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_MapWindowsErrorToString, Call, 1010);
     CALL_(Twapi_MemLifoInit, Call, 1011);
     CALL_(GlobalDeleteAtom, Call, 1012); // TBD - tcl interface
-
+    CALL_(Twapi_AppendLog, Call, 1013);
+    CALL_(GlobalAddAtom, Call, 1014); // TBD - Tcl interface
+    CALL_(is_valid_sid_syntax, Call, 1015); // TBD - Tcl interface
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Twapi_IsValidGUID, Call, 1019);
@@ -303,6 +304,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
     CALL_(SetStdHandle, Call, 10010);
+    CALL_(LoadLibraryEx, Call, 10011);
+    CALL_(TranslateName, Call, 10012);
     CALL_(CreateFile, Call, 10031);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
@@ -333,14 +336,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileBuffer, Call, 10137); // Tcl
     CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10139); // Tcl
-
-    // CallS - function(LPWSTR)
-    CALL_(Twapi_AppendLog, CallS, 11);
-    CALL_(GlobalAddAtom, CallS, 23); // TBD - Tcl interface
-    CALL_(is_valid_sid_syntax, CallS, 27); // TBD - Tcl interface
-
-    CALL_(LoadLibraryEx, CallS, 504);
-    CALL_(TranslateName, CallS, 1005);
 
     // CallH - function(HANDLE)
     CALL_(GetHandleInformation, CallH, 14);
@@ -419,6 +414,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     GUID guid;
     GUID *guidP;
     SYSTEMTIME systime;
+    WCHAR *bufP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -594,8 +590,20 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 break;
             }
-
-            // 1012 - 1015 UNUSED
+        case 1013:
+            return Twapi_AppendLog(interp, Tcl_GetUnicode(objv[2]));
+        case 1014: // GlobalAddAtom
+            result.value.ival = GlobalAddAtomW(Tcl_GetUnicode(objv[2]));
+            result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 1015:
+            u.sidP = NULL;
+            result.type = TRT_BOOL;
+            result.value.bval = ConvertStringSidToSidW(Tcl_GetUnicode(objv[2]),
+                                                       &u.sidP);
+            if (u.sidP)
+                LocalFree(u.sidP);
+            break;
         case 1016:
             if (ObjToFILETIME(interp, objv[2], &u.filetime) != TCL_OK)
                 return TCL_ERROR;
@@ -714,9 +722,48 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetStdHandle(dw, h);
             break;
+        case 10011:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HANDLE;
+            result.value.hval = LoadLibraryExW(s, NULL, dw);
+            break;
+        case 10012:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            bufP = u.buf;
+            dw3 = ARRAYSIZE(u.buf);
+            if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
+                result.value.ival = GetLastError();
+                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                    result.value.ival = GetLastError();
+                    break;
+                }
+                /* Retry with larger buffer */
+                bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
+                                        &dw3);
+                dw3 /= sizeof(WCHAR);
+                if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                    result.value.ival = GetLastError();
+                    MemLifoPopFrame(&ticP->memlifo);
+                    break;
+                }
+            }
 
-        // 10011-30 UNUSED
-
+            result.value.unicode.str = bufP;
+            result.value.unicode.len = dw3 - 1 ;
+            result.type = TRT_UNICODE;
+            if (bufP != u.buf)
+                MemLifoPopFrame(&ticP->memlifo);
+            break;
+            
+        // 10013-30 UNUSED
         case 10031: // CreateFile
             secattrP = NULL;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -951,105 +998,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
     return TwapiSetResult(interp, &result);
 }
-
-int Twapi_CallSObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    LPWSTR arg;
-    TwapiResult result;
-    union {
-        WCHAR buf[MAX_PATH+1];
-        LARGE_INTEGER largeint;
-        SOCKADDR_STORAGE ss;
-        PSID sidP;
-    } u;
-    int func;                   /* What function to call */
-    DWORD dw, dw2, dw3;
-    WCHAR *bufP;
-
-    result.type = TRT_BADFUNCTIONCODE;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETWSTR(arg),
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    /* One argument commands - assign codes 1-999 */
-    if (func < 500) {
-        switch (func) {
-            // 1-10 UNUSED
-        //9- 10 - UNUSED
-        case 11:
-            return Twapi_AppendLog(interp, arg);
-        // 12-22 UNUSED
-        case 23: // GlobalAddAtom
-            result.value.ival = GlobalAddAtomW(arg);
-            result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        // 24-26 UNUSED
-        case 27: // IsValidSidSyntax
-            u.sidP = NULL;
-            result.type = TRT_BOOL;
-            result.value.bval = ConvertStringSidToSidW(arg, &u.sidP);
-            if (u.sidP)
-                LocalFree(u.sidP);
-            break;
-        }
-    } else if (func < 1000) {
-        /* One additional integer argument */
-
-        if (objc != 4)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[3]);
-        switch (func) {
-        case 504: // LoadLibrary
-            result.type = TRT_HANDLE;
-            result.value.hval = LoadLibraryExW(arg, NULL, dw);
-            break;
-        }
-    } else if (func < 2000) {
-
-        /* Commands with exactly two additional integer argument */
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(dw), GETINT(dw2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        
-        switch (func) {
-        case 1005:
-            bufP = u.buf;
-            dw3 = ARRAYSIZE(u.buf);
-            if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
-                result.value.ival = GetLastError();
-                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                    result.value.ival = GetLastError();
-                    MemLifoPopFrame(&ticP->memlifo);
-                    break;
-                }
-                /* Retry with larger buffer */
-                bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
-                                        &dw3);
-                dw3 /= sizeof(WCHAR);
-                if (! TranslateNameW(arg, dw, dw2, bufP, &dw3)) {
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                    result.value.ival = GetLastError();
-                    MemLifoPopFrame(&ticP->memlifo);
-                    break;
-                }
-            }
-
-            result.value.unicode.str = bufP;
-            result.value.unicode.len = dw3 - 1 ;
-            result.type = TRT_UNICODE;
-            if (bufP != u.buf)
-                MemLifoPopFrame(&ticP->memlifo);
-            break;
-        }
-    }
-
-    return TwapiSetResult(interp, &result);
-}
-
 
 int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
