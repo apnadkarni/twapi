@@ -1048,7 +1048,6 @@ TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 /* Dispatcher routines */
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TwapiTclObjCmd Twapi_CallObjCmd;
-TwapiTclObjCmd Twapi_CallSObjCmd;
 TwapiTclObjCmd Twapi_CallHObjCmd;
 TwapiTclObjCmd Twapi_CallWUObjCmd;
 
