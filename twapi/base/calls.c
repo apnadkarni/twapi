@@ -249,7 +249,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::Call", Twapi_CallObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CallU", Twapi_CallUObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallS", Twapi_CallSObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
@@ -279,6 +278,15 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(VariantTimeToSystemTime, Call, 1003);
     CALL_(SystemTimeToVariantTime, Call, 1004);
     CALL_(canonicalize_guid, Call, 1005); // TBD Document
+
+    CALL_(GetStdHandle, Call, 1006);
+    CALL_(Twapi_EnumPrinters_Level4, Call, 1007);
+    CALL_(UuidCreate, Call, 1008);
+    CALL_(GetUserNameEx, Call, 1009);
+    CALL_(Twapi_MapWindowsErrorToString, Call, 1010);
+    CALL_(Twapi_MemLifoInit, Call, 1011);
+    CALL_(GlobalDeleteAtom, Call, 1012); // TBD - tcl interface
+
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(Twapi_IsValidGUID, Call, 1019);
@@ -289,9 +297,12 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LookupAccountSid, Call, 10002);
     CALL_(LookupAccountName, Call, 10003);
     CALL_(NetGetDCName, Call, 10004);
-    CALL_(LogonUser, Call, 10005);
+    CALL_(AttachThreadInput, Call, 10005);
+    CALL_(GlobalAlloc, Call, 10006);
+    CALL_(LHashValOfName, Call, 10007);
     CALL_(DuplicateHandle, Call, 10008);
     CALL_(Tcl_GetChannelHandle, Call, 10009);
+    CALL_(SetStdHandle, Call, 10010);
     CALL_(CreateFile, Call, 10031);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
@@ -322,22 +333,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IMofCompiler_CompileBuffer, Call, 10137); // Tcl
     CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
     CALL_(IMofCompiler_CreateBMOF, Call, 10139); // Tcl
-
-    // CallU API
-    CALL_(GetStdHandle, CallU, 4);
-    CALL_(Twapi_EnumPrinters_Level4, CallU, 20);
-    CALL_(UuidCreate, CallU, 21);
-    CALL_(GetUserNameEx, CallU, 22);
-    CALL_(Twapi_MapWindowsErrorToString, CallU, 34);
-    CALL_(Twapi_MemLifoInit, CallU, 37);
-    CALL_(GlobalDeleteAtom, CallU, 38); // TBD - tcl interface
-
-    CALL_(AttachThreadInput, CallU, 2004); /* Must stay in twapi_base as
-                                              potentially used by many exts */
-
-    CALL_(GlobalAlloc, CallU, 10001);
-    CALL_(LHashValOfName, CallU, 10002);
-    CALL_(SetStdHandle, CallU, 10004);
 
     // CallS - function(LPWSTR)
     CALL_(Twapi_AppendLog, CallS, 11);
@@ -410,8 +405,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         TwapiId twapi_id;
         GUID guid;
         SID *sidP;
+        MemLifo *lifoP;
+        DWORD_PTR dwp;
+        RPC_STATUS rpc_status;
     } u;
-    DWORD_PTR dwp;
     DWORD dw, dw2, dw3, dw4;
     LPWSTR s, s2, s3;
     unsigned char *cP;
@@ -508,10 +505,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         
         switch (func) {
         case 1001:
-            if (ObjToDWORD_PTR(interp, objv[2], &dwp) != TCL_OK)
+            if (ObjToDWORD_PTR(interp, objv[2], &u.dwp) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_LPVOID;
-            result.value.pv = (void *) dwp;
+            result.value.pv = (void *) u.dwp;
             break;
         case 1002:
             u.sidP = NULL;
@@ -538,7 +535,67 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             result.type = TRT_GUID;
             break;
-            // 1006 - 1015 UNUSED
+        case 1006:
+        case 1007:
+        case 1008:
+        case 1009:
+        case 1010:
+        case 1011:
+        case 1012:
+            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            switch (func) {
+            case 1006:
+                result.value.hval = GetStdHandle(dw);
+                if (result.value.hval == INVALID_HANDLE_VALUE)
+                    result.type = TRT_GETLASTERROR;
+                else if (result.value.hval == NULL) {
+                    result.value.ival = ERROR_FILE_NOT_FOUND;
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                } else
+                    result.type = TRT_HANDLE;
+                break;
+            case 1007:
+                return Twapi_EnumPrinters_Level4(interp, dw);
+            case 1008:
+                u.rpc_status = UuidCreate(&result.value.uuid);
+                /* dw boolean indicating whether to allow strictly local uuids */
+                if ((u.rpc_status == RPC_S_UUID_LOCAL_ONLY) && dw) {
+                    /* If caller does not mind a local only uuid, don't return error */
+                    u.rpc_status = RPC_S_OK;
+                }
+                result.type = u.rpc_status == RPC_S_OK ? TRT_UUID : TRT_GETLASTERROR;
+                break;
+            case 1009:
+                result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
+                if (GetUserNameExW(dw, u.buf, &result.value.unicode.len)) {
+                    result.value.unicode.str = u.buf;
+                    result.type = TRT_UNICODE;
+                } else
+                    result.type = TRT_GETLASTERROR;
+                break;
+            case 1010:
+                result.value.obj = Twapi_MapWindowsErrorToString(dw);
+                result.type = TRT_OBJ;
+                break;
+            case 1011:
+                u.lifoP = TwapiAlloc(sizeof(MemLifo));
+                result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
+                if (result.value.ival == ERROR_SUCCESS) {
+                    result.type = TRT_OPAQUE;
+                    result.value.opaque.p = u.lifoP;
+                    result.value.opaque.name = "MemLifo*";
+                } else
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+                break;
+            case 1012:
+                SetLastError(0);    /* As per MSDN */
+                GlobalDeleteAtom((WORD)dw);
+                result.value.ival = GetLastError();
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                break;
+            }
+
+            // 1012 - 1015 UNUSED
         case 1016:
             if (ObjToFILETIME(interp, objv[2], &u.filetime) != TCL_OK)
                 return TCL_ERROR;
@@ -613,16 +670,28 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10005:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
-                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                             GETINT(dw), GETINT(dw2), GETINT(dw3),
+                             ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (LogonUserW(s, s2, s3, dw,dw2, &result.value.hval))
-                result.type = TRT_HANDLE;
-            else
-                result.type = TRT_GETLASTERROR;
+            result.type = TRT_BOOL;
+            result.value.bval = AttachThreadInput(dw, dw2, dw3);
             break;
-            
-            // 10006-10007 UNUSED
+        case 10006:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETINT(dw), GETVAR(u.dwp, ObjToDWORD_PTR),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HGLOBAL;
+            result.value.hval = GlobalAlloc(dw, u.dwp);
+            break;
+        case 10007:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETINT(dw), GETWSTR(s),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_DWORD;
+            result.value.ival = LHashValOfName(dw, s);
+            break;
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -637,7 +706,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10009:
             return Twapi_TclGetChannelHandle(interp, objc-2, objv+2);
-        // 10010-30 UNUSED
+        case 10010:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETINT(dw), GETHANDLE(h),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetStdHandle(dw, h);
+            break;
+
+        // 10011-30 UNUSED
 
         case 10031: // CreateFile
             secattrP = NULL;
@@ -868,127 +946,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
 
         case 10139: // IMofCompiler_CreateBMOF
             return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
-        }
-    }
-
-    return TwapiSetResult(interp, &result);
-}
-
-int Twapi_CallUObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    DWORD dw, dw2, dw3;
-    TwapiResult result;
-    union {
-        WCHAR buf[MAX_PATH+1];
-        DWORD_PTR dwp;
-        RPC_STATUS rpc_status;
-        char *utf8;
-        LPWSTR str;
-        HANDLE h;
-        SECURITY_ATTRIBUTES *secattrP;
-        MemLifo *lifoP;
-    } u;
-    int func;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETINT(dw), ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    result.type = TRT_BADFUNCTIONCODE;
-    if (func < 1000) {
-        if (objc != 3)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        switch (func) {
-            // 1-3 UNUSED
-        case 4:
-            result.value.hval = GetStdHandle(dw);
-            if (result.value.hval == INVALID_HANDLE_VALUE)
-                result.type = TRT_GETLASTERROR;
-            else if (result.value.hval == NULL) {
-                result.value.ival = ERROR_FILE_NOT_FOUND;
-                result.type = TRT_EXCEPTION_ON_ERROR;
-            } else
-                result.type = TRT_HANDLE;
-            break;
-            // 5-19 UNUSED
-        case 20:
-            return Twapi_EnumPrinters_Level4(interp, dw);
-        case 21:
-            u.rpc_status = UuidCreate(&result.value.uuid);
-            /* dw is boolean indicating whether to allow strictly local uuids */
-            if ((u.rpc_status == RPC_S_UUID_LOCAL_ONLY) && dw) {
-                /* If caller does not mind a local only uuid, don't return error */
-                u.rpc_status = RPC_S_OK;
-            }
-            result.type = u.rpc_status == RPC_S_OK ? TRT_UUID : TRT_GETLASTERROR;
-            break;
-        case 22:
-            result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetUserNameExW(dw, u.buf, &result.value.unicode.len)) {
-                result.value.unicode.str = u.buf;
-                result.type = TRT_UNICODE;
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-            // 23-33 UNUSED
-        case 34:
-            result.value.obj = Twapi_MapWindowsErrorToString(dw);
-            result.type = TRT_OBJ;
-            break;
-        // 35 - 36 UNUSED
-        case 37:
-            u.lifoP = TwapiAlloc(sizeof(MemLifo));
-            result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
-            if (result.value.ival == ERROR_SUCCESS) {
-                result.type = TRT_OPAQUE;
-                result.value.opaque.p = u.lifoP;
-                result.value.opaque.name = "MemLifo*";
-            } else
-                result.type = TRT_EXCEPTION_ON_ERROR;
-            break;
-        case 38:
-            SetLastError(0);    /* As per MSDN */
-            GlobalDeleteAtom((WORD)dw);
-            result.value.ival = GetLastError();
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            break;
-        }
-    } else if (func < 3000) {
-        /* Check we have exactly two more integer arguments */
-        if (TwapiGetArgs(interp, objc-3, objv+3,
-                         GETINT(dw2), GETINT(dw3),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        switch (func) {
-            // 2001-2003 UNUSED
-        case 2004:
-            result.type = TRT_BOOL;
-            result.value.bval = AttachThreadInput(dw, dw2, dw3);
-            break;
-        }
-    } else {
-        /* Exactly one additional argument */
-        if (objc != 4)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        switch (func) {
-        case 10001:
-            if (ObjToDWORD_PTR(interp, objv[3], &u.dwp) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_HGLOBAL;
-            result.value.hval = GlobalAlloc(dw, u.dwp);
-            break;
-        case 10002:
-            result.type = TRT_DWORD;
-            result.value.ival = LHashValOfName(dw, Tcl_GetUnicode(objv[3]));
-            break;
-        // 10003 UNUSED
-        case 10004:
-            if (ObjToHANDLE(interp, objv[3], &u.h) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetStdHandle(dw, u.h);
-            break;
         }
     }
 
