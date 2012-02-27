@@ -936,7 +936,7 @@ BOOL IsUserAnAdmin();
 static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s, s2;
+    LPWSTR s, s2, s3;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2;
@@ -1174,6 +1174,17 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10014:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
+                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (LogonUserW(s, s2, s3, dw,dw2, &result.value.hval))
+                result.type = TRT_HANDLE;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
+            
         case 10015:
             result.value.ival =
                 TwapiGetArgs(interp, objc-2, objv+2,
@@ -1379,6 +1390,7 @@ static int Twapi_SecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(CheckTokenMembership, 4002);
     CALL_(Twapi_SetTokenOwner, 4003);
     CALL_(Twapi_LsaEnumerateAccountRights, 4004);
+    CALL_(LogonUser, 10014);
     CALL_(LsaAddAccountRights, 10015);
     CALL_(LsaRemoveAccountRights, 10016);
     CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017);
