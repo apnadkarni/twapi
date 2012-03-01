@@ -363,7 +363,7 @@ WINLIB        = \
 WINLIB = $(WINLIB) bufferoverflowU.lib
 !endif
 
-LIBS          = $(TCLLIB) $(WINLIB)
+LIBS          = $(TCLLIB) $(WINLIB) $(EXTRALIBS)
 
 # Modules have to link with the twapi_base dll
 !if "$(MODULENAME)" != "twapi_base" && !defined(TWAPI_SINGLE_MODULE)
