@@ -66,8 +66,7 @@ namespace eval twapi {
 
 "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl": $(SRCROOT)\include\rules.inc
 	-$(MKDIR) "$(OBJDIR)\tcl"
-	echo puts "namespace eval twapi {variable $(MODULENAME)_build_id $(BUILDID)}"
-	echo puts "namespace eval twapi {variable $(MODULENAME)_build_id $(BUILDID)}" | $(TCLSH) >> $@
+	echo puts "namespace eval twapi {variable build_ids ; set build_ids($(MODULENAME)) $(BUILDID)}" | $(TCLSH) >> $@
 
 
 clean:
