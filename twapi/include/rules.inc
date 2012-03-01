@@ -15,24 +15,35 @@ distribution:
 $(OBJDIR):
 	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
 
-# Link the module
+# Rule for linking the module. This depends heavily on whether we
+# are building the single dll version or multiple
+!if defined(TWAPI_SINGLE_MODULE)
+!if  "$(MODULENAME)" == "twapi_base"
+$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS) "$(OBJDIR)\*.obj"
+	copy "$(OBJDIR)\*.liblist" "$(OBJDIR)\all.liblist"
+        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\all.liblist" "$(OBJDIR)\*.obj"
+!else
+$(OBJDIR)\$(MODULE): $(OBJS)
+	-mkdir "$(OBJDIR)\..\twapi_base"
+	for %f in ($**) do $(COPY) %f "$(OBJDIR)\..\twapi_base\$(MODULENAME)_%~nf%~xf"
+	echo $(LIBS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME)_lib.liblist"
+!endif
+!else
 $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
         $(LINK) $(LOPT) -out:$@ $(LIBS) $**
 !if $(VCVER) > 8
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
 !endif
-
-$(OBJS): $(CINCLUDES) makefile
+!endif
 
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_NAME) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
+!if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
         rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_NAME)
+!endif
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
-
-# Compile a file
-.c{$(OBJDIR)}.obj::
-       $(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
+$(OBJS): $(CINCLUDES) makefile
 
 !ifdef TWAPI_SCRIPT_RESOURCE
 $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
@@ -71,3 +82,11 @@ namespace eval twapi {
 
 clean:
         -$(RMDIR) "$(OBJDIR)"
+
+# Inference rules
+# Compile a file
+.c{$(OBJDIR)}.obj::
+	$(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
+!if defined(TWAPI_SINGLE_MODULE) && "$(MODULENAME)" != "twapi_base"
+	-mkdir $(OBJDIR)\..\twapi_base
+!endif

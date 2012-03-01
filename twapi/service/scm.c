@@ -9,7 +9,7 @@
 #include "twapi.h"
 #include "twapi_service.h"
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;
 #endif
 
@@ -659,7 +659,7 @@ int Twapi_QueryServiceLockStatus(
 #endif // NOOP_BEYOND_VISTA
 
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
     if (reason == DLL_PROCESS_ATTACH)
@@ -822,7 +822,7 @@ static int Twapi_ServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 
 /* Main entry point */
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 __declspec(dllexport) 
 #endif
 int Twapi_service_Init(Tcl_Interp *interp)

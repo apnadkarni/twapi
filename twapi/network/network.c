@@ -51,7 +51,7 @@ MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6E
 typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
 MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 HMODULE gModuleHandle;
 #endif
 
@@ -2079,7 +2079,7 @@ static int Twapi_NetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
     if (reason == DLL_PROCESS_ATTACH)
@@ -2089,7 +2089,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #endif
 
 /* Main entry point */
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 __declspec(dllexport) 
 #endif
 int Twapi_network_Init(Tcl_Interp *interp)

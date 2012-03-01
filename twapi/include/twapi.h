@@ -27,12 +27,18 @@
  * USE_TWAPI_STUBS - for future use should not be currently defined.
  */
 
-#ifdef TWAPI_STATIC_BUILD
+#if defined(TWAPI_STATIC_BUILD)
 # define TWAPI_EXPORT
 # define TWAPI_IMPORT
 #else
-# define TWAPI_EXPORT __declspec(dllexport)
-# define TWAPI_IMPORT __declspec(dllimport)
+# if defined(TWAPI_SINGLE_MODULE)
+// We still want to export but modules are built-in so TWAPI_IMPORT is no-op
+#  define TWAPI_EXPORT __declspec(dllexport)
+#  define TWAPI_IMPORT 
+# else
+#  define TWAPI_EXPORT __declspec(dllexport)
+#  define TWAPI_IMPORT __declspec(dllimport)
+# endif
 #endif
 
 #ifdef twapi_base_BUILD
@@ -905,7 +911,7 @@ extern "C" {
 /* GLOBALS */
 extern OSVERSIONINFO gTwapiOSVersionInfo;
 extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
-#ifdef TWAPI_STATIC_BUILD
+#if defined(TWAPI_STATIC_BUILD) || defined(TWAPI_SINGLE_MODULE)
 #define MODULE_HANDLE gTwapiModuleHandle
 #else
 /* When building separate components, each module has its own DLL handle */

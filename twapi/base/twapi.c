@@ -54,7 +54,7 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
 
-#ifndef TWAPI_STATIC_BUILD
+#if !defined(TWAPI_STATIC_BUILD)
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
     if (reason == DLL_PROCESS_ATTACH)
@@ -70,7 +70,7 @@ const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
 #endif
-int Twapi_base_Init(Tcl_Interp *interp)
+int Twapi_Init(Tcl_Interp *interp)
 {
     static LONG twapi_initialized; /* TBD - where used ? */
     TwapiInterpContext *ticP;

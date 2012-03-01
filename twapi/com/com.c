@@ -9,7 +9,7 @@
 
 #include "twapi.h"
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
@@ -2861,7 +2861,7 @@ static int Twapi_ComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 }
 
 
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
     if (reason == DLL_PROCESS_ATTACH)
@@ -2871,7 +2871,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #endif
 
 /* Main entry point */
-#ifndef TWAPI_STATIC_BUILD
+#ifndef TWAPI_SINGLE_MODULE
 __declspec(dllexport) 
 #endif
 int Twapi_com_Init(Tcl_Interp *interp)

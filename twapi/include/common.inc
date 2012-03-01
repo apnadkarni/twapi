@@ -87,6 +87,18 @@ OUTDIR = $(SRCROOT)\build
 # as a resource
 # EMBED_SCRIPT=
 
+# Define TWAPI_SINGLE_MODULE=1 if all modules are built as part of a single DLL
+!ifndef TWAPI_SINGLE_MODULE
+!error Oh no
+!endif
+
+!ifdef TWAPI_SINGLE_MODULE
+!if ! ("$(TWAPI_SINGLE_MODULE)" == "1")
+!undef TWAPI_SINGLE_MODULE
+!endif
+!endif
+
+
 # Define a BUILDID for each build. This is passed to a Tcl script.
 !ifndef BUILDID
 BUILDID = [clock seconds]
@@ -140,14 +152,18 @@ OBJDIR = $(OUTDIR)\$(MACHINE)\debug
 OBJDIR = $(OUTDIR)\$(MACHINE)\release
 !endif
 
-!if "x$(EMBED_SCRIPT)" == "xlzma"
+!if "$(EMBED_SCRIPT)" == "lzma"
 OBJDIR = $(OBJDIR)_embed_lzma
-!elseif "x$(EMBED_SCRIPT)" == "xplain"
+!elseif "$(EMBED_SCRIPT)" == "plain"
 OBJDIR = $(OBJDIR)_embed
 !endif
 
-!if "x$(TWAPI_STATIC_BUILD)" != "x"
+!ifdef TWAPI_STATIC_BUILD
 OBJDIR = $(OBJDIR)_static
+!else
+!ifdef TWAPI_SINGLE_MODULE
+OBJDIR = $(OBJDIR)_single
+!endif
 !endif
 
 OBJDIR = $(OBJDIR)\$(MODULENAME)
@@ -286,23 +302,26 @@ CFLAGS  = $(CFLAGS) -D_WIN32_IE=0x0500
 !endif
 
 # CRT=none support is not complete as yet
-!IF "$(CRT)x" == "nonex"
+!if "$(CRT)x" == "nonex"
 CFLAGS = $(CFLAGS) /MT /Oi /Zl /DTWAPI_REPLACE_CRT
 LENTRYFLAG = /ENTRY:DllMain
-!ELSE
-!IF "$(CRT)x" == "staticx"
+!else
+!if "$(CRT)x" == "staticx"
 CFLAGS = $(CFLAGS) /MT /Oi /DTWAPI_MINIMIZE_CRT
-!ELSE
+!else
 CFLAGS = $(CFLAGS) /D_DLL /MD
-!ENDIF
-!ENDIF
+!endif
+!endif
 
-!IF "x$(TWAPI_STATIC_BUILD)" == "x"
+!if "$(TWAPI_STATIC_BUILD)" == ""
 CFLAGS = $(CFLAGS) -DUSE_TCL_STUBS
-!ELSE
+!else
 CFLAGS = $(CFLAGS) -DTWAPI_STATIC_BUILD
-!ENDIF
+!endif
 
+!if "$(TWAPI_SINGLE_MODULE)" != ""
+CFLAGS = $(CFLAGS) -DTWAPI_SINGLE_MODULE
+!endif
 
 # Libraries
 # ---------
@@ -347,7 +366,7 @@ WINLIB = $(WINLIB) bufferoverflowU.lib
 LIBS          = $(TCLLIB) $(WINLIB)
 
 # Modules have to link with the twapi_base dll
-!if "$(MODULENAME)" != "twapi_base"
+!if "$(MODULENAME)" != "twapi_base" && !defined(TWAPI_SINGLE_MODULE)
 LIBS = "$(OBJDIR)\..\twapi_base\twapi_base.lib" $(LIBS)
 !endif
 
