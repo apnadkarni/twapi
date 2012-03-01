@@ -19,14 +19,13 @@ $(OBJDIR):
 # are building the single dll version or multiple
 !if defined(TWAPI_SINGLE_MODULE)
 !if  "$(MODULENAME)" == "twapi_base"
-$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS) "$(OBJDIR)\*.obj"
-	copy "$(OBJDIR)\*.liblist" "$(OBJDIR)\all.liblist"
-        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\all.liblist" "$(OBJDIR)\*.obj"
+$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
+	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
+        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" $(OBJS)
 !else
 $(OBJDIR)\$(MODULE): $(OBJS)
 	-mkdir "$(OBJDIR)\..\twapi_base"
-	for %f in ($**) do $(COPY) %f "$(OBJDIR)\..\twapi_base\$(MODULENAME)_%~nf%~xf"
-	echo $(LIBS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME)_lib.liblist"
+	echo $(EXTRALIBS) $(OBJS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
 !endif
 !else
 $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)

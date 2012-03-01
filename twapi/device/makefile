@@ -4,6 +4,6 @@ MODULENAME=twapi_device
 
 OBJS  = $(OBJDIR)\device.obj
 TCLFILES=..\tcl\device.tcl
-LIBS = 	$(LIBS) $(SDKLIB)setupapi.lib
+EXTRALIBS = $(SDKLIB)setupapi.lib
 
 !include ..\include\rules.inc
