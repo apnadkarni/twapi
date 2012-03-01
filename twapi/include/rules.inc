@@ -19,7 +19,7 @@ $(OBJDIR):
 # are building the single dll version or multiple
 !if defined(TWAPI_SINGLE_MODULE)
 !if  "$(MODULENAME)" == "twapi_base"
-$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
+$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS) "$(OBJDIR)\*.link"
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" $(OBJS)
 !else
