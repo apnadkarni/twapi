@@ -188,12 +188,12 @@ proc ::twapi::load_twapi {} {
 twapi::load_twapi
 
 proc twapi::get_build_config {{key ""}} {
-    variable build_id
+    variable build_ids
     array set config [GetTwapiBuildInfo]
-    if {[info exists build_id]} {
-        set config(build_id) $build_id
+    if {[info exists build_ids]} {
+        set config(build_ids) [array get build_ids]
     } else {
-        set config(build_id) 0; # Running from source directory (development)
+        set config(build_ids) {}; # Running from source directory (development)
     }
 
     # This is actually a runtime config and might not have been initialized
