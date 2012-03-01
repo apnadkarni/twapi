@@ -4,7 +4,7 @@ MODULENAME=twapi_ui
 
 OBJS  = $(OBJDIR)\ui.obj $(OBJDIR)\gdi.obj
 TCLFILES=..\tcl\ui.tcl
-LIBS =	$(LIBS) gdi32.lib $(SDKLIB)uxtheme.lib
+EXTRALIBS = gdi32.lib $(SDKLIB)uxtheme.lib
 
 !include ..\include\rules.inc
 

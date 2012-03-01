@@ -5,6 +5,6 @@ MODULENAME=twapi_pdh
 OBJS  = $(OBJDIR)\pdh.obj
 TCLFILES=..\tcl\pdh.tcl
 
-LIBS= $(LIBS) $(SDKLIB)pdh.lib
+EXTRALIBS= $(SDKLIB)pdh.lib
 
 !include ..\include\rules.inc
