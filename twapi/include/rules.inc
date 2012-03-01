@@ -23,7 +23,9 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS) "$(OBJDIR)\*.link"
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" $(OBJS)
 !else
-$(OBJDIR)\$(MODULE): $(OBJS)
+$(OBJDIR)\$(MODULE): "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
+
+"$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
 	-mkdir "$(OBJDIR)\..\twapi_base"
 	echo $(EXTRALIBS) $(OBJS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
 !endif
