@@ -224,7 +224,7 @@ int Twapi_winsta_Init(Tcl_Interp *interp)
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
-
+#include "x.h"
     return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
                             Twapi_WinstaInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
