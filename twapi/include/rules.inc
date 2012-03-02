@@ -12,18 +12,22 @@ lib: $(OBJDIR)\$(MODULELIB)
 distribution:
         $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
 
-$(OBJDIR):
+"$(OBJDIR)":
 	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
 
 # Rule for linking the module. This depends heavily on whether we
 # are building the single dll version or multiple
 !if defined(TWAPI_SINGLE_MODULE)
 !if  "$(MODULENAME)" == "twapi_base"
-$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS) "$(OBJDIR)\*.link"
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
-        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" $(OBJS)
+        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
 !else
-$(OBJDIR)\$(MODULE): "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn"
+
+"$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
+	echo puts "Tcl_PackageInitProc [string totitle $(MODULENAME)]_Init;" | $(TCLSH) > $@.proto
+	echo puts "TWAPI_INIT_STATIC_PACKAGE([string totitle $(MODULENAME)], [string totitle $(MODULENAME)]_Init, NULL);" | $(TCLSH) > $@
 
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
 	-mkdir "$(OBJDIR)\..\twapi_base"
@@ -87,7 +91,8 @@ clean:
 # Inference rules
 # Compile a file
 .c{$(OBJDIR)}.obj::
-	$(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
-!if defined(TWAPI_SINGLE_MODULE) && "$(MODULENAME)" != "twapi_base"
-	-mkdir $(OBJDIR)\..\twapi_base
+!if defined(TWAPI_SINGLE_MODULE) && "$(MODULENAME)" == "twapi_base"
+	copy "$(OBJDIR)\*.initfn.proto" "$(OBJDIR)\twapi_module_static_proto.h"
+	copy "$(OBJDIR)\*.initfn" "$(OBJDIR)\twapi_module_static_init.h"
 !endif
+	$(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<
