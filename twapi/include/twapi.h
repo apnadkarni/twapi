@@ -131,6 +131,17 @@ typedef int TCL_RESULT;
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
 
+#ifdef TWAPI_SINGLE_MODULE
+/* Note:
+ * when calling that pkg_ must be title-ized as documented in Tcl_StaticPackage
+ */
+#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)      \
+    do  {                                                       \
+        /* Note first param NULL else init proc is assumed already called */ \
+        Tcl_StaticPackage(NULL, #pkg_, init_, safe_init_);              \
+    } while (0)
+#endif
+
 #define MAKESTRINGLITERAL(s_) # s_
  /*
   * Stringifying special CPP symbols (__LINE__) needs another level of macro
