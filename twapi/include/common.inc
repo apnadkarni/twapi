@@ -275,7 +275,7 @@ CDEBUG = -O1 -Zi -DNDEBUG -W3 -Fd"$(OBJDIR)"
 CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT=$(ENABLE_ASSERTS)
 !endif
 
-INCFLAGS       =  -I. -I..\include -I$(TCLDIR)\include
+INCFLAGS       =  -I"$(OBJDIR)" -I. -I..\include -I$(TCLDIR)\include
 
 CINCLUDES     = $(SRCROOT)\include\twapi.h \
 		$(SRCROOT)\include\twapi_wm.h \

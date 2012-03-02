@@ -66,6 +66,23 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 /* Why is this decl needed ? TBD */
 const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
 
+int TwapiLoadStaticModules(Tcl_Interp *interp)
+{
+#if defined(TWAPI_SINGLE_MODULE)
+/*
+ * These files are generated at build time to call twapi module initializers 
+ * Note two separate files needed because all prototypes need to come before
+ * the calls.
+ */
+#include "twapi_module_static_proto.h"
+#include "twapi_module_static_init.h"
+#endif
+    /* In case any module left over some crap, clean it out. Note
+       errors will not get to this point */
+    Tcl_ResetResult(interp);
+    return TCL_OK;
+}
+
 /* Main entry point */
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
@@ -138,7 +155,7 @@ int Twapi_Init(Tcl_Interp *interp)
         Tcl_ResetResult(interp); /* Get rid of any error messages */
     }
 
-    return TCL_OK;
+    return TwapiLoadStaticModules(interp);
 }
 
 /*
