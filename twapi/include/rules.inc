@@ -22,11 +22,13 @@ distribution:
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
+!ifdef TWAPI_SCRIPT_RESOURCE_PATH
+	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
+!endif
 !else
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH)
 !ifdef TWAPI_SCRIPT_RESOURCE_PATH
-	copy "$(TWAPI_SCRIPT_RESOURCE_PATH)" "$(OBJDIR)\..\twapi_base"
-	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE) > "$(OBJDIR)\$(MODULENAME).rcinc"
+	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
 !endif
 
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
@@ -38,6 +40,7 @@ distribution:
 	echo $(EXTRALIBS) $(OBJS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
 !endif
 !else
+# ! defined(TWAPI_SINGLE_MODULE)
 $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
         $(LINK) $(LOPT) -out:$@ $(LIBS) $**
 !if $(VCVER) > 8
@@ -45,9 +48,10 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 !endif
 !endif
 
-$(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_NAME) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
+$(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_PATH) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
 !if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
-        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_NAME)
+	copy $(RC_FILE_PATH)+"$(OBJDIR)\*.rcfrag" "$(OBJDIR)\$(MODULENAME).rc"
+        rc $(INCFLAGS) $(RCFLAGS) -fo $@ "$(OBJDIR)\$(MODULENAME).rc"
 !endif
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
