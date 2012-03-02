@@ -2,6 +2,70 @@
 # This is split off from common.inc because we want to give the parent
 # makefile a chance to define $(OBJS)
 
+#
+# Rule for linking the module. This depends heavily on whether we
+# are building the single dll version or multiple dll or a static lib
+# and whether scripts are embedded. 
+#
+# Basic DLL building/linking :
+#
+# [1] All sources are compiled to objects in $(OBJDIR) based on an 
+#     inference rule.
+#
+# [2] Then if building multiple DLL's these objects are linked into a DLL
+#     when the module is built. Each module's resource definition file
+#     is compiled and linked into the DLL (more on this below).
+#     The initialization functions for each module are automatically
+#     called y Tcl when the module is loaded.
+#
+# [3] If building a single DLL, TWAPI_SINGLE_MODULE is defined. In
+#     this case,
+#	[a] the rule for linking to a DLL is only defined for the
+#           twapi_base module.  
+#       [b] For others, the objects are copied to the twapi_base build
+#           area, prefixed by the module name to avoid name clashes.
+#           In addition, a *.link file is created by each module that
+#           adds its objects and libs to the link command. That way
+#           additional modules or new objects and dependent libs can
+#           be added without having to change the makefiles.
+#       [c] The resource compiler is run only for the twapi_base module
+#           and its output is linked to the DLL (more on this below
+#           in the embedding section).
+#       [d] The link command for the twapi_base module includes the
+#           additional objects and libraries by combining all *.link
+#           files into one and passing to the linker.
+#       [e] Since Tcl does not explicitly call module initialization
+#           functions (except for the twapi_base DLL which is explicitly
+#           loaded), each module needs to provide a way for its
+#           initialization function to be called. To accomplish this,
+#           a *.initfn file is generated in the twapi_base build directory
+#           when a module is built. Each file contains a C code fragment
+#           to register the module as a static Tcl package. These files 
+#           are combined when the twapi_base is built and included via
+#           a C #include statement in the twapi_base initialization code.
+#           A similar mechanism is used to generate the prototypes for
+#           the module initialization functions and include them as well.
+#
+# Embedding of scripts:
+#
+#  [4] If EMBED_SCRIPT is not defined on the command line or is "none",
+#      scripts are not to be embedded in the DLL. In this case the resource
+#      TWAPI_SCRIPT_RESOURCE_PATH is not defined and the DLL resource
+#      definition file is compiled as is as described above in the building
+#      of the DLL.
+#  [5] If the module Tcl script is to be embedded in the DLL,
+#      TWAPI_SCRIPT_RESOURCE_PATH is defined and all Tcl files for a
+#      module are combined into a single (optionally compressed) file
+#      that will be bound to the resource.
+#      [a] If building separate DLL's a line is appended to the module
+#          resource file to include the combined script as a binary resource.
+#      [b] If building a single DLL, each module writes the resource
+#          definition line to a *.rcfrag file in the twapi_base directory
+#          in much the same fashion as the *.link files described above.
+#          These rcfrag files are then appended to the twapi_base rc
+#          file so scripts for all modules are bound to the single DLL.
+#
+
 all: build distribute
 
 build: $(OBJDIR)\$(MODULE)
@@ -15,8 +79,7 @@ distribution:
 "$(OBJDIR)":
 	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
 
-# Rule for linking the module. This depends heavily on whether we
-# are building the single dll version or multiple
+
 !if defined(TWAPI_SINGLE_MODULE)
 !if  "$(MODULENAME)" == "twapi_base"
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
