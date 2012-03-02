@@ -23,7 +23,11 @@ distribution:
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
 !else
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn"
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH)
+!ifdef TWAPI_SCRIPT_RESOURCE_PATH
+	copy "$(TWAPI_SCRIPT_RESOURCE_PATH)" "$(OBJDIR)\..\twapi_base"
+	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE) > "$(OBJDIR)\$(MODULENAME).rcinc"
+!endif
 
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
 	echo puts "Tcl_PackageInitProc [string totitle $(MODULENAME)]_Init;" | $(TCLSH) > $@.proto
