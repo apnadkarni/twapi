@@ -22,18 +22,15 @@
 #     this case,
 #	[a] the rule for linking to a DLL is only defined for the
 #           twapi_base module.  
-#       [b] For others, the objects are copied to the twapi_base build
-#           area, prefixed by the module name to avoid name clashes.
-#           In addition, a *.link file is created by each module that
-#           adds its objects and libs to the link command. That way
-#           additional modules or new objects and dependent libs can
-#           be added without having to change the makefiles.
-#       [c] The resource compiler is run only for the twapi_base module
-#           and its output is linked to the DLL (more on this below
-#           in the embedding section).
-#       [d] The link command for the twapi_base module includes the
+#       [b] For others, the objects built but not linked into a module DLL.
+#           Instead, a *.link file is created in the twapi_base dir 
+#           by each module that lists its objects and libs.
+#       [c] The link command for the twapi_base module includes the
 #           additional objects and libraries by combining all *.link
 #           files into one and passing to the linker.
+#       [d] The resource compiler is run only for the twapi_base module
+#           and its output is linked to the DLL (more on this below
+#           in the embedding section).
 #       [e] Since Tcl does not explicitly call module initialization
 #           functions (except for the twapi_base DLL which is explicitly
 #           loaded), each module needs to provide a way for its
@@ -57,13 +54,13 @@
 #      TWAPI_SCRIPT_RESOURCE_PATH is defined and all Tcl files for a
 #      module are combined into a single (optionally compressed) file
 #      that will be bound to the resource.
-#      [a] If building separate DLL's a line is appended to the module
-#          resource file to include the combined script as a binary resource.
+#      [a] If building separate DLL's, each module build writes the resource
+#          def line to a .rcfrag in its own directory.
 #      [b] If building a single DLL, each module writes the resource
 #          definition line to a *.rcfrag file in the twapi_base directory
 #          in much the same fashion as the *.link files described above.
-#          These rcfrag files are then appended to the twapi_base rc
-#          file so scripts for all modules are bound to the single DLL.
+#      [c] In both above cases, the rcfrag files are then appended to the
+#          module or twapi_base resource file so scripts are bound to the DLL.
 #
 
 all: build distribute
@@ -81,58 +78,89 @@ distribution:
 
 
 !if defined(TWAPI_SINGLE_MODULE)
-!if  "$(MODULENAME)" == "twapi_base"
+#  See [3] - Single combined DLL build
+!  if  "$(MODULENAME)" == "twapi_base"
+#    See [3a,c,e] - build twapi_base DLL with included other modules
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
 	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
-!ifdef TWAPI_SCRIPT_RESOURCE_PATH
-	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
-!endif
-!else
+!    if $(VCVER) > 8
+	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
+!    endif $(VCVER) > 8
+!  else
+#    See [3b] - building a module other than twapi_base in single DLL mode
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH)
-!ifdef TWAPI_SCRIPT_RESOURCE_PATH
+!    if defined(TWAPI_SCRIPT_RESOURCE_PATH)
+#      See [5b] - write a resource def fragment to include Tcl script
 	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
-!endif
+!    endif defined(TWAPI_SCRIPT_RESOURCE_PATH)
 
+#    See [3e] - write module initialization fragments
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
 	echo puts "Tcl_PackageInitProc [string totitle $(MODULENAME)]_Init;" | $(TCLSH) > $@.proto
 	echo puts "TWAPI_INIT_STATIC_PACKAGE([string totitle $(MODULENAME)], [string totitle $(MODULENAME)]_Init, NULL);" | $(TCLSH) > $@
 
+#    See [3b] - create link inputs for modules other than twapi_base
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
 	-mkdir "$(OBJDIR)\..\twapi_base"
 	echo $(EXTRALIBS) $(OBJS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
-!endif
-!else
-# ! defined(TWAPI_SINGLE_MODULE)
-$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
-        $(LINK) $(LOPT) -out:$@ $(LIBS) $**
-!if $(VCVER) > 8
-	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
-!endif
-!endif
+!  endif MODULENAME == twapi_base
 
+!else
+
+#
+#  See [2] - building multiple modules (! defined(TWAPI_SINGLE_MODULE))
+#  Note we do not use $** in this rule as we do not want to include the
+#  dependencies in other rules defined for $(OBJDIR)\$(MODULE)
+$(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
+        $(LINK) $(LOPT) -out:$@ $(LIBS) "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
+!  if $(VCVER) > 8
+	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
+!  endif VCVER > 8
+
+!endif defined(TWAPI_SINGLE_DLL)
+
+# See [3d], [5] - building resource files
+!if defined(TWAPI_SINGLE_DLL)
+# See [5b]
+RCFRAGDIR=$(OBJDIR)\..\twapi_base
+!else
+# See [5a]
+RCFRAGDIR=$(OBJDIR)
+!endif
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RC_FILE_PATH) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
+!if defined(TWAPI_SCRIPT_RESOURCE_PATH)
+#      See [5a,b] - write a resource def fragment to include Tcl script
+	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(RCFRAGDIR)\$(MODULENAME).rcfrag"
+!endif defined(TWAPI_SCRIPT_RESOURCE_PATH)
 !if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
+#       See [5c] - append script resource def to rc file
 	copy $(RC_FILE_PATH)+"$(OBJDIR)\*.rcfrag" "$(OBJDIR)\$(MODULENAME).rc"
         rc $(INCFLAGS) $(RCFLAGS) -fo $@ "$(OBJDIR)\$(MODULENAME).rc"
+!else
+#       See [4]
+        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_PATH)
 !endif
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
 $(OBJS): $(CINCLUDES) makefile
 
-!ifdef TWAPI_SCRIPT_RESOURCE
+# All build types should cause version and build id to be created.
+$(OBJDIR)\$(MODULE): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
+
+!if defined(TWAPI_SCRIPT_RESOURCE)
 $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
 	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(OBJDIR)\tcl"
-!if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
+! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
-!else
+! else
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
-!endif
-!endif
+! endif
+!endif defined(TWAPI_SCRIPT_RESOURCE)
 
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH)
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
 	$(LIBTOOL) /OUT:$@ $(OBJS)
 
 $(OBJDIR)\tcl\$(MODULENAME)_version.tcl : $(SRCROOT)\include\version.inc $(SRCROOT)\include\rules.inc

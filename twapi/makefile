@@ -22,9 +22,13 @@ force:
 base : $(MODULES)
 !endif
 
+# Traditional build with single dll and not embedding
+traditional: 
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1
+
 # Build multiple DLLs with embedded scripts
-multi_embedded: force
-	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS)
+multi_embedded:
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)"
 
 single_embedded:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TWAPI_SINGLE_MODULE=1 EMBED_SCRIPT=lzma TARGETS="$(TARGETS)"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 

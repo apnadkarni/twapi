@@ -378,33 +378,42 @@ RC_FILE_PATH = "$(SRCROOT)\include\common.rc"
 
 RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUILD=$(MODULEBUILD) -DFILE_VERSION_STR=\"$(FILE_VERSION_STR)\" -DPRODUCT_VERSION_STR=\"$(MODULE_VERSION_STR)\" -DMODULE_STR=\"$(MODULE)\" -DMODULENAME=$(MODULENAME)
 
+# If building a lib, default to lzma 
 !if defined(TWAPI_STATIC_BUILD) && ! defined(EMBED_SCRIPT)
 EMBED_SCRIPT=lzma
 !endif
 
 !if defined(EMBED_SCRIPT)
-!if "x$(EMBED_SCRIPT)" == "xlzma"
-TWAPI_SCRIPT_RESOURCE_TYPE=tclscriptlzma
-TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script.lzma
-!elseif "x$(EMBED_SCRIPT)" == "xplain"
-TWAPI_SCRIPT_RESOURCE_TYPE=tclscript
-TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script
-!else
-!error EMBED_SCRIPT must be undefined, "lzma" or "plain"
+!  if "$(EMBED_SCRIPT)" == "" || "$(EMBED_SCRIPT)" == "none"
+!    undef EMBED_SCRIPT
+!  endif
 !endif
 
 TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
+
+!if defined(EMBED_SCRIPT)
+!  if "$(EMBED_SCRIPT)" == "lzma"
+
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscriptlzma
+TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script.lzma
+
+!  elseif "$(EMBED_SCRIPT)" == "plain"
+
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscript
+TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script
+
+!  else
+
+!    error EMBED_SCRIPT must be undefined, "none", "lzma" or "plain"
+
+!  endif
+
 # Note: Do NOT enclose TWAPI_SCRIPT_RESOURCE_PATH in quotes even though
 # it is a file name, not a path because when passed to the rc compiler
 # as an include, it should not have quotes
 TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
-TWAPI_SCRIPT_RESOURCE_INCLUDE="$(OBJDIR)\$(MODULENAME).rcinc"
 
-!ifndef TWAPI_STATIC_BUILD
-RCFLAGS = $(RCFLAGS) -DTWAPI_SCRIPT_RESOURCE_INCLUDE=$(TWAPI_SCRIPT_RESOURCE_INCLUDE)
-!endif
-
-!endif
+!endif defined(EMBED_SCRIPT)
 
 # Linking
 # -------
