@@ -130,8 +130,11 @@ proc main {package version header files} {
     }
 
     # This proc has to be at the beginning of the file since the app
-    # Tcl code may call it at any time
-    puts $outf [list proc copy_dll_from_tm {{path {}} {reuse 0}} [info body copy_dll_from_tm]]
+    # Tcl code may call it at any time. We only include it if a DLL
+    # has been specified.
+    if {[string equal -nocase [file extension [lindex $files end]] ".dll"]} {
+        puts $outf [list proc copy_dll_from_tm {{path {}} {reuse 0}} [info body copy_dll_from_tm]]
+    }
 
     # Commented out package provide - let package itself do this
     #puts $outf "package provide [lindex $argv 0] [lindex $argv 1]"
