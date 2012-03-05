@@ -87,7 +87,7 @@ int TwapiLoadStaticModules(Tcl_Interp *interp)
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
 #endif
-int Twapi_Init(Tcl_Interp *interp)
+int Twapi_base_Init(Tcl_Interp *interp)
 {
     static LONG twapi_initialized; /* TBD - where used ? */
     TwapiInterpContext *ticP;
@@ -114,11 +114,10 @@ int Twapi_Init(Tcl_Interp *interp)
      * Per interp initialization
      */
 
-    /*
-     * Create the name space and some variables. 
-     * Needed for some scripts bound into the dll
-     */
-    Tcl_Eval(interp, "namespace eval " TWAPI_TCL_NAMESPACE " { variable settings ; set settings(log_limit) 100}");
+    /* Create the name space and some variables. Not sure if this is explicitly needed */
+    Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
+    Tcl_SetVar2(interp, "::twapi::version", MODULENAME, MODULEVERSION, 0);
+    Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
 
     /* Allocate a context that will be passed around in all interpreters */
     /* TBD - last param should not be NULL - add a cleanup instead of
@@ -152,9 +151,22 @@ int Twapi_Init(Tcl_Interp *interp)
     if (TwapiLoadInitScript(ticP) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* return TCL_ERROR; */
+        /* TBD - is this true any more in 4.0 or should we actually error out */
         Tcl_ResetResult(interp); /* Get rid of any error messages */
+        return TCL_OK;
     }
 
+    return Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION);
+}
+
+/* Alternate entry point that loads static modules as well*/
+#ifndef TWAPI_STATIC_BUILD
+__declspec(dllexport) 
+#endif
+int Twapi_Init(Tcl_Interp *interp)
+{
+    if (Twapi_base_Init(interp) != TCL_OK)
+        return TCL_ERROR;
     return TwapiLoadStaticModules(interp);
 }
 
@@ -170,7 +182,6 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCH
     int result;
     int compressed;
     Tcl_Interp *interp = ticP->interp;
-    WCHAR path[MAX_PATH+1+1]; /* Extra one char to detect errors */
     Tcl_Obj *pathObj;
 
     /*
@@ -215,24 +226,9 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCH
     }
 
     /* No resource found. Try loading external file from the DLL directory */
-    sz = GetModuleFileNameW(dllH, path, ARRAYSIZE(path));
-    if (sz == 0 || sz == ARRAYSIZE(path)) {
-        sz = GetLastError();
-        if (sz == ERROR_SUCCESS)
-            sz = ERROR_INSUFFICIENT_BUFFER;
-        return Twapi_AppendSystemError(interp, sz);
-    }
-
-    /* Look for the preceding / or \\ */
-    while (sz--) {
-        if (path[sz] == L'/' || path[sz] == L'\\') {
-            ++sz;
-            break;
-        }
-    }
-
-    /* path[sz] is where we start copying the file name */
-    pathObj = Tcl_NewUnicodeObj(path, sz);
+    pathObj = TwapiGetInstallDir(ticP, dllH);
+    if (pathObj == NULL)
+        return TCL_ERROR;
     Tcl_AppendUnicodeToObj(pathObj, name, -1);
     Tcl_IncrRefCount(pathObj);  /* Must before calling any Tcl_FS functions */
     result = Tcl_FSEvalFile(interp, pathObj);
@@ -253,6 +249,36 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
         gTwapiEmbedType = "embedded";
     }
     return result;
+}
+
+Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH)
+{
+    DWORD sz;
+    WCHAR path[MAX_PATH+1+1]; /* Extra one char to detect errors */
+
+    if (dllH == NULL)
+        dllH = gTwapiModuleHandle;
+
+    /* No resource found. Try loading external file from the DLL directory */
+    sz = GetModuleFileNameW(dllH, path, ARRAYSIZE(path));
+    if (sz == 0 || sz == ARRAYSIZE(path)) {
+        sz = GetLastError();
+        if (sz == ERROR_SUCCESS)
+            sz = ERROR_INSUFFICIENT_BUFFER;
+        if (ticP && ticP->interp)
+            Twapi_AppendSystemError(ticP->interp, sz);
+        return NULL;
+    }
+
+    /* Look for the preceding / or \\ */
+    while (sz--) {
+        if (path[sz] == L'/' || path[sz] == L'\\') {
+            ++sz;
+            break;
+        }
+    }
+    path[sz] = 0;
+    return Tcl_NewUnicodeObj(path, sz);
 }
 
 int Twapi_GetTwapiBuildInfo(
@@ -622,7 +648,6 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
     }
     return TCL_OK;
 }
-
 
 /* Does basic default initialization of a module */
 TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
