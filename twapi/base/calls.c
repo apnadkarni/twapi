@@ -261,6 +261,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCurrentProcess, Call, 1);
     CALL_(GetVersionEx, Call, 2);
     CALL_(UuidCreateNil, Call, 3);
+    CALL_(Twapi_GetInstallDir, Call ,4);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -437,7 +438,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         case 3: // UuidCreateNil
             Tcl_SetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
             return TCL_OK;
-        // 4-39 UNUSED
+        case 4: // Twapi_GetInstallDir
+            result.value.obj = TwapiGetInstallDir(ticP, NULL);
+            if (result.value.obj == NULL)
+                return TCL_ERROR; /* interp error result already set */
+            result.type = TRT_OBJ;
+            break;
+        // 5-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);

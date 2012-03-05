@@ -284,7 +284,7 @@ CINCLUDES     = $(SRCROOT)\include\twapi.h \
 		$(SRCROOT)\include\zlist.h \
 		$(SRCROOT)\include\memlifo.h
 
-CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) -DMODULENAME=\"$(MODULENAME)\" -D$(MODULENAME)_BUILD
+CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) -DMODULENAME=\"$(MODULENAME)\" -D$(MODULENAME)_BUILD -DMODULEVERSION=\"$(MODULEVERSION)\"
 
 !if "$(MACHINE)" == "AMD64"
 CFLAGS = $(CFLAGS) /Wp64
@@ -383,16 +383,18 @@ RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUIL
 EMBED_SCRIPT=lzma
 !endif
 
-!if defined(EMBED_SCRIPT)
-!  if "$(EMBED_SCRIPT)" == "" || "$(EMBED_SCRIPT)" == "none"
-!    undef EMBED_SCRIPT
-!  endif
-!endif
-
 TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\tcl
 
-!if defined(EMBED_SCRIPT)
-!  if "$(EMBED_SCRIPT)" == "lzma"
+!if "$(EMBED_SCRIPT)" == "" || "$(EMBED_SCRIPT)" == "none"
+
+# Not embedding the scripts themselves. Embed a stub that will source the files
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscript
+TWAPI_SCRIPT_RESOURCE=$(MODULENAME)_source_stub
+
+# Undefine to indicate actual scripts are not embedded
+!  undef EMBED_SCRIPT
+
+!elseif "$(EMBED_SCRIPT)" == "lzma"
 
 TWAPI_SCRIPT_RESOURCE_TYPE=tclscriptlzma
 TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script.lzma
@@ -412,9 +414,6 @@ TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script
 # it is a file name, not a path because when passed to the rc compiler
 # as an include, it should not have quotes
 TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
-
-!endif defined(EMBED_SCRIPT)
-
 
 # Linking
 # -------

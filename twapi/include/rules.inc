@@ -147,10 +147,11 @@ makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 $(OBJS): $(CINCLUDES) makefile
 
 # All build types should cause version and build id to be created.
-$(OBJDIR)\$(MODULE): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
+$(OBJDIR)\$(MODULE): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
 
-!if defined(TWAPI_SCRIPT_RESOURCE)
-$(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
+!if defined(EMBED_SCRIPT)
+
+$(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
 	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(OBJDIR)\tcl"
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
@@ -158,11 +159,19 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJD
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 ! endif
-!endif defined(TWAPI_SCRIPT_RESOURCE)
 
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) "$(OBJDIR)\tcl\$(MODULENAME)_version.tcl" "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
+!else
+
+# Not embedding the script. Embed a command to source the first file instead
+$(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
+	echo set fn [file join [lindex [split {$(TCLFILES)}] 0]] ; puts "source \[file join \[twapi::Twapi_GetInstallDir] [file tail $$fn]\]" | $(TCLSH) > $(TWAPI_SCRIPT_RESOURCE_PATH)
+
+!endif defined(EMBED_SCRIPT)
+
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
 	$(LIBTOOL) /OUT:$@ $(OBJS)
 
+!ifdef OBSOLETE
 $(OBJDIR)\tcl\$(MODULENAME)_version.tcl : $(SRCROOT)\include\version.inc $(SRCROOT)\include\rules.inc
 	-$(MKDIR) "$(OBJDIR)\tcl"
         echo <<$@
@@ -176,6 +185,7 @@ namespace eval twapi {
     }
 }
 <<KEEP
+!endif
 
 "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl": $(SRCROOT)\include\rules.inc
 	-$(MKDIR) "$(OBJDIR)\tcl"
