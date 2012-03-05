@@ -439,7 +439,7 @@ int Twapi_storage_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    ticP = Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+    ticP = Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
                             Twapi_StorageInitCalls, TwapiStorageCleanup);
 
     if (ticP == NULL)
