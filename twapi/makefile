@@ -3,7 +3,7 @@
 MODULES = account apputil clipboard com console crypto device \
 	etw eventlog input mstask multimedia namedpipe network nls \
 	os pdh process rds resource security service share shell storage \
-	ui winsta
+	ui winsta wmi
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)
