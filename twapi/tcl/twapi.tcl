@@ -1646,7 +1646,7 @@ if {[info script] ne ""} {
         }
     }} {
         base.tcl handle.tcl metoo.tcl win.tcl adsi.tcl synch.tcl
-        printer.tcl msi.tcl power.tcl wmi.tcl
+        printer.tcl msi.tcl power.tcl 
     }
 }
 

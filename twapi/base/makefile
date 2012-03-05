@@ -22,10 +22,7 @@ OBJS  = \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
 	$(OBJDIR)\util.obj \
-	$(OBJDIR)\win.obj \
-	$(OBJDIR)\wmi.obj
-
-
+	$(OBJDIR)\win.obj
 
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
@@ -35,8 +32,7 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \
 	..\tcl\msi.tcl \
-	..\tcl\power.tcl \
-	..\tcl\wmi.tcl
+	..\tcl\power.tcl
 
 !include ..\include\rules.inc
 
