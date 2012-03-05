@@ -1320,5 +1320,6 @@ TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
+TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
 
 #endif // TWAPI_H
