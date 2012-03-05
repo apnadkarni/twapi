@@ -1285,7 +1285,7 @@ int Twapi_device_Init(Tcl_Interp *interp)
                              TwapiDeviceModuleInit, interp))
         return TCL_ERROR;
 
-    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
                             Twapi_DeviceInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
 

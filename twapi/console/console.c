@@ -582,7 +582,7 @@ int Twapi_console_Init(Tcl_Interp *interp)
     /* Note ticP->module.data.ival is initialized to 0 which we use
      * as an indicator whether this interp has hooked ctrl-c or not
      */
-    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
                             Twapi_ConsoleInitCalls, TwapiConsoleCleanup) ? TCL_OK : TCL_ERROR;
 }
 
