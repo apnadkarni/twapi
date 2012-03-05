@@ -334,9 +334,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
     CALL_(IsEqualGUID, Call, 10136); // Tcl
-    CALL_(IMofCompiler_CompileBuffer, Call, 10137); // Tcl
-    CALL_(IMofCompiler_CompileFile, Call, 10138); // Tcl
-    CALL_(IMofCompiler_CreateBMOF, Call, 10139); // Tcl
 
     // CallH - function(HANDLE)
     CALL_(GetHandleInformation, CallH, 14);
@@ -992,14 +989,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.value.bval = IsEqualGUID(&guid, &u.guid);
             break;
 
-        case 10137: // IMofCompiler_CompileBuffer
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 0, objc-2, objv+2);
-
-        case 10138: // IMofCompiler_CompileFile
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 1, objc-2, objv+2);
-
-        case 10139: // IMofCompiler_CreateBMOF
-            return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
         }
     }
 

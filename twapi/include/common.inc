@@ -88,12 +88,10 @@ OUTDIR = $(SRCROOT)\build
 # EMBED_SCRIPT=
 
 # Define TWAPI_SINGLE_MODULE=1 if all modules are built as part of a single DLL
-!ifndef TWAPI_SINGLE_MODULE
-!error Oh no
-!endif
+# EMBED_SCRIPT
 
 !ifdef TWAPI_SINGLE_MODULE
-!if ! ("$(TWAPI_SINGLE_MODULE)" == "1")
+!if "$(TWAPI_SINGLE_MODULE)" != "1"
 !undef TWAPI_SINGLE_MODULE
 !endif
 !endif
