@@ -30,6 +30,7 @@ OBJS  = \
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\metoo.tcl \
+	..\tcl\win.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \

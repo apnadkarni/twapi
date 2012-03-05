@@ -921,7 +921,7 @@ int Twapi_crypto_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, MODULENAME, MODULE_HANDLE,
+    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
                             Twapi_CryptoInitCalls, NULL) ? TCL_OK : TCL_ERROR;
 }
 

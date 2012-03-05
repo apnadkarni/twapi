@@ -26,14 +26,13 @@ namespace eval twapi {
 
 }
 
-if {![info exists twapi::twapi_base_version]} {
+if {![info exists twapi::version(twapi_base)]} {
     # set dir $twapi::scriptdir;          # Needed by pkgIndex
     source [file join $twapi::scriptdir twapi_base_version.tcl]
 }
 
 # Make twapi versions the same as the base module versions
-set twapi::version $::twapi::twapi_base_version
-set twapi::patchlevel $::twapi::twapi_base_patchlevel
+set twapi::version(twapi) $::twapi::version(twapi_base)
 
 # log for tracing / debug messages.
 proc twapi::debuglog {args} {
@@ -1076,11 +1075,15 @@ proc twapi::wait {script guard wait_ms {gap_ms 10}} {
 
 # Get twapi version
 proc twapi::get_version {args} {
+    variable version
     array set opts [parseargs args {patchlevel}]
     if {$opts(patchlevel)} {
-        return $twapi::patchlevel
+        return $version(twapi)
     } else {
-        return $twapi::version
+        # Only return major, minor
+        set ver $version(twapi)
+        regexp {^([[:digit:]]+\.[[:digit:]]+)[.ab]} $version(twapi) - ver
+        return $ver
     }
 }
 
@@ -1623,10 +1626,12 @@ proc twapi::_net_enum_helper {function args} {
     }
 }
 
-# If we have a .tm extension, we are a 8.5 Tcl module or embedded script,
-# we expect all source files to have been appended to this file. So do not
-# source them.
-if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_type] eq "none"} {
+# If an embedded script, no need to source other files separately.
+# We expect all source files to have been appended to this file.
+# This includes Tcl .tm modules. On the other hand, if we are being
+# sourced ourselves, then we need to source the remaining files.
+if {[info script] ne ""} {
+    # We are being sourced so source the remaining files
 
     # When running from the source dir (while developing), there is
     # no buildid file but we do not really care
@@ -1640,13 +1645,8 @@ if {([file extension [info script]] ne ".tm") && [twapi::get_build_config embed_
             source [file join [file dirname [info script]] $f]
         }
     }} {
-        base.tcl handle.tcl metoo.tcl osinfo.tcl apputil.tcl
-        security.tcl process.tcl disk.tcl win.tcl ui.tcl input.tcl
-        sound.tcl clipboard.tcl shell.tcl nls.tcl com.tcl services.tcl
-        eventlog.tcl adsi.tcl process2.tcl accounts.tcl pdh.tcl
-        share.tcl network.tcl console.tcl synch.tcl winsta.tcl
-        printer.tcl mstask.tcl msi.tcl crypto.tcl device.tcl power.tcl
-        namedpipe.tcl resource.tcl rds.tcl wmi.tcl etw.tcl
+        base.tcl handle.tcl metoo.tcl win.tcl adsi.tcl synch.tcl
+        printer.tcl msi.tcl power.tcl wmi.tcl
     }
 }
 
@@ -1708,11 +1708,7 @@ proc twapi::import_commands {} {
     uplevel namespace import twapi::*
 }
 
-if {![info exists ::twapi::package_name]} {
-    set ::twapi::package_name "twapi"
-}
-
-package provide $::twapi::package_name $twapi::patchlevel
+package provide twapi $twapi::patchlevel
 
 # Disabled auto-import of commands as it can cause confusion
 if {0 && [llength [info commands tkcon*]]} {

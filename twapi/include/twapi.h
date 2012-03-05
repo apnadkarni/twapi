@@ -121,6 +121,9 @@
 //#include <strsafe.h>
 #endif
 
+/* Make wide char version of a string literal macro */
+#define WLITERAL2(x) L ## x
+#define WLITERAL(x) WLITERAL2(x)
 
 typedef DWORD WIN32_ERROR;
 typedef int TCL_RESULT;
@@ -1294,7 +1297,7 @@ TWAPI_EXTERN DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue
 TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* General utility */
-TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name);
+TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCHAR *name, int try_file);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
@@ -1316,6 +1319,6 @@ TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcm
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
-TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const char *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
+TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
 
 #endif // TWAPI_H

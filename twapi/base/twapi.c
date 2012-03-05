@@ -161,7 +161,7 @@ int Twapi_Init(Tcl_Interp *interp)
 /*
  * Loads the initialization script from image file resource
  */
-TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name)
+TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCHAR *name, int try_file)
 {
     HRSRC hres = NULL;
     unsigned char *dataP;
@@ -169,50 +169,76 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
     HGLOBAL hglob;
     int result;
     int compressed;
+    Tcl_Interp *interp = ticP->interp;
+    WCHAR path[MAX_PATH+1+1]; /* Extra one char to detect errors */
+    Tcl_Obj *pathObj;
 
     /*
      * Locate the twapi resource and load it if found. First check for
-     * uncompressed type. Then compressed.
+     * compressed type. Then uncompressed.
      */
-    compressed = 0;
-    hres = FindResource(dllH,
+    compressed = 1;
+    hres = FindResourceW(dllH,
                         name,
-                        TWAPI_SCRIPT_RESOURCE_TYPE);
+                         WLITERAL(TWAPI_SCRIPT_RESOURCE_TYPE_LZMA));
     if (!hres) {
-        hres = FindResource(dllH,
-                            name,
-                            TWAPI_SCRIPT_RESOURCE_TYPE_LZMA);
-        compressed = 1;
+        hres = FindResourceW(dllH,
+                             name,
+                             WLITERAL(TWAPI_SCRIPT_RESOURCE_TYPE));
+        compressed = 0;
     }
 
-    if (!hres)
-        return Twapi_AppendSystemError(ticP->interp, GetLastError());
-
-    sz = SizeofResource(dllH, hres);
-    hglob = LoadResource(dllH, hres);
-    if (sz && hglob) {
-        dataP = LockResource(hglob);
-        if (dataP) {
-            /* If compressed, we need to uncompress it first */
-            if (compressed) {
-                dataP = TwapiLzmaUncompressBuffer(ticP, dataP, sz, &sz);
-                if (dataP == NULL)
-                    return TCL_ERROR; /* ticP->interp already has error */
+    if (hres) {
+        sz = SizeofResource(dllH, hres);
+        hglob = LoadResource(dllH, hres);
+        if (sz && hglob) {
+            dataP = LockResource(hglob);
+            if (dataP) {
+                /* If compressed, we need to uncompress it first */
+                if (compressed) {
+                    dataP = TwapiLzmaUncompressBuffer(ticP, dataP, sz, &sz);
+                    if (dataP == NULL)
+                        return TCL_ERROR; /* ticP->interp already has error */
+                }
+                
+                /* The resource is expected to be UTF-8 (actually strict ASCII) */
+                /* TBD - double check use of GLOBAL and DIRECT */
+                result = Tcl_EvalEx(interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
+                if (compressed)
+                    TwapiLzmaFreeBuffer(dataP);
+                if (result == TCL_OK)
+                    Tcl_ResetResult(interp);
+                return result;
             }
+        }
+        return Twapi_AppendSystemError(interp, GetLastError());
+    }
 
-            /* The resource is expected to be UTF-8 (actually strict ASCII) */
-            /* TBD - double check use of GLOBAL and DIRECT */
-            result = Tcl_EvalEx(ticP->interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
-            if (compressed)
-                TwapiLzmaFreeBuffer(dataP);
-            if (result == TCL_OK)
-                Tcl_ResetResult(ticP->interp);
-            return result;
+    /* No resource found. Try loading external file from the DLL directory */
+    sz = GetModuleFileNameW(dllH, path, ARRAYSIZE(path));
+    if (sz == 0 || sz == ARRAYSIZE(path)) {
+        sz = GetLastError();
+        if (sz == ERROR_SUCCESS)
+            sz = ERROR_INSUFFICIENT_BUFFER;
+        return Twapi_AppendSystemError(interp, sz);
+    }
+
+    /* Look for the preceding / or \\ */
+    while (sz--) {
+        if (path[sz] == L'/' || path[sz] == L'\\') {
+            ++sz;
+            break;
         }
     }
 
-    return Twapi_AppendSystemError(ticP->interp, GetLastError());
-    
+    /* path[sz] is where we start copying the file name */
+    pathObj = Tcl_NewUnicodeObj(path, sz);
+    Tcl_AppendUnicodeToObj(pathObj, name, -1);
+    Tcl_IncrRefCount(pathObj);  /* Must before calling any Tcl_FS functions */
+    result = Tcl_FSEvalFile(interp, pathObj);
+    Tcl_DecrRefCount(pathObj);
+
+    return result;
 }
 
 /*
@@ -221,10 +247,10 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
 static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
 {
     int result;
-    gTwapiEmbedType = "embedded";
-    result = Twapi_SourceResource(ticP, gTwapiModuleHandle, MODULENAME);
-    if (result != TCL_OK) {
-        gTwapiEmbedType = "none"; /* Reset */
+    result = Twapi_SourceResource(ticP, gTwapiModuleHandle,
+                                  WLITERAL(MODULENAME), 1);
+    if (result == TCL_OK) {
+        gTwapiEmbedType = "embedded";
     }
     return result;
 }
@@ -599,7 +625,7 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 
 
 /* Does basic default initialization of a module */
-TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
+TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
 {
     TwapiInterpContext *ticP;
 
@@ -615,7 +641,7 @@ TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const char *nameP, HMO
     if (initFn && initFn(interp, ticP) != TCL_OK)
         return NULL;
 
-    if (Twapi_SourceResource(ticP, hmod, nameP) != TCL_OK) {
+    if (Twapi_SourceResource(ticP, hmod, nameP, 1) != TCL_OK) {
         /* We keep going as scripts might be external, not bound into DLL */
         /* Twapi_AppendLog tbd */
         /* return NULL; */
