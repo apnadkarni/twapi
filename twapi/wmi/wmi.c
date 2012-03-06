@@ -147,7 +147,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #ifndef TWAPI_SINGLE_MODULE
 __declspec(dllexport) 
 #endif
-int Twapi_Wmi_Init(Tcl_Interp *interp)
+int Twapi_wmi_Init(Tcl_Interp *interp)
 {
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
