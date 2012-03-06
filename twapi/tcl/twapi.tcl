@@ -1645,8 +1645,8 @@ if {[info script] ne ""} {
             source [file join [file dirname [info script]] $f]
         }
     }} {
-        base.tcl handle.tcl metoo.tcl win.tcl adsi.tcl synch.tcl
-        printer.tcl msi.tcl power.tcl 
+        base.tcl handle.tcl win.tcl adsi.tcl synch.tcl
+        printer.tcl power.tcl 
     }
 }
 
