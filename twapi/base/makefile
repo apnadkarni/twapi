@@ -26,12 +26,10 @@ OBJS  = \
 
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
-	..\tcl\metoo.tcl \
 	..\tcl\win.tcl \
 	..\tcl\adsi.tcl \
 	..\tcl\synch.tcl \
         ..\tcl\printer.tcl \
-	..\tcl\msi.tcl \
 	..\tcl\power.tcl
 
 !include ..\include\rules.inc
