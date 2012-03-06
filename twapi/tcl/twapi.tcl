@@ -26,11 +26,6 @@ namespace eval twapi {
 
 }
 
-if {![info exists twapi::version(twapi_base)]} {
-    # set dir $twapi::scriptdir;          # Needed by pkgIndex
-    source [file join $twapi::scriptdir twapi_base_version.tcl]
-}
-
 # Make twapi versions the same as the base module versions
 set twapi::version(twapi) $::twapi::version(twapi_base)
 

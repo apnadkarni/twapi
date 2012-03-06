@@ -28,7 +28,7 @@ traditional:
 
 # Build multiple DLLs with embedded scripts
 multi_embedded:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma
 
 single_embedded:
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="$(ACTIONS)" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 
