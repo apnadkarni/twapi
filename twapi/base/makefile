@@ -25,6 +25,7 @@ OBJS  = \
 	$(OBJDIR)\win.obj
 
 TCLFILES=..\tcl\twapi.tcl \
+	..\tcl\base.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\win.tcl \
 	..\tcl\adsi.tcl \

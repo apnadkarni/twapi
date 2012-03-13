@@ -80,7 +80,7 @@ RCFRAGDIR=$(OBJDIR)
 !endif
 RCFRAG="$(RCFRAGDIR)\$(MODULENAME).rcfrag"
 
-all: build distribute
+all: build distribution
 
 !ifdef OBJS
 # Binary module
@@ -90,21 +90,28 @@ build: $(OBJDIR)\$(MODULE)
 build: $(RCFRAG) $(TWAPI_SCRIPT_RESOURCE_PATH)
 !endif
 
+distribution: build "$(PACKAGEDIR)"
+!if defined(OBJS)
+! if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
+        $(COPY) "$(OBJDIR)\$(MODULE)" "$(PACKAGEDIR)"
+! endif
+!endif
+!if "$(TCLFILES)" != "" && !defined(EMBED_SCRIPT)
+	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(PACKAGEDIR)"
+!endif
+
 # Static library
 lib: $(OBJDIR)\$(MODULELIB)
 
-distribution:
-        $(COPY) $(OBJDIR)\$(MODULE) "$(PACKAGEDIR)"
-
-"$(OBJDIR)":
-	@if not exist $(OBJDIR)\nul mkdir $(OBJDIR)
+"$(OBJDIR)" "$(PACKAGEDIR)":
+	@if not exist "$@\nul" mkdir "$@"
 
 !if defined(TWAPI_SINGLE_MODULE)
 #  See [3] - Single combined DLL build
 !  if  "$(MODULENAME)" == "twapi_base"
 #    See [3a,c,e] - build twapi_base DLL with included other modules
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
-	copy "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
+	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
 !    if $(VCVER) > 8
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
@@ -147,7 +154,7 @@ $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RCFRAG) $(RC_FILE_PATH) makefile $(TWAP
 #      See [5a,b] - write a resource def fragment to include Tcl script
 !if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
 #       See [5c] - append script resource def to rc file
-	copy $(RC_FILE_PATH)+"$(RCFRAGDIR)\*.rcfrag" "$(OBJDIR)\$(MODULENAME).rc"
+	$(COPY) $(RC_FILE_PATH)+"$(RCFRAGDIR)\*.rcfrag" "$(OBJDIR)\$(MODULENAME).rc"
         rc $(INCFLAGS) $(RCFLAGS) -fo $@ "$(OBJDIR)\$(MODULENAME).rc"
 !else
 #       See [4]
@@ -195,7 +202,7 @@ clean:
 # Compile a file
 .c{$(OBJDIR)}.obj::
 !if defined(TWAPI_SINGLE_MODULE) && "$(MODULENAME)" == "twapi_base"
-	copy "$(OBJDIR)\*.initfn.proto" "$(OBJDIR)\twapi_module_static_proto.h"
-	copy "$(OBJDIR)\*.initfn" "$(OBJDIR)\twapi_module_static_init.h"
+	$(COPY) "$(OBJDIR)\*.initfn.proto" "$(OBJDIR)\twapi_module_static_proto.h"
+	$(COPY) "$(OBJDIR)\*.initfn" "$(OBJDIR)\twapi_module_static_init.h"
 !endif
 	$(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<

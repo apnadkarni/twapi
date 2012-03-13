@@ -149,25 +149,23 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
     
     if (TwapiLoadInitScript(ticP) != TCL_OK) {
-        /* We keep going as scripts might be external, not bound into DLL */
-        /* return TCL_ERROR; */
-        /* TBD - is this true any more in 4.0 or should we actually error out */
-        Tcl_ResetResult(interp); /* Get rid of any error messages */
-        return TCL_OK;
+        return TCL_ERROR;
     }
 
-    return Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION);
+    if (Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION) == TCL_ERROR)
+        return TCL_ERROR;
+
+    return TwapiLoadStaticModules(interp);
+
 }
 
-/* Alternate entry point that loads static modules as well*/
+/* Alternate entry point for when the DLL is called twapi */
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
 #endif
 int Twapi_Init(Tcl_Interp *interp)
 {
-    if (Twapi_base_Init(interp) != TCL_OK)
-        return TCL_ERROR;
-    return TwapiLoadStaticModules(interp);
+    return Twapi_base_Init(interp);
 }
 
 /*
@@ -337,16 +335,15 @@ int Twapi_GetTwapiBuildInfo(
 #endif
     Tcl_ListObjAppendElement(interp, objP, elemP);
 
-    /* Tcl 8.4 has no indication of 32/64 builds at Tcl level so we have to. */
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("platform"));
-#ifdef _WIN64
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("x64"));
-#else
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("x86"));
-#endif    
-    
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("embed_type"));
     Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(gTwapiEmbedType, -1));
+
+    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
+#if defined(TWAPI_SINGLE_MODULE)
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(1));
+#else
+    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(0));
+#endif
 
     /* Which Tcl did we build against ? (As opposed to run time) */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
