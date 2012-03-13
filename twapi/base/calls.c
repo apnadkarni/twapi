@@ -307,6 +307,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetStdHandle, Call, 10010);
     CALL_(LoadLibraryEx, Call, 10011);
     CALL_(TranslateName, Call, 10012);
+    CALL_(Twapi_SourceResource, Call, 10013);
     CALL_(CreateFile, Call, 10031);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
@@ -766,8 +767,16 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (bufP != u.buf)
                 MemLifoPopFrame(&ticP->memlifo);
             break;
-            
-        // 10013-30 UNUSED
+        case 10013:
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETWSTR(s), ARGUSEDEFAULT,
+                             GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (h == NULL)
+                h = gTwapiModuleHandle;
+            return Twapi_SourceResource(ticP, h, s, dw);
+
+        // 10014-30 UNUSED
         case 10031: // CreateFile
             secattrP = NULL;
             if (TwapiGetArgs(interp, objc-2, objv+2,
