@@ -44,12 +44,3 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
     }
     package provide $pkg $version
 }
-
-package ifneeded twapi_base 4.0a0 [list apply {{d} {load [file join $d twapi_base.dll] ; package provide twapi_base 4.0a0}} $dir]
-package ifneeded twapi_account 4.0a0 [list twapi::package_setup $dir twapi_account 4.0a0 load {} {twapi::get_users}]
-
-package ifneeded twapi 4.0a0 {
-    package require twapi_base 4.0a0
-    package require twapi_account 4.0a0
-    package provide twapi 4.0a0
-}

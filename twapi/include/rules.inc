@@ -91,13 +91,20 @@ build: $(RCFRAG) $(TWAPI_SCRIPT_RESOURCE_PATH)
 !endif
 
 distribution: build "$(PACKAGEDIR)"
+!if "$(TCLFILES)" != "" && !defined(EMBED_SCRIPT)
+	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(PACKAGEDIR)"
+!endif
 !if defined(OBJS)
+! if "$(MACHINE)" != "AMD64"
+	echo $(MODULENAME) load >> "$(PACKAGEDIR)\pkgindex.modules"
+! endif
 ! if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
         $(COPY) "$(OBJDIR)\$(MODULE)" "$(PACKAGEDIR)"
 ! endif
-!endif
-!if "$(TCLFILES)" != "" && !defined(EMBED_SCRIPT)
-	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(PACKAGEDIR)"
+!else
+! if "$(MACHINE)" != "AMD64"
+	echo $(MODULENAME) source >> "$(PACKAGEDIR)\pkgindex.modules"
+! endif
 !endif
 
 # Static library
