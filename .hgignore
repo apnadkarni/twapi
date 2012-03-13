@@ -11,6 +11,7 @@ syntax: glob
 *.sav
 temp
 build
+dist
 doc/chm-build
 doc/website-build
 doc/website
