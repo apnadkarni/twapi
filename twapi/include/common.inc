@@ -76,6 +76,11 @@ USE_UNICODE_OBJ = 1
 OUTDIR = $(SRCROOT)\build
 !endif
 
+# Top level directory where distributions are written
+!ifndef DISTDIR
+DISTDIR = $(SRCROOT)\dist
+!endif
+
 # Define TWAPI_STATIC_BUILD=1 if building static twapi libraries
 !ifdef TWAPI_STATIC_BUILD
 !if ! ("$(TWAPI_STATIC_BUILD)" == "1")
@@ -172,6 +177,22 @@ OBJDIR = $(OBJDIR)\$(MODULENAME)
 !else
 # !message Output directory $(OBJDIR) exists
 !endif
+
+
+# Distribution directories
+!if "$(PACKAGEDIR)" == ""
+
+! if "$(EMBED_SCRIPT)" == ""
+PACKAGEDIR = $(DISTDIR)\noembed
+! else
+PACKAGEDIR = $(DISTDIR)\embed_$(EMBED_SCRIPT)
+! endif
+
+! ifdef TWAPI_SINGLE_MODULE
+PACKAGEDIR = $(PACKAGEDIR)_single
+! endif TWAPI_SINGLE_MODULE
+
+!endif $(PACKAGEDIR) == ""
 
 # 
 !if "$(MACHINE)" == "AMD64"
