@@ -915,7 +915,7 @@ namespace eval twapi {
         set use_tcloo_for_com [package vsatisfies [package require Tcl] 8.6b2]
     }
     if {$use_tcloo_for_com} {
-        namespace import ::oo::class
+        interp alias {} ::twapi::class {} ::oo::class
         proc ::oo::define::twapi_exportall {} {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
         }
@@ -940,7 +940,7 @@ namespace eval twapi {
             return [lsort -unique $objs]
         }
     } else {
-        namespace import ::metoo::class
+        interp alias {} ::twapi::class {} ::metoo::class
         proc ::metoo::define::twapi_exportall {args} {
             # args is dummy to match metoo's class definition signature
             # Nothing to do, all methods are metoo are public
