@@ -3,43 +3,85 @@
 # First arg is path to an embedded twapi dll. Remaining args are
 # module names
 
-proc makeindex {mods} {
+proc get_twapi_commands {} {
+    return [concat [info commands ::twapi::*] [info commands ::metoo::*]]
+}
+
+proc makeindex {pkgdir ver} {
+global commands
+    # buildtype must be "single" or "multi"
+
+    # Read the list of modules and types
+    set fd [open [file join $pkgdir pkgindex.modules]]
+    set mods [read $fd]
+    close $fd
+
+    # We need to figure out the commands in this module. See what we
+    # have so far and then make a diff
     array set commands {}
-    set modules [dict create]
-    foreach cmd [info commands ::twapi::*] {
+    set modinfo [dict create]
+    foreach cmd [get_twapi_commands] {
         set commands($cmd) ""
     }
 
-    foreach mod $mods {
-        # Try loading as a static module. On error, try as a script only
-        dict set modules $mod type load
-        if {[catch {
-            uplevel #0 [list load {} $mod]
-        }]} {
+    foreach {mod type} $mods {
+        if {$mod eq "twapi_base"} continue
+puts $mod
+        dict set modinfo $mod type $type
+        set dll {}
+        if {$type eq "load"} {
+            # Binary module. See if statically bound or not
+            if {[file exists [file join $pkgdir ${mod}.dll]]} {
+                set dll [file join $pkgdir ${mod}.dll]
+            }
+            uplevel #0 [list load $dll $mod]
+        } else {
+            # Pure script
             twapi::Twapi_SourceResource $mod
-            dict set modules $mod type source
         }
         set mod_cmds {}
-        foreach cmd [concat [info commands ::twapi::*] [info commands ::metoo::*]] {
-            if {![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {continue}
+        set cmds [get_twapi_commands]
+        if {[llength $cmds] == 0} {
+            puts "No commands ($mod)"
+        }
+        foreach cmd $cmds {
+            if {![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
+                if {$mod eq "twapi_wmi"} {
+                    puts "Skipping $cmd"
+                }
+                continue
+            }
             if {![info exists commands($cmd)]} {
                 set commands($cmd) $mod
                 lappend mod_cmds $cmd
+            } else {
+                if {$mod eq "twapi_wmi"} {
+                    puts "Skipping (2) $cmd"
+                }
             }
         }
         if {[llength $mod_cmds] == 0} {
             error "No public commands found in twapi module $mod"
         }
-        dict set modules $mod commands $mod_cmds
+        dict set modinfo $mod load_command "package ifneeded $mod $ver \[list twapi::package_setup \$dir $mod $ver $type $dll {$mod_cmds}\]"
     }
 
-    return $modules
+    return $modinfo
 }
 
 if {[info script] eq $::argv0} {
-    uplevel #0 [list load [lindex $::argv 0] twapi]
+    set ::argv [lassign $::argv dir]
+    load [file join $dir twapi_base.dll] twapi
     set ver [twapi::get_version -patchlevel]
-    dict for {mod info} [makeindex [lrange $::argv 1 end]] {
-        puts "package ifneeded $mod $ver \[list twapi::package_setup \$dir $mod $ver [dict get $info type] {} {[dict get $info commands]}\]"
+    puts "package ifneeded twapi_base $ver \[list apply {{d} {load \[file join \$d twapi_base.dll\] ; package provide twapi_base $ver}} \$dir\]"
+    dict for {mod info} [makeindex $dir $ver] {
+        puts [dict get $info load_command]
     }
+    puts "package ifneeded twapi $ver {"
+    puts "  package require twapi_base $ver"
+    foreach mod [lrange $::argv 1 end] {
+        puts "  package require $mod $ver"
+    }
+    puts "\n  package provide twapi $ver"
+    puts "}"
 }
