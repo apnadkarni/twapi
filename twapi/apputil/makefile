@@ -4,7 +4,7 @@ MODULENAME=twapi_apputil
 
 OBJS  = $(OBJDIR)\apputil.obj
 TCLFILES=..\tcl\apputil.tcl
-EXTRALIBS = shell32.lib $(SDKLIB)\userenv.lib
+EXTRALIBS = shell32.lib $(SDKLIB)userenv.lib
 
 !include ..\include\rules.inc
 

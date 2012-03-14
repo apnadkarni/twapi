@@ -334,7 +334,11 @@ LIBS          = $(TCLLIB) $(WINLIB) $(EXTRALIBS)
 
 # Modules have to link with the twapi_base dll
 !if "$(MODULENAME)" != "twapi_base" && !defined(TWAPI_SINGLE_MODULE)
+! if "$(MACHINE)" == "AMD64"
+LIBS = "$(OBJDIR)\..\twapi_base\twapi_base64.lib" $(LIBS)
+! else
 LIBS = "$(OBJDIR)\..\twapi_base\twapi_base.lib" $(LIBS)
+! endif
 !endif
 
 # Resource definitions
