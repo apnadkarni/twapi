@@ -1,10 +1,12 @@
 SRCROOT=$(MAKEDIR)
+DISTDIR=$(MAKEDIR)\dist
 !include "$(SRCROOT)\include\tooldefs.inc"
 
 
 # base must be built before everything else as the rest depend on its exports
 # Remaining are in order of package dependencies since the build process
 # loads them in order when generating the pkgIndex.tcl file.
+PURETCLMODULES = metoo msi
 MODULES = account apputil clipboard metoo com console crypto device \
 	etw eventlog input msi mstask multimedia namedpipe network nls \
 	os pdh process rds resource security service share shell storage \
@@ -22,26 +24,46 @@ base $(MODULES): force
 force:
 
 !ifdef TWAPI_SINGLE_MODULE
+# When building a single module, all modules are embedded in base so that
+# has to be built last
 base : $(MODULES)
+!else
+# When building multiple modules, pure Tcl scripts are embedded in base
+# so make sure those are built first
+base : $(PURETCLMODULES)
 !endif
 
 # Traditional build with single dll and not embedding
-traditional:
+traditional: 
 !if "$(MACHINE)" != "AMD64"
-	-$(DEL) "$(MAKEDIR)\dist\$@\pkgindex.modules"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
 !endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(MAKEDIR)\dist\$@"
-	$(COPY) tcl\pkgIndexTemplate.tcl "$(MAKEDIR)\dist\$@\pkgIndex.tcl"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
+	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
 !if "$(MACHINE)" != "AMD64"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(MAKEDIR)\dist\$@" >> "$(MAKEDIR)\dist\$@\pkgIndex.tcl"
-	-$(DEL) "$(MAKEDIR)\dist\$@\pkgindex.modules"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
 !endif
 
 # Build multiple DLLs with embedded scripts
 multi_embedded:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(MAKEDIR)\dist\$@"
-	copy /y >NUL tcl\pkgIndexTemplate.tcl "$(MAKEDIR)\dist\$@\pkgIndex.tcl"
+!if "$(MACHINE)" != "AMD64"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+!endif
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\$@"
+	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
+!if "$(MACHINE)" != "AMD64"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+!endif
 
 single_embedded:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(MAKEDIR)\dist\$@"
-	copy /y >NUL tcl\pkgIndexTemplate.tcl "$(MAKEDIR)\dist\$@\pkgIndex.tcl"
+!if "$(MACHINE)" != "AMD64"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+!endif
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
+	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
+!if "$(MACHINE)" != "AMD64"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+!endif

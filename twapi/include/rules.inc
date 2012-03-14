@@ -55,7 +55,8 @@
 #      module are combined into a single (optionally compressed) file
 #      that will be bound to the resource.
 #      [a] If building separate DLL's, each module build writes the resource
-#          def line to a .rcfrag in its own directory.
+#          def line to a .rcfrag in its own directory. Exception is for
+#          Tcl-only modules which always write to the twapi_base dir
 #      [b] If building a single DLL, each module writes the resource
 #          definition line to a *.rcfrag file in the twapi_base directory
 #          in much the same fashion as the *.link files described above.
@@ -71,7 +72,7 @@
 !endif
 
 # See [3d], [5] - building resource files
-!if defined(TWAPI_SINGLE_MODULE)
+!if defined(TWAPI_SINGLE_MODULE) || "$(OBJS)" == ""
 # See [5b]
 RCFRAGDIR=$(OBJDIR)\..\twapi_base
 !else
@@ -155,6 +156,7 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 !endif defined(TWAPI_SINGLE_DLL)
 
 $(RCFRAG):
+	-mkdir "$(RCFRAGDIR)"
 	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > $(RCFRAG)
 
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RCFRAG) $(RC_FILE_PATH) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
