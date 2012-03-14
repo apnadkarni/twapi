@@ -4,8 +4,8 @@ DISTDIR=$(MAKEDIR)\dist
 # If 1, the generated pkgindex file will do lazy loading
 LAZYPACKAGELOAD=1
 
+!include "$(SRCROOT)\include\version.inc"
 !include "$(SRCROOT)\include\tooldefs.inc"
-
 
 # base must be built before everything else as the rest depend on its exports
 # Remaining are in order of package dependencies since the build process
@@ -38,36 +38,34 @@ base : $(PURETCLMODULES)
 !endif
 
 # Traditional build with single dll and not embedding
-traditional: 
+twapi-build: 
 !if "$(MACHINE)" != "AMD64"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+	-$(DEL) "$(DISTDIR)\twapi\pkgindex.modules"
 !endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi"
+
+twapi-bin-build: 
 !if "$(MACHINE)" != "AMD64"
-	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
+	-$(DEL) "$(DISTDIR)\twapi-bin\pkgindex.modules"
+!endif
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi-bin"
+
+twapi-modular-build: 
+!if "$(MACHINE)" != "AMD64"
+	-$(DEL) "$(DISTDIR)\twapi-modular\pkgindex.modules"
+!endif
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular"
+
+
+"$(DISTDIR)\twapi\pkgindex.tcl" "$(DISTDIR)\twapi-bin\pkgindex.tcl" "$(DISTDIR)\twapi-modular\pkgindex.tcl": force
+	$(COPY) tcl\pkgIndexTemplate.tcl $@
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" $(@D) $(LAZYPACKAGELOAD) >> $@
+	-$(DEL) $(@D)\pkgindex.modules
+
+!if "$(MACHINE)" == "AMD64"
+twapi twapi-bin twapi-modular: $(@)-build
+!else
+twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
+	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 !endif
 
-# Build multiple DLLs with embedded scripts
-multi_embedded:
-!if "$(MACHINE)" != "AMD64"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
-!endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\$@"
-!if "$(MACHINE)" != "AMD64"
-	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
-!endif
-
-single_embedded:
-!if "$(MACHINE)" != "AMD64"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
-!endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
-!if "$(MACHINE)" != "AMD64"
-	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
-	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
-!endif
