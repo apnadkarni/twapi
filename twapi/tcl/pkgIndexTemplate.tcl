@@ -44,3 +44,6 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
     }
     package provide $pkg $version
 }
+
+# The build process will append package ifneeded commands below
+# to create an appropriate pkgIndex.tcl file for included modules

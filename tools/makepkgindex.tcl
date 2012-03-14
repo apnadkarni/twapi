@@ -28,23 +28,6 @@ proc makeindex {pkgdir lazy ver} {
 
     foreach {mod type} $mods {
         if {$mod eq "twapi_base"} continue
-        if {! $lazy} {
-            if {$type eq "load"} {
-                if {[file exists [file join $pkgdir ${mod}.dll]]} {
-                    # Separate dll
-                    dict set modinfo $mod load_command "package ifneeded $mod $ver \"load \[file join \$dir ${mod}.dll \] $mod ; package provide $mod $ver\""
-                } else {
-                    # Bin objects are statically bound
-                    dict set modinfo $mod load_command "package ifneeded $mod $ver \"load {} $mod ; package provide $mod $ver\""
-                }
-            } else {
-                # A pure Tcl script bound into the main twapi_base dll
-                dict set modinfo $mod load_command "package ifneeded $mod $ver \"twapi::Twapi_SourceResource $mod ; package provide $mod $ver\""
-            }            
-
-            continue
-        }
-        # We want lazy loading
         set dll {}
         if {$type eq "load"} {
             # Binary module. See if statically bound or not
@@ -57,22 +40,23 @@ proc makeindex {pkgdir lazy ver} {
             twapi::Twapi_SourceResource $mod
         }
         set mod_cmds {}
-        foreach cmd [get_twapi_commands] {
-            if {![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
-                continue
+        if {$lazy} {
+            foreach cmd [get_twapi_commands] {
+                if {![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
+                    continue
+                }
+                if {![info exists commands($cmd)]} {
+                    set commands($cmd) $mod
+                    lappend mod_cmds $cmd
+                }
             }
-            if {![info exists commands($cmd)]} {
-                set commands($cmd) $mod
-                lappend mod_cmds $cmd
+            if {[llength $mod_cmds] == 0} {
+                error "No public commands found in twapi module $mod"
             }
         }
-        if {[llength $mod_cmds] == 0} {
-            error "No public commands found in twapi module $mod"
-        }
+        # Set dll to be base name of dll or empty if no dll
         if {$dll ne ""} {
-            # $dll is path on build system. Change to path on target system
-            # when package is loaded.
-            set dll "\[file join \$dir [file tail $dll]\]"
+            set dll $mod
         } else {
             set dll "{}"
         }

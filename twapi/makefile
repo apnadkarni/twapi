@@ -2,7 +2,7 @@ SRCROOT=$(MAKEDIR)
 DISTDIR=$(MAKEDIR)\dist
 
 # If 1, the generated pkgindex file will do lazy loading
-LAZYPACKAGELOAD=0
+LAZYPACKAGELOAD=1
 
 !include "$(SRCROOT)\include\tooldefs.inc"
 
