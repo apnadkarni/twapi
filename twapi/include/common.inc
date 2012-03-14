@@ -37,7 +37,7 @@ MODULEMINOR = $(TWAPI_MINOR)
 MODULEBUILD = $(TWAPI_BUILD)
 !endif
 
-# Release type module defaults to TWAPI release type
+# Release type module defaults to TWAPI release type defined in version.inc
 !ifndef RELEASETYPE
 RELEASETYPE = $(TWAPI_RELEASETYPE)
 !endif
