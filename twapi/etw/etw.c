@@ -750,7 +750,7 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         objc = 16;
 
     ZeroMemory(&event, sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD));
-    event.eth.Size = sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD);
+    event.eth.Size = (USHORT) (sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD));
     event.eth.Flags = WNODE_FLAG_TRACED_GUID |
         WNODE_FLAG_USE_GUID_PTR | WNODE_FLAG_USE_MOF_PTR;
     event.eth.GuidPtr = (ULONGLONG) &gETWProviderEventClassGuid;
