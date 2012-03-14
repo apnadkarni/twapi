@@ -43,7 +43,7 @@ MT            = mt.exe
 
 # TCLSH is the Tcl shell path at build time, NOT THE TARGET. It is used
 # to invoke build scripts.
-TCLSH         = "$(SRCROOT)\..\tools\tclkit-cli-8510.exe"
+TCLSH         = "$(SRCROOT)\..\tools\tclkitsh.exe"
 
 # TCLSH_TARGET is the Tcl shell path on target installations. Used to install
 # twapi. Need not be defined unless you are using the makefile to install
