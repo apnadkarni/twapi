@@ -1,5 +1,9 @@
 SRCROOT=$(MAKEDIR)
 DISTDIR=$(MAKEDIR)\dist
+
+# If 1, the generated pkgindex file will do lazy loading
+LAZYPACKAGELOAD=0
+
 !include "$(SRCROOT)\include\tooldefs.inc"
 
 
@@ -41,7 +45,7 @@ traditional:
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
 	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
 !if "$(MACHINE)" != "AMD64"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
 	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
 !endif
 
@@ -53,7 +57,7 @@ multi_embedded:
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\$@"
 	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
 !if "$(MACHINE)" != "AMD64"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
 	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
 !endif
 
@@ -64,6 +68,6 @@ single_embedded:
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\$@"
 	$(COPY) tcl\pkgIndexTemplate.tcl "$(DISTDIR)\$@\pkgIndex.tcl"
 !if "$(MACHINE)" != "AMD64"
-	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" >> "$(DISTDIR)\$@\pkgIndex.tcl"
+	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" "$(DISTDIR)\$@" $(LAZYPACKAGELOAD) >> "$(DISTDIR)\$@\pkgIndex.tcl"
 	-$(DEL) "$(DISTDIR)\$@\pkgindex.modules"
 !endif
