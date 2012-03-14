@@ -1667,7 +1667,7 @@ proc twapi::_net_enum_helper {function args} {
 # We expect all source files to have been appended to this file.
 # This includes Tcl .tm modules. On the other hand, if we are being
 # sourced ourselves, then we need to source the remaining files.
-if {[info script] ne ""} {
+if {[file tail [info script]] eq "twapi.tcl"} {
     # We are being sourced so source the remaining files
 
     # When running from the source dir (while developing), there is
