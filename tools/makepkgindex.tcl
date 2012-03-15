@@ -27,6 +27,9 @@ proc makeindex {pkgdir lazy ver} {
     }
 
     foreach {mod type} $mods {
+        if {[dict exists $modinfo $mod]} {
+            error "Duplicate entry for module $mod"
+        }
         if {$mod eq "twapi_base"} continue
         set dll {}
         if {$type eq "load"} {

@@ -4,6 +4,8 @@
 #
 # See the file LICENSE for license
 
+package require twapi_com
+
 twapi::class create ::twapi::IMofCompilerProxy {
     superclass ::twapi::IUnknownProxy
 

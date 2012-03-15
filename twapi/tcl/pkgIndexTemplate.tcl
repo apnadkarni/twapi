@@ -42,6 +42,9 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
             set auto_index($command) $loadcmd
         }
     }
+
+    # TBD - really necessary? The C modules do this on init anyways.
+    # Maybe needed for pure scripts
     package provide $pkg $version
 }
 

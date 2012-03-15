@@ -650,6 +650,7 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
 {
     TwapiInterpContext *ticP;
+    Tcl_Obj *nameObj;
 
     /* NOTE: no point setting Tcl_SetResult for errors as they are not
        looked at when DLL is being loaded */
@@ -659,17 +660,17 @@ TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *nameP, HM
     if (ticP == NULL)
         return NULL;
 
-    /* Do our own commands. */
-    if (initFn && initFn(interp, ticP) != TCL_OK)
+    nameObj = Tcl_NewUnicodeObj(nameP, -1); /* Just for unicode->string */
+    if (initFn && initFn(interp, ticP) != TCL_OK ||
+        Twapi_SourceResource(ticP, hmod, nameP, 1) != TCL_OK ||
+        Tcl_PkgProvide(interp, Tcl_GetString(nameObj), MODULEVERSION) != TCL_OK
+        ) {
+        Tcl_DecrRefCount(nameObj);
+        TwapiInterpContextUnref(ticP, 1);
         return NULL;
-
-    if (Twapi_SourceResource(ticP, hmod, nameP, 1) != TCL_OK) {
-        /* We keep going as scripts might be external, not bound into DLL */
-        /* Twapi_AppendLog tbd */
-        /* return NULL; */
-        Tcl_ResetResult(interp); /* Get rid of any error messages */
     }
 
+    Tcl_DecrRefCount(nameObj);
     return ticP;
 }
 

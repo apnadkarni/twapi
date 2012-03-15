@@ -1045,6 +1045,7 @@ proc twapi::get_multiple_process_info {args} {
     # require an interval of measurement
     set wanted_pdh_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
     if {[llength $wanted_pdh_opts] != 0} {
+        package require twapi_pdh
         set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_opts]
         foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval 0] {
             lappend results($pid) $opt $val
@@ -1060,6 +1061,7 @@ proc twapi::get_multiple_process_info {args} {
         }
     }
     if {[llength $wanted_pdh_rate_opts] != 0} {
+        package require twapi_pdh
         set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_rate_opts]
         foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval $opts(interval)] {
             lappend results($pid) $opt $val

@@ -392,9 +392,8 @@ LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
 
 !ifdef ENABLE_DELAYLOAD
 LIBS = $(LIBS) delayimp.lib
-LOPT = $(LOPT) /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll  /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll
+LOPT = $(LOPT) /DELAYLOAD:netapi32.dll /DELAYLOAD:mpr.dll  /DELAYLOAD:powrprof.dll /DELAYLOAD:userenv.dll /DELAYLOAD:psapi.dll /DELAYLOAD:wtsapi32.dll /DELAYLOAD:pdh.dll /DELAYLOAD:setupapi.dll /DELAYLOAD:iphlpapi.dll /DELAYLOAD:winmm.dll
 !endif
-
 
 !if $(VCVER) == 6
 # VC 6 - /OPT:NOWIN98 reduces code size by using 512 byte section alignment
