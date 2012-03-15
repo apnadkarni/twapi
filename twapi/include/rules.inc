@@ -112,7 +112,7 @@ distribution: build "$(PACKAGEDIR)"
 lib: $(OBJDIR)\$(MODULELIB)
 
 "$(OBJDIR)" "$(PACKAGEDIR)":
-	@if not exist "$@\nul" mkdir "$@"
+	@if not exist $@ mkdir $@
 
 !if defined(TWAPI_SINGLE_MODULE)
 #  See [3] - Single combined DLL build
