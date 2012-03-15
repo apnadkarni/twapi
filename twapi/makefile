@@ -57,7 +57,7 @@ twapi-modular-build:
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular"
 
 
-"$(DISTDIR)\twapi\pkgindex.tcl" "$(DISTDIR)\twapi-bin\pkgindex.tcl" "$(DISTDIR)\twapi-modular\pkgindex.tcl": force
+"$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\twapi-bin\pkgIndex.tcl" "$(DISTDIR)\twapi-modular\pkgIndex.tcl": force
 	$(COPY) tcl\pkgIndexTemplate.tcl $@
 	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" $(@D) $(LAZYPACKAGELOAD) >> $@
 	-$(DEL) $(@D)\pkgindex.modules
