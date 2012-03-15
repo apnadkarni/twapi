@@ -77,18 +77,20 @@ proc equal_boolean {a b} {
 }
 tcltest::customMatch boolean equal_boolean
 
-proc load_twapi_package {} {
-    if {[llength [info commands ::twapi::get_build_config]]} {
-        # Already loaded. Note check for twapi namespace not sufficient
+proc load_twapi_package {{pkg twapi}} {
+    global _twapi_test_loaded_packages
+
+    if {[info exists _twapi_test_loaded_packages($pkg)]} {
         return
     }
-
     # If in source dir, we load that twapi in preference to installed package
-    if {[file exists ../tcl/twapi.tcl]} {
-        uplevel #0 source ../tcl/twapi.tcl
-    } else {
-        uplevel #0 package require twapi
+    if {[file exists ../dist/twapi/pkgIndex.tcl] &&
+        ! [info exists _twapi_test_loaded_packages]} {
+        set ::auto_path [linsert $::auto_path 0 [file normalize ../dist/twapi]]
     }
+
+    package require $pkg
+    set _twapi_test_loaded_packages($pkg) 1
 }
 
 proc read_file {path} {
