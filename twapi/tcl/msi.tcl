@@ -34,6 +34,7 @@ proc twapi::init_msi {} {
     # Following code generated using the generate_code_from_typelib function
     # msi objects do not support ITypeInfo so cannot use at run time binding
 
+    package require twapi_com
 
     # Dispatch Interface Installer
     # Installer Methods
@@ -306,10 +307,14 @@ proc twapi::init_msi {} {
 
     # Enum MsiSignatureOption
     array set MsiSignatureOption {msiSignatureOptionInvalidHashFatal 1}
+
+    # Redefine ourselves so additional calls are no-ops
+    proc ::twapi::init_msi {} {}
 }
 
 # Get the MSI installer
 proc twapi::new_msi {} {
+    init_msi
     return [comobj WindowsInstaller.Installer]
 }
 
