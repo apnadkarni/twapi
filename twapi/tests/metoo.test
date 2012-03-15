@@ -10,8 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
-
+load_twapi_package metoo
 
 namespace eval metoo::test {
     namespace import ::tcltest::test

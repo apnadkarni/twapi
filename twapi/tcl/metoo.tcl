@@ -105,7 +105,10 @@
 # NOTE: file must be sourced at global level since metoo namespace is expected
 # to be top level namespace
 
-catch {namespace delete metoo}
+# DO NOT DO THIS. ELSE TESTS FAIL BECAUSE they define tests in the
+# metoo namespace which then get deleted by the line below when
+# the package is lazy auto-loaded
+# catch {namespace delete metoo}
 
 # TBD - variable ("my variable" is done, "variable" in method or
 # class definition is not)
