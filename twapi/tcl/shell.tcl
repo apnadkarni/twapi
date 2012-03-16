@@ -377,13 +377,22 @@ proc twapi::shell_execute args {
     }
 
     if {![string is integer -strict $opts(show)]} {
-        variable windefs
-        set def SW_[string toupper $opts(show)]
-        if {[info exists windefs($def)]} {
-            set opts(show) $windefs($def)
-        } else {
-            error "Invalid value $opts(show) specified for option -show"
-        }
+        set opts(show) [dict get {
+            hide             0
+            shownormal       1
+            normal           1
+            showminimized    2
+            showmaximized    3
+            maximize         3
+            shownoactivate   4
+            show             5
+            minimize         6
+            showminnoactive  7
+            showna           8
+            restore          9
+            showdefault      10
+            forceminimize    11
+        } $opts(show)]
     }
 
     return [Twapi_ShellExecuteEx \
