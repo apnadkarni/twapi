@@ -21,7 +21,31 @@ proc twapi::window_input_enabled {hwin} {
 
 # Simulate user input
 proc twapi::send_input {inputlist} {
-    variable windefs
+    variable input_defs
+    if {![info exists input_defs]} {
+        array set input_defs {
+            MOUSEEVENTF_MOVE        0x0001
+            MOUSEEVENTF_LEFTDOWN    0x0002
+            MOUSEEVENTF_LEFTUP      0x0004
+            MOUSEEVENTF_RIGHTDOWN   0x0008
+            MOUSEEVENTF_RIGHTUP     0x0010
+            MOUSEEVENTF_MIDDLEDOWN  0x0020
+            MOUSEEVENTF_MIDDLEUP    0x0040
+            MOUSEEVENTF_XDOWN       0x0080
+            MOUSEEVENTF_XUP         0x0100
+            MOUSEEVENTF_WHEEL       0x0800
+            MOUSEEVENTF_VIRTUALDESK 0x4000
+            MOUSEEVENTF_ABSOLUTE    0x8000
+
+            KEYEVENTF_EXTENDEDKEY 0x0001
+            KEYEVENTF_KEYUP       0x0002
+            KEYEVENTF_UNICODE     0x0004
+            KEYEVENTF_SCANCODE    0x0008
+
+            XBUTTON1      0x0001
+            XBUTTON2      0x0002
+        }
+    }
 
     set inputs [list ]
     foreach input $inputlist {
@@ -36,7 +60,7 @@ proc twapi::send_input {inputlist} {
             }]
             set flags 0
             if {! $opts(relative)} {
-                set flags $windefs(MOUSEEVENTF_ABSOLUTE)
+                set flags $input_defs(MOUSEEVENTF_ABSOLUTE)
             }
 
             if {[info exists opts(wheel)]} {
@@ -44,16 +68,16 @@ proc twapi::send_input {inputlist} {
                     error "The -wheel input event attribute may not be specified with -x1up, -x1down, -x2up or -x2down events"
                 }
                 set mousedata $opts(wheel)
-                set flags $windefs(MOUSEEVENTF_WHEEL)
+                set flags $input_defs(MOUSEEVENTF_WHEEL)
             } else {
                 if {$opts(x1down) || $opts(x1up)} {
                     if {$opts(x2down) || $opts(x2up)} {
                         error "The -x1down, -x1up mouse input attributes are mutually exclusive with -x2down, -x2up attributes"
                     }
-                    set mousedata $windefs(XBUTTON1)
+                    set mousedata $input_defs(XBUTTON1)
                 } else {
                     if {$opts(x2down) || $opts(x2up)} {
-                        set mousedata $windefs(XBUTTON2)
+                        set mousedata $input_defs(XBUTTON2)
                     } else {
                         set mousedata 0
                     }
@@ -73,7 +97,7 @@ proc twapi::send_input {inputlist} {
                 x2up   XUP
             } {
                 if {$opts($opt)} {
-                    set flags [expr {$flags | $windefs(MOUSEEVENTF_$flag)}]
+                    set flags [expr {$flags | $input_defs(MOUSEEVENTF_$flag)}]
                 }
             }
 
@@ -84,12 +108,12 @@ proc twapi::send_input {inputlist} {
             if {"-extended" ni $keyopts} {
                 set extended 0
             } else {
-                set extended $windefs(KEYEVENTF_EXTENDEDKEY)
+                set extended $input_defs(KEYEVENTF_EXTENDEDKEY)
             }
             if {"-usescan" ni $keyopts} {
                 set usescan 0
             } else {
-                set usescan $windefs(KEYEVENTF_SCANCODE)
+                set usescan $input_defs(KEYEVENTF_SCANCODE)
             }
             switch -exact -- $inputtype {
                 keydown {
@@ -99,7 +123,7 @@ proc twapi::send_input {inputlist} {
                     lappend inputs [list key $vk $scan \
                                         [expr {$extended
                                                | $usescan
-                                               | $windefs(KEYEVENTF_KEYUP)
+                                               | $input_defs(KEYEVENTF_KEYUP)
                                            }]]
                 }
                 key {
@@ -107,14 +131,14 @@ proc twapi::send_input {inputlist} {
                     lappend inputs [list key $vk $scan \
                                         [expr {$extended
                                                | $usescan
-                                               | $windefs(KEYEVENTF_KEYUP)
+                                               | $input_defs(KEYEVENTF_KEYUP)
                                            }]]
                 }
                 unicode {
-                    lappend inputs [list key 0 $scan $windefs(KEYEVENTF_UNICODE)]
+                    lappend inputs [list key 0 $scan $input_defs(KEYEVENTF_UNICODE)]
                     lappend inputs [list key 0 $scan \
-                                        [expr {$windefs(KEYEVENTF_UNICODE)
-                                               | $windefs(KEYEVENTF_KEYUP)
+                                        [expr {$input_defs(KEYEVENTF_UNICODE)
+                                               | $input_defs(KEYEVENTF_KEYUP)
                                            }]]
                 }
                 default {
@@ -293,6 +317,7 @@ proc twapi::get_input_idle_time {} {
     set last_event [format 0x%x [GetLastInputInfo]]
     set now [format 0x%x [GetTickCount]]
 
+    # Deal with wrap around
     if {$now >= $last_event} {
         return [expr {$now - $last_event}]
     } else {
@@ -302,140 +327,53 @@ proc twapi::get_input_idle_time {} {
 
 # Initialize the virtual key table
 proc twapi::_init_vk_map {} {
-    variable windefs
     variable vk_map
 
     if {![info exists vk_map]} {
-        array set vk_map [list \
-                              "+" [list $windefs(VK_SHIFT) 0]\
-                              "^" [list $windefs(VK_CONTROL) 0] \
-                              "%" [list $windefs(VK_MENU) 0] \
-                              "BACK" [list $windefs(VK_BACK) 0] \
-                              "BACKSPACE" [list $windefs(VK_BACK) 0] \
-                              "BS" [list $windefs(VK_BACK) 0] \
-                              "BKSP" [list $windefs(VK_BACK) 0] \
-                              "TAB" [list $windefs(VK_TAB) 0] \
-                              "CLEAR" [list $windefs(VK_CLEAR) 0] \
-                              "RETURN" [list $windefs(VK_RETURN) 0] \
-                              "ENTER" [list $windefs(VK_RETURN) 0] \
-                              "SHIFT" [list $windefs(VK_SHIFT) 0] \
-                              "CONTROL" [list $windefs(VK_CONTROL) 0] \
-                              "MENU" [list $windefs(VK_MENU) 0] \
-                              "ALT" [list $windefs(VK_MENU) 0] \
-                              "PAUSE" [list $windefs(VK_PAUSE) 0] \
-                              "BREAK" [list $windefs(VK_PAUSE) 0] \
-                              "CAPITAL" [list $windefs(VK_CAPITAL) 0] \
-                              "CAPSLOCK" [list $windefs(VK_CAPITAL) 0] \
-                              "KANA" [list $windefs(VK_KANA) 0] \
-                              "HANGEUL" [list $windefs(VK_HANGEUL) 0] \
-                              "HANGUL" [list $windefs(VK_HANGUL) 0] \
-                              "JUNJA" [list $windefs(VK_JUNJA) 0] \
-                              "FINAL" [list $windefs(VK_FINAL) 0] \
-                              "HANJA" [list $windefs(VK_HANJA) 0] \
-                              "KANJI" [list $windefs(VK_KANJI) 0] \
-                              "ESCAPE" [list $windefs(VK_ESCAPE) 0] \
-                              "ESC" [list $windefs(VK_ESCAPE) 0] \
-                              "CONVERT" [list $windefs(VK_CONVERT) 0] \
-                              "NONCONVERT" [list $windefs(VK_NONCONVERT) 0] \
-                              "ACCEPT" [list $windefs(VK_ACCEPT) 0] \
-                              "MODECHANGE" [list $windefs(VK_MODECHANGE) 0] \
-                              "SPACE" [list $windefs(VK_SPACE) 0] \
-                              "PRIOR" [list $windefs(VK_PRIOR) 0] \
-                              "PGUP" [list $windefs(VK_PRIOR) 0] \
-                              "NEXT" [list $windefs(VK_NEXT) 0] \
-                              "PGDN" [list $windefs(VK_NEXT) 0] \
-                              "END" [list $windefs(VK_END) 0] \
-                              "HOME" [list $windefs(VK_HOME) 0] \
-                              "LEFT" [list $windefs(VK_LEFT) 0] \
-                              "UP" [list $windefs(VK_UP) 0] \
-                              "RIGHT" [list $windefs(VK_RIGHT) 0] \
-                              "DOWN" [list $windefs(VK_DOWN) 0] \
-                              "SELECT" [list $windefs(VK_SELECT) 0] \
-                              "PRINT" [list $windefs(VK_PRINT) 0] \
-                              "PRTSC" [list $windefs(VK_SNAPSHOT) 0] \
-                              "EXECUTE" [list $windefs(VK_EXECUTE) 0] \
-                              "SNAPSHOT" [list $windefs(VK_SNAPSHOT) 0] \
-                              "INSERT" [list $windefs(VK_INSERT) 0] \
-                              "INS" [list $windefs(VK_INSERT) 0] \
-                              "DELETE" [list $windefs(VK_DELETE) 0] \
-                              "DEL" [list $windefs(VK_DELETE) 0] \
-                              "HELP" [list $windefs(VK_HELP) 0] \
-                              "LWIN" [list $windefs(VK_LWIN) 0] \
-                              "RWIN" [list $windefs(VK_RWIN) 0] \
-                              "APPS" [list $windefs(VK_APPS) 0] \
-                              "SLEEP" [list $windefs(VK_SLEEP) 0] \
-                              "NUMPAD0" [list $windefs(VK_NUMPAD0) 0] \
-                              "NUMPAD1" [list $windefs(VK_NUMPAD1) 0] \
-                              "NUMPAD2" [list $windefs(VK_NUMPAD2) 0] \
-                              "NUMPAD3" [list $windefs(VK_NUMPAD3) 0] \
-                              "NUMPAD4" [list $windefs(VK_NUMPAD4) 0] \
-                              "NUMPAD5" [list $windefs(VK_NUMPAD5) 0] \
-                              "NUMPAD6" [list $windefs(VK_NUMPAD6) 0] \
-                              "NUMPAD7" [list $windefs(VK_NUMPAD7) 0] \
-                              "NUMPAD8" [list $windefs(VK_NUMPAD8) 0] \
-                              "NUMPAD9" [list $windefs(VK_NUMPAD9) 0] \
-                              "MULTIPLY" [list $windefs(VK_MULTIPLY) 0] \
-                              "ADD" [list $windefs(VK_ADD) 0] \
-                              "SEPARATOR" [list $windefs(VK_SEPARATOR) 0] \
-                              "SUBTRACT" [list $windefs(VK_SUBTRACT) 0] \
-                              "DECIMAL" [list $windefs(VK_DECIMAL) 0] \
-                              "DIVIDE" [list $windefs(VK_DIVIDE) 0] \
-                              "F1" [list $windefs(VK_F1) 0] \
-                              "F2" [list $windefs(VK_F2) 0] \
-                              "F3" [list $windefs(VK_F3) 0] \
-                              "F4" [list $windefs(VK_F4) 0] \
-                              "F5" [list $windefs(VK_F5) 0] \
-                              "F6" [list $windefs(VK_F6) 0] \
-                              "F7" [list $windefs(VK_F7) 0] \
-                              "F8" [list $windefs(VK_F8) 0] \
-                              "F9" [list $windefs(VK_F9) 0] \
-                              "F10" [list $windefs(VK_F10) 0] \
-                              "F11" [list $windefs(VK_F11) 0] \
-                              "F12" [list $windefs(VK_F12) 0] \
-                              "F13" [list $windefs(VK_F13) 0] \
-                              "F14" [list $windefs(VK_F14) 0] \
-                              "F15" [list $windefs(VK_F15) 0] \
-                              "F16" [list $windefs(VK_F16) 0] \
-                              "F17" [list $windefs(VK_F17) 0] \
-                              "F18" [list $windefs(VK_F18) 0] \
-                              "F19" [list $windefs(VK_F19) 0] \
-                              "F20" [list $windefs(VK_F20) 0] \
-                              "F21" [list $windefs(VK_F21) 0] \
-                              "F22" [list $windefs(VK_F22) 0] \
-                              "F23" [list $windefs(VK_F23) 0] \
-                              "F24" [list $windefs(VK_F24) 0] \
-                              "NUMLOCK" [list $windefs(VK_NUMLOCK) 0] \
-                              "SCROLL" [list $windefs(VK_SCROLL) 0] \
-                              "SCROLLLOCK" [list $windefs(VK_SCROLL) 0] \
-                              "LSHIFT" [list $windefs(VK_LSHIFT) 0] \
-                              "RSHIFT" [list $windefs(VK_RSHIFT) 0 -extended] \
-                              "LCONTROL" [list $windefs(VK_LCONTROL) 0] \
-                              "RCONTROL" [list $windefs(VK_RCONTROL) 0 -extended] \
-                              "LMENU" [list $windefs(VK_LMENU) 0] \
-                              "LALT" [list $windefs(VK_LMENU) 0] \
-                              "RMENU" [list $windefs(VK_RMENU) 0 -extended] \
-                              "RALT" [list $windefs(VK_RMENU) 0 -extended] \
-                              "BROWSER_BACK" [list $windefs(VK_BROWSER_BACK) 0] \
-                              "BROWSER_FORWARD" [list $windefs(VK_BROWSER_FORWARD) 0] \
-                              "BROWSER_REFRESH" [list $windefs(VK_BROWSER_REFRESH) 0] \
-                              "BROWSER_STOP" [list $windefs(VK_BROWSER_STOP) 0] \
-                              "BROWSER_SEARCH" [list $windefs(VK_BROWSER_SEARCH) 0] \
-                              "BROWSER_FAVORITES" [list $windefs(VK_BROWSER_FAVORITES) 0] \
-                              "BROWSER_HOME" [list $windefs(VK_BROWSER_HOME) 0] \
-                              "VOLUME_MUTE" [list $windefs(VK_VOLUME_MUTE) 0] \
-                              "VOLUME_DOWN" [list $windefs(VK_VOLUME_DOWN) 0] \
-                              "VOLUME_UP" [list $windefs(VK_VOLUME_UP) 0] \
-                              "MEDIA_NEXT_TRACK" [list $windefs(VK_MEDIA_NEXT_TRACK) 0] \
-                              "MEDIA_PREV_TRACK" [list $windefs(VK_MEDIA_PREV_TRACK) 0] \
-                              "MEDIA_STOP" [list $windefs(VK_MEDIA_STOP) 0] \
-                              "MEDIA_PLAY_PAUSE" [list $windefs(VK_MEDIA_PLAY_PAUSE) 0] \
-                              "LAUNCH_MAIL" [list $windefs(VK_LAUNCH_MAIL) 0] \
-                              "LAUNCH_MEDIA_SELECT" [list $windefs(VK_LAUNCH_MEDIA_SELECT) 0] \
-                              "LAUNCH_APP1" [list $windefs(VK_LAUNCH_APP1) 0] \
-                              "LAUNCH_APP2" [list $windefs(VK_LAUNCH_APP2) 0] \
-                             ]
+        # Map tokens to VK_* key codes
+        array set vk_map {
+            + {0x10 0}   ^ {0x11 0}   % {0x12 0}   BACK {0x08 0}
+            BACKSPACE {0x08 0}   BS {0x08 0}   BKSP {0x08 0}   TAB {0x09 0}
+            CLEAR {0x0C 0}   RETURN {0x0D 0}   ENTER {0x0D 0}   SHIFT {0x10 0}
+            CONTROL {0x11 0}   MENU {0x12 0}   ALT {0x12 0}   PAUSE {0x13 0}
+            BREAK {0x13 0}   CAPITAL {0x14 0}   CAPSLOCK {0x14 0}
+            KANA {0x15 0}   HANGEUL {0x15 0}   HANGUL {0x15 0}   JUNJA {0x17 0}
+            FINAL {0x18 0}   HANJA {0x19 0}   KANJI {0x19 0}   ESCAPE {0x1B 0}
+            ESC {0x1B 0}   CONVERT {0x1C 0}   NONCONVERT {0x1D 0}
+            ACCEPT {0x1E 0}   MODECHANGE {0x1F 0}   SPACE {0x20 0}
+            PRIOR {0x21 0}   PGUP {0x21 0}   NEXT {0x22 0}   PGDN {0x22 0}
+            END {0x23 0}   HOME {0x24 0}   LEFT {0x25 0}   UP {0x26 0}
+            RIGHT {0x27 0}   DOWN {0x28 0}   SELECT {0x29 0}
+            PRINT {0x2A 0}   PRTSC {0x2C 0}   EXECUTE {0x2B 0}   
+            SNAPSHOT {0x2C 0}   INSERT {0x2D 0}   INS {0x2D 0}   
+            DELETE {0x2E 0}   DEL {0x2E 0}   HELP {0x2F 0}   LWIN {0x5B 0}
+            RWIN {0x5C 0}   APPS {0x5D 0}   SLEEP {0x5F 0}   NUMPAD0 {0x60 0}
+            NUMPAD1 {0x61 0}   NUMPAD2 {0x62 0}   NUMPAD3 {0x63 0}
+            NUMPAD4 {0x64 0}   NUMPAD5 {0x65 0}   NUMPAD6 {0x66 0}
+            NUMPAD7 {0x67 0}   NUMPAD8 {0x68 0}   NUMPAD9 {0x69 0}
+            MULTIPLY {0x6A 0}   ADD {0x6B 0}   SEPARATOR {0x6C 0}
+            SUBTRACT {0x6D 0}   DECIMAL {0x6E 0}   DIVIDE {0x6F 0}
+            F1 {0x70 0}   F2 {0x71 0}   F3 {0x72 0}   F4 {0x73 0}
+            F5 {0x74 0}   F6 {0x75 0}   F7 {0x76 0}   F8 {0x77 0}
+            F9 {0x78 0}   F10 {0x79 0}   F11 {0x7A 0}   F12 {0x7B 0}
+            F13 {0x7C 0}   F14 {0x7D 0}   F15 {0x7E 0}   F16 {0x7F 0}
+            F17 {0x80 0}   F18 {0x81 0}   F19 {0x82 0}   F20 {0x83 0}
+            F21 {0x84 0}   F22 {0x85 0}   F23 {0x86 0}   F24 {0x87 0}
+            NUMLOCK {0x90 0}   SCROLL {0x91 0}   SCROLLLOCK {0x91 0}
+            LSHIFT {0xA0 0}   RSHIFT {0xA1 0 -extended}   LCONTROL {0xA2 0}
+            RCONTROL {0xA3 0 -extended}   LMENU {0xA4 0}   LALT {0xA4 0}
+            RMENU {0xA5 0 -extended}   RALT {0xA5 0 -extended}
+            BROWSER_BACK {0xA6 0}   BROWSER_FORWARD {0xA7 0}
+            BROWSER_REFRESH {0xA8 0}   BROWSER_STOP {0xA9 0}
+            BROWSER_SEARCH {0xAA 0}   BROWSER_FAVORITES {0xAB 0}
+            BROWSER_HOME {0xAC 0}   VOLUME_MUTE {0xAD 0}
+            VOLUME_DOWN {0xAE 0}   VOLUME_UP {0xAF 0}
+            MEDIA_NEXT_TRACK {0xB0 0}   MEDIA_PREV_TRACK {0xB1 0}
+            MEDIA_STOP {0xB2 0}   MEDIA_PLAY_PAUSE {0xB3 0}
+            LAUNCH_MAIL {0xB4 0}   LAUNCH_MEDIA_SELECT {0xB5 0}
+            LAUNCH_APP1 {0xB6 0}   LAUNCH_APP2 {0xB7 0}  
+        }
     }
-
 }
 
 

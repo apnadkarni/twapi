@@ -62,6 +62,144 @@ namespace eval twapi {
         "power users"   S-1-5-32-547
     }
 
+    # #defines from windows.h etc.
+    # See which of these are actually used and remove unused - TBD
+    array set security_defs {
+        SE_GROUP_MANDATORY              0x00000001
+        SE_GROUP_ENABLED_BY_DEFAULT     0x00000002
+        SE_GROUP_ENABLED                0x00000004
+        SE_GROUP_OWNER                  0x00000008
+        SE_GROUP_USE_FOR_DENY_ONLY      0x00000010
+        SE_GROUP_LOGON_ID               0xC0000000
+        SE_GROUP_RESOURCE               0x20000000
+        SE_GROUP_INTEGRITY              0x00000020
+        SE_GROUP_INTEGRITY_ENABLED      0x00000040
+
+        SE_PRIVILEGE_ENABLED_BY_DEFAULT 0x00000001
+        SE_PRIVILEGE_ENABLED            0x00000002
+        SE_PRIVILEGE_USED_FOR_ACCESS    0x80000000
+
+        TOKEN_ASSIGN_PRIMARY           0x00000001
+        TOKEN_DUPLICATE                0x00000002
+        TOKEN_IMPERSONATE              0x00000004
+        TOKEN_QUERY                    0x00000008
+        TOKEN_QUERY_SOURCE             0x00000010
+        TOKEN_ADJUST_PRIVILEGES        0x00000020
+        TOKEN_ADJUST_GROUPS            0x00000040
+        TOKEN_ADJUST_DEFAULT           0x00000080
+        TOKEN_ADJUST_SESSIONID         0x00000100
+
+        TOKEN_ALL_ACCESS_WINNT         0x000F00FF
+        TOKEN_ALL_ACCESS_WIN2K         0x000F01FF
+        TOKEN_ALL_ACCESS               0x000F01FF
+        TOKEN_READ                     0x00020008
+        TOKEN_WRITE                    0x000200E0
+        TOKEN_EXECUTE                  0x00020000
+
+        TokenUser                      1
+        TokenGroups                    2
+        TokenPrivileges                3
+        TokenOwner                     4
+        TokenPrimaryGroup              5
+        TokenDefaultDacl               6
+        TokenSource                    7
+        TokenType                      8
+        TokenImpersonationLevel        9
+        TokenStatistics               10
+        TokenRestrictedSids           11
+        TokenSessionId                12
+        TokenGroupsAndPrivileges      13
+        TokenSessionReference         14
+        TokenSandBoxInert             15
+        TokenAuditPolicy              16
+        TokenOrigin                   17
+        TokenElevationType            18
+        TokenLinkedToken              19
+        TokenElevation                20
+        TokenHasRestrictions          21
+        TokenAccessInformation        22
+        TokenVirtualizationAllowed    23
+        TokenVirtualizationEnabled    24
+        TokenIntegrityLevel           25
+        TokenUIAccess                 26
+        TokenMandatoryPolicy          27
+        TokenLogonSid                 28
+
+        OBJECT_INHERIT_ACE                0x1
+        CONTAINER_INHERIT_ACE             0x2
+        NO_PROPAGATE_INHERIT_ACE          0x4
+        INHERIT_ONLY_ACE                  0x8
+        INHERITED_ACE                     0x10
+        VALID_INHERIT_FLAGS               0x1F
+
+        SYSTEM_MANDATORY_LABEL_NO_WRITE_UP         0x1
+        SYSTEM_MANDATORY_LABEL_NO_READ_UP          0x2
+        SYSTEM_MANDATORY_LABEL_NO_EXECUTE_UP       0x4
+
+        ACL_REVISION     2
+        ACL_REVISION_DS  4
+
+        ACCESS_ALLOWED_ACE_TYPE                 0x0
+        ACCESS_DENIED_ACE_TYPE                  0x1
+        SYSTEM_AUDIT_ACE_TYPE                   0x2
+        SYSTEM_ALARM_ACE_TYPE                   0x3
+        ACCESS_ALLOWED_COMPOUND_ACE_TYPE        0x4
+        ACCESS_ALLOWED_OBJECT_ACE_TYPE          0x5
+        ACCESS_DENIED_OBJECT_ACE_TYPE           0x6
+        SYSTEM_AUDIT_OBJECT_ACE_TYPE            0x7
+        SYSTEM_ALARM_OBJECT_ACE_TYPE            0x8
+        ACCESS_ALLOWED_CALLBACK_ACE_TYPE        0x9
+        ACCESS_DENIED_CALLBACK_ACE_TYPE         0xA
+        ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE 0xB
+        ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE  0xC
+        SYSTEM_AUDIT_CALLBACK_ACE_TYPE          0xD
+        SYSTEM_ALARM_CALLBACK_ACE_TYPE          0xE
+        SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE   0xF
+        SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE   0x10
+        SYSTEM_MANDATORY_LABEL_ACE_TYPE         0x11
+
+        ACCESS_MAX_MS_V2_ACE_TYPE               0x3
+        ACCESS_MAX_MS_V3_ACE_TYPE               0x4
+        ACCESS_MAX_MS_V4_ACE_TYPE               0x8
+        ACCESS_MAX_MS_V5_ACE_TYPE               0x11
+
+
+        OWNER_SECURITY_INFORMATION              0x00000001
+        GROUP_SECURITY_INFORMATION              0x00000002
+        DACL_SECURITY_INFORMATION               0x00000004
+        SACL_SECURITY_INFORMATION               0x00000008
+        LABEL_SECURITY_INFORMATION       	0x00000010
+
+        PROTECTED_DACL_SECURITY_INFORMATION     0x80000000
+        PROTECTED_SACL_SECURITY_INFORMATION     0x40000000
+        UNPROTECTED_DACL_SECURITY_INFORMATION   0x20000000
+        UNPROTECTED_SACL_SECURITY_INFORMATION   0x10000000
+
+        SERVICE_QUERY_CONFIG           0x00000001
+        SERVICE_CHANGE_CONFIG          0x00000002
+        SERVICE_QUERY_STATUS           0x00000004
+        SERVICE_ENUMERATE_DEPENDENTS   0x00000008
+        SERVICE_START                  0x00000010
+        SERVICE_STOP                   0x00000020
+        SERVICE_PAUSE_CONTINUE         0x00000040
+        SERVICE_INTERROGATE            0x00000080
+        SERVICE_USER_DEFINED_CONTROL   0x00000100
+        SERVICE_ALL_ACCESS             0x000F01FF
+
+        SC_MANAGER_CONNECT             0x00000001
+        SC_MANAGER_CREATE_SERVICE      0x00000002
+        SC_MANAGER_ENUMERATE_SERVICE   0x00000004
+        SC_MANAGER_LOCK                0x00000008
+        SC_MANAGER_QUERY_LOCK_STATUS   0x00000010
+        SC_MANAGER_MODIFY_BOOT_CONFIG  0x00000020
+        SC_MANAGER_ALL_ACCESS          0x000F003F
+
+
+
+
+    }
+
+
     # Cache of privilege names to LUID's
     variable _privilege_to_luid_map
     set _privilege_to_luid_map {}
@@ -1111,7 +1249,7 @@ proc twapi::get_ace_text {ace args} {
 
 # Create a new ACL
 proc twapi::new_acl {{aces ""}} {
-    variable windefs
+    variable security_defs
 
     # NOTE: we ALWAYS set aclrev to 2. This may not be correct for the
     # supplied ACEs but that's ok. The C level code calculates the correct
@@ -1307,7 +1445,7 @@ proc twapi::set_security_descriptor_sacl {secd acl} {
 
 # Get the specified security information for the given object
 proc twapi::get_resource_security_descriptor {restype name args} {
-    variable windefs
+    variable security_defs
 
     # -mandatory_label field is not documented. Should we ? TBD
     array set opts [parseargs args {
@@ -1324,24 +1462,24 @@ proc twapi::get_resource_security_descriptor {restype name args} {
 
     foreach field {owner group dacl sacl} {
         if {$opts($field) || $opts(all)} {
-            set wanted [expr {$wanted | $windefs([string toupper $field]_SECURITY_INFORMATION)}]
+            set wanted [expr {$wanted | $security_defs([string toupper $field]_SECURITY_INFORMATION)}]
         }
     }
 
     if {[min_os_version 6]} {
         if {$opts(mandatory_label) || $opts(all)} {
-            set wanted [expr {$wanted | $windefs(LABEL_SECURITY_INFORMATION)}]
+            set wanted [expr {$wanted | $security_defs(LABEL_SECURITY_INFORMATION)}]
         }
     }
 
     # Note if no options specified, we ask for everything except
     # SACL's which require special privileges
     if {! $wanted} {
-        set wanted [expr {$windefs(OWNER_SECURITY_INFORMATION) |
-                          $windefs(GROUP_SECURITY_INFORMATION) |
-                          $windefs(DACL_SECURITY_INFORMATION)}]
+        set wanted [expr {$security_defs(OWNER_SECURITY_INFORMATION) |
+                          $security_defs(GROUP_SECURITY_INFORMATION) |
+                          $security_defs(DACL_SECURITY_INFORMATION)}]
         if {[min_os_version 6]} {
-            set wanted [expr {$wanted | $windefs(LABEL_SECURITY_INFORMATION)}]
+            set wanted [expr {$wanted | $security_defs(LABEL_SECURITY_INFORMATION)}]
         }
     }
 
@@ -1385,7 +1523,7 @@ proc twapi::get_resource_security_descriptor {restype name args} {
 # See http://search.cpan.org/src/TEVERETT/Win32-Security-0.50/README
 # for a good discussion even though that applies to Perl
 proc twapi::set_resource_security_descriptor {restype name secd args} {
-    variable windefs
+    variable security_defs
 
     array set opts [parseargs args {
         all
@@ -1421,21 +1559,21 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
 
     if {$opts(owner) || $opts(all)} {
         set opts(owner) [get_security_descriptor_owner $secd]
-        setbits mask $windefs(OWNER_SECURITY_INFORMATION)
+        setbits mask $security_defs(OWNER_SECURITY_INFORMATION)
     } else {
         set opts(owner) ""
     }
 
     if {$opts(group) || $opts(all)} {
         set opts(group) [get_security_descriptor_group $secd]
-        setbits mask $windefs(GROUP_SECURITY_INFORMATION)
+        setbits mask $security_defs(GROUP_SECURITY_INFORMATION)
     } else {
         set opts(group) ""
     }
 
     if {$opts(dacl) || $opts(all)} {
         set opts(dacl) [get_security_descriptor_dacl $secd]
-        setbits mask $windefs(DACL_SECURITY_INFORMATION)
+        setbits mask $security_defs(DACL_SECURITY_INFORMATION)
     } else {
         set opts(dacl) null
     }
@@ -1443,11 +1581,11 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
     if {$opts(sacl) || $opts(mandatory_label) || $opts(all)} {
         set sacl [get_security_descriptor_sacl $secd]
         if {$opts(sacl) || $opts(all)} {
-            setbits mask $windefs(SACL_SECURITY_INFORMATION)
+            setbits mask $security_defs(SACL_SECURITY_INFORMATION)
         }
         if {[min_os_version 6]} {
             if {$opts(mandatory_label) || $opts(all)} {
-                setbits mask $windefs(LABEL_SECURITY_INFORMATION)
+                setbits mask $security_defs(LABEL_SECURITY_INFORMATION)
             }
         }
         set opts(sacl) $sacl
@@ -1723,11 +1861,11 @@ proc twapi::_get_token_sid_field {tok field options} {
 
 # Map a token attribute mask to list of attribute names
 proc twapi::_map_token_attr {attr prefix} {
-    variable windefs
+    variable security_defs
     set attrs [list ]
     set plen [string length $prefix]
     incr plen
-    foreach {name mask} [array get windefs ${prefix}_*] {
+    foreach {name mask} [array get security_defs ${prefix}_*] {
         if {[expr {$attr & $mask}]} {
             lappend attrs [string tolower [string range $name $plen end]]
         }
@@ -1744,12 +1882,12 @@ proc twapi::_map_token_group_attr {attr} {
 # all the arguments, and then OR's the individual elements. Each
 # element may either be a integer or one of the access rights
 proc twapi::_access_rights_to_mask {args} {
-    variable windefs
+    variable security_defs
 
     set rights 0
     foreach right [concat {*}$args] {
         if {![string is integer $right]} {
-            if {[catch {set right $windefs([string toupper $right])}]} {
+            if {[catch {set right $security_defs([string toupper $right])}]} {
                 error "Invalid access right symbol '$right'"
             }
         }
@@ -1762,7 +1900,7 @@ proc twapi::_access_rights_to_mask {args} {
 
 # Map an access mask to a set of rights
 proc twapi::_access_mask_to_rights {access_mask {type ""}} {
-    variable windefs
+    variable security_defs
 
     set rights [list ]
 
@@ -1788,7 +1926,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
     # Check standard multiple bit masks
     #
     foreach x {STANDARD_RIGHTS_REQUIRED STANDARD_RIGHTS_READ STANDARD_RIGHTS_WRITE STANDARD_RIGHTS_EXECUTE STANDARD_RIGHTS_ALL SPECIFIC_RIGHTS_ALL} {
-        if {($windefs($x) & $access_mask) == $windefs($x)} {
+        if {($security_defs($x) & $access_mask) == $security_defs($x)} {
             lappend rights [string tolower $x]
         }
     }
@@ -1829,7 +1967,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
     }
 
     foreach x $masks {
-        if {($windefs($x) & $access_mask) == $windefs($x)} {
+        if {($security_defs($x) & $access_mask) == $security_defs($x)} {
             lappend rights [string tolower $x]
         }
     }
@@ -1840,17 +1978,17 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
 
     # First map the common bits
     foreach x {DELETE READ_CONTROL WRITE_DAC WRITE_OWNER SYNCHRONIZE} {
-        if {$windefs($x) & $access_mask} {
+        if {$security_defs($x) & $access_mask} {
             lappend rights [string tolower $x]
-            resetbits access_mask $windefs($x)
+            resetbits access_mask $security_defs($x)
         }
     }
 
     # Then the generic bits
     foreach x {GENERIC_READ GENERIC_WRITE GENERIC_EXECUTE GENERIC_ALL} {
-        if {$windefs($x) & $access_mask} {
+        if {$security_defs($x) & $access_mask} {
             lappend rights [string tolower $x]
-            resetbits access_mask $windefs($x)
+            resetbits access_mask $security_defs($x)
         }
     }
 
@@ -1984,9 +2122,9 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
     }
 
     foreach x $masks {
-        if {$windefs($x) & $access_mask} {
+        if {$security_defs($x) & $access_mask} {
             lappend rights [string tolower $x]
-            resetbits access_mask $windefs($x)
+            resetbits access_mask $security_defs($x)
         }
     }
 
@@ -2018,7 +2156,7 @@ proc twapi::_ace_type_code_to_symbol {type} {
 
 # Init the arrays used for mapping ACE type symbols to codes and back
 proc twapi::_init_ace_type_symbol_to_code_map {} {
-    variable windefs
+    variable security_defs
 
     if {[info exists ::twapi::_ace_type_symbol_to_code_map]} {
         return
@@ -2027,24 +2165,24 @@ proc twapi::_init_ace_type_symbol_to_code_map {} {
     # Define the array. Be careful to "normalize" the integer values
     array set ::twapi::_ace_type_symbol_to_code_map \
         [list \
-             allow [expr { $windefs(ACCESS_ALLOWED_ACE_TYPE) + 0 }] \
-             deny [expr  { $windefs(ACCESS_DENIED_ACE_TYPE) + 0 }] \
-             audit [expr { $windefs(SYSTEM_AUDIT_ACE_TYPE) + 0 }] \
-             alarm [expr { $windefs(SYSTEM_ALARM_ACE_TYPE) + 0 }] \
-             allow_compound [expr { $windefs(ACCESS_ALLOWED_COMPOUND_ACE_TYPE) + 0 }] \
-             allow_object [expr   { $windefs(ACCESS_ALLOWED_OBJECT_ACE_TYPE) + 0 }] \
-             deny_object [expr    { $windefs(ACCESS_DENIED_OBJECT_ACE_TYPE) + 0 }] \
-             audit_object [expr   { $windefs(SYSTEM_AUDIT_OBJECT_ACE_TYPE) + 0 }] \
-             alarm_object [expr   { $windefs(SYSTEM_ALARM_OBJECT_ACE_TYPE) + 0 }] \
-             allow_callback [expr { $windefs(ACCESS_ALLOWED_CALLBACK_ACE_TYPE) + 0 }] \
-             deny_callback [expr  { $windefs(ACCESS_DENIED_CALLBACK_ACE_TYPE) + 0 }] \
-             allow_callback_object [expr { $windefs(ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             deny_callback_object [expr  { $windefs(ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             audit_callback [expr { $windefs(SYSTEM_AUDIT_CALLBACK_ACE_TYPE) + 0 }] \
-             alarm_callback [expr { $windefs(SYSTEM_ALARM_CALLBACK_ACE_TYPE) + 0 }] \
-             audit_callback_object [expr { $windefs(SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             alarm_callback_object [expr { $windefs(SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             mandatory_label [expr { $windefs(SYSTEM_MANDATORY_LABEL_ACE_TYPE) + 0 }] \
+             allow [expr { $security_defs(ACCESS_ALLOWED_ACE_TYPE) + 0 }] \
+             deny [expr  { $security_defs(ACCESS_DENIED_ACE_TYPE) + 0 }] \
+             audit [expr { $security_defs(SYSTEM_AUDIT_ACE_TYPE) + 0 }] \
+             alarm [expr { $security_defs(SYSTEM_ALARM_ACE_TYPE) + 0 }] \
+             allow_compound [expr { $security_defs(ACCESS_ALLOWED_COMPOUND_ACE_TYPE) + 0 }] \
+             allow_object [expr   { $security_defs(ACCESS_ALLOWED_OBJECT_ACE_TYPE) + 0 }] \
+             deny_object [expr    { $security_defs(ACCESS_DENIED_OBJECT_ACE_TYPE) + 0 }] \
+             audit_object [expr   { $security_defs(SYSTEM_AUDIT_OBJECT_ACE_TYPE) + 0 }] \
+             alarm_object [expr   { $security_defs(SYSTEM_ALARM_OBJECT_ACE_TYPE) + 0 }] \
+             allow_callback [expr { $security_defs(ACCESS_ALLOWED_CALLBACK_ACE_TYPE) + 0 }] \
+             deny_callback [expr  { $security_defs(ACCESS_DENIED_CALLBACK_ACE_TYPE) + 0 }] \
+             allow_callback_object [expr { $security_defs(ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
+             deny_callback_object [expr  { $security_defs(ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
+             audit_callback [expr { $security_defs(SYSTEM_AUDIT_CALLBACK_ACE_TYPE) + 0 }] \
+             alarm_callback [expr { $security_defs(SYSTEM_ALARM_CALLBACK_ACE_TYPE) + 0 }] \
+             audit_callback_object [expr { $security_defs(SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
+             alarm_callback_object [expr { $security_defs(SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
+             mandatory_label [expr { $security_defs(SYSTEM_MANDATORY_LABEL_ACE_TYPE) + 0 }] \
                  ]
 
     # Now define the array in the other direction
