@@ -205,3 +205,384 @@ proc twapi::revert_to_self {{opt ""}} {
     RevertToSelf
 }
 
+proc twapi::_init_security_defs {} {
+    variable security_defs
+
+    array set security_defs {
+
+        TOKEN_ASSIGN_PRIMARY           0x00000001
+        TOKEN_DUPLICATE                0x00000002
+        TOKEN_IMPERSONATE              0x00000004
+        TOKEN_QUERY                    0x00000008
+        TOKEN_QUERY_SOURCE             0x00000010
+        TOKEN_ADJUST_PRIVILEGES        0x00000020
+        TOKEN_ADJUST_GROUPS            0x00000040
+        TOKEN_ADJUST_DEFAULT           0x00000080
+        TOKEN_ADJUST_SESSIONID         0x00000100
+
+        TOKEN_ALL_ACCESS_WINNT         0x000F00FF
+        TOKEN_ALL_ACCESS_WIN2K         0x000F01FF
+        TOKEN_ALL_ACCESS               0x000F01FF
+        TOKEN_READ                     0x00020008
+        TOKEN_WRITE                    0x000200E0
+        TOKEN_EXECUTE                  0x00020000
+
+
+        SYSTEM_MANDATORY_LABEL_NO_WRITE_UP         0x1
+        SYSTEM_MANDATORY_LABEL_NO_READ_UP          0x2
+        SYSTEM_MANDATORY_LABEL_NO_EXECUTE_UP       0x4
+
+        ACL_REVISION     2
+        ACL_REVISION_DS  4
+
+        ACCESS_MAX_MS_V2_ACE_TYPE               0x3
+        ACCESS_MAX_MS_V3_ACE_TYPE               0x4
+        ACCESS_MAX_MS_V4_ACE_TYPE               0x8
+        ACCESS_MAX_MS_V5_ACE_TYPE               0x11
+
+        STANDARD_RIGHTS_REQUIRED       0x000F0000
+        STANDARD_RIGHTS_READ           0x00020000
+        STANDARD_RIGHTS_WRITE          0x00020000
+        STANDARD_RIGHTS_EXECUTE        0x00020000
+        STANDARD_RIGHTS_ALL            0x001F0000
+        SPECIFIC_RIGHTS_ALL            0x0000FFFF
+
+        GENERIC_READ                   0x80000000
+        GENERIC_WRITE                  0x40000000
+        GENERIC_EXECUTE                0x20000000
+        GENERIC_ALL                    0x10000000
+
+        SERVICE_QUERY_CONFIG           0x00000001
+        SERVICE_CHANGE_CONFIG          0x00000002
+        SERVICE_QUERY_STATUS           0x00000004
+        SERVICE_ENUMERATE_DEPENDENTS   0x00000008
+        SERVICE_START                  0x00000010
+        SERVICE_STOP                   0x00000020
+        SERVICE_PAUSE_CONTINUE         0x00000040
+        SERVICE_INTERROGATE            0x00000080
+        SERVICE_USER_DEFINED_CONTROL   0x00000100
+        SERVICE_ALL_ACCESS             0x000F01FF
+
+        SC_MANAGER_CONNECT             0x00000001
+        SC_MANAGER_CREATE_SERVICE      0x00000002
+        SC_MANAGER_ENUMERATE_SERVICE   0x00000004
+        SC_MANAGER_LOCK                0x00000008
+        SC_MANAGER_QUERY_LOCK_STATUS   0x00000010
+        SC_MANAGER_MODIFY_BOOT_CONFIG  0x00000020
+        SC_MANAGER_ALL_ACCESS          0x000F003F
+
+        KEY_QUERY_VALUE                0x00000001
+        KEY_SET_VALUE                  0x00000002
+        KEY_CREATE_SUB_KEY             0x00000004
+        KEY_ENUMERATE_SUB_KEYS         0x00000008
+        KEY_NOTIFY                     0x00000010
+        KEY_CREATE_LINK                0x00000020
+        KEY_WOW64_32KEY                0x00000200
+        KEY_WOW64_64KEY                0x00000100
+        KEY_WOW64_RES                  0x00000300
+        KEY_READ                       0x00020019
+        KEY_WRITE                      0x00020006
+        KEY_EXECUTE                    0x00020019
+        KEY_ALL_ACCESS                 0x000F003F
+
+        POLICY_VIEW_LOCAL_INFORMATION   0x00000001
+        POLICY_VIEW_AUDIT_INFORMATION   0x00000002
+        POLICY_GET_PRIVATE_INFORMATION  0x00000004
+        POLICY_TRUST_ADMIN              0x00000008
+        POLICY_CREATE_ACCOUNT           0x00000010
+        POLICY_CREATE_SECRET            0x00000020
+        POLICY_CREATE_PRIVILEGE         0x00000040
+        POLICY_SET_DEFAULT_QUOTA_LIMITS 0x00000080
+        POLICY_SET_AUDIT_REQUIREMENTS   0x00000100
+        POLICY_AUDIT_LOG_ADMIN          0x00000200
+        POLICY_SERVER_ADMIN             0x00000400
+        POLICY_LOOKUP_NAMES             0x00000800
+        POLICY_NOTIFICATION             0x00001000
+        POLICY_READ                     0X00020006
+        POLICY_WRITE                    0X000207F8
+        POLICY_EXECUTE                  0X00020801
+        POLICY_ALL_ACCESS               0X000F0FFF
+
+        DESKTOP_READOBJECTS         0x0001
+        DESKTOP_CREATEWINDOW        0x0002
+        DESKTOP_CREATEMENU          0x0004
+        DESKTOP_HOOKCONTROL         0x0008
+        DESKTOP_JOURNALRECORD       0x0010
+        DESKTOP_JOURNALPLAYBACK     0x0020
+        DESKTOP_ENUMERATE           0x0040
+        DESKTOP_WRITEOBJECTS        0x0080
+        DESKTOP_SWITCHDESKTOP       0x0100
+
+        WINSTA_ENUMDESKTOPS         0x0001
+        WINSTA_READATTRIBUTES       0x0002
+        WINSTA_ACCESSCLIPBOARD      0x0004
+        WINSTA_CREATEDESKTOP        0x0008
+        WINSTA_WRITEATTRIBUTES      0x0010
+        WINSTA_ACCESSGLOBALATOMS    0x0020
+        WINSTA_EXITWINDOWS          0x0040
+        WINSTA_ENUMERATE            0x0100
+        WINSTA_READSCREEN           0x0200
+        WINSTA_ALL_ACCESS           0x37f
+
+        PROCESS_TERMINATE              0x0001
+        PROCESS_CREATE_THREAD          0x0002
+        PROCESS_SET_SESSIONID          0x0004
+        PROCESS_VM_OPERATION           0x0008
+        PROCESS_VM_READ                0x0010
+        PROCESS_VM_WRITE               0x0020
+        PROCESS_DUP_HANDLE             0x0040
+        PROCESS_CREATE_PROCESS         0x0080
+        PROCESS_SET_QUOTA              0x0100
+        PROCESS_SET_INFORMATION        0x0200
+        PROCESS_QUERY_INFORMATION      0x0400
+        PROCESS_SUSPEND_RESUME         0x0800
+
+        THREAD_TERMINATE               0x00000001
+        THREAD_SUSPEND_RESUME          0x00000002
+        THREAD_GET_CONTEXT             0x00000008
+        THREAD_SET_CONTEXT             0x00000010
+        THREAD_SET_INFORMATION         0x00000020
+        THREAD_QUERY_INFORMATION       0x00000040
+        THREAD_SET_THREAD_TOKEN        0x00000080
+        THREAD_IMPERSONATE             0x00000100
+        THREAD_DIRECT_IMPERSONATION    0x00000200
+        THREAD_SET_LIMITED_INFORMATION   0x00000400
+        THREAD_QUERY_LIMITED_INFORMATION 0x00000800
+
+        EVENT_MODIFY_STATE             0x00000002
+        EVENT_ALL_ACCESS               0x001F0003
+
+        SEMAPHORE_MODIFY_STATE         0x00000002
+        SEMAPHORE_ALL_ACCESS           0x001F0003
+
+        MUTANT_QUERY_STATE             0x00000001
+        MUTANT_ALL_ACCESS              0x001F0001
+
+        MUTEX_MODIFY_STATE             0x00000001
+        MUTEX_ALL_ACCESS               0x001F0001
+
+        TIMER_QUERY_STATE              0x00000001
+        TIMER_MODIFY_STATE             0x00000002
+        TIMER_ALL_ACCESS               0x001F0003
+
+        FILE_READ_DATA                 0x00000001
+        FILE_LIST_DIRECTORY            0x00000001
+        FILE_WRITE_DATA                0x00000002
+        FILE_ADD_FILE                  0x00000002
+        FILE_APPEND_DATA               0x00000004
+        FILE_ADD_SUBDIRECTORY          0x00000004
+        FILE_CREATE_PIPE_INSTANCE      0x00000004
+        FILE_READ_EA                   0x00000008
+        FILE_WRITE_EA                  0x00000010
+        FILE_EXECUTE                   0x00000020
+        FILE_TRAVERSE                  0x00000020
+        FILE_DELETE_CHILD              0x00000040
+        FILE_READ_ATTRIBUTES           0x00000080
+        FILE_WRITE_ATTRIBUTES          0x00000100
+
+        FILE_ALL_ACCESS                0x001F01FF
+        FILE_GENERIC_READ              0x00120089
+        FILE_GENERIC_WRITE             0x00120116
+        FILE_GENERIC_EXECUTE           0x001200A0
+
+        DELETE                         0x00010000
+        READ_CONTROL                   0x00020000
+        WRITE_DAC                      0x00040000
+        WRITE_OWNER                    0x00080000
+        SYNCHRONIZE                    0x00100000
+    }
+
+    if {[min_os_version 6]} {
+        array set security_defs {
+            PROCESS_QUERY_LIMITED_INFORMATION      0x00001000
+            PROCESS_ALL_ACCESS             0x001fffff
+            THREAD_ALL_ACCESS              0x001fffff
+        }
+    } else {
+        array set security_defs {
+            PROCESS_ALL_ACCESS             0x001f0fff
+            THREAD_ALL_ACCESS              0x001f03ff
+        }
+    }
+
+    # Make next call a no-op
+    proc _init_security_defs {} {}
+}
+
+# Map a set of access right symbols to a flag. Concatenates
+# all the arguments, and then OR's the individual elements. Each
+# element may either be a integer or one of the access rights
+proc twapi::_access_rights_to_mask {args} {
+    _init_security_defs
+
+    proc _access_rights_to_mask args {
+        variable security_defs
+        set rights 0
+        foreach right [concat {*}$args] {
+            if {![string is integer $right]} {
+                if {[catch {set right $security_defs([string toupper $right])}]} {
+                    error "Invalid access right symbol '$right'"
+                }
+            }
+            set rights [expr {$rights | $right}]
+        }
+        return $rights
+    }
+    return [_access_rights_to_mask {*}$args]
+}
+
+
+# Map an access mask to a set of rights
+proc twapi::_access_mask_to_rights {access_mask {type ""}} {
+    _init_security_defs
+
+    proc _access_mask_to_rights {access_mask {type ""}} {
+        variable security_defs
+
+        set rights [list ]
+
+        if {$type eq "mandatory_label"} {
+            if {$access_mask & 1} {
+                lappend rights system_mandatory_label_no_write_up
+            }
+            if {$access_mask & 2} {
+                lappend rights system_mandatory_label_no_read_up
+            }
+            if {$access_mask & 4} {
+                lappend rights system_mandatory_label_no_execute_up
+            }
+            return $rights
+        }
+
+        # The returned list will include rights that map to multiple bits
+        # as well as the individual bits. We first add the multiple bits
+        # and then the individual bits (since we clear individual bits
+        # after adding)
+
+        #
+        # Check standard multiple bit masks
+        #
+        foreach x {STANDARD_RIGHTS_REQUIRED STANDARD_RIGHTS_READ STANDARD_RIGHTS_WRITE STANDARD_RIGHTS_EXECUTE STANDARD_RIGHTS_ALL SPECIFIC_RIGHTS_ALL} {
+            if {($security_defs($x) & $access_mask) == $security_defs($x)} {
+                lappend rights [string tolower $x]
+            }
+        }
+
+        #
+        # Check type specific multiple bit masks.
+        #
+        
+        set type_mask_map {
+            file {FILE_ALL_ACCESS FILE_GENERIC_READ FILE_GENERIC_WRITE FILE_GENERIC_EXECUTE}
+            process {PROCESS_ALL_ACCESS}
+            pipe {FILE_ALL_ACCESS}
+            policy {POLICY_READ POLICY_WRITE POLICY_EXECUTE POLICY_ALL_ACCESS}
+            registry {KEY_READ KEY_WRITE KEY_EXECUTE KEY_ALL_ACCESS}
+            service {SERVICE_ALL_ACCESS}
+            thread {THREAD_ALL_ACCESS}
+            token {TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE TOKEN_ALL_ACCESS}
+            desktop {}
+            winsta {WINSTA_ALL_ACCESS}
+        }
+        if {[dict exists $type_mask_map $type]} {
+            foreach x [dict get $type_mask_map $type] {
+                if {($security_defs($x) & $access_mask) == $security_defs($x)} {
+                    lappend rights [string tolower $x]
+                }
+            }
+        }
+
+        #
+        # OK, now map individual bits
+
+        # First map the common bits
+        foreach x {DELETE READ_CONTROL WRITE_DAC WRITE_OWNER SYNCHRONIZE} {
+            if {$security_defs($x) & $access_mask} {
+                lappend rights [string tolower $x]
+                resetbits access_mask $security_defs($x)
+            }
+        }
+
+        # Then the generic bits
+        foreach x {GENERIC_READ GENERIC_WRITE GENERIC_EXECUTE GENERIC_ALL} {
+            if {$security_defs($x) & $access_mask} {
+                lappend rights [string tolower $x]
+                resetbits access_mask $security_defs($x)
+            }
+        }
+
+        # Then the type specific
+        set type_mask_map {
+            file { FILE_READ_DATA FILE_WRITE_DATA FILE_APPEND_DATA
+                FILE_READ_EA FILE_WRITE_EA FILE_EXECUTE
+                FILE_DELETE_CHILD FILE_READ_ATTRIBUTES
+                FILE_WRITE_ATTRIBUTES }
+            pipe { FILE_READ_DATA FILE_WRITE_DATA FILE_CREATE_PIPE_INSTANCE
+                FILE_READ_ATTRIBUTES FILE_WRITE_ATTRIBUTES }
+            service { SERVICE_QUERY_CONFIG SERVICE_CHANGE_CONFIG
+                SERVICE_QUERY_STATUS SERVICE_ENUMERATE_DEPENDENTS
+                SERVICE_START SERVICE_STOP SERVICE_PAUSE_CONTINUE
+                SERVICE_INTERROGATE SERVICE_USER_DEFINED_CONTROL }
+            registry { KEY_QUERY_VALUE KEY_SET_VALUE KEY_CREATE_SUB_KEY
+                KEY_ENUMERATE_SUB_KEYS KEY_NOTIFY KEY_CREATE_LINK
+                KEY_WOW64_32KEY KEY_WOW64_64KEY KEY_WOW64_RES }
+            policy { POLICY_VIEW_LOCAL_INFORMATION POLICY_VIEW_AUDIT_INFORMATION
+                POLICY_GET_PRIVATE_INFORMATION POLICY_TRUST_ADMIN
+                POLICY_CREATE_ACCOUNT POLICY_CREATE_SECRET
+                POLICY_CREATE_PRIVILEGE POLICY_SET_DEFAULT_QUOTA_LIMITS
+                POLICY_SET_AUDIT_REQUIREMENTS POLICY_AUDIT_LOG_ADMIN
+                POLICY_SERVER_ADMIN POLICY_LOOKUP_NAMES }
+            process { PROCESS_TERMINATE PROCESS_CREATE_THREAD
+                PROCESS_SET_SESSIONID PROCESS_VM_OPERATION
+                PROCESS_VM_READ PROCESS_VM_WRITE PROCESS_DUP_HANDLE
+                PROCESS_CREATE_PROCESS PROCESS_SET_QUOTA
+                PROCESS_SET_INFORMATION PROCESS_QUERY_INFORMATION
+                PROCESS_SUSPEND_RESUME} 
+            thread { THREAD_TERMINATE THREAD_SUSPEND_RESUME
+                THREAD_GET_CONTEXT THREAD_SET_CONTEXT
+                THREAD_SET_INFORMATION THREAD_QUERY_INFORMATION
+                THREAD_SET_THREAD_TOKEN THREAD_IMPERSONATE
+                THREAD_DIRECT_IMPERSONATION
+                THREAD_SET_LIMITED_INFORMATION
+                THREAD_QUERY_LIMITED_INFORMATION }
+            token { TOKEN_ASSIGN_PRIMARY TOKEN_DUPLICATE TOKEN_IMPERSONATE
+                TOKEN_QUERY TOKEN_QUERY_SOURCE TOKEN_ADJUST_PRIVILEGES
+                TOKEN_ADJUST_GROUPS TOKEN_ADJUST_DEFAULT TOKEN_ADJUST_SESSIONID }
+            desktop { DESKTOP_READOBJECTS DESKTOP_CREATEWINDOW
+                DESKTOP_CREATEMENU DESKTOP_HOOKCONTROL
+                DESKTOP_JOURNALRECORD DESKTOP_JOURNALPLAYBACK
+                DESKTOP_ENUMERATE DESKTOP_WRITEOBJECTS DESKTOP_SWITCHDESKTOP }
+            windowstation -
+            winsta { WINSTA_ENUMDESKTOPS WINSTA_READATTRIBUTES
+                WINSTA_ACCESSCLIPBOARD WINSTA_CREATEDESKTOP
+                WINSTA_WRITEATTRIBUTES WINSTA_ACCESSGLOBALATOMS
+                WINSTA_EXITWINDOWS WINSTA_ENUMERATE WINSTA_READSCREEN }
+        }
+
+        if {[min_os_version 6]} {
+            dict lappend type_mask_map process PROCESS_QUERY_LIMITED_INFORMATION
+        }
+
+        if {[dict exists $type_mask_map $type]} {
+            foreach x [dict get $type_mask_map $type] {
+                if {$security_defs($x) & $access_mask} {
+                    lappend rights [string tolower $x]
+                    # Reset the bit so is it not included in unknown bits below
+                    resetbits access_mask $security_defs($x)
+                }
+            }
+        }
+
+        # Finally add left over bits if any
+        for {set i 0} {$i < 32} {incr i} {
+            set x [expr {1 << $i}]
+            if {$access_mask & $x} {
+                lappend rights [format 0x%.8X $x]
+            }
+        }
+
+        return $rights
+    }
+
+    return [_access_mask_to_rights {*}$args]
+}

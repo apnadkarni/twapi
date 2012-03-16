@@ -62,297 +62,13 @@ namespace eval twapi {
         "power users"   S-1-5-32-547
     }
 
-    # #defines from windows.h etc.
-    # See which of these are actually used and remove unused - TBD
-    array set security_defs {
-        LOGON32_LOGON_INTERACTIVE       2
-        LOGON32_LOGON_NETWORK           3
-        LOGON32_LOGON_BATCH             4
-        LOGON32_LOGON_SERVICE           5
-        LOGON32_LOGON_UNLOCK            7
-        LOGON32_LOGON_NETWORK_CLEARTEXT 8
-        LOGON32_LOGON_NEW_CREDENTIALS   9
-
-        LOGON32_PROVIDER_DEFAULT    0
-        LOGON32_PROVIDER_WINNT35    1
-        LOGON32_PROVIDER_WINNT40    2
-        LOGON32_PROVIDER_WINNT50    3
-
-        SE_GROUP_MANDATORY              0x00000001
-        SE_GROUP_ENABLED_BY_DEFAULT     0x00000002
-        SE_GROUP_ENABLED                0x00000004
-        SE_GROUP_OWNER                  0x00000008
-        SE_GROUP_USE_FOR_DENY_ONLY      0x00000010
-        SE_GROUP_LOGON_ID               0xC0000000
-        SE_GROUP_RESOURCE               0x20000000
-        SE_GROUP_INTEGRITY              0x00000020
-        SE_GROUP_INTEGRITY_ENABLED      0x00000040
-
-        SE_PRIVILEGE_ENABLED_BY_DEFAULT 0x00000001
-        SE_PRIVILEGE_ENABLED            0x00000002
-        SE_PRIVILEGE_USED_FOR_ACCESS    0x80000000
-
-        TOKEN_ASSIGN_PRIMARY           0x00000001
-        TOKEN_DUPLICATE                0x00000002
-        TOKEN_IMPERSONATE              0x00000004
-        TOKEN_QUERY                    0x00000008
-        TOKEN_QUERY_SOURCE             0x00000010
-        TOKEN_ADJUST_PRIVILEGES        0x00000020
-        TOKEN_ADJUST_GROUPS            0x00000040
-        TOKEN_ADJUST_DEFAULT           0x00000080
-        TOKEN_ADJUST_SESSIONID         0x00000100
-
-        TOKEN_ALL_ACCESS_WINNT         0x000F00FF
-        TOKEN_ALL_ACCESS_WIN2K         0x000F01FF
-        TOKEN_ALL_ACCESS               0x000F01FF
-        TOKEN_READ                     0x00020008
-        TOKEN_WRITE                    0x000200E0
-        TOKEN_EXECUTE                  0x00020000
-
-        TokenUser                      1
-        TokenGroups                    2
-        TokenPrivileges                3
-        TokenOwner                     4
-        TokenPrimaryGroup              5
-        TokenDefaultDacl               6
-        TokenSource                    7
-        TokenType                      8
-        TokenImpersonationLevel        9
-        TokenStatistics               10
-        TokenRestrictedSids           11
-        TokenSessionId                12
-        TokenGroupsAndPrivileges      13
-        TokenSessionReference         14
-        TokenSandBoxInert             15
-        TokenAuditPolicy              16
-        TokenOrigin                   17
-        TokenElevationType            18
-        TokenLinkedToken              19
-        TokenElevation                20
-        TokenHasRestrictions          21
-        TokenAccessInformation        22
-        TokenVirtualizationAllowed    23
-        TokenVirtualizationEnabled    24
-        TokenIntegrityLevel           25
-        TokenUIAccess                 26
-        TokenMandatoryPolicy          27
-        TokenLogonSid                 28
-
-        OBJECT_INHERIT_ACE                0x1
-        CONTAINER_INHERIT_ACE             0x2
-        NO_PROPAGATE_INHERIT_ACE          0x4
-        INHERIT_ONLY_ACE                  0x8
-        INHERITED_ACE                     0x10
-        VALID_INHERIT_FLAGS               0x1F
-
-        SYSTEM_MANDATORY_LABEL_NO_WRITE_UP         0x1
-        SYSTEM_MANDATORY_LABEL_NO_READ_UP          0x2
-        SYSTEM_MANDATORY_LABEL_NO_EXECUTE_UP       0x4
-
-        ACL_REVISION     2
-        ACL_REVISION_DS  4
-
-        ACCESS_ALLOWED_ACE_TYPE                 0x0
-        ACCESS_DENIED_ACE_TYPE                  0x1
-        SYSTEM_AUDIT_ACE_TYPE                   0x2
-        SYSTEM_ALARM_ACE_TYPE                   0x3
-        ACCESS_ALLOWED_COMPOUND_ACE_TYPE        0x4
-        ACCESS_ALLOWED_OBJECT_ACE_TYPE          0x5
-        ACCESS_DENIED_OBJECT_ACE_TYPE           0x6
-        SYSTEM_AUDIT_OBJECT_ACE_TYPE            0x7
-        SYSTEM_ALARM_OBJECT_ACE_TYPE            0x8
-        ACCESS_ALLOWED_CALLBACK_ACE_TYPE        0x9
-        ACCESS_DENIED_CALLBACK_ACE_TYPE         0xA
-        ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE 0xB
-        ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE  0xC
-        SYSTEM_AUDIT_CALLBACK_ACE_TYPE          0xD
-        SYSTEM_ALARM_CALLBACK_ACE_TYPE          0xE
-        SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE   0xF
-        SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE   0x10
-        SYSTEM_MANDATORY_LABEL_ACE_TYPE         0x11
-
-        ACCESS_MAX_MS_V2_ACE_TYPE               0x3
-        ACCESS_MAX_MS_V3_ACE_TYPE               0x4
-        ACCESS_MAX_MS_V4_ACE_TYPE               0x8
-        ACCESS_MAX_MS_V5_ACE_TYPE               0x11
-
-
-        OWNER_SECURITY_INFORMATION              0x00000001
-        GROUP_SECURITY_INFORMATION              0x00000002
-        DACL_SECURITY_INFORMATION               0x00000004
-        SACL_SECURITY_INFORMATION               0x00000008
-        LABEL_SECURITY_INFORMATION       	0x00000010
-
-        PROTECTED_DACL_SECURITY_INFORMATION     0x80000000
-        PROTECTED_SACL_SECURITY_INFORMATION     0x40000000
-        UNPROTECTED_DACL_SECURITY_INFORMATION   0x20000000
-        UNPROTECTED_SACL_SECURITY_INFORMATION   0x10000000
-
-        STANDARD_RIGHTS_REQUIRED       0x000F0000
-        STANDARD_RIGHTS_READ           0x00020000
-        STANDARD_RIGHTS_WRITE          0x00020000
-        STANDARD_RIGHTS_EXECUTE        0x00020000
-        STANDARD_RIGHTS_ALL            0x001F0000
-        SPECIFIC_RIGHTS_ALL            0x0000FFFF
-
-        GENERIC_READ                   0x80000000
-        GENERIC_WRITE                  0x40000000
-        GENERIC_EXECUTE                0x20000000
-        GENERIC_ALL                    0x10000000
-
-        SERVICE_QUERY_CONFIG           0x00000001
-        SERVICE_CHANGE_CONFIG          0x00000002
-        SERVICE_QUERY_STATUS           0x00000004
-        SERVICE_ENUMERATE_DEPENDENTS   0x00000008
-        SERVICE_START                  0x00000010
-        SERVICE_STOP                   0x00000020
-        SERVICE_PAUSE_CONTINUE         0x00000040
-        SERVICE_INTERROGATE            0x00000080
-        SERVICE_USER_DEFINED_CONTROL   0x00000100
-        SERVICE_ALL_ACCESS             0x000F01FF
-
-        SC_MANAGER_CONNECT             0x00000001
-        SC_MANAGER_CREATE_SERVICE      0x00000002
-        SC_MANAGER_ENUMERATE_SERVICE   0x00000004
-        SC_MANAGER_LOCK                0x00000008
-        SC_MANAGER_QUERY_LOCK_STATUS   0x00000010
-        SC_MANAGER_MODIFY_BOOT_CONFIG  0x00000020
-        SC_MANAGER_ALL_ACCESS          0x000F003F
-
-        KEY_QUERY_VALUE                0x00000001
-        KEY_SET_VALUE                  0x00000002
-        KEY_CREATE_SUB_KEY             0x00000004
-        KEY_ENUMERATE_SUB_KEYS         0x00000008
-        KEY_NOTIFY                     0x00000010
-        KEY_CREATE_LINK                0x00000020
-        KEY_WOW64_32KEY                0x00000200
-        KEY_WOW64_64KEY                0x00000100
-        KEY_WOW64_RES                  0x00000300
-        KEY_READ                       0x00020019
-        KEY_WRITE                      0x00020006
-        KEY_EXECUTE                    0x00020019
-        KEY_ALL_ACCESS                 0x000F003F
-
-        POLICY_VIEW_LOCAL_INFORMATION   0x00000001
-        POLICY_VIEW_AUDIT_INFORMATION   0x00000002
-        POLICY_GET_PRIVATE_INFORMATION  0x00000004
-        POLICY_TRUST_ADMIN              0x00000008
-        POLICY_CREATE_ACCOUNT           0x00000010
-        POLICY_CREATE_SECRET            0x00000020
-        POLICY_CREATE_PRIVILEGE         0x00000040
-        POLICY_SET_DEFAULT_QUOTA_LIMITS 0x00000080
-        POLICY_SET_AUDIT_REQUIREMENTS   0x00000100
-        POLICY_AUDIT_LOG_ADMIN          0x00000200
-        POLICY_SERVER_ADMIN             0x00000400
-        POLICY_LOOKUP_NAMES             0x00000800
-        POLICY_NOTIFICATION             0x00001000
-        POLICY_READ                     0X00020006
-        POLICY_WRITE                    0X000207F8
-        POLICY_EXECUTE                  0X00020801
-        POLICY_ALL_ACCESS               0X000F0FFF
-
-        DESKTOP_READOBJECTS         0x0001
-        DESKTOP_CREATEWINDOW        0x0002
-        DESKTOP_CREATEMENU          0x0004
-        DESKTOP_HOOKCONTROL         0x0008
-        DESKTOP_JOURNALRECORD       0x0010
-        DESKTOP_JOURNALPLAYBACK     0x0020
-        DESKTOP_ENUMERATE           0x0040
-        DESKTOP_WRITEOBJECTS        0x0080
-        DESKTOP_SWITCHDESKTOP       0x0100
-
-        WINSTA_ENUMDESKTOPS         0x0001
-        WINSTA_READATTRIBUTES       0x0002
-        WINSTA_ACCESSCLIPBOARD      0x0004
-        WINSTA_CREATEDESKTOP        0x0008
-        WINSTA_WRITEATTRIBUTES      0x0010
-        WINSTA_ACCESSGLOBALATOMS    0x0020
-        WINSTA_EXITWINDOWS          0x0040
-        WINSTA_ENUMERATE            0x0100
-        WINSTA_READSCREEN           0x0200
-        WINSTA_ALL_ACCESS           0x37f
-
-        PROCESS_TERMINATE              0x0001
-        PROCESS_CREATE_THREAD          0x0002
-        PROCESS_SET_SESSIONID          0x0004
-        PROCESS_VM_OPERATION           0x0008
-        PROCESS_VM_READ                0x0010
-        PROCESS_VM_WRITE               0x0020
-        PROCESS_DUP_HANDLE             0x0040
-        PROCESS_CREATE_PROCESS         0x0080
-        PROCESS_SET_QUOTA              0x0100
-        PROCESS_SET_INFORMATION        0x0200
-        PROCESS_QUERY_INFORMATION      0x0400
-        PROCESS_SUSPEND_RESUME         0x0800
-
-        THREAD_TERMINATE               0x00000001
-        THREAD_SUSPEND_RESUME          0x00000002
-        THREAD_GET_CONTEXT             0x00000008
-        THREAD_SET_CONTEXT             0x00000010
-        THREAD_SET_INFORMATION         0x00000020
-        THREAD_QUERY_INFORMATION       0x00000040
-        THREAD_SET_THREAD_TOKEN        0x00000080
-        THREAD_IMPERSONATE             0x00000100
-        THREAD_DIRECT_IMPERSONATION    0x00000200
-        THREAD_SET_LIMITED_INFORMATION   0x00000400
-        THREAD_QUERY_LIMITED_INFORMATION 0x00000800
-
-        EVENT_MODIFY_STATE             0x00000002
-        EVENT_ALL_ACCESS               0x001F0003
-
-        SEMAPHORE_MODIFY_STATE         0x00000002
-        SEMAPHORE_ALL_ACCESS           0x001F0003
-
-        MUTANT_QUERY_STATE             0x00000001
-        MUTANT_ALL_ACCESS              0x001F0001
-
-        MUTEX_MODIFY_STATE             0x00000001
-        MUTEX_ALL_ACCESS               0x001F0001
-
-        TIMER_QUERY_STATE              0x00000001
-        TIMER_MODIFY_STATE             0x00000002
-        TIMER_ALL_ACCESS               0x001F0003
-
-        FILE_READ_DATA                 0x00000001
-        FILE_LIST_DIRECTORY            0x00000001
-        FILE_WRITE_DATA                0x00000002
-        FILE_ADD_FILE                  0x00000002
-        FILE_APPEND_DATA               0x00000004
-        FILE_ADD_SUBDIRECTORY          0x00000004
-        FILE_CREATE_PIPE_INSTANCE      0x00000004
-        FILE_READ_EA                   0x00000008
-        FILE_WRITE_EA                  0x00000010
-        FILE_EXECUTE                   0x00000020
-        FILE_TRAVERSE                  0x00000020
-        FILE_DELETE_CHILD              0x00000040
-        FILE_READ_ATTRIBUTES           0x00000080
-        FILE_WRITE_ATTRIBUTES          0x00000100
-
-        FILE_ALL_ACCESS                0x001F01FF
-        FILE_GENERIC_READ              0x00120089
-        FILE_GENERIC_WRITE             0x00120116
-        FILE_GENERIC_EXECUTE           0x001200A0
-
-        DELETE                         0x00010000
-        READ_CONTROL                   0x00020000
-        WRITE_DAC                      0x00040000
-        WRITE_OWNER                    0x00080000
-        SYNCHRONIZE                    0x00100000
-    }
-
-    if {[min_os_version 6]} {
-        array set security_defs {
-            PROCESS_QUERY_LIMITED_INFORMATION      0x00001000
-            PROCESS_ALL_ACCESS             0x001fffff
-            THREAD_ALL_ACCESS              0x001fffff
-        }
-    } else {
-        array set security_defs {
-            PROCESS_ALL_ACCESS             0x001f0fff
-            THREAD_ALL_ACCESS              0x001f03ff
-        }
-    }
-
+    # TBD - the following are not used, enhancements needed ?
+    # OBJECT_INHERIT_ACE                0x1
+    # CONTAINER_INHERIT_ACE             0x2
+    # NO_PROPAGATE_INHERIT_ACE          0x4
+    # INHERIT_ONLY_ACE                  0x8
+    # INHERITED_ACE                     0x10
+    # VALID_INHERIT_FLAGS               0x1F
 
     # Cache of privilege names to LUID's
     variable _privilege_to_luid_map
@@ -653,7 +369,7 @@ proc twapi::get_token_info {tok args} {
                 set items {}
                 # First element of groups is user sid, skip it
                 foreach item [lrange $gtigroups 1 end] {
-                    lappend items [lindex $item 0] [_map_token_attr [lindex $item 1] SE_GROUP]
+                    lappend items [lindex $item 0] [map_token_group_attr [lindex $item 1]]
                 }
                 lappend result -groupattrs $items
             } else {
@@ -674,7 +390,7 @@ proc twapi::get_token_info {tok args} {
             if {[info exists gtirestrictedgroups]} {
                 set items {}
                 foreach item $gtirestrictedgroups {
-                    lappend items [lindex $item 0] [_map_token_attr [lindex $item 1] SE_GROUP]
+                    lappend items [lindex $item 0] [map_token_group_attr [lindex $item 1]]
                 }
                 lappend result -restrictedgroupattrs $items
             } else {
@@ -847,7 +563,7 @@ proc twapi::get_token_groups_and_attrs {tok} {
     set sids_and_attrs [list ]
     # TokenGroups -> 2
     foreach {group} [GetTokenInformation $tok 2] {
-        lappend sids_and_attrs [lindex $group 0] [_map_token_attr [lindex $group 1] SE_GROUP]
+        lappend sids_and_attrs [lindex $group 0] [map_token_group_attr [lindex $group 1]]
     }
 
     return $sids_and_attrs
@@ -860,7 +576,7 @@ proc twapi::get_token_restricted_groups_and_attrs {tok} {
     set sids_and_attrs [list ]
     # TokenRestrictedGroups -> 11
     foreach {group} [GetTokenInformation $tok 11] {
-        lappend sids_and_attrs [lindex $group 0] [_map_token_attr [lindex $group 1] SE_GROUP]
+        lappend sids_and_attrs [lindex $group 0] [map_token_group_attr [lindex $group 1]]
     }
 
     return $sids_and_attrs
@@ -965,7 +681,7 @@ proc twapi::get_token_privileges_and_attrs {tok} {
     foreach priv [GetTokenInformation $tok 3] {
         lassign $priv luid attr
         lappend privs_and_attrs [map_luid_to_privilege $luid -mapunknown] \
-            [_map_token_attr $attr SE_PRIVILEGE]
+            [map_token_privilege_attr $attr]
     }
 
     return $privs_and_attrs
@@ -1316,6 +1032,7 @@ proc twapi::sort_aces {aces} {
     # before all inherited ACEs. Within these groups, the order should be
     # access denied ACEs, access denied ACEs for objects/properties,
     # access allowed ACEs, access allowed ACEs for objects/properties,
+    # TBD - check this ordering against http://msdn.microsoft.com/en-us/library/windows/desktop/aa379298%28v=vs.85%29.aspx
     foreach ace $aces {
         set type [get_ace_type $ace]
         # INHERITED_ACE -> 0x10
@@ -1403,8 +1120,6 @@ proc twapi::get_ace_text {ace args} {
 
 # Create a new ACL
 proc twapi::new_acl {{aces ""}} {
-    variable security_defs
-
     # NOTE: we ALWAYS set aclrev to 2. This may not be correct for the
     # supplied ACEs but that's ok. The C level code calculates the correct
     # acl rev level and overwrites anyways.
@@ -1599,7 +1314,6 @@ proc twapi::set_security_descriptor_sacl {secd acl} {
 
 # Get the specified security information for the given object
 proc twapi::get_resource_security_descriptor {restype name args} {
-    variable security_defs
 
     # -mandatory_label field is not documented. Should we ? TBD
     array set opts [parseargs args {
@@ -1614,26 +1328,29 @@ proc twapi::get_resource_security_descriptor {restype name args} {
 
     set wanted 0
 
-    foreach field {owner group dacl sacl} {
+    # OWNER_SECURITY_INFORMATION 1
+    # GROUP_SECURITY_INFORMATION 2
+    # DACL_SECURITY_INFORMATION  4
+    # SACL_SECURITY_INFORMATION  8
+    foreach {field mask} {owner 1 group 2 dacl 4 sacl 8} {
         if {$opts($field) || $opts(all)} {
-            set wanted [expr {$wanted | $security_defs([string toupper $field]_SECURITY_INFORMATION)}]
+            incr wanted $mask;  # Equivalent to OR operation
         }
     }
 
+    # LABEL_SECURITY_INFORMATION 0x10
     if {[min_os_version 6]} {
         if {$opts(mandatory_label) || $opts(all)} {
-            set wanted [expr {$wanted | $security_defs(LABEL_SECURITY_INFORMATION)}]
+            incr wanted 16;     # OR with 0x10
         }
     }
 
     # Note if no options specified, we ask for everything except
     # SACL's which require special privileges
     if {! $wanted} {
-        set wanted [expr {$security_defs(OWNER_SECURITY_INFORMATION) |
-                          $security_defs(GROUP_SECURITY_INFORMATION) |
-                          $security_defs(DACL_SECURITY_INFORMATION)}]
+        set wanted 0x7
         if {[min_os_version 6]} {
-            set wanted [expr {$wanted | $security_defs(LABEL_SECURITY_INFORMATION)}]
+            incr wanted 0x10
         }
     }
 
@@ -1677,8 +1394,11 @@ proc twapi::get_resource_security_descriptor {restype name args} {
 # See http://search.cpan.org/src/TEVERETT/Win32-Security-0.50/README
 # for a good discussion even though that applies to Perl
 proc twapi::set_resource_security_descriptor {restype name secd args} {
-    variable security_defs
 
+    # PROTECTED_DACL_SECURITY_INFORMATION     0x80000000
+    # PROTECTED_SACL_SECURITY_INFORMATION     0x40000000
+    # UNPROTECTED_DACL_SECURITY_INFORMATION   0x20000000
+    # UNPROTECTED_SACL_SECURITY_INFORMATION   0x10000000
     array set opts [parseargs args {
         all
         handle
@@ -1713,21 +1433,21 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
 
     if {$opts(owner) || $opts(all)} {
         set opts(owner) [get_security_descriptor_owner $secd]
-        setbits mask $security_defs(OWNER_SECURITY_INFORMATION)
+        setbits mask 1; # OWNER_SECURITY_INFORMATION
     } else {
         set opts(owner) ""
     }
 
     if {$opts(group) || $opts(all)} {
         set opts(group) [get_security_descriptor_group $secd]
-        setbits mask $security_defs(GROUP_SECURITY_INFORMATION)
+        setbits mask 2; # GROUP_SECURITY_INFORMATION
     } else {
         set opts(group) ""
     }
 
     if {$opts(dacl) || $opts(all)} {
         set opts(dacl) [get_security_descriptor_dacl $secd]
-        setbits mask $security_defs(DACL_SECURITY_INFORMATION)
+        setbits mask 4; # DACL_SECURITY_INFORMATION
     } else {
         set opts(dacl) null
     }
@@ -1735,11 +1455,11 @@ proc twapi::set_resource_security_descriptor {restype name secd args} {
     if {$opts(sacl) || $opts(mandatory_label) || $opts(all)} {
         set sacl [get_security_descriptor_sacl $secd]
         if {$opts(sacl) || $opts(all)} {
-            setbits mask $security_defs(SACL_SECURITY_INFORMATION)
+            setbits mask 0x8; # SACL_SECURITY_INFORMATION
         }
         if {[min_os_version 6]} {
             if {$opts(mandatory_label) || $opts(all)} {
-                setbits mask $security_defs(LABEL_SECURITY_INFORMATION)
+                setbits mask 0x10; # LABEL_SECURITY_INFORMATION
             }
         }
         set opts(sacl) $sacl
@@ -2012,194 +1732,46 @@ proc twapi::_get_token_sid_field {tok field options} {
     return $owner
 }
 
-
-# Map a token attribute mask to list of attribute names
-proc twapi::_map_token_attr {attr prefix} {
-    variable security_defs
-    set attrs [list ]
-    set plen [string length $prefix]
-    incr plen
-    foreach {name mask} [array get security_defs ${prefix}_*] {
-        if {[expr {$attr & $mask}]} {
-            lappend attrs [string tolower [string range $name $plen end]]
-        }
-    }
-    return $attrs
-}
-
 # Map token group attributes
-proc twapi::_map_token_group_attr {attr} {
-    return [_map_token_attr $attr SE_GROUP]
+# TBD - write a test for this
+proc twapi::map_token_group_attr {attr} {
+    # SE_GROUP_MANDATORY              0x00000001
+    # SE_GROUP_ENABLED_BY_DEFAULT     0x00000002
+    # SE_GROUP_ENABLED                0x00000004
+    # SE_GROUP_OWNER                  0x00000008
+    # SE_GROUP_USE_FOR_DENY_ONLY      0x00000010
+    # SE_GROUP_LOGON_ID               0xC0000000
+    # SE_GROUP_RESOURCE               0x20000000
+    # SE_GROUP_INTEGRITY              0x00000020
+    # SE_GROUP_INTEGRITY_ENABLED      0x00000040
+
+    return [_make_symbolic_bitmask {
+        mandatory              0x00000001
+        enabled_by_default     0x00000002
+        enabled                0x00000004
+        owner                  0x00000008
+        use_for_deny_only      0x00000010
+        logon_id               0xC0000000
+        resource               0x20000000
+        integrity              0x00000020
+        integrity_enabled      0x00000040
+    } $attr]
 }
 
-# Map a set of access right symbols to a flag. Concatenates
-# all the arguments, and then OR's the individual elements. Each
-# element may either be a integer or one of the access rights
-proc twapi::_access_rights_to_mask {args} {
-    variable security_defs
+# Map token privilege attributes
+# TBD - write a test for this
+proc twapi::map_token_privilege_attr {attr} {
+    # SE_PRIVILEGE_ENABLED_BY_DEFAULT 0x00000001
+    # SE_PRIVILEGE_ENABLED            0x00000002
+    # SE_PRIVILEGE_USED_FOR_ACCESS    0x80000000
 
-    set rights 0
-    foreach right [concat {*}$args] {
-        if {![string is integer $right]} {
-            if {[catch {set right $security_defs([string toupper $right])}]} {
-                error "Invalid access right symbol '$right'"
-            }
-        }
-        set rights [expr {$rights | $right}]
-    }
-
-    return $rights
+    return [_make_symbolic_bitmask {
+        enabled_by_default 0x00000001
+        enabled            0x00000002
+        used_for_access    0x80000000
+    } $attr]
 }
 
-
-# Map an access mask to a set of rights
-proc twapi::_access_mask_to_rights {access_mask {type ""}} {
-    variable security_defs
-
-    set rights [list ]
-
-    if {$type eq "mandatory_label"} {
-        if {$access_mask & 1} {
-            lappend rights system_mandatory_label_no_write_up
-        }
-        if {$access_mask & 2} {
-            lappend rights system_mandatory_label_no_read_up
-        }
-        if {$access_mask & 4} {
-            lappend rights system_mandatory_label_no_execute_up
-        }
-        return $rights
-    }
-
-    # The returned list will include rights that map to multiple bits
-    # as well as the individual bits. We first add the multiple bits
-    # and then the individual bits (since we clear individual bits
-    # after adding)
-
-    #
-    # Check standard multiple bit masks
-    #
-    foreach x {STANDARD_RIGHTS_REQUIRED STANDARD_RIGHTS_READ STANDARD_RIGHTS_WRITE STANDARD_RIGHTS_EXECUTE STANDARD_RIGHTS_ALL SPECIFIC_RIGHTS_ALL} {
-        if {($security_defs($x) & $access_mask) == $security_defs($x)} {
-            lappend rights [string tolower $x]
-        }
-    }
-
-    #
-    # Check type specific multiple bit masks.
-    #
-
-    set type_mask_map {
-        file {FILE_ALL_ACCESS FILE_GENERIC_READ FILE_GENERIC_WRITE FILE_GENERIC_EXECUTE}
-        process {PROCESS_ALL_ACCESS}
-        pipe {FILE_ALL_ACCESS}
-        policy {POLICY_READ POLICY_WRITE POLICY_EXECUTE POLICY_ALL_ACCESS}
-        registry {KEY_READ KEY_WRITE KEY_EXECUTE KEY_ALL_ACCESS}
-        service {SERVICE_ALL_ACCESS}
-        thread {THREAD_ALL_ACCESS}
-        token {TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE TOKEN_ALL_ACCESS}
-        desktop {}
-        winsta {WINSTA_ALL_ACCESS}
-    }
-    if {[dict exists $type_mask_map $type]} {
-        foreach x [dict get $type_mask_map $type] {
-            if {($security_defs($x) & $access_mask) == $security_defs($x)} {
-                lappend rights [string tolower $x]
-            }
-        }
-    }
-
-    #
-    # OK, now map individual bits
-
-    # First map the common bits
-    foreach x {DELETE READ_CONTROL WRITE_DAC WRITE_OWNER SYNCHRONIZE} {
-        if {$security_defs($x) & $access_mask} {
-            lappend rights [string tolower $x]
-            resetbits access_mask $security_defs($x)
-        }
-    }
-
-    # Then the generic bits
-    foreach x {GENERIC_READ GENERIC_WRITE GENERIC_EXECUTE GENERIC_ALL} {
-        if {$security_defs($x) & $access_mask} {
-            lappend rights [string tolower $x]
-            resetbits access_mask $security_defs($x)
-        }
-    }
-
-    # Then the type specific
-    set type_mask_map {
-        file { FILE_READ_DATA FILE_WRITE_DATA FILE_APPEND_DATA
-            FILE_READ_EA FILE_WRITE_EA FILE_EXECUTE
-            FILE_DELETE_CHILD FILE_READ_ATTRIBUTES
-            FILE_WRITE_ATTRIBUTES }
-        pipe { FILE_READ_DATA FILE_WRITE_DATA FILE_CREATE_PIPE_INSTANCE
-            FILE_READ_ATTRIBUTES FILE_WRITE_ATTRIBUTES }
-        service { SERVICE_QUERY_CONFIG SERVICE_CHANGE_CONFIG
-            SERVICE_QUERY_STATUS SERVICE_ENUMERATE_DEPENDENTS
-            SERVICE_START SERVICE_STOP SERVICE_PAUSE_CONTINUE
-            SERVICE_INTERROGATE SERVICE_USER_DEFINED_CONTROL }
-        registry { KEY_QUERY_VALUE KEY_SET_VALUE KEY_CREATE_SUB_KEY
-            KEY_ENUMERATE_SUB_KEYS KEY_NOTIFY KEY_CREATE_LINK
-            KEY_WOW64_32KEY KEY_WOW64_64KEY KEY_WOW64_RES }
-        policy { POLICY_VIEW_LOCAL_INFORMATION POLICY_VIEW_AUDIT_INFORMATION
-            POLICY_GET_PRIVATE_INFORMATION POLICY_TRUST_ADMIN
-            POLICY_CREATE_ACCOUNT POLICY_CREATE_SECRET
-            POLICY_CREATE_PRIVILEGE POLICY_SET_DEFAULT_QUOTA_LIMITS
-            POLICY_SET_AUDIT_REQUIREMENTS POLICY_AUDIT_LOG_ADMIN
-            POLICY_SERVER_ADMIN POLICY_LOOKUP_NAMES }
-        process { PROCESS_TERMINATE PROCESS_CREATE_THREAD
-            PROCESS_SET_SESSIONID PROCESS_VM_OPERATION
-            PROCESS_VM_READ PROCESS_VM_WRITE PROCESS_DUP_HANDLE
-            PROCESS_CREATE_PROCESS PROCESS_SET_QUOTA
-            PROCESS_SET_INFORMATION PROCESS_QUERY_INFORMATION
-            PROCESS_SUSPEND_RESUME} 
-        thread { THREAD_TERMINATE THREAD_SUSPEND_RESUME
-            THREAD_GET_CONTEXT THREAD_SET_CONTEXT
-            THREAD_SET_INFORMATION THREAD_QUERY_INFORMATION
-            THREAD_SET_THREAD_TOKEN THREAD_IMPERSONATE
-            THREAD_DIRECT_IMPERSONATION
-            THREAD_SET_LIMITED_INFORMATION
-            THREAD_QUERY_LIMITED_INFORMATION }
-        token { TOKEN_ASSIGN_PRIMARY TOKEN_DUPLICATE TOKEN_IMPERSONATE
-            TOKEN_QUERY TOKEN_QUERY_SOURCE TOKEN_ADJUST_PRIVILEGES
-            TOKEN_ADJUST_GROUPS TOKEN_ADJUST_DEFAULT TOKEN_ADJUST_SESSIONID }
-        desktop { DESKTOP_READOBJECTS DESKTOP_CREATEWINDOW
-            DESKTOP_CREATEMENU DESKTOP_HOOKCONTROL
-            DESKTOP_JOURNALRECORD DESKTOP_JOURNALPLAYBACK
-            DESKTOP_ENUMERATE DESKTOP_WRITEOBJECTS DESKTOP_SWITCHDESKTOP }
-        windowstation -
-        winsta { WINSTA_ENUMDESKTOPS WINSTA_READATTRIBUTES
-            WINSTA_ACCESSCLIPBOARD WINSTA_CREATEDESKTOP
-            WINSTA_WRITEATTRIBUTES WINSTA_ACCESSGLOBALATOMS
-            WINSTA_EXITWINDOWS WINSTA_ENUMERATE WINSTA_READSCREEN }
-    }
-
-    if {[min_os_version 6]} {
-        dict lappend type_mask_map process PROCESS_QUERY_LIMITED_INFORMATION
-    }
-
-    if {[dict exists $type_mask_map $type]} {
-        foreach x [dict get $type_mask_map $type] {
-            if {$security_defs($x) & $access_mask} {
-                lappend rights [string tolower $x]
-                # Reset the bit so is it not included in unknown bits below
-                resetbits access_mask $security_defs($x)
-            }
-        }
-    }
-
-    # Finally add left over bits if any
-    for {set i 0} {$i < 32} {incr i} {
-        set x [expr {1 << $i}]
-        if {$access_mask & $x} {
-            lappend rights [format 0x%.8X $x]
-        }
-    }
-
-    return $rights
-}
 
 
 # Map an ace type symbol (eg. allow) to the underlying ACE type code
@@ -2218,34 +1790,39 @@ proc twapi::_ace_type_code_to_symbol {type} {
 
 # Init the arrays used for mapping ACE type symbols to codes and back
 proc twapi::_init_ace_type_symbol_to_code_map {} {
-    variable security_defs
 
     if {[info exists ::twapi::_ace_type_symbol_to_code_map]} {
         return
     }
 
-    # Define the array. Be careful to "normalize" the integer values
-    array set ::twapi::_ace_type_symbol_to_code_map \
-        [list \
-             allow [expr { $security_defs(ACCESS_ALLOWED_ACE_TYPE) + 0 }] \
-             deny [expr  { $security_defs(ACCESS_DENIED_ACE_TYPE) + 0 }] \
-             audit [expr { $security_defs(SYSTEM_AUDIT_ACE_TYPE) + 0 }] \
-             alarm [expr { $security_defs(SYSTEM_ALARM_ACE_TYPE) + 0 }] \
-             allow_compound [expr { $security_defs(ACCESS_ALLOWED_COMPOUND_ACE_TYPE) + 0 }] \
-             allow_object [expr   { $security_defs(ACCESS_ALLOWED_OBJECT_ACE_TYPE) + 0 }] \
-             deny_object [expr    { $security_defs(ACCESS_DENIED_OBJECT_ACE_TYPE) + 0 }] \
-             audit_object [expr   { $security_defs(SYSTEM_AUDIT_OBJECT_ACE_TYPE) + 0 }] \
-             alarm_object [expr   { $security_defs(SYSTEM_ALARM_OBJECT_ACE_TYPE) + 0 }] \
-             allow_callback [expr { $security_defs(ACCESS_ALLOWED_CALLBACK_ACE_TYPE) + 0 }] \
-             deny_callback [expr  { $security_defs(ACCESS_DENIED_CALLBACK_ACE_TYPE) + 0 }] \
-             allow_callback_object [expr { $security_defs(ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             deny_callback_object [expr  { $security_defs(ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             audit_callback [expr { $security_defs(SYSTEM_AUDIT_CALLBACK_ACE_TYPE) + 0 }] \
-             alarm_callback [expr { $security_defs(SYSTEM_ALARM_CALLBACK_ACE_TYPE) + 0 }] \
-             audit_callback_object [expr { $security_defs(SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             alarm_callback_object [expr { $security_defs(SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE) + 0 }] \
-             mandatory_label [expr { $security_defs(SYSTEM_MANDATORY_LABEL_ACE_TYPE) + 0 }] \
-                 ]
+    # ACCESS_ALLOWED_ACE_TYPE                 0x0
+    # ACCESS_DENIED_ACE_TYPE                  0x1
+    # SYSTEM_AUDIT_ACE_TYPE                   0x2
+    # SYSTEM_ALARM_ACE_TYPE                   0x3
+    # ACCESS_ALLOWED_COMPOUND_ACE_TYPE        0x4
+    # ACCESS_ALLOWED_OBJECT_ACE_TYPE          0x5
+    # ACCESS_DENIED_OBJECT_ACE_TYPE           0x6
+    # SYSTEM_AUDIT_OBJECT_ACE_TYPE            0x7
+    # SYSTEM_ALARM_OBJECT_ACE_TYPE            0x8
+    # ACCESS_ALLOWED_CALLBACK_ACE_TYPE        0x9
+    # ACCESS_DENIED_CALLBACK_ACE_TYPE         0xA
+    # ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE 0xB
+    # ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE  0xC
+    # SYSTEM_AUDIT_CALLBACK_ACE_TYPE          0xD
+    # SYSTEM_ALARM_CALLBACK_ACE_TYPE          0xE
+    # SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE   0xF
+    # SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE   0x10
+    # SYSTEM_MANDATORY_LABEL_ACE_TYPE         0x11
+
+    # Define the array.
+    array set ::twapi::_ace_type_symbol_to_code_map {
+        allow 0    deny 1     audit 2     alarm 3     allow_compound 4
+        allow_object 5    deny_object 6    audit_object 7
+        alarm_object 8    allow_callback 9    deny_callback 10
+        allow_callback_object 11     deny_callback_object 12
+        audit_callback 13    alarm_callback 14    audit_callback_object 15
+        alarm_callback_object 16    mandatory_label 17
+    }
 
     # Now define the array in the other direction
     foreach {sym code} [array get ::twapi::_ace_type_symbol_to_code_map] {
@@ -2329,24 +1906,29 @@ set twapi::logon_session_type_map {
 
 # Get a token for a user
 proc twapi::open_user_token {username password args} {
-    variable security_defs
 
     array set opts [parseargs args {
         domain.arg
-        {type.arg batch}
-        {provider.arg default}
+        {type.arg batch {interactive network batch service unlock network_cleartext new_credentials}}
+        {provider.arg default {default winnt35 winnt40 winnt50}}
     } -nulldefault]
 
-    set typedef "LOGON32_LOGON_[string toupper $opts(type)]"
-    if {![info exists security_defs($typedef)]} {
-        error "Invalid value '$opts(type)' specified for -type option"
-    }
+    # LOGON32_LOGON_INTERACTIVE       2
+    # LOGON32_LOGON_NETWORK           3
+    # LOGON32_LOGON_BATCH             4
+    # LOGON32_LOGON_SERVICE           5
+    # LOGON32_LOGON_UNLOCK            7
+    # LOGON32_LOGON_NETWORK_CLEARTEXT 8
+    # LOGON32_LOGON_NEW_CREDENTIALS   9
+    set type [dict get {interactive 2 network 3 batch 4 service 5
+        unlock 7 network_cleartext 8 new_credentials 9} $opts(type)]
 
-    set providerdef "LOGON32_PROVIDER_[string toupper $opts(provider)]"
-    if {![info exists security_defs($typedef)]} {
-        error "Invalid value '$opts(provider)' specified for -provider option"
-    }
-    
+    # LOGON32_PROVIDER_DEFAULT    0
+    # LOGON32_PROVIDER_WINNT35    1
+    # LOGON32_PROVIDER_WINNT40    2
+    # LOGON32_PROVIDER_WINNT50    3
+    set provider [dict get {default 0 winnt35 1 winnt40 2 winnt50 3} $opts(provider)]
+
     # If username is of the form user@domain, then domain must not be specified
     # If username is not of the form user@domain, then domain is set to "."
     # if it is empty
@@ -2360,7 +1942,7 @@ proc twapi::open_user_token {username password args} {
         }
     }
 
-    return [LogonUser $username $opts(domain) $password $security_defs($typedef) $security_defs($providerdef)]
+    return [LogonUser $username $opts(domain) $password $type $provider]
 }
 
 
