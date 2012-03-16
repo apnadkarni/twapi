@@ -42,7 +42,6 @@ proc twapi::delete_share {sharename args} {
 
 # Enumerate network shares
 proc twapi::get_shares {args} {
-    variable windefs
 
     array set opts [parseargs args {
         {system.arg ""}
@@ -67,7 +66,8 @@ proc twapi::get_shares {args} {
     set shares [list ]
     foreach elem $raw_data {
         array set share $elem
-        set special [expr {$share(type) & ($windefs(STYPE_SPECIAL) | $windefs(STYPE_TEMPORARY))}]
+        # 0xC0000000 -> 0x80000000 (STYPE_SPECIAL), 0x40000000 (STYPE_TEMPORARY)
+        set special [expr {$share(type) & 0xC0000000}]
         if {$special && $opts(excludespecial)} {
             continue
         }
@@ -774,13 +774,16 @@ proc twapi::_format_lm_open_file {file v_opts} {
 
 # NOTE: THIS ONLY MAPS FOR THE Net* functions, NOT THE WNet*
 proc twapi::_share_type_symbols_to_code {typesyms {basetypeonly 0}} {
-    variable windefs
 
+    # STYPE_DISKTREE          0
+    # STYPE_PRINTQ            1
+    # STYPE_DEVICE            2
+    # STYPE_IPC               3
     switch -exact -- [lindex $typesyms 0] {
-        file    { set code $windefs(STYPE_DISKTREE) }
-        printer { set code $windefs(STYPE_PRINTQ) }
-        device  { set code $windefs(STYPE_DEVICE) }
-        ipc     { set code $windefs(STYPE_IPC) }
+        file    { set code 0 }
+        printer { set code 1 }
+        device  { set code 2 }
+        ipc     { set code 3 }
         default {
             error "Unknown type network share type symbol [lindex $typesyms 0]"
         }
@@ -790,11 +793,13 @@ proc twapi::_share_type_symbols_to_code {typesyms {basetypeonly 0}} {
         return $code
     }
 
+    # STYPE_TEMPORARY         0x40000000
+    # STYPE_SPECIAL           0x80000000
     set special 0
     foreach sym [lrange $typesyms 1 end] {
         switch -exact -- $sym {
-            special   { setbits special $windefs(STYPE_SPECIAL) }
-            temporary { setbits special $windefs(STYPE_TEMPORARY) }
+            special   { setbits special 0x80000000 }
+            temporary { setbits special 0x40000000 }
             file    -
             printer -
             device  -
@@ -814,29 +819,33 @@ proc twapi::_share_type_symbols_to_code {typesyms {basetypeonly 0}} {
 # First element is always the base type of the share
 # NOTE: THIS ONLY MAPS FOR THE Net* functions, NOT THE WNet*
 proc twapi::_share_type_code_to_symbols {type} {
-    variable windefs
 
+    # STYPE_DISKTREE          0
+    # STYPE_PRINTQ            1
+    # STYPE_DEVICE            2
+    # STYPE_IPC               3
+    # STYPE_TEMPORARY         0x40000000
+    # STYPE_SPECIAL           0x80000000
 
-    set special [expr {$type & ($windefs(STYPE_SPECIAL) | $windefs(STYPE_TEMPORARY))}]
+    set special [expr {$type & 0xC0000000}]
 
     # We need the special cast to int because else operands get promoted
     # to 64 bits as the hex is treated as an unsigned value
-    switch -exact -- [expr {int($type & ~ $special)}] \
-        [list \
-             $windefs(STYPE_DISKTREE) {set sym "file"} \
-             $windefs(STYPE_PRINTQ)   {set sym "printer"} \
-             $windefs(STYPE_DEVICE)   {set sym "device"} \
-             $windefs(STYPE_IPC)      {set sym "ipc"} \
-             default                  {set sym $type}
-            ]
+    switch -exact -- [expr {int($type & ~ $special)}] {
+        0  {set sym "file"}
+        1  {set sym "printer"}
+        2  {set sym "device"}
+        3  {set sym "ipc"} 
+        default {set sym $type}
+    }
 
     set typesyms [list $sym]
 
-    if {$special & $windefs(STYPE_SPECIAL)} {
+    if {$special & 0x80000000} {
         lappend typesyms special
     }
 
-    if {$special & $windefs(STYPE_TEMPORARY)} {
+    if {$special & 0x40000000} {
         lappend typesyms temporary
     }
     

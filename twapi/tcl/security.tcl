@@ -313,6 +313,31 @@ namespace eval twapi {
         TIMER_MODIFY_STATE             0x00000002
         TIMER_ALL_ACCESS               0x001F0003
 
+        FILE_READ_DATA                 0x00000001
+        FILE_LIST_DIRECTORY            0x00000001
+        FILE_WRITE_DATA                0x00000002
+        FILE_ADD_FILE                  0x00000002
+        FILE_APPEND_DATA               0x00000004
+        FILE_ADD_SUBDIRECTORY          0x00000004
+        FILE_CREATE_PIPE_INSTANCE      0x00000004
+        FILE_READ_EA                   0x00000008
+        FILE_WRITE_EA                  0x00000010
+        FILE_EXECUTE                   0x00000020
+        FILE_TRAVERSE                  0x00000020
+        FILE_DELETE_CHILD              0x00000040
+        FILE_READ_ATTRIBUTES           0x00000080
+        FILE_WRITE_ATTRIBUTES          0x00000100
+
+        FILE_ALL_ACCESS                0x001F01FF
+        FILE_GENERIC_READ              0x00120089
+        FILE_GENERIC_WRITE             0x00120116
+        FILE_GENERIC_EXECUTE           0x001200A0
+
+        DELETE                         0x00010000
+        READ_CONTROL                   0x00020000
+        WRITE_DAC                      0x00040000
+        WRITE_OWNER                    0x00080000
+        SYNCHRONIZE                    0x00100000
     }
 
     if {[min_os_version 6]} {
@@ -2304,7 +2329,7 @@ set twapi::logon_session_type_map {
 
 # Get a token for a user
 proc twapi::open_user_token {username password args} {
-    variable windefs
+    variable security_defs
 
     array set opts [parseargs args {
         domain.arg
@@ -2313,12 +2338,12 @@ proc twapi::open_user_token {username password args} {
     } -nulldefault]
 
     set typedef "LOGON32_LOGON_[string toupper $opts(type)]"
-    if {![info exists windefs($typedef)]} {
+    if {![info exists security_defs($typedef)]} {
         error "Invalid value '$opts(type)' specified for -type option"
     }
 
     set providerdef "LOGON32_PROVIDER_[string toupper $opts(provider)]"
-    if {![info exists windefs($typedef)]} {
+    if {![info exists security_defs($typedef)]} {
         error "Invalid value '$opts(provider)' specified for -provider option"
     }
     
@@ -2335,7 +2360,7 @@ proc twapi::open_user_token {username password args} {
         }
     }
 
-    return [LogonUser $username $opts(domain) $password $windefs($typedef) $windefs($providerdef)]
+    return [LogonUser $username $opts(domain) $password $security_defs($typedef) $security_defs($providerdef)]
 }
 
 
