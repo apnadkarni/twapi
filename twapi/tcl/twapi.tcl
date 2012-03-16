@@ -31,7 +31,7 @@ set twapi::version(twapi) $::twapi::version(twapi_base)
 
 # package ifneeded twapi_account 4.0b0 [list twapi::package_setup $dir twapi_account 4.0b0 load {} {twapi::get_users}]
 # Proc to autoload twapi modules. Cannot be used for twapi_base itself.
-proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
+proc twapi::OBSOLETEpackage_setup {dir pkg version type {file {}} {commands {}}} {
     # Need the twapi base of the same version
     package require twapi_base $version
 
