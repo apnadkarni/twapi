@@ -119,7 +119,7 @@ proc twapi::initialized_proc {procname arglist initcode body} {
 # and then the fallback directories. Note the proc is not under th
 # twapi:: namespace because we want to load the dll in the caller's
 # namespace itself. Huh? why don't we just uplevel the load then? TBD
-proc load_twapi_dll {fallback_dirs} {
+proc OBSOLETEload_twapi_dll {fallback_dirs} {
     if {![info exists ::twapi::dll_base_name]} {
         switch -exact -- $::tcl_platform(machine) {
             intel { set ::twapi::dll_base_name twapi }
@@ -177,7 +177,7 @@ proc load_twapi_dll {fallback_dirs} {
     }
 }
 
-proc ::twapi::load_twapi {} {
+proc ::twapi::OBSOLETEload_twapi {} {
     if {[llength [info commands GetTwapiBuildInfo]]} {
         return;                 # DLL already loaded or script embedded in dll
     }
@@ -221,7 +221,7 @@ proc ::twapi::load_twapi {} {
     }
 }
 
-# twapi::load_twapi
+# OBSOLETE twapi::load_twapi
 
 proc twapi::get_build_config {{key ""}} {
     variable build_ids
@@ -264,29 +264,6 @@ proc twapi::init_windefs args {
     }
 
     twapi::add_defines {
-        VER_NT_WORKSTATION              0x0000001
-        VER_NT_DOMAIN_CONTROLLER        0x0000002
-        VER_NT_SERVER                   0x0000003
-
-        VER_SERVER_NT                       0x80000000
-        VER_WORKSTATION_NT                  0x40000000
-        VER_SUITE_SMALLBUSINESS             0x00000001
-        VER_SUITE_ENTERPRISE                0x00000002
-        VER_SUITE_BACKOFFICE                0x00000004
-        VER_SUITE_COMMUNICATIONS            0x00000008
-        VER_SUITE_TERMINAL                  0x00000010
-        VER_SUITE_SMALLBUSINESS_RESTRICTED  0x00000020
-        VER_SUITE_EMBEDDEDNT                0x00000040
-        VER_SUITE_DATACENTER                0x00000080
-        VER_SUITE_SINGLEUSERTS              0x00000100
-        VER_SUITE_PERSONAL                  0x00000200
-        VER_SUITE_BLADE                     0x00000400
-        VER_SUITE_EMBEDDED_RESTRICTED       0x00000800
-        VER_SUITE_SECURITY_APPLIANCE        0x00001000
-        VER_SUITE_STORAGE_SERVER            0x00002000
-        VER_SUITE_COMPUTE_SERVER            0x00004000
-        VER_SUITE_WH_SERVER                 0x00008000
-
         DELETE                         0x00010000
         READ_CONTROL                   0x00020000
         WRITE_DAC                      0x00040000
@@ -421,18 +398,6 @@ proc twapi::init_windefs args {
 
         KEY_ALL_ACCESS                 0x000F003F
 
-        SERVICE_QUERY_CONFIG           0x00000001
-        SERVICE_CHANGE_CONFIG          0x00000002
-        SERVICE_QUERY_STATUS           0x00000004
-        SERVICE_ENUMERATE_DEPENDENTS   0x00000008
-        SERVICE_START                  0x00000010
-        SERVICE_STOP                   0x00000020
-        SERVICE_PAUSE_CONTINUE         0x00000040
-        SERVICE_INTERROGATE            0x00000080
-        SERVICE_USER_DEFINED_CONTROL   0x00000100
-
-        SERVICE_ALL_ACCESS             0x000F01FF
-
         POLICY_VIEW_LOCAL_INFORMATION   0x00000001
         POLICY_VIEW_AUDIT_INFORMATION   0x00000002
         POLICY_GET_PRIVATE_INFORMATION  0x00000004
@@ -493,173 +458,6 @@ proc twapi::init_windefs args {
         TIMER_QUERY_STATE              0x00000001
         TIMER_MODIFY_STATE             0x00000002
         TIMER_ALL_ACCESS               0x001F0003
-
-        TOKEN_ASSIGN_PRIMARY           0x00000001
-        TOKEN_DUPLICATE                0x00000002
-        TOKEN_IMPERSONATE              0x00000004
-        TOKEN_QUERY                    0x00000008
-        TOKEN_QUERY_SOURCE             0x00000010
-        TOKEN_ADJUST_PRIVILEGES        0x00000020
-        TOKEN_ADJUST_GROUPS            0x00000040
-        TOKEN_ADJUST_DEFAULT           0x00000080
-        TOKEN_ADJUST_SESSIONID         0x00000100
-
-        TOKEN_ALL_ACCESS_WINNT         0x000F00FF
-        TOKEN_ALL_ACCESS_WIN2K         0x000F01FF
-        TOKEN_ALL_ACCESS               0x000F01FF
-        TOKEN_READ                     0x00020008
-        TOKEN_WRITE                    0x000200E0
-        TOKEN_EXECUTE                  0x00020000
-
-        SYSTEM_MANDATORY_LABEL_NO_WRITE_UP         0x1
-        SYSTEM_MANDATORY_LABEL_NO_READ_UP          0x2
-        SYSTEM_MANDATORY_LABEL_NO_EXECUTE_UP       0x4
-
-        OBJECT_INHERIT_ACE                0x1
-        CONTAINER_INHERIT_ACE             0x2
-        NO_PROPAGATE_INHERIT_ACE          0x4
-        INHERIT_ONLY_ACE                  0x8
-        INHERITED_ACE                     0x10
-        VALID_INHERIT_FLAGS               0x1F
-
-        ACL_REVISION     2
-        ACL_REVISION_DS  4
-
-        ACCESS_ALLOWED_ACE_TYPE                 0x0
-        ACCESS_DENIED_ACE_TYPE                  0x1
-        SYSTEM_AUDIT_ACE_TYPE                   0x2
-        SYSTEM_ALARM_ACE_TYPE                   0x3
-        ACCESS_ALLOWED_COMPOUND_ACE_TYPE        0x4
-        ACCESS_ALLOWED_OBJECT_ACE_TYPE          0x5
-        ACCESS_DENIED_OBJECT_ACE_TYPE           0x6
-        SYSTEM_AUDIT_OBJECT_ACE_TYPE            0x7
-        SYSTEM_ALARM_OBJECT_ACE_TYPE            0x8
-        ACCESS_ALLOWED_CALLBACK_ACE_TYPE        0x9
-        ACCESS_DENIED_CALLBACK_ACE_TYPE         0xA
-        ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE 0xB
-        ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE  0xC
-        SYSTEM_AUDIT_CALLBACK_ACE_TYPE          0xD
-        SYSTEM_ALARM_CALLBACK_ACE_TYPE          0xE
-        SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE   0xF
-        SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE   0x10
-        SYSTEM_MANDATORY_LABEL_ACE_TYPE         0x11
-
-        ACCESS_MAX_MS_V2_ACE_TYPE               0x3
-        ACCESS_MAX_MS_V3_ACE_TYPE               0x4
-        ACCESS_MAX_MS_V4_ACE_TYPE               0x8
-        ACCESS_MAX_MS_V5_ACE_TYPE               0x11
-
-
-        OWNER_SECURITY_INFORMATION              0x00000001
-        GROUP_SECURITY_INFORMATION              0x00000002
-        DACL_SECURITY_INFORMATION               0x00000004
-        SACL_SECURITY_INFORMATION               0x00000008
-        LABEL_SECURITY_INFORMATION       	0x00000010
-
-        PROTECTED_DACL_SECURITY_INFORMATION     0x80000000
-        PROTECTED_SACL_SECURITY_INFORMATION     0x40000000
-        UNPROTECTED_DACL_SECURITY_INFORMATION   0x20000000
-        UNPROTECTED_SACL_SECURITY_INFORMATION   0x10000000
-
-        TokenUser                      1
-        TokenGroups                    2
-        TokenPrivileges                3
-        TokenOwner                     4
-        TokenPrimaryGroup              5
-        TokenDefaultDacl               6
-        TokenSource                    7
-        TokenType                      8
-        TokenImpersonationLevel        9
-        TokenStatistics               10
-        TokenRestrictedSids           11
-        TokenSessionId                12
-        TokenGroupsAndPrivileges      13
-        TokenSessionReference         14
-        TokenSandBoxInert             15
-        TokenAuditPolicy              16
-        TokenOrigin                   17
-        TokenElevationType            18
-        TokenLinkedToken              19
-        TokenElevation                20
-        TokenHasRestrictions          21
-        TokenAccessInformation        22
-        TokenVirtualizationAllowed    23
-        TokenVirtualizationEnabled    24
-        TokenIntegrityLevel           25
-        TokenUIAccess                 26
-        TokenMandatoryPolicy          27
-        TokenLogonSid                 28
-
-        SE_GROUP_MANDATORY              0x00000001
-        SE_GROUP_ENABLED_BY_DEFAULT     0x00000002
-        SE_GROUP_ENABLED                0x00000004
-        SE_GROUP_OWNER                  0x00000008
-        SE_GROUP_USE_FOR_DENY_ONLY      0x00000010
-        SE_GROUP_LOGON_ID               0xC0000000
-        SE_GROUP_RESOURCE               0x20000000
-        SE_GROUP_INTEGRITY              0x00000020
-        SE_GROUP_INTEGRITY_ENABLED      0x00000040
-
-        SE_PRIVILEGE_ENABLED_BY_DEFAULT 0x00000001
-        SE_PRIVILEGE_ENABLED            0x00000002
-        SE_PRIVILEGE_USED_FOR_ACCESS    0x80000000
-
-        SC_MANAGER_CONNECT             0x00000001
-        SC_MANAGER_CREATE_SERVICE      0x00000002
-        SC_MANAGER_ENUMERATE_SERVICE   0x00000004
-        SC_MANAGER_LOCK                0x00000008
-        SC_MANAGER_QUERY_LOCK_STATUS   0x00000010
-        SC_MANAGER_MODIFY_BOOT_CONFIG  0x00000020
-        SC_MANAGER_ALL_ACCESS          0x000F003F
-
-        SERVICE_NO_CHANGE              0xffffffff
-
-        SERVICE_KERNEL_DRIVER          0x00000001
-        SERVICE_FILE_SYSTEM_DRIVER     0x00000002
-        SERVICE_ADAPTER                0x00000004
-        SERVICE_RECOGNIZER_DRIVER      0x00000008
-        SERVICE_WIN32_OWN_PROCESS      0x00000010
-        SERVICE_WIN32_SHARE_PROCESS    0x00000020
-
-        SERVICE_INTERACTIVE_PROCESS    0x00000100
-
-        SERVICE_BOOT_START             0x00000000
-        SERVICE_SYSTEM_START           0x00000001
-        SERVICE_AUTO_START             0x00000002
-        SERVICE_DEMAND_START           0x00000003
-        SERVICE_DISABLED               0x00000004
-
-        SERVICE_ERROR_IGNORE           0x00000000
-        SERVICE_ERROR_NORMAL           0x00000001
-        SERVICE_ERROR_SEVERE           0x00000002
-        SERVICE_ERROR_CRITICAL         0x00000003
-
-        SERVICE_CONTROL_STOP                   0x00000001
-        SERVICE_CONTROL_PAUSE                  0x00000002
-        SERVICE_CONTROL_CONTINUE               0x00000003
-        SERVICE_CONTROL_INTERROGATE            0x00000004
-        SERVICE_CONTROL_SHUTDOWN               0x00000005
-        SERVICE_CONTROL_PARAMCHANGE            0x00000006
-        SERVICE_CONTROL_NETBINDADD             0x00000007
-        SERVICE_CONTROL_NETBINDREMOVE          0x00000008
-        SERVICE_CONTROL_NETBINDENABLE          0x00000009
-        SERVICE_CONTROL_NETBINDDISABLE         0x0000000A
-        SERVICE_CONTROL_DEVICEEVENT            0x0000000B
-        SERVICE_CONTROL_HARDWAREPROFILECHANGE  0x0000000C
-        SERVICE_CONTROL_POWEREVENT             0x0000000D
-        SERVICE_CONTROL_SESSIONCHANGE          0x0000000E
-
-        SERVICE_ACTIVE                 0x00000001
-        SERVICE_INACTIVE               0x00000002
-        SERVICE_STATE_ALL              0x00000003
-
-        SERVICE_STOPPED                        0x00000001
-        SERVICE_START_PENDING                  0x00000002
-        SERVICE_STOP_PENDING                   0x00000003
-        SERVICE_RUNNING                        0x00000004
-        SERVICE_CONTINUE_PENDING               0x00000005
-        SERVICE_PAUSE_PENDING                  0x00000006
-        SERVICE_PAUSED                         0x00000007
 
         GA_PARENT       1
         GA_ROOT         2
@@ -872,134 +670,6 @@ proc twapi::init_windefs args {
         FILE_NAMED_STREAMS              0x00040000
         FILE_READ_ONLY_VOLUME           0x00080000
 
-        KEYEVENTF_EXTENDEDKEY 0x0001
-        KEYEVENTF_KEYUP       0x0002
-        KEYEVENTF_UNICODE     0x0004
-        KEYEVENTF_SCANCODE    0x0008
-
-        MOUSEEVENTF_MOVE        0x0001
-        MOUSEEVENTF_LEFTDOWN    0x0002
-        MOUSEEVENTF_LEFTUP      0x0004
-        MOUSEEVENTF_RIGHTDOWN   0x0008
-        MOUSEEVENTF_RIGHTUP     0x0010
-        MOUSEEVENTF_MIDDLEDOWN  0x0020
-        MOUSEEVENTF_MIDDLEUP    0x0040
-        MOUSEEVENTF_XDOWN       0x0080
-        MOUSEEVENTF_XUP         0x0100
-        MOUSEEVENTF_WHEEL       0x0800
-        MOUSEEVENTF_VIRTUALDESK 0x4000
-        MOUSEEVENTF_ABSOLUTE    0x8000
-
-        XBUTTON1      0x0001
-        XBUTTON2      0x0002
-
-        VK_BACK           0x08
-        VK_TAB            0x09
-        VK_CLEAR          0x0C
-        VK_RETURN         0x0D
-        VK_SHIFT          0x10
-        VK_CONTROL        0x11
-        VK_MENU           0x12
-        VK_PAUSE          0x13
-        VK_CAPITAL        0x14
-        VK_KANA           0x15
-        VK_HANGEUL        0x15
-        VK_HANGUL         0x15
-        VK_JUNJA          0x17
-        VK_FINAL          0x18
-        VK_HANJA          0x19
-        VK_KANJI          0x19
-        VK_ESCAPE         0x1B
-        VK_CONVERT        0x1C
-        VK_NONCONVERT     0x1D
-        VK_ACCEPT         0x1E
-        VK_MODECHANGE     0x1F
-        VK_SPACE          0x20
-        VK_PRIOR          0x21
-        VK_NEXT           0x22
-        VK_END            0x23
-        VK_HOME           0x24
-        VK_LEFT           0x25
-        VK_UP             0x26
-        VK_RIGHT          0x27
-        VK_DOWN           0x28
-        VK_SELECT         0x29
-        VK_PRINT          0x2A
-        VK_EXECUTE        0x2B
-        VK_SNAPSHOT       0x2C
-        VK_INSERT         0x2D
-        VK_DELETE         0x2E
-        VK_HELP           0x2F
-        VK_LWIN           0x5B
-        VK_RWIN           0x5C
-        VK_APPS           0x5D
-        VK_SLEEP          0x5F
-        VK_NUMPAD0        0x60
-        VK_NUMPAD1        0x61
-        VK_NUMPAD2        0x62
-        VK_NUMPAD3        0x63
-        VK_NUMPAD4        0x64
-        VK_NUMPAD5        0x65
-        VK_NUMPAD6        0x66
-        VK_NUMPAD7        0x67
-        VK_NUMPAD8        0x68
-        VK_NUMPAD9        0x69
-        VK_MULTIPLY       0x6A
-        VK_ADD            0x6B
-        VK_SEPARATOR      0x6C
-        VK_SUBTRACT       0x6D
-        VK_DECIMAL        0x6E
-        VK_DIVIDE         0x6F
-        VK_F1             0x70
-        VK_F2             0x71
-        VK_F3             0x72
-        VK_F4             0x73
-        VK_F5             0x74
-        VK_F6             0x75
-        VK_F7             0x76
-        VK_F8             0x77
-        VK_F9             0x78
-        VK_F10            0x79
-        VK_F11            0x7A
-        VK_F12            0x7B
-        VK_F13            0x7C
-        VK_F14            0x7D
-        VK_F15            0x7E
-        VK_F16            0x7F
-        VK_F17            0x80
-        VK_F18            0x81
-        VK_F19            0x82
-        VK_F20            0x83
-        VK_F21            0x84
-        VK_F22            0x85
-        VK_F23            0x86
-        VK_F24            0x87
-        VK_NUMLOCK        0x90
-        VK_SCROLL         0x91
-        VK_LSHIFT         0xA0
-        VK_RSHIFT         0xA1
-        VK_LCONTROL       0xA2
-        VK_RCONTROL       0xA3
-        VK_LMENU          0xA4
-        VK_RMENU          0xA5
-        VK_BROWSER_BACK        0xA6
-        VK_BROWSER_FORWARD     0xA7
-        VK_BROWSER_REFRESH     0xA8
-        VK_BROWSER_STOP        0xA9
-        VK_BROWSER_SEARCH      0xAA
-        VK_BROWSER_FAVORITES   0xAB
-        VK_BROWSER_HOME        0xAC
-        VK_VOLUME_MUTE         0xAD
-        VK_VOLUME_DOWN         0xAE
-        VK_VOLUME_UP           0xAF
-        VK_MEDIA_NEXT_TRACK    0xB0
-        VK_MEDIA_PREV_TRACK    0xB1
-        VK_MEDIA_STOP          0xB2
-        VK_MEDIA_PLAY_PAUSE    0xB3
-        VK_LAUNCH_MAIL         0xB4
-        VK_LAUNCH_MEDIA_SELECT 0xB5
-        VK_LAUNCH_APP1         0xB6
-        VK_LAUNCH_APP2         0xB7
 
         SND_SYNC            0x0000
         SND_ASYNC           0x0001

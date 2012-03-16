@@ -39,26 +39,26 @@ proc twapi::get_os_info {} {
 
     set _osinfo(suites) [list ]
     set suites $verinfo(wSuiteMask)
-    foreach suite {
-        BACKOFFICE BLADE COMMUNICATIONS COMPUTE_SERVER DATACENTER
-        EMBEDDEDNT EMBEDDED_RESTRICTED ENTERPRISE
-        PERSONAL SECURITY_APPLIANCE SINGLEUSERTS
-        SMALLBUSINESS
-        SMALLBUSINESS_RESTRICTED STORAGE_SERVER TERMINAL WH_SERVER
+    foreach {suite def} {
+        backoffice 0x4 blade 0x400 communications 0x8 compute_server 0x4000
+        datacenter 0x80 embeddednt 0x40 embedded_restricted 0x800
+        enterprise 0x2 personal 0x200 security_appliance 0x1000
+        singleuserts 0x100 smallbusiness 0x1 
+        smallbusiness_restricted 0x20 storage_server 0x2000
+        terminal 0x10 wh_server 0x8000
     } {
-        set def "VER_SUITE_$suite"
-        if {$suites & $windefs($def)} {
-            lappend _osinfo(suites) [string tolower $suite]
+        if {$suites & $def} {
+            lappend _osinfo(suites) $suite
         }
     }
 
     set system_type $verinfo(wProductType)
-    if {$system_type == $windefs(VER_NT_WORKSTATION)} {
-        set _osinfo(system_type) "workstation"
-    } elseif {$system_type == $windefs(VER_NT_SERVER)} {
-        set _osinfo(system_type) "server"
-    } elseif {$system_type == $windefs(VER_NT_DOMAIN_CONTROLLER)} {
-        set _osinfo(system_type) "domain_controller"
+    if {$system_type == 1} {
+        set _osinfo(system_type) "workstation";         # VER_NT_WORKSTATION
+    } elseif {$system_type == 3} {
+        set _osinfo(system_type) "server";         # VER_NT_SERVER
+    } elseif {$system_type == 2} {
+        set _osinfo(system_type) "domain_controller"; # VER_NT_DOMAIN_CONTROLLER
     } else {
         set _osinfo(system_type) "unknown"
     }
