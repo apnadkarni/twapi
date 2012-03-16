@@ -93,7 +93,7 @@ build: $(RCFRAG) $(TWAPI_SCRIPT_RESOURCE_PATH)
 
 distribution: build "$(PACKAGEDIR)"
 !if "$(TCLFILES)" != "" && !defined(EMBED_SCRIPT)
-	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(PACKAGEDIR)"
+	for %f in ($(TCLFILES)) do xcopy /i/q/y %f "$(PACKAGEDIR)"
 !endif
 !if defined(OBJS)
 ! if "$(MACHINE)" != "AMD64"
@@ -143,7 +143,8 @@ lib: $(OBJDIR)\$(MODULELIB)
 
 !else
 
-#
+#  ! defined(TWAPI_SINGLE_MODULE)
+
 #  See [2] - building multiple modules (! defined(TWAPI_SINGLE_MODULE))
 #  Note we do not use $** in this rule as we do not want to include the
 #  dependencies in other rules defined for $(OBJDIR)\$(MODULE)
@@ -153,7 +154,7 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
 !  endif VCVER > 8
 
-!endif defined(TWAPI_SINGLE_DLL)
+!endif defined(TWAPI_SINGLE_MODULE)
 
 $(RCFRAG):
 	-mkdir "$(RCFRAGDIR)"
@@ -177,7 +178,8 @@ $(OBJS): $(CINCLUDES) makefile
 !if defined(EMBED_SCRIPT)
 
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
-	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(OBJDIR)\tcl"
+	-mkdir "$(OBJDIR)\tcl"
+	for %f in ($(TCLFILES)) do xcopy /q/y/i %f "$(OBJDIR)\tcl"
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
 ! else
@@ -189,6 +191,7 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 
 # Not embedding the script. Embed a command to source the first file instead
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
+	-mkdir "$(OBJDIR)\tcl"
 	echo set fn [file join [lindex [split {$(TCLFILES)}] 0]] ; puts "source \[file join \[twapi::Twapi_GetInstallDir] [file tail $$fn]\]" | $(TCLSH) > $(TWAPI_SCRIPT_RESOURCE_PATH)
 
 !endif defined(EMBED_SCRIPT)
