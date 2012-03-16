@@ -11,9 +11,9 @@ LAZYPACKAGELOAD=1
 # Remaining are in order of package dependencies since the build process
 # loads them in order when generating the pkgIndex.tcl file.
 PURETCLMODULES = metoo msi
-MODULES = account apputil clipboard metoo com console crypto device \
+MODULES = security account apputil clipboard metoo com console crypto device \
 	etw eventlog input msi mstask multimedia namedpipe network nls \
-	os pdh process rds resource security service share shell storage \
+	os pdh process rds resource service share shell storage \
 	ui winsta wmi
 
 # Note this can be overridden on the command line

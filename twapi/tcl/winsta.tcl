@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004, Ashok P. Nadkarni
+# Copyright (c) 2004-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -13,7 +13,7 @@ proc twapi::get_current_window_station_handle {} {
 proc twapi::get_window_station_handle {winsta args} {
     array set opts [parseargs args {
         inherit.bool
-        {access.arg  GENERIC_READ}
+        {access.arg  generic_read}
     } -nulldefault]
 
     set access_rights [_access_rights_to_mask $opts(access)]
@@ -63,7 +63,7 @@ proc twapi::get_desktop_handle {desk args} {
     array set opts [parseargs args {
         inherit.bool
         allowhooks.bool
-        {access.arg  GENERIC_READ}
+        {access.arg  generic_read}
     } -nulldefault]
 
     set access_mask [_access_rights_to_mask $opts(access)]
