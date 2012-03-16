@@ -22,7 +22,9 @@
  */
 HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 
+#ifdef OBSOLETE
 static const char *gTwapiEmbedType = "none"; /* Must point to static string */
+#endif
 
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
@@ -243,9 +245,11 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     int result;
     result = Twapi_SourceResource(ticP, gTwapiModuleHandle,
                                   WLITERAL(MODULENAME), 1);
+#ifdef OBSOLETE
     if (result == TCL_OK) {
         gTwapiEmbedType = "embedded";
     }
+#endif
     return result;
 }
 
@@ -335,8 +339,12 @@ int Twapi_GetTwapiBuildInfo(
 #endif
     Tcl_ListObjAppendElement(interp, objP, elemP);
 
+#if 0
+    /* No point to this. Not used and not reliable since in the current
+       build, tcl scripts are sourced via a command in the resource script */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("embed_type"));
     Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(gTwapiEmbedType, -1));
+#endif
 
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
 #if defined(TWAPI_SINGLE_MODULE)

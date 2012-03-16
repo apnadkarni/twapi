@@ -623,7 +623,8 @@ parray missing
 
 proc twapi::etw_dump_files {args} {
 
-    uplevel #0 {package require csv}
+    package require wmi
+    package require csv
 
     array set opts [parseargs args {
         {output.arg stdout}

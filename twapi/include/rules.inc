@@ -172,13 +172,11 @@ $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RCFRAG) $(RC_FILE_PATH) makefile $(TWAP
 
 !ifdef OBJS
 $(OBJS): $(CINCLUDES) makefile
-# All build types should cause version and build id to be created.
-$(OBJDIR)\$(MODULE): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
 !endif
 
 !if defined(EMBED_SCRIPT)
 
-$(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
+$(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 	@for %f in ($(TCLFILES)) do @xcopy /q /y %f "$(OBJDIR)\tcl"
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
@@ -190,17 +188,13 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFI
 !else
 
 # Not embedding the script. Embed a command to source the first file instead
-$(TWAPI_SCRIPT_RESOURCE_PATH): "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl" $(TCLFILES)
+$(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 	echo set fn [file join [lindex [split {$(TCLFILES)}] 0]] ; puts "source \[file join \[twapi::Twapi_GetInstallDir] [file tail $$fn]\]" | $(TCLSH) > $(TWAPI_SCRIPT_RESOURCE_PATH)
 
 !endif defined(EMBED_SCRIPT)
 
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) "$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl"
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH)
 	$(LIBTOOL) /OUT:$@ $(OBJS)
-
-"$(OBJDIR)\tcl\$(MODULENAME)_buildid.tcl": $(SRCROOT)\include\rules.inc
-	-$(MKDIR) "$(OBJDIR)\tcl"
-	echo puts "namespace eval twapi {variable build_ids ; set build_ids($(MODULENAME)) $(BUILDID)}" | $(TCLSH) > $@
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
