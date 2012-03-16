@@ -15,7 +15,6 @@ namespace eval twapi {
 #
 # Return list of toplevel performance objects
 proc twapi::get_perf_objects {args} {
-    variable windefs
 
     array set opts [parseargs args {
         datasource.arg
@@ -24,29 +23,18 @@ proc twapi::get_perf_objects {args} {
         refresh
     } -nulldefault]
     
-    # NT 4.0 requires datasource to be null
-    if {[string length $opts(datasource)] && ![min_os_version 5 0]} {
-        error "Option -datasource is invalid on Windows NT 4.0 platforms"
-    }
-
-    set detail_index "PERF_DETAIL_[string toupper $opts(detail)]"
-    if {![info exists windefs($detail_index)]} {
-        error "Invalid value '$opts(detail)' specified for -detail option"
-    }
-
     # TBD - PdhEnumObjects enables the SeDebugPrivilege the first time it
     # is called. Should we reset it if it was not already enabled?
     # This seems to only happen on the first call
 
     return [PdhEnumObjects $opts(datasource) $opts(machine) \
-                $windefs($detail_index) $opts(refresh)]
+                [_perf_detail_sym_to_val $opts(detail)] \
+                $opts(refresh)]
 }
 
 #
 # Return list of items within a performance object
 proc twapi::get_perf_object_items {objname args} {
-    variable windefs
-
     array set opts [parseargs args {
         datasource.arg
         machine.arg
@@ -54,22 +42,14 @@ proc twapi::get_perf_object_items {objname args} {
         refresh
     } -nulldefault]
     
-    # NT 4.0 requires datasource to be null
-    if {[string length $opts(datasource)] && ![min_os_version 5 0]} {
-        error "Option -datasource is invalid on Windows NT 4.0 platforms"
-    }
-
-    set detail_index "PERF_DETAIL_[string toupper $opts(detail)]"
-    if {![info exists windefs($detail_index)]} {
-        error "Invalid value '$opts(detail)' specified for -detail option"
-    }
-
     if {$opts(refresh)} {
         _refresh_perf_objects $opts(machine) $opts(datasource)
     }
 
     return [PdhEnumObjectItems $opts(datasource) $opts(machine) \
-                $objname $windefs($detail_index) 0]
+                $objname \
+                [_perf_detail_sym_to_val $opts(detail)] \
+                0]
 }
 
 #
@@ -183,9 +163,7 @@ proc twapi::collect_perf_query_data {hquery} {
 # Get the value of a counter in a query
 # TBD - add some way of getting the cookie associated with the counter
 proc twapi::get_hcounter_value {hcounter args} {
-    variable windefs
 
-    #puts "$hcounter"
     array set opts [parseargs args {
         {format.arg long {long large double}}
         scale.arg
@@ -193,16 +171,12 @@ proc twapi::get_hcounter_value {hcounter args} {
         full.bool
     } -nulldefault]
     
-    set format $windefs(PDH_FMT_[string toupper $opts(format)])
+    set format [_pdh_fmt_sym_to_val $opts(format)]
 
-    switch -exact -- $opts(scale) {
-        ""        { set scale 0 }
-        none      { set scale $windefs(PDH_FMT_NOSCALE) }
-        nocap     { set scale $windefs(PDH_FMT_NOCAP) }
-        x1000     { set scale $windefs(PDH_FMT_1000) }
-        default {
-            error "Invalid value '$opts(scale)' specified for -scale option"
-        }
+    if {$opts(scale) eq ""} {
+        set scale 0
+    } else {
+        set scale [_pdh_fmt_sym_to_val $opts(scale)]
     }
 
     set flags [expr {$format | $scale}]
@@ -239,7 +213,6 @@ proc twapi::get_hcounter_value {hcounter args} {
 #
 # Get the value of a counter identified by the path
 proc twapi::get_counter_path_value {counter_path args} {
-    variable windefs
 
     array set opts [parseargs args {
         interval.int
@@ -872,3 +845,46 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
 
 }
 
+proc twapi::_perf_detail_sym_to_val {sym} {
+    # PERF_DETAIL_NOVICE          100
+    # PERF_DETAIL_ADVANCED        200
+    # PERF_DETAIL_EXPERT          300
+    # PERF_DETAIL_WIZARD          400
+    # PERF_DETAIL_COSTLY   0x00010000
+    # PERF_DETAIL_STANDARD 0x0000FFFF
+
+    return [dict get {novice 100 advanced 200 expert 300 wizard 400 costly 0x00010000 standard 0x0000ffff } $sym]
+}
+
+
+proc twapi::_pdh_fmt_sym_to_val {sym} {
+    # PDH_FMT_RAW     0x00000010
+    # PDH_FMT_ANSI    0x00000020
+    # PDH_FMT_UNICODE 0x00000040
+    # PDH_FMT_LONG    0x00000100
+    # PDH_FMT_DOUBLE  0x00000200
+    # PDH_FMT_LARGE   0x00000400
+    # PDH_FMT_NOSCALE 0x00001000
+    # PDH_FMT_1000    0x00002000
+    # PDH_FMT_NODATA  0x00004000
+    # PDH_FMT_NOCAP100 0x00008000
+
+    return [dict get {
+        raw     0x00000010
+        ansi    0x00000020
+        unicode 0x00000040
+        long    0x00000100
+        double  0x00000200
+        large   0x00000400
+        noscale 0x00001000
+        none    0x00001000
+        1000     0x00002000
+        x1000    0x00002000
+        nodata  0x00004000
+        nocap100 0x00008000
+        nocap 0x00008000
+    } $sym]
+
+
+
+}

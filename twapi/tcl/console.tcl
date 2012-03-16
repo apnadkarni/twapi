@@ -19,7 +19,6 @@ proc twapi::free_console {} {
 
 # Get a console handle
 proc twapi::get_console_handle {type} {
-    variable windefs
     switch -exact -- $type {
         0 -
         stdin { set fn "CONIN\$" }
@@ -32,11 +31,14 @@ proc twapi::get_console_handle {type} {
         }
     }
 
+    # 0xC0000000 -> GENERIC_READ | GENERIC_WRITE
+    # 3 -> FILE_SHARE_READ | FILE_SHARE_WRITE
+    # 3 -> OPEN_EXISTING
     return [CreateFile $fn \
-                [expr {$windefs(GENERIC_READ) | $windefs(GENERIC_WRITE)}] \
-                [expr {$windefs(FILE_SHARE_READ) | $windefs(FILE_SHARE_WRITE)}] \
+                0xC0000000 \
+                3 \
                 {{} 1} \
-                $windefs(OPEN_EXISTING) \
+                3 \
                 0 \
                 NULL]
 }

@@ -51,7 +51,7 @@ The [cmd -inherit] option determines whether the returned handle will be
 inherited by child processes. This is [const false] by default.
 [nl]
 The access rights associated with the handle default to 
-[const GENERIC_READ] unless the [cmd -access] option is specified. 
+[const generic_read] unless the [cmd -access] option is specified. 
 [arg ACCESSRIGHTS] specifies the desired access rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html\#accessrights "Access Rights"].
@@ -68,7 +68,7 @@ to [uri desktop.html\#close_desktop_handle close_desktop_handle].
 Returns a handle to the window station identified by WINDOWSTATION. 
 [nl]
 The access rights associated with the handle default to 
-[const GENERIC_READ] unless the [cmd -access] option is specified. 
+[const generic_read] unless the [cmd -access] option is specified. 
 [arg ACCESSRIGHTS] specifies the desired access rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html#accessrights "Access Rights"].

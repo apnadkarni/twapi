@@ -199,3 +199,9 @@ proc twapi::format_message {args} {
     append msg2 [string range $msg $prev_end end]
     return $msg2
 }
+
+# Revert to process token. In base package because used across many modules
+proc twapi::revert_to_self {{opt ""}} {
+    RevertToSelf
+}
+
