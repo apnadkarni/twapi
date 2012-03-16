@@ -65,6 +65,19 @@ namespace eval twapi {
     # #defines from windows.h etc.
     # See which of these are actually used and remove unused - TBD
     array set security_defs {
+        LOGON32_LOGON_INTERACTIVE       2
+        LOGON32_LOGON_NETWORK           3
+        LOGON32_LOGON_BATCH             4
+        LOGON32_LOGON_SERVICE           5
+        LOGON32_LOGON_UNLOCK            7
+        LOGON32_LOGON_NETWORK_CLEARTEXT 8
+        LOGON32_LOGON_NEW_CREDENTIALS   9
+
+        LOGON32_PROVIDER_DEFAULT    0
+        LOGON32_PROVIDER_WINNT35    1
+        LOGON32_PROVIDER_WINNT40    2
+        LOGON32_PROVIDER_WINNT50    3
+
         SE_GROUP_MANDATORY              0x00000001
         SE_GROUP_ENABLED_BY_DEFAULT     0x00000002
         SE_GROUP_ENABLED                0x00000004
@@ -175,6 +188,18 @@ namespace eval twapi {
         UNPROTECTED_DACL_SECURITY_INFORMATION   0x20000000
         UNPROTECTED_SACL_SECURITY_INFORMATION   0x10000000
 
+        STANDARD_RIGHTS_REQUIRED       0x000F0000
+        STANDARD_RIGHTS_READ           0x00020000
+        STANDARD_RIGHTS_WRITE          0x00020000
+        STANDARD_RIGHTS_EXECUTE        0x00020000
+        STANDARD_RIGHTS_ALL            0x001F0000
+        SPECIFIC_RIGHTS_ALL            0x0000FFFF
+
+        GENERIC_READ                   0x80000000
+        GENERIC_WRITE                  0x40000000
+        GENERIC_EXECUTE                0x20000000
+        GENERIC_ALL                    0x10000000
+
         SERVICE_QUERY_CONFIG           0x00000001
         SERVICE_CHANGE_CONFIG          0x00000002
         SERVICE_QUERY_STATUS           0x00000004
@@ -194,9 +219,113 @@ namespace eval twapi {
         SC_MANAGER_MODIFY_BOOT_CONFIG  0x00000020
         SC_MANAGER_ALL_ACCESS          0x000F003F
 
+        KEY_QUERY_VALUE                0x00000001
+        KEY_SET_VALUE                  0x00000002
+        KEY_CREATE_SUB_KEY             0x00000004
+        KEY_ENUMERATE_SUB_KEYS         0x00000008
+        KEY_NOTIFY                     0x00000010
+        KEY_CREATE_LINK                0x00000020
+        KEY_WOW64_32KEY                0x00000200
+        KEY_WOW64_64KEY                0x00000100
+        KEY_WOW64_RES                  0x00000300
+        KEY_READ                       0x00020019
+        KEY_WRITE                      0x00020006
+        KEY_EXECUTE                    0x00020019
+        KEY_ALL_ACCESS                 0x000F003F
 
+        POLICY_VIEW_LOCAL_INFORMATION   0x00000001
+        POLICY_VIEW_AUDIT_INFORMATION   0x00000002
+        POLICY_GET_PRIVATE_INFORMATION  0x00000004
+        POLICY_TRUST_ADMIN              0x00000008
+        POLICY_CREATE_ACCOUNT           0x00000010
+        POLICY_CREATE_SECRET            0x00000020
+        POLICY_CREATE_PRIVILEGE         0x00000040
+        POLICY_SET_DEFAULT_QUOTA_LIMITS 0x00000080
+        POLICY_SET_AUDIT_REQUIREMENTS   0x00000100
+        POLICY_AUDIT_LOG_ADMIN          0x00000200
+        POLICY_SERVER_ADMIN             0x00000400
+        POLICY_LOOKUP_NAMES             0x00000800
+        POLICY_NOTIFICATION             0x00001000
+        POLICY_READ                     0X00020006
+        POLICY_WRITE                    0X000207F8
+        POLICY_EXECUTE                  0X00020801
+        POLICY_ALL_ACCESS               0X000F0FFF
 
+        DESKTOP_READOBJECTS         0x0001
+        DESKTOP_CREATEWINDOW        0x0002
+        DESKTOP_CREATEMENU          0x0004
+        DESKTOP_HOOKCONTROL         0x0008
+        DESKTOP_JOURNALRECORD       0x0010
+        DESKTOP_JOURNALPLAYBACK     0x0020
+        DESKTOP_ENUMERATE           0x0040
+        DESKTOP_WRITEOBJECTS        0x0080
+        DESKTOP_SWITCHDESKTOP       0x0100
 
+        WINSTA_ENUMDESKTOPS         0x0001
+        WINSTA_READATTRIBUTES       0x0002
+        WINSTA_ACCESSCLIPBOARD      0x0004
+        WINSTA_CREATEDESKTOP        0x0008
+        WINSTA_WRITEATTRIBUTES      0x0010
+        WINSTA_ACCESSGLOBALATOMS    0x0020
+        WINSTA_EXITWINDOWS          0x0040
+        WINSTA_ENUMERATE            0x0100
+        WINSTA_READSCREEN           0x0200
+        WINSTA_ALL_ACCESS           0x37f
+
+        PROCESS_TERMINATE              0x0001
+        PROCESS_CREATE_THREAD          0x0002
+        PROCESS_SET_SESSIONID          0x0004
+        PROCESS_VM_OPERATION           0x0008
+        PROCESS_VM_READ                0x0010
+        PROCESS_VM_WRITE               0x0020
+        PROCESS_DUP_HANDLE             0x0040
+        PROCESS_CREATE_PROCESS         0x0080
+        PROCESS_SET_QUOTA              0x0100
+        PROCESS_SET_INFORMATION        0x0200
+        PROCESS_QUERY_INFORMATION      0x0400
+        PROCESS_SUSPEND_RESUME         0x0800
+
+        THREAD_TERMINATE               0x00000001
+        THREAD_SUSPEND_RESUME          0x00000002
+        THREAD_GET_CONTEXT             0x00000008
+        THREAD_SET_CONTEXT             0x00000010
+        THREAD_SET_INFORMATION         0x00000020
+        THREAD_QUERY_INFORMATION       0x00000040
+        THREAD_SET_THREAD_TOKEN        0x00000080
+        THREAD_IMPERSONATE             0x00000100
+        THREAD_DIRECT_IMPERSONATION    0x00000200
+        THREAD_SET_LIMITED_INFORMATION   0x00000400
+        THREAD_QUERY_LIMITED_INFORMATION 0x00000800
+
+        EVENT_MODIFY_STATE             0x00000002
+        EVENT_ALL_ACCESS               0x001F0003
+
+        SEMAPHORE_MODIFY_STATE         0x00000002
+        SEMAPHORE_ALL_ACCESS           0x001F0003
+
+        MUTANT_QUERY_STATE             0x00000001
+        MUTANT_ALL_ACCESS              0x001F0001
+
+        MUTEX_MODIFY_STATE             0x00000001
+        MUTEX_ALL_ACCESS               0x001F0001
+
+        TIMER_QUERY_STATE              0x00000001
+        TIMER_MODIFY_STATE             0x00000002
+        TIMER_ALL_ACCESS               0x001F0003
+
+    }
+
+    if {[min_os_version 6]} {
+        array set security_defs {
+            PROCESS_QUERY_LIMITED_INFORMATION      0x00001000
+            PROCESS_ALL_ACCESS             0x001fffff
+            THREAD_ALL_ACCESS              0x001fffff
+        }
+    } else {
+        array set security_defs {
+            PROCESS_ALL_ACCESS             0x001f0fff
+            THREAD_ALL_ACCESS              0x001f03ff
+        }
     }
 
 
@@ -1930,48 +2059,30 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
             lappend rights [string tolower $x]
         }
     }
+
     #
-    # Check type specific multiple bit masks
+    # Check type specific multiple bit masks.
     #
-    switch -exact -- $type {
-        file {
-            set masks [list FILE_ALL_ACCESS FILE_GENERIC_READ FILE_GENERIC_WRITE FILE_GENERIC_EXECUTE]
-        }
-        pipe {
-            set masks [list FILE_ALL_ACCESS]
-        }
-        service {
-            set masks [list SERVICE_ALL_ACCESS]
-        }
-        registry {
-            set masks [list KEY_READ KEY_WRITE KEY_EXECUTE KEY_ALL_ACCESS]
-        }
-        process {
-            set masks [list PROCESS_ALL_ACCESS]
-        }
-        thread {
-            set masks [list THREAD_ALL_ACCESS]
-        }
-        token {
-            set masks [list TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE TOKEN_ALL_ACCESS]
-        }
-        desktop {
-            # THere is no desktop all access bits
-        }
-        winsta {
-            set masks [list WINSTA_ALL_ACCESS]
-        }
-        default {
-            set masks [list ]
+
+    set type_mask_map {
+        file {FILE_ALL_ACCESS FILE_GENERIC_READ FILE_GENERIC_WRITE FILE_GENERIC_EXECUTE}
+        process {PROCESS_ALL_ACCESS}
+        pipe {FILE_ALL_ACCESS}
+        policy {POLICY_READ POLICY_WRITE POLICY_EXECUTE POLICY_ALL_ACCESS}
+        registry {KEY_READ KEY_WRITE KEY_EXECUTE KEY_ALL_ACCESS}
+        service {SERVICE_ALL_ACCESS}
+        thread {THREAD_ALL_ACCESS}
+        token {TOKEN_READ TOKEN_WRITE TOKEN_EXECUTE TOKEN_ALL_ACCESS}
+        desktop {}
+        winsta {WINSTA_ALL_ACCESS}
+    }
+    if {[dict exists $type_mask_map $type]} {
+        foreach x [dict get $type_mask_map $type] {
+            if {($security_defs($x) & $access_mask) == $security_defs($x)} {
+                lappend rights [string tolower $x]
+            }
         }
     }
-
-    foreach x $masks {
-        if {($security_defs($x) & $access_mask) == $security_defs($x)} {
-            lappend rights [string tolower $x]
-        }
-    }
-
 
     #
     # OK, now map individual bits
@@ -1993,138 +2104,64 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
     }
 
     # Then the type specific
-    switch -exact -- $type {
-        file {
-            set masks {
-                FILE_READ_DATA
-                FILE_WRITE_DATA
-                FILE_APPEND_DATA
-                FILE_READ_EA
-                FILE_WRITE_EA
-                FILE_EXECUTE
-                FILE_DELETE_CHILD
-                FILE_READ_ATTRIBUTES
-                FILE_WRITE_ATTRIBUTES
-            }
-        }
-        pipe {
-            set masks {
-                FILE_READ_DATA
-                FILE_WRITE_DATA
-                FILE_CREATE_PIPE_INSTANCE
-                FILE_READ_ATTRIBUTES
-                FILE_WRITE_ATTRIBUTES
-            }
-        }
-        service {
-            set masks {
-                SERVICE_QUERY_CONFIG
-                SERVICE_CHANGE_CONFIG
-                SERVICE_QUERY_STATUS
-                SERVICE_ENUMERATE_DEPENDENTS
-                SERVICE_START
-                SERVICE_STOP
-                SERVICE_PAUSE_CONTINUE
-                SERVICE_INTERROGATE
-                SERVICE_USER_DEFINED_CONTROL
-            }
-        }
-        registry {
-            set masks {
-                KEY_QUERY_VALUE
-                KEY_SET_VALUE
-                KEY_CREATE_SUB_KEY
-                KEY_ENUMERATE_SUB_KEYS
-                KEY_NOTIFY
-                KEY_CREATE_LINK
-                KEY_WOW64_32KEY
-                KEY_WOW64_64KEY
-                KEY_WOW64_RES
-            }
-        }
-        process {
-            set masks {
-                PROCESS_TERMINATE
-                PROCESS_CREATE_THREAD
-                PROCESS_SET_SESSIONID
-                PROCESS_VM_OPERATION
-                PROCESS_VM_READ
-                PROCESS_VM_WRITE
-                PROCESS_DUP_HANDLE
-                PROCESS_CREATE_PROCESS
-                PROCESS_SET_QUOTA
-                PROCESS_SET_INFORMATION
-                PROCESS_QUERY_INFORMATION
-                PROCESS_SUSPEND_RESUME
-            }
-            if {[min_os_version 6]} {
-                lappend masks PROCESS_QUERY_LIMITED_INFORMATION
-            }
-        }
-        thread {
-            set masks {
-                THREAD_TERMINATE
-                THREAD_SUSPEND_RESUME
-                THREAD_GET_CONTEXT
-                THREAD_SET_CONTEXT
-                THREAD_SET_INFORMATION
-                THREAD_QUERY_INFORMATION
-                THREAD_SET_THREAD_TOKEN
-                THREAD_IMPERSONATE
-                THREAD_DIRECT_IMPERSONATION
-                THREAD_SET_LIMITED_INFORMATION
-                THREAD_QUERY_LIMITED_INFORMATION
-            }
-        }
-        token {
-            set masks {
-                TOKEN_ASSIGN_PRIMARY
-                TOKEN_DUPLICATE
-                TOKEN_IMPERSONATE
-                TOKEN_QUERY
-                TOKEN_QUERY_SOURCE
-                TOKEN_ADJUST_PRIVILEGES
-                TOKEN_ADJUST_GROUPS
-                TOKEN_ADJUST_DEFAULT
-                TOKEN_ADJUST_SESSIONID
-            }
-        }
-        desktop {
-            set masks {
-                DESKTOP_READOBJECTS
-                DESKTOP_CREATEWINDOW
-                DESKTOP_CREATEMENU
-                DESKTOP_HOOKCONTROL
-                DESKTOP_JOURNALRECORD
-                DESKTOP_JOURNALPLAYBACK
-                DESKTOP_ENUMERATE
-                DESKTOP_WRITEOBJECTS
-                DESKTOP_SWITCHDESKTOP
-            }
-        }
+    set type_mask_map {
+        file { FILE_READ_DATA FILE_WRITE_DATA FILE_APPEND_DATA
+            FILE_READ_EA FILE_WRITE_EA FILE_EXECUTE
+            FILE_DELETE_CHILD FILE_READ_ATTRIBUTES
+            FILE_WRITE_ATTRIBUTES }
+        pipe { FILE_READ_DATA FILE_WRITE_DATA FILE_CREATE_PIPE_INSTANCE
+            FILE_READ_ATTRIBUTES FILE_WRITE_ATTRIBUTES }
+        service { SERVICE_QUERY_CONFIG SERVICE_CHANGE_CONFIG
+            SERVICE_QUERY_STATUS SERVICE_ENUMERATE_DEPENDENTS
+            SERVICE_START SERVICE_STOP SERVICE_PAUSE_CONTINUE
+            SERVICE_INTERROGATE SERVICE_USER_DEFINED_CONTROL }
+        registry { KEY_QUERY_VALUE KEY_SET_VALUE KEY_CREATE_SUB_KEY
+            KEY_ENUMERATE_SUB_KEYS KEY_NOTIFY KEY_CREATE_LINK
+            KEY_WOW64_32KEY KEY_WOW64_64KEY KEY_WOW64_RES }
+        policy { POLICY_VIEW_LOCAL_INFORMATION POLICY_VIEW_AUDIT_INFORMATION
+            POLICY_GET_PRIVATE_INFORMATION POLICY_TRUST_ADMIN
+            POLICY_CREATE_ACCOUNT POLICY_CREATE_SECRET
+            POLICY_CREATE_PRIVILEGE POLICY_SET_DEFAULT_QUOTA_LIMITS
+            POLICY_SET_AUDIT_REQUIREMENTS POLICY_AUDIT_LOG_ADMIN
+            POLICY_SERVER_ADMIN POLICY_LOOKUP_NAMES }
+        process { PROCESS_TERMINATE PROCESS_CREATE_THREAD
+            PROCESS_SET_SESSIONID PROCESS_VM_OPERATION
+            PROCESS_VM_READ PROCESS_VM_WRITE PROCESS_DUP_HANDLE
+            PROCESS_CREATE_PROCESS PROCESS_SET_QUOTA
+            PROCESS_SET_INFORMATION PROCESS_QUERY_INFORMATION
+            PROCESS_SUSPEND_RESUME} 
+        thread { THREAD_TERMINATE THREAD_SUSPEND_RESUME
+            THREAD_GET_CONTEXT THREAD_SET_CONTEXT
+            THREAD_SET_INFORMATION THREAD_QUERY_INFORMATION
+            THREAD_SET_THREAD_TOKEN THREAD_IMPERSONATE
+            THREAD_DIRECT_IMPERSONATION
+            THREAD_SET_LIMITED_INFORMATION
+            THREAD_QUERY_LIMITED_INFORMATION }
+        token { TOKEN_ASSIGN_PRIMARY TOKEN_DUPLICATE TOKEN_IMPERSONATE
+            TOKEN_QUERY TOKEN_QUERY_SOURCE TOKEN_ADJUST_PRIVILEGES
+            TOKEN_ADJUST_GROUPS TOKEN_ADJUST_DEFAULT TOKEN_ADJUST_SESSIONID }
+        desktop { DESKTOP_READOBJECTS DESKTOP_CREATEWINDOW
+            DESKTOP_CREATEMENU DESKTOP_HOOKCONTROL
+            DESKTOP_JOURNALRECORD DESKTOP_JOURNALPLAYBACK
+            DESKTOP_ENUMERATE DESKTOP_WRITEOBJECTS DESKTOP_SWITCHDESKTOP }
         windowstation -
-        winsta {
-            set masks {
-                WINSTA_ENUMDESKTOPS
-                WINSTA_READATTRIBUTES
-                WINSTA_ACCESSCLIPBOARD
-                WINSTA_CREATEDESKTOP
-                WINSTA_WRITEATTRIBUTES
-                WINSTA_ACCESSGLOBALATOMS
-                WINSTA_EXITWINDOWS
-                WINSTA_ENUMERATE
-                WINSTA_READSCREEN
-            }
-        }
-        default {
-            set masks [list ]
-        }
+        winsta { WINSTA_ENUMDESKTOPS WINSTA_READATTRIBUTES
+            WINSTA_ACCESSCLIPBOARD WINSTA_CREATEDESKTOP
+            WINSTA_WRITEATTRIBUTES WINSTA_ACCESSGLOBALATOMS
+            WINSTA_EXITWINDOWS WINSTA_ENUMERATE WINSTA_READSCREEN }
     }
 
-    foreach x $masks {
-        if {$security_defs($x) & $access_mask} {
-            lappend rights [string tolower $x]
-            resetbits access_mask $security_defs($x)
+    if {[min_os_version 6]} {
+        dict lappend type_mask_map process PROCESS_QUERY_LIMITED_INFORMATION
+    }
+
+    if {[dict exists $type_mask_map $type]} {
+        foreach x [dict get $type_mask_map $type] {
+            if {$security_defs($x) & $access_mask} {
+                lappend rights [string tolower $x]
+                # Reset the bit so is it not included in unknown bits below
+                resetbits access_mask $security_defs($x)
+            }
         }
     }
 
@@ -2263,6 +2300,86 @@ set twapi::logon_session_type_map {
     cachedremoteinteractive
     cachedunlockworkstation
 }
+
+
+# Get a token for a user
+proc twapi::open_user_token {username password args} {
+    variable windefs
+
+    array set opts [parseargs args {
+        domain.arg
+        {type.arg batch}
+        {provider.arg default}
+    } -nulldefault]
+
+    set typedef "LOGON32_LOGON_[string toupper $opts(type)]"
+    if {![info exists windefs($typedef)]} {
+        error "Invalid value '$opts(type)' specified for -type option"
+    }
+
+    set providerdef "LOGON32_PROVIDER_[string toupper $opts(provider)]"
+    if {![info exists windefs($typedef)]} {
+        error "Invalid value '$opts(provider)' specified for -provider option"
+    }
+    
+    # If username is of the form user@domain, then domain must not be specified
+    # If username is not of the form user@domain, then domain is set to "."
+    # if it is empty
+    if {[regexp {^([^@]+)@(.+)} $username dummy user domain]} {
+        if {[string length $opts(domain)] != 0} {
+            error "The -domain option must not be specified when the username is in UPN format (user@domain)"
+        }
+    } else {
+        if {[string length $opts(domain)] == 0} {
+            set opts(domain) "."
+        }
+    }
+
+    return [LogonUser $username $opts(domain) $password $windefs($typedef) $windefs($providerdef)]
+}
+
+
+# Impersonate a user given a token
+proc twapi::impersonate_token {token} {
+    ImpersonateLoggedOnUser $token
+}
+
+
+# Impersonate a user
+proc twapi::impersonate_user {args} {
+    set token [open_user_token {*}$args]
+    trap {
+        impersonate_token $token
+    } finally {
+        close_token $token
+    }
+}
+
+# Impersonate self
+proc twapi::impersonate_self {level} {
+    switch -exact -- $level {
+        anonymous      { set level 0 }
+        identification { set level 1 }
+        impersonation  { set level 2 }
+        delegation     { set level 3 }
+        default {
+            error "Invalid impersonation level $level"
+        }
+    }
+    ImpersonateSelf $level
+}
+
+# Set a thread token - currently only for current thread
+proc twapi::set_thread_token {token} {
+    SetThreadToken NULL $token
+}
+
+# Reset a thread token - currently only for current thread
+proc twapi::reset_thread_token {} {
+    SetThreadToken NULL NULL
+}
+
+
 
 # Returns true if null security descriptor
 proc twapi::_null_secd {secd} {
