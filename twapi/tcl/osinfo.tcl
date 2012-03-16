@@ -21,7 +21,6 @@ namespace eval twapi {
 #            smallbusiness, smallbusiness_restricted, terminal, personal
 #   system_type - workstation, server
 proc twapi::get_os_info {} {
-    variable windefs
     variable _osinfo
 
     if {[info exists _osinfo]} {

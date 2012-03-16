@@ -535,8 +535,15 @@ of the values
 [const volume_is_compressed],
 [const supports_object_ids],
 [const supports_encryption],
-[const named_streams], or
-[const read_only_volume].
+[const named_streams],
+[const read_only_volume],
+[const sequential_write_once],
+[const supports_transactions],
+[const supports_hard_links],
+[const supports_extended_attributes],
+[const supports_open_by_file_id], or
+[const supports_usn_journal].
+
 These indicate the features supported by the drive's file system. Refer
 to the documentation for [cmd GetVolumeInformation] function in the Windows SDK
 for details on these.

@@ -8,7 +8,6 @@
 
 # Get info associated with a drive
 proc twapi::get_volume_info {drive args} {
-    variable windefs
 
     set drive [_drive_rootpath $drive]
 
@@ -97,26 +96,29 @@ proc twapi::get_volume_info {drive args} {
         }
         if {$opts(attr)} {
             set attrs [list ]
-            foreach val {
-                case_preserved_names
-                unicode_on_disk
-                persistent_acls
-                file_compression
-                volume_quotas
-                supports_sparse_files
-                supports_reparse_points
-                supports_remote_storage
-                volume_is_compressed
-                supports_object_ids
-                supports_encryption
-                named_streams
-                read_only_volume
+            foreach {sym val} {
+                case_preserved_names 2
+                unicode_on_disk 4
+                persistent_acls 8
+                file_compression 16
+                volume_quotas 32
+                supports_sparse_files 64
+                supports_reparse_points 128
+                supports_remote_storage 256
+                volume_is_compressed 0x8000
+                supports_object_ids 0x10000
+                supports_encryption 0x20000
+                named_streams 0x40000
+                read_only_volume 0x80000
+                sequential_write_once          0x00100000  
+                supports_transactions          0x00200000  
+                supports_hard_links            0x00400000  
+                supports_extended_attributes   0x00800000  
+                supports_open_by_file_id       0x01000000  
+                supports_usn_journal           0x02000000  
             } {
-                # Coincidentally, the attribute values happen to match
-                # the corresponding constant defines
-                set cdef "FILE_[string toupper $val]"
-                if {$attr & $windefs($cdef)} {
-                    lappend attrs $val
+                if {$attr & $val} {
+                    lappend attrs $sym
                 }
             }
             lappend result -attr $attrs
@@ -907,9 +909,15 @@ proc twapi::_create_disposition_to_code {sym} {
     if {[string is integer -strict $sym]} {
         return $sym
     }
-    set code [lsearch -exact {dummy create_new create_always open_existing open_always truncate_existing} $sym]
-    if {$code == -1} {
-        error "Invalid create disposition value '$sym'"
-    }
-    return $code
+    # CREATE_NEW          1
+    # CREATE_ALWAYS       2
+    # OPEN_EXISTING       3
+    # OPEN_ALWAYS         4
+    # TRUNCATE_EXISTING   5
+    return [dict get {
+        create_new 1
+        create_always 2
+        open_existing 3
+        open_always 4
+        truncate_existing 5} $sym]
 }

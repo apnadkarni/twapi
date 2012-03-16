@@ -4,6 +4,7 @@
 #
 # See the file LICENSE for license
 
+package require twapi_security
 
 # Add a new user account
 proc twapi::new_user {username args} {
