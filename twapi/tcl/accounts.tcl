@@ -323,7 +323,7 @@ proc twapi::get_global_group_info {name args} {
             lappend result -comment [kl_get $info comment]
         }
         if {$opts(all) || $opts(attributes)} {
-            lappend result -attributes [_map_token_group_attr [kl_get $info attributes]]
+            lappend result -attributes [map_token_group_attr [kl_get $info attributes]]
         }
     }
     if {$opts(all) || $opts(members)} {
