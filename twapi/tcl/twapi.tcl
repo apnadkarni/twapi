@@ -226,11 +226,6 @@ proc ::twapi::load_twapi {} {
 proc twapi::get_build_config {{key ""}} {
     variable build_ids
     array set config [GetTwapiBuildInfo]
-    if {[info exists build_ids]} {
-        set config(build_ids) [array get build_ids]
-    } else {
-        set config(build_ids) {}; # Running from source directory (development)
-    }
 
     # This is actually a runtime config and might not have been initialized
     if {[info exists ::twapi::use_tcloo_for_com]} {
@@ -1663,10 +1658,7 @@ proc twapi::_net_enum_helper {function args} {
     }
 }
 
-# If an embedded script, no need to source other files separately.
-# We expect all source files to have been appended to this file.
-# This includes Tcl .tm modules. On the other hand, if we are being
-# sourced ourselves, then we need to source the remaining files.
+# If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "twapi.tcl"} {
     # We are being sourced so source the remaining files
 
