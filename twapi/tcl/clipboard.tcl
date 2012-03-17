@@ -56,7 +56,7 @@ proc twapi::read_clipboard_text {args} {
         set h [GetClipboardData 13];    # 13 -> Unicode
         set p [GlobalLock $h]
         # Read data discarding terminating null
-        set data [string range [Twapi_ReadMemoryUnicode $p 0 [GlobalSize $h]] 0 end-1]
+        set data [Twapi_ReadMemoryUnicode $p 0 [GlobalSize $h] 1]
         if {! $opts(raw)} {
             set data [string map {"\r\n" "\n"} $data]
         }
