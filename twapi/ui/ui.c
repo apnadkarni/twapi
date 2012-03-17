@@ -143,41 +143,6 @@ Tcl_Obj *ObjFromWINDOWINFO (WINDOWINFO *wiP)
     return Tcl_NewListObj(9, objv);
 }
 
-/* Window enumeration callback */
-BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
-    TwapiEnumCtx *p_enum_win_ctx =
-        (TwapiEnumCtx *) p_ctx;
-
-    Tcl_ListObjAppendElement(p_enum_win_ctx->interp,
-                             p_enum_win_ctx->objP,
-                             ObjFromHWND(hwnd));
-    
-    return 1;
-}
-
-
-/*
- * Enumerate toplevel windows
- */
-int Twapi_EnumWindows(Tcl_Interp *interp)
-{
-    TwapiEnumCtx enum_win_ctx;
-
-    enum_win_ctx.interp = interp;
-    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
-
-    
-    if (EnumWindows(Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
-        TwapiReturnSystemError(interp);
-        Twapi_FreeNewTclObj(enum_win_ctx.objP);
-        return TCL_ERROR;
-    }
-
-    Tcl_SetObjResult(interp, enum_win_ctx.objP);
-    return TCL_OK;
-}
-
-
 /*
  * Enumerate child windows of windows with handle parent_handle
  */
@@ -1050,7 +1015,9 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             result.value.ival = GetCaretBlinkTime();
             break;
         case 4:
-            return Twapi_EnumWindows(interp);
+            result.type = TRT_HWND;
+            result.value.hwin = GetFocus();
+            break;
         case 5:
             result.type = TRT_HWND;
             result.value.hwin = GetDesktopWindow();
@@ -1077,10 +1044,6 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 11:
             return Twapi_GetCurrentThemeName(interp);
-        case 12:
-            result.type = TRT_HWND;
-            result.value.hwin = GetFocus();
-            break;
         }
     } else if (func < 2000) {
         /* Exactly least one arg */
@@ -1271,7 +1234,6 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     HWND hwnd, hwnd2;
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4, dw5;
-    Tcl_Obj *objs[2];
     int func;
     union {
         WINDOWPLACEMENT winplace;
@@ -1281,7 +1243,6 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         HRGN   hrgn;
     } u;
     RECT *rectP;
-    LPWSTR s, s2;
     HANDLE h;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -1394,17 +1355,7 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
             break;
         case 24:
-            dw2 = GetWindowThreadProcessId(hwnd, &dw);
-            if (dw2 == 0) {
-                result.type = TRT_GETLASTERROR;
-            } else {
-                objs[0] = Tcl_NewLongObj(dw2);
-                objs[1] = Tcl_NewLongObj(dw);
-                result.value.objv.nobj = 2;
-                result.value.objv.objPP = objs;
-                result.type = TRT_OBJV;
-            }
-            break;
+            return Twapi_EnumChildWindows(interp, hwnd);
         case 25:
             SetLastError(0);            /* Make sure error is not set */
             result.type = TRT_UNICODE;
@@ -1428,9 +1379,6 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 result.type = TRT_GETLASTERROR;
             }
             break;
-
-        case 28:
-            return Twapi_EnumChildWindows(interp, hwnd);
         }
     } else if (func < 500) {
         /* Exactly one additional int arg */
@@ -1506,14 +1454,14 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetWindowPos(hwnd, hwnd2, dw, dw2, dw3, dw4, dw5);
             break;
-        case 1006: // FindWindowEx
+        case 1006:
             if (TwapiGetArgs(interp, objc-3, objv+3,
-                             GETHANDLET(hwnd2, HWND),
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             GETINT(dw), GETINT(dw2), GETINT(dw3),
+                             GETINT(dw4), GETINT(dw5),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.type = TRT_HWND;
-            result.value.hval = FindWindowExW(hwnd, hwnd2, s, s2);
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = MoveWindow(hwnd, dw, dw2, dw3, dw4, dw5);
             break;
         case 1007:
             if (TwapiGetArgs(interp, objc-3, objv+3,
@@ -1551,15 +1499,6 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetLayeredWindowAttributes(hwnd, dw, (BYTE)dw2, dw3);
             break;
-        case 1012:
-            if (TwapiGetArgs(interp, objc-3, objv+3,
-                             GETINT(dw), GETINT(dw2), GETINT(dw3),
-                             GETINT(dw4), GETINT(dw5),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = MoveWindow(hwnd, dw, dw2, dw3, dw4, dw5);
-            break;
         }
     }
 
@@ -1581,7 +1520,7 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetCursorPos, Call, 1);
     CALL_(GetCaretPos, Call, 2);
     CALL_(GetCaretBlinkTime, Call, 3);
-    CALL_(EnumWindows, Call, 4);
+    CALL_(GetFocus, Call, 4);                  /* TBD Tcl */
     CALL_(GetDesktopWindow, Call, 5);
     CALL_(GetShellWindow, Call, 6);
     CALL_(GetForegroundWindow, Call, 7);
@@ -1589,7 +1528,6 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IsThemeActive, Call, 9);
     CALL_(IsAppThemed, Call, 10);
     CALL_(GetCurrentThemeName, Call, 11);
-    CALL_(GetFocus, Call, 12);                  /* TBD Tcl */
 
     CALL_(WindowFromPoint, Call, 1001);
     CALL_(FlashWindowEx, Call, 1002);
@@ -1641,11 +1579,10 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetActiveWindow, CallW, 21);
     CALL_(GetClassName, CallW, 22);
     CALL_(RealGetWindowClass, CallW, 23);
-    CALL_(GetWindowThreadProcessId, CallW, 24);
+    CALL_(EnumChildWindows, CallW, 24);
     CALL_(GetWindowText, CallW, 25);
     CALL_(GetWindowDC, CallW, 26);
     CALL_(GetWindowPlacement, CallW, 27); // TBD - Tcl wrapper
-    CALL_(EnumChildWindows, CallW, 28);
     CALL_(GetAncestor, CallW, 501);
     CALL_(GetWindow, CallW, 502);
     CALL_(ShowWindow, CallW, 503);
@@ -1658,13 +1595,12 @@ static int Twapi_UiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(SetWindowPlacement, CallW, 1003); // TBD - Tcl wrapper
     CALL_(InvalidateRect, CallW, 1004);     // TBD - Tcl wrapper
     CALL_(SetWindowPos, CallW, 1005);
-    CALL_(FindWindowEx, CallW, 1006);
+    CALL_(MoveWindow, CallW, 1006);
     CALL_(ReleaseDC, CallW, 1007);
     CALL_(OpenThemeData, CallW, 1008);
     CALL_(SetWindowRgn, CallW, 1009); // TBD - Tcl wrapper
     CALL_(GetWindowRgn, CallW, 1010); // TBD - Tcl wrapper
     CALL_(SetLayeredWindowAttributes, CallW, 1011);
-    CALL_(MoveWindow, CallW, 1012);
 
 
 #undef CALL_
