@@ -29,9 +29,7 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\win.tcl \
 	..\tcl\adsi.tcl \
-	..\tcl\synch.tcl \
-        ..\tcl\printer.tcl \
-	..\tcl\power.tcl
+	..\tcl\synch.tcl
 
 !include ..\include\rules.inc
 

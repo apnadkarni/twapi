@@ -735,7 +735,6 @@ if {[file tail [info script]] eq "twapi.tcl"} {
         }
     }} {
         base.tcl handle.tcl win.tcl adsi.tcl synch.tcl
-        printer.tcl power.tcl 
     }
 }
 
