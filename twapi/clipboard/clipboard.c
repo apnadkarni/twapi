@@ -218,7 +218,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         result.type = TRT_NONZERO_RESULT;
         result.value.ival = RegisterClipboardFormatW(Tcl_GetUnicode(objv[2]));
         break;
-    case 16:
+    case 13:
         if (TwapiGetArgs(interp, objc-2, objv+2, GETHWND(hwnd), ARGEND) != TCL_ERROR)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
