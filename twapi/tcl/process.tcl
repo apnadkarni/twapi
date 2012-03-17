@@ -1408,6 +1408,7 @@ proc twapi::get_process_commandline {pid args} {
         } else {
             # Read the CommandLine field
             ReadProcessMemory $hpid [expr {$proc_param_addr + 64}] $pgbl 8
+            # TBD - remove 8.4 support
             if {[string match 8.4* [info tclversion]]} {
                 # 8.4 does not support t, n and u specifiers. Make do with
                 # what we have
@@ -1435,7 +1436,7 @@ proc twapi::get_process_commandline {pid args} {
                     # Retry
                     ReadProcessMemory $hpid $cmdline_addr $pgbl $cmdline_bytelen
                 }
-                set cmdline [Twapi_ReadMemoryUnicode $pgbl 0 $cmdline_bytelen]
+                set cmdline [Twapi_ReadMemoryUnicode $pgbl 0 $cmdline_bytelen 1]
             }
         } else {
             # Old pre-2.3 code
