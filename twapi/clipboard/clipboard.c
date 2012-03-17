@@ -207,7 +207,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         }
         break;
     case 11:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETHANDLE(h), ARGEND) != TCL_ERROR)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HANDLE;
         result.value.hval = SetClipboardData(dw, h);
@@ -219,10 +219,10 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         result.value.ival = RegisterClipboardFormatW(Tcl_GetUnicode(objv[2]));
         break;
     case 13:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHWND(hwnd), ARGEND) != TCL_ERROR)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETHWND(hwnd), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = OpenClipboard(hwnd);
+        result.type = TRT_EXCEPTION_ON_FALSE;
         break;
     }
 
