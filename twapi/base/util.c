@@ -63,15 +63,17 @@ void TwapiDebugOutput(char *s) {
 
 int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int restype;
     char *p;
+    WCHAR *wp;
+    int modifier;
+    int restype;
     int offset;
     int len;
     TwapiResult result;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETINT(restype), GETVOIDP(p), GETINT(offset),
-                     ARGUSEDEFAULT, GETINT(len),
+                     ARGUSEDEFAULT, GETINT(len), GETINT(modifier),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -90,15 +92,31 @@ int TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         break;
 
     case 10103:
-        result.type = TRT_CHARS;
+        /* When len > 0, modifier != 0 means also check null terminator */
+        if (len > 0 && modifier) {
+            for (modifier = 0; modifier < len && p[modifier]; ++modifier)
+                ;
+            len = modifier;
+        }
         result.value.chars.str = p;
         result.value.chars.len = len;
+        result.type = TRT_CHARS;
         break;
         
     case 10104:
+        if (len > 0)
+            len /= sizeof(WCHAR); /* Convert to num chars */
+        wp = (WCHAR *) p;
+
+        /* When len > 0, modifier != 0 means also check null terminator */
+        if (len > 0 && modifier) {
+            for (modifier = 0; modifier < len && wp[modifier]; ++modifier)
+                ;
+            len = modifier;
+        }
         result.type = TRT_UNICODE;
-        result.value.unicode.str = (WCHAR *) p;
-        result.value.unicode.len =  (len == -1) ? -1 : (len / sizeof(WCHAR));
+        result.value.unicode.str = wp;
+        result.value.unicode.len =  len;
         break;
         
     case 10105:
