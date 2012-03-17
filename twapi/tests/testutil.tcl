@@ -324,6 +324,27 @@ proc system_drive_root {} {
     return [file dirname $::env(WINDIR)]
 }
 
+proc kill {pid args} {
+    # Note we do not want to use twapi to keep testing of modules
+    # not dependent on each other
+
+    if {[lsearch -exact $args "-force"] >= 0} {
+        exec taskkill /PID $pid /F
+    } else {
+        exec taskkill /PID $pid
+    }
+
+    set wait [lsearch -exact $args "-wait"]
+    if {$wait < 0} { return }
+    set wait [lindex $args $wait+1]
+
+    # Wait in a loop checking for process existence WITHOUT using twapi
+    while {$wait > 0 && [process_exists? $pid]} {
+        after 50
+        incr wait -50
+    }
+}
+
 # Start notepad and wait till it's up and running.
 proc notepad_exec {args} {
     set pid [eval [list exec [get_notepad_path]] $args &]
@@ -333,7 +354,12 @@ proc notepad_exec {args} {
         }
     } else {
         # Assume ready after 2000
-        after 2000
+        set wait 2000
+        while {$wait > 0 && ! [process_exists? $pid]} {
+            after 50
+            incr wait -50
+        }
+        # Once pid is there, wait another 100 for window to be ready for input
     }
     return $pid
 }
@@ -350,7 +376,7 @@ proc notepad_copy {text} {
     twapi::send_keys $text
     twapi::send_keys ^a^c;                 # Select all and copy
     after 100
-    twapi::end_process $pid -force
+    kill $pid
 }
 
 # Start notepad, make it add text and return its pid
@@ -472,6 +498,13 @@ proc get_process_with_field_value {field value {refresh 0}} {
     }
     error "No process with $field=$value"
 }
+
+proc process_exists? pid {
+    # TBD - maybe use wmic instead
+    set ret [catch {get_process_with_field_value -pid $pid 1}]
+    return [expr {! $ret}]
+}
+
 
 proc get_winlogon_path {} {
     set winlogon_path [file join $::env(WINDIR) "system32" "winlogon.exe"]

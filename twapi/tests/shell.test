@@ -649,7 +649,7 @@ namespace eval twapi::shell::test {
         set pid [window_to_pid -text "Untitled*Notepad" -match glob]
         yesno "Was a notepad window created prompting for file $fn ?"
     } -cleanup {
-        twapi::end_process $pid -force
+        kill $pid -force
         file delete $path
     } -result 1
 
@@ -759,7 +759,7 @@ namespace eval twapi::shell::test {
         set pid [window_to_pid -text "[file rootname [file tail $path]]*Notepad" -match glob]
         twapi::process_exists $pid
     } -cleanup {
-        twapi::end_process $pid -force
+        kill $pid -force
         file delete $urlpath
     } -result 1
 
@@ -1038,7 +1038,7 @@ namespace eval twapi::shell::test {
         twapi::close_handle $hproc
         twapi::get_process_info $pid -name
     } -cleanup {
-        twapi::end_process $pid
+        kill $pid
     } -result {-name cmd.exe}
         
     test shell_execute-6.0 {
