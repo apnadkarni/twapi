@@ -803,6 +803,7 @@ proc twapi::get_system_parameters_info {uiaction} {
     # is substribnuted for it.
     # If modifiers contains "cbsize" the first dword is initialized
     # with malloc_size
+    # TBD - use dict instead
     if {![info exists SystemParametersInfo_uiactions_get]} {
         array set SystemParametersInfo_uiactions_get {
             SPI_GETDESKWALLPAPER {0x0073 2048 unicode 4096}
@@ -907,7 +908,7 @@ proc twapi::get_system_parameters_info {uiaction} {
         }
         SystemParametersInfo $index $uiparam $mem 0
         if {$fmt eq "unicode"} {
-            return [Twapi_ReadMemoryUnicode $mem 0 -1]
+            return [Twapi_ReadMemoryUnicode $mem 0 $sz 1]
         } else {
             set n [binary scan [Twapi_ReadMemoryBinary $mem 0 $sz] $fmt {*}[lrange {val0 val1 val2 val3 val4 val5 val6 val7 val8 val9 val10 val11 val12 val13 val14 val15 val16 val17 val17} 0 [llength $fmt]-1]]
             if {$n == 1} {
