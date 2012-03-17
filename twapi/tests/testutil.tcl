@@ -327,8 +327,13 @@ proc system_drive_root {} {
 # Start notepad and wait till it's up and running.
 proc notepad_exec {args} {
     set pid [eval [list exec [get_notepad_path]] $args &]
-    if {![twapi::process_waiting_for_input $pid -wait 5000]} {
-        error "Timeout waiting for notepad to be ready for input"
+    if {[info commands twapi::process_waiting_for_input] ne ""} {
+        if {![twapi::process_waiting_for_input $pid -wait 5000]} {
+            error "Timeout waiting for notepad to be ready for input"
+        }
+    } else {
+        # Assume ready after 2000
+        after 2000
     }
     return $pid
 }
@@ -336,9 +341,12 @@ proc notepad_exec {args} {
 # Start notepad, make it store something in the clipboard and exit
 proc notepad_copy {text} {
     set pid [notepad_exec]
-    set hwin [lindex [twapi::find_windows -pids [list $pid] -class Notepad] 0]
-    twapi::set_foreground_window $hwin
-    after 100;                          # Wait for it to become foreground
+    if {[info commands twapi::find_windows] ne ""} {
+        set hwin [lindex [twapi::find_windows -pids [list $pid] -class Notepad] 0]
+        twapi::set_foreground_window $hwin
+    } else  {
+        # Assume the exec put it in foreground
+    }
     twapi::send_keys $text
     twapi::send_keys ^a^c;                 # Select all and copy
     after 100
@@ -898,7 +906,9 @@ proc yesno {question {default "Y"}} {
 # Pause to allow reader to read a message
 proc pause {message} {
     # Make sure we are seen
-    twapi::set_foreground_window [twapi::get_console_window]
+    if {[info commands twapi::set_foreground_window] ne ""} {
+        twapi::set_foreground_window [twapi::get_console_window]
+    }
     # Would like -nonewline here but see comments in proc yesno
     puts "\n$message Hit Return to continue..."
     flush stdout
@@ -908,6 +918,36 @@ proc pause {message} {
 
 proc patience {task} {
     puts "$task may take a little while, patience please..."
+}
+
+proc hexdump {data {width 1} {count -1}} {
+    # Adapted from AMG at http://wiki.tcl.tk/1599
+    switch -exact -- $width {
+        1 {
+            set regex "(..)"
+            set repl {\1 }
+        }
+        2 {
+            set regex "(..)(..)"
+            set repl {\2\1 }
+        }
+        4 {
+            set regex "(..)(..)(..)(..)"
+            set repl {\4\3\2\1 }
+        }
+    }
+    set regex [string repeat (..) $width]
+    set repl "[string range {\4\3\2\1} end-[expr {1+($width * 2)}] end] "
+    if {$count < 1} {
+        set count [string length $data]
+    }
+    for {set i 0} {$i < $count} {incr i 16} {
+        set row [string range $data $i [expr {$i + 15}]]
+        binary scan $row H* hex
+        set hex [regsub -all $regex [format %-32s $hex] $repl]
+        set row [regsub -all {[^[:print:]]} $row .]
+        puts [format "%08x: %s %-16s" $i $hex $row]
+    }
 }
 
 # Read commands from standard input and execute them.
