@@ -161,7 +161,7 @@ namespace eval twapi::ui::test {
         set np_top [notepad_top $np_pid]
         expr {[llength [twapi::find_windows -ancestor $np_top]] > 0}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -176,7 +176,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr {[llength [twapi::find_windows -ancestor $np_top]] > 0}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -192,7 +192,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::find_windows -ancestor $np_child
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -223,7 +223,7 @@ namespace eval twapi::ui::test {
     } -body {
         llength [twapi::find_windows -pids [list $np_pid] -caption true]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -237,7 +237,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr {[llength [twapi::find_windows -pids [list $np_pid] -caption false]] > 0}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -271,7 +271,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact [twapi::find_windows -child false -pids [list $np_pid]] $np_top] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -288,7 +288,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact [twapi::find_windows -child true -pids [list $np_pid]] $np_top] < 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -306,7 +306,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact [twapi::find_windows -child true -pids [list $np_pid]] $np_child] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -324,7 +324,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact [twapi::find_windows -child false -pids [list $np_pid]] $np_child] < 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -338,7 +338,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr { [llength [twapi::find_windows -class Notepad]] > 0 }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -352,7 +352,7 @@ namespace eval twapi::ui::test {
     } -body {
         llength [twapi::find_windows -class NOSUCHCLASS]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -367,7 +367,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr { [llength [twapi::find_windows -text "Untitled - Notepad"]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -382,7 +382,7 @@ namespace eval twapi::ui::test {
         # Note we use "*" - should not be treated as wildcard
         llength [twapi::find_windows -text "Untitled*"]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -398,7 +398,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         expr { [llength [twapi::find_windows -text "UNTITLED - NOTEPAD"]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -413,7 +413,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         llength [twapi::find_windows -match string -text "UNTITLED*"]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -429,7 +429,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         expr { [llength [twapi::find_windows -match glob -text "Untitled*"]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -445,7 +445,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         expr { [llength [twapi::find_windows -match glob -text "*Notepad"]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -461,7 +461,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         expr { [llength [twapi::find_windows -match glob -text "Un*No*ad"]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -477,7 +477,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         expr { [llength [twapi::find_windows -match regexp -text {U.*n.*p[a|e]d}]] - $cur_np }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -512,7 +512,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -529,7 +529,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         twapi::find_windows -class Notepad -pids [list $np_pid] -maximize false
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -550,7 +550,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -567,7 +567,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         twapi::find_windows -class Notepad -pids [list $np_pid] -minimize 0
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -589,7 +589,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -610,7 +610,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $popup_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -631,7 +631,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -652,7 +652,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $popup_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -671,7 +671,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -692,7 +692,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $popup_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -711,7 +711,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -733,7 +733,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact $wins $popup_win] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -752,7 +752,7 @@ namespace eval twapi::ui::test {
               [lindex $wins 0] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -769,7 +769,7 @@ namespace eval twapi::ui::test {
         set wins [twapi::find_windows -pids [list $np_pid]  -style {0x14cf0000 0x110}]
         llength $wins
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -787,7 +787,7 @@ namespace eval twapi::ui::test {
         set wins [twapi::find_windows -pids [list $np_pid]  -style {0x1ccf0000 0x100}]
         llength $wins
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -824,7 +824,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact $wins $popup_win] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -844,7 +844,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact $wins $popup_win] < 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -881,7 +881,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact  $wins $popup_win] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -901,7 +901,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact  $wins $popup_win] < 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
 
@@ -949,7 +949,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact  $wins $edit_win] >=  0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -966,7 +966,7 @@ namespace eval twapi::ui::test {
         set win [twapi::get_parent_window $edit_win]
         expr {$win == $np_win}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -982,7 +982,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::get_owner_window $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -999,7 +999,7 @@ namespace eval twapi::ui::test {
         set win [twapi::get_owner_window $popup_win]
         expr {$win == $np_win}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1020,7 +1020,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact  $wins $edit_win] < 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1145,7 +1145,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr {$np_pid == [twapi::get_window_process $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1160,7 +1160,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr {$np_pid == [twapi::get_thread_parent_process_id [twapi::get_window_thread $np_win]]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1186,7 +1186,7 @@ namespace eval twapi::ui::test {
               [lsearch -exact $styles sysmenu] >= 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1211,7 +1211,7 @@ namespace eval twapi::ui::test {
               $newexstyle == $newexstylecheck
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1226,7 +1226,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::get_window_class $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result Notepad
 
     ################################################################
@@ -1241,7 +1241,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::get_window_class $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result Notepad
 
     ################################################################
@@ -1257,7 +1257,7 @@ namespace eval twapi::ui::test {
         set longval [twapi::get_window_long $np_win -16]
         expr {$longval == [lindex [twapi::get_window_style $np_win] 0]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1280,7 +1280,7 @@ namespace eval twapi::ui::test {
               $oldexstyle == $newexstylecheck
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1295,7 +1295,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer [twapi::get_window_application $np_win]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1310,7 +1310,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer [twapi::get_window_id $np_win]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1326,7 +1326,7 @@ namespace eval twapi::ui::test {
         # Assumes notepad userdata is always 0
         twapi::get_window_userdata $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1348,7 +1348,7 @@ namespace eval twapi::ui::test {
               $new_data == 1
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1363,7 +1363,7 @@ namespace eval twapi::ui::test {
     } -body {
         expr {[twapi::get_foreground_window] == $np_win}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1384,8 +1384,8 @@ namespace eval twapi::ui::test {
               [twapi::get_foreground_window] == $np_win
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
-        twapi::end_process $np_pid2 -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
+        kill $np_pid2 -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1412,7 +1412,7 @@ namespace eval twapi::ui::test {
               [twapi::get_active_window_for_thread $np_tid] eq [notepad_top $np_pid]
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1429,7 +1429,7 @@ namespace eval twapi::ui::test {
               [twapi::get_parent_window [twapi::get_focus_window_for_thread $np_tid]] eq [notepad_top $np_pid]
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1454,7 +1454,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::redraw_window_frame $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1469,7 +1469,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::redraw_window $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1487,7 +1487,7 @@ namespace eval twapi::ui::test {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { $left == 20 && $top == 30 }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -1504,7 +1504,7 @@ namespace eval twapi::ui::test {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { $left == 20 && $top == 30 }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1522,7 +1522,7 @@ namespace eval twapi::ui::test {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { ($right-$left) == 400 && ($bottom-$top) == 600 }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -1539,7 +1539,7 @@ namespace eval twapi::ui::test {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { ($right-$left) == 400 && ($bottom-$top) == 600 }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1556,8 +1556,8 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::set_window_zorder $np_win2 $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
-        twapi::end_process $np_pid2 -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
+        kill $np_pid2 -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1572,7 +1572,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::set_window_zorder $np_win top
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1587,7 +1587,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::set_window_zorder $np_win bottom
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1602,7 +1602,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::set_window_zorder $np_win toplayer
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -1617,7 +1617,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::set_window_zorder $np_win bottomlayer
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result "" 
 
     ################################################################
@@ -1632,7 +1632,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::show_window $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1648,7 +1648,7 @@ namespace eval twapi::ui::test {
         # TBD - how to verify it was actually activated?
         twapi::show_window $np_win -activate
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1666,7 +1666,7 @@ namespace eval twapi::ui::test {
         after 50;                       # Give it a chance to take effect
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1684,7 +1684,7 @@ namespace eval twapi::ui::test {
         # Note we -sync means we don't need to wait
         twapi::window_maximized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1702,7 +1702,7 @@ namespace eval twapi::ui::test {
         after 50;                       # Give it a chance to take effect
         twapi::window_maximized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1719,7 +1719,7 @@ namespace eval twapi::ui::test {
         after 50;                       # Wait for it to take effect
         twapi::window_visible $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1736,7 +1736,7 @@ namespace eval twapi::ui::test {
         # Note we -sync means we don't need to wait
         twapi::window_visible $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1753,7 +1753,7 @@ namespace eval twapi::ui::test {
         twapi::restore_window $np_win
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1770,7 +1770,7 @@ namespace eval twapi::ui::test {
         twapi::restore_window $np_win -sync
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1787,7 +1787,7 @@ namespace eval twapi::ui::test {
         twapi::restore_window $np_win -activate -sync
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1804,7 +1804,7 @@ namespace eval twapi::ui::test {
         after 50;                       # Give it a chance to take effect
         expr {$was_visible && [twapi::window_maximized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1821,7 +1821,7 @@ namespace eval twapi::ui::test {
         set was_visible [twapi::maximize_window $np_win -sync]
         expr {$was_visible == 0 && [twapi::window_maximized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1838,7 +1838,7 @@ namespace eval twapi::ui::test {
         after 50;                       # Give it a chance to take effect
         expr {$was_visible && [twapi::window_minimized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1855,7 +1855,7 @@ namespace eval twapi::ui::test {
         set was_visible [twapi::minimize_window $np_win -sync]
         expr {$was_visible == 0 && [twapi::window_minimized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1871,7 +1871,7 @@ namespace eval twapi::ui::test {
         set was_visible [twapi::minimize_window $np_win -sync -activate]
         expr {$was_visible && [twapi::window_minimized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1887,7 +1887,7 @@ namespace eval twapi::ui::test {
         set was_visible [twapi::minimize_window $np_win -sync -shownext]
         expr {$was_visible && [twapi::window_minimized $np_win]}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1906,7 +1906,7 @@ namespace eval twapi::ui::test {
               ! [twapi::window_visible $popup_win]
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1927,7 +1927,7 @@ namespace eval twapi::ui::test {
               [twapi::window_visible $popup_win]
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -1943,7 +1943,7 @@ namespace eval twapi::ui::test {
         # TBD - how do we test this
         twapi::enable_window_input $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -1959,7 +1959,7 @@ namespace eval twapi::ui::test {
         # TBD - how do we test this
         twapi::disable_window_input $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     test close_window-1.0 {
@@ -2026,7 +2026,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -2042,7 +2042,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_minimized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2057,7 +2057,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_maximized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -2073,7 +2073,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_maximized $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2090,7 +2090,7 @@ namespace eval twapi::ui::test {
         # Note we -sync means we don't need to wait
         twapi::window_visible $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -2105,7 +2105,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_visible $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2117,7 +2117,7 @@ namespace eval twapi::ui::test {
     } -setup {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -body {
         twapi::window_exists $np_win
     } -cleanup {
@@ -2135,7 +2135,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_exists $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2150,7 +2150,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_unicode_enabled $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2165,7 +2165,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_input_enabled $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2181,7 +2181,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_input_enabled $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -2197,7 +2197,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_is_child $np_win $edit_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2213,7 +2213,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::window_is_child $np_win $popup_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 0
 
     ################################################################
@@ -2230,7 +2230,7 @@ namespace eval twapi::ui::test {
         # TBD - need a better test to test that it does have focus
         expr {[twapi::set_focus $np_win] == $edit_win}
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2245,7 +2245,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer [twapi::flash_window_caption $np_win]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2260,7 +2260,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer [twapi::flash_window_caption $np_win -toggle]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2275,7 +2275,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer -strict [twapi::flash_window $np_win]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -2290,7 +2290,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer -strict [twapi::flash_window $np_win -count 5]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -2305,7 +2305,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer -strict [twapi::flash_window $np_win -notaskbar]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -2320,7 +2320,7 @@ namespace eval twapi::ui::test {
     } -body {
         string is integer -strict [twapi::flash_window $np_win -nocaption]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ###
@@ -2337,7 +2337,7 @@ namespace eval twapi::ui::test {
         after 5000
         string is integer -strict [twapi::flash_window $np_win -stop]
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
 
@@ -2449,7 +2449,7 @@ namespace eval twapi::ui::test {
     } -body {
         twapi::get_window_text $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result "Untitled - Notepad"
 
     ################################################################
@@ -2465,7 +2465,7 @@ namespace eval twapi::ui::test {
         twapi::set_window_text $np_win "New Title"
         twapi::get_window_text $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result "New Title"
 
     ################################################################
@@ -2488,7 +2488,7 @@ namespace eval twapi::ui::test {
               $minh == 0
           }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2504,7 +2504,7 @@ namespace eval twapi::ui::test {
         foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
         expr { $right > $left && $bottom > $top }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2525,7 +2525,7 @@ namespace eval twapi::ui::test {
         set win [twapi::get_window_at_location $left $top]
         expr { $win == $np_win }
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result 1
 
     ################################################################
@@ -2585,7 +2585,7 @@ namespace eval twapi::ui::test {
         # TBD - how to check results?
         twapi::invalidate_screen_region $np_win
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -2601,7 +2601,7 @@ namespace eval twapi::ui::test {
         # TBD - how to check results?
         twapi::invalidate_screen_region $np_win -bgerase
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -2766,7 +2766,7 @@ namespace eval twapi::ui::test {
     } -body {
         set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY AFTER 15 SECONDS."]
         twapi::block_input
-        after 15000 "twapi::end_process $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
+        after 15000 "kill $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
         vwait ::wait_over
         yesno "Were characters blocked?"
     } -result 1
@@ -2781,7 +2781,7 @@ namespace eval twapi::ui::test {
         set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER A FEW SECONDS. WILL EXIT AUTOMATICALLY."]
         twapi::block_input
         after 7000 twapi::unblock_input
-        after 12000 "twapi::end_process $np_pid -force ; set ::wait_over 1"
+        after 12000 "kill $np_pid -force ; set ::wait_over 1"
         vwait ::wait_over
         yesno "Were characters INITIALLY blocked, then UNBLOCKED?"
     } -result 1
@@ -2808,7 +2808,7 @@ namespace eval twapi::ui::test {
         twapi::read_clipboard_text
     } -cleanup {
         twapi::close_clipboard
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result "abc"
 
 
@@ -3009,7 +3009,7 @@ namespace eval twapi::ui::test {
         twapi::move_mouse $left $top
         twapi::click_mouse_button right
     } -cleanup {
-        twapi::end_process $np_pid -wait $end_process_timeout
+        kill $np_pid -wait $end_process_timeout
     } -result ""
 
     ################################################################
@@ -3138,7 +3138,7 @@ namespace eval twapi::ui::test {
         twapi::play_sound SystemAsterisk -alias -nostop
         yesno "play_sound-6.0: Did you hear continuous chimes WITH a SystemAsterisk?"
     } -cleanup {
-        twapi::end_process $pid -force
+        kill $pid -force
     } -result 1
 
     test play_sound-7.0 {
@@ -3465,7 +3465,7 @@ namespace eval twapi::ui::test {
         set visible [yesno "Is the notepad title bar VISIBLE?"]
         list $invisible $visible
     } -cleanup {
-        twapi::end_process $np_pid
+        kill $np_pid
     } -result {1 1}
 
     test configure_window_titlebar-2.0 {
@@ -3484,7 +3484,7 @@ namespace eval twapi::ui::test {
         set visible [yesno "Is the notepad system menu VISIBLE?"]
         list $invisible $visible
     } -cleanup {
-        twapi::end_process $np_pid
+        kill $np_pid
     } -result {1 1}
 
     test configure_window_titlebar-3.0 {
@@ -3503,7 +3503,7 @@ namespace eval twapi::ui::test {
         set visible [yesno "Is the notepad window minimize box VISIBLE?"]
         list $invisible $visible
     } -cleanup {
-        twapi::end_process $np_pid
+        kill $np_pid
     } -result {1 1}
 
     test configure_window_titlebar-4.0 {
@@ -3522,7 +3522,7 @@ namespace eval twapi::ui::test {
         set visible [yesno "Is the notepad window maximize box VISIBLE?"]
         list $invisible $visible
     } -cleanup {
-        twapi::end_process $np_pid
+        kill $np_pid
     } -result {1 1}
 
     ################################################################

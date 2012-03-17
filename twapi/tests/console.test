@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package;             # Unfortunately we need other packages for testing - TBD
 
 #
 # Set up system-specific constants that are used to match test results
@@ -61,7 +61,7 @@ namespace eval twapi::console::test {
         }
         llength [twapi::find_windows -pids [list $pid] -text $title]
     } -cleanup {
-        twapi::end_process $pid -force
+        kill $pid -force
     } -result 1
 
     ###
@@ -545,7 +545,7 @@ namespace eval twapi::console::test {
         }
         llength [twapi::find_windows -pids [list $pid] -text $title]
     } -cleanup {
-        twapi::end_process $pid -force
+        kill $pid -force
     } -result 0
 
     ################################################################
