@@ -13,12 +13,6 @@ system.
 
 [section Overview]
 
-The command
-[uri \#suspend_system [cmd suspend_system]] may be used to put the system
-in stand by or hibernate states. You can prevent the system from
-being suspended due to inactivity through the
-[uri #SetThreadExecutionState [cmd SetThreadExecutionState]] command.
-
 [para]
 The current state of the power subsystem, including battery status,
 can be obtained through the
@@ -60,9 +54,6 @@ in seconds, if known, or has the value [const unknown].
 [opt_def [const -batteryfulllifetime]] Indicates the number of seconds
 of battery life when it is full, or has the value [const unknown].
 [list_end]
-
-[call [cmd SetThreadExecutionState] [arg EXECUTIONSTATE]]
-Refer to the Windows SDK documentation for details.
 
 [call [cmd start_power_monitor] [arg SCRIPT]]
 Begins monitoring of power state changes.
@@ -116,23 +107,6 @@ Stops a previously registered script that monitors the power subsystem.
 [arg POWER_ID] is monitoring handle previously returned by
 [uri #start_power_monitor [cmd start_power_monitor]].
 
-[call [cmd suspend_system] [opt [arg options]]]
-Places the system in a stand by or hibernate state. The command takes
-the following options:
-[list_begin opt]
-[opt_def [cmd -state] [arg STATE]] [arg STATE] must be one of [const standby]
-(default) or [const hibernate] depending on the state into which
-the system is to be placed.
-[opt_def [cmd -force] [arg BOOLEAN]]
-If [const false] (default), the system sends a PBT_ATMQUERYSUSPEND
-message to all applications before placing the system in stand by or
-hibernate states. If this option is specified as [const true],
-the message is not sent and the system is immediately placed
-into the appropriate state.
-[opt_def [cmd -disablewakeevents] [arg BOOLEAN]]
-If [const false] (default), system wake events remain enabled. If [const true]
-they are disabled.
-[list_end]
 
 [list_end]
 

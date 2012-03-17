@@ -443,6 +443,19 @@ proc twapi::get_computer_name {{typename netbios}} {
     return [GetComputerNameEx $type]
 }
 
+# Suspend system
+proc twapi::suspend_system {args} {
+    array set opts [parseargs args {
+        {state.arg standby {standby hibernate}}
+        force.bool
+        disablewakeevents.bool
+    } -maxleftover 0 -nulldefault]
+
+    eval_with_privileges {
+        SetSuspendState [expr {$opts(state) eq "hibernate"}] $opts(force) $opts(disablewakeevents)
+    } SeShutdownPrivilege
+}
+
 # Shut down the system
 proc twapi::shutdown_system {args} {
     array set opts [parseargs args {
