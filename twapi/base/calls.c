@@ -605,6 +605,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 break;
             }
+            break;
         case 1013:
             return Twapi_AppendLog(interp, Tcl_GetUnicode(objv[2]));
         case 1014: // GlobalAddAtom

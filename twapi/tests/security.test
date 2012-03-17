@@ -729,7 +729,7 @@ namespace eval twapi::security::test {
         # TBD - how to verify we got the right token
         twapi::close_token $tok
     } -cleanup {
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result ""
 
     ###
@@ -747,7 +747,7 @@ namespace eval twapi::security::test {
         twapi::close_token $tok
     } -cleanup {
         twapi::close_handles $np_h
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result ""
 
 
@@ -827,7 +827,7 @@ namespace eval twapi::security::test {
         # Should get an error since other process has no token
         twapi::open_thread_token -tid $np_tid
     } -cleanup {
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     }  -returnCodes error -result "An attempt was made to reference a token that does not exist."
 
     ###
@@ -1957,7 +1957,7 @@ namespace eval twapi::security::test {
           }
     } -cleanup {
         twapi::close_token $tok
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result 1
     
     ###
@@ -1975,7 +1975,7 @@ namespace eval twapi::security::test {
         twapi::enable_token_privileges $tok $privs
     } -cleanup {
         twapi::close_token $tok
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result ""
 
     ################################################################
@@ -1997,7 +1997,7 @@ namespace eval twapi::security::test {
           }
     } -cleanup {
         twapi::close_token $tok
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result 1
     
     ###
@@ -2015,7 +2015,7 @@ namespace eval twapi::security::test {
         twapi::disable_token_privileges $tok $privs
     } -cleanup {
         twapi::close_token $tok
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result ""
 
     ################################################################
@@ -2036,7 +2036,7 @@ namespace eval twapi::security::test {
           }
     } -cleanup {
         twapi::close_token $tok
-        twapi::end_process $np_pid -wait 500
+        kill $np_pid -wait 500
     } -result 1
     
     ################################################################

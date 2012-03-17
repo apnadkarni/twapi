@@ -448,7 +448,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival =
-                (func == 10052 ? SetConsoleCursorPosition : SetConsoleScreenBufferSize)
+                (func == 1005 ? SetConsoleCursorPosition : SetConsoleScreenBufferSize)
                 (h, coord);
             break;
         case 1007: // CreateConsoleScreenBuffer
