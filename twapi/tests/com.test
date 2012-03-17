@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_com
 
 namespace eval twapi::com::test {
     namespace import ::tcltest::test
@@ -307,7 +307,8 @@ namespace eval twapi::com::test {
     test comobj-9.0 {
         Bind scripts to comobj events using -bind
     } -setup {
-        set wmi [twapi::_wmi]
+        package require twapi_wmi
+        set wmi [twapi::wmi_root]
     } -cleanup {
         $wmi -destroy
     } -body {
@@ -343,7 +344,7 @@ namespace eval twapi::com::test {
         # Get rid of all objects
         $process_event_sink -destroy
 
-        twapi::end_process $np_pid -force true
+        exec taskkill /PID $np_pid
         expr {
               [lindex $::comobj_process_starts_test 0] == $np_pid &&
               [string equal -nocase [lindex $::comobj_process_starts_test 1] notepad.exe]
@@ -453,7 +454,7 @@ namespace eval twapi::com::test {
         }]
         # $result should be empty as -iterate returns ""
         list $result [llength $drives]
-    } -result [list "" [llength [twapi::get_logical_drives]]] -match list
+    } -result [list "" [llength [file volumes]]] -match list
 
     test comobj-14.1 {
         Iterate over a comobj collection using -iterate - Bug 3185933

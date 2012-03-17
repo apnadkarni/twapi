@@ -491,8 +491,34 @@ proc twapi::end_process {pid args} {
     catch {set hproc [get_process_handle $pid -access synchronize]}
 
     # First try to close nicely. We need to send messages to toplevels
-    # as well as message-only windows.
-    set toplevels [concat [get_toplevel_windows -pid $pid] [find_windows -pids [list $pid] -messageonlywindow true]]
+    # as well as message-only windows. We could make use of get_toplevel_windows
+    # and find_windows but those would require pullin in the whole 
+    # twapi_ui package so do it ourselves.
+    set toplevels {}
+    foreach toplevel [EnumWindows] {
+        # Check if it belongs to pid. Errors are ignored, we simply
+        # will not send a message to that window
+        catch {
+            if {[lindex [GetWindowThreadProcessId $toplevel] 1] == $pid} {
+                lappend toplevels $toplevel
+            }
+        }
+    }
+    # Repeat for message only windows as EnumWindows skips them
+    set prev 0
+    while {1} {
+        # Again, errors are ignored
+        # -3 -> HWND_MESSAGE windows
+        if {[catch {
+            set toplevel [FindWindowEx [list -3 HWND] $prev "" ""]
+        }]} {
+            break
+        }
+        if {[Twapi_IsNullPtr $toplevel]} break
+        lappend toplevels $toplevel
+        set prev $toplevel
+    }
+    
     if {[llength $toplevels]} {
         # Try and close by sending them a message. WM_CLOSE is 0x10
         foreach toplevel $toplevels {
