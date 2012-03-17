@@ -329,7 +329,7 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     case 10:
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        return (func == 19 ? Twapi_SendInput : Twapi_SendUnicode) (ticP, objv[2]);
+        return (func == 9 ? Twapi_SendInput : Twapi_SendUnicode) (ticP, objv[2]);
     }
     return TwapiSetResult(interp, &result);
 }
