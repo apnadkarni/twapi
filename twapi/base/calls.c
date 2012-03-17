@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -262,6 +262,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetVersionEx, Call, 2);
     CALL_(UuidCreateNil, Call, 3);
     CALL_(Twapi_GetInstallDir, Call ,4);
+    CALL_(EnumWindows, Call, 5);
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -291,6 +292,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(is_valid_sid_syntax, Call, 1015); // TBD - Tcl interface
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
+    CALL_(GetWindowThreadProcessId, Call, 1018);
     CALL_(Twapi_IsValidGUID, Call, 1019);
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(free, Call, 1022);
@@ -308,6 +310,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LoadLibraryEx, Call, 10011);
     CALL_(TranslateName, Call, 10012);
     CALL_(Twapi_SourceResource, Call, 10013);
+    CALL_(FindWindowEx, Call, 10014);
     CALL_(CreateFile, Call, 10031);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
@@ -402,6 +405,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         MemLifo *lifoP;
         DWORD_PTR dwp;
         RPC_STATUS rpc_status;
+        struct {
+            HWND hwnd;
+            HWND hwnd2;
+        };
     } u;
     DWORD dw, dw2, dw3, dw4;
     LPWSTR s, s2, s3;
@@ -442,7 +449,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR; /* interp error result already set */
             result.type = TRT_OBJ;
             break;
-        // 5-39 UNUSED
+        case 5:
+            return Twapi_EnumWindows(interp);
+
+        // 6-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
@@ -625,7 +635,20 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             else
                 result.type = TRT_GETLASTERROR;
             break;
-            // 1018
+        case 1018: /* In twapi_base because needed in multiple modules */
+            if (ObjToHWND(interp, objv[2], &u.hwnd) != TCL_OK)
+                return TCL_ERROR;
+            dw2 = GetWindowThreadProcessId(u.hwnd, &dw);
+            if (dw2 == 0) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                objs[0] = ObjFromDWORD(dw2);
+                objs[1] = ObjFromDWORD(dw);
+                result.value.objv.nobj = 2;
+                result.value.objv.objPP = objs;
+                result.type = TRT_OBJV;
+            }
+            break;
         case 1019: // Twapi_IsValidGUID
             result.type = TRT_BOOL;
             result.value.bval = (ObjToGUID(NULL, objv[2], &guid) == TCL_OK);
@@ -775,8 +798,18 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (h == NULL)
                 h = gTwapiModuleHandle;
             return Twapi_SourceResource(ticP, h, s, dw);
+        case 10014: // FindWindowEx in twapi_base because of common use
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETHANDLET(u.hwnd, HWND),
+                             GETHANDLET(u.hwnd2, HWND),
+                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_HWND;
+            result.value.hval = FindWindowExW(u.hwnd, u.hwnd2, s, s2);
+            break;
 
-        // 10014-30 UNUSED
+        // 10015-30 UNUSED
         case 10031: // CreateFile
             secattrP = NULL;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1459,3 +1492,34 @@ int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainnam
     NetApiBufferFree(bufP);
     return TCL_OK;
 }
+
+/* Window enumeration callback. Note this is called from other modules also */
+BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
+    TwapiEnumCtx *p_enum_win_ctx =
+        (TwapiEnumCtx *) p_ctx;
+
+    Tcl_ListObjAppendElement(p_enum_win_ctx->interp,
+                             p_enum_win_ctx->objP,
+                             ObjFromHWND(hwnd));
+    
+    return 1;
+}
+
+/* Enumerate toplevel windows. In twapi_base because commonly needed */
+int Twapi_EnumWindows(Tcl_Interp *interp)
+{
+    TwapiEnumCtx enum_win_ctx;
+
+    enum_win_ctx.interp = interp;
+    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
+    
+    if (EnumWindows(Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
+        TwapiReturnSystemError(interp);
+        Twapi_FreeNewTclObj(enum_win_ctx.objP);
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, enum_win_ctx.objP);
+    return TCL_OK;
+}
+

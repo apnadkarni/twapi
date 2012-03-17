@@ -986,6 +986,9 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
 int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 
+/* Window stuff */
+int Twapi_EnumWindows(Tcl_Interp *interp);
+
 /* System related */
 int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P);
@@ -1321,5 +1324,8 @@ TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
 TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
+
+TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
+
 
 #endif // TWAPI_H
