@@ -309,23 +309,20 @@ proc twapi::get_global_group_info {name args} {
     } -maxleftover 0]
 
     set result [list ]
+    set info [NetGroupGetInfo $opts(system) $name 3]
     if {$opts(all) || $opts(sid)} {
-        # Level 3 in NetGroupGetInfo would get us the SID as well but
-        # sadly, Win2K does not support level 3 - TBD
-        lappend result -sid [lookup_account_name $name -system $opts(system)]
+        lappend result [kl_get $info group_sid]
     }
-    if {$opts(all) || $opts(comment) || $opts(name) || $opts(attributes)} {
-        set info [NetGroupGetInfo $opts(system) $name 2]
-        if {$opts(all) || $opts(name)} {
-            lappend result -name [kl_get $info name]
-        }
-        if {$opts(all) || $opts(comment)} {
-            lappend result -comment [kl_get $info comment]
-        }
-        if {$opts(all) || $opts(attributes)} {
-            lappend result -attributes [map_token_group_attr [kl_get $info attributes]]
-        }
+    if {$opts(all) || $opts(name)} {
+        lappend result -name [kl_get $info name]
     }
+    if {$opts(all) || $opts(comment)} {
+        lappend result -comment [kl_get $info comment]
+    }
+    if {$opts(all) || $opts(attributes)} {
+        lappend result -attributes [map_token_group_attr [kl_get $info attributes]]
+    }
+
     if {$opts(all) || $opts(members)} {
         lappend result -members [get_global_group_members $name -system $opts(system)]
     }

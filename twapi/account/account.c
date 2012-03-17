@@ -742,6 +742,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
             default: goto invalid_level_error;
             }
         } else {            
+            objfn = ObjFromGROUP_USERS_INFO;
             switch (netenum.level) {
             case 0: struct_size = sizeof(GROUP_USERS_INFO_0); break;
             case 1: struct_size = sizeof(GROUP_USERS_INFO_1); break;
@@ -825,7 +826,7 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
     case 10:
     case 11:
     case 12:
-        if (TwapiGetArgs(interp, objc-5, objv+5, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-4, objv+4, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 10:

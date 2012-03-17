@@ -1745,7 +1745,7 @@ proc twapi::map_token_group_attr {attr} {
     # SE_GROUP_INTEGRITY              0x00000020
     # SE_GROUP_INTEGRITY_ENABLED      0x00000040
 
-    return [_make_symbolic_bitmask {
+    return [_make_symbolic_bitmask $attr {
         mandatory              0x00000001
         enabled_by_default     0x00000002
         enabled                0x00000004
@@ -1755,7 +1755,7 @@ proc twapi::map_token_group_attr {attr} {
         resource               0x20000000
         integrity              0x00000020
         integrity_enabled      0x00000040
-    } $attr]
+    }]
 }
 
 # Map token privilege attributes
@@ -1765,11 +1765,11 @@ proc twapi::map_token_privilege_attr {attr} {
     # SE_PRIVILEGE_ENABLED            0x00000002
     # SE_PRIVILEGE_USED_FOR_ACCESS    0x80000000
 
-    return [_make_symbolic_bitmask {
+    return [_make_symbolic_bitmask $attr {
         enabled_by_default 0x00000001
         enabled            0x00000002
         used_for_access    0x80000000
-    } $attr]
+    }]
 }
 
 
