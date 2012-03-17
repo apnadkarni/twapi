@@ -475,7 +475,23 @@ proc twapi::_validate_uuid {uuid} {
 # encoding convertfrom because that will not stop at the terminating
 # null. The UCS-16 assumed to be little endian.
 proc twapi::_ucs16_binary_to_string {bin {off 0}} {
-    return [encoding convertfrom unicode [string range $bin $off [string first \0\0\0 $bin]]]
+    set bin [string range $bin $off end]
+
+    # Find the terminating null.
+    set off [string first \0\0 $bin]
+    while {$off > 0 && ($off & 1)} {
+        # Offset off is odd and so crosses a char boundary, so not the
+        # terminating null. Step to the char boundary and start search again
+        incr off
+        set off [string first \0\0 $bin $off]
+    }
+    # off is offset of terminating UCS-16 null, or -1 if not found
+    if {$off < 0} {
+        # No terminator
+        return [encoding convertfrom unicode $bin]
+    } else {
+        return [encoding convertfrom unicode [string range $bin 0 $off-1]]
+    }
 }
 
 # Given a binary, return a GUID. The formatting is done as per the
@@ -509,10 +525,8 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
     switch -exact -- $type {
         1 -
         2 {
-            # Note - pass in -1, not $len since we do not
-            # want terminating nulls
             return [list [expr {$type == 2 ? "expand_sz" : "sz"}] \
-                        [Twapi_ReadMemoryUnicode $mem $off -1]]
+                        [Twapi_ReadMemoryUnicode $mem $off $len 1]]
         }
         7 {
             # Collect strings until we come across an empty string
