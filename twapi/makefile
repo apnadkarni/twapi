@@ -10,11 +10,11 @@ LAZYPACKAGELOAD=1
 # base must be built before everything else as the rest depend on its exports
 # Remaining are in order of package dependencies since the build process
 # loads them in order when generating the pkgIndex.tcl file.
-PURETCLMODULES = metoo msi power printer
+PURETCLMODULES = metoo msi power printer synch
 MODULES = security account apputil clipboard metoo com console crypto device \
 	etw eventlog input msi mstask multimedia namedpipe network nls \
-	os pdh power printer process rds resource service share shell storage \
-	ui winsta wmi
+	os pdh power printer process rds resource service share shell \
+	storage synch ui winsta wmi
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)

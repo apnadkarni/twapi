@@ -29,48 +29,6 @@ namespace eval twapi {
 # Make twapi versions the same as the base module versions
 set twapi::version(twapi) $::twapi::version(twapi_base)
 
-# package ifneeded twapi_account 4.0b0 [list twapi::package_setup $dir twapi_account 4.0b0 load {} {twapi::get_users}]
-# Proc to autoload twapi modules. Cannot be used for twapi_base itself.
-proc twapi::OBSOLETEpackage_setup {dir pkg version type {file {}} {commands {}}} {
-    # Need the twapi base of the same version
-    package require twapi_base $version
-
-    global auto_index
-
-    if {$file eq ""} {
-        set file $pkg
-    }
-    if {$type eq "load"} {
-        # Package could be statically linked or to be loaded
-        if {[twapi::get_build_config single_module]} {
-            # Modules are statically bound
-            set fn {}
-        } else {
-            # Modules are external DLL's
-            if {$::tcl_platform(pointerSize) == 8} {
-                set fn [file join $dir "${file}64.dll"]
-            } else {
-                set fn [file join $dir "${file}.dll"]
-            }
-        }
-        set loadcmd [list load $fn $pkg]
-    } else {
-        # A pure Tcl script package
-        set loadcmd [list twapi::Twapi_SourceResource $file 1]
-    }
-
-    if {[llength $commands] == 0} {
-        # No commands specified, load the package right away
-        uplevel #0 $loadcmd
-    } else {
-        # Set up the load for when commands are actually accessed
-        foreach command $commands {
-            set auto_index($command) $loadcmd
-        }
-    }
-    package provide $pkg $version
-}
-
 # log for tracing / debug messages.
 proc twapi::debuglog {args} {
     variable log_messages
@@ -719,24 +677,17 @@ proc twapi::_net_enum_helper {function args} {
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.
-if {[file tail [info script]] eq "twapi.tcl"} {
-    # We are being sourced so source the remaining files
+# The apply is just to use vars without polluting global namespace
+apply {{filelist} {
+    if {[file tail [info script]] eq "twapi.tcl"} {
+        # We are being sourced so source the remaining files
 
-    # When running from the source dir (while developing), there is
-    # no buildid file but we do not really care
-    if {[file exists [file join [file dirname [info script]] twapi_buildid.tcl]]} {
-        source [file join [file dirname [info script]] twapi_buildid.tcl]
-    }
-
-    # The apply is just to prevent global var pollution from the foreach
-    apply {{filelist} {
+        set dir [file dirname [info script]]
         foreach f $filelist {
-            source [file join [file dirname [info script]] $f]
+            uplevel #0 [list source [file join $dir $f]]
         }
-    }} {
-        base.tcl handle.tcl win.tcl adsi.tcl synch.tcl
     }
-}
+}} {base.tcl handle.tcl win.tcl adsi.tcl}
 
 # Returns a list of twapi procs that are currently defined and should
 # be exported. SHould be called after completely loading twapi

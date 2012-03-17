@@ -28,8 +28,7 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\base.tcl \
 	..\tcl\handle.tcl \
 	..\tcl\win.tcl \
-	..\tcl\adsi.tcl \
-	..\tcl\synch.tcl
+	..\tcl\adsi.tcl
 
 !include ..\include\rules.inc
 
