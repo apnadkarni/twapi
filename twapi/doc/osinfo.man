@@ -58,6 +58,13 @@ The command [uri \#shutdown_system [cmd shutdown_system]] may be used
 to shutdown or reboot the system. The command
 [uri \#abort_system_shutdown [cmd abort_system_shutdown]]
 may be used to abort an ongoing system shutdown.
+The command
+[uri \#suspend_system [cmd suspend_system]] may be used to put the system
+in stand by or hibernate states. You can prevent the system from
+being suspended due to inactivity through the
+[uri process.html#SetThreadExecutionState [cmd SetThreadExecutionState]]
+command.
+
 The commands [uri \#logoff [cmd logoff]]
 and [uri \#lock_workstation [cmd lock_workstation]]
 may be used to log out of a user account and to lock a workstation

@@ -978,6 +978,9 @@ Sets the scheduling priority value of the thread with id [arg TID] to
 [arg PRIORITY]. [arg PRIORITY] is an integer value relative to the
 process' priority class as described in the Windows SDK.
 
+[call [cmd SetThreadExecutionState] [arg EXECUTIONSTATE]]
+Refer to the Windows SDK documentation for details.
+
 [call [cmd suspend_thread] [arg TID]]
 Suspends execution of the thread with id [arg TID]. The system keeps track
 of a suspend count for each thread. This is incremented every time a call
