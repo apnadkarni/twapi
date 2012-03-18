@@ -188,7 +188,8 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         
-        if ((func == 1 && objc != 4) || objc != 3)
+        /* func 1 has 2 args, rest all have 1 arg */
+        if ((objc != 3) && (func !=1 || objc != 4))
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 1:
@@ -238,12 +239,12 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         case 1004:
         case 1005:
         case 1006:
-            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
-                             GETWSTR(s), GETWSTR(s2), ARGEND) != TCL_OK)
+            if (TwapiGetArgs(interp, objc-2, objv+2,
+                             GETNULLIFEMPTY(s), GETWSTR(s2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
             result.value.hval = (func == 1004 ? OpenEventLogW :
-                                 (func == 1006 ? OpenBackupEventLogW : RegisterEventSourceW))(s, s2);
+                                 (func == 1005 ? OpenBackupEventLogW : RegisterEventSourceW))(s, s2);
             break;
         case 1007:
             return Twapi_ReportEvent(interp, objc-2, objv+2);
@@ -269,7 +270,7 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetNumberOfEventLogRecords, Call, 3);
     CALL_(GetOldestEventLogRecord, Call, 4);
     CALL_(Twapi_IsEventLogFull, Call, 5);
-    CALL_(DeregisterEventSource, CallH, 6);
+    CALL_(DeregisterEventSource, Call, 6);
     CALL_(ReadEventLog, Call, 1001);
     CALL_(BackupEventLog, Call, 1002);
     CALL_(ClearEventLog, Call, 1003);

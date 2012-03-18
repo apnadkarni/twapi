@@ -21,11 +21,6 @@ proc twapi::get_command_line_args {cmdline} {
     return [CommandLineToArgv $cmdline]
 }
 
-# Return $s with all environment strings expanded
-proc twapi::expand_environment_strings {s} {
-    return [ExpandEnvironmentStrings $s]
-}
-
 # Read an ini file int
 proc twapi::read_inifile_key {section key args} {
     array set opts [parseargs args {

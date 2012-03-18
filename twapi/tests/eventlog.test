@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_eventlog
 
 #
 # Set up system-specific constants that are used to match test results
@@ -411,7 +411,7 @@ namespace eval twapi::eventlog::test {
         twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with SID"] -loguser
         twapi::eventlog_close $hevl
         twapi::kl_get [get_last_event application] -sid
-    } -result [twapi::get_current_user -sid]
+    } -result [name2sid $::env(USERNAME)]
 
     test eventlog_write-3.0 {
         Verify -data option with text when writing to event log

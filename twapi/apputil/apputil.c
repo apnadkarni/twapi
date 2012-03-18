@@ -246,7 +246,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 9:
     case 10:
     case 11:
-    case 12:
+        /* Single string arg */
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         s = Tcl_GetUnicode(objv[2]);
@@ -261,32 +261,15 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         case 11:
             NULLIFY_EMPTY(s);
             return Twapi_GetPrivateProfileSectionNames(ticP, s);
-        case 12:
-            bufP = buf;
-            dw = ExpandEnvironmentStringsW(s, bufP, ARRAYSIZE(buf));
-            if (dw > ARRAYSIZE(buf)) {
-                // Need a bigger buffer
-                bufP = TwapiAlloc(dw * sizeof(WCHAR));
-                dw2 = dw;
-                dw = ExpandEnvironmentStringsW(s, bufP, dw2);
-                if (dw > dw2) {
-                    // Should not happen since we gave what we were asked
-                    TwapiFree(bufP);
-                    return TCL_ERROR;
-                }
-            }
-            if (dw == 0)
-                result.type = TRT_GETLASTERROR;
-            else {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromUnicodeN(bufP, dw-1);
-            }
-            if (bufP != buf)
-                TwapiFree(bufP);
-            break;
-
         }
         break;
+    case 12:
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETWSTR(s), GETWSTR(s2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        return Twapi_GetPrivateProfileSection(ticP, s, s2);
+
     case 13:
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETWSTR(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
@@ -303,12 +286,6 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.type = TRT_DWORD;
         result.value.ival = GetProfileIntW(s, s2, dw);
         break;
-    case 15:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETWSTR(s2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        return Twapi_GetPrivateProfileSection(ticP, s, s2);
     }
 
     return TwapiSetResult(interp, &result);
@@ -337,10 +314,9 @@ static int Twapi_AppInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Wow64EnableWow64FsRedirection, 9);
     CALL_(CommandLineToArgv, 10);
     CALL_(GetPrivateProfileSectionNames, 11);
-    CALL_(ExpandEnvironmentStrings, 12);
+    CALL_(GetPrivateProfileSection, 12);
     CALL_(GetPrivateProfileInt, 13);
     CALL_(GetProfileInt, 14);
-    CALL_(GetPrivateProfileSection, 15);
 
 #undef CALL_
 

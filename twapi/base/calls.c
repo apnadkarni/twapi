@@ -295,6 +295,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetWindowThreadProcessId, Call, 1018);
     CALL_(Twapi_IsValidGUID, Call, 1019);
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
+    CALL_(ExpandEnvironmentStrings, 1021);
     CALL_(free, Call, 1022);
 
     CALL_(SystemParametersInfo, Call, 10001);
@@ -660,7 +661,31 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EMPTY;
             TwapiThreadPoolUnregister(ticP, u.twapi_id);
             break;
-            // 1021 - UNUSED
+        case 1021:
+            bufP = u.buf;
+            dw = ExpandEnvironmentStringsW(s, bufP, ARRAYSIZE(u.buf));
+            if (dw > ARRAYSIZE(u.buf)) {
+                // Need a bigger buffer
+                bufP = TwapiAlloc(dw * sizeof(WCHAR));
+                dw2 = dw;
+                dw = ExpandEnvironmentStringsW(s, bufP, dw2);
+                if (dw > dw2) {
+                    // Should not happen since we gave what we were asked
+                    TwapiFree(bufP);
+                    return TCL_ERROR;
+                }
+            }
+            if (dw == 0)
+                result.type = TRT_GETLASTERROR;
+            else {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromUnicodeN(bufP, dw-1);
+            }
+            if (bufP != ubuf)
+                TwapiFree(bufP);
+            break;
+
+
         case 1022: // free
             if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
                 return TCL_ERROR;
