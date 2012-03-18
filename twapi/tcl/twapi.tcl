@@ -70,28 +70,6 @@ proc twapi::get_build_config {{key ""}} {
     }
 }
 
-
-# Construct a security attributes structure out of a security descriptor
-# and inheritance. The command is here because we do not want to
-# have to load the twapi_security package for the common case of
-# null security attributes.
-proc twapi::_make_secattr {secd inherit} {
-    if {$inherit} {
-        set sec_attr [list $secd 1]
-    } else {
-        if {[llength $secd] == 0} {
-            # If a security descriptor not specified, keep
-            # all security attributes as an empty list (ie. NULL)
-            set sec_attr [list ]
-        } else {
-            set sec_attr [list $secd 0]
-        }
-    }
-    return $sec_attr
-}
-
-
-
 # Returns a list of raw Windows API functions supported
 proc twapi::list_raw_api {} {
     set rawapi [list ]

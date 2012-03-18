@@ -44,6 +44,12 @@ TWAPI also provides commands to load certain resource types -
 icons, cursors and bitmaps - as GDI objects accessed through handles
 by other functions in the Windows API.
 
+[para]
+The [uri \#get_file_version_resource [cmd get_file_version_resource]]
+command can be used to directly retrieve various information stored
+within the version resource of a file without using the lower level
+resource manipulation commands.
+
 [section "Resource Types"]
 
 Windows defines certain standard resource types shown in the table below
@@ -291,6 +297,157 @@ be a shared cursor.
 [call [cmd free_icon] [arg HBITMAP]]
 Frees a icon handle and associated resources. The handle must not be for
 be a shared icon.
+
+[call [cmd get_file_version_resource] [arg PATH] [opt [arg options]] [opt "[arg STRINGNAME]..."]]
+
+Returns the information stored within the version resource of a file. The
+command will generate a Tcl error if the file specified by [arg PATH] does
+not contain a version resource.
+[nl]
+The version resource consists of two parts. The information in the first
+part is in a fixed format and can be retrieved by specifying appropriate
+options in [arg options]. The second part is a string table, the entries in
+which can be retrieved by specifying the key as a [arg STRINGNAME]
+argument.
+
+[nl]
+The following options may be used with the command:
+[list_begin opt]
+[opt_def [cmd -all]]
+Returns all information in the fixed part.
+[opt_def [cmd -datetime]]
+Returns the date and time the file was created (as stored in the
+version resource) as a 64 bit number. Refer to
+[uri misc.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
+or
+ [uri misc.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
+
+[opt_def [cmd -fileversion]]
+Returns the file version as indicated in the version resource. This is
+returned in the format [arg MAJOR.MINOR.BUILD.PRIVATE]. Note this is not
+necessarily identical to the value specified for the [const FileVersion]
+entry in the string table.
+[opt_def [cmd -fileos]]
+Returns a value specifying the platform for which the file was
+designed. This may be one of
+[const dos] (MS-DOS),
+[const os216] (16-bit OS/2),
+[const os232] (16-bit OS/2),
+[const nt] (Windows NT),
+[const wince] (Windows CE),
+[const windows16] (16-bit Windows),
+[const pm16] (16-bit Presentation Manager),
+[const pm32] (32-bit Presentation Manager),
+[const windows32] (32-bit Windows),
+[const dos_windows32] (32-bit Windows on MS-DOS),
+[const os216_pm16] (16-bit Presentation Manager on 16-bit OS/2),
+[const os232_pm32]  (32-bit Presentation Manager on 32-bit OS/2) or
+[const nt_windows32] (32-bit Windows on Windows NT).
+[opt_def [cmd -filetype]]
+Returns the file type which may be one of the following:
+[const application],
+[const dll],
+[const driver.printer],
+[const driver.keyboard],
+[const driver.language],
+[const driver.display],
+[const driver.mouse],
+[const driver.network],
+[const driver.system],
+[const driver.installable],
+[const driver.sound],
+[const driver.comm],
+[const driver.inputmethod],
+[const driver.versionedprinter],
+[const driver.][arg DRIVERSUBTYPENUMBER],
+[const font.raster],
+[const font.vector],
+[const font.truetype],
+[const font.][arg FONTSUBTYPENUMBER],
+[const vxd.][arg VIRTUALDEVICEID],
+[const staticlib] or
+[arg FILETYPENUMBER.FILESUBTYPENUMBER]. (Note in cases where the file type
+or subtype is not recognized, the actual numeric value is returned.)
+
+[opt_def [cmd -flags]]
+Returns a list of symbols corresponding to flags set in the version resource.
+The list may contain symbols from the following:
+[const debug],
+[const prerelease],
+[const patched],
+[const privatebuild],
+[const infoinferred] and
+[const specialbuild]. In addition, the list may also contain a numeric value
+corresponding to bits that are set but are not recognized as one of the above.
+
+[opt_def [cmd -foundcodepage]]
+Returns the code page of the matched string table (see below).
+
+[opt_def [cmd -foundlangid]]
+Returns the language of the matched string table (see below). The returned value
+is a list of two elements containing the numeric language identifier
+and a description string for the corresponding language.
+
+[opt_def [cmd -langid] [arg LANGID]]
+Specifies [arg LANGID] as the language identifier to be used for string
+table lookup (see below). By default, the language identifier returned
+by [uri nls.html\#get_user_ui_langid [cmd get_user_ui_langid]] is used.
+[opt_def [cmd -codepage] [arg CODEPAGE]]
+Specifies [arg CODEPAGE] as the code page to be used for string table
+lookup (see below).
+[opt_def [cmd -productversion]]
+Returns the product version as indicated in the version resource. This is
+returned in the format [arg MAJOR.MINOR.BUILD.PRIVATE]. Note this is not
+necessarily identical to the value specified for the [const ProductVersion]
+entry in the string table.
+[opt_def [cmd -signature]]
+Contains a longword that is a signature for the fixed part of the version
+resource. Not particularly useful for the application.
+[opt_def [cmd -structversion]]
+Returns the version of the version resource format.
+[list_end]
+In addition to the options that retrieve fixed portions of the version
+resource, the caller may also specify string names corresponding to
+language-specific string tables in the version resource. Each
+such [arg STRINGNAME] is looked up in the string table and returned as
+a [arg STRINGNAME] [arg VALUE] pair. If a particular string name does
+not exist in the string table, an empty string is returned as its value. The
+following string names are commonly defined in version resources:
+[const Comments], [const InternalName], [const ProductName],
+[const CompanyName], [const LegalCopyright], [const ProductVersion],
+[const FileDescription], [const LegalTrademarks], [const PrivateBuild],
+[const FileVersion], [const OriginalFilename], [const SpecialBuild].
+
+
+[nl]
+The version resource may contain
+multiple string tables for different languages and code pages. The caller
+can control the string table used through the [cmd -langid] and
+[cmd -codepage] options. The command uses the following algorithm in
+selecting the string table that is looked up.
+[list_begin bullet]
+[bullet]
+If a string table exactly matches the language id and code page, it is used.
+[bullet]
+Otherwise, if a string table exactly matches the language id, it is used
+irrespective of the code page.
+[bullet]
+Otherwise, a string table matching the primary language portion
+of the language id and the code page is used.
+[bullet]
+Otherwise, a string table matching the primary language portion
+of the language id is used regardless of the code page.
+[bullet]
+Otherwise, a string table specified as language neutral is used.
+[bullet]
+Otherwise, a string table specified as [const English] is used.
+[bullet]
+Finally, the string table corresponding to the first language and code page
+specified in the resource is used.
+[list_end]
+The language identifier and code page corresponding to the actual string
+table that was looked up may be optionally be retrieved by passing
+the [cmd -foundlangid] and [cmd -foundcodepage] to the command.
 
 [call [cmd load_bitmap_from_file] [arg PATH] [opt [arg options]]]
 Returns a handle to a bitmap loaded from a standalone file.
