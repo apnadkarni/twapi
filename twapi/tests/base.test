@@ -374,6 +374,481 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test lookup_account_name-1.0 {
+        Look up the SID for a user name
+    } -constraints {
+        nt
+    } -body {
+        twapi::is_valid_sid_syntax [twapi::lookup_account_name $::env(USERNAME)]
+    } -result 1
+
+    ###
+
+    test lookup_account_name-1.1 {
+        Look up the SID for a group name
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_name administrators
+    } -result S-1-5-32-544
+
+    ###
+
+    test lookup_account_name-2.0 {
+        Look up all attributes for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -all]
+        if {[indomain]} {
+            set dom [testconfig domain_name]
+        } else {
+            set dom $::env(COMPUTERNAME)
+        }
+
+        list [setops::symdiff [array names unameinfo] {-domain -type -sid}] \
+            [twapi::is_valid_sid_syntax $unameinfo(-sid)] \
+            $unameinfo(-type) \
+            [string equal -nocase $unameinfo(-domain) $dom]
+    } -result {{} 1 user 1} -match list
+
+    ###
+
+    test lookup_account_name-2.1 {
+        Look up all attributes for a group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -all]
+        list \
+            [setops::symdiff [array names unameinfo] {-domain -type -sid}] \
+            $unameinfo(-sid)  \
+            $unameinfo(-type)
+    } -result {{} S-1-5-32-544 alias} -match list
+
+    ###
+
+    test lookup_account_name-3.0 {
+        Look up the domain for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [info exists unameinfo(-domain)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-3.1 {
+        Look up the domain for a user name (local computer)
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $guest_account_name -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-3.2 {
+        Look up the domain for a group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == "BUILTIN"
+          }
+    } -result 1
+
+    test lookup_account_name-4.0 {
+        Look up the type for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-4.1 {
+        Look up the type for an alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-4.2 {
+        Look up the type for a well known group
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name everyone -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "wellknowngroup"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.0 {
+        Look up SID for a user name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name $::env(USERNAME) -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              [twapi::is_valid_sid_syntax $unameinfo(-sid)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.1 {
+        Look up SID for a group alias name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name administrators -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-sid) ==  "S-1-5-32-544"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_name-5.2 {
+        Look up SID for a well known group name
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_name everyone -sid]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-sid) ==  "S-1-1-0"
+          }
+    } -result 1
+
+    ################################################################
+
+    test lookup_account_sid-1.0 {
+        Look up the name for a user SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_sid $my_sid
+    } -result $::env(USERNAME)
+
+    ###
+
+    test lookup_account_sid-1.1 {
+        Look up the name for a group alias
+    } -constraints {
+        nt
+    } -body {
+        twapi::lookup_account_sid S-1-5-32-544
+    } -result $administrators_account_name
+
+    ###
+
+    test lookup_account_sid-2.0 {
+        Look up all attributes for a user SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -name}]] == 0 &&
+              $unameinfo(-name) == "$::env(USERNAME)" &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-2.1 {
+        Look up all attributes for a group alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -all]
+        expr {
+              [llength [setops::symdiff [array names unameinfo] {-domain -type -name}]] == 0 &&
+              $unameinfo(-name) == "$administrators_account_name" &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.0 {
+        Look up the domain for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [info exists unameinfo(-domain)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.1 {
+        Look up the domain for a user sid (local computer)
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $guest_sid -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              [string equal -nocase $unameinfo(-domain) $::env(COMPUTERNAME)]
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-3.2 {
+        Look up the domain for a group alias sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -domain]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-domain) == "BUILTIN"
+          }
+    } -result 1
+
+    test lookup_account_sid-4.0 {
+        Look up the type for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "user"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-4.1 {
+        Look up the type for an alias
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "alias"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-4.2 {
+        Look up the type for a well known group sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-1-0 -type]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-type) == "wellknowngroup"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.0 {
+        Look up name for a user sid
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid $my_sid -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) == "$::env(USERNAME)"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.1 {
+        Look up name for a group alias SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-5-32-544 -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) ==  "$administrators_account_name"
+          }
+    } -result 1
+
+    ###
+
+    test lookup_account_sid-5.2 {
+        Look up name SID for a well known group SID
+    } -constraints {
+        nt
+    } -body {
+        array unset unameinfo
+        array set unameinfo [twapi::lookup_account_sid S-1-1-0 -name]
+        expr {
+              [array size unameinfo] == 1 &&
+              $unameinfo(-name) ==  "Everyone"
+          }
+    } -result 1
+
+    ################################################################
+
+    test map_account_to_sid-1.0 {
+        Map a account name to a SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $guest_account_name
+    } -result $guest_sid
+
+    ###
+
+    test map_account_to_sid-1.1 {
+        Verify mapping account SID returns the same SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $guest_sid
+    } -result $guest_sid
+
+    ###
+
+    test map_account_to_sid-2.0 {
+        Map account to SID on another system (UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $::env(USERNAME) -system \\\\127.0.0.1
+    } -result $my_sid
+
+    ###
+
+    test map_account_to_sid-2.1 {
+        Map account to SID on another system (non-UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_sid $::env(USERNAME) -system 127.0.0.1
+    } -result $my_sid
+
+    ################################################################
+
+    test map_account_to_name-1.0 {
+        Map a account SID to a name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid
+    } -result $guest_account_name
+
+    ###
+
+    test map_account_to_name-1.1 {
+        Verify mapping account name returns the same name
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_account_name
+    } -result $guest_account_name
+
+    ###
+
+    test map_account_to_name-2.0 {
+        Map account to name on another system (UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid -system \\\\127.0.0.1
+    } -result $guest_account_name
+
+    ###
+
+    test map_account_to_name-2.1 {
+        Map account to name on another system (non-UNC)
+    } -constraints {
+        nt
+    } -body {
+        twapi::map_account_to_name $guest_sid -system 127.0.0.1
+    } -result $guest_account_name
+
+    ################################################################
+
+    test get_current_user-1.0 {
+        Get current user name
+    } -constraints {
+        nt
+    } -body {
+        set uname [string tolower [twapi::get_current_user]]
+    } -result [string tolower [expr {[indomain] ? [testconfig domain_name] : $::env(COMPUTERNAME)}]\\$::env(USERNAME)]
+
+    ###
+
+    test get_current_user-2.0 {
+        Get current user SID
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_current_user -sid
+    } -result $my_sid
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

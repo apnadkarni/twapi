@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004, Ashok P. Nadkarni
+# Copyright (c) 2004-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -405,6 +405,9 @@ proc twapi::eventlog_format_category {rec args} {
 }
 
 proc twapi::eventlog_monitor_start {hevl script} {
+
+    package require twapi_synch
+
     variable _eventlog_notification_scripts
 
     set hevent [create_event]
