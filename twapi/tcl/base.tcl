@@ -6,6 +6,60 @@
 
 # Commands in twapi_base module
 
+namespace eval twapi {
+    # Map of Sid integer type to Sid type name
+    array set sid_type_names {
+        1 user 
+        2 group
+        3 domain 
+        4 alias 
+        5 wellknowngroup
+        6 deletedaccount
+        7 invalid
+        8 unknown
+        9 computer
+    }
+
+    # Well known group to SID mapping. TBD - update for Win7
+    array set well_known_sids {
+        nullauthority     S-1-0
+        nobody            S-1-0-0
+        worldauthority    S-1-1
+        everyone          S-1-1-0
+        localauthority    S-1-2
+        creatorauthority  S-1-3
+        creatorowner      S-1-3-0
+        creatorgroup      S-1-3-1
+        creatorownerserver  S-1-3-2
+        creatorgroupserver  S-1-3-3
+        ntauthority       S-1-5
+        dialup            S-1-5-1
+        network           S-1-5-2
+        batch             S-1-5-3
+        interactive       S-1-5-4
+        service           S-1-5-6
+        anonymouslogon    S-1-5-7
+        proxy             S-1-5-8
+        serverlogon       S-1-5-9
+        authenticateduser S-1-5-11
+        terminalserver    S-1-5-13
+        localsystem       S-1-5-18
+        localservice      S-1-5-19
+        networkservice    S-1-5-20
+    }
+
+    # Built-in accounts
+    # TBD - see http://support.microsoft.com/?kbid=243330 for more built-ins
+    array set builtin_account_sids {
+        administrators  S-1-5-32-544
+        users           S-1-5-32-545
+        guests          S-1-5-32-546
+        "power users"   S-1-5-32-547
+    }
+}
+
+
+
 # Return major minor servicepack as a quad list
 proc twapi::get_os_version {} {
     array set verinfo [GetVersionEx]
@@ -204,6 +258,8 @@ proc twapi::format_message {args} {
 proc twapi::revert_to_self {{opt ""}} {
     RevertToSelf
 }
+
+interp alias {} twapi::expand_environment_strings {} twapi::ExpandEnvironmentStrings
 
 proc twapi::_init_security_defs {} {
     variable security_defs
@@ -657,3 +713,144 @@ proc twapi::_make_secattr {secd inherit} {
     return $sec_attr
 }
 
+# TBD - move the docs for the code below to base module
+
+# Helper for lookup_account_name{sid,name}
+# TBD - get rid of this common code - makes it slower than it need be
+# when results are cached. Or move cache up one level
+proc twapi::_lookup_account {func account args} {
+    if {$func == "LookupAccountSid"} {
+        set lookup name
+        # If we are mapping a SID to a name, check if it is the logon SID
+        # LookupAccountSid returns an error for this SID
+        if {[is_valid_sid_syntax $account] &&
+            [string match -nocase "S-1-5-5-*" $account]} {
+            set name "Logon SID"
+            set domain "NT AUTHORITY"
+            set type "logonid"
+        }
+    } else {
+        set lookup sid
+    }
+    array set opts [parseargs args \
+                        [list all \
+                             $lookup \
+                             domain \
+                             type \
+                             [list system.arg ""]\
+                            ]]
+
+
+    # Lookup the info if have not already hardcoded results
+    if {![info exists domain]} {
+        # Use cache if possible
+        variable _lookup_account_cache
+        if {![info exists _lookup_account_cache($lookup,$opts(system),$account)]} {
+            set _lookup_account_cache($lookup,$opts(system),$account) [$func $opts(system) $account]
+        }
+        lassign $_lookup_account_cache($lookup,$opts(system),$account) $lookup domain type
+    }
+
+    set result [list ]
+    if {$opts(all) || $opts(domain)} {
+        lappend result -domain $domain
+    }
+    if {$opts(all) || $opts(type)} {
+        if {[info exists twapi::sid_type_names($type)]} {
+            lappend result -type $twapi::sid_type_names($type)
+        } else {
+            # Could be the "logonid" dummy type we added above
+            lappend result -type $type
+        }
+    }
+
+    if {$opts(all) || $opts($lookup)} {
+        lappend result -$lookup [set $lookup]
+    }
+
+    # If no options specified, only return the sid/name
+    if {[llength $result] == 0} {
+        return [set $lookup]
+    }
+
+    return $result
+}
+
+# Returns the sid, domain and type for an account
+proc twapi::lookup_account_name {name args} {
+    return [_lookup_account LookupAccountName $name {*}$args]
+}
+
+
+# Returns the name, domain and type for an account
+proc twapi::lookup_account_sid {sid args} {
+    return [_lookup_account LookupAccountSid $sid {*}$args]
+}
+
+# Returns the sid for a account - may be given as a SID or name
+proc twapi::map_account_to_sid {account args} {
+    array set opts [parseargs args {system.arg} -nulldefault]
+
+    # Treat empty account as null SID (self)
+    if {[string length $account] == ""} {
+        return ""
+    }
+
+    if {[is_valid_sid_syntax $account]} {
+        return $account
+    } else {
+        return [lookup_account_name $account -system $opts(system)]
+    }
+}
+
+
+# Returns the name for a account - may be given as a SID or name
+proc twapi::map_account_to_name {account args} {
+    array set opts [parseargs args {system.arg} -nulldefault]
+
+    if {[is_valid_sid_syntax $account]} {
+        return [lookup_account_sid $account -system $opts(system)]
+    } else {
+        # Verify whether a valid account by mapping to an sid
+        if {[catch {map_account_to_sid $account -system $opts(system)}]} {
+            # As a special case, change LocalSystem to SYSTEM. Some Windows
+            # API's (such as services) return LocalSystem which cannot be
+            # resolved by the security functions. This name is really the
+            # same a the built-in SYSTEM
+            if {$account == "LocalSystem"} {
+                return "SYSTEM"
+            }
+            error "Unknown account '$account'"
+        } 
+        return $account
+    }
+}
+
+# Return the user account for the current process
+proc twapi::get_current_user {{format -samcompatible}} {
+
+    set return_sid false
+    switch -exact -- $format {
+        -fullyqualifieddn {set format 1}
+        -samcompatible {set format 2}
+        -display {set format 3}
+        -uniqueid {set format 6}
+        -canonical {set format 7}
+        -userprincipal {set format 8}
+        -canonicalex {set format 9}
+        -serviceprincipal {set format 10}
+        -dnsdomain {set format 12}
+        -sid {set format 2 ; set return_sid true}
+        default {
+            error "Unknown user name format '$format'"
+        }
+    }
+
+    set user [GetUserNameEx $format]
+
+    if {$return_sid} {
+        return [map_account_to_sid $user]
+    } else {
+        return $user
+    }
+}
