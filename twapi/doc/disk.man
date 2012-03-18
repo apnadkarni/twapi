@@ -1,5 +1,5 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Files, Disks and Volumes" n ""]
+[manpage_begin "Storage" n ""]
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "Disk information"]
 [titledesc "Commands related to files, disks and volumes"]
@@ -7,17 +7,10 @@
 [description]
 [para]
 
-This package provides procedures related to file, disk and volume information
-in Windows operating systems.
-
-[section "Physical disks"]
-
-The [uri disk.html#find_physical_disks [cmd find_physical_disks]] command
-returns the list of physical disks installed in the system.
-The [uri disk.html#get_physical_disk_info [cmd get_physical_disk_info]]
-command can then be used to retrieve detailed information about the
-physical disk.
-
+This package provides procedures related to file, 
+logical disk and volume information.
+For commands related to physical disks see the
+[uri device.html twapi_device] module.
 
 [section "Volumes"]
 
@@ -76,10 +69,6 @@ may be used to assign and unassign a drive letter to a local path.
 The commands [uri \#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
 and [uri \#cancel_filesystem_monitor [cmd cancel_filesystem_monitor]]
 can be used for monitoring changes to the file system.
-
-[para]
-The [uri \#get_file_version_resource [cmd get_file_version_resource]] returns
-various information stored within the version resource of a file.
 
 [para]
 The command [uri \#file_properties_dialog [cmd file_properties_dialog]]
@@ -236,12 +225,6 @@ whose type is in [arg DRIVETYPELIST] are returned.
 [arg DRIVETYPELIST] must be a subset of the
 values returned by the [uri \#get_drive_type [cmd get_drive_type]] command.
 
-[call [cmd find_physical_disks]]
-Returns the list of physical disks in the system. The returned paths
-can be passed to [cmd CreateFile] or
-[uri device.html#create_file [cmd create_file]] to get a handle
-to the raw physical disk.
-
 [call [cmd file_properties_dialog] [arg FILEPATH] [opt [arg options]]]
 Displays the shell property dialog for the specified file.
 The following options may be specified:
@@ -289,156 +272,6 @@ information returned.
 All times are returned in the same format as
 [uri osinfo.html\#get_system_time [cmd get_system_time]].
 
-[call [cmd get_file_version_resource] [arg PATH] [opt [arg options]] [opt "[arg STRINGNAME]..."]]
-
-Returns the information stored within the version resource of a file. The
-command will generate a Tcl error if the file specified by [arg PATH] does
-not contain a version resource.
-[nl]
-The version resource consists of two parts. The information in the first
-part is in a fixed format and can be retrieved by specifying appropriate
-options in [arg options]. The second part is a string table, the entries in
-which can be retrieved by specifying the key as a [arg STRINGNAME]
-argument.
-
-[nl]
-The following options may be used with the command:
-[list_begin opt]
-[opt_def [cmd -all]]
-Returns all information in the fixed part.
-[opt_def [cmd -datetime]]
-Returns the date and time the file was created (as stored in the
-version resource) as a 64 bit number. Refer to
-[uri misc.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
-or
- [uri misc.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
-
-[opt_def [cmd -fileversion]]
-Returns the file version as indicated in the version resource. This is
-returned in the format [arg MAJOR.MINOR.BUILD.PRIVATE]. Note this is not
-necessarily identical to the value specified for the [const FileVersion]
-entry in the string table.
-[opt_def [cmd -fileos]]
-Returns a value specifying the platform for which the file was
-designed. This may be one of
-[const dos] (MS-DOS),
-[const os216] (16-bit OS/2),
-[const os232] (16-bit OS/2),
-[const nt] (Windows NT),
-[const wince] (Windows CE),
-[const windows16] (16-bit Windows),
-[const pm16] (16-bit Presentation Manager),
-[const pm32] (32-bit Presentation Manager),
-[const windows32] (32-bit Windows),
-[const dos_windows32] (32-bit Windows on MS-DOS),
-[const os216_pm16] (16-bit Presentation Manager on 16-bit OS/2),
-[const os232_pm32]  (32-bit Presentation Manager on 32-bit OS/2) or
-[const nt_windows32] (32-bit Windows on Windows NT).
-[opt_def [cmd -filetype]]
-Returns the file type which may be one of the following:
-[const application],
-[const dll],
-[const driver.printer],
-[const driver.keyboard],
-[const driver.language],
-[const driver.display],
-[const driver.mouse],
-[const driver.network],
-[const driver.system],
-[const driver.installable],
-[const driver.sound],
-[const driver.comm],
-[const driver.inputmethod],
-[const driver.versionedprinter],
-[const driver.][arg DRIVERSUBTYPENUMBER],
-[const font.raster],
-[const font.vector],
-[const font.truetype],
-[const font.][arg FONTSUBTYPENUMBER],
-[const vxd.][arg VIRTUALDEVICEID],
-[const staticlib] or
-[arg FILETYPENUMBER.FILESUBTYPENUMBER]. (Note in cases where the file type
-or subtype is not recognized, the actual numeric value is returned.)
-
-[opt_def [cmd -flags]]
-Returns a list of symbols corresponding to flags set in the version resource.
-The list may contain symbols from the following:
-[const debug],
-[const prerelease],
-[const patched],
-[const privatebuild],
-[const infoinferred] and
-[const specialbuild]. In addition, the list may also contain a numeric value
-corresponding to bits that are set but are not recognized as one of the above.
-
-[opt_def [cmd -foundcodepage]]
-Returns the code page of the matched string table (see below).
-
-[opt_def [cmd -foundlangid]]
-Returns the language of the matched string table (see below). The returned value
-is a list of two elements containing the numeric language identifier
-and a description string for the corresponding language.
-
-[opt_def [cmd -langid] [arg LANGID]]
-Specifies [arg LANGID] as the language identifier to be used for string
-table lookup (see below). By default, the language identifier returned
-by [uri nls.html\#get_user_ui_langid [cmd get_user_ui_langid]] is used.
-[opt_def [cmd -codepage] [arg CODEPAGE]]
-Specifies [arg CODEPAGE] as the code page to be used for string table
-lookup (see below).
-[opt_def [cmd -productversion]]
-Returns the product version as indicated in the version resource. This is
-returned in the format [arg MAJOR.MINOR.BUILD.PRIVATE]. Note this is not
-necessarily identical to the value specified for the [const ProductVersion]
-entry in the string table.
-[opt_def [cmd -signature]]
-Contains a longword that is a signature for the fixed part of the version
-resource. Not particularly useful for the application.
-[opt_def [cmd -structversion]]
-Returns the version of the version resource format.
-[list_end]
-In addition to the options that retrieve fixed portions of the version
-resource, the caller may also specify string names corresponding to
-language-specific string tables in the version resource. Each
-such [arg STRINGNAME] is looked up in the string table and returned as
-a [arg STRINGNAME] [arg VALUE] pair. If a particular string name does
-not exist in the string table, an empty string is returned as its value. The
-following string names are commonly defined in version resources:
-[const Comments], [const InternalName], [const ProductName],
-[const CompanyName], [const LegalCopyright], [const ProductVersion],
-[const FileDescription], [const LegalTrademarks], [const PrivateBuild],
-[const FileVersion], [const OriginalFilename], [const SpecialBuild].
-
-
-[nl]
-The version resource may contain
-multiple string tables for different languages and code pages. The caller
-can control the string table used through the [cmd -langid] and
-[cmd -codepage] options. The command uses the following algorithm in
-selecting the string table that is looked up.
-[list_begin bullet]
-[bullet]
-If a string table exactly matches the language id and code page, it is used.
-[bullet]
-Otherwise, if a string table exactly matches the language id, it is used
-irrespective of the code page.
-[bullet]
-Otherwise, a string table matching the primary language portion
-of the language id and the code page is used.
-[bullet]
-Otherwise, a string table matching the primary language portion
-of the language id is used regardless of the code page.
-[bullet]
-Otherwise, a string table specified as language neutral is used.
-[bullet]
-Otherwise, a string table specified as [const English] is used.
-[bullet]
-Finally, the string table corresponding to the first language and code page
-specified in the resource is used.
-[list_end]
-The language identifier and code page corresponding to the actual string
-table that was looked up may be optionally be retrieved by passing
-the [cmd -foundlangid] and [cmd -foundcodepage] to the command.
 
 [call [cmd get_mounted_volume_name] [arg MOUNTPOINT]]
 
@@ -447,66 +280,6 @@ The returned name has a trailing backslash appended.
 [arg MOUNTPOINT] must specify a root directory of a local drive or path
 to a volume mount point. Specifying remote file shares will generate
 an error.
-
-[call [cmd get_physical_disk_info] [arg DISK] [opt [arg options]]]
-
-Returns information about a physical disk. [arg DISK] is a device path
-to the physical disk in the format returned by
-[uri disk.html#find_physical_disks [cmd find_physical_disks]].
-The command returns a keyed list with fields depending on the passed
-options:
-
-[list_begin opt]
-[opt_def [cmd -all]] Returns all fields.
-[opt_def [cmd -geometry]] Returns the geometry of the disk. The value is
-itself a keyed list with the fields [cmd -cylinders], [cmd -mediatype],
-[cmd -trackspercylinder], [cmd -sectorspertrack] and [cmd -bytespersector].
-[opt_def [cmd -layout]] Returns the layout of the disk in terms of
-how it is partitioned. The returned value is a keyed list with the fields
-depending on how the disk is partitioned. See below for a discussion.
-[list_end]
-
-[nl]
-The partitioning of a disk can take several forms and the information
-returned by the [cmd -layout] differs in each case. The following is a brief
-summary that assumes familiarity with disk formats. See the
-[uri http://msdn.microsoft.com/en-us/library/aa972908.aspx "Windows DDK"]
-documentation for details.
-[nl]
-On Windows 2000, the [cmd -layout] field value is a keyed list with
-the fields [cmd -partitioncount], [cmd -signature] and [cmd -partitions]
-containing the number of partitions of the disk, the disk signature,
-and a list of partitions. Each element of the partition list is itself
-a keyed list with the fields
-[cmd -startingoffset], [cmd -partitionlength], [cmd -hiddensectors],
-[cmd -partitionnumber], [cmd -partitiontype], [cmd -bootindicator],
-[cmd -recognizedpartition] and [cmd -rewritepartition].
-
-[nl]
-On Windows XP and newer operating systems, the [cmd -layout] field value
-is a keyed list with the fields, [cmd -partitioncount],
-[cmd -partitionstyle] and [cmd -partitions]. If the [cmd -partitionstyle]
-field is [const mbr], an additional field [cmd -signature] is present. If
-the [cmd -partitionstyle] is [const gpt], three additional fields
-[cmd -startingusableoffset], [cmd -usablelength] and [cmd -maxpartitioncount].
-Other possible value of [cmd -partitionstyle] are
-[const raw] or [const unknown] in which case there are no additional fields.
-The [cmd -partitions] field is a list each element of which
-is itself a keyed list containing information about each partition. Note
-that the number of elements of the [cmd -partitions] list may not match
-the value of the [cmd -partitioncount] field in case information for
-some partitions cannot be retrieved. Every element of the [cmd -partitions]
-field will have the fields [cmd -partitionstyle], [cmd -startingoffset],
-[cmd -partitionlength], [cmd -partitionnumber] and [cmd -rewritepartition].
-In addition, if [cmd -partitionstyle] is [const mbr], the element will
-also have the fields
-[cmd -hiddensectors],
-[cmd -partitiontype], [cmd -bootindicator] and
-[cmd -recognizedpartition]. If [cmd -partitionstyle] is [const gpt],
-it will have the fields [cmd -partitiontype], [cmd -partitionif],
-[cmd -attributes] and [cmd -name]. Partition styles [const raw] and
-[const unknown] have no additional fields.
-
 
 [call [cmd get_volume_info] [arg DRIVE] [opt [arg options]]]
 

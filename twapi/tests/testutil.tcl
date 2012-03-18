@@ -112,6 +112,14 @@ proc create_user_with_password {uname {system ""}} {
     }
 }
 
+proc name2sid {name} {
+    variable testutil_sids
+    if {![info exists testutil_sids($name)]} {
+        set testutil_sids($name) [wmic_value Win32_Account sid name $name]
+    }
+    return $testutil_sids($name)
+}
+
 # Get the localized account name for a well known account
 proc get_localized_account {name} {
     switch -exact -- [string tolower $name] {
@@ -732,7 +740,8 @@ proc wmic_get {obj fields {clause ""}} {
 
     # First element is field names, not in same order as $fields. Also,
     # Case might be different. Make them consistent with what caller
-    # expects. Code below assumes no duplicate names
+    # expects.
+    # Code below assumes no duplicate names
     set fieldnames {}
     foreach fname [lindex $data 0] {
         set fieldname $fname
@@ -753,10 +762,27 @@ proc wmic_get {obj fields {clause ""}} {
         foreach value $values {
             lappend decoded_values [string map {&amp; &} $value]
         }
-        lappend result [twapi::twine $fieldnames $decoded_values]
+        set dict {}
+        foreach fieldname $fieldnames decoded_value $decoded_values {
+            lappend dict $fieldname $decoded_value
+        }
+        lappend result $dict
     }
 
     return $result
+}
+
+# Gets all fields of specified class with all field names in lower case.
+proc wmic_records {wmiclass {clause ""}} {
+    set recs {}
+    foreach elem [wmic_get $wmiclass * $clause] {
+        set rec {}
+        foreach {fld val} $elem {
+            lappend rec [string tolower $fld] $val
+        }
+        lappend recs $rec
+    }
+    return $recs
 }
 
 # Return 1/0 depending on whether at least one record with specified field

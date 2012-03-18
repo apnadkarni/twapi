@@ -39,7 +39,13 @@ device or device interface class for which they wish to receive
 notifications and the corresponding script to be invoked to receive
 them.
 
+[section "Physical disks"]
 
+The [uri disk.html#find_physical_disks [cmd find_physical_disks]] command
+returns the list of physical disks installed in the system.
+The [uri disk.html#get_physical_disk_info [cmd get_physical_disk_info]]
+command can then be used to retrieve detailed information about the
+physical disk.
 
 [section Commands]
 [list_begin definitions]
@@ -55,6 +61,71 @@ to be sent to the device. The command returns the result as a Tcl
 binary value that should in general be
 parsed with the Tcl [cmd "binary scan"] command.
 [nl]
+
+[call [cmd find_physical_disks]]
+Returns the list of physical disks in the system. The returned paths
+can be passed to [cmd CreateFile] or
+[uri device.html#create_file [cmd create_file]] to get a handle
+to the raw physical disk.
+
+[call [cmd get_physical_disk_info] [arg DISK] [opt [arg options]]]
+
+Returns information about a physical disk. [arg DISK] is a device path
+to the physical disk in the format returned by
+[uri disk.html#find_physical_disks [cmd find_physical_disks]].
+The command returns a keyed list with fields depending on the passed
+options:
+
+[list_begin opt]
+[opt_def [cmd -all]] Returns all fields.
+[opt_def [cmd -geometry]] Returns the geometry of the disk. The value is
+itself a keyed list with the fields [cmd -cylinders], [cmd -mediatype],
+[cmd -trackspercylinder], [cmd -sectorspertrack] and [cmd -bytespersector].
+[opt_def [cmd -layout]] Returns the layout of the disk in terms of
+how it is partitioned. The returned value is a keyed list with the fields
+depending on how the disk is partitioned. See below for a discussion.
+[list_end]
+
+[nl]
+The partitioning of a disk can take several forms and the information
+returned by the [cmd -layout] differs in each case. The following is a brief
+summary that assumes familiarity with disk formats. See the
+[uri http://msdn.microsoft.com/en-us/library/aa972908.aspx "Windows DDK"]
+documentation for details.
+[nl]
+On Windows 2000, the [cmd -layout] field value is a keyed list with
+the fields [cmd -partitioncount], [cmd -signature] and [cmd -partitions]
+containing the number of partitions of the disk, the disk signature,
+and a list of partitions. Each element of the partition list is itself
+a keyed list with the fields
+[cmd -startingoffset], [cmd -partitionlength], [cmd -hiddensectors],
+[cmd -partitionnumber], [cmd -partitiontype], [cmd -bootindicator],
+[cmd -recognizedpartition] and [cmd -rewritepartition].
+
+[nl]
+On Windows XP and newer operating systems, the [cmd -layout] field value
+is a keyed list with the fields, [cmd -partitioncount],
+[cmd -partitionstyle] and [cmd -partitions]. If the [cmd -partitionstyle]
+field is [const mbr], an additional field [cmd -signature] is present. If
+the [cmd -partitionstyle] is [const gpt], three additional fields
+[cmd -startingusableoffset], [cmd -usablelength] and [cmd -maxpartitioncount].
+Other possible value of [cmd -partitionstyle] are
+[const raw] or [const unknown] in which case there are no additional fields.
+The [cmd -partitions] field is a list each element of which
+is itself a keyed list containing information about each partition. Note
+that the number of elements of the [cmd -partitions] list may not match
+the value of the [cmd -partitioncount] field in case information for
+some partitions cannot be retrieved. Every element of the [cmd -partitions]
+field will have the fields [cmd -partitionstyle], [cmd -startingoffset],
+[cmd -partitionlength], [cmd -partitionnumber] and [cmd -rewritepartition].
+In addition, if [cmd -partitionstyle] is [const mbr], the element will
+also have the fields
+[cmd -hiddensectors],
+[cmd -partitiontype], [cmd -bootindicator] and
+[cmd -recognizedpartition]. If [cmd -partitionstyle] is [const gpt],
+it will have the fields [cmd -partitiontype], [cmd -partitionif],
+[cmd -attributes] and [cmd -name]. Partition styles [const raw] and
+[const unknown] have no additional fields.
 
 [call [cmd start_device_notifier] [arg SCRIPT] [opt "[cmd -deviceinterface] [arg DEVICEINTERFACE]"] [opt "[cmd -handle] [arg DEVICEHANDLE]"]]
 

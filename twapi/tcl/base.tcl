@@ -586,3 +586,74 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
 
     return [_access_mask_to_rights {*}$args]
 }
+
+# Map the symbolic CreateDisposition parameter of CreateFile to integer values
+proc twapi::_create_disposition_to_code {sym} {
+    if {[string is integer -strict $sym]} {
+        return $sym
+    }
+    # CREATE_NEW          1
+    # CREATE_ALWAYS       2
+    # OPEN_EXISTING       3
+    # OPEN_ALWAYS         4
+    # TRUNCATE_EXISTING   5
+    return [dict get {
+        create_new 1
+        create_always 2
+        open_existing 3
+        open_always 4
+        truncate_existing 5} $sym]
+}
+
+# Wrapper around CreateFile
+# TBD - Move documentation to base module doc
+proc twapi::create_file {path args} {
+    array set opts [parseargs args {
+        {access.arg {generic_read}}
+        {share.arg {read write delete}}
+        {inherit.bool 0}
+        {secd.arg ""}
+        {createdisposition.arg open_always}
+        {flags.int 0}
+        {templatefile.arg NULL}
+    } -maxleftover 0]
+
+    set access_mode [_access_rights_to_mask $opts(access)]
+    set share_mode [_share_mode_to_mask $opts(share)]
+    set create_disposition [_create_disposition_to_code $opts(createdisposition)]
+    return [CreateFile $path \
+                $access_mode \
+                $share_mode \
+                [_make_secattr $opts(secd) $opts(inherit)] \
+                $create_disposition \
+                $opts(flags) \
+                $opts(templatefile)]
+}
+
+# Map a set of share mode symbols to a flag. Concatenates
+# all the arguments, and then OR's the individual elements. Each
+# element may either be a integer or one of the share modes
+proc twapi::_share_mode_to_mask {modelist} {
+    # Values correspond to FILE_SHARE_* defines
+    return [_parse_symbolic_bitmask $modelist {read 1 write 2 delete 4}]
+}
+
+# Construct a security attributes structure out of a security descriptor
+# and inheritance. The command is here because we do not want to
+# have to load the twapi_security package for the common case of
+# null security attributes.
+proc twapi::_make_secattr {secd inherit} {
+    if {$inherit} {
+        set sec_attr [list $secd 1]
+    } else {
+        if {[llength $secd] == 0} {
+            # If a security descriptor not specified, keep
+            # all security attributes as an empty list (ie. NULL)
+            set sec_attr [list ]
+        } else {
+            set sec_attr [list $secd 0]
+        }
+    }
+    return $sec_attr
+}
+

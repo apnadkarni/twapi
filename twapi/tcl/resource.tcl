@@ -1,10 +1,217 @@
 # Commands related to resource manipulation
-
 #
-# Copyright (c) 2003, 2004, Ashok P. Nadkarni
+# Copyright (c) 2003-2012 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
+
+# Retrieve version info for a file
+proc twapi::get_file_version_resource {path args} {
+    # TBD add -datetime opt to return date and time from fixed version struct
+    array set opts [parseargs args {
+        all
+        datetime
+        signature
+        structversion
+        fileversion
+        productversion
+        flags
+        fileos
+        filetype
+        foundlangid
+        foundcodepage
+        langid.arg
+        codepage.arg
+    }]
+
+
+    set ver [Twapi_GetFileVersionInfo $path]
+
+    trap {
+        array set verinfo [Twapi_VerQueryValue_FIXEDFILEINFO $ver]
+
+        set result [list ]
+        if {$opts(all) || $opts(signature)} {
+            lappend result -signature [format 0x%x $verinfo(dwSignature)]
+        }
+
+        if {$opts(all) || $opts(structversion)} {
+            lappend result -structversion "[expr {0xffff & ($verinfo(dwStrucVersion) >> 16)}].[expr {0xffff & $verinfo(dwStrucVersion)}]"
+        }
+
+        if {$opts(all) || $opts(fileversion)} {
+            lappend result -fileversion "[expr {0xffff & ($verinfo(dwFileVersionMS) >> 16)}].[expr {0xffff & $verinfo(dwFileVersionMS)}].[expr {0xffff & ($verinfo(dwFileVersionLS) >> 16)}].[expr {0xffff & $verinfo(dwFileVersionLS)}]"
+        }
+
+        if {$opts(all) || $opts(productversion)} {
+            lappend result -productversion "[expr {0xffff & ($verinfo(dwProductVersionMS) >> 16)}].[expr {0xffff & $verinfo(dwProductVersionMS)}].[expr {0xffff & ($verinfo(dwProductVersionLS) >> 16)}].[expr {0xffff & $verinfo(dwProductVersionLS)}]"
+        }
+
+        if {$opts(all) || $opts(flags)} {
+            set flags [expr {$verinfo(dwFileFlags) & $verinfo(dwFileFlagsMask)}]
+            lappend result -flags \
+                [_make_symbolic_bitmask \
+                     [expr {$verinfo(dwFileFlags) & $verinfo(dwFileFlagsMask)}] \
+                     {
+                         debug 1
+                         prerelease 2
+                         patched 4
+                         privatebuild 8
+                         infoinferred 16
+                         specialbuild 32
+                     } \
+                     ]
+        }
+
+        if {$opts(all) || $opts(fileos)} {
+            switch -exact -- [format %08x $verinfo(dwFileOS)] {
+                00010000 {set os dos}
+                00020000 {set os os216}
+                00030000 {set os os232}
+                00040000 {set os nt}
+                00050000 {set os wince}
+                00000001 {set os windows16}
+                00000002 {set os pm16}
+                00000003 {set os pm32}
+                00000004 {set os windows32}
+                00010001 {set os dos_windows16}
+                00010004 {set os dos_windows32}
+                00020002 {set os os216_pm16}
+                00030003 {set os os232_pm32}
+                00040004 {set os nt_windows32}
+                default {set os $verinfo(dwFileOS)}
+            }
+            lappend result -fileos $os
+        }
+
+        if {$opts(all) || $opts(filetype)} {
+            switch -exact -- [expr {0+$verinfo(dwFileType)}] {
+                1 {set type application}
+                2 {set type dll}
+                3 {
+                    set type "driver."
+                    switch -exact -- [expr {0+$verinfo(dwFileSubtype)}] {
+                        1 {append type printer}
+                        2 {append type keyboard}
+                        3 {append type language}
+                        4 {append type display}
+                        5 {append type mouse}
+                        6 {append type network}
+                        7 {append type system}
+                        8 {append type installable}
+                        9  {append type sound}
+                        10 {append type comm}
+                        11 {append type inputmethod}
+                        12 {append type versionedprinter}
+                        default {append type $verinfo(dwFileSubtype)}
+                    }
+                }
+                4 {
+                    set type "font."
+                    switch -exact -- [expr {0+$verinfo(dwFileSubtype)}] {
+                        1 {append type raster}
+                        2 {append type vector}
+                        3 {append type truetype}
+                        default {append type $verinfo(dwFileSubtype)}
+                    }
+                }
+                5 { set type "vxd.$verinfo(dwFileSubtype)" }
+                7 {set type staticlib}
+                default {
+                    set type "$verinfo(dwFileType).$verinfo(dwFileSubtype)"
+                }
+            }
+            lappend result -filetype $type
+        }
+
+        if {$opts(all) || $opts(datetime)} {
+            lappend result -datetime [expr {(wide($verinfo(dwFileDateMS)) << 32) + $verinfo(dwFileDateLS)}]
+        }
+
+        # Any remaining arguments are treated as string names
+
+        if {[llength $args] || $opts(foundlangid) || $opts(foundcodepage) || $opts(all)} {
+            # Find list of langid's and codepages and do closest match
+            set langid [expr {[info exists opts(langid)] ? $opts(langid) : [get_user_ui_langid]}]
+            set primary_langid [extract_primary_langid $langid]
+            set sub_langid     [extract_sublanguage_langid $langid]
+            set cp [expr {[info exists opts(codepage)] ? $opts(codepage) : 0}]
+
+            # Find a match in the following order:
+            # 0 Exact match for both langid and codepage
+            # 1 Exact match for langid
+            # 2 Primary langid matches (sublang does not) and exact codepage
+            # 3 Primary langid matches (sublang does not)
+            # 4 Language neutral
+            # 5 English
+            # 6 First langcp in list or "00000000"
+            set match(7) "00000000";    # In case list is empty
+            foreach langcp [Twapi_VerQueryValue_TRANSLATIONS $ver] {
+                set verlangid 0x[string range $langcp 0 3]
+                set vercp 0x[string range $langcp 4 7]
+                if {$verlangid == $langid && $vercp == $cp} {
+                    set match(0) $langcp
+                    break;              # No need to look further
+                }
+                if {[info exists match(1)]} continue
+                if {$verlangid == $langid} {
+                    set match(1) $langcp
+                    continue;           # Continue to look for match(0)
+                }
+                if {[info exists match(2)]} continue
+                set verprimary [extract_primary_langid $verlangid]
+                if {$verprimary == $primary_langid && $vercp == $cp} {
+                    set match(2) $langcp
+                    continue;       # Continue to look for match(1) or better
+                }
+                if {[info exists match(3)]} continue
+                if {$verprimary == $primary_langid} {
+                    set match(3) $langcp
+                    continue;       # Continue to look for match(2) or better
+                }
+                if {[info exists match(4)]} continue
+                if {$verprimary == 0} {
+                    set match(4) $langcp; # LANG_NEUTRAL
+                    continue;       # Continue to look for match(3) or better
+                }
+                if {[info exists match(5)]} continue
+                if {$verprimary == 9} {
+                    set match(5) $langcp; # English
+                    continue;       # Continue to look for match(4) or better
+                }
+                if {![info exists match(6)]} {
+                    set match(6) $langcp
+                }
+            }
+
+            # Figure out what is the best match we have
+            for {set i 0} {$i <= 7} {incr i} {
+                if {[info exists match($i)]} {
+                    break
+                }
+            }
+
+            if {$opts(foundlangid) || $opts(all)} {
+                set langid 0x[string range $match($i) 0 3] 
+                lappend result -foundlangid [list $langid [VerLanguageName $langid]]
+            }
+
+            if {$opts(foundcodepage) || $opts(all)} {
+                lappend result -foundcodepage 0x[string range $match($i) 4 7]
+            }
+
+            foreach sname $args {
+                lappend result $sname [Twapi_VerQueryValue_STRING $ver $match($i) $sname]
+            }
+
+        }
+
+    } finally {
+        Twapi_FreeFileVersionInfo $ver
+    }
+
+    return $result
+}
 
 proc twapi::begin_resource_update {path args} {
     array set opts [parseargs args {
