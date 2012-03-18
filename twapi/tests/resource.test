@@ -19,6 +19,26 @@ namespace eval twapi::resource::test {
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint vista [twapi::min_os_version 6]
 
+    # DLL to use for file version checking
+    proc get_filever_dll {} {
+        return [file join $::env(WINDIR) system32 shdocvw.dll]
+    }
+
+    # DLL to use for file version checking
+    proc get_filever_app {} {
+        return [file join $::env(WINDIR) system32 notepad.exe]
+    }
+
+    # 16bit DLL to use for file version checking
+    proc get_filever_dll16 {} {
+        return [file join $::env(WINDIR) system shell.dll]
+    }
+
+    # Driver to use for file version checking
+    proc get_filever_driver {} {
+        return [file join $::env(WINDIR) system32 win32k.sys]
+    }
+
     proc resource_file name {
         return [file join rctest $name]
     }
@@ -1604,6 +1624,172 @@ namespace eval twapi::resource::test {
         twapi::free_library $reslibh
     } -result {1 {6 {1033 {}} 7 {1033 {}}} 2 {106 {1033 {}}} 3 {1 {1033 {}} 2 {1033 {}} 3 {1033 {}} 4 {1033 {}} 5 {1033 {}}} 4 {110 {1033 {}}} 5 {101 {1033 {}} 106 {1033 {}} 109 {1033 {}}} 6 {1 {1033 {}} 2 {1033 {}} 3 {1033 {}} 4 {1033 {}} 69 {1033 {}} 3633 {1033 {}}} 9 {101 {1033 {}}} 12 {103 {1033 {}} 104 {1033 {}}} 14 {{"ICON3"} {1033 {}} 102 {1033 {}} 107 {1033 {}}} 23 {105 {1033 {}}}}
 
+
+    ################################################################
+
+    test get_file_version_resource-1.0 {
+        get_file_version_resource called with no options
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_file_version_resource [get_filever_dll]
+    } -result ""
+
+    ###
+
+    test get_file_version_resource-2.0 {
+        get_file_version_resource -fileversion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -fileversion]
+        set ver(-fileversion)
+    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
+
+    ###
+
+    test get_file_version_resource-3.0 {
+        get_file_version_resource -fileos
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -fileos]
+        set ver(-fileos)
+    } -result nt_windows32
+
+    ###
+
+    test get_file_version_resource-3.1 {
+        get_file_version_resource -fileos
+    } -constraints {
+        nt
+    } -body {
+        if {[file exists [get_filever_dll16]]} {
+            array set ver [twapi::get_file_version_resource [get_filever_dll16] -fileos]
+            expr {$ver(-fileos) eq "dos_windows16"}
+        } else {
+            lindex 1
+        }
+    } -result 1
+
+    ###
+
+    test get_file_version_resource-4.0 {
+        get_file_version_resource -filetype (DLL)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -filetype]
+        set ver(-filetype)
+    } -result dll
+
+    ###
+
+    test get_file_version_resource-4.1 {
+        get_file_version_resource -filetype (driver)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_driver] -filetype]
+        set ver(-filetype)
+    } -result driver.system
+
+    ###
+
+    test get_file_version_resource-4.2 {
+        get_file_version_resource -filetype (application)
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_app] -filetype]
+        set ver(-filetype)
+    } -result application
+
+    ###
+
+    test get_file_version_resource-5.0 {
+        get_file_version_resource -signature
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -signature]
+        set ver(-signature)
+    } -result 0xfeef04bd
+
+    ###
+
+    test get_file_version_resource-6.0 {
+        get_file_version_resource -structversion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -structversion]
+        set ver(-structversion)
+    } -result 1.0
+
+    ###
+
+    test get_file_version_resource-7.0 {
+        get_file_version_resource -flags
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -flags]
+        set ver(-flags)
+    } -match regexp -result {^(debug|prerelease|patched|privatebuild|infoinferred|specialbuild)?([[:space:]]+(debug|prerelease|patched|privatebuild|infoinferred|specialbuild))*$}
+
+    ###
+
+    test get_file_version_resource-8.0 {
+        get_file_version_resource -langid
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -langid 1033 CompanyName]
+        set ver(CompanyName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-9.0 {
+        get_file_version_resource -codepage
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] -codepage 0x04b0 CompanyName]
+        set ver(CompanyName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-10.0 {
+        get_file_version_resource NonExisting
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] NonExisting]
+        set ver(NonExisting)
+    } -result ""
+
+    ###
+
+    test get_file_version_resource-11.0 {
+        get_file_version_resource ProductName
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] ProductName]
+        set ver(ProductName)
+    } -match regexp -result Microsoft
+
+    ###
+
+    test get_file_version_resource-12.0 {
+        get_file_version_resource ProductVersion
+    } -constraints {
+        nt
+    } -body {
+        array set ver [twapi::get_file_version_resource [get_filever_dll] ProductVersion]
+        set ver(ProductVersion)
+    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
 
     ################################################################
 

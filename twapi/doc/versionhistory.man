@@ -337,7 +337,7 @@ Added error notifications to
 [bullet]
 Added options -foundcodepage, -foundlangid and
 -datetime to
-[uri disk.html#get_file_version_resource get_file_version_resource].
+[uri resource.html#get_file_version_resource get_file_version_resource].
 
 [bullet]
 Added Wow64EnableWow64FsRedirection, Wow64DisableWow64FsRedirection,
@@ -413,8 +413,8 @@ Added commands
 [uri ui.html\#get_display_monitor_info get_display_monitor_info].
 
 [bullet] Added commands
-[uri disk.html#find_physical_disks find_physical_disks] and
-[uri disk.html#get_physical_disk_info get_physical_disk_info].
+[uri device.html#find_physical_disks find_physical_disks] and
+[uri device.html#get_physical_disk_info get_physical_disk_info].
 
 [bullet] Added
 [uri handles.html#create_file create_file].

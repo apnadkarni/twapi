@@ -1,6 +1,5 @@
-
 #
-# Copyright (c) 2008, Ashok P. Nadkarni
+# Copyright (c) 2008-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -11,12 +10,123 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_device
 
 namespace eval twapi::device::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint win6 [twapi::min_os_version 6]
+
+    proc fill_physical_disks {{force 0}} {
+        variable physical_disks
+        if {[info exists physical_disks] && ! $force} {
+            return;             # Only fill once, assume will not change
+        }
+        foreach disk [wmic_records Win32_DiskDrive] {
+            set id [dict get $disk pnpdeviceid]
+            set physical_disks([string tolower $id]) $disk
+        }
+    }
+
+    proc verify_physical_disk {id {diskdata {}}} {
+        variable physical_disks
+        fill_physical_disks
+        set orig_id $id
+        set id [string tolower $id]
+        # Try and match id against known disk ids
+        if {![info exists physical_disks($id)]} {
+            # Strip of \\?\ if present
+            if {[string range $id 0 3] eq "\\\\?\\"} {
+                set id [string range $id 4 end]
+            }
+            if {![info exists physical_disks($id)]} {
+                # Still no match, convert "#" to \ and check
+                set id [string map [list # \\] $id]
+                if {![info exists physical_disks($id)]} {
+                    # Still no go, one last chance - strip the GUID
+                    if {(![regexp {^(.*)\\\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} $id _ id]) || ![info exists physical_disks($id)]} {
+                        return "Could not find disk $orig_id in physical disk table"
+                    }
+                }
+            }
+        }
+
+        # We use dicts below, for semi supported 8.4, don't bother checking
+        # field values. Only existence checked.
+        if {![package vsatisfies [info tclversion] 8.5]} {
+            return ""
+        }
+
+        # We have a match. Compare whatever fields we can
+        foreach {field wmifield} {
+            -sectorspertrack    sectorspertrack
+            -trackspercylinder  trackspercylinder 
+            -cylinders          totalcylinders
+            -bytespersector     bytespersector
+        } {
+            if {[dict exists $diskdata -geometry $field] &&
+                [dict get $diskdata -geometry $field] != [dict get $physical_disks($id) $wmifield]} {
+                return "Sectors per track does not match ([dict get $diskdata -geometry $field] != [dict get $physical_disks($id) $wmifield])"
+            }
+        }
+
+        if {[dict exists $diskdata -geometry -mediatype]} {
+            set value [dict get $diskdata -geometry -mediatype]
+            set wmivalue [dict get $physical_disks($id) mediatype]
+            # We use regexp because the wmi values have arbitrary whitespace/tabs!
+            switch -exact --  $value {
+                11 {
+                    if {![regexp {^Removable\s+media\s+other\s+than\s+floppy$} $wmivalue]} {
+                        return "Media type $value does not match $wmivalue."
+                    }
+                }
+                12 {
+                    if {![regexp {^Fixed\s+hard\s+disk\s+media$} $wmivalue]} {
+                        return "Media type $value does not match $wmivalue."
+                    }
+                }
+            }
+        }
+        # TBD - how to verify partition-specific info? wmi win32_diskpartition
+        # does not seem to return extended partition members
+
+        return ""
+    }
+
+    proc verify_physical_disk_layout_fields {layout} {
+        if {[twapi::min_os_version 5 1]} {
+            set part_fields {-partitionstyle -startingoffset -partitionlength -partitionnumber -rewritepartition}
+            set layout_fields {-partitions -partitioncount -partitionstyle}
+            switch -exact -- [twapi::kl_get $layout -partitionstyle] {
+                mbr {
+                    lappend layout_fields -signature
+                    lappend part_fields -hiddensectors -partitiontype -bootindicator -recognizedpartition
+                }
+                gpt {
+                    lappend layout_fields -startingusableoffset -usablelength -maxpartitioncount
+                    lappend part_fields -partitiontype -partitionif -attributes -name
+                }
+                raw -
+                unknown {
+                    # No additional fields
+                }
+                default {
+                    append result "Unknown partition type in partition <$part>"
+                }
+            }
+
+            verify_kl_fields $layout $layout_fields
+            set parts [twapi::kl_get $layout -partitions]
+            verify_list_kl_fields $parts $part_fields
+        } else {
+            verify_kl_fields $layout {
+                -partitions -partitioncount -signature
+            }
+            verify_list_kl_fields [twapi::kl_get $layout -partitions] {
+                -bootindicator -hiddensectors -partitionlength -partitionnumber -partitiontype -recognizedpartition -rewritepartition -startingoffset  
+            }
+        }
+    }
 
     ################################################################
 
@@ -48,278 +158,26 @@ namespace eval twapi::device::test {
 
     ################################################################
 
-    test create_file-1.0 {
-        create_file new with default options
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn]
-        file exists $fn
-    } -cleanup {
-        file delete $fn
-    } -result 1
-
-    test create_file-1.1 {
-        create_file existing with default options
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-1.1" [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn]
-        # Content should not be modified/truncated
-        read_file $fn
-    } -result "create_file-1.1\n"
-
-    
-    test create_file-2.0 {
-        Create a file with a specific integrity value
-    } -constraints {
-        win6
-    } -body {
-        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
-        set secd [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
-        twapi::close_handle [twapi::create_file $fn -secd $secd]
-        twapi::get_resource_integrity file $fn -label
-    } -result {low system_mandatory_label_no_write_up}
-
-    test create_file-3.0 {
-        create_file new with -createdisposition create_always
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
-        read_file $fn
-    } -cleanup {
-        file delete $fn
-    } -result ""
-
-    test create_file-3.1 {
-        create_file existing with -createdisposition create_always
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-3.1" [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
-        # Content should be truncated
-        read_file $fn
-    } -result ""
-
-    test create_file-3.2 {
-        create_file new with -createdisposition create_new
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition create_new]
-        read_file $fn
-    } -cleanup {
-        file delete $fn
-    } -result ""
-
-    test create_file-3.3 {
-        create_file existing with -createdisposition create_new
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-3.3" [clock clicks]]
-    } -body {
-        list [catch {twapi::create_file $fn -createdisposition create_new}] \
-            [lindex $::errorCode 0] [lindex $::errorCode 1] \
-            [string trimright [read_file $fn]]
-    } -result {1 TWAPI_WIN32 80 create_file-3.3}
-
-    test create_file-3.4 {
-        create_file new with -createdisposition open_always
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
-        read_file $fn
-    } -cleanup {
-        file delete $fn
-    } -result ""
-
-    test create_file-3.5 {
-        create_file existing with -createdisposition open_always
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-3.5" [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
-        # Content should not be truncated
-        read_file $fn
-    } -result "create_file-3.5\n"
-
-    test create_file-3.6 {
-        create_file new with -createdisposition open_existing
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        list [catch {twapi::create_file $fn -createdisposition open_existing}] \
-            [lindex $::errorCode 0] [lindex $::errorCode 1]
-    } -result {1 TWAPI_WIN32 2}
-
-    test create_file-3.7 {
-        create_file existing with -createdisposition open_existing
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition open_existing]
-        read_file $fn
-    } -result "create_file-3.7\n"
-
-    test create_file-3.8 {
-        create_file new with -createdisposition truncate_existing
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        list [catch {twapi::create_file $fn -createdisposition truncate_existing -access generic_write}] \
-            [lindex $::errorCode 0] [lindex $::errorCode 1]
-    } -result {1 TWAPI_WIN32 2}
-
-    test create_file-3.9 {
-        create_file existing with -createdisposition truncate_existing
-    } -constraints {
-        nt
-    } -setup {
-        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -createdisposition truncate_existing -access generic_write]
-        read_file $fn
-    } -result ""
-
-    test create_file-4.0 {
-        create_file new file with -secd
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set secd [twapi::new_security_descriptor -dacl [twapi::new_restricted_dacl $::env(USERNAME) generic_all]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -secd $secd]
-        twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor file $fn]
-    } -cleanup {
-        file delete $fn
-    } -result [list 2 [list [list 0 0 2032127 [twapi::map_account_to_sid $::env(USERNAME)]]]]
-
-    test create_file-5.0 {
-        create_file new file with -flags 0x20 (archive)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x0]
-        twapi::close_handle [twapi::create_file $fn2 -flags 0x20]
-        list [file attributes $fn -archive] [file attributes $fn2 -archive]
-    } -cleanup {
-        file delete $fn
-        file delete $fn2
-    } -result [list 1 1]
-
-    test create_file-5.1 {
-        create_file new file with -flags 0x1 (readonly)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x0]
-        twapi::close_handle [twapi::create_file $fn2 -flags 0x1]
-        list [file attributes $fn -readonly] [file attributes $fn2 -readonly]
-    } -cleanup {
-        file delete $fn
-        file delete $fn2
-    } -result [list 0 1]
-
-    test create_file-5.2 {
-        create_file new file with -flags 0x4 (system)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x0]
-        twapi::close_handle [twapi::create_file $fn2 -flags 0x4]
-        list [file attributes $fn -system] [file attributes $fn2 -system]
-    } -cleanup {
-        file delete $fn
-        file delete $fn2
-    } -result [list 0 1]
-
-    test create_file-5.3 {
-        create_file new file with -flags 0x2 (hidden)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x0]
-        twapi::close_handle [twapi::create_file $fn2 -flags 0x2]
-        list [file attributes $fn -hidden] [file attributes $fn2 -hidden]
-    } -cleanup {
-        file delete $fn
-        file delete $fn2
-    } -result [list 0 1]
-
-    test create_file-5.4 {
-        create_file new file with -flags 0x80 (normal)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x80]
-        list [file attributes $fn -hidden] [file attributes $fn -system] [file attributes $fn -readonly]
-    } -cleanup {
-        file delete $fn
-    } -result [list 0 0 0]
-
-    test create_file-5.5 {
-        create_file new file with -flags 0x04000000 (delete on close)
-    } -constraints {
-        nt
-    } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-    } -body {
-        twapi::close_handle [twapi::create_file $fn -flags 0x04000000]
-        file exists $fn
-    } -result 0
-
-
-    set testnum 5
-    foreach opt {-access -inherit -share -templatefile} {
-        test create_file-$testnum.0 "create_file with $opt" -constraints {TBD} -body {} -result ""
-    }
-
-    ################################################################
-
+    # Does not actually modify system but under systemmodificationok
+    # in case the ioctl goes horribly wrong
     test device_ioctl-1.0 {
         Test a device ioctl
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        set drive $::env(HOMEDRIVE); # Will error if does not exist
+        if {! [file exists [file join $drive /]]} {
+            error "Drive $drive does not exist"
+        }
+        set device_handle [create_file "\\\\.\\$drive" -createdisposition open_existing]
+    } -cleanup {
+        twapi::CloseHandle $device_handle
     } -body {
-        # This uses device_ioctl
-        verify_kl_fields [twapi::get_volume_info $::env(HOMEDRIVE) -extents] {-extents}
-    } -result ""
+        # This does a very rudimentary check. The get_volume_info test
+        # in disk module is more comprehensive
+        set bin [twapi::device_ioctl $device_handle 0x560000]
+        binary scan $bin i nextents
+    } -result 1
 
 
     ################################################################
@@ -334,7 +192,6 @@ namespace eval twapi::device::test {
             set ::device_notifications_done 1
         }
     }
-
 
     test start_device_notifier-1.0 {
         Start a device notifier
@@ -545,6 +402,98 @@ namespace eval twapi::device::test {
     } -cleanup {
         twapi::delete_share $share
     } -result "No deviceremovecomplete event encountered."
+
+    ################################################################
+
+    test find_physical_disks-1.0 {
+        Find physical drives in the system
+    } -constraints {
+        nt
+    } -body {
+        set disks [twapi::find_physical_disks]
+        if {[llength $disks] == 0} {
+            set result "No disks found."
+        } else {
+            set result ""
+            foreach disk $disks {
+                append result [verify_physical_disk $disk {}]
+            }
+        }
+        set result
+    } -result ""
+
+    ################################################################
+    
+    test get_physical_disk_info-1.0 {
+        Get physical drive information (no options)
+    } -constraints {
+        nt
+    } -body {
+        twapi::get_physical_disk_info [lindex [twapi::find_physical_disks] 0]
+    } -result ""
+
+    test get_physical_disk_info-2.0 {
+        Get physical drive information (-geometry)
+    } -constraints {
+        nt
+    } -body {
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -geometry]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -geometry]
+            verify_kl_fields [lindex $vals 1] {
+                -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+            }
+            append result [verify_physical_disk $disk $vals]
+        }
+        set result
+    } -result ""
+
+    test get_physical_disk_info-3.0 {
+        Get physical drive information (-layout)
+    } -constraints {
+        nt
+    } -body {
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -layout]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -layout]
+            verify_physical_disk_layout_fields [lindex $vals 1]
+            append result [verify_physical_disk $disk $vals]
+        }
+        set result
+    } -result ""
+
+    test get_physical_disk_info-4.0 {
+        Get physical drive information (-all)
+    } -constraints {
+        nt
+    } -body {
+        foreach disk [twapi::find_physical_disks] {
+            ::twapi::trap {
+                set vals [twapi::get_physical_disk_info $disk -all]
+            } onerror {TWAPI_WIN32 21} {
+                # Disk not ready, ignore
+                continue
+            }
+            verify_kl_fields $vals [list -layout -geometry]
+            verify_kl_fields [twapi::kl_get $vals -geometry] {
+                -sectorspertrack -trackspercylinder -cylinders -bytespersector -mediatype
+            }
+            verify_physical_disk_layout_fields [twapi::kl_get $vals -layout]
+            append result [verify_physical_disk $disk $vals]
+        }
+        set result
+    } -result ""
+
 
     ################################################################
 
