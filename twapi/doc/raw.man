@@ -15,10 +15,5 @@ It is recommended that the higher level documented TWAPI Tcl functions be used
 instead. These provide an easier and more flexible interface in addition
 to hiding platform-specific differences.
 
-[section Commands]
-The list of supported Windows functions may be obtained by executing the
-command [cmd "twapi::list_raw_api"].
-
-
 [keywords "Win32 API" "Supported Win32 functions"]
 [manpage_end]
