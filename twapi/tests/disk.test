@@ -16,7 +16,6 @@ package require twapi_security; # TBD - needed for setting resource secd
 
 namespace eval twapi::disk::test {
     namespace import ::tcltest::test
-    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     # Required attributes based on file system type
     # List of must haves and list of must not haves

@@ -38,6 +38,7 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
         uplevel #0 $loadcmd
     } else {
         # Set up the load for when commands are actually accessed
+        # TBD - add a line to export commands here ?
         foreach command $commands {
             set auto_index($command) $loadcmd
         }

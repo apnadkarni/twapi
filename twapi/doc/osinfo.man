@@ -543,7 +543,7 @@ in the [cmd SystemParametersInfo]
 Returns the current system time in UTC as the number of 100 nanosecond units
 since Jan 1, 1601. This can be converted to a format suitable for use
 with the [cmd clock] command through the use of the command
-[uri misc.html\#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
+[uri base.html\#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
 
 [call [cmd get_system_uptime]]
 Returns the number of seconds elapsed since the system was booted.

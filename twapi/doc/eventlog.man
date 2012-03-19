@@ -98,7 +98,7 @@ The following options may be specified with the command:
 [opt_def [cmd -langid] [arg LANGID]] Passed to the [cmd format_message]
 command for formatting. See the description of that function for details.
 [opt_def [cmd -width] [arg MAXLINEWIDTH]] Passed to the
-[uri misc.html\#format_message [cmd format_message]]
+[uri base.html\#format_message [cmd format_message]]
 command for formatting. See the description of that function for details.
 [list_end]
 

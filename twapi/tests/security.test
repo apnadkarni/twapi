@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2010, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -5541,22 +5541,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         twapi::_is_valid_luid_syntax [twapi::new_luid]
     } -result 1
-
-    ################################################################
-
-    test new_uuid-1.0 {
-        Generate a new UUID
-    } -body {
-        twapi::new_uuid
-    } -result {^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$} -match regexp
-
-    ################################################################
-
-    test nil_uuid-1.0 {
-        Generate a nil UUID
-    } -body {
-        twapi::nil_uuid
-    } -result "00000000-0000-0000-0000-000000000000"
 
     ################################################################
 
