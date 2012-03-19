@@ -245,6 +245,7 @@ proc twapi::format_message {args} {
         params.arg
         fmtstring.arg
         width.int
+        ignoreinserts
     } -ignoreunknown]
 
     # TBD - document - if no params specified, different from params = {}
@@ -268,9 +269,10 @@ proc twapi::format_message {args} {
         }
     }
 
-    # If not param list, do not replace placeholder. This is NOT
+    # If we are told to ignore inserts, all done. Else replace them except
+    # that if no param list, do not replace placeholder. This is NOT
     # the same as empty param list
-    if {![info exists opts(params)]} {
+    if {$opts(ignoreinserts) || ![info exists opts(params)]} {
         return $msg
     }
 
@@ -932,5 +934,22 @@ proc twapi::get_current_user {{format -samcompatible}} {
     } else {
         return $user
     }
+}
+
+# Get a new uuid
+proc twapi::new_uuid {{opt ""}} {
+    if {[string length $opt]} {
+        if {[string equal $opt "-localok"]} {
+            set local_ok 1
+        } else {
+            error "Invalid or unknown argument '$opt'"
+        }
+    } else {
+        set local_ok 0
+    }
+    return [UuidCreate $local_ok] 
+}
+proc twapi::nil_uuid {} {
+    return [UuidCreateNil]
 }
 
