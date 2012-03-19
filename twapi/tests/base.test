@@ -21,6 +21,12 @@ namespace eval twapi::base::test {
 
     variable nosuchvar_error "can't read \"nosuchvar\": no such variable"
 
+    variable guest_account_name Guest
+    variable administrator_account_name Administrator
+    variable administrators_account_name Administrators
+    variable my_sid [name2sid $::env(USERNAME)]
+    variable guest_sid [name2sid $guest_account_name]
+
     ################################################################
 
     test get_version-1.0 {
@@ -33,7 +39,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.0
+    } -result 4.0a0
 
     ################################################################
 
@@ -42,9 +48,11 @@ namespace eval twapi::base::test {
     } -body {
         verify_kl_fields [twapi::get_build_config] {
             opts
+            comobj_ootype
             compiler
             compiler_version
             sdk_version
+            single_module
             tcl_header_version
             tea
         }
@@ -1065,7 +1073,7 @@ namespace eval twapi::base::test {
         Format a message from a string with missing insert parameters
     } -body {
         twapi::format_message -fmtstring "Missing %1 %2"
-    } -result "Missing (null) (null)"
+    } -result "Missing %1 %2"
 
     test format_message-3.0 {
         Format a message from a string with -width
@@ -1338,24 +1346,6 @@ namespace eval twapi::base::test {
 
     ################################################################
 
-    test list_raw_api-1.0 {
-        List the raw API
-    } -body {
-        expr {[llength [twapi::list_raw_api]] >= 500}
-    } -result 1
-
-    ################################################################
-
-    test add_defines-1.0 {
-        Verify add_defines adds a define to windefs
-    } -body {
-        twapi::add_defines {TWAPI_TEST_DEFINE 1234}
-        set ::twapi::windefs(TWAPI_TEST_DEFINE)
-    } -result 1234
-
-
-    ################################################################
-
     test debuglog-1.0 {
         Verify debug log messages
     } -body {
@@ -1386,7 +1376,7 @@ namespace eval twapi::base::test {
     test tcltype-1.1 {
         Test for pure string type (numeric)
     } -body {
-        twapi::tcltype 100
+        twapi::tcltype 123
     } -result ""
 
     test tcltype-2.0 {
