@@ -177,12 +177,10 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 {
     int func;
     LPWSTR s, s2, s3, s4;
-    DWORD dw, dw2;
+    DWORD dw;
     HANDLE h, h2;
-    WCHAR buf[MAX_PATH+1];
     TwapiResult result;
     LPVOID pv;
-    WCHAR *bufP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -265,14 +263,14 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         break;
     case 12:
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETWSTR(s2),
+                         GETWSTR(s), GETNULLIFEMPTY(s2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_GetPrivateProfileSection(ticP, s, s2);
 
     case 13:
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
+                         GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_DWORD;
