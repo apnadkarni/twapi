@@ -1669,24 +1669,6 @@ proc twapi::new_luid {} {
     return [AllocateLocallyUniqueId]
 }
 
-# TBD - maybe these UUID functions should not be in the security module
-# Get a new uuid
-proc twapi::new_uuid {{opt ""}} {
-    if {[string length $opt]} {
-        if {[string equal $opt "-localok"]} {
-            set local_ok 1
-        } else {
-            error "Invalid or unknown argument '$opt'"
-        }
-    } else {
-        set local_ok 0
-    }
-    return [UuidCreate $local_ok] 
-}
-proc twapi::nil_uuid {} {
-    return [UuidCreateNil]
-}
-
 
 # Get the description of a privilege
 proc twapi::get_privilege_description {priv} {
