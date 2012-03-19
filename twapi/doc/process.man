@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Processes, threads and DLLs" n ""]
-[copyright "2003-2010 Ashok P. Nadkarni"]
+[copyright "2003-2012 Ashok P. Nadkarni"]
 [moddesc "Processes, threads and shared libraries"]
 [titledesc "Commands related to processes, threads and dynamic link libraries"]
 [require twapi]
@@ -63,9 +63,6 @@ modules and DLL's loaded into a process. The commands
 [uri #get_module_handle [cmd get_module_handle]] and
 [uri #get_module_handle_from_address [cmd get_module_handle_from_address]]
 retrieve handles to individual modules in the current process.
-The commands [uri \#load_library [cmd load_library]]
-and [uri \#free_library [cmd free_library]] can be used to load
-and free DLL's.
 
 [para]
 The commands [uri \#create_process [cmd create_process]]
@@ -304,18 +301,10 @@ this may not be the actual exit code returned on application exit.
 Caller should not rely on this.
 [list_end]
 
-[call [cmd free_library] [arg HMODULE]]
-Frees a loaded module. [arg HMODULE] must be a handle previously
-returned through [uri \#load_library [cmd load_library]],
-[uri #get_module_handle [cmd get_module_handle]] or
-[uri #get_module_handle_from_address [cmd get_module_handle_from_address]].
-
 [call [cmd get_current_process_id]]
-
 Returns the PID of the current process.
 
 [call [cmd get_current_thread_id]]
-
 Returns the TID of the current thread.
 
 [call [cmd get_device_drivers] [opt [arg options]]]
@@ -347,7 +336,7 @@ may be either a full path or just the file name.
 [nl]
 The command will normally increment the reference count for the specified
 module. The returned handle must later be released by calling
-[uri \#free_library [cmd free_library]] (not [cmd close_handle]).
+[uri base.html#free_library [cmd free_library]] (not [cmd close_handle]).
 However, if the [cmd -pin] option is specified as [const true], the module
 will stayed loaded until the process terminates irrespective of how many
 calls are made to free it.
@@ -358,7 +347,7 @@ Retrieves a handle for the module in whose address range the specifed
 [nl]
 The command will normally increment the reference count for the specified
 module. The returned handle must later be released by calling
-[uri \#free_library [cmd free_library]] (not [cmd close_handle]).
+[uri base.html#free_library [cmd free_library]] (not [cmd close_handle]).
 However, if the [cmd -pin] option is specified as [const true], the module
 will stayed loaded until the process terminates irrespective of how many
 calls are made to free it.
@@ -468,7 +457,7 @@ Returns the command line with which the process was invoked.
 Returns the time the process was created as the number of 100ns units
 since Jan 1, 1601. This can be converted to a date and time string
 by passing it to
-[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
+[uri base.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
 and formatting the result using [cmd "clock format"].
 [opt_def [cmd -disabledprivileges]] Returns the list of privileges
 for the process that are currently disabled.
@@ -766,7 +755,7 @@ Returns the rate of context switches for the thread.
 Returns the time the thread was created as the number of 100ns units
 since Jan 1, 1601. This can be converted to a date and time string
 by passing it to
-[uri misc.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
+[uri base.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
 and formatting the result using [cmd "clock format"].
 [opt_def [cmd -disabledprivileges]] Returns the list of privileges
 for the thread that are currently disabled.
@@ -868,32 +857,6 @@ Returns true if the passed [arg PID] is that of the system idle process.
 [call [cmd is_system_pid] [arg PID]]
 
 Returns true if the passed [arg PID] is that of the system process.
-
-[call [cmd load_library] [arg FILEPATH] [opt [arg options]]]
-
-Loads a DLL and returns a handle to it.
-The handle must later be released by calling
-[uri \#free_library [cmd free_library]], not [cmd close_handle].
-
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -dontresolverefs]]Normally, if the module being loaded is a DLL,
-the system will load any other modules referenced by it and also call its
-[cmd DllMain] function to initialize it. If this option is specified, neither
-of these actions will be done.
-[opt_def [cmd -datafile]]If specified, the module is loaded as a data file as
-opposed to an executable module. This is useful when the file is being
-loaded only to 
-[uri resource.html "extract resources"] or 
-[uri misc.html\#format_message "format messages"].
-[opt_def [cmd -alteredpath]]Uses an alternative search strategy to find
-modules referenced by this module. See the Windows SDK for more details.
-[list_end]
-
-[nl]
-See [cmd LoadLibraryEx] in the Windows SDK for more details regarding this
-command.
-
 
 [call [cmd process_exists] [arg PID] [opt [arg options]]]
 

@@ -86,14 +86,14 @@ executable file. The commands will accept [const NULL] or [const 0]
 for this handle corresponding the the main executable for the process.
 To retrieve resources in other executables or DLL's, the module
 must be first loaded through the
-[uri process.html#load_library [cmd load_library]] call.
+[uri base.html#load_library [cmd load_library]] call.
 Generally, the [cmd -datafile] option should be passed to the
 [cmd load_library] command if the only purpose is to access or update
 resources.
 
 [para]
 When the resources in a module are no longer required, it must be
-released through [uri process.html#free_library [cmd free_library]]
+released through [uri base.html#free_library [cmd free_library]]
 call.
 
 [para]
@@ -259,14 +259,14 @@ in which case they are discarded.
 Returns a list of language identifiers for which the specified
 module contains a resource of type [arg RESTYPE] with name [arg RESNAME].
 [arg HMODULE] must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri base.html#load_library [cmd load_library]].
 
 
 [call [cmd enumerate_resource_names] [arg HMODULE] [arg RESTYPE]]
 Returns a list of the names of resources of type [arg RESTYPE] in the specified
 module.
 [arg HMODULE] must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]],
+[uri base.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]].
 
@@ -274,7 +274,7 @@ module.
 [call [cmd enumerate_resource_types] [arg HMODULE]]
 Returns a list of the types of resources in the specified module.
 [arg HMODULE] must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri base.html#load_library [cmd load_library]].
 
 [call [cmd extract_resources] [arg HMODULE] [opt [arg INCLUDEDATA]]]
 Extracts all resources from the specified module. The returned data
@@ -318,9 +318,9 @@ Returns all information in the fixed part.
 [opt_def [cmd -datetime]]
 Returns the date and time the file was created (as stored in the
 version resource) as a 64 bit number. Refer to
-[uri misc.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
+[uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
 or
- [uri misc.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
+ [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]].
 
 [opt_def [cmd -fileversion]]
 Returns the file version as indicated in the version resource. This is
@@ -465,7 +465,7 @@ process. The returned bitmap must be freed when no longer needed by calling
 [uri #free_bitmap [cmd free_bitmap]].
 [nl]
 [arg HMODULE] is handle to the module as returned by
-[uri process.html#load_library [cmd load_library]],
+[uri base.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
 [nl]
@@ -507,7 +507,7 @@ process. The returned cursor must be freed when no longer needed by calling
 
 [nl]
 [arg HMODULE] is handle to the module as returned by
-[uri process.html#load_library [cmd load_library]],
+[uri base.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
 [nl]
@@ -544,7 +544,7 @@ process. The returned icon must be freed when no longer needed by calling
 [uri #free_icon [cmd free_icon]].
 [nl]
 [arg HMODULE] is handle to the module as returned by
-[uri process.html#load_library [cmd load_library]],
+[uri base.html#load_library [cmd load_library]],
 [uri process.html#get_module_handle [cmd get_module_handle]], or
 [uri process.html#get_module_handle_from_address [cmd get_module_handle_from_address]]. [arg NAME] is the resource identifier.
 [nl]
@@ -569,7 +569,7 @@ See [sectref "Loading Resources as GDI objects"] for a list of valid options.
 [call [cmd read_resource] [arg HMODULE] [arg RESTYPE] [arg RESNAME] [arg LANGID]]
 Returns the content of a resource from the specified module
 [arg HMODULE] which must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri base.html#load_library [cmd load_library]].
 [nl]
 Note that If [arg RESTYPE] is [const 6], specifying a [const STRING] resource,
 [arg RESTYPE] is the id for a string block, not an individual string.
@@ -580,7 +580,7 @@ To retrieve individual strings, use the
 [call [cmd read_resource_string] [arg HMODULE] [arg STRINGID] [arg LANGID]]
 Returns the string in the resource table for the module specified by
 [arg HMODULE] which must be a handle previously retrieved via
-[uri process.html#load_library [cmd load_library]].
+[uri base.html#load_library [cmd load_library]].
 [nl]
 Because of the storage format used in string resources, it is not always
 possible to distinguish between a resource string that is not defined

@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Users and Groups" n ""]
-[copyright "2004-2010, Ashok P. Nadkarni"]
+[copyright "2004-2012, Ashok P. Nadkarni"]
 [moddesc "User and group account management commands"]
 [titledesc "Commands related to user and group accounts"]
 [require twapi]
@@ -26,13 +26,8 @@ defaults to the local system if unspecified.
 
 [section "User and Group Accounts"]
 
-The command [uri \#lookup_account_name [cmd lookup_account_name]],
-[uri \#map_account_to_name [cmd map_account_to_name]],
-[uri \#lookup_account_sid [cmd lookup_account_sid]]
-and [uri \#map_account_to_sid [cmd map_account_to_sid]]
-translate between user and group account names and their SID's.
-The command [uri \#is_valid_sid_syntax [cmd is_valid_sid_syntax]]
-validates the syntax of an SID.
+Note that the [uri base.html [package twapi_base]] provides some
+commonly used commands for mapping between account names and SIDs.
 
 [para]
 The commands [uri \#new_user [cmd new_user]] and
@@ -593,70 +588,6 @@ not relied on.
 [list_end]
 Refer to [uri #get_user_account_info [cmd get_user_account_info]] for
 the meaning of these fields.
-
-[call [cmd lookup_account_name] [arg name] [opt [arg options]]]
-[arg name] specifies the name of the account and may be fully qualified
-in the form [arg {domain\name}].
-[nl]
-If no options are specified, this command returns the SID for the account.
-If one or more options are specified, returns a flat list of
-the form "[arg option1] [arg value1] ...".
-The following options may be specified:
-
-[list_begin opt]
-[opt_def [cmd -all]] Returns all values.
-[opt_def [cmd -sid]]
-Returns the SID for the account.
-[opt_def [cmd -domain]]
-Returns the domain in which the account was found.
-[opt_def [cmd -system]] Specifies the name of the system on which the
-account is to be looked up. If unspecified, the local system is used.
-[opt_def [cmd -type]] Returns the account type. This may be one
-of [const user], [const group] (domain group),
-[const domain], [const alias] (system local group), [const logonid],
-[const wellknowngroup], [const deletedaccount], [const invalid],
-[const unknown], or [const computer]. The [const logonid] type is returned
-for SID's that identify a logon session.
-[list_end]
-
-[call [cmd lookup_account_sid] [arg sid] [opt [arg options]]]
-Argument [arg sid] specifies the SID of the account.
-If no options are specified, this command returns the name for the account.
-If one or more options are specified, the command returns a flat list of
-the form "[arg option1] [arg value1] ...".
-The following options may be specified:
-
-[list_begin opt]
-[opt_def [cmd -all]] Returns all values.
-[opt_def [cmd -name]]
-Returns the name for the account.
-[opt_def [cmd -domain]]
-Returns the domain in which the account was found.
-[opt_def [cmd -system]] Specifies the name of the system on which the
-account is to be looked up. If unspecified, the local system is used.
-[opt_def [cmd -type]] Returns the account type. This may be one
-of [const user], [const group] (domain group), [const domain],
-[const alias] (system local group),
-[const wellknowngroup], [const deletedaccount], [const invalid],
-[const unknown], or [const computer].
-[list_end]
-
-
-[call [cmd map_account_to_name] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
-Returns the name for an account. If [arg ACCOUNT] is a valid account name,
-it is returned as is. Otherwise, it is assumed to be a SID
-and the corresponding account name is returned.
-An exception is raised if neither
-of these is true. The option [cmd -system]
-may be used to specify a system as described in [sectref "Standard Options"].
-
-[call [cmd map_account_to_sid] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
-Returns the SID corresponding to an account. If [arg ACCOUNT] is a SID,
-it is returned as is. Otherwise, it is assumed to be an account name
-and the corresponding SID is returned. An exception is raised if neither
-of these is true. The option [cmd -system]
-may be used to specify a system as described in [sectref "Standard Options"].
-
 
 [call [cmd new_global_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -comment] [arg COMMENT]"]]
 

@@ -469,7 +469,7 @@ In languages like Visual Basic, the type of the passed parameter can
 be deduced because the language itself is typed. In Tcl, 
 where "Everything Is A String", this is not possible. To deal with
 this situation, the application can use the 
-[uri misc.html#tclcast [cmd tclcast]] command to appropriately force
+[uri base.html#tclcast [cmd tclcast]] command to appropriately force
 the passed value to a specific type. So for example, to force the
 passed parameter to be treated as a boolean, and not an integer,
 the application could call a method as follows:

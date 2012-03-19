@@ -110,6 +110,6 @@ option may be used to look up a different INI file instead.
 
 [list_end]
 
-[keywords "INI file" "profile"]
+[keywords "INI file" "profile" "command line"]
 
 [manpage_end]

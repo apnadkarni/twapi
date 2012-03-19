@@ -1,0 +1,131 @@
+#
+# Copyright (c) 2012, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the apputil.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_apputil
+#
+# Set up system-specific constants that are used to match test results
+namespace eval twapi::apputil::test {
+    namespace import ::tcltest::test
+
+    test read_inifile_section-1.0 {
+        Read an entire inifile section
+    } -setup {
+        catch {unset arr}
+    } -body {
+        array set arr [twapi::read_inifile_section Mail]
+	expr {
+	      [info exists arr(Mapi)] ||
+	      [info exists arr(MAPI)] ||
+	      [info exists arr(mapi)]
+	  }
+    } -result 1
+
+    test read_inifile_section-2.0 {
+        Read an entire inifile section from a non-default ini file
+    } -setup {
+        catch {unset arr}
+    } -body {
+        array set arr [twapi::read_inifile_section drivers -inifile system.ini]
+	expr {
+	      [info exists arr(timer)] ||
+	      [info exists arr(Timer)] ||
+	      [info exists arr(TIMER)]
+	  }
+    } -result 1
+
+
+
+    ################################################################
+
+    test read_inifile_section_names-1.0 {
+        Read names of an inifile section
+    } -body {
+        set names [twapi::read_inifile_section_names]
+        expr {[lsearch $names Windows] >= 0}
+    } -result 1
+
+    test read_inifile_section_names-2.0 {
+        Read names of an inifile section from a non-default ini file
+    } -body {
+        set names [twapi::read_inifile_section_names -inifile control.ini ]
+        expr {[lsearch $names "Color Schemes"] >= 0}
+    } -result 1
+
+    ################################################################
+
+    test read_inifile_key-1.0 {
+        Read an inifile entry
+    } -body {
+        string is boolean [twapi::read_inifile_key Windows Beep]
+    } -result 1
+
+    test read_inifile_key-1.1 {
+        Verify inifile lookups are case-insensitive
+    } -body {
+        string is boolean [twapi::read_inifile_key wInDowS bEEp]
+    } -result 1
+
+    test read_inifile_key-2.0 {
+        Read an inifile entry from a non-default ini file
+    } -body {
+        llength [twapi::read_inifile_key drivers timer -inifile system.ini]
+    } -result 1
+
+    test read_inifile_key-2.1 {
+        Verify non-default inifile lookups are case-insensitive
+    } -body {
+        llength [twapi::read_inifile_key dRiVeRs tIMeR -inifile system.ini]
+    } -result 1
+
+    ################################################################
+
+    test write_inifile_key-1.0 {
+        Write an inifile key
+    } -body {
+        twapi::write_inifile_key TwapiTestSection TwapiTestKey 12345
+        twapi::read_inifile_key TwapiTestSection TwapiTestKey
+    } -cleanup {
+        twapi::delete_inifile_key TwapiTestSection TwapiTestKey
+    } -result 12345
+
+    test write_inifile_key-2.0 {
+        Write an inifile key to a non-default file
+    } -body {
+        twapi::write_inifile_key TwapiTestSection TwapiTestKey 98765 -inifile control.ini
+        twapi::read_inifile_key TwapiTestSection TwapiTestKey -inifile control.ini
+    } -cleanup {
+        twapi::delete_inifile_key TwapiTestSection TwapiTestKey -inifile control.ini
+    } -result 98765
+
+    ################################################################
+
+    test get_command_line-1.0 {
+        Get the command line of the current process
+    } -body {
+        lrange [twapi::get_command_line] 1 end
+    } -result [linsert $argv 0 $argv0] -match list
+
+    ################################################################
+
+    test get_command_line_args-1.0 {
+        Get the command line of the current process
+    } -body {
+        twapi::get_command_line_args [twapi::get_command_line]
+    } -result "* $argv0 $argv" -match glob
+
+
+    ################################################################
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::apputil::test

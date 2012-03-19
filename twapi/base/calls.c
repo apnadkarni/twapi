@@ -289,7 +289,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GlobalDeleteAtom, Call, 1012); // TBD - tcl interface
     CALL_(Twapi_AppendLog, Call, 1013);
     CALL_(GlobalAddAtom, Call, 1014); // TBD - Tcl interface
-    CALL_(is_valid_sid_syntax, Call, 1015); // TBD - Tcl interface
+    CALL_(is_valid_sid_syntax, Call, 1015);
     CALL_(FileTimeToSystemTime, Call, 1016);
     CALL_(SystemTimeToFileTime, Call, 1017);
     CALL_(GetWindowThreadProcessId, Call, 1018);

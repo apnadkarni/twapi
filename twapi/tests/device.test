@@ -14,8 +14,6 @@ load_twapi_package twapi_device
 
 namespace eval twapi::device::test {
     namespace import ::tcltest::test
-    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
-    ::tcltest::testConstraint win6 [twapi::min_os_version 6]
 
     proc fill_physical_disks {{force 0}} {
         variable physical_disks
