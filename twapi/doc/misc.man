@@ -14,10 +14,6 @@ This module provides miscellaneous utility commands.
 [uri #import_commands [cmd import_commands]] enable export and import
 of commands defined in the TWAPI namespace.
 [uri \#parseargs [cmd parseargs]] parses an argument list based on specified options.
-[uri \#get_command_line [cmd get_command_line]]
-retrieves the command line passed to the process.
-[uri \#get_command_line_args [cmd get_command_line_args]]
- parses a command line using Windows conventions.
 The command [uri \#expand_environment_strings [cmd expand_environment_strings]]
 replaces environment variables
 in a string with their values. [uri \#format_message [cmd format_message]]
@@ -129,18 +125,6 @@ Boolean indicating whether the build used Tcl Extension Architecture
 or native builds.
 [list_end]
 
-[call [cmd get_command_line]]
-
-Returns the command line of the current process. This may be passed to the
-[uri \#get_command_line_args [cmd get_command_line_args]]
-function to split the line into arguments.
-
-[call [cmd get_command_line_args] [arg COMMANDLINE]]
-
-Parses [arg COMMANDLINE] as per Windows command line conventions and returns
-a list of the parsed arguments. The main advantage of this over using
-the [cmd argv] and [cmd argv0] variables in [cmd tclsh] and [cmd wish] is
-that this call will correctly handle Unicode arguments.
 
 [call [cmd get_version] [opt [cmd -patchlevel]]]
 Without any arguments, the command returns the major/minor TWAPI version
