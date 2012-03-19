@@ -41,9 +41,9 @@ them.
 
 [section "Physical disks"]
 
-The [uri disk.html#find_physical_disks [cmd find_physical_disks]] command
+The [uri #find_physical_disks [cmd find_physical_disks]] command
 returns the list of physical disks installed in the system.
-The [uri disk.html#get_physical_disk_info [cmd get_physical_disk_info]]
+The [uri #get_physical_disk_info [cmd get_physical_disk_info]]
 command can then be used to retrieve detailed information about the
 physical disk.
 
@@ -72,7 +72,7 @@ to the raw physical disk.
 
 Returns information about a physical disk. [arg DISK] is a device path
 to the physical disk in the format returned by
-[uri disk.html#find_physical_disks [cmd find_physical_disks]].
+[uri #find_physical_disks [cmd find_physical_disks]].
 The command returns a keyed list with fields depending on the passed
 options:
 

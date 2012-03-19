@@ -44,7 +44,7 @@ MANFILES= \
 	osinfo.man \
 	process.man \
 	services.man \
-	disk.man \
+	storage.man \
 	share.man \
 	users.man \
 	network.man \
@@ -55,7 +55,7 @@ MANFILES= \
 	etw.man \
 	apputil.man \
 	console.man \
-	desktop.man \
+	winsta.man \
 	schedule.man \
 	resource.man \
 	msi.man \
