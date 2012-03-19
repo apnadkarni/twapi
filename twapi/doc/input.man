@@ -3,7 +3,7 @@
 [copyright "2003, 2004, Ashok P. Nadkarni"]
 [moddesc "Keyboard and mouse input"]
 [titledesc "Simulation of user input and support for system-wide hotkeys"]
-[require twapi]
+[require twapi_input]
 [description]
 [para]
 

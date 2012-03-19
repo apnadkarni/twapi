@@ -3,7 +3,7 @@
 [copyright "2004-2009 Ashok P. Nadkarni"]
 [moddesc "Windows task scheduler"]
 [titledesc "Commands related to the Windows task scheduler"]
-[require twapi]
+[require twapi_mstask]
 [description]
 [para]
 

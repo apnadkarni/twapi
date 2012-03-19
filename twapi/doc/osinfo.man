@@ -3,7 +3,7 @@
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "System and processor"]
 [titledesc "Operating system and machine configuration and control"]
-[require twapi]
+[require twapi_os]
 [description]
 [para]
 

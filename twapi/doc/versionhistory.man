@@ -422,7 +422,7 @@ Added commands
 [uri device.html#get_physical_disk_info get_physical_disk_info].
 
 [bullet] Added
-[uri handles.html#create_file create_file].
+[uri base.html#create_file create_file].
 
 [bullet] Added
 [uri device.html#device_ioctl device_ioctl].

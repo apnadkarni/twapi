@@ -3,7 +3,7 @@
 [copyright "2005-2009 Ashok P. Nadkarni"]
 [moddesc "Internationalization"]
 [titledesc "Commands related to internationalization"]
-[require twapi]
+[require twapi_nls]
 [description]
 [para]
 

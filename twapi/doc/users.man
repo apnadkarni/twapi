@@ -3,7 +3,7 @@
 [copyright "2004-2012, Ashok P. Nadkarni"]
 [moddesc "User and group account management commands"]
 [titledesc "Commands related to user and group accounts"]
-[require twapi]
+[require twapi_account]
 [description]
 [para]
 

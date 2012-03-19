@@ -43,7 +43,6 @@ MANFILES= \
 	clipboard.man \
 	osinfo.man \
 	process.man \
-	handles.man \
 	services.man \
 	disk.man \
 	share.man \

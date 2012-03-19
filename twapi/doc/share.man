@@ -3,7 +3,7 @@
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "Network share and Lan Manager session management"]
 [titledesc "Commands related to management of network shares and Lan Manager sessions"]
-[require twapi]
+[require twapi_share]
 [description]
 
 [para]
