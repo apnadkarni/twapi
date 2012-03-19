@@ -1273,8 +1273,9 @@ namespace eval twapi::disk::test {
         if {$::filesystem_monitor_result ne "success"} {
             error "File system monitor event not received"
         }
+        after 1000 set ::xxx 1; # Flush pending events
+        vwait ::xxx
         twapi::cancel_filesystem_monitor $monitor_id
-        after 50
         close [open $path w]
 
         # We should timeout if the cancel worked
@@ -1377,7 +1378,7 @@ namespace eval twapi::disk::test {
     } -setup {
         set drv [find_unused_drive]
         exec subst $drv [file nativename [tcltest::testsDirectory]]
-        if {![file exists ${drv}/disk.test]} {
+        if {![file exists ${drv}/storage.test]} {
             error "Could not map drive $drv"
         }
     } -body {
@@ -1393,7 +1394,7 @@ namespace eval twapi::disk::test {
         Need to find how to get a raw path
         set drv [find_unused_drive]
         exec subst $drv [file nativename [tcltest::testsDirectory]]
-        if {![file exists ${drv}/disk.test]} {
+        if {![file exists ${drv}/storage.test]} {
             error "Could not map drive $drv"
         }
     } -body {
@@ -1407,7 +1408,7 @@ namespace eval twapi::disk::test {
         set drv [find_unused_drive]
         set path [tcltest::testsDirectory]
         exec subst $drv [file nativename $path]
-        if {![file exists ${drv}/disk.test]} {
+        if {![file exists ${drv}/storage.test]} {
             error "Could not map drive $drv"
         }
     } -body {
@@ -1421,7 +1422,7 @@ namespace eval twapi::disk::test {
         set drv [find_unused_drive]
         set path [tcltest::testsDirectory]
         exec subst $drv [file nativename $path]
-        if {![file exists ${drv}/disk.test]} {
+        if {![file exists ${drv}/storage.test]} {
             error "Could not map drive $drv"
         }
     } -body {

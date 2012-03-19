@@ -10,7 +10,12 @@ package require Tcl 8.5
 package require registry
 
 namespace eval twapi {
+    # Get rid of this ugliness  -  TBD
+    # Note this is different from NULL or {0 VOID} etc. It is more like
+    # a null token passed to functions that expect ptr to strings and
+    # allow the ptr to be NULL.
     variable nullptr "__null__"
+
     variable scriptdir [file dirname [info script]]
 
     # Accessing global environ in ::env is expensive so cache

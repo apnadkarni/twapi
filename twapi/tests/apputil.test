@@ -90,6 +90,8 @@ namespace eval twapi::apputil::test {
 
     test write_inifile_key-1.0 {
         Write an inifile key
+    } -constraints {
+        nt systemmodificationok
     } -body {
         twapi::write_inifile_key TwapiTestSection TwapiTestKey 12345
         twapi::read_inifile_key TwapiTestSection TwapiTestKey
@@ -99,6 +101,8 @@ namespace eval twapi::apputil::test {
 
     test write_inifile_key-2.0 {
         Write an inifile key to a non-default file
+    } -constraints {
+        nt systemmodificationok
     } -body {
         twapi::write_inifile_key TwapiTestSection TwapiTestKey 98765 -inifile control.ini
         twapi::read_inifile_key TwapiTestSection TwapiTestKey -inifile control.ini
