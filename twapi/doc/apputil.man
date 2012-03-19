@@ -1,19 +1,24 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Windows INI file" n ""]
-[copyright "2004, Ashok P. Nadkarni"]
-[moddesc "Windows INI files"]
-[titledesc "Commands for accessing Windows INI files"]
+[manpage_begin "Application utilities" n ""]
+[copyright "2004-2012, Ashok P. Nadkarni"]
+[moddesc "Application utilities"]
+[titledesc "Commands for various Windows application utilities"]
 [require twapi]
 [description]
 [para]
 
-This module provides commands to access Windows INI files
+This module provides commands commonly required in Windows applications.
 
-[section Overview]
+[section "Application command line"]
+[uri \#get_command_line [cmd get_command_line]]
+retrieves the command line passed to the process.
+[uri \#get_command_line_args [cmd get_command_line_args]]
+ parses a command line using Windows conventions. The difference over
+Tcl's built-in [var ::argv] variables is that these commands handle
+Unicode command lines and use Windows conventions for argument parsing.
 
-These commands are wrappers to the Windows functions that provide access
-to INI files such as [cmd GetPrivateProfileString].
-[para]
+[section "INI files"]
+
 The commands [uri \#read_inifile_key [cmd read_inifile_key]],
 [uri \#write_inifile_key [cmd write_inifile_key]] and
 [uri \#delete_inifile_key [cmd delete_inifile_key]]
@@ -50,6 +55,19 @@ Deletes the entire section [arg SECTION]
 from an INI file. By default, the command writes to
 the [const win.ini] file in the system directory. The [cmd -inifile]
 option may be used to specify a different INI file.
+
+[call [cmd get_command_line]]
+
+Returns the command line of the current process. This may be passed to the
+[uri \#get_command_line_args [cmd get_command_line_args]]
+function to split the line into arguments.
+
+[call [cmd get_command_line_args] [arg COMMANDLINE]]
+
+Parses [arg COMMANDLINE] as per Windows command line conventions and returns
+a list of the parsed arguments. The main advantage of this over using
+the [cmd argv] and [cmd argv0] variables in [cmd tclsh] and [cmd wish] is
+that this call will correctly handle Unicode arguments.
 
 [call [cmd read_inifile_key] [arg SECTION] [arg KEY] [opt [arg options]]]
 
