@@ -3,7 +3,7 @@
 [copyright "2007-2009 Ashok P. Nadkarni"]
 [moddesc "Microsoft Windows Installer support"]
 [titledesc "Commands for accessing Microsoft Windows Installer"]
-[require twapi]
+[require twapi_msi]
 [description]
 
 [emph "This module is experimental."]

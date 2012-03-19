@@ -3,7 +3,7 @@
 [copyright "2007-2009 Ashok P. Nadkarni"]
 [moddesc "Cryptographic API"]
 [titledesc "Commands related to cryptographical operations"]
-[require twapi]
+[require twapi_crypto]
 [description]
 [para]
 

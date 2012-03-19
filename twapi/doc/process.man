@@ -3,7 +3,7 @@
 [copyright "2003-2012 Ashok P. Nadkarni"]
 [moddesc "Processes, threads and shared libraries"]
 [titledesc "Commands related to processes, threads and dynamic link libraries"]
-[require twapi]
+[require twapi_process]
 [description]
 [para]
 
@@ -124,7 +124,7 @@ The command returns a list of two elements - the process id and the thread id
 of the child process. If the [cmd -returnhandles] option is specified, two
 additional elements are returned - handles to the child process and thread.
 Both these handles must be closed when no longer required by calling
-[uri handles.html\#close_handles [cmd close_handles]].
+[uri base.html\#close_handles [cmd close_handles]].
 [nl]
 The following arguments control various characteristics of the
 child process. For all options that take a boolean argument, the default

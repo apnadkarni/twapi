@@ -3,7 +3,7 @@
 [copyright "2004-2009 Ashok P. Nadkarni"]
 [moddesc "Windows Shell"]
 [titledesc "Windows shell commands"]
-[require twapi]
+[require twapi_shell]
 [description]
 [para]
 
@@ -296,7 +296,7 @@ the command returns a handle to the process, if any, that was created
 by the shell to handle the request. If no such process was required to
 be created, or was already running, an empty string is returned. If
 a non-empty handle is returned, it must be closed by calling
-[uri handles.html#close_handle [cmd close_handle]].
+[uri base.html#close_handle [cmd close_handle]].
 [opt_def [cmd -hicon] [arg HANDLE]] TBD.
 [opt_def [cmd -hkeyclass] [arg BOOLEAN]] TBD.
 [opt_def [cmd -hmonitor] [arg HANDLE]]

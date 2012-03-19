@@ -3,7 +3,7 @@
 [copyright "2004-2012, Ashok P. Nadkarni"]
 [moddesc "Application utilities"]
 [titledesc "Commands for various Windows application utilities"]
-[require twapi]
+[require twapi_apputil]
 [description]
 [para]
 

@@ -3,7 +3,7 @@
 [copyright "2008 Ashok P. Nadkarni"]
 [moddesc "Device management"]
 [titledesc "Commands related to devices and device interfaces"]
-[require twapi]
+[require twapi_device]
 [description]
 [para]
 
@@ -55,7 +55,7 @@ This is a thin wrapper around the Win32 [cmd DeviceIoControl] function.
 Primary role of the wrapper is to do
 automatic output buffer management for the caller. [arg DEVICEHANDLE],
 usually obtained through
-[uri handles.html#create_file [cmd create_file]],
+[uri base.html#create_file [cmd create_file]],
 is a handle to the device of interest. [arg IOCTLCODE] is the IOCTL code
 to be sent to the device. The command returns the result as a Tcl
 binary value that should in general be
@@ -153,7 +153,7 @@ classes.
 If the [cmd -handle] option is specified, [arg DEVICEHANDLE] must be
 a handle to a resource on the device obtained through either
 [uri file.html#create_file [cmd create_file]] or 
-[uri handles.html#get_tcl_channel_handle [cmd get_tcl_channel_handle]]. In
+[uri base.html#get_tcl_channel_handle [cmd get_tcl_channel_handle]]. In
 this case, only event notifications from that particular device are
 passed to the callback script.
 

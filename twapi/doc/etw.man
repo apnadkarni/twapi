@@ -3,7 +3,7 @@
 [copyright "2012 Ashok P. Nadkarni"]
 [moddesc "Event Tracing for Windows"]
 [titledesc "Commands for generating, reading and controlling Event Tracing for Windows"]
-[require twapi]
+[require twapi_etw]
 [description]
 [para]
 

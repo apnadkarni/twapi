@@ -3,7 +3,7 @@
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "Desktop and window stations"]
 [titledesc "Commands related to desktops and window stations"]
-[require twapi]
+[require twapi_winsta]
 [description]
 [para]
 

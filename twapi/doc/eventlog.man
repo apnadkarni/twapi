@@ -3,7 +3,7 @@
 [copyright "2004, Ashok P. Nadkarni"]
 [moddesc "Event Log"]
 [titledesc "Commands relating to reading and writing the Windows event log"]
-[require twapi]
+[require twapi_eventlog]
 [description]
 [para]
 

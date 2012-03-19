@@ -3,7 +3,7 @@
 [copyright "2003-2010, Ashok P. Nadkarni"]
 [moddesc "Security commands"]
 [titledesc "Commands related to authentication and access control"]
-[require twapi]
+[require twapi_security]
 [description]
 [para]
 

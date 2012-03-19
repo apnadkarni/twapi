@@ -3,7 +3,7 @@
 [copyright "2004-2009 Ashok P. Nadkarni"]
 [moddesc "Clipboard access"]
 [titledesc "Commands related to accessing the clipboard"]
-[require twapi]
+[require twapi_clipboard]
 [description]
 
 [para]

@@ -3,7 +3,7 @@
 [copyright "2006-2012 Ashok P. Nadkarni"]
 [moddesc "COM client support"]
 [titledesc "Commands for accessing COM servers"]
-[require twapi]
+[require twapi_com]
 [description]
 
 [para]

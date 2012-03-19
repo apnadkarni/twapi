@@ -3,7 +3,7 @@
 [copyright "2008 Ashok P. Nadkarni"]
 [moddesc "Power management"]
 [titledesc "Power management"]
-[require twapi]
+[require twapi_power]
 [description]
 
 [para]
@@ -32,7 +32,7 @@ Changes in the power subsystem state can be monitored through the
 Returns 1 if the device indicated by [arg DEVICEHANDLE] is fully powered up
 and 0 if it is in a low-power state. [arg DEVICEHANDLE] is a handle to the
 device or to an object on the device. For example, it can be the handle
-returned by a [uri handles.html#get_tcl_channel_handle [cmd get_tcl_channel_handle]]
+returned by a [uri base.html#get_tcl_channel_handle [cmd get_tcl_channel_handle]]
 command corresponding to a Tcl file handle.
 [nl]
 [arg DEVICEHANDLE] must not be a handle to a display device.

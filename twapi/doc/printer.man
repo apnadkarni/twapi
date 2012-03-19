@@ -3,7 +3,7 @@
 [copyright "2006-2009 Ashok P. Nadkarni"]
 [moddesc "Printers"]
 [titledesc "Printer management"]
-[require twapi]
+[require twapi_printer]
 [description]
 [para]
 

@@ -3,7 +3,7 @@
 [copyright "2010 Ashok P. Nadkarni"]
 [moddesc "Synchronization"]
 [titledesc "Commands related to synchronization primitives"]
-[require twapi]
+[require twapi_synch]
 [description]
 [para]
 
@@ -33,7 +33,7 @@ Event objects can be created through [uri #create_event [cmd create_event]]
 and their state changed using the commands
 [uri #set_event [cmd set_event]] and [uri #reset_event [cmd reset_event]].
 An application can wait on an event object to be signalled using the
-[uri handles.html#wait_on_handle [cmd wait_on_handle]] command.
+[uri base.html#wait_on_handle [cmd wait_on_handle]] command.
 
 
 [section Commands]
@@ -72,9 +72,9 @@ The returned handle can be passed to
 [uri #set_event [cmd set_event]] and
 [uri #reset_event [cmd reset_event]] to change the state of the event object.
 The application can wait for an event to be signalled by calling
-[uri handles.html#wait_on_handle [cmd wait_on_handle]].
+[uri base.html#wait_on_handle [cmd wait_on_handle]].
 The handle must be closed when no longer needed by passing it
-to [uri handles.html#close_handle [cmd close_handle]].
+to [uri base.html#close_handle [cmd close_handle]].
 
 [call [cmd create_mutex] [opt [arg options]]]
 Creates a mutex object with the specified options and returns a
@@ -99,11 +99,11 @@ The returned mutex handle can be passed to
 [uri #lock_mutex [cmd lock_mutex]] and
 [uri #unlock_mutex [cmd unlock_mutex]] to claim or release ownership.
 The handle must be closed when no longer needed by passing it
-to [uri handles.html#close_handle [cmd close_handle]].
+to [uri base.html#close_handle [cmd close_handle]].
 
 [call [cmd lock_mutex] [arg HANDLE] [opt "[cmd -wait] [arg MILLISECS]"]]
 Attempts to lock the mutex specified by [arg HANDLE]. Refer to
-[uri handles.html#wait_on_handle [cmd wait_on_handle]] for possible return values
+[uri base.html#wait_on_handle [cmd wait_on_handle]] for possible return values
 and details about the [cmd -wait] option.
 
 [call [cmd open_mutex] [opt "[cmd -access] [arg ACCESSRIGHTS]"] [opt "[cmd -inherit] [arg BOOLEAN]"]]
@@ -122,7 +122,7 @@ The returned mutex handle can be passed to
 [uri #lock_mutex [cmd lock_mutex]] and
 [uri #unlock_mutex [cmd unlock_mutex]] to claim or release ownership.
 The handle must be closed when no longer needed by passing it
-to [uri handles.html#close_handle [cmd close_handle]].
+to [uri base.html#close_handle [cmd close_handle]].
 
 [call [cmd reset_event] [arg HANDLE]]
 Changes the state of the event object specified by [arg HANDLE] to
