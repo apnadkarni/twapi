@@ -839,14 +839,17 @@ namespace eval twapi::com::test {
         $ie Visible 1
         $ie Navigate http://www.google.com 1
         after 100;              # Give it a chance
-        yesno "Did you see two Internet Explorer windows, at least one to google (The google window *may* have to be closed manually) ?"
+        yesno "Did you see two Internet Explorer windows, at least one to google (please close them manually) ?"
     } -cleanup {
         $ie Quit
         $ie -destroy
-        # The second window remains so close it
-        set iewin [lindex [twapi::find_windows -text "Google*" -match glob -toplevel 1] 0]
-        if {$iewin ne ""} {
-            twapi::close_window $iewin
+        # The second window remains so close it. Catch because find_windows
+        # may not be available depending on test config
+        catch {
+            set iewin [lindex [twapi::find_windows -text "Google*" -match glob -toplevel 1] 0]
+            if {$iewin ne ""} {
+                twapi::close_window $iewin
+            }
         }
     } -result 1
 

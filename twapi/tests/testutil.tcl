@@ -942,8 +942,9 @@ tcltest::customMatch list equal_lists
 # Prompt the user
 proc yesno {question {default "Y"}} {
     set answer ""
-    # Make sure we are seen
-    twapi::set_foreground_window [twapi::get_console_window]
+    # Make sure we are seen but catch because ui and console
+    # packages may not be available
+    catch {twapi::set_foreground_window [twapi::get_console_window]}
     while {![string is boolean -strict $answer]} {
         # We would have liked to use -nonewline here but that
         # causes output not to be displayed when running from 

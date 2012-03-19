@@ -10,17 +10,33 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_base
 
 #
 # Set up system-specific constants that are used to match test results
 namespace eval twapi::handle::test {
     namespace import ::tcltest::test
 
+    # We do not want to load the sync package so define our own mutex
+    # and event commands
+    proc new_event {{manual 0} {signalled 0}} {
+        set h [lindex [twapi::CreateEvent [twapi::_make_secattr {} 0] $manual $signalled ""] 0]
+        # Following clones create_event behaviour
+        if {$manual} {
+            # We want to catch attempts to wait on manual reset handles
+            set h [twapi::cast_handle $h HANDLE_MANUALRESETEVENT]
+        }
+        return $h
+     }
+
+    proc new_mutex {} {
+        return [twapi::CreateMutex [twapi::_make_secattr {} 0] 0 ""]
+    }
+
     test wait_on_handle-1.0 {
         Wait on a handle that is not set
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -wait 0
     } -cleanup {
         twapi::cancel_wait_on_handle $evh
@@ -30,7 +46,7 @@ namespace eval twapi::handle::test {
     test wait_on_handle-1.1 {
         Wait on a handle that is set
     } -body {
-        set evh [twapi::create_event -signalled true]
+        set evh [new_event 0 1]
         twapi::wait_on_handle $evh -wait 0
     } -cleanup {
         twapi::cancel_wait_on_handle $evh
@@ -40,7 +56,7 @@ namespace eval twapi::handle::test {
     test wait_on_handle-1.2 {
         Wait on a handle with a timeout
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         set elapsed [time {set wait_result [twapi::wait_on_handle $evh -wait 100]}]
         list $wait_result [approx [lindex $elapsed 0] 100000]
     } -cleanup {
@@ -54,9 +70,9 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed"
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         vwait ::wait_completed
         expr {
               [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
@@ -74,9 +90,9 @@ namespace eval twapi::handle::test {
     } -body {
         update
         update idletasks
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 1000
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         vwait ::wait_completed
         expr {
               [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
@@ -92,7 +108,7 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
         vwait ::wait_completed
         expr {
@@ -109,7 +125,7 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
         after 250
         update idletasks
@@ -130,9 +146,9 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event -manualreset false]
+        set evh [new_event 0]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         after 50;              # Wait for twice the wait interval
         update idletasks
         expr {
@@ -150,7 +166,7 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event -manualreset true]
+        set evh [new_event 1]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed"
     } -cleanup {
         twapi::cancel_wait_on_handle $evh
@@ -162,9 +178,9 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event -manualreset true]
+        set evh [new_event 1]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100 -executeonce true
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         vwait ::wait_completed
         # Should receive only one event
         expr {
@@ -182,7 +198,7 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 50 -executeonce true
         after 300
         update 
@@ -202,7 +218,7 @@ namespace eval twapi::handle::test {
         Async wait on a handle with a timeout (multiple time out case)
     } -body {
         set ::wait_completedx ""
-        set evh [twapi::create_event]
+        set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completedx" -wait 100 -executeonce 1
         after 250
         update idletasks
@@ -224,14 +240,14 @@ namespace eval twapi::handle::test {
     } -setup {
         set ::wait_completed ""
     } -body {
-        set evh [twapi::create_event]
+        set evh [new_event]
         set ::wait_completed {}
         after 2000 lappend ::wait_completed timeout
         twapi::wait_on_handle $evh -async "lappend ::wait_completed"
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         vwait ::wait_completed
         twapi::cancel_wait_on_handle $evh
-        twapi::set_event $evh
+        twapi::SetEvent $evh
         vwait ::wait_completed
         set ::wait_completed
         expr {
@@ -307,6 +323,7 @@ namespace eval twapi::handle::test {
     test close_handle-1.1 {
         Close a process handle
     } -setup {
+        package require twapi_process
         set h [twapi::get_process_handle [pid]]
     } -body {
         twapi::close_handle $h
@@ -316,7 +333,7 @@ namespace eval twapi::handle::test {
     test close_handle-1.2 {
         Close a event handle
     } -setup {
-        set h [twapi::create_event]
+        set h [new_event]
     } -body {
         twapi::close_handle $h
         twapi::wait_on_handle $h -wait 0
@@ -325,16 +342,16 @@ namespace eval twapi::handle::test {
     test close_handle-1.3 {
         Close a mutex handle
     } -setup {
-        set h [twapi::create_mutex]
+        set h [new_mutex]
     } -body {
         twapi::close_handle $h
-        twapi::lock_mutex $h
+        twapi::wait_on_handle $h -wait -1
     } -returnCodes error -result [twapi::map_windows_error 6]
 
     test close_handle-2.0 {
         Close a event handle and verify waits are canceled
     } -setup {
-        set h [twapi::create_event]
+        set h [new_event]
     } -body {
         # Expect to get "wait timer" callbacks
         twapi::wait_on_handle $h -async "lappend ::wait_completed" -wait 1000
@@ -350,6 +367,7 @@ namespace eval twapi::handle::test {
     test close_handles-1.0 {
         Close a single handle
     } -setup {
+        package require twapi_process
         set h [twapi::get_process_handle [pid]]
     } -body {
         twapi::close_handles $h
@@ -359,6 +377,7 @@ namespace eval twapi::handle::test {
     test close_handles-1.1 {
         Close a single handle as a list
     } -setup {
+        package require twapi_process
         set h [twapi::get_process_handle [pid]]
     } -body {
         twapi::close_handles [list $h]
@@ -368,6 +387,7 @@ namespace eval twapi::handle::test {
     test close_handles-1.2 {
         Close a multiple handles
     } -setup {
+        package require twapi_process
         set h [twapi::get_process_handle [pid]]
         set h2 [twapi::get_process_handle [pid]]
     } -body {
@@ -378,6 +398,7 @@ namespace eval twapi::handle::test {
     test close_handles-1.3 {
         Close a multiple handles as a single list
     } -setup {
+        package require twapi_process
         set h [twapi::get_process_handle [pid]]
         set h2 [twapi::get_process_handle [pid]]
     } -body {
