@@ -39,7 +39,7 @@ MANFILES= \
 	com.man \
 	shell.man \
 	input.man \
-	sound.man \
+	multimedia.man \
 	clipboard.man \
 	osinfo.man \
 	process.man \
