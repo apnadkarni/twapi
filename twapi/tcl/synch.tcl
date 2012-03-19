@@ -21,6 +21,7 @@ proc twapi::create_mutex {args} {
     } -nulldefault -maxleftover 0]
 
     if {$opts(name) ne "" && $opts(lock)} {
+        # TBD - remove this mutex limitation
         # This is not a Win32 limitation but ours. Would need to change the C
         # implementation and our return format
         error "Option -lock must not be specified as true if mutex is named"
