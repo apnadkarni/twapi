@@ -3,7 +3,7 @@
 [copyright "2003, Ashok P. Nadkarni"]
 [moddesc "Playing sounds"]
 [titledesc "Basic sound functions"]
-[require twapi_mm]
+[require twapi_multimedia]
 [description]
 [para]
 

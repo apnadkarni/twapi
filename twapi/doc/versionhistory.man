@@ -254,7 +254,7 @@ has changed to make access simpler and faster.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] The format of the appended arguments
 to the callback invoked via
-[uri disk.html#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
+[uri storage.html#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
 has changed.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] 
@@ -337,7 +337,7 @@ Added [uri shell.html#recycle_file recycle_file].
 
 [bullet]
 Added error notifications to
-[uri disk.html#begin_filesystem_monitor begin_filesystem_monitor].
+[uri storage.html#begin_filesystem_monitor begin_filesystem_monitor].
 
 [bullet]
 Added options -foundcodepage, -foundlangid and
@@ -394,7 +394,7 @@ and [uri clipboard.html#stop_clipboard_monitor stop_clipboard_monitor].
 
 [bullet]
 Added -patterns option to
-[uri disk.html#begin_filesystem_monitor begin_filesystem_monitor].
+[uri storage.html#begin_filesystem_monitor begin_filesystem_monitor].
 
 [bullet]
 Added [uri process.html#get_priority_class get_priority_class],
@@ -428,7 +428,7 @@ Added commands
 [uri device.html#device_ioctl device_ioctl].
 
 [bullet] Added -extents option to
-[uri disk.html#get_volume_info get_volume_info].
+[uri storage.html#get_volume_info get_volume_info].
 
 [bullet]
 Added -isnull subcommand to
@@ -489,8 +489,8 @@ Added [uri osinfo.html\#find_domain_controller find_domain_controller]
 command.
 
 [bullet]
-Added [uri disk.html\#get_file_times get_file_times] and
-[uri disk.html\#set_file_times set_file_times] dealing
+Added [uri storage.html\#get_file_times get_file_times] and
+[uri storage.html\#set_file_times set_file_times] dealing
 with file timestamps.
 
 [bullet]
