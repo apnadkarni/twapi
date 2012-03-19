@@ -17,6 +17,10 @@ load_twapi_package twapi_base
 namespace eval twapi::base::test {
     namespace import ::tcltest::test
 
+    ::tcltest::testConstraint win6 [twapi::min_os_version 6]
+
+    variable nosuchvar_error "can't read \"nosuchvar\": no such variable"
+
     ################################################################
 
     test get_version-1.0 {
@@ -846,6 +850,1317 @@ namespace eval twapi::base::test {
         twapi::get_current_user -sid
     } -result $my_sid
 
+    ################################################################
+
+    test new_uuid-1.0 {
+        Generate a new UUID
+    } -body {
+        twapi::new_uuid
+    } -result {^[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}$} -match regexp
+
+    ################################################################
+
+    test nil_uuid-1.0 {
+        Generate a nil UUID
+    } -body {
+        twapi::nil_uuid
+    } -result "00000000-0000-0000-0000-000000000000"
+
+    ################################################################
+
+    test large_system_time_to_secs_since_1970-1.0 {
+        Convert clock epoch base in large system time units to epoch seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000000
+    } -result 0
+
+    ###
+
+    test large_system_time_to_secs_since_1970-2.0 {
+        Convert fractional seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000123 true
+    } -result 0.0000123
+
+    ###
+
+    test large_system_time_to_secs_since_1970-2.0 {
+        Convert fractional seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736000000123 true
+    } -result 0.0000123
+
+    ###
+
+    test large_system_time_to_secs_since_1970-3.0 {
+        Convert non-whole seconds since clock epoch base in large system time units to epoch whole seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736020000123 false
+    } -result 2
+
+    ###
+
+    test large_system_time_to_secs_since_1970-3.1 {
+        Convert non-whole seconds since clock epoch base in large system time units to epoch fractional seconds
+    } -constraints {
+        nt
+    } -body {
+        twapi::large_system_time_to_secs_since_1970 116444736020000123 true
+    } -result 2.0000123
+
+
+    ################################################################
+
+    test secs_since_1970_to_large_system_time-1.0 {
+        Convert clock epoch base to large system time units
+    } -constraints {
+        nt
+    } -body {
+        twapi::secs_since_1970_to_large_system_time 0
+    } -result 116444736000000000
+
+    ###
+
+    test secs_since_1970_to_large_system_time-2.0 {
+        Convert clock epoch time to large system time units
+    } -constraints {
+        nt
+    } -body {
+        twapi::secs_since_1970_to_large_system_time 2
+    } -result 116444736020000000
+
+    ###
+
+    test secs_since_1970_to_large_system_time-3.0 {
+        Check consistency between secs_since_1970_to_large_system_time and large_system_time_to_secs_since_1970
+    } -constraints {
+        nt
+    } -body {
+        set secs [clock seconds]
+        set secs2 [twapi::large_system_time_to_secs_since_1970 [twapi::secs_since_1970_to_large_system_time $secs]]
+        expr {$secs == $secs2}
+    } -result 1
+
+
+    ################################################################
+
+    test large_system_time_to_timelist-1.0 {
+        Convert system time epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 0] ,
+    } -result "1601,1,1,0,0,0,0"
+
+    ###
+
+    test large_system_time_to_timelist-1.1 {
+        Convert current system epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 128121282305000000] ,
+    } -result "2007,1,1,12,30,30,500"
+
+    ################################################################
+
+    test timelist_to_large_system_time-1.0 {
+        Convert timelist format system time epoch to system time
+    } -constraints {
+        nt
+    } -body {
+        twapi::timelist_to_large_system_time {1601 1 1 0 0 0 0}
+    } -result 0
+
+    ###
+
+    test timelist_to_large_system_time-1.1 {
+        Convert timelist format to system time
+    } -constraints {
+        nt
+    } -body {
+        twapi::timelist_to_large_system_time {2007 1 1 12 30 30 500}
+    } -result 128121282305000000
+
+    test large_system_time_timelist-1.1 {
+        Convert current system epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist 128121282305000000] ,
+    } -result "2007,1,1,12,30,30,500"
+
+    ################################################################
+
+    test expand_environment_strings-1.0 {
+        Expand a single environment string
+    } -body {
+        twapi::expand_environment_strings "%USERNAME%"
+    } -result $::env(USERNAME)
+
+    test expand_environment_strings-1.1 {
+        Expand a single embedded environment string
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y"
+    } -result x$::env(USERNAME)y
+
+    test expand_environment_strings-1.2 {
+        Expand multiple embedded environment strings
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y%COMPUTERNAME%"
+    } -result x$::env(USERNAME)y$::env(COMPUTERNAME)
+
+    test expand_environment_strings-2.0 {
+        Verify environment variables that are not defined are not modified
+    } -body {
+        twapi::expand_environment_strings "x%USERNAME%y%XXX%z"
+    } -result x$::env(USERNAME)y%XXX%z
+
+    ################################################################
+
+    test format_message-1.0 {
+        Format a message from the system
+    } -body {
+        string trim [twapi::format_message -messageid 5]
+    } -result [twapi::map_windows_error 5]
+
+
+    test format_message-2.0 {
+        Format a message from a string with no inserts
+    } -body {
+        twapi::format_message -fmtstring "This is a string"
+    } -result "This is a string"
+
+    test format_message-2.1 {
+        Format a message from a string with inserts
+    } -body {
+        set fmts {}
+        set result {}
+        for {set i 1} {$i < 100} {incr i} {
+            set fmts [linsert $fmts 0 %$i]; # Reverse order
+            set result [linsert $result 0 $i]; # Reverse order
+            lappend params $i
+        }
+
+        expr {
+              [twapi::format_message -fmtstring $fmts -params $params] eq $result
+          }
+    } -result 1
+
+    test format_message-2.2 {
+        Format a message from a string with -ignoreinserts
+    } -body {
+        twapi::format_message -fmtstring "%1 %2" -params {a b} -ignoreinserts
+    } -result "%1 %2"
+
+    test format_message-2.3 {
+        Format a message from a string with missing insert parameters
+    } -body {
+        twapi::format_message -fmtstring "Missing %1 %2"
+    } -result "Missing (null) (null)"
+
+    test format_message-3.0 {
+        Format a message from a string with -width
+    } -body {
+        twapi::format_message -fmtstring "123456789" -width 3
+    } -result "123\r\n456\r\n789\r\n"
+
+    test format_message-3.1 {
+        Format a message from a string with -width -1 and %n
+    } -body {
+        twapi::format_message -fmtstring "123\r\n456%n789" -width -1
+    } -result "123 456\r\n789"
+
+    ################################################################
+
+    test map_windows_error-1.0 {
+        Map Windows error
+    } -body {
+        twapi::map_windows_error 2
+    } -result "The system cannot find the file specified."
+
+    test map_windows_error-2.0 {
+        Map unmappable Windows error
+    } -body {
+        twapi::map_windows_error 2452345
+    } -result "Windows error: 2452345"
+
+    test map_windows_error-3.0 {
+        Map TWAPI Windows error
+    } -body {
+        twapi::map_windows_error [expr {0xE0000000 | (0xABC << 16) | 1}]
+    } -result "Invalid or badly formatted arguments specified."
+
+    test map_windows_error-4.0 {
+        Map LANMAN error
+    } -body {
+        twapi::map_windows_error [expr {2100+2}]
+    } -result "The workstation driver is not installed."
+
+    test map_windows_error-5.0 {
+        Map NTSTATUS error
+    } -body {
+        twapi::map_windows_error 0x40010003
+    } -result "Debugger terminated thread."
+
+    ################################################################
+
+    test win32_error-1.0 {
+        Generate Windows error
+    } -body {
+        twapi::win32_error 2
+    } -result "The system cannot find the file specified." -returnCodes [list error]
+
+    test win32_error-2.0 {
+        Map unmappable Windows error
+    } -body {
+        twapi::win32_error 2452345
+    } -result "Windows error: 2452345" -returnCodes [list error]
+
+    test win32_error-3.0 {
+        Map TWAPI Windows error
+    } -body {
+        twapi::win32_error [expr {0xE0000000 | (0xABC << 16) | 1}]
+    } -result "Invalid or badly formatted arguments specified." -returnCodes [list error]
+
+    test win32_error-4.0 {
+        Map LANMAN error
+    } -body {
+        twapi::win32_error [expr {2100+2}]
+    } -result "The workstation driver is not installed." -returnCodes [list error]
+
+    test win32_error-5.0 {
+        Map NTSTATUS error
+    } -body {
+        twapi::win32_error 0x40010003
+    } -result "Debugger terminated thread." -returnCodes [list error]
+
+    test win32_error-6.0 {
+        Generate Windows error with appended message
+    } -body {
+        twapi::win32_error 2 "Additional information:"
+    } -result "Additional information: The system cannot find the file specified." -returnCodes [list error]
+
+    ################################################################
+
+    test twine-1.0 {
+        Twine empty lists
+    } -body {
+        twapi::twine {} {}
+    } -result {}
+
+    test twine-1.1 {
+        Twine one empty
+    } -body {
+        twapi::twine {a b} {}
+    } -result {a {} b {}}
+
+    test twine-1.2 {
+        Twine equal lists
+    } -body {
+        twapi::twine {a b c} {1 2 3}
+    } -result {a 1 b 2 c 3}
+
+    test twine-1.3 {
+        Twine unequal lists
+    } -body {
+        twapi::twine {a b} {1 2 3}
+    } -result {a 1 b 2 {} 3}
+
+    test twine-1.4 {
+        Twine unequal lists
+    } -body {
+        twapi::twine {a b c} {1 2}
+    } -result {a 1 b 2 c {}}
+
+    ################################################################
+
+    test kl_create-1.0 {
+        Create a keyed list
+    } -body {
+        twapi::kl_create a 1 b 2 c 3
+    } -result {a 1 b 2 c 3}
+
+    test kl_create-1.1 {
+        Create a badly formed keyed list
+    } -body {
+        twapi::kl_create a 1 b 2 c
+    } -result * -match glob -returnCodes error
+
+    test kl_create2-1.0 {
+        Create a keyed list
+    } -body {
+        twapi::kl_create2 {a b c} {1 2 3}
+    } -result {a 1 b 2 c 3}
+
+    test kl_get-1.0 {
+        Get a value from a keyed list (first)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] a
+    } -result 1
+
+    test kl_get-1.1 {
+        Get a value from a keyed list (last)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] c
+    } -result 3
+
+    test kl_get-1.2 {
+        Get a value from a keyed list (middle)
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] b
+    } -result 2
+
+    test kl_get-2.0 {
+        Get a non-existent value from a keyed list with default
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] d 42
+    } -result 42
+
+    test kl_get-2.1 {
+        Get a non-existent value from a keyed list
+    } -body {
+        twapi::kl_get [twapi::kl_create a 1 b 2 c 3] d
+    } -result * -match glob -returnCodes error
+    
+    test kl_vget-1.0 {
+        Store a value from a keyed list into a variable
+    } -body {
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] c var]
+        list $status $var
+    } -result {1 3}
+
+    test kl_vget-1.1 {
+        Try to get a non-existing value from a keyed list 
+    } -body {
+        set var unchanged
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] d var]
+        list $status $var
+    } -result {0 unchanged}
+
+    test kl_vget-1.2 {
+        Try to get a non-existing value from a keyed list 
+    } -body {
+        catch {unset var}
+        set status [twapi::kl_vget [twapi::kl_create a 1 b 2 c 3] d var]
+        list $status [info exists var]
+    } -result {0 0}
+
+    test kl_equal-1.0 {
+        Compare empty keyed lists
+    } -body {
+        twapi::kl_equal [twapi::kl_create] [twapi::kl_create2 {} {}]
+    } -result 1
+
+    test kl_equal-1.1 {
+        Compare empty keyed list with non-empty
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2] [twapi::kl_create2 {} {}]
+    } -result 0
+
+    test kl_equal-1.2 {
+        Compare keyed list (identical)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result 1
+
+    test kl_equal-1.3 {
+        Compare keyed list (out of order)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 c 3 b 2] [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result 1
+
+    test kl_equal-1.4 {
+        Compare keyed list (keys in order, different values)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 c 3 b 2] [twapi::kl_create a 1 b 2 c 4]
+    } -result 0
+
+    test kl_equal-1.5 {
+        Compare keyed list (different lengths)
+    } -body {
+        twapi::kl_equal [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create a 1 b 2]
+    } -result 0
+
+    test kl_fields-1.0 {
+        Get fields in a keyed list
+    } -body {
+        twapi::kl_fields [twapi::kl_create2 {a b c} {1 2 3}]
+    } -result {a b c}
+
+    test kl_flatten-1.0 {
+        Flatten values in a list of keyed lists
+    } -body {
+        twapi::kl_flatten [list [twapi::kl_create a 1 b 2] [twapi::kl_create a 3 b 4]] a
+    } -result {1 3}
+
+    test kl_flatten-1.1 {
+        Flatten values in a list of keyed lists (multiple fields, multiple lists)
+    } -body {
+        twapi::kl_flatten [list [twapi::kl_create a 1 b 2 c 3] [twapi::kl_create a 3 b 4 c 5] [twapi::kl_create a 6 b 7 c 8]] a c
+    } -result {1 3 3 5 6 8}
+
+    test kl_set-1.0 {
+        Set a non-existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_set [twapi::kl_create a 1 b 2] c 3] \
+            [twapi::kl_create a 1 b 2 c 3]
+    } -result 1
+
+    test kl_set-1.1 {
+        Set an existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_set [twapi::kl_create a 1 b 2 c 4] c 3] \
+            [twapi::kl_create a 1 b 2 c 3]
+    } -result 1
+
+    test kl_unset-1.0 {
+        Unset an existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_unset [twapi::kl_create a 1 b 2 c 3] b] \
+            [twapi::kl_create a 1 c 3]
+    } -result 1
+
+    test kl_unset-1.1 {
+        Unset a non-existing value in a keyed list
+    } -body {
+        twapi::kl_equal [twapi::kl_unset [twapi::kl_create a 1 b 2 c 3] d] \
+            [twapi::kl_create a 1 c 3 b 2]
+    } -result 1
+
+    ################################################################
+
+    test list_raw_api-1.0 {
+        List the raw API
+    } -body {
+        expr {[llength [twapi::list_raw_api]] >= 500}
+    } -result 1
+
+    ################################################################
+
+    test add_defines-1.0 {
+        Verify add_defines adds a define to windefs
+    } -body {
+        twapi::add_defines {TWAPI_TEST_DEFINE 1234}
+        set ::twapi::windefs(TWAPI_TEST_DEFINE)
+    } -result 1234
+
+
+    ################################################################
+
+    test debuglog-1.0 {
+        Verify debug log messages
+    } -body {
+        twapi::debuglog "Test message 1"
+        twapi::debuglog "Test message 2"
+        lrange [twapi::debuglog] end-1 end
+    } -result {{Test message 1} {Test message 2}}
+
+    ################################################################
+
+    test debuglog_clear-1.0 {
+        Clear debug log messages
+    } -body {
+        twapi::debuglog "Test message 1"
+        twapi::debuglog "Test message 2"
+        twapi::debuglog_clear
+        llength [twapi::debuglog]
+    } -result 0
+
+    ################################################################
+
+    test tcltype-1.0 {
+        Test for pure string type
+    } -body {
+        twapi::tcltype "abc"
+    } -result ""
+
+    test tcltype-1.1 {
+        Test for pure string type (numeric)
+    } -body {
+        twapi::tcltype 100
+    } -result ""
+
+    test tcltype-2.0 {
+        Test for  string type
+    } -body {
+        set temp "abc"
+        append temp d;          # Force to explicit string
+        twapi::tcltype $temp
+    } -result string
+
+    test tcltype-3.0 {
+        Test for  list type
+    } -body {
+        twapi::tcltype [list a b]
+    } -result list
+
+    test tcltype-4.0 {
+        Test for  dict type
+    } -body {
+        twapi::tcltype [dict create a b c d]
+    } -result dict
+
+    test tcltype-5.0 {
+        Test for integer type
+    } -body {
+        twapi::tcltype [expr {0+0}]
+    } -result int
+
+    test tcltype-6.0 {
+        Test for wide integer type
+    } -body {
+        twapi::tcltype [expr {0xffffffff+1}]
+    } -result wideInt
+
+    test tcltype-7.0 {
+        Test for double type
+    } -body {
+        twapi::tcltype [expr {1.0+0}]
+    } -result double
+
+    test tcltype-8.0 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [expr {false}]
+    } -result booleanString
+
+    test tcltype-8.1 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [expr {true}]
+    } -result booleanString
+
+
+    ################################################################
+
+    test tclcast-1.0 {
+        Test for pure string type
+    } -body {
+        twapi::tcltype [twapi::tclcast "" abc]
+    } -result ""
+
+    test tclcast-2.0 {
+        Test for  string type
+    } -body {
+        twapi::tcltype [twapi::tclcast string [expr {1+0}]]
+    } -result string
+
+    test tclcast-3.0 {
+        Test for  list type
+    } -body {
+        twapi::tcltype [twapi::tclcast list "x y z"]
+    } -result list
+
+    test tclcast-4.0 {
+        Test for  dict type
+    } -body {
+        twapi::tcltype [twapi::tclcast dict "m n o p"]
+    } -result dict
+
+    test tclcast-5.0 {
+        Test for integer type
+    } -body {
+        twapi::tcltype [twapi::tclcast int "123"]
+    } -result int
+
+    test tclcast-6.0 {
+        Test for wide integer type
+    } -body {
+        # Note casting a 32 bit int to a wide int will not result
+        # in a wide int - Tcl optimizes it back to an int
+        twapi::tcltype [twapi::tclcast wideInt "0x123456789abcd"]
+    } -result wideInt
+
+    test tclcast-7.0 {
+        Test for double type
+    } -body {
+        twapi::tcltype [twapi::tclcast double "2.5"]
+    } -result double
+
+    test tclcast-8.0 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [twapi::tclcast boolean "true"]
+    } -result booleanString
+
+    test tclcast-8.1 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [twapi::tclcast boolean "false"]
+    } -result booleanString
+
+    test tclcast-8.2 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [twapi::tclcast boolean [expr {0+1}]]
+    } -result booleanString
+
+    test tclcast-8.3 {
+        Test for boolean type
+    } -body {
+        twapi::tcltype [twapi::tclcast boolean [expr {0+0}]]
+    } -result booleanString
+
+    ################################################################
+
+    test IsEqualGUID-1.0 {
+        Verify two UUIDs are equal
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID $uuid $uuid
+    } -result 1
+
+    test IsEqualGUID-1.1 {
+        Verify two GUIDs are equal
+    } -body {
+        set guid "{[twapi::new_uuid]}"
+        twapi::IsEqualGUID $guid $guid
+    } -result 1
+
+    test IsEqualGUID-1.2 {
+        Verify a UUID and GUID are equal
+    } -body {
+        set uuid [twapi::new_uuid]
+        set guid "{$uuid}"
+        twapi::IsEqualGUID $uuid $guid
+    } -result 1
+
+    test IsEqualGUID-1.3 {
+        Verify case insensitivity in GUIDs
+    } -body {
+        set guid "{[twapi::new_uuid]}"
+        twapi::IsEqualGUID [string tolower $guid] [string toupper $guid]
+    } -result 1
+
+    test IsEqualGUID-1.4 {
+        Verify case insensitivity in UUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID [string tolower $uuid] [string toupper $uuid]
+    } -result 1
+
+    test IsEqualGUID-2.0 {
+        Verify mismatched UUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID "[string range $uuid 0 end-1]0" "[string range $uuid 0 end-1]1"
+    } -result 0
+
+    test IsEqualGUID-2.1 {
+        Verify mismatched GUIDs
+    } -body {
+        set uuid [twapi::new_uuid]
+        twapi::IsEqualGUID "{[string range $uuid 0 end-1]0}" "{[string range $uuid 0 end-1]1}"
+    } -result 0
+
+
+    ################################################################
+
+    test try-1.0 {
+        Verify script with no errors and no onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::try {set x 1}
+        set x
+    } -result 1
+
+    ################################################################
+
+    test try-1.1 {
+        Verify script with errors and no onerror and finally clauses
+    } -constraints {
+    } -body {
+        twapi::try {set nosuchvar}
+    } -returnCodes error -result $nosuchvar_error
+
+    ###
+
+    test try-2.0 {
+        Verify script with no errors and no onerror but finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        expr {
+              [twapi::try {set x 1} finally {set y 2}] == 1 &&
+              $y == 2 &&
+              $x == 1
+          }
+    } -result 1
+
+    ###
+
+    test try-2.1 {
+        Verify script with errors and no onerror clause but with finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set status [catch {
+            twapi::try {set nosuchvar} finally {set y 5}
+        } msg]
+        expr {
+              $status == 1 &&
+              $msg == $nosuchvar_error &&
+              $y == 5
+          }
+    } -result 1
+
+    ###
+
+    test try-3.0 {
+        Verify script with errors and matching onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST 5} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.1 {
+        Verify script with errors and no match on onerror facility
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {XXX 5} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test try-3.2 {
+        Verify script with errors and no match on onerror code
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test try-3.3 {
+        Verify script with errors and default onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX 6} {
+            set x 6
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.4 {
+        Verify multiple onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+            set x "wrong match"
+        } onerror {TEST 5} {
+            set x "correct match"
+        }
+    } -result "correct match"
+
+    ###
+
+    test try-3.5 {
+        Verify sequencing of onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        twapi::try {
+            error "Error message" "" {TEST 5}
+        } onerror {} {
+            set x "correct order"
+        } onerror {TEST 5} {
+            set x "wrong order"
+        }
+    } -result "correct order"
+
+    ###
+
+    test try-3.6 {
+        Verify script with errors and matching integer format onerror clause
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 20}
+        } onerror {TEST 0x14} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 20 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-3.7 {
+        Verify script with errors and matching onerror clause only on facility
+    } -constraints {
+    } -body {
+        twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test try-4.0 {
+        Verify try with no errors with both onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        set result [twapi::try {
+            set x normal
+        } onerror {} {
+            set x "correct order"
+        } finally {
+            set  y final
+        }]
+        expr {$result == "normal" && $x == "normal" && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.1 {
+        Verify try with errors with matching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        } finally {
+            set  y final
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.2 {
+        Verify try with errors with nonmatching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [catch {
+            twapi::try {
+                error "Error message" "This is errorinfo" {TEST 5}
+            } onerror {XXX} {
+                expr {
+                      [lindex $errorCode 0] == "TEST" &&
+                      [lindex $errorCode 1] == 5 &&
+                      $errorResult == "Error message" &&
+                      $errorInfo == "This is errorinfo"
+                  }
+            } finally {
+                set  y final
+            }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test try-4.3 {
+        Verify finally clause position can be anywhere
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::try {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX} {
+            set y foo
+        } finally {
+            set  y final
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+
+    test trap-1.0 {
+        Verify script with no errors and no onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::trap {set x 1}
+        set x
+    } -result 1
+
+    ################################################################
+
+    test trap-1.1 {
+        Verify script with errors and no onerror and finally clauses
+    } -constraints {
+    } -body {
+        twapi::trap {set nosuchvar}
+    } -returnCodes error -result $nosuchvar_error
+
+    ###
+
+    test trap-2.0 {
+        Verify script with no errors and no onerror but finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        expr {
+              [twapi::trap {set x 1} finally {set y 2}] == 1 &&
+              $y == 2 &&
+              $x == 1
+          }
+    } -result 1
+
+    ###
+
+    test trap-2.1 {
+        Verify script with errors and no onerror clause but with finally clause
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set status [catch {
+            twapi::trap {set nosuchvar} finally {set y 5}
+        } msg]
+        expr {
+              $status == 1 &&
+              $msg == $nosuchvar_error &&
+              $y == 5
+          }
+    } -result 1
+
+    ###
+
+    test trap-3.0 {
+        Verify script with errors and matching onerror clause
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST 5} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test trap-3.1 {
+        Verify script with errors and no match on onerror facility
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "" {TEST 5}
+        } onerror {XXX 5} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test trap-3.2 {
+        Verify script with errors and no match on onerror code
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+        }
+    } -result "Error message" -returnCodes error
+
+    ###
+
+    test trap-3.3 {
+        Verify script with errors and default onerror clause
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX 6} {
+            set x 6
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test trap-3.4 {
+        Verify multiple onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        twapi::trap {
+            error "Error message" "" {TEST 5}
+        } onerror {TEST 6} {
+            set x "wrong match"
+        } onerror {TEST 5} {
+            set x "correct match"
+        }
+    } -result "correct match"
+
+    ###
+
+    test trap-3.5 {
+        Verify sequencing of onerror clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        twapi::trap {
+            error "Error message" "" {TEST 5}
+        } onerror {} {
+            set x "correct order"
+        } onerror {TEST 5} {
+            set x "wrong order"
+        }
+    } -result "correct order"
+
+    ###
+
+    test trap-3.6 {
+        Verify script with errors and matching integer format onerror clause
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 20}
+        } onerror {TEST 0x14} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 20 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test trap-3.7 {
+        Verify script with errors and matching onerror clause only on facility
+    } -constraints {
+    } -body {
+        twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {TEST} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }
+    } -result 1
+
+    ###
+
+    test trap-4.0 {
+        Verify trap with no errors with both onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+    } -body {
+        set result [twapi::trap {
+            set x normal
+        } onerror {} {
+            set x "correct order"
+        } finally {
+            set  y final
+        }]
+        expr {$result == "normal" && $x == "normal" && $y == "final"}
+    } -result 1
+
+    ###
+
+    test trap-4.1 {
+        Verify trap with errors with matching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        } finally {
+            set  y final
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test trap-4.2 {
+        Verify trap with errors with nonmatching onerror and finally clauses
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [catch {
+            twapi::trap {
+                error "Error message" "This is errorinfo" {TEST 5}
+            } onerror {XXX} {
+                expr {
+                      [lindex $errorCode 0] == "TEST" &&
+                      [lindex $errorCode 1] == 5 &&
+                      $errorResult == "Error message" &&
+                      $errorInfo == "This is errorinfo"
+                  }
+            } finally {
+                set  y final
+            }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ###
+
+    test trap-4.3 {
+        Verify finally clause position can be anywhere
+    } -constraints {
+    } -setup {
+        catch {unset x}
+        catch {unset y}
+    } -body {
+        set result [twapi::trap {
+            error "Error message" "This is errorinfo" {TEST 5}
+        } onerror {XXX} {
+            set y foo
+        } finally {
+            set  y final
+        } onerror {} {
+            expr {
+                  [lindex $errorCode 0] == "TEST" &&
+                  [lindex $errorCode 1] == 5 &&
+                  $errorResult == "Error message" &&
+                  $errorInfo == "This is errorinfo"
+              }
+        }]
+        expr {$result == 1 && $y == "final"}
+    } -result 1
+
+    ################################################################
+
+    test load_library-1.0 {
+        Load a library
+    } -body {
+        set libh [twapi::load_library rctest.dll]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
+
+    test load_library-1.1 {
+        Load a library as a data file
+    } -body {
+        set libh [twapi::load_library rctest.dll -datafile]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
+
+    test load_library-1.2 {
+        Load a library without resolving references
+    } -body {
+        set libh [twapi::load_library rctest.dll -dontresolverefs]
+    } -cleanup {
+        twapi::free_library $libh
+    } -result "* HANDLE" -match glob
+        
+    ################################################################
+
+    test free_library-1.0 {
+        Free a library
+    } -body {
+        twapi::free_library [twapi::load_library rctest.dll]
+    } -result ""
 
     ################################################################
 

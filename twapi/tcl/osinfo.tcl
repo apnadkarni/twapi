@@ -4,11 +4,7 @@
 #
 # See the file LICENSE for license
 
-#package require twapi
-
-namespace eval twapi {
-}
-
+namespace eval twapi {}
 
 # Returns an keyed list with the following elements:
 #   os_major_version
@@ -1078,86 +1074,4 @@ proc twapi::set_system_parameters_info {uiaction val args} {
     return
 }
 
-################################################################
-# Utility procs
-
-# Format message string - will raise exception if insufficient number
-# of arguments
-proc twapi::_unsafe_format_message {args} {
-    array set opts [parseargs args {
-        module.arg
-        fmtstring.arg
-        messageid.arg
-        langid.arg
-        params.arg
-        includesystem
-        ignoreinserts
-        width.int
-    } -nulldefault -maxleftover 0]
-
-    set flags 0
-
-    if {$opts(module) == ""} {
-        if {$opts(fmtstring) == ""} {
-            # If neither -module nor -fmtstring specified, message is formatted
-            # from the system
-            set opts(module) NULL
-            setbits flags 0x1000;       # FORMAT_MESSAGE_FROM_SYSTEM
-        } else {
-            setbits flags 0x400;        # FORMAT_MESSAGE_FROM_STRING
-            if {$opts(includesystem) || $opts(messageid) != "" || $opts(langid) != ""} {
-                error "Options -includesystem, -messageid and -langid cannot be used with -fmtstring"
-            }
-        }
-    } else {
-        if {$opts(fmtstring) != ""} {
-            error "Options -fmtstring and -module cannot be used together"
-        }
-        setbits flags 0x800;        # FORMAT_MESSAGE_FROM_HMODULE
-        if {$opts(includesystem)} {
-            # Also include system in search
-            setbits flags 0x1000;       # FORMAT_MESSAGE_FROM_SYSTEM
-        }
-    }
-
-    if {$opts(ignoreinserts)} {
-        setbits flags 0x200;            # FORMAT_MESSAGE_IGNORE_INSERTS
-    }
-
-    if {$opts(width) > 254} {
-        error "Invalid value for option -width. Must be -1, 0, or a positive integer less than 255"
-    }
-    if {$opts(width) < 0} {
-        # Negative width means no width restrictions
-        set opts(width) 255;                  # 255 -> no restrictions
-    }
-    incr flags $opts(width);                  # Width goes in low byte of flags
-
-    if {$opts(fmtstring) != ""} {
-        return [FormatMessageFromString $flags $opts(fmtstring) $opts(params)]
-    } else {
-        if {![string is integer -strict $opts(messageid)]} {
-            error "Unspecified or invalid value for -messageid option. Must be an integer value"
-        }
-        if {$opts(langid) == ""} { set opts(langid) 0 }
-        if {![string is integer -strict $opts(langid)]} {
-            error "Unspecfied or invalid value for -langid option. Must be an integer value"
-        }
-
-        # Check if $opts(module) is a file or module handle (pointer)
-        if {[Twapi_IsPtr $opts(module)]} {
-            return  [FormatMessageFromModule $flags $opts(module) \
-                         $opts(messageid) $opts(langid) $opts(params)]
-        } else {
-            set hmod [load_library $opts(module) -datafile]
-            trap {
-                set message  [FormatMessageFromModule $flags $hmod \
-                                  $opts(messageid) $opts(langid) $opts(params)]
-            } finally {
-                free_library $hmod
-            }
-            return $message
-        }
-    }
-}
 

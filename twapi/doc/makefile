@@ -6,8 +6,9 @@
 # To build website
 #   nmake ADFILE=google-ads.js ADFILE2=google-ads-horizontal-link-unit.js website
 
-TWAPI_SRCROOT = $(MAKEDIR)\..
-!include ../common.inc
+!include ../include/version.inc
+SRCROOT=$(MAKEDIR)\..
+!include ../include/tooldefs.inc
 
 # Comment line below to see command lines being executed
 # Or just invoke nmake with SILENT=
@@ -17,7 +18,7 @@ DTPQUIET = -quiet
 !endif
 
 !ifndef TOOLDIR
-TOOLDIR= $(TWAPI_SRCROOT)\..\tools
+TOOLDIR= $(SRCROOT)\..\tools
 !endif
 
 TIDY="$(TOOLDIR)\tidy.exe"
@@ -33,6 +34,7 @@ MANFILES= \
 	packages.man \
 	installation.man \
 	raw.man \
+	base.man \
 	ui.man \
 	com.man \
 	shell.man \
@@ -52,7 +54,7 @@ MANFILES= \
 	crypto.man \
 	eventlog.man \
 	etw.man \
-	inifile.man \
+	apputil.man \
 	console.man \
 	desktop.man \
 	schedule.man \
@@ -63,8 +65,6 @@ MANFILES= \
 	device.man \
 	synch.man \
 	power.man \
-	errors.man \
-	misc.man \
 	versionhistory.man 
 !endif
 

@@ -409,7 +409,7 @@ be used together with [cmd -atime].
 [list_end]
 All time values must be specified in the same format as
 [uri osinfo.html\#get_system_time [cmd get_system_time]]. You can
-use [uri misc.html\#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
+use [uri base.html\#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
 to convert the format used by Tcl's [cmd clock] command to this format.
 
 

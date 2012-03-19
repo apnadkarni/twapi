@@ -42,12 +42,12 @@ Significantly improved COM method call performance through the use of
 TclOO in newer Tcl versions (8.6b2 and later)
 
 [bullet]
-Added [uri misc.html#get_build_config [cmd get_build_config]] to
+Added [uri base.html#get_build_config [cmd get_build_config]] to
 return build information.
 
 [bullet]
-Added [uri misc.html#tclcast [cmd tclcast]] and
-[uri misc.html#tcltype [cmd tcltype]].
+Added [uri base.html#tclcast [cmd tclcast]] and
+[uri base.html#tcltype [cmd tcltype]].
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]
@@ -104,7 +104,7 @@ Added options [cmd -primarygroupsid],
 Added [uri printer.html#get_default_printer [cmd get_default_printer]].
 
 [bullet]
-Enhancements to [uri misc.html#parseargs [cmd parseargs]] to
+Enhancements to [uri base.html#parseargs [cmd parseargs]] to
 map boolean true values.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
@@ -231,7 +231,7 @@ to allow multiple scripts to register for the same hotkey.
 [uri try.man#trap [cmd trap]] and aliased it to prevent conflicts
 with Tcl 8.6 [cmd try].
 
-[bullet] Added [uri errors.html#debuglog debuglog] command to log debug
+[bullet] Added [uri base.html#debuglog debuglog] command to log debug
 and trace messages.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
@@ -438,8 +438,8 @@ Added -isnull subcommand to
 [uri input.html\#get_input_idle_time get_input_idle_time].
 
 [bullet] Added
-[uri misc.html#large_system_time_to_timelist large_system_time_to_timelist] and
-[uri misc.html#timelist_to_large_system_time timelist_to_large_system_time].
+[uri base.html#large_system_time_to_timelist large_system_time_to_timelist] and
+[uri base.html#timelist_to_large_system_time timelist_to_large_system_time].
 
 [bullet] Added
 -modulename, -modulepath, -bindtime options to
@@ -516,7 +516,7 @@ Added [uri osinfo.html\#get_system_time get_system_time].
 
 [bullet]
 Added
-[uri misc.html\#secs_since_1970_to_large_system_time secs_since_1970_to_large_system_time].
+[uri base.html\#secs_since_1970_to_large_system_time secs_since_1970_to_large_system_time].
 
 [bullet]
 Added [uri com.html\#variant_time_to_timelist variant_time_to_timelist]
