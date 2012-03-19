@@ -3,7 +3,7 @@
 [copyright "2003-2008 Ashok P. Nadkarni"]
 [moddesc "Windows services configuration"]
 [titledesc "Commands for configuring and monitoring Windows services"]
-[require twapi]
+[require twapi_service]
 [description]
 [para]
 

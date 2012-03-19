@@ -3,7 +3,7 @@
 [copyright "2010 Ashok P. Nadkarni"]
 [moddesc "Resource handling"]
 [titledesc "Commands related to Windows file resources"]
-[require twapi]
+[require twapi_resource]
 [description]
 [para]
 
@@ -114,7 +114,7 @@ retrieving the resource values, through the command
 [para]
 Note that resources themselves do not need to be explicitly freed up.
 In particular, [emph "do not try to close the resource handles"] through
-the [cmd CloseHandle] or [uri handles.html#close_handles [cmd close_handles]].
+the [cmd CloseHandle] or [uri base.html#close_handles [cmd close_handles]].
 
 
 [section "Updating Resources"]

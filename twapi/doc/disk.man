@@ -3,7 +3,7 @@
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "Disk information"]
 [titledesc "Commands related to files, disks and volumes"]
-[require twapi]
+[require twapi_storage]
 [description]
 [para]
 

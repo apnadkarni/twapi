@@ -3,7 +3,7 @@
 [copyright "2003-2009 Ashok P. Nadkarni"]
 [moddesc "Window management"]
 [titledesc "Commands related to management of windows"]
-[require twapi]
+[require twapi_ui]
 [description]
 [para]
 

@@ -3,7 +3,7 @@
 [copyright "2004-2009 Ashok P. Nadkarni"]
 [moddesc "Windows console mode"]
 [titledesc "Commands related to Windows consoles"]
-[require twapi]
+[require twapi_console]
 [description]
 [para]
 
@@ -259,7 +259,7 @@ Specifies whether the buffer is not shared or
 can be shared for read, write or both (default).
 [list_end]
 The allocated screen buffer handle should be closed by calling
-[uri handles.html\#close_handle [cmd close_handle]] when no longer
+[uri base.html\#close_handle [cmd close_handle]] when no longer
 needed.
 [call [cmd fill_console] [arg CONOUTH] [opt [arg options]]]
 Sets the text attribute of cells in specified area of the screen buffer.
