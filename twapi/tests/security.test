@@ -12,7 +12,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_security
 
 namespace eval twapi::security::test {
     namespace import ::tcltest::test
@@ -29,8 +29,8 @@ namespace eval twapi::security::test {
     variable administrators_account_name [get_localized_account administrators]
 
     # SID for the account the process is running under
-    variable my_sid [twapi::lookup_account_name $::env(USERNAME)]
-    variable guest_sid [twapi::lookup_account_name $guest_account_name]
+    variable my_sid [name2sid $::env(USERNAME)]
+    variable guest_sid [name2sid $guest_account_name]
 
     # Define expected values for various get_user_account_info fields
     # assuming [string match -nocase comparison] and Administrator account
@@ -1131,7 +1131,7 @@ namespace eval twapi::security::test {
     test set_token_virtualization-1.0 {
         Set the virtualization for a token
     } -constraints {
-        nt win6
+        win6
     } -setup {
         set tok [twapi::open_process_token -access {token_query token_adjust_default}]
     } -body {
@@ -5631,8 +5631,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test find_logon_sessions-1.0 {
         Get list of logon sessions
-    } -constraints {
-        win2k
     } -body {
         twapi::find_logon_sessions
     } -result {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})+\s*$} -match regexp
@@ -5641,8 +5639,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test find_logon_sessions-2.0 {
         Get list of logon sessions for a user 
-    } -constraints {
-        win2k
     } -body {
         set matches 0
         foreach sess [twapi::find_logon_sessions -user $::env(username)] {
@@ -5690,8 +5686,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test find_logon_sessions-4.0 {
         Get list of logon sessions for a specific terminal services session
-    } -constraints {
-        win2k
     } -body {
         twapi::find_logon_sessions -tssession 0
     } -result {^\s*[[:xdigit:]]{8}-[[:xdigit:]]{8}(\s+[[:xdigit:]]{8}-[[:xdigit:]]{8})+\s*$} -match regexp
@@ -5700,8 +5694,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-1.0 {
         Get logon session info (no options)
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session]
     } -result ""
@@ -5710,8 +5702,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-1.1 {
         Get logon session info -all
-    } -constraints {
-        win2k
     } -body {
         verify_kl_fields [twapi::get_logon_session_info [current_logon_session] -all] {
             -authpackage -dnsdomain -logondomain -logonid -logonserver
@@ -5723,8 +5713,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-2.0 {
         Get logon session info -authpackage
-    } -constraints {
-        win2k
     } -body {
         set sess [twapi::get_logon_session_info [current_logon_session] -authpackage]
         verify_kl_fields $sess [list -authpackage]
@@ -5735,8 +5723,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-3.0 {
         Get logon session info -dnsdomain
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -dnsdomain
     } -result .* -match regexp
@@ -5745,8 +5731,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-4.0 {
         Get logon session info -logondomain
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -logondomain
     } -result [list -logondomain $::env(USERDOMAIN)]
@@ -5755,8 +5739,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-5.0 {
         Get logon session info -logonid
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -logonid
     } -result [list -logonid [current_logon_session]]
@@ -5766,23 +5748,17 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-6.0 {
         Get logon session info -logonserver
-    } -constraints {
-        win2k
     } -body {
         foreach {fld logonserver} [twapi::get_logon_session_info [current_logon_session] -logonserver] break
-        # Note Win2K will return empty field
         expr {$fld eq "-logonserver" &&
               ([string equal -nocase $logonserver $::env(logonserver)] ||
-               [string equal -nocase \\\\$logonserver $::env(logonserver)] ||
-               ($logonserver eq "" && ![twapi::min_os_version 5 1]))}
+               [string equal -nocase \\\\$logonserver $::env(logonserver)])}
     } -result 1
 
     ###
 
     test get_logon_session_info-7.0 {
         Get logon session info -logontime
-    } -constraints {
-        win2k
     } -body {
         foreach {fld logontime} [twapi::get_logon_session_info [current_logon_session] -logontime] break
         set secs [twapi::large_system_time_to_secs $logontime]
@@ -5796,8 +5772,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-8.0 {
         Get logon session info -type
-    } -constraints {
-        win2k
     } -body {
         set sess [twapi::get_logon_session_info [current_logon_session] -type]
         verify_kl_fields $sess [list -type]
@@ -5808,8 +5782,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-9.0 {
         Get logon session info -sid
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -sid
     } -result [list -sid $my_sid]
@@ -5818,8 +5790,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-10.0 {
         Get logon session info -tssession
-    } -constraints {
-        win2k
     } -body {
         # TBD - assumes running in session 0 or 1
         twapi::get_logon_session_info [current_logon_session] -tssession
@@ -5830,8 +5800,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-11.0 {
         Get logon session info -user
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -user
     } -result [list -user $::env(username)]
@@ -5841,8 +5809,6 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     test get_logon_session_info-12.0 {
         Get logon session info -userprincipal
-    } -constraints {
-        win2k
     } -body {
         twapi::get_logon_session_info [current_logon_session] -userprincipal
     } -result "^-userprincipal\\s+.*" -match regexp
