@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_msi
 
 #
 # Set up system-specific constants that are used to match test results
@@ -21,7 +21,7 @@ namespace eval twapi::msi::test {
     test load_msi_prototypes-1.0 {
         Load MSI prototypes
     } -setup {
-        set msi [twapi::comobj WindowsInstaller.Installer]
+        set msi [twapi::new_msi]
     } -body {
         twapi::load_msi_prototypes $msi Installer
         # Verify that protos were actually loaded
@@ -33,7 +33,7 @@ namespace eval twapi::msi::test {
     test cast_msi_object-1.0 {
         Cast an MSI object to appropriate type
     } -setup {
-        set msi [twapi::comobj WindowsInstaller.Installer]
+        set msi [twapi::new_msi]
     } -body {
         twapi::cast_msi_object $msi Installer
         # Verify that protos were actually loaded
@@ -49,7 +49,7 @@ namespace eval twapi::msi::test {
         if {![file exists $msifile]} {
             error "File $msifile not found. Please copy it to test dir."
         }
-        set msi [twapi::comobj WindowsInstaller.Installer]
+        set msi [twapi::new_msi]
         # Instead of using load_msi_prototypes, we will use
         # the type library - TBD (we are not actually using that in the body)
         set tl [twapi::ITypeLibProxy_from_path [file join $::env(WINDIR) system32 msi.dll]]

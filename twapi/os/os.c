@@ -317,7 +317,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             }
             break;
         }
-    } else if (func < 200) {
+    } else if (func < 300) {
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[2]);

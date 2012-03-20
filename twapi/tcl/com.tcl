@@ -974,7 +974,8 @@ namespace eval twapi {
 }
 
 
-proc twapi::_dispatch_prototype_get {guid name lcid invkind vproto} {
+interp alias {} twapi::_dispatch_prototype_get {} twapi::dispatch_prototype_get
+proc twapi::dispatch_prototype_get {guid name lcid invkind vproto} {
     variable _dispatch_prototype_cache
     set invkind [::twapi::_string_to_invkind $invkind]
     if {[info exists _dispatch_prototype_cache($guid,$name,$lcid,$invkind)]} {
@@ -988,7 +989,8 @@ proc twapi::_dispatch_prototype_get {guid name lcid invkind vproto} {
 
 # Update a prototype in cache. Note lcid and invkind cannot be
 # picked up from prototype since it might be empty.
-proc twapi::_dispatch_prototype_set {guid name lcid invkind proto} {
+interp alias {} twapi::_dispatch_prototype_set {} twapi::dispatch_prototype_set
+proc twapi::dispatch_prototype_set {guid name lcid invkind proto} {
     variable _dispatch_prototype_cache
     set invkind [_string_to_invkind $invkind]
     set _dispatch_prototype_cache($guid,$name,$lcid,$invkind) $proto
