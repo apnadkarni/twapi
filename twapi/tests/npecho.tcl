@@ -4,8 +4,8 @@ if {[llength [info commands load_twapi_package]] == 0} {
     source [file join [file dirname [info script]] testutil.tcl]
 }
 
-if {[llength [info commands ::twapi::get_version]] == 0} {
-    load_twapi_package
+if {[llength [info commands ::twapi::namedpipe_server]] == 0} {
+    load_twapi_package twapi_namedpipe
 }
 
 proc np_echo_usage {} {

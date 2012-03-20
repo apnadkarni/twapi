@@ -64,8 +64,9 @@ proc testconfig {item} {
 }
 
 proc find_unused_drive {} {
-    foreach drv [split klmnopqrstuvwxyzabcdefghij ""] {
-        if {[twapi::get_drive_type $drv] eq "invalid"} {
+    set drives [wmic_values Win32_LogicalDisk name]
+    foreach drv [split KLMNOPQRSTUVWXYZABCDEFGHIJ ""] {
+        if {[lsearch -exact $drives "${drv}:"] < 0} {
             return ${drv}:
         }
     }
@@ -808,6 +809,18 @@ proc wmic_value {obj field key keyval} {
 
     array set rec [lindex [wmic_get $obj [list $field] "$key='$keyval'"] 0]
     return $rec($field)
+}
+
+# Returns value of a field in all matching records
+proc wmic_values {obj field {clause ""}} {
+    # Some WMI fields have to be retrieved using *, not the name. For example
+    # the FullName field from Win32_Account. Dunno why
+
+    set values {}
+    foreach rec [wmic_get $obj [list $field] $clause] {
+        lappend values [dict get $rec $field]
+    }
+    return $values
 }
 
 # Return true if $a is close to $b (within 10%)

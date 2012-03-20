@@ -480,23 +480,6 @@ proc twapi::remove_member_from_local_group {grpname username args} {
     }
 }
 
-# Get a handle to a LSA policy. TBD - document
-proc twapi::get_lsa_policy_handle {args} {
-    array set opts [parseargs args {
-        {system.arg ""}
-        {access.arg policy_read}
-    } -maxleftover 0]
-
-    set access [_access_rights_to_mask $opts(access)]
-    return [Twapi_LsaOpenPolicy $opts(system) $access]
-}
-
-# Close a LSA policy handle
-proc twapi::close_lsa_policy_handle {h} {
-    LsaClose $h
-    return
-}
-
 # Get rights for an account
 proc twapi::get_account_rights {account args} {
     array set opts [parseargs args {

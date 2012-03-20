@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -48,11 +48,8 @@ namespace eval twapi::osinfo::test {
 
     # Get memory number from wmi
     proc verify_wmic_memory_value {field value {cmp exact}} {
-        if {0} {
-            array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
-        } else {
-            array set mem [lindex [twapi::_wmi_records CIM_OperatingSystem] 0]
-        }
+        # TBD - fix this for 64-bit systems
+        array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
         set wmic_val [expr {wide(1024)*$mem($field)}]
         if {$cmp eq "approx"} {
             return [approx $value $wmic_val]
@@ -895,17 +892,6 @@ namespace eval twapi::osinfo::test {
         SPI_GETACTIVEWNDTRKTIMEOUT   {^\d+$}
         SPI_GETFOREGROUNDFLASHCOUNT   {^\d+$}
         SPI_GETCARETWIDTH   {^\d+$}
-    } {
-        test get_system_parameters_info-1.[incr testnum] \
-            "get_system_parameters_info -$spi" \
-            -constraints {
-                nt
-            } -body "twapi::get_system_parameters_info $spi" \
-            -result $type -match regexp
-    }
-
-    # Following require XP or later
-    foreach {spi type} {
         SPI_GETMOUSETRAILS   {^\d+$}
         SPI_GETMOUSECLICKLOCKTIME   {^\d+$}
         SPI_GETFONTSMOOTHINGTYPE   {^\d+$}
@@ -915,10 +901,11 @@ namespace eval twapi::osinfo::test {
     } {
         test get_system_parameters_info-1.[incr testnum] \
             "get_system_parameters_info -$spi" \
+            -constraints {
+                nt
             } -body "twapi::get_system_parameters_info $spi" \
             -result $type -match regexp
     }
-
 
     ################################################################
 

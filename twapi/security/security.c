@@ -671,31 +671,8 @@ int Twapi_GetSecurityInfo (
 }
 #endif // TWAPI_LEAN
 
-
 #ifndef TWAPI_LEAN
-LSA_HANDLE Twapi_LsaOpenPolicy(
-    PLSA_UNICODE_STRING systemP,
-    PLSA_OBJECT_ATTRIBUTES objattrP,
-    DWORD access
-)
-{
-    LSA_HANDLE h;
-    NTSTATUS ntstatus;
-
-    if (systemP->Length == 0)
-        systemP = NULL;
-
-    ntstatus = LsaOpenPolicy(systemP, objattrP, access, &h);
-    if (ntstatus != STATUS_SUCCESS) {
-        SetLastError(TwapiNTSTATUSToError(ntstatus));
-        h = NULL;
-    }
-
-    return h;
-}
-#endif // TWAPI_LEAN
-
-#ifndef TWAPI_LEAN
+// TBD - should this be in account.c ?
 int Twapi_LsaEnumerateAccountRights(
     Tcl_Interp *interp,
     LSA_HANDLE policyH,
@@ -735,6 +712,7 @@ int Twapi_LsaEnumerateAccountRights(
 #endif // TWAPI_LEAN
 
 #ifndef TWAPI_LEAN
+// TBD - should this be in account.c ?
 int Twapi_LsaEnumerateAccountsWithUserRight(
     Tcl_Interp *interp,
     LSA_HANDLE policyH,
@@ -861,70 +839,6 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 }
 #endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
-int Twapi_LsaQueryInformationPolicy (
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *CONST objv[]
-)
-{
-    void    *buf;
-    NTSTATUS ntstatus;
-    int      retval;
-    Tcl_Obj  *objs[5];
-    LSA_HANDLE lsaH;
-    int        infoclass;
-
-    if (objc != 2 ||
-        ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
-        Tcl_GetLongFromObj(interp, objv[1], &infoclass) != TCL_OK) {
-        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-    }    
-
-    ntstatus = LsaQueryInformationPolicy(lsaH, infoclass, &buf);
-    if (ntstatus != STATUS_SUCCESS) {
-        return Twapi_AppendSystemError(interp,
-                                       TwapiNTSTATUSToError(ntstatus));
-    }
-
-    retval = TCL_OK;
-    switch (infoclass) {
-    case PolicyAccountDomainInformation:
-        objs[0] = ObjFromLSA_UNICODE_STRING(
-            &(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainName)
-            );
-        objs[1] = ObjFromSIDNoFail(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainSid);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
-        break;
-
-    case PolicyDnsDomainInformation:
-        objs[0] = ObjFromLSA_UNICODE_STRING(
-            &(((POLICY_DNS_DOMAIN_INFO *) buf)->Name)
-            );
-        objs[1] = ObjFromLSA_UNICODE_STRING(
-            &(((POLICY_DNS_DOMAIN_INFO *) buf)->DnsDomainName)
-            );
-        objs[2] = ObjFromLSA_UNICODE_STRING(
-            &(((POLICY_DNS_DOMAIN_INFO *) buf)->DnsForestName)
-            );
-        objs[3] = ObjFromUUID(
-            (UUID *) &(((POLICY_DNS_DOMAIN_INFO *) buf)->DomainGuid)
-            );
-        objs[4] = ObjFromSIDNoFail(((POLICY_DNS_DOMAIN_INFO *) buf)->Sid);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(5, objs));
-
-        break;
-
-    default:
-        Tcl_SetResult(interp, "Invalid or unsupported information class passed to Twapi_LsaQueryInformationPolicy", TCL_STATIC);
-        retval = TCL_ERROR;
-    }
-
-    LsaFreeMemory(buf);
-
-    return retval;
-}
-#endif // TWAPI_LEAN
 
 #if 0
 /* Not explicitly visible in Win2K and XP SP0 so we use CheckTokenMembership
@@ -944,8 +858,6 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     LUID luid;
     ACL *daclP, *saclP;
     PSID osidP, gsidP;
-    LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
-    LSA_OBJECT_ATTRIBUTES lsa_oattr;
     union {
         COORD coord;
         WCHAR buf[MAX_PATH+1];
@@ -1004,20 +916,14 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             result.value.bval = daclP ? IsValidAcl(daclP) : 0;
             break;
         case 103:
-            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
-                return TCL_ERROR;
-            result.value.ival = LsaClose(h);
-            result.type = TRT_DWORD;
+            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            result.value.ival = ImpersonateSelf(dw);
+            result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         case 104:
             if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival = ImpersonateLoggedOnUser(h);
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-        case 105:
-            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
-            result.value.ival = ImpersonateSelf(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         }
@@ -1062,18 +968,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 502: // LsaOpenPolicy
-            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
-            TwapiZeroMemory(&lsa_oattr, sizeof(lsa_oattr));
-            dw2 = LsaOpenPolicy(&lsa_ustr, &lsa_oattr, dw, &result.value.hval);
-            if (dw2 == STATUS_SUCCESS) {
-                result.type = TRT_LSA_HANDLE;
-            } else {
-                result.type = TRT_NTSTATUS;
-                result.value.ival = dw2;
-            }
-            break;
-        case 503:
+        case 502:
             return Twapi_GetNamedSecurityInfo(interp, s, dw, dw2);
         }
     } else if (func < 2000) {
@@ -1244,8 +1139,8 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             if (secdP)
                 TwapiFreeSECURITY_DESCRIPTOR(secdP);
             break;
-        case 10018:
-            return Twapi_LsaQueryInformationPolicy(interp, objc-2, objv+2);
+        case 10018: // UNUSED
+            break;
         case 10019:
             return Twapi_LsaGetLogonSessionData(interp, objc-2, objv+2);
         case 10020: // SetNamedSecurityInfo
@@ -1369,14 +1264,12 @@ static int Twapi_SecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_InitializeSecurityDescriptor, 2);
     CALL_(IsValidSecurityDescriptor, 101);
     CALL_(IsValidAcl, 102);
-    CALL_(LsaClose, 103);
+    CALL_(ImpersonateSelf, 103);
     CALL_(ImpersonateLoggedOnUser, 104);
-    CALL_(ImpersonateSelf, 105);
     CALL_(LookupPrivilegeDisplayName, 401);
     CALL_(LookupPrivilegeValue, 402);
     CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, 501);
-    CALL_(Twapi_LsaOpenPolicy, 502);
-    CALL_(GetNamedSecurityInfo, 503);
+    CALL_(GetNamedSecurityInfo, 502);
     CALL_(GetSecurityInfo, 1003);
     CALL_(OpenThreadToken, 1004);
     CALL_(OpenProcessToken, 1005);
@@ -1394,7 +1287,6 @@ static int Twapi_SecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(LsaAddAccountRights, 10015);
     CALL_(LsaRemoveAccountRights, 10016);
     CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017);
-    CALL_(LsaQueryInformationPolicy, 10018);
     CALL_(LsaGetLogonSessionData, 10019);
     CALL_(SetNamedSecurityInfo, 10020);
     CALL_(LookupPrivilegeName, 10021);
