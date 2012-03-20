@@ -1953,7 +1953,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 }
                 break;
 
-            case 26: // Twapi_NormalizeIPAddress
+            case 253: // Twapi_NormalizeIPAddress
                 dw = sizeof(u.ss);
                 dw2 = sizeof(u.ss); /* Since first call might change dw */
                 if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
