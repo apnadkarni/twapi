@@ -817,7 +817,6 @@ proc twapi::get_multiple_process_info {args} {
                         [concat [list all \
                                      user \
                                      path \
-                                     toplevels \
                                      commandline \
                                      priorityclass \
                                      [list noexist.arg "(no such process)"] \
@@ -903,7 +902,7 @@ proc twapi::get_multiple_process_info {args} {
     # If all we need are baseline options, and no massaging is required
     # (as for elapsedtime, for example), we can return what we have
     # without looping through below. Saves significant time.
-    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list user elapsedtime tids path toplevels commandline priorityclass]] $opts(all)]] == 0} {
+    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list user elapsedtime tids path commandline priorityclass]] $opts(all)]] == 0} {
         set return_data {}
         foreach pid $pids {
             if {[info exists results($pid)]} {
@@ -966,19 +965,6 @@ proc twapi::get_multiple_process_info {args} {
                 set prioclass $opts(noexist)
             }
             lappend results($pid) -priorityclass $prioclass
-        }
-
-        if {$opts(all) || $opts(toplevels)} {
-            set toplevels [get_toplevel_windows -pid $pid]
-            if {[llength $toplevels]} {
-                lappend results($pid) -toplevels $toplevels
-            } else {
-                if {[process_exists $pid]} {
-                    lappend results($pid) -toplevels [list ]
-                } else {
-                    lappend results($pid) -toplevels $opts(noexist)
-                }
-            }
         }
 
         if {$opts(all) || $opts(commandline)} {
@@ -1252,6 +1238,8 @@ proc twapi::get_thread_info {tid args} {
     set requested_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
     array set pdhdata {}
     if {[llength $requested_opts] != 0} {
+        package require twapi_pdh
+
         set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
         foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval 0] {
             set pdhdata($opt) $value
@@ -1270,6 +1258,8 @@ proc twapi::get_thread_info {tid args} {
     # Now do the same for any interval based counters
     set requested_opts [_array_non_zero_switches opts $pdh_rate_opts $opts(all)]
     if {[llength $requested_opts] != 0} {
+        package require twapi_pdh
+
         set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
         foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
             set pdhdata($opt) $value
@@ -1855,130 +1845,140 @@ proc twapi::_get_wts_pids {v_sids v_names} {
 
 # Return various information from a process token
 proc twapi::_token_info_helper {args} {
-    if {[llength $args] == 1} {
-        # All options specified as one argument
-        set args [lindex $args 0]
-    }
-
-    if {0} {
-        Following options are passed on to get_token_info:
-        elevation
-        virtualized
-        groups
-        restrictedgroups
-        primarygroup
-        primarygroupsid
-        privileges
-        enabledprivileges
-        disabledprivileges
-        logonsession
-        linkedtoken
-        Option -integrity is not passed on because it has to deal with
-        -raw and -label options
-    }
-
-    array set opts [parseargs args {
-        pid.arg
-        hprocess.arg
-        tid.arg
-        hthread.arg
-        integrity
-        raw
-        label
-        user
-    } -ignoreunknown]
-
-    if {[expr {[info exists opts(pid)] + [info exists opts(hprocess)] +
-               [info exists opts(tid)] + [info exists opts(hthread)]}] > 1} {
-        error "At most one option from -pid, -tid, -hprocess, -hthread can be specified."
-    }
-
-    if {$opts(user)} {
-        lappend args -usersid
-    }
-
-    if {[info exists opts(hprocess)]} {
-        set tok [open_process_token -hprocess $opts(hprocess)]
-    } elseif {[info exists opts(pid)]} {
-        set tok [open_process_token -pid $opts(pid)]
-    } elseif {[info exists opts(hthread)]} {
-        set tok [open_thread_token -hthread $opts(hthread)]
-    } elseif {[info exists opts(tid)]} {
-        set tok [open_thread_token -tid $opts(tid)]
-    } else {
-        # Default is current process
-        set tok [open_process_token]
-    }
-
-    trap {
-        array set result [get_token_info $tok {*}$args]
-        if {[info exists result(-usersid)]} {
-            set result(-user) [lookup_account_sid $result(-usersid)]
-            unset result(-usersid)
+    package require twapi_security
+    proc _token_info_helper {args} {
+        if {[llength $args] == 1} {
+            # All options specified as one argument
+            set args [lindex $args 0]
         }
-        if {$opts(integrity)} {
-            if {$opts(raw)} {
-                set integrity [get_token_integrity $tok -raw]
-            } elseif {$opts(label)} {
-                set integrity [get_token_integrity $tok -label]
-            } else {
-                set integrity [get_token_integrity $tok]
+
+        if {0} {
+            Following options are passed on to get_token_info:
+            elevation
+            virtualized
+            groups
+            restrictedgroups
+            primarygroup
+            primarygroupsid
+            privileges
+            enabledprivileges
+            disabledprivileges
+            logonsession
+            linkedtoken
+            Option -integrity is not passed on because it has to deal with
+            -raw and -label options
+        }
+
+        array set opts [parseargs args {
+            pid.arg
+            hprocess.arg
+            tid.arg
+            hthread.arg
+            integrity
+            raw
+            label
+            user
+        } -ignoreunknown]
+
+        if {[expr {[info exists opts(pid)] + [info exists opts(hprocess)] +
+                   [info exists opts(tid)] + [info exists opts(hthread)]}] > 1} {
+            error "At most one option from -pid, -tid, -hprocess, -hthread can be specified."
+        }
+
+        if {$opts(user)} {
+            lappend args -usersid
+        }
+
+        if {[info exists opts(hprocess)]} {
+            set tok [open_process_token -hprocess $opts(hprocess)]
+        } elseif {[info exists opts(pid)]} {
+            set tok [open_process_token -pid $opts(pid)]
+        } elseif {[info exists opts(hthread)]} {
+            set tok [open_thread_token -hthread $opts(hthread)]
+        } elseif {[info exists opts(tid)]} {
+            set tok [open_thread_token -tid $opts(tid)]
+        } else {
+            # Default is current process
+            set tok [open_process_token]
+        }
+
+        trap {
+            array set result [get_token_info $tok {*}$args]
+            if {[info exists result(-usersid)]} {
+                set result(-user) [lookup_account_sid $result(-usersid)]
+                unset result(-usersid)
             }
-            set result(-integrity) $integrity
+            if {$opts(integrity)} {
+                if {$opts(raw)} {
+                    set integrity [get_token_integrity $tok -raw]
+                } elseif {$opts(label)} {
+                    set integrity [get_token_integrity $tok -label]
+                } else {
+                    set integrity [get_token_integrity $tok]
+                }
+                set result(-integrity) $integrity
+            }
+        } finally {
+            close_token $tok
         }
-    } finally {
-        close_token $tok
+
+        return [array get result]
     }
 
-    return [array get result]
+    return [_token_info_helper {*}$args]
 }
 
 # Set various information for a process token
 # Caller assumed to have enabled appropriate privileges
 proc twapi::_token_set_helper {args} {
-    if {[llength $args] == 1} {
-        # All options specified as one argument
-        set args [lindex $args 0]
-    }
+    package require twapi_security
 
-    array set opts [parseargs args {
-        virtualized.bool
-        integrity.arg
-        {noexist.arg "(no such process)"}
-        {noaccess.arg "(unknown)"}
-        pid.arg
-        hprocess.arg
-    } -maxleftover 0]
-
-    if {[info exists opts(pid)] && [info exists opts(hprocess)]} {
-        error "Options -pid and -hprocess cannot be specified together."
-    }
-
-    # Open token with appropriate access rights depending on request.
-    set access [list token_adjust_default]
-
-    if {[info exists opts(hprocess)]} {
-        set tok [open_process_token -hprocess $opts(hprocess) -access $access]
-    } elseif {[info exists opts(pid)]} {
-        set tok [open_process_token -pid $opts(pid) -access $access]
-    } else {
-        # Default is current process
-        set tok [open_process_token -access $access]
-    }
-
-    set result [list ]
-    trap {
-        if {[info exists opts(integrity)]} {
-            set_token_integrity $tok $opts(integrity)
+    proc _token_set_helper {args} {
+        if {[llength $args] == 1} {
+            # All options specified as one argument
+            set args [lindex $args 0]
         }
-        if {[info exists opts(virtualized)]} {
-            set_token_virtualization $tok $opts(virtualized)
-        }
-    } finally {
-        close_token $tok
-    }
 
-    return $result
+        array set opts [parseargs args {
+            virtualized.bool
+            integrity.arg
+            {noexist.arg "(no such process)"}
+            {noaccess.arg "(unknown)"}
+            pid.arg
+            hprocess.arg
+        } -maxleftover 0]
+
+        if {[info exists opts(pid)] && [info exists opts(hprocess)]} {
+            error "Options -pid and -hprocess cannot be specified together."
+        }
+
+        # Open token with appropriate access rights depending on request.
+        set access [list token_adjust_default]
+
+        if {[info exists opts(hprocess)]} {
+            set tok [open_process_token -hprocess $opts(hprocess) -access $access]
+        } elseif {[info exists opts(pid)]} {
+            set tok [open_process_token -pid $opts(pid) -access $access]
+        } else {
+            # Default is current process
+            set tok [open_process_token -access $access]
+        }
+
+        set result [list ]
+        trap {
+            if {[info exists opts(integrity)]} {
+                set_token_integrity $tok $opts(integrity)
+            }
+            if {[info exists opts(virtualized)]} {
+                set_token_virtualization $tok $opts(virtualized)
+            }
+        } finally {
+            close_token $tok
+        }
+
+        return $result
+    }
+    return [_token_set_helper {*}$args]
 }
 
 # Map console color name to integer attribute

@@ -390,6 +390,10 @@ proc notepad_copy {text} {
 
 # Start notepad, make it add text and return its pid
 proc notepad_exec_and_insert {{text "Some junk"}} {
+    # TBD - modify to get rid of both these package requirements
+    package require twapi_input
+    package require twapi_ui
+
     set pid [notepad_exec]
     set hwins [twapi::find_windows -pids [list $pid] -class Notepad]
     twapi::set_foreground_window [lindex $hwins 0]
@@ -714,7 +718,7 @@ proc wmic_delete {obj clause} {
 }
 
 # Note - use single quotes, not double quotes to pass values to wmic from exec
-proc wmic_get {obj fields {clause ""}} {
+proc wmic_get {obj {fields *} {clause ""}} {
 
     # On some systems when invoking wmic
     # the "cmd echo..." is required because otherwise wmic hangs for some 

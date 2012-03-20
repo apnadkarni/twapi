@@ -598,9 +598,6 @@ domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
 Returns the total number of threads in the process.
 [opt_def [cmd -tids]]
 Returns a list of ids of the threads in the process.
-[opt_def [cmd -toplevels]]
-Returns a list of the window handles of all toplevel windows
-owned by the process.
 [opt_def [cmd -tssession]]
 Returns the terminal server session id of the process.
 [opt_def [cmd -user]]

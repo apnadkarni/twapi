@@ -269,6 +269,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(UuidCreateNil, Call, 3);
     CALL_(Twapi_GetInstallDir, Call ,4);
     CALL_(EnumWindows, Call, 5);
+    CALL_(GetSystemWindowsDirectory, Call, 6); /* TBD Tcl */
+    CALL_(GetWindowsDirectory, Call, 7);       /* TBD Tcl */
+    CALL_(GetSystemDirectory, Call, 8);        /* TBD Tcl */
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
     CALL_(LockWorkStation, Call, 49);
@@ -463,8 +466,23 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 5:
             return Twapi_EnumWindows(interp);
+        case 6:                /* GetSystemWindowsDirectory */
+        case 7:                /* GetWindowsDirectory */
+        case 8:                /* GetSystemDirectory */
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = u.buf;
+            result.value.unicode.len =
+                (func == 78
+                 ? GetSystemWindowsDirectoryW
+                 : (func == 79 ? GetWindowsDirectoryW : GetSystemDirectoryW)
+                    ) (u.buf, ARRAYSIZE(u.buf));
+            if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
+                result.value.unicode.len == 0) {
+                result.type = TRT_GETLASTERROR;
+            }
+            break;
 
-        // 6-39 UNUSED
+        // 9-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);

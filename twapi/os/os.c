@@ -284,22 +284,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 40:
             return Twapi_GetPerformanceInformation(ticP->interp);
-        case 41:                /* GetSystemWindowsDirectory */
-        case 42:                /* GetWindowsDirectory */
-        case 43:                /* GetSystemDirectory */
-            result.type = TRT_UNICODE;
-            result.value.unicode.str = u.buf;
-            result.value.unicode.len =
-                (func == 78
-                 ? GetSystemWindowsDirectoryW
-                 : (func == 79 ? GetWindowsDirectoryW : GetSystemDirectoryW)
-                    ) (u.buf, ARRAYSIZE(u.buf));
-            if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
-                result.value.unicode.len == 0) {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
-        case 44:
+        case 41:
             dw = GetTimeZoneInformation(&u.tzinfo);
             switch (dw) {
             case TIME_ZONE_ID_UNKNOWN:
@@ -416,10 +401,7 @@ static int Twapi_OsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemWow64Directory, 38);
     CALL_(GetTickCount, 39);
     CALL_(GetPerformanceInformation, 40);
-    CALL_(GetSystemWindowsDirectory, 41); /* TBD Tcl */
-    CALL_(GetWindowsDirectory, 42);       /* TBD Tcl */
-    CALL_(GetSystemDirectory, 43);        /* TBD Tcl */
-    CALL_(GetTimeZoneInformation, 44);    /* TBD Tcl */
+    CALL_(GetTimeZoneInformation, 41);    /* TBD Tcl */
     CALL_(GetComputerNameEx, 201);
     CALL_(GetSystemMetrics, 202);
     CALL_(Sleep, 203);

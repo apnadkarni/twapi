@@ -24,6 +24,7 @@ namespace eval twapi {
     variable _privilege_to_luid_map
     set _privilege_to_luid_map {}
     variable _luid_to_privilege_map {}
+
 }
 
 
@@ -1677,25 +1678,6 @@ proc twapi::_delete_rights {account system} {
     }
 }
 
-# Variable that maps logon session type codes to integer values
-# See ntsecapi.h for definitions
-set twapi::logon_session_type_map {
-    0
-    1
-    interactive
-    network
-    batch
-    service
-    proxy
-    unlockworkstation
-    networkclear
-    newcredentials
-    remoteinteractive
-    cachedinteractive
-    cachedremoteinteractive
-    cachedunlockworkstation
-}
-
 
 # Get a token for a user
 proc twapi::open_user_token {username password args} {
@@ -1893,3 +1875,19 @@ proc twapi::_map_luids_and_attrs_to_privileges {luids_and_attrs} {
 
     return [list $enabled_privs $disabled_privs]
 }
+
+# Map impersonation level to symbol
+proc twapi::_map_impersonation_level ilevel {
+    set map {
+        0 anonymous
+        1 identification
+        2 impersonation
+        3 delegation
+    }
+    if {[dict exists $map [incr ilevel 0]]} {
+        return [dict get $map $ilevel]
+    } else {
+        return $ilevel
+    }
+}
+
