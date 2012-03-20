@@ -7,6 +7,12 @@
 
 #include "twapi.h"
 
+TCL_RESULT Twapi_LsaQueryInformationPolicy (
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[]
+    );
+
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -312,6 +318,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(TranslateName, Call, 10012);
     CALL_(Twapi_SourceResource, Call, 10013);
     CALL_(FindWindowEx, Call, 10014);
+    CALL_(LsaQueryInformationPolicy, Call, 10015);
+    CALL_(Twapi_LsaOpenPolicy, Call, 10016);
     CALL_(CreateFile, Call, 10031);
     CALL_(DsGetDcName, Call, 10058);
     CALL_(FormatMessageFromModule, Call, 10073);
@@ -341,25 +349,26 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(IsEqualGUID, Call, 10136); // Tcl
 
     // CallH - function(HANDLE)
+    CALL_(WTSEnumerateProcesses, CallH, 1); // Kepp in base as commonly useful
+    CALL_(ReleaseMutex, CallH, 2);
+    CALL_(CloseHandle, CallH, 3);
+    CALL_(CastToHANDLE, CallH, 4);
+    CALL_(GlobalFree, CallH, 5);
+    CALL_(GlobalUnlock, CallH, 6);
+    CALL_(GlobalSize, CallH, 7);
+    CALL_(GlobalLock, CallH, 8);
+    CALL_(Twapi_MemLifoClose, CallH, 9);
+    CALL_(Twapi_MemLifoPopFrame, CallH, 10);
+    CALL_(SetEvent, CallH, 11);
+    CALL_(ResetEvent, CallH, 12);
+    CALL_(LsaClose, CallH, 13);
     CALL_(GetHandleInformation, CallH, 14);
     CALL_(FreeLibrary, CallH, 15);
     CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
-    CALL_(ReleaseMutex, CallH, 42);
-    CALL_(CloseHandle, CallH, 43);
-    CALL_(CastToHANDLE, CallH, 44);
-    CALL_(GlobalFree, CallH, 45);
-    CALL_(GlobalUnlock, CallH, 46);
-    CALL_(GlobalSize, CallH, 47);
-    CALL_(GlobalLock, CallH, 48);
-    CALL_(WTSEnumerateProcesses, CallH, 50); // Stays in base module as commonly useful
-    CALL_(Twapi_MemLifoClose, CallH, 54);
-    CALL_(Twapi_MemLifoPopFrame, CallH, 55);
     CALL_(Twapi_MemLifoPushMark, CallH, 60);
     CALL_(Twapi_MemLifoPopMark, CallH, 61);
     CALL_(Twapi_MemLifoValidate, CallH, 62);
     CALL_(Twapi_MemLifoDump, CallH, 63);
-    CALL_(SetEvent, CallH, 66);
-    CALL_(ResetEvent, CallH, 67);
 
     CALL_(ReleaseSemaphore, CallH, 1001);
     CALL_(WaitForSingleObject, CallH, 1017);
@@ -410,6 +419,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             HWND hwnd;
             HWND hwnd2;
         };
+        LSA_OBJECT_ATTRIBUTES lsa_oattr;
     } u;
     DWORD dw, dw2, dw3, dw4;
     LPWSTR s, s2, s3;
@@ -422,6 +432,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     GUID *guidP;
     SYSTEMTIME systime;
     WCHAR *bufP;
+    LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -685,8 +696,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             if (bufP != u.buf)
                 TwapiFree(bufP);
             break;
-
-
         case 1022: // free
             if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
                 return TCL_ERROR;
@@ -835,8 +844,25 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HWND;
             result.value.hval = FindWindowExW(u.hwnd, u.hwnd2, s, s2);
             break;
+        case 10015:
+            return Twapi_LsaQueryInformationPolicy(interp, objc-2, objv+2);
+        case 10016: // LsaOpenPolicy
+            if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETINT(dw),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
+            TwapiZeroMemory(&u.lsa_oattr, sizeof(u.lsa_oattr));
+            dw2 = LsaOpenPolicy(&lsa_ustr, &u.lsa_oattr, dw, &result.value.hval);
+            if (dw2 == STATUS_SUCCESS) {
+                result.type = TRT_LSA_HANDLE;
+            } else {
+                result.type = TRT_NTSTATUS;
+                result.value.ival = dw2;
+            }
+            break;
+            
 
-        // 10015-30 UNUSED
+        // 10017-30 UNUSED
         case 10031: // CreateFile
             secattrP = NULL;
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1085,6 +1111,62 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
+        case 1:
+            return Twapi_WTSEnumerateProcesses(interp, h);
+        case 2:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = ReleaseMutex(h);
+            break;
+
+        case 3:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CloseHandle(h);
+            break;
+        case 4:
+            result.type = TRT_HANDLE;
+            result.value.hval = h;
+            break;
+        case 5:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            /* GlobalFree will return a HANDLE on failure. */
+            result.value.ival = GlobalFree(h) ? GetLastError() : 0;
+            break;
+        case 6:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            /* GlobalUnlock is an error if it returns 0 AND GetLastError is non-0 */
+            result.value.ival = GlobalUnlock(h) ? 0 : GetLastError();
+            break;
+        case 7:
+            result.type = TRT_DWORD_PTR;
+            result.value.dwp = GlobalSize(h);
+            break;
+        case 8:
+            result.type = TRT_NONNULL_LPVOID;
+            result.value.pv = GlobalLock(h);
+            break;
+        case 9:
+            MemLifoClose(h);
+            TwapiFree(h);
+            result.type = TRT_EMPTY;
+            break;
+        case 10:
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = MemLifoPopFrame((MemLifo *)h);
+            break;
+        case 11:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetEvent(h);
+            break;
+        case 12:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = ResetEvent(h);
+            break;
+        case 13:
+            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+                return TCL_ERROR;
+            result.value.ival = LsaClose(h);
+            result.type = TRT_DWORD;
+            break;
         case 14:
             result.type = GetHandleInformation(h, &result.value.ival)
                 ? TRT_DWORD : TRT_GETLASTERROR;
@@ -1097,51 +1179,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = GetDevicePowerState(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;
             break;
-        // 17-41 UNUSED
 
-        case 42:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ReleaseMutex(h);
-            break;
-
-        case 43:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseHandle(h);
-            break;
-        case 44:
-            result.type = TRT_HANDLE;
-            result.value.hval = h;
-            break;
-        case 45:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            /* GlobalFree will return a HANDLE on failure. */
-            result.value.ival = GlobalFree(h) ? GetLastError() : 0;
-            break;
-        case 46:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            /* GlobalUnlock is an error if it returns 0 AND GetLastError is non-0 */
-            result.value.ival = GlobalUnlock(h) ? 0 : GetLastError();
-            break;
-        case 47:
-            result.type = TRT_DWORD_PTR;
-            result.value.dwp = GlobalSize(h);
-            break;
-        case 48:
-            result.type = TRT_NONNULL_LPVOID;
-            result.value.pv = GlobalLock(h);
-            break;
-        case 50:
-            return Twapi_WTSEnumerateProcesses(interp, h);
-            // 51-53 UNUSED
-        case 54:
-            MemLifoClose(h);
-            TwapiFree(h);
-            result.type = TRT_EMPTY;
-            break;
-        case 55:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = MemLifoPopFrame((MemLifo *)h);
-            break;
         // 56-59 UNUSED
         case 60:
             result.type = TRT_OPAQUE;
@@ -1158,15 +1196,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             break;
         case 63:
             return Twapi_MemLifoDump(ticP, h);
-        // 64-65 - UNUSED
-        case 66:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetEvent(h);
-            break;
-        case 67:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ResetEvent(h);
-            break;
         }
     } else if (func < 2000) {
 
@@ -1548,5 +1577,68 @@ int Twapi_EnumWindows(Tcl_Interp *interp)
 
     Tcl_SetObjResult(interp, enum_win_ctx.objP);
     return TCL_OK;
+}
+
+TCL_RESULT Twapi_LsaQueryInformationPolicy (
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[]
+)
+{
+    void    *buf;
+    NTSTATUS ntstatus;
+    int      retval;
+    Tcl_Obj  *objs[5];
+    LSA_HANDLE lsaH;
+    int        infoclass;
+
+    if (objc != 2 ||
+        ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
+        Tcl_GetLongFromObj(interp, objv[1], &infoclass) != TCL_OK) {
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    }    
+
+    ntstatus = LsaQueryInformationPolicy(lsaH, infoclass, &buf);
+    if (ntstatus != STATUS_SUCCESS) {
+        return Twapi_AppendSystemError(interp,
+                                       TwapiNTSTATUSToError(ntstatus));
+    }
+
+    retval = TCL_OK;
+    switch (infoclass) {
+    case PolicyAccountDomainInformation:
+        objs[0] = ObjFromLSA_UNICODE_STRING(
+            &(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainName)
+            );
+        objs[1] = ObjFromSIDNoFail(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainSid);
+        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+        break;
+
+    case PolicyDnsDomainInformation:
+        objs[0] = ObjFromLSA_UNICODE_STRING(
+            &(((POLICY_DNS_DOMAIN_INFO *) buf)->Name)
+            );
+        objs[1] = ObjFromLSA_UNICODE_STRING(
+            &(((POLICY_DNS_DOMAIN_INFO *) buf)->DnsDomainName)
+            );
+        objs[2] = ObjFromLSA_UNICODE_STRING(
+            &(((POLICY_DNS_DOMAIN_INFO *) buf)->DnsForestName)
+            );
+        objs[3] = ObjFromUUID(
+            (UUID *) &(((POLICY_DNS_DOMAIN_INFO *) buf)->DomainGuid)
+            );
+        objs[4] = ObjFromSIDNoFail(((POLICY_DNS_DOMAIN_INFO *) buf)->Sid);
+        Tcl_SetObjResult(interp, Tcl_NewListObj(5, objs));
+
+        break;
+
+    default:
+        Tcl_SetResult(interp, "Invalid or unsupported information class passed to Twapi_LsaQueryInformationPolicy", TCL_STATIC);
+        retval = TCL_ERROR;
+    }
+
+    LsaFreeMemory(buf);
+
+    return retval;
 }
 

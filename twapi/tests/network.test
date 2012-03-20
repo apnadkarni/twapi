@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_network
 
 namespace eval twapi::network::test {
     namespace import ::tcltest::test

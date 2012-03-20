@@ -259,6 +259,7 @@ proc twapi::get_processor_info {processor args} {
 
 
     if {[llength $requested_opts]} {
+        package require twapi_pdh
         set counter_list [get_perf_processor_counter_paths $processor {*}$requested_opts]
         foreach {opt processor value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
             lappend results -$opt $value
@@ -536,6 +537,7 @@ proc twapi::get_system_info {args} {
         return $result
     }
 
+    package require twapi_pdh
     set hquery [open_perf_query]
     trap {
         # Create the counters

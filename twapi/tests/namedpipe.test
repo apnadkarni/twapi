@@ -87,9 +87,6 @@ namespace eval twapi::pipe::test {
     test pipe_nonblocking-1.0 {
         Test non-blocking server utilization (Bug 3245925) - puts does not cause cpu loop on non-blocking pipe without file event handler
     } -setup {
-        # Prime PDH
-        twapi::get_process_info [pid] -processorutilization -interval 100
-
         # Set up client and server
         set pipes {server client} 
         set pipename "\\\\.\\pipe\\twapitest[pid]"
@@ -105,23 +102,19 @@ namespace eval twapi::pipe::test {
         if {[chan gets $client] ne "testmessage"} {
             error "Message echo failed"
         }
-        set usertime1 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        set usertime1 [wmic_value Win32_Process usermodetime processid [pid]]
         after 1000 set ::wait_over 1
         vwait ::wait_over
-        set usertime2 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        set usertime2 [wmic_value Win32_Process usermodetime processid [pid]]
         expr {$usertime2 - $usertime1}
     } -cleanup {
         close $server
         close $client
     } -result {0 10000} -match inrange
 
-
     test pipe_nonblocking-1.1 {
         Test non-blocking server utilization (Bug 3245925) - gets on eof does not cause cpu loop
     } -setup {
-        # Prime PDH
-        twapi::get_process_info [pid] -processorutilization -interval 100
-
         # Set up client and server
         set pipes {server client} 
         set pipename "\\\\.\\pipe\\twapitest[pid]"
@@ -143,10 +136,10 @@ namespace eval twapi::pipe::test {
         }
         chan gets $client
 
-        set usertime1 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        set usertime1 [wmic_value Win32_Process usermodetime processid [pid]]
         after 1000 set ::wait_over 1
         vwait ::wait_over
-        set usertime2 [lindex [twapi::get_process_info [pid] -usertime] 1]
+        set usertime2 [wmic_value Win32_Process usermodetime processid [pid]]
         expr {$usertime2 - $usertime1}
     } -cleanup {
         close $client

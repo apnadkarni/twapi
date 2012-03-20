@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, Ashok P. Nadkarni
+# Copyright (c) 2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -14,7 +14,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_mstask
 
 namespace eval twapi::mstask::test {
     namespace import ::tcltest::test

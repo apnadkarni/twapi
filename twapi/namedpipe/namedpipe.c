@@ -1447,8 +1447,8 @@ int Twapi_NPipeImpersonateObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
 
 static int Twapi_NPipeInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    Tcl_CreateObjCommand(interp, "twapi::namedpipe_client", Twapi_NPipeClientObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::namedpipe_server", Twapi_NPipeServerObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_NPipeClient", Twapi_NPipeClientObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_NPipeServer", Twapi_NPipeServerObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::ImpersonateNamedPipeClient", Twapi_NPipeImpersonateObjCmd, ticP, NULL);
 
     return TCL_OK;
