@@ -499,7 +499,7 @@ proc twapi::flush_arp_tables {args} {
         set args [get_netif_indices]
     }
     foreach ix $args {
-        if {[lindex [get_netif_info $ix -type] 1] ne "loopback"} {
+        if {[lindex [get_netif_info $ix -type] 1] != 24} {
             FlushIpNetTable $ix
         }
     }
