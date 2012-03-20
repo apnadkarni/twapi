@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_printer
 
 #
 # Set up system-specific constants that are used to match test results
@@ -26,10 +26,9 @@ namespace eval twapi::printer::test {
             return
         }
 
-        foreach printer [twapi::_wmi_records Win32_Printer] {
+        foreach printer [wmic_records Win32_Printer] {
             set printers([twapi::kl_get $printer name]) $printer
         }
-
     }
 
     proc validate_printer {rec v_msgs {proximity ""}} {
@@ -113,10 +112,8 @@ namespace eval twapi::printer::test {
     } -constraints {
         haveprinter
     } -body {
-        set msgs {}
-        validate_printer [twapi::get_default_printer] msgs
-        join $msgs \n
-    } -result ""
+        twapi::get_default_printer
+    } -result [wmic_values Win32_Printer name] -match oneof
 
     ################################################################
     

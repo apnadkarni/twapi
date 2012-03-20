@@ -6,10 +6,30 @@
 
 package require twapi_security
 
+namespace eval twapi {
+    # Variable that maps logon session type codes to integer values
+    # Position of each symbol gives its corresponding type value
+    # See ntsecapi.h for definitions
+    set logon_session_type_map {
+        0
+        1
+        interactive
+        network
+        batch
+        service
+        proxy
+        unlockworkstation
+        networkclear
+        newcredentials
+        remoteinteractive
+        cachedinteractive
+        cachedremoteinteractive
+        cachedunlockworkstation
+    }
+}
+
 # Add a new user account
 proc twapi::new_user {username args} {
-    
-
     array set opts [parseargs args [list \
                                         system.arg \
                                         password.arg \
@@ -742,17 +762,6 @@ proc twapi::_change_user_info_flags {username mask values args} {
 
     # Write new flags back
     Twapi_NetUserSetInfo 1008 $opts(system) $username $flags
-}
-
-# Map impersonation level to symbol
-proc twapi::_map_impersonation_level ilevel {
-    switch -exact -- $ilevel {
-        0 { return "anonymous" }
-        1 { return "identification" }
-        2 { return "impersonation" }
-        3 { return "delegation" }
-        default { return $ilevel }
-    }
 }
 
 # Returns the logon session type value for a symbol

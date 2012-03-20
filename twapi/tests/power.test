@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_power
 
 if {[tcltest::testConstraint userInteraction] &&
     [twapi::kl_get [twapi::get_power_status] -batterystate] ne "unknown" &&
@@ -121,47 +121,6 @@ namespace eval twapi::power::test {
         set ::power_notification
     } -result timeout
 
-    ################################################################
-
-    test suspend_system-1.0 {
-        Suspend the system
-    } -constraints {
-        userInteraction powertests
-    } -body {
-        if {![yesno "This test requires the system to be placed in standby. Do you want to run the test?"]} {
-            error "Test skipped as per user instruction."
-        }
-        pause "The system will be placed in a standby state. Please manually resume it."
-        twapi::suspend_system
-        yesno "Was the system successfully placed in standby?"
-    } -result 1
-
-    test suspend_system-1.1 {
-        Suspend the system (-state standby)
-    } -constraints {
-        userInteraction powertests
-    } -body {
-        if {![yesno "This test requires the system to be placed in standby. Do you want to run the test?"]} {
-            error "Test skipped as per user instruction."
-        }
-        pause "The system will be placed in a standby state. Please manually resume it."
-        twapi::suspend_system -state standby
-        yesno "Was the system successfully placed in standby?"
-    } -result 1
-
-    test suspend_system-1.2 {
-        Suspend the system (-state hibernate)
-    } -constraints {
-        userInteraction powertests
-    } -setup {
-        if {! [yesno "This test requires the system to be placed in hibernation. Do you want to run the test?"]} {
-            error "Test skipped as per user instruction."
-        }
-        pause "The system will be placed in hibernation. Please manually resume it."
-        twapi::suspend_system -state hibernate
-        yesno "Was the system placed into hibernation successfully?"
-    } -result 1
-        
     #
     # Clean up
     ::tcltest::cleanupTests

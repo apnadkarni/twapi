@@ -53,6 +53,10 @@ Added [uri base.html#tclcast [cmd tclcast]] and
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]
 has changed.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The [cmd -toplevels] option of the [cmd get_process_info] command
+is no longer available. Use
+[uri ui.html#get_toplevel_windows] [cmd get_toplevel_windows]] instead.
 [list_end]
 
 [section "Version 3.1"]
