@@ -77,6 +77,9 @@ proc twapi::_attach_hwin_and_eval {hwin script} {
 proc twapi::_register_script_wm_handler {msg cmdprefix {overwrite 0}} {
     variable _wm_registrations
 
+    # Ensure notification window exists
+    twapi::Twapi_GetNotificationWindow
+
     # The incr ensures decimal format
     # The lrange ensure proper list format
     if {$overwrite} {
