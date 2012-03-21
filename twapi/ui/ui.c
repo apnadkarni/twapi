@@ -1252,7 +1252,7 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
     result.type = TRT_BADFUNCTIONCODE;
 
-    if (func < 1000) {
+    if (func < 500) {
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -1380,7 +1380,7 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         }
-    } else if (func < 500) {
+    } else if (func < 1000) {
         /* Exactly one additional int arg */
         if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;

@@ -580,14 +580,12 @@ in the display Z-order.
 
 Returns a handle to the Windows shell process' window.
 
-[call [cmd get_toplevel_windows] [opt "[cmd -pid] [arg PID]"]]
+[call [cmd get_toplevel_windows] [opt "[cmd -pids] [arg PIDLIST]"]]
 
 Returns a list of handles to toplevel windows in the system. If no options
-are specified, this includes all toplevel windows. If the [cmd -pid] option
-is specified with a numeric value of [arg PID], then only toplevel windows
-owned by the process with id [arg PID] are returned. If [arg PID] is
-non-numeric, it is treated as a process name. In this case, the toplevel
-windows owned by all processes whose name is [arg PID] are returned.
+are specified, this includes all toplevel windows. If the [cmd -pids] option
+is specified, then only toplevel windows
+owned by the process with one of the PID's in [arg PIDLIST] are returned.
 
 [call [cmd get_window_application] [arg HWIN]]
 

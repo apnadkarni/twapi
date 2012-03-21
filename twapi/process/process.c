@@ -851,9 +851,7 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         return Twapi_EnumProcesses(ticP);
     case 2:
         return Twapi_EnumDeviceDrivers(ticP);
-    case 3:
-        result.type = TRT_DWORD;
-        result.value.ival = GetCurrentThreadId();
+    case 3: // UNUSED
         break;
     case 4:
         result.type = TRT_HANDLE;
@@ -1063,7 +1061,6 @@ static int Twapi_ProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     CALL_(EnumProcesses, 1);
     CALL_(EnumDeviceDrivers, 2);
-    CALL_(GetCurrentThreadId, 3);
     CALL_(GetCurrentThread, 4);
     CALL_(CreateProcess, 5);
     CALL_(CreateProcessAsUser, 6);

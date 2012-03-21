@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_ui
 
 namespace eval twapi::ui::test {
     namespace import ::tcltest::test
@@ -62,61 +62,57 @@ namespace eval twapi::ui::test {
 
     test get_toplevel_windows-1.0 {
         Get toplevel windows
-    } -constraints {
-        nt
     } -body {
         expr {[llength [twapi::get_toplevel_windows]] > 0}
     } -result 1
 
-    ################################################################
-
     test get_toplevel_windows-1.1 {
         Get toplevel windows - invalid options
-    } -constraints {
-        nt
     } -body {
         twapi::get_toplevel_windows -nosuchoption badarg
     } -returnCodes {error} -match glob -result *
 
-    ################################################################
-
     test get_toplevel_windows-2.0 {
         Get toplevel windows for a process (pid)
-    } -constraints {
-        nt
     } -body {
-        expr {[llength [twapi::get_toplevel_windows -pid [get_explorer_pid]]] > 0}
+        set pid [get_explorer_pid]
+        set wins [twapi::get_toplevel_windows -pid $pid]
+        set match [expr {[llength $wins] > 0}]
+        foreach win $wins {
+            if {[twapi::get_window_process $win] != $pid} {
+                set match 0
+                break
+            }
+        }
+        set match
     } -result 1
-
-    ################################################################
 
     test get_toplevel_windows-2.1 {
         Get toplevel windows for a non-existent process (pid)
-    } -constraints {
-        nt
     } -body {
         llength [twapi::get_toplevel_windows -pid 12000]
     } -result 0
 
-    ################################################################
-
     test get_toplevel_windows-3.0 {
-        Get toplevel windows for a process (name)
-    } -constraints {
-        nt
+        Get toplevel windows for a process -pids
     } -body {
-        expr {[llength [twapi::get_toplevel_windows -pid explorer.exe]] > 0}
+        set pid [get_explorer_pid]
+        set wins [twapi::get_toplevel_windows -pids [list $pid]]
+        set match [expr {[llength $wins] > 0}]
+        foreach win $wins {
+            if {[twapi::get_window_process $win] != $pid} {
+                set match 0
+                break
+            }
+        }
+        set match
     } -result 1
 
-    ################################################################
-
     test get_toplevel_windows-3.1 {
-        Get toplevel windows for a non-existent process (name)
-    } -constraints {
-        nt
+        Get toplevel windows for a process -pids (multiple)
     } -body {
-        llength [twapi::get_toplevel_windows -pid nosuchprocess.exe]
-    } -result 0
+        setops::diff [twapi::get_toplevel_windows -pids [wmic_values Win32_Process ProcessId]] [twapi::get_toplevel_windows]
+    } -result ""
 
     ################################################################
 
@@ -3536,7 +3532,7 @@ namespace eval twapi::ui::test {
     test get_color_depth-1.1 {
         Get color depth of window
     } -body {
-        twapi::get_color_depth [twapi::get_console_window]
+        twapi::get_color_depth [twapi::get_desktop_window]
     } -match oneof -result {8 16 24 32}
 
 

@@ -49,35 +49,23 @@ proc twapi::get_toplevel_windows {args} {
 
     array set opts [parseargs args {
         {pid.arg}
+        {pids.arg}
     }]
 
     set toplevels [twapi::EnumWindows]
 
-    if {![info exists opts(pid)]} {
+    if {[info exists opts(pids)]} {
+        set pids $opts(pids)
+    } elseif {[info exists opts(pid)]} {
+        set pids [list $opts(pid)]
+    } else {
         return $toplevels
     }
 
-    if {[string is integer $opts(pid)]} {
-        set match_pids [list $opts(pid)]
-    } else {
-        # Treat opts(pid) as the name of the process
-        set match_pids [list ]
-        foreach pid [get_process_ids] {
-            if {[string equal -nocase $opts(pid) [get_process_name $pid]]} {
-                lappend match_pids $pid
-            }
-        }
-        if {[llength $match_pids] == 0} {
-            # No matching pids, so no matching toplevels
-            return [list ]
-        }
-    }
-
-    # match_pids is the list of pids to match
     set process_toplevels [list ]
     foreach toplevel $toplevels {
         set pid [get_window_process $toplevel]
-        if {[lsearch -exact -integer $match_pids $pid] >= 0} {
+        if {[lsearch -exact -integer $pids $pid] >= 0} {
             lappend process_toplevels $toplevel
         }
     }
@@ -1172,7 +1160,7 @@ proc twapi::_same_window {hwin1 hwin2} {
 proc twapi::_show_window {hwin cmd {wait 0}} {
     # If either our thread owns the window or we want to wait for it to
     # process the command, use the synchrnous form of the function
-    if {$wait || ([get_window_thread $hwin] == [get_current_thread_id])} {
+    if {$wait || ([get_window_thread $hwin] == [GetCurrentThreadId])} {
         ShowWindow $hwin $cmd
     } else {
         ShowWindowAsync $hwin $cmd

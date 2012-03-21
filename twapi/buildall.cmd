@@ -33,9 +33,9 @@ cmd /c buildall64.cmd
 
 :dobuild
 rem Doing actual build
-nmake /nologo /a twapi
-nmake /nologo /a twapi-bin
-nmake /nologo /a twapi-modular
+nmake /nologo /a /s twapi
+nmake /nologo /a /s twapi-bin
+nmake /nologo /a /s twapi-modular
 
 rem Libraries
 rem cd base && nmake /s /nologo /a EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1 clean lib 
