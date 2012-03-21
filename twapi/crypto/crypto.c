@@ -93,8 +93,8 @@ Tcl_Obj *ObjFromSecPkgInfo(SecPkgInfoW *spiP)
     Tcl_Obj *obj = Tcl_NewListObj(0, NULL);
 
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, obj, spiP, fCapabilities);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, obj, spiP, wVersion);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, obj, spiP, wRPCID);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, obj, spiP, wVersion);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, obj, spiP, wRPCID);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, obj, spiP, cbMaxToken);
     Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(NULL, obj, spiP, Name);
     Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(NULL, obj, spiP, Comment);
@@ -193,7 +193,7 @@ Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP)
 
     for (i = 0; i < sbdP->cBuffers; ++i) {
         Tcl_Obj *bufobj[2];
-        bufobj[0] = Tcl_NewIntObj(sbdP->pBuffers[i].BufferType);
+        bufobj[0] = ObjFromDWORD(sbdP->pBuffers[i].BufferType);
         bufobj[1] = Tcl_NewByteArrayObj(sbdP->pBuffers[i].pvBuffer,
                                         sbdP->pBuffers[i].cbBuffer);
         Tcl_ListObjAppendElement(NULL, resultObj, Tcl_NewListObj(2, bufobj));
@@ -800,7 +800,7 @@ static int Twapi_CryptoCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             sbdP = sbd.cBuffers ? &sbd : NULL;
-            dw2 = VerifySignature(&sech, sbdP, dw, &result.value.ival);
+            dw2 = VerifySignature(&sech, sbdP, dw, &result.value.uval);
             TwapiFreeSecBufferDesc(sbdP);
             if (dw2 == 0)
                 result.type = TRT_DWORD;

@@ -304,14 +304,14 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 3:
             result.type = TRT_DWORD;
-            result.value.ival = GetConsoleCP();
+            result.value.uval = GetConsoleCP();
             break;
         case 4:
             result.type = TRT_DWORD;
-            result.value.ival = GetConsoleOutputCP();
+            result.value.uval = GetConsoleOutputCP();
             break;
         case 5:
-            result.type = GetNumberOfConsoleMouseButtons(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
+            result.type = GetNumberOfConsoleMouseButtons(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 6:
             /* Note : GetLastError == 0 means title is empty string */
@@ -364,7 +364,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.value.ival = FlushConsoleInputBuffer(h);
             break;
         case 202:
-            result.type = GetConsoleMode(h, &result.value.ival)
+            result.type = GetConsoleMode(h, &result.value.uval)
                 ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 203:
@@ -380,7 +380,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             Tcl_SetObjResult(interp, ObjFromCOORD(interp, &coord));
             return TCL_OK;
         case 205:
-            result.type = GetNumberOfConsoleInputEvents(h, &result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
+            result.type = GetNumberOfConsoleInputEvents(h, &result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 206:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -410,7 +410,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
-            if (FillConsoleOutputAttribute(h, w, dw, coord, &result.value.ival))
+            if (FillConsoleOutputAttribute(h, w, dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;
@@ -435,7 +435,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (WriteConsoleOutputCharacterW(h, s, dw, coord, &result.value.ival))
+            if (WriteConsoleOutputCharacterW(h, s, dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    
@@ -483,7 +483,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLE(h), GETWSTR(s), ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (WriteConsoleW(h, s, dw, &result.value.ival, NULL))
+            if (WriteConsoleW(h, s, dw, &result.value.uval, NULL))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;
@@ -494,7 +494,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 return TCL_ERROR;
             if (ObjToCOORD(interp, objv[5], &coord) != TCL_OK)
                 return TCL_ERROR;
-            if (FillConsoleOutputCharacterW(h, s[0], dw, coord, &result.value.ival))
+            if (FillConsoleOutputCharacterW(h, s[0], dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;

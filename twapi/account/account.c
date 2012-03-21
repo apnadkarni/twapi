@@ -236,7 +236,7 @@ Tcl_Obj *ObjFromGROUP_INFO(
         ADD_DWORD_(attributes);
         if (info_level == 2) {
             objv[objc++] = STRING_LITERAL_OBJ("group_id");
-            objv[objc++] = Tcl_NewIntObj(((GROUP_INFO_2 *)groupinfoP)->grpi2_group_id);
+            objv[objc++] = ObjFromDWORD(((GROUP_INFO_2 *)groupinfoP)->grpi2_group_id);
         } else {
             objv[objc++] = STRING_LITERAL_OBJ("group_sid");
             objv[objc++] = ObjFromSIDNoFail(groupinfoP->grpi3_group_sid);

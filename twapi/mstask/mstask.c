@@ -36,15 +36,15 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
 
     resultObj = Tcl_NewListObj(0, 0);
 
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, Reserved1);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginYear);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginMonth);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginDay);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndYear);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndMonth);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndDay);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wStartHour);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wStartMinute);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, Reserved1);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginYear);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginMonth);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wBeginDay);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndYear);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndMonth);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wEndDay);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wStartHour);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wStartMinute);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, MinutesDuration);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, MinutesInterval);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, rgFlags);
@@ -63,7 +63,7 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
         ntype = 3;
         break;
     case 3:
-        typeObj[1] = Tcl_NewIntObj(triggerP->Type.MonthlyDate.rgfDays);
+        typeObj[1] = ObjFromDWORD(triggerP->Type.MonthlyDate.rgfDays);
         typeObj[2] = Tcl_NewIntObj(triggerP->Type.MonthlyDate.rgfMonths);
         ntype = 3;
         break;
@@ -77,8 +77,8 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
     Tcl_ListObjAppendElement(NULL, resultObj, STRING_LITERAL_OBJ("type"));
     Tcl_ListObjAppendElement(NULL, resultObj, Tcl_NewListObj(ntype, typeObj));
 
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, Reserved2);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, wRandomMinutesInterval);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, Reserved2);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(NULL, resultObj, triggerP, wRandomMinutesInterval);
     
     return resultObj;
 }
@@ -442,9 +442,9 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
                              GETWSTR(s), GETVAR(guid, ObjToGUID),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.type = TRT_DWORD;
-            result.value.ival = ifc.taskscheduler->lpVtbl->IsOfType(
-                ifc.taskscheduler, s, &guid);
+            result.type = TRT_BOOL;
+            result.value.bval = ifc.taskscheduler->lpVtbl->IsOfType(
+                ifc.taskscheduler, s, &guid) == S_OK;
             break;
         case 5006: // NewWorkItem
             if (TwapiGetArgs(interp, objc-3, objv+3,
@@ -576,7 +576,7 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetErrorRetryCount(
                 ifc.scheduledworkitem, &w);
-            result.value.ival = w;
+            result.value.uval = w;
             break;
         case 5208: // GetErrorRetryInterval
             if (objc != 3)
@@ -584,21 +584,21 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetErrorRetryInterval(
                 ifc.scheduledworkitem, &w);
-            result.value.ival = w;
+            result.value.uval = w;
             break;
         case 5209: // GetExitCode
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetExitCode(
-                ifc.scheduledworkitem, &result.value.ival);
+                ifc.scheduledworkitem, &result.value.uval);
             break;
         case 5210: // GetFlags
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetFlags(
-                ifc.scheduledworkitem, &result.value.ival);
+                ifc.scheduledworkitem, &result.value.uval);
             break;
         case 5211: // GetIdleWait
             if (objc != 3)
@@ -630,7 +630,7 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
         case 5214: // GetStatus
             if (objc != 3)
                 goto badargs;
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             hr = ifc.scheduledworkitem->lpVtbl->GetStatus(
                 ifc.scheduledworkitem, &result.value.ival);
             break;
@@ -650,7 +650,7 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             result.type = TRT_DWORD;
             hr = ifc.scheduledworkitem->lpVtbl->GetTriggerCount(
                 ifc.scheduledworkitem, &w);
-            result.value.ival = w;
+            result.value.uval = w;
             break;
         case 5217: // GetTriggerString
             if (objc != 4)
@@ -775,7 +775,7 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
-            hr = ifc.task->lpVtbl->GetMaxRunTime(ifc.task, &result.value.ival);
+            hr = ifc.task->lpVtbl->GetMaxRunTime(ifc.task, &result.value.uval);
             break;
         case 5303: // GetParameters
             if (objc != 3)
@@ -788,13 +788,13 @@ int Twapi_MstaskCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
-            hr = ifc.task->lpVtbl->GetPriority(ifc.task, &result.value.ival);
+            hr = ifc.task->lpVtbl->GetPriority(ifc.task, &result.value.uval);
             break;
         case 5305: // GetTaskFlags
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
-            hr = ifc.task->lpVtbl->GetTaskFlags(ifc.task, &result.value.ival);
+            hr = ifc.task->lpVtbl->GetTaskFlags(ifc.task, &result.value.uval);
             break;
         case 5306: // GetWorkingDirectory
             if (objc != 3)

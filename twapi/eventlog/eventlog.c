@@ -116,15 +116,15 @@ int Twapi_ReadEventLog(
         objv[0] = ObjFromUnicodeN(strP, len); /* Source name */
         strP += len + 1;
         objv[1] = ObjFromUnicode(strP); /* Computer name */
-        objv[2] = Tcl_NewIntObj(evlP->Reserved);
-        objv[3] = Tcl_NewIntObj(evlP->RecordNumber);
-        objv[4] = Tcl_NewIntObj(evlP->TimeGenerated);
-        objv[5] = Tcl_NewIntObj(evlP->TimeWritten);
-        objv[6] = Tcl_NewIntObj(evlP->EventID);
+        objv[2] = ObjFromDWORD(evlP->Reserved);
+        objv[3] = ObjFromDWORD(evlP->RecordNumber);
+        objv[4] = ObjFromDWORD(evlP->TimeGenerated);
+        objv[5] = ObjFromDWORD(evlP->TimeWritten);
+        objv[6] = ObjFromDWORD(evlP->EventID);
         objv[7] = Tcl_NewIntObj(evlP->EventType);
         objv[8] = Tcl_NewIntObj(evlP->EventCategory);
         objv[9] = Tcl_NewIntObj(evlP->ReservedFlags);
-        objv[10] = Tcl_NewIntObj(evlP->ClosingRecordNumber);
+        objv[10] = ObjFromDWORD(evlP->ClosingRecordNumber);
 
         /* Collect all the strings together into a list */
         objv[11] = Tcl_NewListObj(0, NULL);
@@ -202,18 +202,18 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             break;
         case 3:
             result.type = GetNumberOfEventLogRecords(h,
-                                                     &result.value.ival)
+                                                     &result.value.uval)
                 ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 4:
             result.type = GetOldestEventLogRecord(h,
-                                                  &result.value.ival) 
+                                                  &result.value.uval) 
                 ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 5:
             result.type = Twapi_IsEventLogFull(h,
                                                &result.value.ival) 
-                ? TRT_DWORD : TRT_GETLASTERROR;
+                ? TRT_LONG : TRT_GETLASTERROR;
             break;
         case 6:
             result.type = TRT_EXCEPTION_ON_FALSE;

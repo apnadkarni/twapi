@@ -190,7 +190,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     switch (func) {
     case 1:
         result.type =
-            GetProfileType(&result.value.ival) ? TRT_DWORD : TRT_GETLASTERROR;
+            GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
         break;
     case 2:
         result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
@@ -273,7 +273,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
                          GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_DWORD;
+        result.type = TRT_LONG;
         result.value.ival = GetPrivateProfileIntW(s, s2, dw, s3);
         break;
     case 14:
@@ -281,7 +281,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
                          GETWSTR(s), GETWSTR(s2), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_DWORD;
+        result.type = TRT_LONG;
         result.value.ival = GetProfileIntW(s, s2, dw);
         break;
     }

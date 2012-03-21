@@ -152,7 +152,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         // very useful by itself so we now leave it up to the Tcl level
         // to do so if required.
 #if 1
-        objv[1] = Tcl_NewIntObj(tdP->hreftype);
+        objv[1] = ObjFromDWORD(tdP->hreftype);
 #else
         objv[1] = NULL;
         if (tiP->lpVtbl->GetRefTypeInfo(tiP, tdP->hreftype, &utiP) == S_OK) {
@@ -200,7 +200,7 @@ static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
     Tcl_Obj *resultObj = Tcl_NewListObj(0, 0);
     Tcl_Obj *obj;
 
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, vdP, memid);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, vdP, memid);
     if (vdP->lpstrSchema) {
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, vdP, lpstrSchema);
     }
@@ -231,8 +231,8 @@ static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
     Tcl_ListObjAppendElement(interp, resultObj,
                              obj ? obj : Tcl_NewListObj(0, NULL));
 
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, vdP, varkind);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, vdP, wVarFlags);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, vdP, varkind);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, resultObj, vdP, wVarFlags);
 
     return resultObj;
 }
@@ -244,14 +244,14 @@ static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *ti
     Tcl_Obj *obj;
     int      i;
 
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, memid);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, funckind);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, invkind);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, callconv);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, cParams);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, cParamsOpt);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, oVft);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, fdP, wFuncFlags);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, memid);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, funckind);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, invkind);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, callconv);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, cParams);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, cParamsOpt);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, oVft);
+    Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, wFuncFlags);
     Tcl_ListObjAppendElement(interp, resultObj,
                              STRING_LITERAL_OBJ("elemdescFunc.tdesc"));
     obj = ObjFromTYPEDESC(interp, &fdP->elemdescFunc.tdesc, tiP);
@@ -268,7 +268,7 @@ static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *ti
     if (fdP->lprgscode) {
         for (i = 0; i < fdP->cScodes; ++i) {
             Tcl_ListObjAppendElement(interp, resultObj,
-                                     Tcl_NewIntObj(fdP->lprgscode[i]));
+                                     ObjFromDWORD(fdP->lprgscode[i]));
         }
     }
     Tcl_ListObjAppendElement(interp, resultObj,
@@ -897,7 +897,7 @@ static int TwapiGetIDsOfNamesHelper(
         resultObj = Tcl_NewListObj(0, NULL);
         for (i = 0; i < nitems; ++i) {
             Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewIntObj(ids[i]));
+            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewLongObj(ids[i]));
         }
         Tcl_SetObjResult(interp, resultObj);
         status = TCL_OK;
@@ -1862,11 +1862,11 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         switch (func) {
         case 1: // Release
             result.type = TRT_DWORD;
-            result.value.ival = ifc.unknown->lpVtbl->Release(ifc.unknown);
+            result.value.uval = ifc.unknown->lpVtbl->Release(ifc.unknown);
             break;
         case 2:
             result.type = TRT_DWORD;
-            result.value.ival = ifc.unknown->lpVtbl->AddRef(ifc.unknown);
+            result.value.uval = ifc.unknown->lpVtbl->AddRef(ifc.unknown);
             break;
         case 3:
             if (objc < 5)
@@ -1894,7 +1894,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         switch (func) {
         case 101:
             result.type = TRT_DWORD;
-            hr = ifc.dispatch->lpVtbl->GetTypeInfoCount(ifc.dispatch, &result.value.ival);
+            hr = ifc.dispatch->lpVtbl->GetTypeInfoCount(ifc.dispatch, &result.value.uval);
             break;
         case 102:
             if (TwapiGetArgs(interp, objc-3, objv+3,
@@ -1927,7 +1927,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             hr = ifc.dispatchex->lpVtbl->GetDispID(ifc.dispatchex, bstr1,
                                                    dw1, &result.value.ival);
             break;
@@ -1952,7 +1952,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.type = TRT_DWORD;
             if (func == 203)
                 hr = ifc.dispatchex->lpVtbl->GetMemberProperties(
-                    ifc.dispatchex, dw1, dw2, &result.value.ival);
+                    ifc.dispatchex, dw1, dw2, &result.value.uval);
             else
                 hr = ifc.dispatchex->lpVtbl->GetNextDispID(
                     ifc.dispatchex, dw1, dw2, &result.value.ival);
@@ -2011,7 +2011,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 301: //GetRefTypeOfImplType
             result.type = TRT_DWORD;
             hr = ifc.typeinfo->lpVtbl->GetRefTypeOfImplType(
-                ifc.typeinfo, dw1, &result.value.ival);
+                ifc.typeinfo, dw1, &result.value.uval);
             break;
         case 302: //GetRefTypeInfo
             result.type = TRT_INTERFACE;
@@ -2051,7 +2051,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         case 306: // GetImplTypeFlags
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             hr = ifc.typeinfo->lpVtbl->GetImplTypeFlags(
                 ifc.typeinfo, dw1, &result.value.ival);
             break;
@@ -2116,14 +2116,14 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
-            result.value.ival =
+            result.value.uval =
                 ifc.typelib->lpVtbl->GetTypeInfoCount(ifc.typelib);
             break;
         case 403: // GetTypeInfoType
             if (objc != 4)
                 goto badargs;
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             hr = ifc.typelib->lpVtbl->GetTypeInfoType(ifc.typelib, dw1, &tk);
             if (hr == S_OK)
                 result.value.ival = tk;
@@ -2201,7 +2201,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (objc != 3)
                 goto badargs;
             result.type = TRT_DWORD;
-            hr = ifc.recordinfo->lpVtbl->GetSize(ifc.recordinfo, &result.value.ival);
+            hr = ifc.recordinfo->lpVtbl->GetSize(ifc.recordinfo, &result.value.uval);
             break;
         case 505: // GetTypeInfp
             if (objc != 3)
@@ -2216,8 +2216,8 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 goto badargs;
             if (ObjToOpaque(interp, objv[3], &pv, "IRecordInfo") != TCL_OK)
                 goto ret_error;
-            result.type = TRT_DWORD;
-            result.value.ival = ifc.recordinfo->lpVtbl->IsMatchingType(
+            result.type = TRT_BOOL;
+            result.value.bval = ifc.recordinfo->lpVtbl->IsMatchingType(
                 ifc.recordinfo, (IRecordInfo *) pv);
             break;
         case 507: // RecordClear
@@ -2346,7 +2346,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 goto ret_error;
             result.type = TRT_DWORD;
             hr = ifc.connectionpoint->lpVtbl->Advise(
-                ifc.connectionpoint, (IUnknown *)pv, &result.value.ival);
+                ifc.connectionpoint, (IUnknown *)pv, &result.value.uval);
             break;
             
         case 802: // EnumConnections
@@ -2545,8 +2545,8 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 5502: // IsDirty
             if (objc != 3)
                 goto badargs;
-            result.type = TRT_DWORD;
-            result.value.ival = ifc.persistfile->lpVtbl->IsDirty(ifc.persistfile);
+            result.type = TRT_BOOL;
+            result.value.bval = ifc.persistfile->lpVtbl->IsDirty(ifc.persistfile) == S_OK;
             break;
         case 5503: // Load
             if (TwapiGetArgs(interp, objc-3, objv+3,

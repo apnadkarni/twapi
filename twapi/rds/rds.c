@@ -157,7 +157,7 @@ static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
             return TCL_ERROR;
         if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
                             s2, sizeof(WCHAR)*i2, dw2,
-                            dw3, &result.value.ival, dw4))
+                            dw3, &result.value.uval, dw4))
             result.type = TRT_DWORD;
         else
             result.type = TRT_GETLASTERROR;    

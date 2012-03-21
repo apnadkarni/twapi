@@ -197,7 +197,7 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
-        result.value.ival = GetLogicalDrives();
+        result.value.uval = GetLogicalDrives();
         result.type = TRT_DWORD;
         break;
     case 2:
@@ -236,7 +236,7 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 7:
             result.type = TRT_DWORD;
-            result.value.ival = GetDriveTypeW(s);
+            result.value.uval = GetDriveTypeW(s);
             break;
         case 8:
             NULLIFY_EMPTY(s);

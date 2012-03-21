@@ -1012,7 +1012,7 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 3:
             result.type = TRT_DWORD;
-            result.value.ival = GetCaretBlinkTime();
+            result.value.uval = GetCaretBlinkTime();
             break;
         case 4:
             result.type = TRT_HWND;
@@ -1131,7 +1131,7 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 4004: // GetThemeSysColor
             result.type = TRT_DWORD;
-            result.value.ival = GetThemeSysColor(h, dw);
+            result.value.uval = GetThemeSysColor(h, dw);
             break;
         case 4005: // GetThemeSysFont
             result.type = TRT_OBJ;
@@ -1167,7 +1167,7 @@ static int Twapi_UiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             }
             break;
         case 4007:
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = GetDeviceCaps(h, dw);
             break;
         }
@@ -1468,7 +1468,7 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETHANDLET(h, HDC),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = ReleaseDC(hwnd, h);
             break;
         case 1008:
@@ -1488,7 +1488,7 @@ int Twapi_UiCallWObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETHANDLET(u.hrgn, HRGN),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = GetWindowRgn(hwnd, u.hrgn);
             break;
         case 1011:

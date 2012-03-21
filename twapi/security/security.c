@@ -62,8 +62,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
         return NULL;
     }
 
-    /* TBD - fix this to be an unsigned obj else some bitmasking at tcl level goes wrong */
-    objv[1] = Tcl_NewLongObj(sidattrP->Attributes);
+    objv[1] = ObjFromDWORD(sidattrP->Attributes);
     return Tcl_NewListObj(2, objv);
 }
 
@@ -322,7 +321,7 @@ int Twapi_GetTokenInformation(
 
             case TwapiTokenMandatoryPolicy: /* FALLTHRU */
             case TwapiTokenElevation:
-                resultObj = Tcl_NewIntObj(value.elevation.TokenIsElevated);
+                resultObj = ObjFromDWORD(value.elevation.TokenIsElevated);
                 result = TCL_OK;
                 break;
 
@@ -342,7 +341,7 @@ int Twapi_GetTokenInformation(
             case TwapiTokenVirtualizationEnabled:
             case TokenSandBoxInert:
             case TokenSessionId:
-                resultObj = Tcl_NewIntObj(value.dw);
+                resultObj = ObjFromDWORD(value.dw);
                 result = TCL_OK;
                 break;
                 
@@ -483,11 +482,11 @@ int Twapi_GetTokenInformation(
         Tcl_ListObjAppendElement(interp, resultObj,
                                  Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->DynamicCharged));
         Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->DynamicAvailable));
+                                 ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->DynamicAvailable));
         Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->GroupCount));
+                                 ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->GroupCount));
         Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->PrivilegeCount));
+                                 ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->PrivilegeCount));
         obj = ObjFromLUID(&((TOKEN_STATISTICS *)infoP)->ModifiedId);
         if (obj == NULL)
             break;
@@ -1233,7 +1232,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (Twapi_PrivilegeCheck(h, u.tokprivsP, dw, &result.value.ival))
-                result.type = TRT_DWORD;
+                result.type = TRT_LONG;
             else
                 result.type = TRT_GETLASTERROR;
             TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);

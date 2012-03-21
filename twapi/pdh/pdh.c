@@ -426,7 +426,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 1:
-            dw = PdhGetDllVersion(&result.value.ival);
+            dw = PdhGetDllVersion(&result.value.uval);
             if (dw == 0)
                 result.type = TRT_DWORD;
             else {

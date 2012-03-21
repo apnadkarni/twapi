@@ -365,7 +365,19 @@ enum {
 #define Twapi_APPEND_DWORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewLongObj((DWORD)((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromDWORD(((structp_)->field_))); \
+  } while (0)
+
+#define Twapi_APPEND_LONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
+  do { \
+    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewLongObj(((structp_)->field_))); \
+  } while (0)
+
+#define Twapi_APPEND_WORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
+  do { \
+    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewLongObj((WORD)((structp_)->field_))); \
   } while (0)
 
 /* Appends a struct ULONGLONG field name and value pair to a given Tcl list object */
@@ -569,14 +581,16 @@ typedef enum {
     TRT_WIDE = 47,              /* Tcl_WideInt */
     TRT_UNICODE_DYNAMIC = 48,     /* Unicode to be freed through TwapiFree */
     TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
-    TRT_HRGN,
-    TRT_HMODULE,
+    TRT_HRGN = 50,
+    TRT_HMODULE = 51,
+    TRT_LONG = 52,              /* Signed long */
 } TwapiResultType;
 
 typedef struct {
     TwapiResultType type;
     union {
-        int ival;
+        long ival;
+        unsigned long uval;
         double dval;
         BOOL bval;
         DWORD_PTR dwp;

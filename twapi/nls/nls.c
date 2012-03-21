@@ -152,39 +152,39 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     switch (func) {
     case 23:
         result.type = TRT_DWORD;
-        result.value.ival = GetUserDefaultLangID();
+        result.value.uval = GetUserDefaultLangID();
         break;
     case 24:
         result.type = TRT_DWORD;
-        result.value.ival = GetSystemDefaultLangID();
+        result.value.uval = GetSystemDefaultLangID();
         break;
     case 25:
         result.type = TRT_DWORD;
-        result.value.ival = GetUserDefaultLCID();
+        result.value.uval = GetUserDefaultLCID();
         break;
     case 26:
         result.type = TRT_DWORD;
-        result.value.ival = GetSystemDefaultLCID();
+        result.value.uval = GetSystemDefaultLCID();
         break;
     case 27:
         result.type = TRT_NONZERO_RESULT;
-        result.value.ival = GetUserDefaultUILanguage();
+        result.value.uval = GetUserDefaultUILanguage();
         break;
     case 28:
         result.type = TRT_NONZERO_RESULT;
-        result.value.ival = GetSystemDefaultUILanguage();
+        result.value.uval = GetSystemDefaultUILanguage();
         break;
     case 29:
         result.type = TRT_DWORD;
-        result.value.ival = GetThreadLocale();
+        result.value.uval = GetThreadLocale();
         break;
     case 30:
         result.type = TRT_DWORD;
-        result.value.ival = GetACP();
+        result.value.uval = GetACP();
         break;
     case 31:
         result.type = TRT_DWORD;
-        result.value.ival = GetOEMCP();
+        result.value.uval = GetOEMCP();
         break;
     case 32:
         return Twapi_GetNumberFormat(ticP, objc-2, objv+2);
@@ -211,7 +211,7 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
             if (dw2 & LOCALE_RETURN_NUMBER) {
                 // buf actually contains a number
                 result.value.ival = *(int *)buf;
-                result.type = TRT_DWORD;
+                result.type = TRT_LONG;
             } else {
                 result.value.unicode.len -= 1;
                 result.value.unicode.str = buf;

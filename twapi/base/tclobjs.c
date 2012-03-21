@@ -369,10 +369,14 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         resultObj = ObjFromOpaque(resultP->value.hval, "void*");
         break;
 
-    case TRT_DWORD:
+    case TRT_LONG:
         resultObj = Tcl_NewLongObj(resultP->value.ival);
         break;
 
+    case TRT_DWORD:
+        resultObj = Tcl_NewWideIntObj((Tcl_WideInt) resultP->value.uval);
+        break;
+        
     case TRT_WIDE:
         resultObj = Tcl_NewWideIntObj(resultP->value.wide);
         break;
@@ -1193,10 +1197,10 @@ Tcl_Obj *ObjFromRECT(RECT *rectP)
 {
     Tcl_Obj *objv[4];
 
-    objv[0] = Tcl_NewIntObj(rectP->left);
-    objv[1] = Tcl_NewIntObj(rectP->top);
-    objv[2] = Tcl_NewIntObj(rectP->right);
-    objv[3] = Tcl_NewIntObj(rectP->bottom);
+    objv[0] = Tcl_NewLongObj(rectP->left);
+    objv[1] = Tcl_NewLongObj(rectP->top);
+    objv[2] = Tcl_NewLongObj(rectP->right);
+    objv[3] = Tcl_NewLongObj(rectP->bottom);
     return Tcl_NewListObj(4, objv);
 }
 
@@ -1205,8 +1209,8 @@ Tcl_Obj *ObjFromPOINT(POINT *ptP)
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewIntObj(ptP->x);
-    objv[1] = Tcl_NewIntObj(ptP->y);
+    objv[0] = Tcl_NewLongObj(ptP->x);
+    objv[1] = Tcl_NewLongObj(ptP->y);
     return Tcl_NewListObj(2, objv);
 }
 
@@ -1237,8 +1241,8 @@ Tcl_Obj *ObjFromPOINTS(POINTS *ptP)
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewIntObj((int) ptP->x);
-    objv[1] = Tcl_NewIntObj((int) ptP->y);
+    objv[0] = Tcl_NewIntObj(ptP->x);
+    objv[1] = Tcl_NewIntObj(ptP->y);
 
     return Tcl_NewListObj(2, objv);
 }
@@ -1488,8 +1492,8 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
     objv[1] = Tcl_NewIntObj(spsP->BatteryFlag);
     objv[2] = Tcl_NewIntObj(spsP->BatteryLifePercent);
     objv[3] = Tcl_NewIntObj(spsP->Reserved1);
-    objv[4] = Tcl_NewIntObj(spsP->BatteryLifeTime);
-    objv[5] = Tcl_NewIntObj(spsP->BatteryFullLifeTime);
+    objv[4] = ObjFromDWORD(spsP->BatteryLifeTime);
+    objv[5] = ObjFromDWORD(spsP->BatteryFullLifeTime);
     return Tcl_NewListObj(6, objv);
 }
 
@@ -1679,7 +1683,7 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
         if (ipaddrstrP->IpAddress.String[0]) {
             objv[0] = Tcl_NewStringObj(ipaddrstrP->IpAddress.String, -1);
             objv[1] = Tcl_NewStringObj(ipaddrstrP->IpMask.String, -1);
-            objv[2] = Tcl_NewIntObj(ipaddrstrP->Context);
+            objv[2] = ObjFromDWORD(ipaddrstrP->Context);
             Tcl_ListObjAppendElement(interp, resultObj,
                                      Tcl_NewListObj(3, objv));
         }
@@ -2034,9 +2038,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
         for (i = 0; i < num_elems; ++i) {
             unsigned long ulval = GETVAL(i, unsigned long);
             /* store as wide integer if it does not fit in signed 32 bits */
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                (ulval & 0x80000000) ? Tcl_NewWideIntObj(ulval) : Tcl_NewLongObj(ulval));
+            Tcl_ListObjAppendElement(NULL, objv[2], ObjFromDWORD(ulval));
         }
         break;
 
@@ -2223,12 +2225,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
     case VT_UI4:
         /* store as wide integer if it does not fit in signed 32 bits */
         ulval = V_VT(varP) == VT_UI4 ? V_UI4(varP) : * V_UI4REF(varP);
-        if (ulval & 0x80000000) {
-            objv[1] = Tcl_NewWideIntObj(ulval);
-        }
-        else {
-            objv[1] = Tcl_NewLongObj(ulval);
-        }
+        objv[1] = ObjFromDWORD(ulval);
         break;
 
     case VT_I8|VT_BYREF:
@@ -2454,7 +2451,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     case SYSTEM_AUDIT_ACE_TYPE:
     case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
         Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((ACCESS_ALLOWED_ACE *)aceP)->Mask));
+                                 ObjFromDWORD(((ACCESS_ALLOWED_ACE *)aceP)->Mask));
 
         /* and the SID */
         obj = NULL;                /* In case of errors */
@@ -2472,7 +2469,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
         objectAceP = (ACCESS_ALLOWED_OBJECT_ACE *)aceP;
         Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(objectAceP->Mask));
+                                 ObjFromDWORD(objectAceP->Mask));
         if (objectAceP->Flags & ACE_OBJECT_TYPE_PRESENT) {
             Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
             if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
