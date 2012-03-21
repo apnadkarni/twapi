@@ -11,7 +11,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_service
 
 
 namespace eval twapi::services::test {
@@ -535,8 +535,6 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-9.0 {
         Verify -account option for service
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration seclogon -account]
@@ -548,8 +546,6 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-10.0 {
         Verify -starttype option for auto start services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration lanmanworkstation -starttype]
@@ -560,8 +556,6 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-10.1 {
         Verify -starttype option for demand start services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration MSIserver -starttype]
@@ -572,8 +566,6 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-10.2 {
         Verify -starttype option for disabled services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration RemoteAccess -starttype]
@@ -584,8 +576,6 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-11.0 {
         Verify -command option for a service
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration rpcss -command]
@@ -596,8 +586,6 @@ namespace eval twapi::services::test {
 
     test get_service_status-1.0 {
         Get the status of a service
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -612,8 +600,6 @@ namespace eval twapi::services::test {
 
     test get_service_state-1.0 {
         Get the state of a service
-    } -constraints {
-        nt
     } -body {
         set result [list ]
         foreach svcname [get_service_names] {
@@ -628,8 +614,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-1.0 {
         Get the status of all services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -646,8 +630,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-1.1 {
         Get the status of all active services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -668,8 +650,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-1.2 {
         Get the status of all inactive services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -690,8 +670,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-2.0 {
         Get the status of only win32 own process services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -710,8 +688,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-2.1 {
         Get the status of only win32 shared process services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -730,8 +706,6 @@ namespace eval twapi::services::test {
 
     test get_multiple_service_status-2.2 {
         Get the status of only kernel driver services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -750,8 +724,6 @@ namespace eval twapi::services::test {
 
     test get_dependent_service_status-1.0 {
         Get the status of dependent services
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -766,8 +738,6 @@ namespace eval twapi::services::test {
 
     test get_dependent_service_status-1.1 {
         Verify dependent service list
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -782,8 +752,6 @@ namespace eval twapi::services::test {
 
     test get_dependent_service_status-1.2 {
         Verify dependent service list is empty for service with no dependents
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         set result [list ]
@@ -799,7 +767,7 @@ namespace eval twapi::services::test {
     test create_service-1.0 {
         Create a service using defaults
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         catch {unset svcinfo}
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
@@ -832,7 +800,7 @@ namespace eval twapi::services::test {
     test create_service-1.1 {
         Create a service using non-default values
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         catch {unset svcinfo}
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
@@ -877,7 +845,7 @@ namespace eval twapi::services::test {
     test delete_service-1.0 {
         Delete a service
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         set svcname TWAPISVC_[clock clicks]
         set svccmd  {c:\nosuchdir\nosuchprogram.exe -opt dummy}
@@ -896,7 +864,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-1.0 {
         Verify set_service_configuration -displayname option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -displayname "$service_internal_name [clock clicks]"
     } -result ""
@@ -904,7 +872,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-2.0 {
         Verify set_service_configuration -errorcontrol severe option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         # For this we also disable the service so that in case we fail
         # to clean up properly, the system will not fail to start!!
@@ -917,7 +885,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-2.1 {
         Verify set_service_configuration -errorcontrol critical option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         # For this we also disable the service so that in case we fail
         # to clean up properly, the system will not fail to start!!
@@ -930,7 +898,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-2.2 {
         Verify set_service_configuration -errorcontrol normal option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -errorcontrol normal
     } -result ""
@@ -938,7 +906,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-2.3 {
         Verify set_service_configuration -errorcontrol ignore option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -errorcontrol ignore
     } -result ""
@@ -946,7 +914,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-3.0 {
         Verify set_service_configuration -servicetype kernel_driver option
     } -constraints {
-        nt systemmodificationok TBD
+        systemmodificationok TBD
     } -body {
         TBD because cannot set driver to file that does not exist
         # Also disable since we are setting a non-existent driver
@@ -956,7 +924,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-3.1 {
         Verify set_service_configuration -servicetype file_system_driver option
     } -constraints {
-        nt systemmodificationok TBD
+        systemmodificationok TBD
     } -body {
         TBD because cannot set driver to file that does not exist
         # Also disable since we are setting a non-existent driver
@@ -966,7 +934,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-3.2 {
         Verify set_service_configuration -servicetype win32_share_process option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -servicetype win32_share_process
     } -result ""
@@ -974,7 +942,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-3.3 {
         Verify set_service_configuration -servicetype win32_own_process option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -servicetype win32_own_process
     } -result ""
@@ -983,7 +951,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-4.0 {
         Verify set_service_configuration -interactive 1 option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -interactive 1
     } -result ""
@@ -991,7 +959,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-4.1 {
         Verify set_service_configuration -interactive 0 option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         after 100
         check_set_service_configuration -interactive 0
@@ -1000,7 +968,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-5.0 {
         Verify set_service_configuration -loadordergroup
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -loadordergroup "TWAPI [clock clicks]"
     } -result ""
@@ -1008,7 +976,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-6.0 {
         Verify set_service_configuration -dependencies (one)
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -dependencies [list rpcss]
     } -result ""
@@ -1016,7 +984,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-6.1 {
         Verify set_service_configuration -dependencies (multiple)
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -dependencies [list rpcss eventlog]
     } -result ""
@@ -1024,7 +992,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-7.0 {
         Verify set_service_configuration -starttype auto_start
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -starttype auto_start
     } -result ""
@@ -1032,7 +1000,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-7.1 {
         Verify set_service_configuration -starttype boot_start
     } -constraints {
-        nt systemmodificationok TBD
+        systemmodificationok TBD
     } -body {
         TBD because cannot set driver to file that does not exist
         # Service type must be driver
@@ -1043,7 +1011,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-7.2 {
         Verify set_service_configuration -starttype system_start
     } -constraints {
-        nt systemmodificationok TBD
+        systemmodificationok TBD
     } -body {
         TBD because cannot set driver to file that does not exist
         # Service type must be driver
@@ -1054,7 +1022,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-7.3 {
         Verify set_service_configuration -starttype demand_start
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -starttype demand_start
     } -result ""
@@ -1062,7 +1030,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-7.4 {
         Verify set_service_configuration -starttype disabled
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -starttype disabled
     } -cleanup {
@@ -1073,7 +1041,7 @@ namespace eval twapi::services::test {
     test set_service_configuration-8.0 {
         Verify set_service_configuration -command
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -body {
         check_set_service_configuration -command [file join [tcltest::temporaryDirectory] [clock clicks].exe]
     } -cleanup {
@@ -1089,7 +1057,7 @@ namespace eval twapi::services::test {
     test start_service-1.0 {
         Start a service that is not currently running
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service stopped
     } -body {
@@ -1103,7 +1071,7 @@ namespace eval twapi::services::test {
     test start_service-1.1 {
         Start a service that is already running
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1115,7 +1083,7 @@ namespace eval twapi::services::test {
     test start_service-2.0 {
         Start a service and wait for it to come up
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service stopped
     } -body {
@@ -1134,7 +1102,7 @@ namespace eval twapi::services::test {
     test stop_service-1.0 {
         Stop a service
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1148,7 +1116,7 @@ namespace eval twapi::services::test {
     test stop_service-1.1 {
         Stop a service that is already stopped
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service stopped
     } -body {
@@ -1160,7 +1128,7 @@ namespace eval twapi::services::test {
     test stop_service-2.0 {
         Stop a service with -wait option
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1179,7 +1147,7 @@ namespace eval twapi::services::test {
     test pause_service-1.0 {
         Pause a service
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1196,7 +1164,7 @@ namespace eval twapi::services::test {
     test pause_service-1.1 {
         Pause a service that is already paused
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_service paused
     } -body {
@@ -1209,7 +1177,7 @@ namespace eval twapi::services::test {
     test pause_service-2.0 {
         Pause a service with -wait option
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_service running
     } -body {
@@ -1231,7 +1199,7 @@ namespace eval twapi::services::test {
     test continue_service-1.0 {
         Continue a service that has been paused
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_service paused
     } -body {
@@ -1245,7 +1213,7 @@ namespace eval twapi::services::test {
     test continue_service-2.0 {
         Continue a service using the -wait option
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_service paused
     } -body {
@@ -1261,7 +1229,7 @@ namespace eval twapi::services::test {
     test interrogate_service-1.0 {
         Ask a service to update its status
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_service_running $service_internal_name
     } -body {
@@ -1275,7 +1243,7 @@ namespace eval twapi::services::test {
     test run_as_service-1.0 {
         Verify commands for running as a service
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         exec [info nameofexecutable] [file join [tcltest::testsDirectory] echoservice.tcl] install $echo_service_name
     } -body {

@@ -788,31 +788,30 @@ static int Twapi_ServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::ServiceCall", Twapi_ServiceCallObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
+#define CALL_(fn_, code_)                                         \
     do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Service" #call_, # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ServiceCall", # code_); \
     } while (0);
 
-    CALL_(DeleteService, Call, 1);
-    CALL_(CloseServiceHandle, Call, 2);
-    CALL_(QueryServiceConfig, Call, 3);
+    CALL_(DeleteService, 1);
+    CALL_(CloseServiceHandle, 2);
+    CALL_(QueryServiceConfig, 3);
 
-    CALL_(ControlService, Call, 101);
-    CALL_(EnumDependentServices, Call, 102);
-    CALL_(QueryServiceStatusEx, Call, 103);
+    CALL_(ControlService, 101);
+    CALL_(EnumDependentServices, 102);
+    CALL_(QueryServiceStatusEx, 103);
 
-    CALL_(GetServiceKeyName, Call, 201);
-    CALL_(GetServiceDisplayName, Call, 202);
-    CALL_(OpenService, Call, 203);
+    CALL_(GetServiceKeyName, 201);
+    CALL_(GetServiceDisplayName, 202);
+    CALL_(OpenService, 203);
 
-    CALL_(EnumServicesStatusEx, Call, 10001);
-    CALL_(ChangeServiceConfig, Call, 10002);
-    CALL_(CreateService, Call, 10003);
-    CALL_(StartService, Call, 10004);
-    CALL_(Twapi_SetServiceStatus, Call, 10005);
-    CALL_(Twapi_BecomeAService, Call, 10006);
-
-
+    CALL_(EnumServicesStatusEx, 10001);
+    CALL_(ChangeServiceConfig, 10002);
+    CALL_(CreateService, 10003);
+    CALL_(StartService, 10004);
+    CALL_(Twapi_SetServiceStatus, 10005);
+    CALL_(Twapi_BecomeAService, 10006);
+    CALL_(OpenSCManager, 10007);
 
 #undef CALL_
 

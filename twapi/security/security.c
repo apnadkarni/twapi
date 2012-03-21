@@ -63,7 +63,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
     }
 
     /* TBD - fix this to be an unsigned obj else some bitmasking at tcl level goes wrong */
-    objv[1] = Tcl_NewLongIntObj(sidattrP->Attributes);
+    objv[1] = Tcl_NewLongObj(sidattrP->Attributes);
     return Tcl_NewListObj(2, objv);
 }
 
