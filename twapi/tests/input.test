@@ -1,0 +1,500 @@
+#
+# Copyright (c) 2004-2010, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the inputtcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_input
+package require twapi_ui;               # Needed for find_windows - TBD
+package require twapi_clipboard;        # Needed for send_* - TBD
+
+namespace eval twapi::input::test {
+    namespace import ::tcltest::test
+
+    # Timeout when ending processes
+    set end_process_timeout 5000
+
+    # Offset from window edge to system menu or close buttons
+    if {[twapi::min_os_version 6]} {
+        set button_edge_offset 10
+    } else {
+        set button_edge_offset 5
+    }
+
+    proc hotkey_test {hk} {
+        set ::twapi_test_hotkey_result fail
+
+        set id [twapi::register_hotkey $hk "set ::twapi_test_hotkey_result success"]
+        twapi::trap {
+            set after_id [after 15000 "set ::twapi_test_hotkey_result timeout"]
+            puts "Please press [string toupper $hk] within 15 seconds"
+            vwait ::twapi_test_hotkey_result
+            after cancel $after_id
+        } finally {
+            twapi::unregister_hotkey $id
+        }
+        return $::twapi_test_hotkey_result
+    }
+
+    # script1 and script2  must set ::$globalvar !
+    proc hotkey_test_append {hk globalvar script1 script2 append} {
+        set id [twapi::register_hotkey $hk $script1]
+        twapi::trap {
+            if {$append eq "append"} {
+                twapi::register_hotkey $hk $script2 -append
+            } else {
+                twapi::register_hotkey $hk $script2
+            }
+            set after_id [after 15000 "set ::$globalvar timeout"]
+            puts "Please press [string toupper $hk] within 15 seconds"
+            vwait ::$globalvar
+            after cancel $after_id
+        } finally {
+            twapi::unregister_hotkey $id
+        }
+    }
+
+   ################################################################
+
+    test enable_window_input-1.0 {
+        Enable input for a window
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        # TBD - how do we test this
+        twapi::enable_window_input $np_win
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result 0
+
+    ################################################################
+
+    test disable_window_input-1.0 {
+        Disable input for a window
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        # TBD - how do we test this
+        twapi::disable_window_input $np_win
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result 0
+
+    ################################################################
+
+    test window_input_enabled-1.0 {
+        Check if a window is enabled (true)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::window_input_enabled $np_win
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result 1
+
+    test window_input_enabled-1.1 {
+        Check if a window is enabled (false)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        twapi::disable_window_input $np_win
+    } -body {
+        twapi::window_input_enabled $np_win
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result 0
+
+    ################################################################
+
+    test send_input-1.0 {
+        Send input to a window
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
+        foreach {display_width display_height} [twapi::get_display_size] break
+    } -body {
+        # TBD - this does not test a lot of the modifiers
+
+        # Enter abC
+        set input {
+            {key 65 0}
+            {keydown 66 0}
+            {keyup 66 0}
+            {unicode 0 67}
+        }
+
+        # Right click the mouse in the body area. Note absolute coords
+        # are on a scale of 0-65535 so need to scale based on
+        # actual screen size
+        set x [expr {(($left+200)*65535)/$display_width}]
+        set y [expr {(($top+200)*65535)/$display_height}]
+
+        lappend input \
+            [list mouse $x $y -moved] \
+            [list mouse 0 0 -rdown] \
+            [list mouse 0 0 -rup]
+
+        # Append an escape to get rid of the popup menu
+        lappend input \
+            [list keydown 0 1 -usescan] \
+            [list keyup   0 1 -usescan]
+
+        # Move mouse wheel for the heck of it
+        lappend input [list mouse 0 0 -wheel 2]
+
+        # Now send control characters to erase what we entered
+        # Number has to be at least the same as characters entered above
+        # else we will not be able to close the window below
+        # Backspace is ascii 8 or scan code 14
+
+        lappend input \
+            [list key 8 0] \
+            [list keydown 8 0] \
+            [list keyup 8 0] \
+            [list key 0 14 -usescan]
+
+        # Now move the mouse to the X at top right and close the window
+        set x [expr {(($right-$button_edge_offset)*65535)/$display_width}]
+        set y [expr {(($top+$button_edge_offset)*65535)/$display_height}]
+        lappend input \
+            [list mouse $x $y -moved] \
+            [list mouse 0 0 -ldown] \
+            [list mouse 0 0 -lup]
+
+        twapi::set_focus $np_win
+        after 100
+        twapi::send_input $input
+
+        # Give it a chance to process events
+        after 150;
+
+        # Process should have exited
+        process_exists? $np_pid
+    } -result 0
+
+    ################################################################
+
+    test block_input-1.0 {
+        Block input
+    } -constraints {
+        userInteraction
+    } -body {
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD (SHOULD FAIL). WILL EXIT AUTOMATICALLY AFTER 15 SECONDS."]
+        twapi::block_input
+        after 15000 "kill $np_pid -force ; twapi::unblock_input; set ::wait_over 1"
+        vwait ::wait_over
+        yesno "Were characters blocked?"
+    } -result 1
+
+    ################################################################
+
+    test unblock_input-1.0 {
+        Unblock input
+    } -constraints {
+        userInteraction
+    } -body {
+        set np_pid [notepad_exec_and_insert "PLEASE TRY TYPING CHARACTERS INTO NOTEPAD. SHOULD INITIALLY FAIL, THEN SUCCEED AFTER A FEW SECONDS. WILL EXIT AUTOMATICALLY."]
+        twapi::block_input
+        after 7000 twapi::unblock_input
+        after 12000 "kill $np_pid -force ; set ::wait_over 1"
+        vwait ::wait_over
+        yesno "Were characters INITIALLY blocked, then UNBLOCKED?"
+    } -result 1
+
+
+    ################################################################
+
+    test send_input_text-1.0 {
+        Send input text to a window
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        # TBD - include a unicode character in this
+        twapi::set_focus $np_win
+        twapi::send_input_text "abc"
+        # Copy to clipboard
+        twapi::send_keys ^a^x
+        # Wait for them to be processed
+        after 50
+        twapi::open_clipboard
+        twapi::read_clipboard_text
+    } -cleanup {
+        twapi::close_clipboard
+        kill $np_pid -wait $end_process_timeout
+    } -result "abc"
+
+
+    ################################################################
+
+    test send_keys-1.0 {
+        Send VB style keys to a window
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        # TBD - need to try more combinations
+
+        # "aBCDDD", Ctrl-a to select, Alt-e c to copy, BACKSPACE to delete
+        # ALT to bring up menu, RETURN to open file menu, x to exit
+        set keys {a+(bc){D 3}^a%ec{BACKSPACE}{ALT}{RETURN}x}
+
+        twapi::set_focus $np_win
+        twapi::send_keys $keys
+
+        # Give it a chance to process events
+        after 50;
+
+        twapi::open_clipboard
+        set text [twapi::read_clipboard_text]
+
+        # Process should have exited
+        expr {
+              [string equal $text "aBCDDD"] &&
+              ![process_exists? $np_pid]
+          }
+    } -cleanup {
+        twapi::close_clipboard
+    } -result 1
+
+
+    ################################################################
+
+    test register_hotkey-1.0 {
+        Register a hot key using a ctrl seq
+    } -constraints {
+        userInteraction
+    } -body {
+        hotkey_test ctrl-d
+    } -result success
+
+    test register_hotkey-1.1 {
+        Register a hot key using a ctrl-shift seq
+    } -constraints {
+        userInteraction
+    } -body {
+        hotkey_test ctrl-shift-h
+    } -result success
+
+    test register_hotkey-1.2 {
+        Register a hot key using a ctrl-alt seq
+    } -constraints {
+        userInteraction
+    } -body {
+        hotkey_test ctrl-alt-s
+    } -result success
+
+    test register_hotkey-1.3 {
+        Register a hot key using an alt seq
+    } -constraints {
+        userInteraction
+    } -body {
+        hotkey_test alt-f12
+    } -result success
+
+    test register_hotkey-1.5 {
+        Register a hot key using a ctrl-alt virtual key code
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "NOTE: Virtual code 65 is the letter 'a'"
+        hotkey_test ctrl-alt-65
+    } -result success
+
+    test register_hotkey-2.0 {
+        Register multiple scripts for a hot key without -append
+    } -constraints {
+        userInteraction
+    } -body {
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1" "append ::twapi_test_hotkey_result script2" noappend
+        set ::twapi_test_hotkey_result
+    } -result "script2"
+
+    test register_hotkey-2.1 {
+        Register multiple scripts for a hot key with -append
+    } -constraints {
+        userInteraction
+    } -body {
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1" "append ::twapi_test_hotkey_result script2" append
+        set ::twapi_test_hotkey_result
+    } -result "script1script2"
+
+    test register_hotkey-2.2 {
+        Register multiple scripts for a hot key with -append and break
+    } -constraints {
+        userInteraction
+    } -body {
+        set ::twapi_test_hotkey_result ""
+        hotkey_test_append ctrl-alt-s ::twapi_test_hotkey_result "append ::twapi_test_hotkey_result script1 ; break" "append ::twapi_test_hotkey_result script2" append
+        set ::twapi_test_hotkey_result
+    } -result "script1"
+
+    ################################################################
+
+    test unregister_hotkey-1.0 {
+        Unregister a hot key
+    } -constraints {
+        userInteraction
+    } -body {
+        # This registers and unregisters
+        if {[hotkey_test ctrl-alt-s] ne "success"} {
+            error "Did not succeed setting up hotkeys."
+        }
+        # Verify hotkey is not active any more
+        set after_id [after 5000 "set ::twapi_test_hotkey_result timeout"]
+        puts "Please press CTRL-ALT-S again within 5 seconds (to verify unregistration)"
+        vwait ::twapi_test_hotkey_result
+        after cancel $after_id
+        # Result should be timeout
+        set ::twapi_test_hotkey_result
+    } -result timeout
+
+    ################################################################
+
+    test click_mouse_button-1.0 {
+        Click left mouse button (left)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
+    } -body {
+        # Move the mouse to the X at top right and close the window
+        incr top $button_edge_offset
+        incr right -$button_edge_offset
+        twapi::move_mouse $right $top
+        twapi::click_mouse_button left
+
+        # Give it a chance to process events
+        after 50;
+
+        # Process should have exited
+        process_exists? $np_pid
+    } -result 0
+
+    ################################################################
+
+    test click_mouse_button-1.1 {
+        Click left mouse button (1)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
+    } -body {
+        # Move the mouse to the X at top right and close the window
+        incr top $button_edge_offset
+        incr right -$button_edge_offset
+        twapi::move_mouse $right $top
+        twapi::click_mouse_button 1
+
+        # Give it a chance to process events
+        after 50;
+
+        # Process should have exited
+        process_exists? $np_pid
+    } -result 0
+
+    ################################################################
+
+    test click_mouse_button-1.2 {
+        Click right mouse button (right)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
+    } -body {
+        # TBD Need some better test
+        incr top 100
+        incr left 100
+        twapi::move_mouse $left $top
+        twapi::click_mouse_button right
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result ""
+
+    ################################################################
+
+    test move_mouse-1.0 {
+        Move the mouse (absolute)
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+        foreach {left top right bottom} [twapi::get_window_coordinates $np_win] break
+    } -body {
+        # Move the mouse to the X at top right and close the window
+        incr top $button_edge_offset
+        incr right -$button_edge_offset
+        set result [twapi::move_mouse $right $top]
+        twapi::click_mouse_button left
+
+        # Give it a chance to process events
+        after 50;
+        expr {
+              $result == "" &&
+              ![process_exists? $np_pid]
+          }
+    } -result 1
+
+    ################################################################
+
+    test move_mouse-2.0 {
+        Move the mouse (relative)
+    } -body {
+        # TBD Need some better test than just syntax
+        twapi::move_mouse 100 100 -relative
+    } -result ""
+
+    ################################################################
+
+    test turn_mouse_wheel-1.0 {
+        Turn the mouse wheel
+    } -body {
+        # TBD Need some better test than just syntax
+        twapi::turn_mouse_wheel 2
+    } -result ""
+
+    ################################################################
+
+    test get_mouse_location-1.0 {
+        Get the mouse location
+    } -body {
+        # TBD Need some better test than just syntax
+        foreach {x y} [twapi::get_mouse_location] break
+        expr {[string is integer $x] && [string is integer $y]}
+    } -result 1
+
+
+    ################################################################
+
+    test get_input_idle_time-1.0 {
+        Get elapsed time since last input event
+    } -body {
+        string is integer [twapi::get_input_idle_time]
+    } -result 1
+
+
+    ::tcltest::cleanupTests
+}
+
+namespace delete ::twapi::input::test
+
+
+
+
+
+
+
+
+
+

@@ -51,8 +51,8 @@ proc twapi::set_window_userdata {hwin val} {
 # Attaches to the thread queue of the thread owning $hwin and executes
 # script in the caller's scope
 proc twapi::_attach_hwin_and_eval {hwin script} {
-    set me [get_current_thread_id]
-    set hwin_tid [get_window_thread $hwin]
+    set me [GetCurrentThreadId]
+    set hwin_tid [lindex [GetWindowThreadProcessId $hwin] 0]
     if {$hwin_tid == 0} {
         error "Window $hwin does not exist or could not get its thread owner"
     }

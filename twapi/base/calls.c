@@ -272,7 +272,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemWindowsDirectory, Call, 6); /* TBD Tcl */
     CALL_(GetWindowsDirectory, Call, 7);       /* TBD Tcl */
     CALL_(GetSystemDirectory, Call, 8);        /* TBD Tcl */
-    CALL_(GetCurrentThreadId, 9);
+    CALL_(GetCurrentThreadId, Call, 9);
+    CALL_(GetTickCount, Call, 10);
 
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
@@ -487,8 +488,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_DWORD;
             result.value.ival = GetCurrentThreadId();
             break;
+        case 10:
+            result.type = TRT_DWORD;
+            result.value.ival = GetTickCount();
+            break;
 
-        // 10-39 UNUSED
+        // 11-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
