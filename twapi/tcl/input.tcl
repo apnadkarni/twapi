@@ -4,6 +4,8 @@
 #
 # See the file LICENSE for license
 
+package require twapi_ui;       # SetCursorPos etc.
+
 # Enable window input
 proc twapi::enable_window_input {hwin} {
     return [expr {[EnableWindow $hwin 1] != 0}]
@@ -272,9 +274,9 @@ proc twapi::click_mouse_button {button} {
 proc twapi::move_mouse {xpos ypos {mode ""}} {
     # If mouse trails are enabled, it leaves traces when the mouse is
     # moved and does not clear them until mouse is moved again. So
-    # we temporarily disable mouse trails
+    # we temporarily disable mouse trails if we can
 
-    if {[min_os_version 5 1]} {
+    if {[llength [info commands ::twapi::get_system_parameters_info]] != 0} {
         set trail [get_system_parameters_info SPI_GETMOUSETRAILS]
         set_system_parameters_info SPI_SETMOUSETRAILS 0
     }
@@ -292,8 +294,8 @@ proc twapi::move_mouse {xpos ypos {mode ""}} {
 
     SetCursorPos $xpos $ypos
 
-    # Restore trail setting
-    if {[min_os_version 5 1]} {
+    # Restore trail setting if we had disabled it and it was originally enabled
+    if {[info exists trail] && $trail} {
         set_system_parameters_info SPI_SETMOUSETRAILS $trail
     }
 }
@@ -304,13 +306,10 @@ proc twapi::turn_mouse_wheel {wheelunits} {
     return
 }
 
-
 # Get the mouse/cursor position
 proc twapi::get_mouse_location {} {
     return [GetCursorPos]
 }
-
-
 
 proc twapi::get_input_idle_time {} {
     # The formats are to convert wrapped 32bit signed to unsigned
