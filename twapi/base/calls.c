@@ -486,11 +486,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 9:
             result.type = TRT_DWORD;
-            result.value.ival = GetCurrentThreadId();
+            result.value.uval = GetCurrentThreadId();
             break;
         case 10:
             result.type = TRT_DWORD;
-            result.value.ival = GetTickCount();
+            result.value.uval = GetTickCount();
             break;
 
         // 11-39 UNUSED
@@ -651,7 +651,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return Twapi_AppendLog(interp, Tcl_GetUnicode(objv[2]));
         case 1014: // GlobalAddAtom
             result.value.ival = GlobalAddAtomW(Tcl_GetUnicode(objv[2]));
-            result.type = result.value.ival ? TRT_DWORD : TRT_GETLASTERROR;
+            result.type = result.value.ival ? TRT_LONG : TRT_GETLASTERROR;
             break;
         case 1015:
             u.sidP = NULL;
@@ -791,7 +791,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_DWORD;
-            result.value.ival = LHashValOfName(dw, s);
+            result.value.uval = LHashValOfName(dw, s);
             break;
         case 10008:
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1193,12 +1193,13 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         case 13:
             if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
                 return TCL_ERROR;
-            result.value.ival = LsaClose(h);
-            result.type = TRT_DWORD;
+            result.value.uval = LsaClose(h);
+            result.type = TRT_DWORD; /* Not TRT_NTSTATUS because do not
+                                        want error on invalid handle */
             break;
         case 14:
             result.type = GetHandleInformation(h, &result.value.ival)
-                ? TRT_DWORD : TRT_GETLASTERROR;
+                ? TRT_LONG : TRT_GETLASTERROR;
             break;
         case 15:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1216,11 +1217,11 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.opaque.name = "MemLifoMark*";
             break;
         case 61:
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = MemLifoPopMark(h);
             break;
         case 62:
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = MemLifoValidate(h);
             break;
         case 63:
@@ -1234,12 +1235,10 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
 
         switch (func) {
-#ifndef TWAPI_LEAN
         case 1001:
-            result.type = ReleaseSemaphore(h, dw, &result.value.ival) ?
-                TRT_DWORD : TRT_GETLASTERROR;
+            result.type = ReleaseSemaphore(h, dw, &result.value.uval) ?
+                TRT_LONG : TRT_GETLASTERROR;
             break;
-#endif
         // 1002-1016 UNUSED
         case 1017:
             result.value.ival = WaitForSingleObject(h, dw);

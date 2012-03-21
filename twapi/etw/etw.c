@@ -879,8 +879,8 @@ void WINAPI TwapiETWEventCallback(
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[0].keyObj, Tcl_NewIntObj(evP->Header.Class.Type));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[1].keyObj, Tcl_NewIntObj(evP->Header.Class.Level));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[2].keyObj, Tcl_NewIntObj(evP->Header.Class.Version));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[3].keyObj, Tcl_NewLongObj(evP->Header.ThreadId));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, Tcl_NewLongObj(evP->Header.ProcessId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[3].keyObj, ObjFromULONG(evP->Header.ThreadId));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, ObjFromULONG(evP->Header.ProcessId));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[5].keyObj, ObjFromLARGE_INTEGER(evP->Header.TimeStamp));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[6].keyObj, ObjFromGUID(&evP->Header.Guid));
     /*

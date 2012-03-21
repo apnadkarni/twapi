@@ -1198,7 +1198,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (DeviceIoControl(h, dw, pv, dw2, pv2, dw3,
-                            &result.value.ival, pv3))
+                            &result.value.uval, pv3))
             result.type = TRT_DWORD;
         else
             result.type = TRT_GETLASTERROR;

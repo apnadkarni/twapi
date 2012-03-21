@@ -909,10 +909,10 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         switch (func) {
         case 13:
             result.type = TRT_DWORD;
-            result.value.ival = SetThreadExecutionState(dw);
+            result.value.uval = SetThreadExecutionState(dw);
             break;
         case 14:
-            result.type = ProcessIdToSessionId(dw, &result.value.ival) ? TRT_DWORD 
+            result.type = ProcessIdToSessionId(dw, &result.value.uval) ? TRT_DWORD 
                 : TRT_GETLASTERROR;
             break;
         }
@@ -966,10 +966,10 @@ static int Twapi_ProcessCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         case 24:
             result.value.ival = GetThreadPriority(h);
             result.type = result.value.ival == THREAD_PRIORITY_ERROR_RETURN
-                ? TRT_GETLASTERROR : TRT_DWORD;
+                ? TRT_GETLASTERROR : TRT_LONG;
             break;
         case 25:
-            result.type = GetExitCodeProcess(h, &result.value.ival)
+            result.type = GetExitCodeProcess(h, &result.value.uval)
                 ? TRT_DWORD : TRT_GETLASTERROR;
             break;
         case 26:

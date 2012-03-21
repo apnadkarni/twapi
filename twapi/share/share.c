@@ -434,7 +434,7 @@ int Twapi_NetShareCheck(
     status = NetShareCheck(server_name, device_name, &type);
     if (status == NERR_Success) {
         objv[0] = Tcl_NewIntObj(1);
-        objv[1] = Tcl_NewIntObj(type);
+        objv[1] = ObjFromDWORD(type);
         Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
     }
     else if (status == NERR_DeviceNotShared) {

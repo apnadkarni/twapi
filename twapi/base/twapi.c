@@ -699,11 +699,11 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwBuildNumber);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwPlatformId);
     //TCHAR szCSDVersion[128];
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMajor);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMinor);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wSuiteMask);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMajor);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wServicePackMinor);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wSuiteMask);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
+    Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
 
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;

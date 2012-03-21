@@ -411,6 +411,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
             TwapiAllocWStringFromObj(
                 objP, &responseP->value.unicode.len);
         break;
+    case TRT_LONG:
     case TRT_DWORD:
         tcl_status = Tcl_GetLongFromObj(cbP->ticP->interp, objP,
                                         &responseP->value.ival);

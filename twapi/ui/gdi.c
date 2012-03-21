@@ -13,7 +13,7 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP)
 
     objv[0] = ObjFromUnicode(ddP->DeviceName);
     objv[1] = ObjFromUnicode(ddP->DeviceString);
-    objv[2] = Tcl_NewIntObj(ddP->StateFlags);
+    objv[2] = ObjFromDWORD(ddP->StateFlags);
     objv[3] = ObjFromUnicode(ddP->DeviceID);
     objv[4] = ObjFromUnicode(ddP->DeviceKey);
 

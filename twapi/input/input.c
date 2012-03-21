@@ -281,13 +281,13 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     switch (func) {
     case 1:
         result.type = TRT_DWORD;
-        result.value.ival = GetDoubleClickTime();
+        result.value.uval = GetDoubleClickTime();
         break;
     case 2:
         lastin.cbSize = sizeof(lastin);
         if (GetLastInputInfo(&lastin)) {
             result.type = TRT_DWORD;
-            result.value.ival = lastin.dwTime;
+            result.value.uval = lastin.dwTime;
         } else {
             result.type = TRT_GETLASTERROR;
         }
@@ -301,11 +301,11 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         switch (func) {
         case 3:
             result.type = TRT_DWORD;
-            result.value.ival = GetAsyncKeyState(dw);
+            result.value.uval = GetAsyncKeyState(dw);
             break;
         case 4:
             result.type = TRT_DWORD;
-            result.value.ival = GetKeyState(dw);
+            result.value.uval = GetKeyState(dw);
             break;
         case 5:
             return Twapi_BlockInput(interp, dw);
@@ -318,7 +318,7 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_DWORD;
-        result.value.ival = MapVirtualKey(dw, dw2);
+        result.value.uval = MapVirtualKey(dw, dw2);
         break;
     case 8:
         if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
