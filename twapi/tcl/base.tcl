@@ -721,7 +721,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
         return $rights
     }
 
-    return [_access_mask_to_rights {*}$args]
+    return [_access_mask_to_rights $access_mask $type]
 }
 
 # Map the symbolic CreateDisposition parameter of CreateFile to integer values

@@ -62,7 +62,8 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
         return NULL;
     }
 
-    objv[1] = Tcl_NewLongObj(sidattrP->Attributes);
+    /* TBD - fix this to be an unsigned obj else some bitmasking at tcl level goes wrong */
+    objv[1] = Tcl_NewLongIntObj(sidattrP->Attributes);
     return Tcl_NewListObj(2, objv);
 }
 
@@ -1005,7 +1006,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
                                                     &u.ttmp, sizeof(u.ttmp));
             break;
         }
-    } else if (func < 3000) {
+    } else if (func < 4000) {
         if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)

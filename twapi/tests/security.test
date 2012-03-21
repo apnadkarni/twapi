@@ -13,6 +13,8 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_security
+package require twapi_account;  # TBD - split into two test files
+package require twapi_process;  # TBD - remove the need for this
 
 namespace eval twapi::security::test {
     namespace import ::tcltest::test
@@ -1074,11 +1076,13 @@ namespace eval twapi::security::test {
         tclsh_slave_puts $child {puts [twapi::get_current_thread_id]}
         set tid [gets_timeout $child]
         tclsh_slave_puts $child { twapi::impersonate_self identification }
+        # Wait a bit till the command is obeyed by child
+        tclsh_slave_wait $child
         set tok [twapi::open_thread_token -access token_query -tid $tid]
     } -body {
         twapi::get_token_impersonation_level $tok
     } -cleanup {
-        twapi::close_token $tok
+        catch {twapi::close_token $tok}
         tclsh_slave_stop $child
     } -result "identification"
 
@@ -5051,11 +5055,14 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         # Cannot use Tcl open because the handles they return do not
         # have rights to modify security decsriptor
+        # 0x001F01FF - FILE_ALL_ACCESS
+        # 0x3 - FILE_SHARE_READ | FILE_SHARE_WRITE
+        # 3 - OPEN_EXISTING
         set h [twapi::CreateFile $path \
-                   $twapi::windefs(FILE_ALL_ACCESS) \
-                   [expr {$twapi::windefs(FILE_SHARE_READ) | $twapi::windefs(FILE_SHARE_WRITE)}] \
+                   0x001F01FF \
+                   0x3 \
                    {{} 1} \
-                   $twapi::windefs(OPEN_EXISTING) \
+                   3 \
                    0 \
                    NULL]
 
