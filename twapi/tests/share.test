@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -10,7 +10,7 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_share
 
 namespace eval twapi::share::test {
     namespace import ::tcltest::test
@@ -63,7 +63,7 @@ namespace eval twapi::share::test {
                                        -max_conn $share(MaximumAllowed) \
                                        -path     $share(Path) \
                                        -comment  $share(Caption) \
-                                       -type     [twapi::_share_type_code_to_symbols $share(Type)] \
+                                       -type     $share(Type) \
                                       ]
             }
         }
@@ -77,7 +77,12 @@ namespace eval twapi::share::test {
         if {![info exists shares($name)]} {
             error "Share $name does not exist"
         }
-        return [get_kl_field $shares($name) $field]
+
+        set val [get_kl_field $shares($name) $field]
+        if {$field eq "-type"} {
+            set val [twapi::_share_type_code_to_symbols $val]
+        }
+        return $val
     }
 
     # Verify that the passed share data matches
@@ -138,7 +143,7 @@ namespace eval twapi::share::test {
         variable shares
         fill_shares $refresh
         
-        foreach {field incvals excvals } $typespec break
+        lassign $typespec field incvals excvals
 
         set xshares [list ]
         foreach s $sharelist {
@@ -146,21 +151,20 @@ namespace eval twapi::share::test {
         }
 
         set yshares [list ]
-        foreach {s sdata} [array get shares] {
+        foreach s [array names shares] {
             if {[llength $typespec] == 0} {
                 lappend yshares $s
             } else {
                 set match 1
                 foreach val $incvals {
-                    if {[lsearch [get_kl_field $sdata $field] $val] < 0} {
-                        #puts "Did not find $val in [get_kl_field $sdata $field] for $s"
+                    if {[lsearch [get_share_field $s $field] $val] < 0} {
                         set match 0
                         break
                     }
                 }
                 if {$match} {
                     foreach val $excvals {
-                        if {[lsearch [get_kl_field $sdata $field] $val] >= 0} {
+                        if {[lsearch [get_share_field $s $field] $val] >= 0} {
                             set match 0
                             break
                         }

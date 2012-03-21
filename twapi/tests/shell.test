@@ -10,14 +10,15 @@ package require tcltest
 eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package
+load_twapi_package twapi_shell
+package require twapi_ui;       # TBD - unfortunately required for find_windows
 
 namespace eval twapi::shell::test {
     namespace import ::tcltest::test ::tcltest::makeFile
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
-    ::tcltest::testConstraint haveprinter [llength [twapi::enumerate_printers]]
+    ::tcltest::testConstraint haveprinter [llength [wmic_values Win32_Printer name]]
 
     proc check_csidl {csidl {allow_empty 0}} {
         set path [twapi::get_shell_folder $csidl]
@@ -646,10 +647,9 @@ namespace eval twapi::shell::test {
         set fn "twapi test file.txt"
         twapi::write_shortcut $path -args $fn -desc "Invokes notepad" -iconpath $np_path -path $np_path -workdir [pwd] -showcmd normal
         twapi::shell_execute -path $path
-        set pid [window_to_pid -text "Untitled*Notepad" -match glob]
         yesno "Was a notepad window created prompting for file $fn ?"
     } -cleanup {
-        kill $pid -force
+        kill notepad.exe -force
         file delete $path
     } -result 1
 

@@ -333,14 +333,21 @@ proc system_drive_root {} {
     return [file dirname $::env(WINDIR)]
 }
 
+# $pid may be PID or image name
 proc kill {pid args} {
     # Note we do not want to use twapi to keep testing of modules
     # not dependent on each other
 
-    if {[lsearch -exact $args "-force"] >= 0} {
-        exec taskkill /PID $pid /F
+    if {[string is integer $pid]} {
+        set opt /PID
     } else {
-        exec taskkill /PID $pid
+        set opt /IM
+    }
+
+    if {[lsearch -exact $args "-force"] >= 0} {
+        exec taskkill $opt $pid /F
+    } else {
+        exec taskkill $opt $pid
     }
 
     set wait [lsearch -exact $args "-wait"]
