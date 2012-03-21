@@ -353,7 +353,7 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
             if (cbP->ctrl == SERVICE_CONTROL_SESSIONCHANGE)
                 objs[nobjs++] = Tcl_NewLongObj(cbP->additional_info);
         }
-        return TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, TRT_DWORD);
+        return TwapiEvalAndUpdateCallback(&cbP->cb, nobjs, objs, TRT_LONG);
     } else {
         /* Unknown event - ignore TBD */
         cbP->cb.winerr = ERROR_INVALID_FUNCTION;
@@ -465,7 +465,9 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
                                  30*1000, /* TBD - Timeout (ms) */
                                  (TwapiCallback **)&cbP)
             == ERROR_SUCCESS) {
-            if (cbP && cbP->cb.response.type == TRT_DWORD)
+            if (cbP
+                && (cbP->cb.response.type == TRT_DWORD ||
+                    cbP->cb.response.type == TRT_LONG))
                 status = cbP->cb.response.value.ival;
         } else {
             status = NO_ERROR;          /* Do not want to block queries that ask

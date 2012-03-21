@@ -356,7 +356,7 @@ static BOOL CALLBACK EnumResourceLanguagesProc(
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
 
-    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP, Tcl_NewIntObj(langid));
+    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP, ObjFromDWORD(langid));
     return TRUE;
 }
 
@@ -523,7 +523,7 @@ static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         if (TwapiGetArgs(interp, objc-2, objv+2, GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (func == 15) {
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = AddFontResourceExW(s, dw, NULL);
         } else {
             result.type = TRT_HANDLE;

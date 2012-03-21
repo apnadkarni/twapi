@@ -28,7 +28,7 @@ int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
     while (1) {
         clip_fmt = EnumClipboardFormats(clip_fmt);
         if (clip_fmt)
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewIntObj(clip_fmt));
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromDWORD(clip_fmt));
         else {
             DWORD error = GetLastError();
             if (error != ERROR_SUCCESS) {

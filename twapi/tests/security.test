@@ -15,6 +15,9 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_security
 package require twapi_account;  # TBD - split into two test files
 package require twapi_process;  # TBD - remove the need for this
+twapi::get_users;               # To force loading
+twapi::get_process_ids;         # To force loading - TBD
+
 
 namespace eval twapi::security::test {
     namespace import ::tcltest::test
@@ -159,8 +162,6 @@ namespace eval twapi::security::test {
 
     test is_valid_sid_syntax-1.0 {
         Validate a well-formed syntax for a valid SID
-    } -constraints {
-        nt
     } -body {
         twapi::is_valid_sid_syntax S-1-234-567-890
     } -result 1
@@ -169,20 +170,8 @@ namespace eval twapi::security::test {
 
     test is_valid_sid_syntax-2.0 {
         Check invalid syntax for SID (invalid characters)
-    } -constraints {
-        nt
     } -body {
         twapi::is_valid_sid_syntax S-ABC-DE
-    } -result 0
-
-    ###
-
-    test is_valid_sid_syntax-2.1 {
-        Check invalid syntax for SID (invalid revision level)
-    } -constraints {
-        nt
-    } -body {
-        twapi::is_valid_sid_syntax S-10-234-567-890
     } -result 0
 
     ################################################################

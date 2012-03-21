@@ -28,7 +28,7 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp)
 
     GetSystemInfo(&sysinfo);
     objv[0] = Tcl_NewIntObj((unsigned) sysinfo.wProcessorArchitecture);
-    objv[1] = Tcl_NewLongObj(sysinfo.dwPageSize);
+    objv[1] = ObjFromDWORD(sysinfo.dwPageSize);
     objv[2] = ObjFromDWORD_PTR((DWORD_PTR) sysinfo.lpMinimumApplicationAddress);
     objv[3] = ObjFromDWORD_PTR((DWORD_PTR) sysinfo.lpMaximumApplicationAddress);
     objv[4] = ObjFromDWORD_PTR(sysinfo.dwActiveProcessorMask);
@@ -50,7 +50,7 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
     memstatex.dwLength = sizeof(memstatex);
     if (GlobalMemoryStatusEx(&memstatex)) {
         objv[0] = STRING_LITERAL_OBJ("dwMemoryLoad");
-        objv[1] = Tcl_NewIntObj(memstatex.dwMemoryLoad);
+        objv[1] = ObjFromDWORD(memstatex.dwMemoryLoad);
         objv[2] = STRING_LITERAL_OBJ("ullTotalPhys");
         objv[3] = ObjFromULONGLONG(memstatex.ullTotalPhys);
         objv[4] = STRING_LITERAL_OBJ("ullAvailPhys");
@@ -99,11 +99,11 @@ int Twapi_GetPerformanceInformation(Tcl_Interp *interp)
         objv[18] = STRING_LITERAL_OBJ("PageSize");
         objv[19] = ObjFromSIZE_T(perf.PageSize);
         objv[20] = STRING_LITERAL_OBJ("HandleCount");
-        objv[21] = Tcl_NewIntObj(perf.HandleCount);
+        objv[21] = ObjFromDWORD(perf.HandleCount);
         objv[22] = STRING_LITERAL_OBJ("ProcessCount");
-        objv[23] = Tcl_NewIntObj(perf.ProcessCount);
+        objv[23] = ObjFromDWORD(perf.ProcessCount);
         objv[24] = STRING_LITERAL_OBJ("ThreadCount");
-        objv[25] = Tcl_NewIntObj(perf.ThreadCount);
+        objv[25] = ObjFromDWORD(perf.ThreadCount);
 
         Tcl_SetObjResult(interp, Tcl_NewListObj(26, objv));
         return TCL_OK;
@@ -312,7 +312,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                 result.type = TRT_GETLASTERROR;
             break;
         case 202:
-            result.type = TRT_DWORD;
+            result.type = TRT_LONG;
             result.value.ival = GetSystemMetrics(dw);
             break;
         case 203:

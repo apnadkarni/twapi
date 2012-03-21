@@ -262,7 +262,7 @@ static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *ia
     Tcl_Obj *objv[16];
 
     objv[0] = STRING_LITERAL_OBJ("-flags");
-    objv[1] = Tcl_NewIntObj(iauaP->Flags);
+    objv[1] = ObjFromDWORD(iauaP->Flags);
     objv[2] = STRING_LITERAL_OBJ("-address");
     if (iauaP->Address.lpSockaddr == NULL ||
         (objv[3] = ObjFromSOCKET_ADDRESS(&iauaP->Address)) == NULL) {
@@ -336,7 +336,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     int i;
     
     objv[0] = STRING_LITERAL_OBJ("-ifindex");
-    objv[1] = Tcl_NewIntObj(iaaP->IfIndex);
+    objv[1] = ObjFromDWORD(iaaP->IfIndex);
     objv[2] = STRING_LITERAL_OBJ("-adaptername");
     objv[3] = Tcl_NewStringObj(iaaP->AdapterName, -1);
     objv[4] = STRING_LITERAL_OBJ("-unicastaddresses");
@@ -429,10 +429,10 @@ Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP)
     Tcl_Obj *objv[5];
 
     objv[0] = IPAddrObjFromDWORD(iparP->dwAddr);
-    objv[1] = Tcl_NewIntObj(iparP->dwIndex);
+    objv[1] = ObjFromDWORD(iparP->dwIndex);
     objv[2] = IPAddrObjFromDWORD(iparP->dwMask);
     objv[3] = IPAddrObjFromDWORD(iparP->dwBCastAddr);
-    objv[4] = Tcl_NewIntObj(iparP->dwReasmSize);
+    objv[4] = ObjFromDWORD(iparP->dwReasmSize);
     return Tcl_NewListObj(5, objv);
 }
 
@@ -460,26 +460,26 @@ Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP)
 #else
     objv[0] = Tcl_NewStringObj("", 0);
 #endif
-    objv[1] = Tcl_NewIntObj(ifrP->dwIndex);
-    objv[2] = Tcl_NewIntObj(ifrP->dwType);
-    objv[3] = Tcl_NewIntObj(ifrP->dwMtu);
-    objv[4] = Tcl_NewIntObj(ifrP->dwSpeed);
+    objv[1] = ObjFromDWORD(ifrP->dwIndex);
+    objv[2] = ObjFromDWORD(ifrP->dwType);
+    objv[3] = ObjFromDWORD(ifrP->dwMtu);
+    objv[4] = ObjFromDWORD(ifrP->dwSpeed);
     objv[5] = Tcl_NewByteArrayObj(ifrP->bPhysAddr,ifrP->dwPhysAddrLen);
-    objv[6] = Tcl_NewIntObj(ifrP->dwAdminStatus);
-    objv[7] = Tcl_NewIntObj(ifrP->dwOperStatus);
-    objv[8] = Tcl_NewIntObj(ifrP->dwLastChange);
+    objv[6] = ObjFromDWORD(ifrP->dwAdminStatus);
+    objv[7] = ObjFromDWORD(ifrP->dwOperStatus);
+    objv[8] = ObjFromDWORD(ifrP->dwLastChange);
     objv[9] = Tcl_NewWideIntObj(ifrP->dwInOctets);
     objv[10] = Tcl_NewWideIntObj(ifrP->dwInUcastPkts);
     objv[11] = Tcl_NewWideIntObj(ifrP->dwInNUcastPkts);
     objv[12] = Tcl_NewWideIntObj(ifrP->dwInDiscards);
     objv[13] = Tcl_NewWideIntObj(ifrP->dwInErrors);
-    objv[14] = Tcl_NewIntObj(ifrP->dwInUnknownProtos);
-    objv[15] = Tcl_NewWideIntObj(ifrP->dwOutOctets);
-    objv[16] = Tcl_NewWideIntObj(ifrP->dwOutUcastPkts);
-    objv[17] = Tcl_NewWideIntObj(ifrP->dwOutNUcastPkts);
-    objv[18] = Tcl_NewWideIntObj(ifrP->dwOutDiscards);
-    objv[19] = Tcl_NewWideIntObj(ifrP->dwOutErrors);
-    objv[20] = Tcl_NewIntObj(ifrP->dwOutQLen);
+    objv[14] = ObjFromDWORD(ifrP->dwInUnknownProtos);
+    objv[15] = ObjFromDWORD(ifrP->dwOutOctets);
+    objv[16] = ObjFromDWORD(ifrP->dwOutUcastPkts);
+    objv[17] = ObjFromDWORD(ifrP->dwOutNUcastPkts);
+    objv[18] = ObjFromDWORD(ifrP->dwOutDiscards);
+    objv[19] = ObjFromDWORD(ifrP->dwOutErrors);
+    objv[20] = ObjFromDWORD(ifrP->dwOutQLen);
     len =  ifrP->dwDescrLen;
     if (ifrP->bDescr[len-1] == 0)
         --len; /* Sometimes, not always, there is a terminating null */
@@ -507,10 +507,10 @@ Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP)
 {
     Tcl_Obj *objv[4];
 
-    objv[0] = Tcl_NewIntObj(netrP->dwIndex);
+    objv[0] = ObjFromDWORD(netrP->dwIndex);
     objv[1] = Tcl_NewByteArrayObj(netrP->bPhysAddr, netrP->dwPhysAddrLen);
     objv[2] = IPAddrObjFromDWORD(netrP->dwAddr);
-    objv[3] = Tcl_NewIntObj(netrP->dwType);
+    objv[3] = ObjFromDWORD(netrP->dwType);
     return Tcl_NewListObj(4, objv);
 }
 
@@ -534,18 +534,18 @@ Tcl_Obj *ObjFromMIB_IPFORWARDROW(Tcl_Interp *interp, const MIB_IPFORWARDROW *ipf
 
     objv[0] = IPAddrObjFromDWORD(ipfrP->dwForwardDest);
     objv[1] = IPAddrObjFromDWORD(ipfrP->dwForwardMask);
-    objv[2] = Tcl_NewIntObj(ipfrP->dwForwardPolicy);
+    objv[2] = ObjFromDWORD(ipfrP->dwForwardPolicy);
     objv[3] = IPAddrObjFromDWORD(ipfrP->dwForwardNextHop);
-    objv[4] = Tcl_NewIntObj(ipfrP->dwForwardIfIndex);
-    objv[5] = Tcl_NewIntObj(ipfrP->dwForwardType);
-    objv[6] = Tcl_NewIntObj(ipfrP->dwForwardProto);
-    objv[7] = Tcl_NewIntObj(ipfrP->dwForwardAge);
-    objv[8] = Tcl_NewIntObj(ipfrP->dwForwardNextHopAS);
-    objv[9] = Tcl_NewIntObj(ipfrP->dwForwardMetric1);
-    objv[10] = Tcl_NewIntObj(ipfrP->dwForwardMetric2);
-    objv[11] = Tcl_NewIntObj(ipfrP->dwForwardMetric3);
-    objv[12] = Tcl_NewIntObj(ipfrP->dwForwardMetric4);
-    objv[13] = Tcl_NewIntObj(ipfrP->dwForwardMetric5);
+    objv[4] = ObjFromDWORD(ipfrP->dwForwardIfIndex);
+    objv[5] = ObjFromDWORD(ipfrP->dwForwardType);
+    objv[6] = ObjFromDWORD(ipfrP->dwForwardProto);
+    objv[7] = ObjFromDWORD(ipfrP->dwForwardAge);
+    objv[8] = ObjFromDWORD(ipfrP->dwForwardNextHopAS);
+    objv[9] = ObjFromDWORD(ipfrP->dwForwardMetric1);
+    objv[10] = ObjFromDWORD(ipfrP->dwForwardMetric2);
+    objv[11] = ObjFromDWORD(ipfrP->dwForwardMetric3);
+    objv[12] = ObjFromDWORD(ipfrP->dwForwardMetric4);
+    objv[13] = ObjFromDWORD(ipfrP->dwForwardMetric5);
 
     return Tcl_NewListObj(14, objv);
 }
@@ -567,7 +567,7 @@ Tcl_Obj *ObjFromMIB_IPFORWARDTABLE(Tcl_Interp *interp, MIB_IPFORWARDTABLE *fwdP)
 Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *iaimP)
 {
     Tcl_Obj *objv[2];
-    objv[0] = Tcl_NewIntObj(iaimP->Index);
+    objv[0] = ObjFromDWORD(iaimP->Index);
     objv[1] = ObjFromUnicode(iaimP->Name);
     return Tcl_NewListObj(2, objv);
 }
@@ -594,7 +594,7 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
     DWORD    buf_sz;
     GetOwnerModuleFromTcpEntry_t  fn;
 
-    obj[0] = Tcl_NewIntObj(row->dwState);
+    obj[0] = ObjFromDWORD(row->dwState);
     obj[1] = IPAddrObjFromDWORD(row->dwLocalAddr);
     obj[2] = Tcl_NewIntObj(ntohs((WORD)row->dwLocalPort));
     obj[3] = IPAddrObjFromDWORD(row->dwRemoteAddr);
@@ -603,7 +603,7 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
     if (size < sizeof(MIB_TCPROW_OWNER_PID))
         return Tcl_NewListObj(5, obj);
 
-    obj[5] = Tcl_NewIntObj(((MIB_TCPROW_OWNER_PID *)row)->dwOwningPid);
+    obj[5] = ObjFromDWORD(((MIB_TCPROW_OWNER_PID *)row)->dwOwningPid);
 
     if (size < sizeof(MIB_TCPROW_OWNER_MODULE))
         return Tcl_NewListObj(6, obj);
@@ -667,12 +667,12 @@ Tcl_Obj *ObjFromMIB_TCP6ROW(Tcl_Interp *interp, const MIB_TCP6ROW_OWNER_PID *row
     DWORD    buf_sz;
     GetOwnerModuleFromTcpEntry_t  fn;
 
-    obj[0] = Tcl_NewIntObj(row->dwState);
+    obj[0] = ObjFromDWORD(row->dwState);
     obj[1] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
     obj[2] = Tcl_NewIntObj(ntohs((WORD)row->dwLocalPort));
     obj[3] = ObjFromIPv6Addr(row->ucRemoteAddr, row->dwRemoteScopeId);
     obj[4] = Tcl_NewIntObj(ntohs((WORD)row->dwRemotePort));
-    obj[5] = Tcl_NewIntObj(row->dwOwningPid);
+    obj[5] = ObjFromDWORD(row->dwOwningPid);
 
     if (size < sizeof(MIB_TCP6ROW_OWNER_MODULE))
         return Tcl_NewListObj(6, obj);
@@ -710,7 +710,7 @@ Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
     if (size < sizeof(MIB_UDPROW_OWNER_PID))
         return Tcl_NewListObj(2, obj);
 
-    obj[2] = Tcl_NewIntObj(((MIB_UDPROW_OWNER_PID *)row)->dwOwningPid);
+    obj[2] = ObjFromDWORD(((MIB_UDPROW_OWNER_PID *)row)->dwOwningPid);
 
     if (size < sizeof(MIB_UDPROW_OWNER_MODULE))
         return Tcl_NewListObj(3, obj);
@@ -743,7 +743,7 @@ Tcl_Obj *ObjFromMIB_UDP6ROW(Tcl_Interp *interp, MIB_UDP6ROW_OWNER_PID *row, int 
 
     obj[0] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
     obj[1] = Tcl_NewIntObj(ntohs((WORD)row->dwLocalPort));
-    obj[2] = Tcl_NewIntObj(row->dwOwningPid);
+    obj[2] = ObjFromDWORD(row->dwOwningPid);
 
     if (size < sizeof(MIB_UDP6ROW_OWNER_MODULE))
         return Tcl_NewListObj(3, obj);
@@ -1024,9 +1024,9 @@ Tcl_Obj *ObjFromIP_ADAPTER_INFO(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfoP)
     objv[0] = Tcl_NewStringObj(ainfoP->AdapterName, -1);
     objv[1] = Tcl_NewStringObj(ainfoP->Description, -1);
     objv[2] = Tcl_NewByteArrayObj(ainfoP->Address, ainfoP->AddressLength);
-    objv[3] = Tcl_NewIntObj(ainfoP->Index);
-    objv[4] = Tcl_NewIntObj(ainfoP->Type);
-    objv[5] = Tcl_NewIntObj(ainfoP->DhcpEnabled);
+    objv[3] = ObjFromDWORD(ainfoP->Index);
+    objv[4] = ObjFromDWORD(ainfoP->Type);
+    objv[5] = ObjFromDWORD(ainfoP->DhcpEnabled);
     objv[6] = ObjFromIP_ADDR_STRING(interp, &ainfoP->IpAddressList);
     objv[7] = Tcl_NewStringObj(ainfoP->GatewayList.IpAddress.String, -1);
     objv[8] = Tcl_NewStringObj(ainfoP->DhcpServer.IpAddress.String, -1);
@@ -1125,11 +1125,11 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
         objv[1] = Tcl_NewStringObj(netinfoP->DomainName, -1);
         objv[2] = ObjFromIP_ADDR_STRINGAddress(ticP->interp,
                                                &netinfoP->DnsServerList);
-        objv[3] = Tcl_NewIntObj(netinfoP->NodeType);
+        objv[3] = ObjFromDWORD(netinfoP->NodeType);
         objv[4] = Tcl_NewStringObj(netinfoP->ScopeId, -1);
-        objv[5] = Tcl_NewIntObj(netinfoP->EnableRouting);
-        objv[6] = Tcl_NewIntObj(netinfoP->EnableProxy);
-        objv[7] = Tcl_NewIntObj(netinfoP->EnableDns);
+        objv[5] = ObjFromDWORD(netinfoP->EnableRouting);
+        objv[6] = ObjFromDWORD(netinfoP->EnableProxy);
+        objv[7] = ObjFromDWORD(netinfoP->EnableDns);
         Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(8, objv));
     } else {
         Twapi_AppendSystemError(ticP->interp, error);
@@ -1223,8 +1223,8 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     }
 
     if (error == ERROR_SUCCESS) {
-        objv[0] = Tcl_NewIntObj(ainfoP->AutoconfigEnabled);
-        objv[1] = Tcl_NewIntObj(ainfoP->AutoconfigActive);
+        objv[0] = ObjFromDWORD(ainfoP->AutoconfigEnabled);
+        objv[1] = ObjFromDWORD(ainfoP->AutoconfigActive);
         objv[2] = ObjFromIP_ADDR_STRINGAddress(ticP->interp, &ainfoP->DnsServerList);
         Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(3, objv));
     } else
@@ -1902,7 +1902,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         case 3:
             return Twapi_GetInterfaceInfo(ticP);
         case 4:
-            result.type = GetNumberOfInterfaces(&result.value.ival) ? TRT_GETLASTERROR : TRT_DWORD;
+            result.type = GetNumberOfInterfaces(&result.value.uval) ? TRT_GETLASTERROR : TRT_DWORD;
             break;
 
         }
@@ -1938,7 +1938,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             s = Tcl_GetUnicode(objv[2]);
             switch (func) {
             case 251:
-                result.type = GetAdapterIndex((LPWSTR)s, &result.value.ival)
+                result.type = GetAdapterIndex((LPWSTR)s, &result.value.uval)
                     ? TRT_GETLASTERROR
                     : TRT_DWORD;
                 break;
@@ -1949,7 +1949,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 dw2 = sizeof(u.ss); /* Since first call might change dw */
                 if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
                     WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
-                    result.value.ival = u.ss.ss_family;
+                    result.value.uval = u.ss.ss_family;
                 }
                 break;
 
