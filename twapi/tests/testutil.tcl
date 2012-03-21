@@ -1071,6 +1071,7 @@ proc tclsh_slave_verify_started {fd} {
     # not output result unless it is a tty.
     tclsh_slave_puts $fd {
         source testutil.tcl
+        testlog "SLAVE [pid] STARTED"
         load_twapi_package
         if {[catch {
             fconfigure stdout -buffering line -encoding utf-8
@@ -1117,7 +1118,7 @@ proc tclsh_slave_stop {fd} {
 # Read a line from the specified fd
 # fd expected to be non-blocking and line buffered
 # Raises error after timeout
-proc gets_timeout {fd {ms 1000}} {
+proc gets_timeout {fd {ms 10000}} {
     set elapsed 0
     while {$elapsed < $ms} {
         if {[gets $fd line] == -1} {
@@ -1126,6 +1127,7 @@ proc gets_timeout {fd {ms 1000}} {
                 error "Unexpected EOF reading from $fd."
             }
             after 50;           # Wait a bit and then retry
+            update;             # Required for non-blocking I/O
             incr elapsed 50
         } else {
             return $line

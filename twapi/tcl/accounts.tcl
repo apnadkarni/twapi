@@ -331,7 +331,7 @@ proc twapi::get_global_group_info {name args} {
     set result [list ]
     set info [NetGroupGetInfo $opts(system) $name 3]
     if {$opts(all) || $opts(sid)} {
-        lappend result [kl_get $info group_sid]
+        lappend result -sid [kl_get $info group_sid]
     }
     if {$opts(all) || $opts(name)} {
         lappend result -name [kl_get $info name]
