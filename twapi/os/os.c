@@ -279,12 +279,6 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         case 38:
             return Twapi_GetSystemWow64Directory(interp);
         case 39:
-            result.type = TRT_DWORD;
-            result.value.ival = GetTickCount();
-            break;
-        case 40:
-            return Twapi_GetPerformanceInformation(ticP->interp);
-        case 41:
             dw = GetTimeZoneInformation(&u.tzinfo);
             switch (dw) {
             case TIME_ZONE_ID_UNKNOWN:
@@ -301,6 +295,8 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                 break;
             }
             break;
+        case 40:
+            return Twapi_GetPerformanceInformation(ticP->interp);
         }
     } else if (func < 300) {
         if (objc != 3)
@@ -399,9 +395,8 @@ static int Twapi_OsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_SystemProcessorTimes, 36);
     CALL_(Twapi_SystemPagefileInformation, 37);
     CALL_(GetSystemWow64Directory, 38);
-    CALL_(GetTickCount, 39);
+    CALL_(GetTimeZoneInformation, 39);    /* TBD Tcl */
     CALL_(GetPerformanceInformation, 40);
-    CALL_(GetTimeZoneInformation, 41);    /* TBD Tcl */
     CALL_(GetComputerNameEx, 201);
     CALL_(GetSystemMetrics, 202);
     CALL_(Sleep, 203);

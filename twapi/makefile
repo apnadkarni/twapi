@@ -12,9 +12,9 @@ LAZYPACKAGELOAD=1
 # loads them in order when generating the pkgIndex.tcl file.
 PURETCLMODULES = metoo msi power printer synch
 MODULES = security account apputil clipboard metoo com console crypto device \
-	etw eventlog input msi mstask multimedia namedpipe network nls \
+	etw eventlog msi mstask multimedia namedpipe network nls \
 	os pdh power printer process rds resource service share shell \
-	storage synch ui winsta wmi
+	storage synch ui input winsta wmi
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)
