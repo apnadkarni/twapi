@@ -20,12 +20,6 @@
 /*
  * Globals
  */
-HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
-
-#ifdef OBSOLETE
-static const char *gTwapiEmbedType = "none"; /* Must point to static string */
-#endif
-
 OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
@@ -51,10 +45,22 @@ static TwapiOneTimeInitState gTwapiInitialized;
 
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
-static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiInterpContextCleanup * );
+static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiModuleDef * );
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
+static TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *);
 static int TwapiOneTimeInit(Tcl_Interp *interp);
-static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP);
+
+HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
+static TwapiModuleDef gBaseModule = {
+    MODULENAME,
+    Twapi_InitCalls,
+    NULL    /* TBD -  should not be NULL - add a cleanup instead of
+               hardcoding in Twapi_InterpCleanup unless we need to control
+               to be after all other module cleanups ?
+            */
+};
+
+
 
 #if !defined(TWAPI_STATIC_BUILD)
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
@@ -122,43 +128,11 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
 
     /* Allocate a context that will be passed around in all interpreters */
-    /* TBD - last param should not be NULL - add a cleanup instead of
-       hardcoding in Twapi_InterpCleanup */
-    ticP = Twapi_AllocateInterpContext(interp, gTwapiModuleHandle, NULL);
+    ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, 1);
     if (ticP == NULL)
         return TCL_ERROR;
 
-    /* Do our own commands. */
-    if (Twapi_InitCalls(interp, ticP) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    /* TBD - move these commands into the calls.c infrastructure */
-    Tcl_CreateObjCommand(interp, "twapi::parseargs", Twapi_ParseargsObjCmd,
-                         ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::trap", Twapi_TryObjCmd,
-                         ticP, NULL);
-    Tcl_CreateAlias(interp, "twapi::try", interp, "twapi::trap", 0, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::kl_get", Twapi_KlGetObjCmd,
-                         ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::twine", Twapi_TwineObjCmd,
-                         ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::recordarray", Twapi_RecordArrayObjCmd,
-                         ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::GetTwapiBuildInfo",
-                         Twapi_GetTwapiBuildInfo, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::tclcast", Twapi_InternalCastObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
-    
-    if (TwapiLoadInitScript(ticP) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    if (Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION) == TCL_ERROR)
-        return TCL_ERROR;
-
     return TwapiLoadStaticModules(interp);
-
 }
 
 /* Alternate entry point for when the DLL is called twapi */
@@ -173,7 +147,7 @@ int Twapi_Init(Tcl_Interp *interp)
 /*
  * Loads the initialization script from image file resource
  */
-TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCHAR *name, int try_file)
+TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name, int try_file)
 {
     HRSRC hres = NULL;
     unsigned char *dataP;
@@ -189,13 +163,13 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCH
      * compressed type. Then uncompressed.
      */
     compressed = 1;
-    hres = FindResourceW(dllH,
-                        name,
-                         WLITERAL(TWAPI_SCRIPT_RESOURCE_TYPE_LZMA));
+    hres = FindResourceA(dllH,
+                         name,
+                         TWAPI_SCRIPT_RESOURCE_TYPE_LZMA);
     if (!hres) {
-        hres = FindResourceW(dllH,
+        hres = FindResourceA(dllH,
                              name,
-                             WLITERAL(TWAPI_SCRIPT_RESOURCE_TYPE));
+                             TWAPI_SCRIPT_RESOURCE_TYPE);
         compressed = 0;
     }
 
@@ -229,7 +203,7 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCH
     pathObj = TwapiGetInstallDir(ticP, dllH);
     if (pathObj == NULL)
         return TCL_ERROR;
-    Tcl_AppendUnicodeToObj(pathObj, name, -1);
+    Tcl_AppendToObj(pathObj, name, -1);
     Tcl_IncrRefCount(pathObj);  /* Must before calling any Tcl_FS functions */
     result = Tcl_FSEvalFile(interp, pathObj);
     Tcl_DecrRefCount(pathObj);
@@ -237,6 +211,7 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCH
     return result;
 }
 
+#ifdef OBSOLETE
 /*
  * Loads the initialization script from image file resource
  */
@@ -245,13 +220,12 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
     int result;
     result = Twapi_SourceResource(ticP, gTwapiModuleHandle,
                                   WLITERAL(MODULENAME), 1);
-#ifdef OBSOLETE
     if (result == TCL_OK) {
         gTwapiEmbedType = "embedded";
     }
-#endif
     return result;
 }
+#endif
 
 Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH)
 {
@@ -389,7 +363,8 @@ static void Twapi_Cleanup(ClientData clientdata)
 }
 
 
-static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *cleaner)
+static TwapiInterpContext *TwapiInterpContextNew(
+    Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *modP)
 {
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
@@ -405,7 +380,7 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->interp = interp;
     ticP->thread = Tcl_GetCurrentThread();
     ticP->module.hmod = hmodule;
-    ticP->module.cleaner = cleaner;
+    ticP->module.modP = modP;
     ticP->module.data.pval = NULL;
 
     /* Cache of commonly used objects */
@@ -430,12 +405,13 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
 
     ticP->notification_win = NULL; /* Created only on demand */
+#ifdef OBSOLETE
     ticP->device_notification_tid = 0;
-
+#endif
     return ticP;
 }
 
-TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *cleaner)
+TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *modP)
 {
     TwapiInterpContext *ticP;
 
@@ -443,7 +419,7 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
      * Allocate a context that will be passed around in all commands
      * Different modules may call this for the same interp
      */
-    ticP = TwapiInterpContextNew(interp, hmodule, cleaner);
+    ticP = TwapiInterpContextNew(interp, hmodule, modP);
     if (ticP == NULL)
         return NULL;
 
@@ -523,15 +499,16 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     TWAPI_ASSERT(ticP->interp == interp);
 
     /* Should this be called from TwapiInterpContextDelete instead ? */
-    if (ticP->module.cleaner) {
-        ticP->module.cleaner(ticP);
-        ticP->module.cleaner = NULL;
+    if (ticP->module.modP->finalizer) {
+        ticP->module.modP->finalizer(ticP);
+        ticP->module.modP->finalizer = NULL;
     }
 
     EnterCriticalSection(&gTwapiInterpContextsCS);
-#define IS_EQUAL(x, y) ((x) == (y))
-    ZLIST_FIND(tic2P, &gTwapiInterpContexts, IS_EQUAL, ticP);
-#undef IS_EQUAL
+    /* CMP should return 0 on a match */
+#define CMP(x, y) ((x) != (y))
+    ZLIST_FIND(tic2P, &gTwapiInterpContexts, CMP, ticP);
+#undef CMP
     if (tic2P == NULL) {
         LeaveCriticalSection(&gTwapiInterpContextsCS);
         /* Either not found, or linked to a different interp. */
@@ -559,6 +536,19 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     
     /* Unref for unlinking interp, +1 for removal from gTwapiInterpContexts */
     TwapiInterpContextUnref(ticP, 1+1);
+}
+
+TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp)
+{
+    TwapiInterpContext *ticP;
+
+    EnterCriticalSection(&gTwapiInterpContextsCS);
+    /* CMP should return 0 on a match */
+#define CMP(lelem, ip) ((lelem)->interp != (ip) || ! STREQ((lelem)->module.modP->name, "twapi_base"))
+    ZLIST_FIND(ticP, &gTwapiInterpContexts, CMP, interp);
+#undef CMP
+    LeaveCriticalSection(&gTwapiInterpContextsCS);
+    return ticP;
 }
 
 
@@ -610,6 +600,7 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
                  * Single-threaded COM model - note some Shell extensions
                  * require this if functions such as ShellExecute are
                  * invoked.
+                 * TBD - should this be in twapi_com module ?
                  */
                 hr = CoInitializeEx(
                     NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -676,30 +667,48 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 }
 
 /* Does basic default initialization of a module */
-TwapiInterpContext * Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *nameP, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleanerFn)
+TwapiInterpContext *TwapiRegisterModule(
+    Tcl_Interp *interp,
+    HMODULE hmod,
+    TwapiModuleDef *modP, /* MUST BE STATIC/NEVER DEALLOCATED */
+    int context_type
+    )
 {
     TwapiInterpContext *ticP;
-    Tcl_Obj *nameObj;
 
-    /* NOTE: no point setting Tcl_SetResult for errors as they are not
-       looked at when DLL is being loaded */
+    if (modP->finalizer && ! context_type) {
+        Tcl_SetResult(interp, "Non-private context cannot be requested if finalalizer is specified", TCL_STATIC);
+    }
 
-    /* Allocate a context that will be passed around in all interpreters */
-    ticP = Twapi_AllocateInterpContext(interp, hmod, cleanerFn);
-    if (ticP == NULL)
-        return NULL;
+    if (context_type != DEFAULT_TIC) {
+        ticP = Twapi_AllocateInterpContext(interp, hmod, modP);
+        if (ticP == NULL)
+            return NULL;
+    } else {
+        
+        ticP = TwapiGetBaseContext(interp);
 
-    nameObj = Tcl_NewUnicodeObj(nameP, -1); /* Just for unicode->string */
-    if (initFn && initFn(interp, ticP) != TCL_OK ||
-        Twapi_SourceResource(ticP, hmod, nameP, 1) != TCL_OK ||
-        Tcl_PkgProvide(interp, Tcl_GetString(nameObj), MODULEVERSION) != TCL_OK
+        /* We do not need to increment the ticP ref count because
+         * we can rely on the base module ref count which will go
+         * away only when the whole interp is deleted at which point
+         * the calling module will not be invoked any more. Of course
+         * if the calling module might access it AFTER the interp is
+         * gone, it has to do an ticP ref increment itself just like
+         * for a private ticP
+         */
+    }
+
+    TWAPI_ASSERT(ticP);
+
+    if (modP->initializer && modP->initializer(interp, ticP) != TCL_OK ||
+        Twapi_SourceResource(ticP, hmod, modP->name, 1) != TCL_OK ||
+        Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
         ) {
-        Tcl_DecrRefCount(nameObj);
-        TwapiInterpContextUnref(ticP, 1);
+        if (context_type)
+            TwapiInterpContextUnref(ticP, 1);
         return NULL;
     }
 
-    Tcl_DecrRefCount(nameObj);
     return ticP;
 }
 

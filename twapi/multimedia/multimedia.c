@@ -58,7 +58,7 @@ static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
 }
 
 
-static int Twapi_MmInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiMmInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::MmCall", Twapi_MmCallObjCmd, ticP, NULL);
@@ -94,13 +94,17 @@ __declspec(dllexport)
 #endif
 int Twapi_multimedia_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiMmInitCalls,
+        NULL
+    };
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_MmInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

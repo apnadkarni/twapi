@@ -837,13 +837,32 @@ typedef struct _TwapiTls {
 } TwapiTls;
 
 /*
+ * Static information associated with a Twapi module
+ */
+typedef void TwapiInterpContextCleanup(TwapiInterpContext *);
+typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
+typedef struct _TwapiModuleDef {
+    /* The name of the module */
+    char *name;
+
+    /*
+     * Function to call to initialize the module commands. The second
+     * arg can be NULL if the module has not asked for a TwapiInterpContext.
+     */
+    TCL_RESULT (*initializer)(Tcl_Interp *, TwapiInterpContext *); // NULL ok
+
+    /* Function to call to clean up the module. */
+    void (*finalizer)(TwapiInterpContext *); // NULL ok
+    
+} TwapiModuleDef;
+
+/*
  * TwapiInterpContext keeps track of a per-interpreter context.
  * This is allocated when twapi is loaded into an interpreter and
  * passed around as ClientData to most commands. It is reference counted
  * for deletion purposes and also placed on a global list for cleanup
  * purposes when a thread exits.
  */
-typedef void TwapiInterpContextCleanup(TwapiInterpContext *);
 typedef struct _TwapiInterpContext {
     ZLINK_DECL(TwapiInterpContext); /* Links all the contexts, primarily
                                        to track cleanup requirements */
@@ -862,7 +881,7 @@ typedef struct _TwapiInterpContext {
 
     struct {
         HMODULE      hmod;        /* Handle of allocating module */
-        TwapiInterpContextCleanup *cleaner;
+        TwapiModuleDef *modP;
         union {
             void *pval;
             int   ival;
@@ -901,9 +920,9 @@ typedef struct _TwapiInterpContext {
      */
     Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
     HWND          notification_win; /* Window used for various notifications */
+#ifdef OBSOLETE
     DWORD         device_notification_tid; /* device notification thread id */
-    
-
+#endif    
 } TwapiInterpContext;
 
 /*
@@ -1326,7 +1345,7 @@ TWAPI_EXTERN DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue
 TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* General utility */
-TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCHAR *name, int try_file);
+TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name, int try_file);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
 
@@ -1340,7 +1359,6 @@ TWAPI_EXTERN TwapiId Twapi_NewId();
 TWAPI_EXTERN void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
 
 /* Interp context */
-TWAPI_EXTERN TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiInterpContextCleanup *);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
 TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 TWAPI_EXTERN TwapiTls *Twapi_GetTls();
@@ -1349,8 +1367,18 @@ TWAPI_EXTERN Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key);
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
-typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
-TWAPI_EXTERN TwapiInterpContext *Twapi_ModuleInit(Tcl_Interp *interp, const WCHAR *, HMODULE hmod, TwapiModuleCallInitializer *initFn, TwapiInterpContextCleanup *cleaner);
+TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
+    Tcl_Interp *interp,
+    HMODULE hmod,
+    TwapiModuleDef *modP, /* MUST BE STATIC/NEVER DEALLOCATED */
+    int new_context   /* If ! DEFAULT_TIC, new context is allocated.
+                         If DEFAULT_TIC, the base package context is
+                         used and caller must not access the
+                         module-specific fields in the context. */
+#define DEFAULT_TIC 0
+#define NEW_TIC     1
+    );
+
 TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
 
 TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);

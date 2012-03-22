@@ -1634,7 +1634,7 @@ static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 }
 
 
-static int Twapi_ETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::ETWCall", Twapi_ETWCallObjCmd, ticP, NULL);
@@ -1691,6 +1691,12 @@ __declspec(dllexport)
 #endif
 int Twapi_etw_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiETWInitCalls,
+        TwapiETWCleanup
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
@@ -1701,7 +1707,7 @@ int Twapi_etw_Init(Tcl_Interp *interp)
     if (! TwapiDoOneTimeInit(&gETWInitialized, ETWModuleOneTimeInit, interp))
         return TCL_ERROR;
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_ETWInitCalls, TwapiETWCleanup) ? TCL_OK : TCL_ERROR;
+    /* NEW_TIC since we have a cleanup routine */
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC) ? TCL_OK : TCL_ERROR;
 }
 
