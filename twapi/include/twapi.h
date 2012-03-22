@@ -850,14 +850,15 @@ typedef struct _TwapiInterpContext {
 
     LONG volatile         nrefs;   /* Reference count for alloc/free */
 
-    /* Back pointer to the associated interp. This must only be modified or
-     * accessed in the Tcl thread. THIS IS IMPORTANT AS THERE IS NO
-     * SYNCHRONIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
-     * ACCESSED FROM OTHER THREADS
-     */
-    Tcl_Interp *interp;
+    /* List of pending callbacks. Accessed controlled by the lock field */
+    int              pending_suspended;       /* If true, do not pend events */
+    ZLIST_DECL(TwapiCallback) pending;
 
-    Tcl_ThreadId thread;     /* Id of interp thread */
+    /*
+     * List of handles registered with the Windows thread pool. To be accessed
+     * only from the interp thread.
+     */
+    ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
 
     struct {
         HMODULE      hmod;        /* Handle of allocating module */
@@ -869,23 +870,31 @@ typedef struct _TwapiInterpContext {
         } data;              /* For use by module, initialized to 0 */
     } module;
 
+    /* Back pointer to the associated interp. This must only be modified or
+     * accessed in the Tcl thread. THIS IS IMPORTANT AS THERE IS NO
+     * SYNCHRONIZATION PROTECTION AND Tcl interp's ARE NOT MEANT TO BE
+     * ACCESSED FROM OTHER THREADS
+     */
+    Tcl_Interp *interp;
+
+    Tcl_ThreadId thread;     /* Id of interp thread */
+
     MemLifo memlifo;            /* Must ONLY be used in interp thread */
+
+    /*
+     * We keep a stash of commonly used Tcl_Objs so as to not recreate
+     * them every time. Example of intended use is as keys in a keyed list or
+     * dictionary when large numbers of objects are involved.
+     *
+     * Should be accessed only from the Tcl interp thread.
+     */
+    Tcl_HashTable atoms;
 
     /*
      * A single lock that is shared among multiple lists attached to this
      * structure as contention is expected to be low.
      */
     CRITICAL_SECTION lock;
-
-    /* List of pending callbacks. Accessed controlled by the lock field */
-    ZLIST_DECL(TwapiCallback) pending;
-    int              pending_suspended;       /* If true, do not pend events */
-    
-    /*
-     * List of handles registered with the Windows thread pool. To be accessed
-     * only from the interp thread.
-     */
-    ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
 
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
@@ -951,6 +960,9 @@ extern struct TwapiTclVersion gTclVersion;
 #define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
+
+/* Get atom stats */
+Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) ;
 
 
 /* Thread pool handle registration */
@@ -1316,6 +1328,7 @@ TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 /* General utility */
 TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const WCHAR *name, int try_file);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
+TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
 
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
 TWAPI_EXTERN TCL_RESULT TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
@@ -1332,6 +1345,7 @@ TWAPI_EXTERN TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp,
 TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 TWAPI_EXTERN TwapiTls *Twapi_GetTls();
 TWAPI_EXTERN int Twapi_AssignTlsSlot();
+TWAPI_EXTERN Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key);
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
