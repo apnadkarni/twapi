@@ -896,7 +896,7 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
 
 }
 
-static int Twapi_AcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::AcctCall", Twapi_AcctCallObjCmd, ticP, NULL);
@@ -958,13 +958,17 @@ __declspec(dllexport)
 #endif
 int Twapi_account_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiAcctInitCalls,
+        NULL
+    };
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_AcctInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

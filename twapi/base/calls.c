@@ -258,6 +258,23 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::CallH", Twapi_CallHObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CallWU", Twapi_CallWUObjCmd, ticP, NULL);
 
+    /* TBD - move these commands into the calls.c infrastructure */
+    Tcl_CreateObjCommand(interp, "twapi::parseargs", Twapi_ParseargsObjCmd,
+                         ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::trap", Twapi_TryObjCmd,
+                         ticP, NULL);
+    Tcl_CreateAlias(interp, "twapi::try", interp, "twapi::trap", 0, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::kl_get", Twapi_KlGetObjCmd,
+                         ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::twine", Twapi_TwineObjCmd,
+                         ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::recordarray", Twapi_RecordArrayObjCmd,
+                         ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::GetTwapiBuildInfo",
+                         Twapi_GetTwapiBuildInfo, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::tclcast", Twapi_InternalCastObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
+
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
     do {                                                                \
@@ -866,12 +883,12 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10013:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), ARGUSEDEFAULT,
+                             GETASTR(cP), ARGUSEDEFAULT,
                              GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (h == NULL)
                 h = gTwapiModuleHandle;
-            return Twapi_SourceResource(ticP, h, s, dw);
+            return Twapi_SourceResource(ticP, h, cP, dw);
         case 10014: // FindWindowEx in twapi_base because of common use
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              GETHANDLET(u.hwnd, HWND),

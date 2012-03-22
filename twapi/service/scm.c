@@ -782,7 +782,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     return TwapiSetResult(interp, &result);
 }
 
-static int Twapi_ServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::ServiceCall", Twapi_ServiceCallObjCmd, ticP, NULL);
@@ -826,13 +826,17 @@ __declspec(dllexport)
 #endif
 int Twapi_service_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiServiceInitCalls,
+        NULL
+    };
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_ServiceInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

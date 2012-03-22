@@ -168,12 +168,7 @@ proc twapi::eventlog_read {hevl args} {
         # EOF - no more
         set recs [list ]
     }
-    foreach rec $recs {
-        set event [twine {
-            -source -system -reserved -recordnum -timegenerated
-            -timewritten -eventid -type -category -reservedflags
-            -recnum -params -sid -data 
-        } $rec]
+    foreach event $recs {
         dict set event -type [string map {0 success 1 error 2 warning 4 information 8 auditsuccess 16 auditfailure} [dict get $event -type]]
         lappend results $event
     }
