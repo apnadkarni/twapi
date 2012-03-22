@@ -225,7 +225,7 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 }
 
 
-static int Twapi_NlsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiNlsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::NlsCall", Twapi_NlsCallObjCmd, ticP, NULL);
@@ -271,13 +271,18 @@ __declspec(dllexport)
 #endif
 int Twapi_nls_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiNlsInitCalls,
+        NULL
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_NlsInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

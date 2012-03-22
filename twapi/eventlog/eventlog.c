@@ -72,11 +72,18 @@ int Twapi_ReadEventLog(
     DWORD  buf_sz;
     char  *bufP;
     DWORD  num_read;
+    int    i;
     EVENTLOGRECORD *evlP;
     Tcl_Obj *resultObj;
     DWORD winerr = ERROR_SUCCESS;
     Tcl_Interp *interp = ticP->interp;
-    
+    static const char *fieldnames[] = {
+        "-source", "-system", "-reserved", "-recordnum", "-timegenerated",
+        "-timewritten", "-eventid", "-type", "-category", "-reservedflags",
+        "-recnum", "-params", "-sid", "-data" };
+
+    Tcl_Obj *fields[ARRAYSIZE(fieldnames)];
+
     /* Ask for 1000 bytes alloc, will get more if available */
     bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
 
@@ -101,7 +108,15 @@ int Twapi_ReadEventLog(
         winerr = 0;             /* Reset for vamoose */
     }
 
-    /* Loop through all records, adding them to the record list */
+    /*
+     * Loop through all records, adding them to the record list
+     * We use cached field name objects for efficiency. Note these
+     * need not/should not be explicitly freed.
+     */
+    for (i = 0; i < ARRAYSIZE(fields); ++i) {
+        fields[i] = TwapiGetAtom(ticP, fieldnames[i]);
+    }
+    
     evlP = (EVENTLOGRECORD *) bufP;
     resultObj = Tcl_NewListObj(0, NULL);
     while (num_read > 0) {
@@ -150,7 +165,8 @@ int Twapi_ReadEventLog(
                                 evlP->DataLength);
 
         /* Now attach this record to event record list */
-        Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewListObj(14, objv));
+        TWAPI_ASSERT(ARRAYSIZE(objv) == ARRAYSIZE(fields));
+        Tcl_ListObjAppendElement(interp, resultObj, TwapiTwineObjv(fields, objv, ARRAYSIZE(objv)));
 
         /* Move onto next record */
         num_read -= evlP->Length;
@@ -301,14 +317,18 @@ __declspec(dllexport)
 #endif
 int Twapi_eventlog_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        Twapi_EventlogInitCalls,
+        NULL
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_EventlogInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

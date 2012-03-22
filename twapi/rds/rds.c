@@ -193,7 +193,7 @@ static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 }
 
 
-static int Twapi_RDSInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiRdsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::RDSCall", Twapi_RDSCallObjCmd, ticP, NULL);
@@ -233,14 +233,19 @@ __declspec(dllexport)
 #endif
 int Twapi_rds_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiRdsInitCalls,
+        NULL
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_RDSInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 
 

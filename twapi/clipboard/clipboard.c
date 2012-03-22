@@ -230,7 +230,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 }
 
 
-static int Twapi_ClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::ClipCall", Twapi_ClipboardCallObjCmd, ticP, NULL);
@@ -285,6 +285,11 @@ __declspec(dllexport)
 #endif
 int Twapi_clipboard_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiClipboardInitCalls,
+        TwapiClipboardCleanup
+    };
     TwapiInterpContext *ticP;
 
     /* IMPORTANT */
@@ -293,8 +298,8 @@ int Twapi_clipboard_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    ticP = Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_ClipboardInitCalls, TwapiClipboardCleanup);
+    /* We are using a cleanup routine AND the private cleanup so need NEW_TIC */
+    ticP = TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC);
     if (ticP) {
         ticP->module.data.hwnd = NULL;
         return TCL_OK;

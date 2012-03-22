@@ -1445,7 +1445,7 @@ int Twapi_NPipeImpersonateObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     return TCL_OK;
 }
 
-static int Twapi_NPipeInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiNPipeInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NPipeClient", Twapi_NPipeClientObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NPipeServer", Twapi_NPipeServerObjCmd, ticP, NULL);
@@ -1470,6 +1470,12 @@ __declspec(dllexport)
 #endif
 int Twapi_namedpipe_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiNPipeInitCalls,
+        NULL
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
@@ -1480,7 +1486,6 @@ int Twapi_namedpipe_Init(Tcl_Interp *interp)
     if (! TwapiDoOneTimeInit(&gNPipeModuleInitialized, NPipeModuleInit, interp))
         return TCL_ERROR;
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_NPipeInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

@@ -506,7 +506,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 }
 
 
-static int Twapi_ConsoleInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiConsoleInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::ConsoleCall", Twapi_ConsoleCallObjCmd, ticP, NULL);
@@ -573,6 +573,12 @@ __declspec(dllexport)
 #endif
 int Twapi_console_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiConsoleInitCalls,
+        TwapiConsoleCleanup
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
@@ -580,9 +586,10 @@ int Twapi_console_Init(Tcl_Interp *interp)
     }
 
     /* Note ticP->module.data.ival is initialized to 0 which we use
-     * as an indicator whether this interp has hooked ctrl-c or not
+     * as an indicator whether this interp has hooked ctrl-c or not.
+     * Moreover, we are specifying a finalizer so we have to request
+     * a private context
      */
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_ConsoleInitCalls, TwapiConsoleCleanup) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC) ? TCL_OK : TCL_ERROR;
 }
 

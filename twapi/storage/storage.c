@@ -359,7 +359,7 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 }
 
 
-static int Twapi_StorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::StorCall", Twapi_StorageCallObjCmd, ticP, NULL);
@@ -431,6 +431,11 @@ __declspec(dllexport)
 #endif
 int Twapi_storage_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiStorageInitCalls,
+        TwapiStorageCleanup,
+    };
     TwapiInterpContext *ticP;
     TwapiStorageInterpContext *sicP;
     /* IMPORTANT */
@@ -439,8 +444,10 @@ int Twapi_storage_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    ticP = Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_StorageInitCalls, TwapiStorageCleanup);
+    /* Cannot use DEFAULT_TIC because we have a cleanup routine and
+     * use the ticP->module.data area
+     */
+    ticP = TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC);
 
     if (ticP == NULL)
         return TCL_ERROR;

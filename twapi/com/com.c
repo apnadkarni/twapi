@@ -2737,7 +2737,7 @@ EXCEPTION_ON_ERROR UnRegisterTypeLibForUser(
 
 
 
-static int Twapi_ComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     Tcl_CreateObjCommand(interp, "twapi::ComCall",
                          Twapi_CallCOMObjCmd, ticP, NULL);
@@ -2876,13 +2876,18 @@ __declspec(dllexport)
 #endif
 int Twapi_com_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiComInitCalls,
+        NULL
+    };
+
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_ComInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 

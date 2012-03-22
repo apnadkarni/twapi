@@ -2031,7 +2031,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 }
 
 
-static int Twapi_NetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::NetworkCall", Twapi_NetworkCallObjCmd, ticP, NULL);
@@ -2094,6 +2094,11 @@ __declspec(dllexport)
 #endif
 int Twapi_network_Init(Tcl_Interp *interp)
 {
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiNetworkInitCalls,
+        NULL
+    };
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
@@ -2102,7 +2107,6 @@ int Twapi_network_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    return Twapi_ModuleInit(interp, WLITERAL(MODULENAME), MODULE_HANDLE,
-                            Twapi_NetworkInitCalls, NULL) ? TCL_OK : TCL_ERROR;
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 
