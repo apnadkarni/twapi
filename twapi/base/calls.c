@@ -7,7 +7,7 @@
 
 #include "twapi.h"
 
-TCL_RESULT Twapi_LsaQueryInformationPolicy (
+static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[]
@@ -274,6 +274,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemDirectory, Call, 8);        /* TBD Tcl */
     CALL_(GetCurrentThreadId, Call, 9);
     CALL_(GetTickCount, Call, 10);
+    CALL_(Twapi_GetAtomStats, Call, 11);
 
     CALL_(GetSystemTimeAsFileTime, Call, 40);
     CALL_(AllocateLocallyUniqueId, Call, 48);
@@ -309,6 +310,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_UnregisterWaitOnHandle, Call, 1020);
     CALL_(ExpandEnvironmentStrings, Call, 1021);
     CALL_(free, Call, 1022);
+    CALL_(atomize, Call, 1023);
 
     CALL_(SystemParametersInfo, Call, 10001);
     CALL_(LookupAccountSid, Call, 10002);
@@ -492,8 +494,11 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_DWORD;
             result.value.uval = GetTickCount();
             break;
-
-        // 11-39 UNUSED
+        case 11:
+            result.type = TRT_OBJ;
+            result.value.obj = Twapi_GetAtomStats(ticP);
+            break;
+        // 12-39 UNUSED
         case 40:
             result.type = TRT_FILETIME;
             GetSystemTimeAsFileTime(&result.value.filetime);
@@ -731,6 +736,10 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_EMPTY;
             if (pv)
                 TwapiFree(pv);
+            break;
+        case 1023: // atomize
+            result.type = TRT_OBJ;
+            result.value.obj = TwapiGetAtom(ticP, Tcl_GetString(objv[2]));
             break;
         }
     } else {

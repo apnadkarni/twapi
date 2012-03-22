@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -45,7 +45,6 @@ int Twapi_TwineObjCmd(
     return TCL_OK;
 }
 
-
 /* Twine (merge) two lists */
 Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 {
@@ -77,6 +76,20 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
         for ( ; i < n2; ++i) {
             Tcl_DictObjPut(interp, resultObj, empty, list2[i]);
         }
+    }
+
+    return resultObj;
+}
+
+/* Twine (merge) objv arrays */
+Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
+{
+    int i;
+    Tcl_Obj *resultObj;
+
+    resultObj = Tcl_NewDictObj();
+    for (i = 0;  i < n; ++i) {
+        Tcl_DictObjPut(NULL, resultObj, first[i], second[i]);
     }
 
     return resultObj;
