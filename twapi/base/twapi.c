@@ -408,6 +408,9 @@ static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *interp, HMODULE hmo
     ticP->module.cleaner = cleaner;
     ticP->module.data.pval = NULL;
 
+    /* Cache of commonly used objects */
+    Tcl_InitHashTable(&ticP->atoms, TCL_STRING_KEYS);
+
     /* Initialize the critical section used for controlling
      * various attached lists
      *
@@ -444,6 +447,7 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     if (ticP == NULL)
         return NULL;
 
+
     /* For all the commands we register with the Tcl interp, we add a single
      * ref for the context, not one per command. This is sufficient since
      * when the interp gets deleted, all the commands get deleted as well.
@@ -466,6 +470,9 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
 
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
+    Tcl_HashSearch hs;
+    Tcl_HashEntry *he;
+
     TWAPI_ASSERT(ticP->interp == NULL);
 
     /* TBD - does this need to be done only from the Tcl thread ? */
@@ -481,6 +488,17 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
         ticP->notification_win = 0;
     }
 
+    /* Free up the atoms */
+    for (he = Tcl_FirstHashEntry(&ticP->atoms, &hs) ;
+         he != NULL;
+         he = Tcl_NextHashEntry(&hs)) {
+        /* It is safe to delete this element and only this element */
+        Tcl_Obj *objP = Tcl_GetHashValue(he);
+        Tcl_DeleteHashEntry(he);
+        Tcl_DecrRefCount(objP);
+    }
+    Tcl_DeleteHashTable(&ticP->atoms);
+
     // TBD - what about pipes ?
 
     MemLifoClose(&ticP->memlifo);
@@ -495,6 +513,8 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
         TwapiInterpContextDelete(ticP);
 }
 
+/* Note this cleans up only one TwapiInterpContext for interp, not the whole
+   interp */
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
     TwapiInterpContext *tic2P;
@@ -509,16 +529,17 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
     }
 
     EnterCriticalSection(&gTwapiInterpContextsCS);
-    ZLIST_LOCATE(tic2P, &gTwapiInterpContexts, interp, ticP->interp);
-    if (tic2P != ticP) {
+#define IS_EQUAL(x, y) ((x) == (y))
+    ZLIST_FIND(tic2P, &gTwapiInterpContexts, IS_EQUAL, ticP);
+#undef IS_EQUAL
+    if (tic2P == NULL) {
         LeaveCriticalSection(&gTwapiInterpContextsCS);
         /* Either not found, or linked to a different interp. */
-        Tcl_Panic("TWAPI interpreter context not found or attached to the wrong Tcl interpreter.");
+        Tcl_Panic("TWAPI interpreter context not found attached to a Tcl interpreter.");
     }
     ZLIST_REMOVE(&gTwapiInterpContexts, ticP);
+    ticP->interp = NULL;        /* Must not access now on */
     LeaveCriticalSection(&gTwapiInterpContextsCS);
-
-    ticP->interp = NULL;        /* Must not access during cleanup */
     
     EnterCriticalSection(&ticP->lock);
     ticP->pending_suspended = 1;
@@ -764,4 +785,37 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
     objv[1] = records;
     Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
     return TCL_OK;
+}
+
+
+/*
+ * Returns the Tcl_Obj corresponding to the given string.
+ * Caller MUST NOT call Tcl_DecrRefCount on the object without
+ * a prior Tcl_IncrRefCount. Moreover, if it wants to hang on to it
+ * it must do a Tcl_IncrRefCount itself directly, or implicitly via
+ * a call such as Tcl_ListObjAppendElement.
+ * (This is similar to Tcl_ListObjIndex)
+ */
+Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
+{
+    Tcl_HashEntry *he;
+    int new_entry;
+    
+    he = Tcl_CreateHashEntry(&ticP->atoms, key, &new_entry);
+    if (new_entry) {
+        Tcl_Obj *objP = Tcl_NewStringObj(key, -1);
+        Tcl_IncrRefCount(objP);
+        Tcl_SetHashValue(he, objP);
+        return objP;
+    } else {
+        return (Tcl_Obj *) Tcl_GetHashValue(he);
+    }
+}
+
+Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) 
+{
+    char *stats = Tcl_HashStats(&ticP->atoms);
+    Tcl_Obj *objP = Tcl_NewStringObj(stats, -1);
+    ckfree(stats);
+    return objP;
 }
