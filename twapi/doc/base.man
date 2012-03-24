@@ -466,7 +466,7 @@ anyways.
 [call [cmd nil_uuid]]
 Returns a nil [uri \#uniqueidentifiers UUID].
 
-[call [cmd parseargs] [arg ARGLISTVAR] [arg OPTLIST] [opt [cmd -ignoreunknown]] [opt [cmd -nulldefault]] [opt "[cmd -maxleftover] [arg MAXLEFTOVER]"]]
+[call [cmd parseargs] [arg ARGLISTVAR] [arg OPTLIST] [opt [cmd -ignoreunknown]] [opt [cmd -nulldefault]] [opt [cmd -hyphenated]] [opt "[cmd -maxleftover] [arg MAXLEFTOVER]"]]
 Parses the options specified in a list of arguments.
 [arg ARGLISTVAR] is the name of a variable in the caller's scope that
 contains a list of arguments. Option names are case-sensitive and begin with 
@@ -509,6 +509,12 @@ of an option.
 
 [nl]
 The command returns a list of the form [arg "OPTION VALUE OPTION VALUE..."].
+If the [cmd -hyphenated] option is not specified, the [arg OPTION] 
+fields in the returned value contain the option name without a leading
+[const -] character. If the [cmd -hyphenated] option is specified,
+[arg OPTION] includes the leading [cmd -] character. This is useful when
+options are passed through to other commands after partial processing.
+[nl]
 If the [cmd -nulldefault] option is not present,
 only options that are present in [arg ARGLISTVAR],
 or have a default value specified, or are of type [cmd switch]
