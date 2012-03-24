@@ -370,7 +370,7 @@ namespace eval twapi::services::test {
         ::setops::symdiff [array names svcinfo] {
             -displayname -errorcontrol -servicetype -interactive 
             -loadordergroup -dependencies -account -starttype -command
-            -description
+            -description -tagid
         }
     } -result ""
 

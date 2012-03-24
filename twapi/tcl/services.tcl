@@ -300,23 +300,10 @@ proc twapi::get_service_status {name args} {
     }
 
     trap {
-        set svc_status [QueryServiceStatusEx $svch 0]
+        return [QueryServiceStatusEx $svch 0]
     } finally {
         CloseServiceHandle $svch
     }
-
-    return [list \
-                servicetype  [kl_get $svc_status servicetype] \
-                interactive  [kl_get $svc_status interactive] \
-                state        [kl_get $svc_status state] \
-                controls_accepted [kl_get $svc_status dwControlsAccepted] \
-                exitcode     [kl_get $svc_status dwWin32ExitCode] \
-                service_code [kl_get $svc_status dwServiceSpecificExitCode] \
-                checkpoint   [kl_get $svc_status dwCheckPoint] \
-                wait_hint    [kl_get $svc_status dwWaitHint] \
-                pid          [kl_get $svc_status dwProcessId] \
-                serviceflags [kl_get $svc_status dwServiceFlags]]
-
 }
 
 
@@ -343,54 +330,46 @@ proc twapi::get_service_configuration {name args} {
         dependencies
         description
         scm_handle.arg
+        tagid
     } -nulldefault]
 
-    # 1 -> SERVICE_QUERY_CONFIG
-    set opts(svc_priv) 1
-    set opts(proc)     twapi::QueryServiceConfig
-    array set svc_config [_service_fn_wrapper $name opts]
-
-    # Get the service type info
-
-    set result [list ]
-    if {$opts(all) || $opts(servicetype)} {
-        lappend result -servicetype $svc_config(servicetype)
-    }
-    if {$opts(all) || $opts(interactive)} {
-        lappend result -interactive $svc_config(interactive)
-    }
-    if {$opts(all) || $opts(errorcontrol)} {
-        lappend result -errorcontrol [_map_errorcontrol_code $svc_config(dwErrorControl)]
-    }
-    if {$opts(all) || $opts(starttype)} {
-        lappend result -starttype [_map_starttype_code $svc_config(dwStartType)]
-    }
-    if {$opts(all) || $opts(command)} {
-        lappend result -command $svc_config(lpBinaryPathName)
-    }
-    if {$opts(all) || $opts(loadordergroup)} {
-        lappend result -loadordergroup $svc_config(lpLoadOrderGroup)
-    }
-    if {$opts(all) || $opts(account)} {
-        lappend result -account $svc_config(lpServiceStartName)
-    }
-    if {$opts(all) || $opts(displayname)} {
-        lappend result -displayname    $svc_config(lpDisplayName)
-    }
-    if {$opts(all) || $opts(dependencies)} {
-        lappend result -dependencies $svc_config(lpDependencies)
-    }
-    if {$opts(all) || $opts(description)} {
-        # TBD - replace with call to QueryServiceConfig2 when available
-        if {[catch {
-            registry get "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\$name" "Description"
-        } desc]} {
-            lappend result -description ""
-        } else {
-            lappend result -description $desc
+    if {$opts(scm_handle) eq ""} {
+        # Use 0x00020000 -> STANDARD_RIGHTS_READ for SCM 
+        set scmh [OpenSCManager $opts(system) $opts(database) 0x00020000]
+        trap {
+            set svch [OpenService $scmh $name 1]; # 1 -> SERVICE_QUERY_CONFIG
+        } finally {
+            CloseServiceHandle $scmh
         }
+    } else {
+        set svch [OpenService $scmh $name 1]; # 1 -> SERVICE_QUERY_CONFIG
     }
-    # TBD Note currently we do not return svc_config(dwTagId)
+
+    trap {
+        set result [QueryServiceConfig $svch]
+        if {$opts(all) || $opts(description)} {
+            dict set result -description {}
+            # For backwards compatibility, ignore errors if description
+            # cannot be obtained
+            catch {
+                dict set result -description [QueryServiceConfig2 $svch 1]; # 1 -> SERVICE_CONFIG_DESCRIPTION
+            }
+        }
+    } finally {
+        CloseServiceHandle $svch
+    }
+
+    if {! $opts(all)} {
+        set result [dict filter $result script {k val} {set opts([string range $k 1 end])}]
+    }
+
+    if {[dict exists $result -errorcontrol]} {
+        dict set result -errorcontrol [_map_errorcontrol_code [dict get $result -errorcontrol]]
+    }
+
+    if {[dict exists $result -starttype]} {
+        dict set result -starttype [_map_starttype_code [dict get $result -starttype]]
+    }
 
     return $result
 }
@@ -567,28 +546,10 @@ proc twapi::get_multiple_service_status {args} {
     # 4 -> SC_MANAGER_ENUMERATE_SERVICE
     set scm [OpenSCManager $opts(system) $opts(database) 4]
     trap {
-        set recs [EnumServicesStatusEx $scm 0 $servicetype $servicestate __null__]
+        return [EnumServicesStatusEx $scm 0 $servicetype $servicestate __null__]
     } finally {
         CloseServiceHandle $scm
     }
-
-    return [recordarray get [recordarray slice $recs \
-                                 {
-                                     {lpServiceName name}
-                                     {lpDisplayName displayname}
-                                     servicetype
-                                     state
-                                     interactive
-                                     {dwControlsAccepted controls_accepted}
-                                     {dwWin32ExitCode exitcode}
-                                     {dwServiceSpecificExitCode service_code}
-                                     {dwCheckPoint checkpoint}
-                                     {dwWaitHint wait_hint}
-                                     {dwProcessId pid}
-                                     {dwServiceFlags serviceflags}
-                                 } \
-                                ]]
-
 }
 
 
@@ -614,21 +575,7 @@ proc twapi::get_dependent_service_status {name args} {
     set opts(proc)     twapi::EnumDependentServices
     set opts(args)     [list $servicestate]
 
-    return [recordarray get [recordarray slice \
-                                 [_service_fn_wrapper $name opts] \
-                                 {
-                                     {lpServiceName name}
-                                     {lpDisplayName displayname}
-                                     servicetype
-                                     state
-                                     interactive
-                                     {dwControlsAccepted controls_accepted}
-                                     {dwWin32ExitCode exitcode}
-                                     {dwServiceSpecificExitCode service_code}
-                                     {dwCheckPoint checkpoint}
-                                     {dwWaitHint wait_hint}
-                                 } \
-                                ]]
+    return [_service_fn_wrapper $name opts]
 }
 
 
