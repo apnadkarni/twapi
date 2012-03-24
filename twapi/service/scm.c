@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2010, Ashok P. Nadkarni
+ * Copyright (c) 2003-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -14,91 +14,43 @@ static HMODULE gModuleHandle;
 #endif
 
 /* Map service state int to string */
-static Tcl_Obj *ObjFromServiceState(DWORD state)
+static char *ServiceStateString(DWORD state)
 {
     switch (state) {
-    case 1: return STRING_LITERAL_OBJ("stopped");
-    case 2: return STRING_LITERAL_OBJ("start_pending");
-    case 3: return STRING_LITERAL_OBJ("stop_pending");
-    case 4: return STRING_LITERAL_OBJ("running");
-    case 5: return STRING_LITERAL_OBJ("continue_pending");
-    case 6: return STRING_LITERAL_OBJ("pause_pending");
-    case 7: return STRING_LITERAL_OBJ("paused");
+    case 0: return "0";
+    case 1: return "stopped";
+    case 2: return "start_pending";
+    case 3: return "stop_pending";
+    case 4: return "running";
+    case 5: return "continue_pending";
+    case 6: return "pause_pending";
+    case 7: return "paused";
+    default: return NULL;
     }
-
-    return Tcl_NewLongObj(state);
 }
 
-static Tcl_Obj *ObjFromServiceType(DWORD service_type)
+static char *ServiceTypeString(DWORD service_type)
 {
     service_type &=  ~SERVICE_INTERACTIVE_PROCESS;
     switch (service_type) {
-    case 0x1: return STRING_LITERAL_OBJ("kernel_driver");
-    case 0x2: return STRING_LITERAL_OBJ("file_system_driver");
-    case 0x4: return STRING_LITERAL_OBJ("adapter");
-    case 0x8: return STRING_LITERAL_OBJ("recognizer_driver");
-    case 0x10: return STRING_LITERAL_OBJ("win32_own_process");
-    case 0x20: return STRING_LITERAL_OBJ("win32_share_process");
-    }
-
-    return Tcl_NewLongObj(service_type);
-}
-
-/*
- * We want to share service type values when returning status for
- * multiple services. We accomplish this by populating a service
- * type to Tcl_Obj map and reusing these via ObjFromServiceTypeObjs
- * until FreeServiceTypeObjs is called.
- *
- * objPP[] must be size 6
- */
-static void PopulateServiceTypeObjs(Tcl_Obj **objPP) 
-{
-    int i;
-    objPP[0] = ObjFromServiceType(0x1);
-    objPP[1] = ObjFromServiceType(0x2);
-    objPP[2] = ObjFromServiceType(0x4);
-    objPP[3] = ObjFromServiceType(0x8);
-    objPP[4] = ObjFromServiceType(0x10);
-    objPP[5] = ObjFromServiceType(0x20);
-    for (i = 0; i < 6; ++i) {
-        Tcl_IncrRefCount(objPP[i]);
+    case 0x1: return "kernel_driver";
+    case 0x2: return "file_system_driver";
+    case 0x4: return "adapter";
+    case 0x8: return "recognizer_driver";
+    case 0x10: return "win32_own_process";
+    case 0x20: return "win32_share_process";
+    default: return NULL;
     }
 }
 
-/* See PopulateServiceTypeObjs */
-static void FreeServiceTypeObjs(Tcl_Obj **objPP) 
-{
-    int i;
-    for (i = 0; i < 6; ++i) {
-        Tcl_DecrRefCount(objPP[i]);
-    }
-}
-
-/* See PopulateServiceTypeObjs */
-static Tcl_Obj *ObjFromServiceTypeObjs(DWORD service_type, Tcl_Obj **objPP)
-{
-    service_type &=  ~SERVICE_INTERACTIVE_PROCESS;
-    switch (service_type) {
-    case 0x1: return objPP[0];
-    case 0x2: return objPP[1];
-    case 0x4: return objPP[2];
-    case 0x8: return objPP[3];
-    case 0x10: return objPP[4];
-    case 0x20: return objPP[5];
-    }
-
-    return Tcl_NewLongObj(service_type);
-}
-
-
-int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
-        SC_STATUS_TYPE infolevel)
+static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
+                                      SC_STATUS_TYPE infolevel)
 {
     SERVICE_STATUS_PROCESS ssp;
     DWORD numbytes;
     DWORD result;
     Tcl_Obj *rec[20];
+    char *cP;
 
     if (infolevel != SC_STATUS_PROCESS_INFO) {
         return Twapi_AppendSystemError(interp, ERROR_INVALID_LEVEL);
@@ -109,29 +61,34 @@ int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
         return TwapiReturnSystemError(interp);
     }
 
+    /* NOTE: Unlike other functions, we do not use TwapiGetAtom here
+       because we are returning only one record and to not want to
+       clutter the atom table
+    */
     rec[0] = STRING_LITERAL_OBJ("servicetype");
-    rec[1] = ObjFromServiceType(ssp.dwServiceType);
+    cP = ServiceTypeString(ssp.dwServiceType);
+    rec[1] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(ssp.dwServiceType);
     rec[2] = STRING_LITERAL_OBJ("state");
-    rec[3] = ObjFromServiceState(ssp.dwCurrentState);
-    rec[4] = STRING_LITERAL_OBJ("dwControlsAccepted");
-    rec[5] = Tcl_NewLongObj(ssp.dwControlsAccepted);
-    rec[6] = STRING_LITERAL_OBJ("dwWin32ExitCode");
-    rec[7] = Tcl_NewLongObj(ssp.dwWin32ExitCode);
-    rec[8] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
-    rec[9] = Tcl_NewLongObj(ssp.dwServiceSpecificExitCode);
-    rec[10] = STRING_LITERAL_OBJ("dwCheckPoint");
-    rec[11] = Tcl_NewLongObj(ssp.dwCheckPoint);
-    rec[12] = STRING_LITERAL_OBJ("dwWaitHint");
-    rec[13] = Tcl_NewLongObj(ssp.dwWaitHint);
-    rec[14] = STRING_LITERAL_OBJ("dwProcessId");
-    rec[15] = Tcl_NewLongObj(ssp.dwProcessId);
-    rec[16] = STRING_LITERAL_OBJ("dwServiceFlags");
-    rec[17] = Tcl_NewLongObj(ssp.dwServiceFlags);
+    cP = ServiceStateString(ssp.dwCurrentState);
+    rec[3] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(ssp.dwCurrentState);
+    rec[4] = STRING_LITERAL_OBJ("control_accepted");
+    rec[5] = ObjFromDWORD(ssp.dwControlsAccepted);
+    rec[6] = STRING_LITERAL_OBJ("exitcode");
+    rec[7] = ObjFromDWORD(ssp.dwWin32ExitCode);
+    rec[8] = STRING_LITERAL_OBJ("service_code");
+    rec[9] = ObjFromDWORD(ssp.dwServiceSpecificExitCode);
+    rec[10] = STRING_LITERAL_OBJ("checkpoint");
+    rec[11] = ObjFromDWORD(ssp.dwCheckPoint);
+    rec[12] = STRING_LITERAL_OBJ("wait_hint");
+    rec[13] = ObjFromDWORD(ssp.dwWaitHint);
+    rec[14] = STRING_LITERAL_OBJ("pid");
+    rec[15] = ObjFromDWORD(ssp.dwProcessId);
+    rec[16] = STRING_LITERAL_OBJ("serviceflags");
+    rec[17] = ObjFromDWORD(ssp.dwServiceFlags);
     rec[18] = STRING_LITERAL_OBJ("interactive");
-    rec[19] = Tcl_NewLongObj(ssp.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+    rec[19] = Tcl_NewBooleanObj(ssp.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-
-    Tcl_SetObjResult(interp, Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
+    Tcl_SetObjResult(interp, Tcl_NewListObj(ARRAYSIZE(rec), rec));
     return TCL_OK;
 }
 
@@ -143,6 +100,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     Tcl_Obj *objv[20];
     DWORD winerr;
     int   tcl_result = TCL_ERROR;
+    const char *cP;
 
     /* Ask for 1000 bytes alloc, will get more if available */
     qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(&ticP->memlifo,
@@ -169,25 +127,26 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
         }
     }
 
-    objv[0] = STRING_LITERAL_OBJ("lpDependencies");
+    objv[0] = STRING_LITERAL_OBJ("-dependencies");
     objv[1] = ObjFromMultiSz_MAX(qbuf->lpDependencies);
-    objv[2] = STRING_LITERAL_OBJ("servicetype");
-    objv[3] = ObjFromServiceType(qbuf->dwServiceType);
-    objv[4] = STRING_LITERAL_OBJ("dwStartType");
-    objv[5] = Tcl_NewLongObj(qbuf->dwStartType);
-    objv[6] = STRING_LITERAL_OBJ("dwErrorControl");
-    objv[7] = Tcl_NewLongObj(qbuf->dwErrorControl);
-    objv[8] = STRING_LITERAL_OBJ("dwTagId");
-    objv[9] = Tcl_NewLongObj(qbuf->dwTagId);
-    objv[10] = STRING_LITERAL_OBJ("lpBinaryPathName");
+    objv[2] = STRING_LITERAL_OBJ("-servicetype");
+    cP = ServiceTypeString(qbuf->dwServiceType);
+    objv[3] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(qbuf->dwServiceType);
+    objv[4] = STRING_LITERAL_OBJ("-starttype");
+    objv[5] = ObjFromDWORD(qbuf->dwStartType);
+    objv[6] = STRING_LITERAL_OBJ("-errorcontrol");
+    objv[7] = ObjFromDWORD(qbuf->dwErrorControl);
+    objv[8] = STRING_LITERAL_OBJ("-tagid");
+    objv[9] = ObjFromDWORD(qbuf->dwTagId);
+    objv[10] = STRING_LITERAL_OBJ("-command");
     objv[11] = ObjFromUnicode(qbuf->lpBinaryPathName);
-    objv[12] = STRING_LITERAL_OBJ("lpLoadOrderGroup");
+    objv[12] = STRING_LITERAL_OBJ("-loadordergroup");
     objv[13] = ObjFromUnicode(qbuf->lpLoadOrderGroup);
-    objv[14] = STRING_LITERAL_OBJ("lpServiceStartName");
+    objv[14] = STRING_LITERAL_OBJ("-account");
     objv[15] = ObjFromUnicode(qbuf->lpServiceStartName);
-    objv[16] = STRING_LITERAL_OBJ("lpDisplayName");
+    objv[16] = STRING_LITERAL_OBJ("-displayname");
     objv[17] = ObjFromUnicode(qbuf->lpDisplayName);
-    objv[18] = STRING_LITERAL_OBJ("interactive");
+    objv[18] = STRING_LITERAL_OBJ("-interactive");
     objv[19] = Tcl_NewBooleanObj(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
     Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(20,objv));
@@ -200,6 +159,56 @@ vamoose:
 
     return tcl_result;
 }
+
+
+int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWORD level)
+{
+    LPSERVICE_DESCRIPTIONW bufP;
+    DWORD buf_sz;
+    DWORD winerr;
+    int   tcl_result = TCL_ERROR;
+
+    if (level != SERVICE_CONFIG_DESCRIPTION) 
+        return TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
+
+    /* Ask for 256 bytes alloc, will get more if available */
+    bufP = (LPSERVICE_DESCRIPTIONW) MemLifoPushFrame(&ticP->memlifo,
+                                                      256, &buf_sz);
+
+    if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
+        /* For any error other than size, return */
+        winerr = GetLastError();
+        if (winerr != ERROR_INSUFFICIENT_BUFFER)
+            goto vamoose;
+
+        /* Retry allocating specified size */
+        /*
+         * Don't bother popping the memlifo frame, just alloc new.
+         * We allocated max in current memlifo chunk above anyways. Also,
+         * remember MemLifoResize will do unnecessary copy so we don't use it.
+         */
+        bufP = (LPSERVICE_DESCRIPTIONW) MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+
+        /* Get the configuration information.  */
+        if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
+            winerr = GetLastError();
+            goto vamoose;
+        }
+    }
+
+    /* If NULL, we keep result as empty string. Not an error */
+    if (bufP->lpDescription)
+        Tcl_SetObjResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
+    tcl_result = TCL_OK;
+
+vamoose:
+    MemLifoPopFrame(&ticP->memlifo);
+    if (tcl_result != TCL_OK)
+        Twapi_AppendSystemError(ticP->interp, winerr);
+
+    return tcl_result;
+}
+
 
 //#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
 #ifdef NOOP_BEYOND_VISTA
@@ -264,13 +273,14 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     DWORD services_returned;
     DWORD resume_handle;
     BOOL  success;
-    Tcl_Obj *ra[2];     /* recordarray return value */
+    Tcl_Obj *resultObj;
     Tcl_Obj *rec[12];    /* Holds values for each status record */
+    Tcl_Obj *keys[ARRAYSIZE(rec)];
     Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
     DWORD winerr;
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
-    Tcl_Obj *service_typemap[6];
+    Tcl_Obj *service_types[6];
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETPTR(hService, SC_HANDLE), GETINT(infolevel),
@@ -284,16 +294,40 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
 
-    /* 32000 - Initial estimate based on my system */
+    /* 32000 - Initial estimate based on my system - TBD */
     sbuf = MemLifoPushFrame(&ticP->memlifo, 32000, &buf_sz);
 
-    PopulateServiceTypeObjs(service_typemap);
-    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
-        states[i] = ObjFromServiceState(i);
-        Tcl_IncrRefCount(states[i]);
+    /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
+
+    /* Create the map of service types codes to strings */
+    service_types[0] = TwapiGetAtom(ticP, ServiceTypeString(0x1));
+    service_types[1] = TwapiGetAtom(ticP, ServiceTypeString(0x2));
+    service_types[2] = TwapiGetAtom(ticP, ServiceTypeString(0x4));
+    service_types[3] = TwapiGetAtom(ticP, ServiceTypeString(0x8));
+    service_types[4] = TwapiGetAtom(ticP, ServiceTypeString(0x10));
+    service_types[5] = TwapiGetAtom(ticP, ServiceTypeString(0x20));
+
+    /* And the state symbols ... */
+    for (i=0; i < ARRAYSIZE(states); ++i) {
+        states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
     }
 
-    ra[1] = Tcl_NewListObj(0, NULL);
+    /* Note order of names should be same as order of values below */
+    /* Note order of field names should be same as order of values above */
+    keys[0] = TwapiGetAtom(ticP, "servicetype");
+    keys[1] = TwapiGetAtom(ticP, "state");
+    keys[2] = TwapiGetAtom(ticP, "control_accepted");
+    keys[3] = TwapiGetAtom(ticP, "exitcode");
+    keys[4] = TwapiGetAtom(ticP, "service_code");
+    keys[5] = TwapiGetAtom(ticP, "checkpoint");
+    keys[6] = TwapiGetAtom(ticP, "wait_hint");
+    keys[7] = TwapiGetAtom(ticP, "pid");
+    keys[8] = TwapiGetAtom(ticP, "serviceflags");
+    keys[9] = TwapiGetAtom(ticP, "name");
+    keys[10] = TwapiGetAtom(ticP, "displayname");
+    keys[11] = TwapiGetAtom(ticP, "interactive");
+
+    resultObj = Tcl_NewDictObj();
     resume_handle = 0;
     do {
         /* Note we don't actually make use of buf_needed, just reuse the
@@ -312,69 +346,54 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
             &resume_handle,
             groupname);
         if ((!success) && ((winerr = GetLastError()) != ERROR_MORE_DATA)) {
-            Twapi_FreeNewTclObj(ra[1]);
+            Twapi_FreeNewTclObj(resultObj);
             Twapi_AppendSystemError(interp, winerr);
             goto pop_and_vamoose;
         }
 
         /* Tack on the services returned */
         for (i = 0; i < services_returned; ++i) {
-            DWORD state;
+            DWORD dw;
 
-            /* Note order should be same as order of field names below */
-            rec[0] = ObjFromServiceTypeObjs(sbuf[i].ServiceStatusProcess.dwServiceType, service_typemap);
-            state = sbuf[i].ServiceStatusProcess.dwCurrentState;
-            if (state < (sizeof(states)/sizeof(states[0]))) {
-                rec[1] = states[state];
-            } else {
-                rec[1] = Tcl_NewLongObj(state);
+            /* Note order should be same as order of field names above */
+
+            dw = sbuf[i].ServiceStatusProcess.dwServiceType  &  ~SERVICE_INTERACTIVE_PROCESS;
+            switch (dw) {
+            case 0x1:  rec[0] = service_types[0]; break;
+            case 0x2:  rec[0] = service_types[1]; break;
+            case 0x4:  rec[0] = service_types[2]; break;
+            case 0x8:  rec[0] = service_types[3]; break;
+            case 0x10:  rec[0] = service_types[4]; break;
+            case 0x20:  rec[0] = service_types[5]; break;
+            default: rec[0] = ObjFromDWORD(dw); break;
             }
-            rec[2] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwControlsAccepted);
-            rec[3] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwWin32ExitCode);
-            rec[4] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceSpecificExitCode);
-            rec[5] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwCheckPoint);
-            rec[6] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwWaitHint);
-            rec[7] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwProcessId);
-            rec[8] = Tcl_NewLongObj(sbuf[i].ServiceStatusProcess.dwServiceFlags);
+
+            dw = sbuf[i].ServiceStatusProcess.dwCurrentState;
+            if (dw < ARRAYSIZE(states))
+                rec[1] = states[dw];
+            else
+                rec[1] = ObjFromDWORD(dw);
+            rec[2] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwControlsAccepted);
+            rec[3] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwWin32ExitCode);
+            rec[4] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwServiceSpecificExitCode);
+            rec[5] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwCheckPoint);
+            rec[6] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwWaitHint);
+            rec[7] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwProcessId);
+            rec[8] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwServiceFlags);
             rec[9] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
             rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
             rec[11] = Tcl_NewBooleanObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-
             /* Note rec[9] object is also appended as the "key" for the "record" */
-            Tcl_ListObjAppendElement(interp, ra[1], rec[9]);
-            Tcl_ListObjAppendElement(interp, ra[1],
-                                     Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
+            Tcl_DictObjPut(interp, resultObj, rec[9], TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
         }
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
 
-
-    /* Note order of names should be same as order of values above */
-    /* Note order of field names should be same as order of values above */
-    rec[0] = STRING_LITERAL_OBJ("servicetype");
-    rec[1] = STRING_LITERAL_OBJ("state");
-    rec[2] = STRING_LITERAL_OBJ("dwControlsAccepted");
-    rec[3] = STRING_LITERAL_OBJ("dwWin32ExitCode");
-    rec[4] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
-    rec[5] = STRING_LITERAL_OBJ("dwCheckPoint");
-    rec[6] = STRING_LITERAL_OBJ("dwWaitHint");
-    rec[7] = STRING_LITERAL_OBJ("dwProcessId");
-    rec[8] = STRING_LITERAL_OBJ("dwServiceFlags");
-    rec[9] = STRING_LITERAL_OBJ("lpServiceName");
-    rec[10] = STRING_LITERAL_OBJ("lpDisplayName");
-    rec[11] = STRING_LITERAL_OBJ("interactive");
-
-    ra[0] = Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec);
-
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, ra));
+    Tcl_SetObjResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
-    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
-        Tcl_DecrRefCount(states[i]);
-    }
-    FreeServiceTypeObjs(service_typemap);
 
     MemLifoPopFrame(&ticP->memlifo);
     return status;
@@ -391,20 +410,32 @@ int Twapi_EnumDependentServices(
     DWORD buf_sz;
     DWORD services_returned;
     BOOL  success;
-    Tcl_Obj *ra[2];     /* recordarray return value */
     Tcl_Obj *rec[10];    /* Holds values for each status record */
-    Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
+    Tcl_Obj *keys[ARRAYSIZE(rec)];
+    Tcl_Obj *states[8];
     DWORD winerr;
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
-    Tcl_Obj *service_typemap[6];
+    Tcl_Obj *service_types[6];
+    Tcl_Obj *resultObj;
+
 
     sbuf = MemLifoPushFrame(&ticP->memlifo, 4000, &buf_sz);
 
-    PopulateServiceTypeObjs(service_typemap);
-    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
-        states[i] = ObjFromServiceState(i);
-        Tcl_IncrRefCount(states[i]);
+    /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
+
+    /* Create the map of service types codes to strings */
+    service_types[0] = TwapiGetAtom(ticP, ServiceTypeString(0x1));
+    service_types[1] = TwapiGetAtom(ticP, ServiceTypeString(0x2));
+    service_types[2] = TwapiGetAtom(ticP, ServiceTypeString(0x4));
+    service_types[3] = TwapiGetAtom(ticP, ServiceTypeString(0x8));
+    service_types[4] = TwapiGetAtom(ticP, ServiceTypeString(0x10));
+    service_types[5] = TwapiGetAtom(ticP, ServiceTypeString(0x20));
+
+    /* And the state symbols ... */
+    TWAPI_ASSERT(ARRAYSIZE(states) == ARRAYSIZE(gServiceStateSymbols));
+    for (i=0; i < ARRAYSIZE(states); ++i) {
+        states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
     }
 
     do {
@@ -427,60 +458,56 @@ int Twapi_EnumDependentServices(
         sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
     } while (1);
 
-    ra[1] = Tcl_NewListObj(0, NULL);
-    /* Tack on the services returned */
+    /* Note order of names should be same as order of values below */
+    keys[0] = TwapiGetAtom(ticP, "servicetype");
+    keys[1] = TwapiGetAtom(ticP, "state");
+    keys[2] = TwapiGetAtom(ticP, "control_accepted");
+    keys[3] = TwapiGetAtom(ticP, "exitcode");
+    keys[4] = TwapiGetAtom(ticP, "service_code");
+    keys[5] = TwapiGetAtom(ticP, "checkpoint");
+    keys[6] = TwapiGetAtom(ticP, "wait_hint");
+    keys[7] = TwapiGetAtom(ticP, "name");
+    keys[8] = TwapiGetAtom(ticP, "displayname");
+    keys[9] = TwapiGetAtom(ticP, "interactive");
+
+    resultObj = Tcl_NewDictObj();
     for (i = 0; i < services_returned; ++i) {
-        DWORD state;
+        DWORD dw;
 
         /* Note order should be same as order of field names below */
-        rec[0] = ObjFromServiceTypeObjs(sbuf[i].ServiceStatus.dwServiceType,
-                                        service_typemap);
-        state = sbuf[i].ServiceStatus.dwCurrentState;
-        if (state < (sizeof(states)/sizeof(states[0]))) {
-            rec[1] = states[state];
-        } else {
-            rec[1] = Tcl_NewLongObj(state);
+        dw = sbuf[i].ServiceStatus.dwServiceType  &  ~SERVICE_INTERACTIVE_PROCESS;
+        switch (dw) {
+        case 0x1:  rec[0] = service_types[0]; break;
+        case 0x2:  rec[0] = service_types[1]; break;
+        case 0x4:  rec[0] = service_types[2]; break;
+        case 0x8:  rec[0] = service_types[3]; break;
+        case 0x10:  rec[0] = service_types[4]; break;
+        case 0x20:  rec[0] = service_types[5]; break;
+        default: rec[0] = ObjFromDWORD(dw); break;
         }
-        rec[2] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwControlsAccepted);
-        rec[3] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwWin32ExitCode);
-        rec[4] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwServiceSpecificExitCode);
-        rec[5] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwCheckPoint);
-        rec[6] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwWaitHint);
+
+        dw = sbuf[i].ServiceStatus.dwCurrentState;
+        if (dw < ARRAYSIZE(states))
+            rec[1] = states[dw];
+        else
+            rec[1] = ObjFromDWORD(dw);
+        rec[2] = ObjFromDWORD(sbuf[i].ServiceStatus.dwControlsAccepted);
+        rec[3] = ObjFromDWORD(sbuf[i].ServiceStatus.dwWin32ExitCode);
+        rec[4] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceSpecificExitCode);
+        rec[5] = ObjFromDWORD(sbuf[i].ServiceStatus.dwCheckPoint);
+        rec[6] = ObjFromDWORD(sbuf[i].ServiceStatus.dwWaitHint);
         rec[7] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
         rec[8] = ObjFromUnicode(sbuf[i].lpDisplayName);
-        rec[9] = Tcl_NewLongObj(sbuf[i].ServiceStatus.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+        rec[9] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
         /* Note rec[7] object is also appended as the "key" for the "record" */
-        Tcl_ListObjAppendElement(interp, ra[1], rec[7]);
-        Tcl_ListObjAppendElement(interp, ra[1],
-                                 Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec));
+        Tcl_DictObjPut(interp, resultObj, rec[7], TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
     }
 
-
-    /* Note order of field names should be same as order of values above */
-    rec[0] = STRING_LITERAL_OBJ("servicetype");
-    rec[1] = STRING_LITERAL_OBJ("state");
-    rec[2] = STRING_LITERAL_OBJ("dwControlsAccepted");
-    rec[3] = STRING_LITERAL_OBJ("dwWin32ExitCode");
-    rec[4] = STRING_LITERAL_OBJ("dwServiceSpecificExitCode");
-    rec[5] = STRING_LITERAL_OBJ("dwCheckPoint");
-    rec[6] = STRING_LITERAL_OBJ("dwWaitHint");
-    rec[7] = STRING_LITERAL_OBJ("lpServiceName");
-    rec[8] = STRING_LITERAL_OBJ("lpDisplayName");
-    rec[9] = STRING_LITERAL_OBJ("interactive");
-
-    ra[0] = Tcl_NewListObj(sizeof(rec)/sizeof(rec[0]), rec);
-
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, ra));
-
+    Tcl_SetObjResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
-    for (i=0; i < sizeof(states)/sizeof(states[0]); ++i) {
-        Tcl_DecrRefCount(states[i]);
-    }
-    FreeServiceTypeObjs(service_typemap);
-
     MemLifoPopFrame(&ticP->memlifo);
     return status;
 }
@@ -721,6 +748,8 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             return Twapi_EnumDependentServices(ticP, h, dw);
         case 103:
             return Twapi_QueryServiceStatusEx(interp, h, dw);
+        case 104:
+            return Twapi_QueryServiceConfig2(ticP, h, dw);
         }
     } else if (func < 300) {
         /* Handle, string, int */
@@ -800,6 +829,7 @@ static int TwapiServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(ControlService, 101);
     CALL_(EnumDependentServices, 102);
     CALL_(QueryServiceStatusEx, 103);
+    CALL_(QueryServiceConfig2, 104);
 
     CALL_(GetServiceKeyName, 201);
     CALL_(GetServiceDisplayName, 202);
