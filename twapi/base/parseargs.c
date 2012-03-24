@@ -72,6 +72,7 @@ int Twapi_ParseargsObjCmd(
     struct OptionDescriptor opts[128]; /* TBD - Max number of options - get_locale_info needs more than 100! */
     int         ignoreunknown = 0;
     int         nulldefault = 0;
+    int         hyphenated = 0;
     Tcl_Obj    *newargvObj = NULL;
     int         maxleftover = INT_MAX;
     Tcl_Obj    *namevalList = NULL;
@@ -79,7 +80,7 @@ int Twapi_ParseargsObjCmd(
     /* TBD - also set errorCode in case of errors */
 
     if (objc < 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "argvVar optlist ?-ignoreunknown? ?-nulldefault? ?-?");
+        Tcl_WrongNumArgs(interp, 1, objv, "argvVar optlist ?-ignoreunknown? ?-nulldefault? ?-hyphenated? ?-maxleftover COUNT? ?--?");
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_BAD_ARG_COUNT));
         return TCL_ERROR;
     }
@@ -88,6 +89,9 @@ int Twapi_ParseargsObjCmd(
         char *s = Tcl_GetString(objv[j]);
         if (STREQ("-ignoreunknown", s)) {
             ignoreunknown = 1;
+        }
+        else if (STREQ("-hyphenated", s)) {
+            hyphenated = 1;
         }
         else if (STREQ("-nulldefault", s)) {
             nulldefault = 1;
@@ -250,6 +254,7 @@ int Twapi_ParseargsObjCmd(
         Tcl_Obj **validObjs;
         int       nvalid;
         int       ivalid;
+        Tcl_Obj  *objP;
 
         ivalid = 0;
         nvalid = 0;
@@ -374,9 +379,13 @@ int Twapi_ParseargsObjCmd(
         }
 
         /* Tack it on to result */
-        Tcl_ListObjAppendElement(interp, namevalList,
-                                 Tcl_NewStringObj(opts[k].name,
-                                                  opts[k].name_len));
+        if (hyphenated) {
+            objP = STRING_LITERAL_OBJ("-");
+            Tcl_AppendToObj(objP, opts[k].name, opts[k].name_len);
+        } else {
+            objP = Tcl_NewStringObj(opts[k].name, opts[k].name_len);
+        }
+        Tcl_ListObjAppendElement(interp, namevalList, objP);
         Tcl_ListObjAppendElement(interp, namevalList, opts[k].value);
     }
 
