@@ -1383,5 +1383,6 @@ TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
 
 TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
 
+TWAPI_EXTERN Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP);
 
 #endif // TWAPI_H
