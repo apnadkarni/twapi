@@ -19,6 +19,20 @@ int WINAPI TwapiGlobCmpCase (const char *s, const char *pat)
     return ! Tcl_StringCaseMatch(s, pat, 1);
 }
 
+/* Return a Tcl_Obj that is a lower case version of passed object */
+Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
+{
+    Tcl_Obj *resultObj;
+    char *cP;
+    int len;
+
+    cP = Tcl_GetStringFromObj(objP, &len);
+    resultObj = Tcl_NewStringObj(cP, len);
+    len = Tcl_UtfToLower(Tcl_GetString(resultObj));
+    Tcl_SetObjLength(resultObj, len);
+    return resultObj;
+}
+
 
 /* Return the DLL version of the given dll. The version is returned as
  * 0 if the DLL does not support the given version
