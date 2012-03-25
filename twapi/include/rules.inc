@@ -137,8 +137,8 @@ lib: $(OBJDIR)\$(MODULELIB)
 
 #    See [3b] - create link inputs for modules other than twapi_base
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
-	-@mkdir "$(OBJDIR)\..\twapi_base"
-	echo $(EXTRALIBS) $(OBJS) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
+	-@if not exist $(@D) mkdir $(@D)
+	echo $(EXTRALIBS) $(OBJS) > $@
 !  endif MODULENAME == twapi_base
 
 !else
@@ -157,7 +157,7 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 !endif defined(TWAPI_SINGLE_MODULE)
 
 $(RCFRAG):
-	-@mkdir "$(RCFRAGDIR)"
+	-@if not exist "$(RCFRAGDIR)" mkdir "$(RCFRAGDIR)"
 	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > $(RCFRAG)
 
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RCFRAG) $(RC_FILE_PATH) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
@@ -178,7 +178,7 @@ $(OBJS): $(CINCLUDES) makefile
 !if defined(EMBED_SCRIPT)
 
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
-	-@mkdir "$(OBJDIR)\tcl"
+	-@if not exist "$(OBJDIR)\tcl" mkdir "$(OBJDIR)\tcl"
 	for %f in ($(TCLFILES)) do @xcopy /q/y/i %f "$(OBJDIR)\tcl" >NUL
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
@@ -191,7 +191,7 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 
 # Not embedding the script. Embed a command to source the first file instead
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
-	-@mkdir "$(OBJDIR)\tcl"
+	-@if not exist "$(OBJDIR)\tcl" mkdir "$(OBJDIR)\tcl"
 	echo set fn [file join [lindex [split {$(TCLFILES)}] 0]] ; puts "source \[file join \[twapi::Twapi_GetInstallDir] [file tail $$fn]\]" | $(TCLSH) > $(TWAPI_SCRIPT_RESOURCE_PATH)
 
 !endif defined(EMBED_SCRIPT)
