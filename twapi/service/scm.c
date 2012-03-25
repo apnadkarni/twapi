@@ -384,8 +384,10 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
             rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
             rec[11] = Tcl_NewBooleanObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-            /* Note rec[9] object is also appended as the "key" for the "record" */
-            Tcl_DictObjPut(interp, resultObj, rec[9], TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
+            /* Note rec[9] object is also appended as the "key" for the
+               but in lower case form */
+            Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[9]),
+                           TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
         }
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
@@ -500,8 +502,8 @@ int Twapi_EnumDependentServices(
         rec[8] = ObjFromUnicode(sbuf[i].lpDisplayName);
         rec[9] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-        /* Note rec[7] object is also appended as the "key" for the "record" */
-        Tcl_DictObjPut(interp, resultObj, rec[7], TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
+        /* Note rec[7] object is also appended as the "key" but in lowercase*/
+        Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[7]), TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
     }
 
     Tcl_SetObjResult(interp, resultObj);
