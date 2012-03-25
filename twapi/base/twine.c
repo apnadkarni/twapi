@@ -58,6 +58,8 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
         return NULL;
     }
 
+    /* TBD - much faster to build lists, not dicts and let Tcl shimmer when necessary */
+
     resultObj = Tcl_NewDictObj();
     nmin = n1 > n2 ? n2 : n1;
     for (i = 0;  i < nmin; ++i) {
@@ -87,10 +89,35 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
     int i;
     Tcl_Obj *resultObj;
 
+#if 0
+    Commented out - much faster to build a list and let
+    Tcl automatically shimmer as needed.
     resultObj = Tcl_NewDictObj();
     for (i = 0;  i < n; ++i) {
         Tcl_DictObjPut(NULL, resultObj, first[i], second[i]);
     }
 
     return resultObj;
+#else
+    Tcl_Obj *objv[2*100];
+    Tcl_Obj **objs;
+
+    if ((2*n) > ARRAYSIZE(objv))
+        objs = TwapiAlloc(2 * n * sizeof(*objs));
+    else
+        objs = objv;
+
+    for (i = 0; i < n; ++i) {
+        objs[2*i] = first[i];
+        objs[1 + 2*i] = second[i];
+    }
+
+    resultObj = Tcl_NewListObj(2*n, objs);
+
+    if (objs != objv)
+        TwapiFree(objs);
+
+    return resultObj;
+
+#endif
 }
