@@ -331,11 +331,11 @@ proc twapi::get_service_configuration {name args} {
         description
         scm_handle.arg
         tagid
-    } -nulldefault]
+    } -nulldefault -hyphenated]
 
-    if {$opts(scm_handle) eq ""} {
+    if {$opts(-scm_handle) eq ""} {
         # Use 0x00020000 -> STANDARD_RIGHTS_READ for SCM 
-        set scmh [OpenSCManager $opts(system) $opts(database) 0x00020000]
+        set scmh [OpenSCManager $opts(-system) $opts(-database) 0x00020000]
         trap {
             set svch [OpenService $scmh $name 1]; # 1 -> SERVICE_QUERY_CONFIG
         } finally {
@@ -347,7 +347,7 @@ proc twapi::get_service_configuration {name args} {
 
     trap {
         set result [QueryServiceConfig $svch]
-        if {$opts(all) || $opts(description)} {
+        if {$opts(-all) || $opts(-description)} {
             dict set result -description {}
             # For backwards compatibility, ignore errors if description
             # cannot be obtained
@@ -359,8 +359,8 @@ proc twapi::get_service_configuration {name args} {
         CloseServiceHandle $svch
     }
 
-    if {! $opts(all)} {
-        set result [dict filter $result script {k val} {set opts([string range $k 1 end])}]
+    if {! $opts(-all)} {
+        set result [dict filter $result script {k val} {set opts($k)}]
     }
 
     if {[dict exists $result -errorcontrol]} {

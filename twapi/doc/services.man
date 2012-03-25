@@ -253,9 +253,10 @@ that are in the [const stopped] state.
 that are not in the [const stopped] state.
 [list_end]
 
-The command returns a list of alternating elements, the first being the
-internal name of the service, and the second being a keyed list that describes
-a single service. The format of this keyed list
+The command returns a dictionary, the key being the
+internal name of the dependent service [emph "in lower case"] and the value
+second being a dictionary that describes
+a single service. The format of this dictionary
 is identical to that returned
 by the [uri \#get_multiple_service_status [cmd get_multiple_service_status]].
 
@@ -290,11 +291,10 @@ that are in the [const stopped] state.
 [opt_def -active] Specifying this option will result in inclusion of services
 that are not in the [const stopped] state.
 [list_end]
-The command returns a list of alternating elements, the first being the
-internal name of the service, and the second being a keyed list that describes
-a single service. The format of the sublist is
-a keyed list of the form [arg "field1 value1 ..."]
-with the following fields:
+The command returns a dictionary, the key being the internal name of 
+the service [emph "in lower case"], and the second being a dictionary
+that describes a single service. This dictionary contains the following
+keys:
 
 [list_begin opt]
 
