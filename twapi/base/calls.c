@@ -874,10 +874,8 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                     break;
                 }
             }
-
-            result.value.unicode.str = bufP;
-            result.value.unicode.len = dw3 - 1 ;
-            result.type = TRT_UNICODE;
+            result.value.obj = ObjFromUnicode(bufP, dw3-1);
+            result.type = TRT_OBJ;
             if (bufP != u.buf)
                 MemLifoPopFrame(&ticP->memlifo);
             break;
