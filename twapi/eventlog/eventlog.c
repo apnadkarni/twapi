@@ -1,19 +1,21 @@
 /* 
- * Copyright (c) 2004-2010, Ashok P. Nadkarni
+ * Copyright (c) 2004-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
+/* TBD - maybe OpenEventLog and ReportEvent should be in base package */
+
 #include "twapi.h"
+#include "twapi_eventlog.h"
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
-/* Wrapper around ReportEvent just to rearrange argument to match typemap
- * definitions
- */
+static TwapiOneTimeInitState TwapiEventlogOneTimeInitialized;
+
 int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE hEventLog;
@@ -273,12 +275,13 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::EventlogCall", Twapi_EventlogCallObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::EvogCall", Twapi_EventlogCallObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::EvtCall", Twapi_EvtCallObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
     do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Eventlog" #call_, # code_); \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Evlog" #call_, # code_); \
     } while (0);
 
     CALL_(NotifyChangeEventLog, Call, 1);
@@ -301,6 +304,11 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
+static int TwapiEventlogOneTimeInit(Tcl_Interp *interp)
+{
+    TwapiInitEvtStubs(interp);
+    return TCL_OK;
+}
 
 #ifndef TWAPI_SINGLE_MODULE
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
@@ -328,6 +336,11 @@ int Twapi_eventlog_Init(Tcl_Interp *interp)
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
+
+    if (! TwapiDoOneTimeInit(&TwapiEventlogOneTimeInitialized,
+                             TwapiEventlogOneTimeInit, interp))
+        return TCL_ERROR;
+
 
     return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
