@@ -369,6 +369,7 @@ static TwapiInterpContext *TwapiInterpContextNew(
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
 
+    /* TBD - should we raise alloc from 8000 ? Too small ? */
     winerr = MemLifoInit(&ticP->memlifo, NULL, NULL, NULL, 8000,
                          MEMLIFO_F_PANIC_ON_FAIL);
     if (winerr != ERROR_SUCCESS) {
