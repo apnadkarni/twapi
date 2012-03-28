@@ -13,6 +13,7 @@
 #include "twapi.h"
 #include "twapi_eventlog.h"
 
+
 typedef DWORD (WINAPI *TWAPI_EVT_SUBSCRIBE_CALLBACK)(
     int Action,
     PVOID UserContext,
@@ -185,15 +186,71 @@ static struct {
 #define EvtUpdateBookmark gEvtStubs._EvtUpdateBookmark
 #define EvtGetEventInfo gEvtStubs._EvtGetEventInfo
 
-int gEvtStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
-HANDLE gEvtDllHandle;
+typedef HANDLE EVT_HANDLE;
 
+int gEvtStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
+EVT_HANDLE gEvtDllHandle;
+
+/* Used as a typedef for returning allocated memory to script level */
+#define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
+
+#define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), "EVT_HANDLE")
+
+static int ObjToEVT_VARIANT_ARRAY(
+    Tcl_Interp *interp,
+    Tcl_Obj *objP,
+    void **bufPP,   /* Where to store pointer to array */
+    int *szP,                   /* Where to store the size in bytes of buffer containing array */
+    int *usedP,                 /* Where to store # bytes used */
+    int *countP                 /* Where to store number of elements of array */
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    int sz, used, count;
+    TWAPI_EVT_VARIANT *evaP;    
+
+    if (Tcl_ListObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+    if (nobjs == 0) {
+        evaP = NULL;
+        sz = 0;
+        used = 0;
+        count = 0;
+    } else {
+        /* If not empty, must be a list of two elements - size and
+           ptr (which may be 0 and NULL) */
+        if (nobjs != 4)
+            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+
+        if (Tcl_GetIntFromObj(interp, objs[3], &count) != TCL_OK ||
+            Tcl_GetIntFromObj(interp, objs[2], &used) != TCL_OK ||
+            Tcl_GetIntFromObj(interp, objs[1], &sz) != TCL_OK ||
+            ObjToOpaque(interp, objs[0], &evaP, TWAPI_EVT_RENDER_VALUES_TYPESTR) != TCL_OK)
+            return TCL_ERROR;
+    }
+
+    if (bufPP)
+        *bufPP = evaP;
+    if (szP)
+        *szP = sz;
+    if (usedP)
+        *usedP = used;
+    if (countP)
+        *countP = count;
+
+    return TCL_OK;
+}
+
+
+#ifdef NOTNEEDED
 Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, TWAPI_EVT_VARIANT *varP)
 {
     int i;
     Tcl_Obj *objP;
     Tcl_Obj *objPP;
     void *pv;
+    Tcl_Obj *retObjs[2];
 
     if (varP->TYPE & EVT_VARIANT_TYPE_ARRAY) {
         count = varP->Count;
@@ -206,6 +263,8 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, TWAPI_EVT_VARIANT *varP)
     }
         
 #define PVELEM(p_, i_, t_) (*(i_ + (t_ *)p_))
+
+    TBD - check for pointers being NULL
 
     switch (varP->Type & EVT_VARIANT_TYPE_MASK) {
     case EvtVarTypeEvtXml:
@@ -349,8 +408,13 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, TWAPI_EVT_VARIANT *varP)
         objP = Tcl_NewListObj(count, objPP);
         MemLifoPopFrame(&ticP->memlifo);
     }
-    return objP;
+
+    retObjs[0] = Tcl_NewIntObj(varP->Type);
+    retObjs[1] = objP;
+    return Tcl_NewListObj(2, retObjs);
+#undef PVELEM
 }
+#endif
 
 
 /* Should be called only once at init time */
@@ -427,27 +491,103 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
     gEvtStatus = 1;
 }
 
-static TCL_RESULT Twapi_EvtRender(TwapiInterpContext *ticP, int objc,
+/* IMPORTANT:
+ * If a valid buffer is passed in (as the 4th arg) caller must not
+ * access it again irrespective of successful or error return unless
+ * in the former case the same buffer is returned explicitly
+ */
+static TCL_RESULT Twapi_EvtRenderValues(TwapiInterpContext *ticP, int objc,
+                                        Tcl_Obj *CONST objv[])
+{
+    HANDLE hevt, hevt2;
+    DWORD flags, sz, count, used, status;
+    void *bufP;
+    Tcl_Obj *objs[4];
+    Tcl_Interp *interp = ticP->interp;
+
+    if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
+                     GETHANDLE(hevt2), GETINT(flags), ARGSKIP, ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    bufP = NULL;
+    /* 4th arg is supposed to describe a previously returned buffer
+       that we can not reuse. It may also be NULL
+    */
+    if (ObjToEVT_VARIANT_ARRAY(interp, objv[3], &bufP, &sz, NULL, NULL) != TCL_OK)
+        return TCL_ERROR;
+
+    /* Allocate buffer if we were not passed one */
+    if (bufP == NULL) {
+        /* TBD - instrument reallocation needs */
+        sz = 4000;
+        bufP = TwapiAlloc(sz);
+    }
+
+    /* We used to convert using ObjFromEVT_VARIANT but that does
+       not work well with opaque values so we preserve as a
+       binary blob to be passed around. Note we cannot use
+       a Tcl_ByteArray either because the embedded pointers will
+       be invalid when the byte array is copied around.
+    */
+
+    /* EvtRenderEventValues -> 0 */
+    status = ERROR_SUCCESS;
+    if (EvtRender(hevt, hevt2, 0, sz, bufP, &used, &count) == FALSE) {
+        TwapiFree(bufP);
+        status = GetLastError();
+        if (status == ERROR_INSUFFICIENT_BUFFER) {
+            status = ERROR_SUCCESS;
+            sz = used;
+            bufP = TwapiAlloc(sz);
+            if (EvtRender(hevt, hevt2, 0, sz,
+                          bufP, &used, &count) == FALSE) {
+                status = GetLastError();
+            }
+        }
+    }
+
+    if (status != ERROR_SUCCESS) {
+        TwapiFree(bufP);
+        return Twapi_AppendSystemError(interp, status);
+    }
+
+    objs[0] = ObjFromOpaque(bufP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
+    objs[1] = Tcl_NewIntObj(sz);
+    objs[2] = Tcl_NewIntObj(used);
+    objs[3] = Tcl_NewIntObj(count);
+    Tcl_SetObjResult(interp, Tcl_NewListObj(4, objs));
+    return TCL_OK;
+}
+
+/* EvtRender for Unicode return types */
+static TCL_RESULT Twapi_EvtRenderUnicode(TwapiInterpContext *ticP, int objc,
                                   Tcl_Obj *CONST objv[])
 {
     HANDLE hevt, hevt2;
     DWORD flags, sz, count, status;
     void *bufP;
     Tcl_Obj *objP;
-    Tcl_Obj *objPP;
+    Tcl_Interp *interp = ticP->interp;
 
     if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
-                     GETHANDLE(hevt2), GETINT(flags), GETINT(sz),
+                     GETHANDLE(hevt2), GETINT(flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+    /* 1 -> EvtRenderEventXml */
+    /* 2 -> EvtRenderBookmark */
+    if (flags != 1 && flags != 2)
+        return TwapiReturnError(interp,TWAPI_INVALID_ARGS);
+
+    /* TBD - instrument reallocation needs */
+    sz = 256;
     bufP = MemLifoPushFrame(&ticP->memlifo, sz, &sz);
     status = ERROR_SUCCESS;
     if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE) {
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
-            /* TBD - instrument reallocation needs */
-            bufP = Memlifoalloc(&ticP->memlifo, sz);
+            /* Note no need to MemlifoPopFrame before allocating more */
+            bufP = MemLifoAlloc(&ticP->memlifo, sz, &sz);
             if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE)
                 status = GetLastError();
             else
@@ -456,41 +596,151 @@ static TCL_RESULT Twapi_EvtRender(TwapiInterpContext *ticP, int objc,
     }
 
     if (status != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(interp, status);
-    } else {
-        /* Result may be string or array of EVT_VARIANT */
-        objP = NULL;
-        switch (flags) {
-        case 0: /* EvtRenderArrayValues - Array of variant structs */
-            objPP = MemlifoAlloc(&ticP->memlifo, count * sizeof(objPP[0]));
-            for (i = 0; i < count; ++i) {
-                objPP[i] = ObjFromEVT_VARIANT(i + (TWAPI_EVT_VARIANT *)bufP);
-            }
-            objP = Tcl_NewListObj(count, objPP);
-            break;
-        case 1: /* EvtRenderEventXml */
-            /* FALLTHRU */
-        case 2: /* EvtRenderBookmark */
-            /* Unicode string. Should we use sz/2 instead of -1 ? TBD */
-            objP = Tcl_NewUnicodeObj(bufP, -1);
-            break;
-        default: /* unknown */
-            objP = Tcl_NewByteArrayObj(bufP, sz);
-            break;
-        }
-        if (objP) {
-            status = TCL_OK;
-            Tcl_SetObjResult(ticP->interp, objP);
-        }
+        MemLifoPopFrame(&ticP->memlifo);
+        return Twapi_AppendSystemError(interp, status);
     }
-        
+
+    /* Unicode string. Should we use sz/2 instead of -1 ? TBD */
+    objP = Tcl_NewUnicodeObj(bufP, -1);
     MemLifoPopFrame(&ticP->memlifo);
-    return status == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
+    Tcl_SetObjResult(ticP->interp, objP);
+    return TCL_OK;
 }
 
+static TCL_RESULT Twapi_EvtNext(TwapiInterpContext *ticP, int objc,
+                                Tcl_Obj *CONST objv[])
+{
+    EVT_HANDLE hevt;
+    EVT_HANDLE *hevtP;
+    DWORD dw, dw2, dw3;
+     Tcl_Obj **objPP;
+    Tcl_Interp *interp = ticP->interp;
 
+    if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETINT(dw),
+                     GETINT(dw2), GETINT(dw3)) != TCL_OK)
+        return TCL_ERROR;
 
+    if (dw > 1024)
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    hevtP = MemLifoPushFrame(&ticP->memlifo, dw*sizeof(*hevtP), NULL);
+    if (EvtNext(hevt, dw, hevtP, dw2, dw3, &dw2) != FALSE) {
+        if (dw2) {
+            objPP = MemLifoAlloc(&ticP->memlifo, dw2*sizeof(*objPP), NULL);
+            for (dw = 0; dw < dw2; ++dw) {
+                objPP[dw] = ObjFromHANDLE(hevtP[dw]);
+            }
+            Tcl_SetObjResult(interp, Tcl_NewListObj(dw2, objPP));
+        }
+        dw = TCL_OK;
+    } else {
+        dw = GetLastError();
+        if (dw == ERROR_NO_MORE_ITEMS)
+            dw = TCL_OK;
+        else {
+            Twapi_AppendSystemError(interp, dw);
+            dw = TCL_ERROR;
+        }
+    }
+    MemLifoPopFrame(&ticP->memlifo);
+    return dw;
+}
 
+static TCL_RESULT Twapi_EvtCreateRenderContext(TwapiInterpContext *ticP, int objc,
+                                Tcl_Obj *CONST objv[])
+{
+    EVT_HANDLE hevt;
+    int count;
+    LPCWSTR xpaths[10];
+    LPCWSTR *xpathsP;
+    int flags;
+    Tcl_Interp *interp = ticP->interp;
+    DWORD ret = TCL_ERROR;
+
+    if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(flags)) != TCL_OK ||
+        Tcl_ListObjLength(interp, objv[0], &count) != TCL_OK)
+        return TCL_ERROR;
+
+    if (count == 0) {
+        xpathsP = NULL;
+    } else {
+        if (count <= ARRAYSIZE(xpaths)) {
+            xpathsP = xpaths;
+        } else {
+            xpathsP = MemLifoPushFrame(&ticP->memlifo, count * sizeof(xpathsP[0]), NULL);
+        }
+        
+        if (ObjToArgvW(interp, objv[0], xpathsP, count, &count) != TCL_OK)
+            goto vamoose;
+    }
+    
+    hevt = EvtCreateRenderContext(count, xpathsP, flags);
+    if (hevt == NULL) {
+        TwapiReturnSystemError(interp);
+        goto vamoose;
+    }
+        
+    Tcl_SetObjResult(interp, ObjFromEVT_HANDLE(hevt));
+    ret = TCL_OK;
+
+vamoose:
+    if (xpathsP && xpathsP != xpaths)
+        MemLifoPopFrame(&ticP->memlifo);
+    return ret;
+}
+
+static TCL_RESULT Twapi_EvtFormatMessage(TwapiInterpContext *ticP, int objc,
+                                Tcl_Obj *CONST objv[])
+{
+    Tcl_Interp *interp = ticP->interp;
+    EVT_HANDLE hpub, hev;
+    DWORD msgid, flags;
+    TWAPI_EVT_VARIANT *valuesP;
+    int nvalues;
+    WCHAR buf[500];
+    int used;
+    WCHAR *bufP;
+    DWORD winerr;
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETHANDLE(hpub), GETHANDLE(hev),
+                     GETINT(msgid), ARGSKIP, GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (ObjToEVT_VARIANT_ARRAY(interp, objv[3], &valuesP, NULL, NULL, &nvalues) != TCL_OK)
+        return TCL_ERROR;
+
+    /* TBD - instrument buffer size */
+    bufP = buf;
+    winerr = ERROR_SUCCESS;
+    /* Note buffer sizes are in WCHARs, not bytes */
+    if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, ARRAYSIZE(buf), bufP, &used) == FALSE) {
+        winerr = GetLastError();
+        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+            used *= sizeof(WCHAR);
+            bufP = MemLifoPushFrame(&ticP->memlifo, used, NULL);
+            if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, used, bufP, &used) == FALSE) {
+                winerr = GetLastError();
+            } else {
+                winerr = ERROR_SUCCESS;
+            }
+        }
+    }        
+
+    if (winerr == ERROR_SUCCESS) {
+        /* TBD - see comments in GetMessageString function at
+           http://msdn.microsoft.com/en-us/windows/dd996923%28v=vs.85%29
+           - the buffer may contain multiple concatenated null terminated
+           strings. For now pass the whole chunk as is. Later may
+           split up either in here or in the script */
+        Tcl_SetObjResult(interp, Tcl_NewUnicodeObj(bufP, used));
+    } else {
+        Twapi_AppendSystemError(interp, winerr);
+    }
+    if (bufP != buf)
+        MemLifoPopFrame(&ticP->memlifo);
+
+    return winerr == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
+}
 
 int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -510,13 +760,16 @@ int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), ARGSKIP, ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
+    objc -= 2;
+    objv += 2;
+
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 0:
-    case 0:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(hevt), GETWSTR(s), GETWSTR(s2), GETINT(dw)) != TCL_OK)
+    case 1:
+    case 2:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETWSTR(s), GETWSTR(s2), GETINT(dw)) != TCL_OK)
             return TCL_ERROR;
-        if (func == TBD) {
+        if (func == 1) {
             result.type = TRT_EMPTY;
             if (! EvtClearLog(hevt, s, s2, dw))
                 result.type = TRT_GETLASTERROR;
@@ -526,43 +779,17 @@ int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 result.type = TRT_GETLASTERROR;
         }
         break;
-    case 0: // EvtOpenSession
+    case 3: // EvtOpenSession
         break;  /* TBD */
-    case 0: // EvtGetExtendedStatus
+    case 4: // EvtGetExtendedStatus
         break; // TBD - and does this even need a Tcl level access ?
-    case 0: // EvtSubscribe
+    case 5: // EvtSubscribe - TBD
         break;
-    case 0: // EvtNext
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(hevt), GETINT(dw),
-                         GETINT(dw2), GETINT(dw3)) != TCL_OK)
-            return TCL_ERROR;
-        if (dw > 1024)
-            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-        hevtP = MemLifoPushFrame(&ticP->memlifo, dw*sizeof(*hevtP), NULL);
-        if (EvtNext(hevt, dw, hevtP, dw2, dw3, &dw2) != FALSE) {
-            if (dw2) {
-                objPP = MemLifoAlloc(&ticP->memlifo, dw2*sizeof(*objPP));
-                for (dw = 0; dw < dw2; ++dw) {
-                    objPP[dw] = ObjFromHANDLE(hevtP[dw]);
-                }
-                Tcl_SetObjResult(interp, Tcl_NewListObj(dw2, objPP));
-            }            
-            dw = TCL_OK;
-        } else {
-            dw = GetLastError();
-            if (dw == ERROR_NO_MORE_ITEMS)
-                dw = TCL_OK;
-            else {
-                Twapi_AppendSystemError(interp, dw);
-                dw = TCL_ERROR;
-            }
-        }
+    case 6: // EvtNext
+        return Twapi_EvtNext(ticP, objc, objv);
 
-        MemLifoPopFrame(&ticP->memlifo);
-        return dw;
-
-    case 0: // EvtSeek
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(hevt),
+    case 7: // EvtSeek
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
                          GETWIDE(wide), GETHANDLE(hevt2), GETINT(dw),
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -571,21 +798,29 @@ int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         result.type = TRT_GETLASTERROR;
         break;
             
-    case 0: // EvtRender
-        return Twapi_EvtRender(ticP, objc-2, objv+2);
+    case 8:
+        return Twapi_EvtRenderUnicode(ticP, objc, objv);
+    case 9:
+        return Twapi_EvtRenderValues(ticP, objc, objv);
+
+    case 10:
+        return Twapi_EvtCreateRenderContext(ticP, objc, objv);
+
+    case 11:
+        return Twapi_EvtFormatMessage(ticP, objc, objv);
 
     default:
         /* Params - HANDLE followed by optional DWORD */
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(hevt),
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
                          ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
-        case 0:
+        case 101:
             if (EvtClose(hevt) != FALSE)
                 return TCL_OK;
             result.type = TRT_GETLASTERROR;
             break;
-        case 0:
+        case 102:
             if (EvtCancel(hevt) != FALSE)
                 return TCL_OK;
             result.type = TRT_GETLASTERROR;
