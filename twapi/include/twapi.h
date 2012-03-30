@@ -1117,7 +1117,6 @@ TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 TwapiTclObjCmd Twapi_CallObjCmd;
 TwapiTclObjCmd Twapi_CallHObjCmd;
-TwapiTclObjCmd Twapi_CallWUObjCmd;
 
 /* General utility functions */
 int WINAPI TwapiGlobCmp (const char *s, const char *pat);
