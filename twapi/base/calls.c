@@ -655,9 +655,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                 u.lifoP = TwapiAlloc(sizeof(MemLifo));
                 result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
                 if (result.value.ival == ERROR_SUCCESS) {
-                    result.type = TRT_OPAQUE;
-                    result.value.opaque.p = u.lifoP;
-                    result.value.opaque.name = "MemLifo*";
+                    result.type = TRT_NONNULL;
+                    result.value.nonnull.p = u.lifoP;
+                    result.value.nonnull.name = "MemLifo*";
                 } else
                     result.type = TRT_EXCEPTION_ON_ERROR;
                 break;
@@ -874,7 +874,7 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                     break;
                 }
             }
-            result.value.obj = ObjFromUnicode(bufP, dw3-1);
+            result.value.obj = ObjFromUnicodeN(bufP, dw3-1);
             result.type = TRT_OBJ;
             if (bufP != u.buf)
                 MemLifoPopFrame(&ticP->memlifo);
@@ -1053,9 +1053,9 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.value.opaque.p = TwapiAlloc(dw);
-            result.value.opaque.name = cP[0] ? cP : "void*";
-            result.type = TRT_OPAQUE;
+            result.value.nonnull.p = TwapiAlloc(dw);
+            result.value.nonnull.name = cP[0] ? cP : "void*";
+            result.type = TRT_NONNULL;
             break;
 
         case 10111: // DWORD
@@ -1236,9 +1236,9 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
 
         // 56-59 UNUSED
         case 60:
-            result.type = TRT_OPAQUE;
-            result.value.opaque.p = MemLifoPushMark(h);
-            result.value.opaque.name = "MemLifoMark*";
+            result.type = TRT_NONNULL;
+            result.value.nonnull.p = MemLifoPushMark(h);
+            result.value.nonnull.name = "MemLifoMark*";
             break;
         case 61:
             result.type = TRT_LONG;
