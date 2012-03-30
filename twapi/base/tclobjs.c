@@ -435,9 +435,11 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             Tcl_ResetResult(interp);
         break;
 
-    case TRT_OPAQUE:
-        resultObj = ObjFromOpaque(resultP->value.opaque.p,
-                                  resultP->value.opaque.name);
+    case TRT_NONNULL:
+        if (resultP->value.nonnull.p == NULL)
+            return TwapiReturnSystemError(interp);
+        resultObj = ObjFromOpaque(resultP->value.nonnull.p,
+                                  resultP->value.nonnull.name);
         break;
 
     case TRT_TCL_RESULT:
@@ -1045,7 +1047,10 @@ int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
 Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
 {
     Tcl_Obj *objP;
-    return (ObjFromSID(NULL, sidP, &objP) == TCL_OK ? objP : Tcl_NewStringObj("", 0));
+    if (sidP == NULL || ObjFromSID(NULL, sidP, &objP) != TCL_OK)
+        return Tcl_NewObj();
+    else
+        return objP;
 }
 
 

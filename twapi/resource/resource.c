@@ -511,12 +511,9 @@ static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     case 13: // LoadImage
         return Twapi_LoadImage(interp, objc-2, objv+2);
     case 14:
-        result.value.opaque.p = Twapi_GetFileVersionInfo(Tcl_GetUnicode(objv[2]));
-        if (result.value.opaque.p) {
-            result.type = TRT_OPAQUE;
-            result.value.opaque.name = "TWAPI_FILEVERINFO";
-        } else
-            result.type = TRT_GETLASTERROR;
+        result.type = TRT_NONNULL;
+        result.value.nonnull.name = "TWAPI_FILEVERINFO";
+        result.value.nonnull.p = Twapi_GetFileVersionInfo(Tcl_GetUnicode(objv[2]));
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
