@@ -14,12 +14,12 @@
 #include "twapi_eventlog.h"
 
 
-typedef DWORD (WINAPI *TWAPI_EVT_SUBSCRIBE_CALLBACK)(
+typedef DWORD (WINAPI *EVT_SUBSCRIBE_CALLBACK)(
     int Action,
     PVOID UserContext,
     HANDLE Event );
 
-typedef enum _TWAPI_EVT_VARIANT_TYPE
+typedef enum _EVT_VARIANT_TYPE
 {
     EvtVarTypeNull        = 0,
     EvtVarTypeString      = 1,
@@ -48,15 +48,23 @@ typedef enum _TWAPI_EVT_VARIANT_TYPE
     EvtVarTypeEvtHandle   = 32,
     EvtVarTypeEvtXml      = 35
 
-} TWAPI_EVT_VARIANT_TYPE;
+} EVT_VARIANT_TYPE;
 
+
+typedef struct _EVT_RPC_LOGIN {
+  LPWSTR Server;
+  LPWSTR User;
+  LPWSTR Domain;
+  LPWSTR Password;
+  DWORD  Flags;
+}EVT_RPC_LOGIN;
 
 #ifndef EVT_VARIANT_TYPE_MASK
 #define EVT_VARIANT_TYPE_MASK 0x7f
 #define EVT_VARIANT_TYPE_ARRAY 128
 #endif
 
-typedef struct _TWAPI_EVT_VARIANT
+typedef struct _EVT_VARIANT
 {
     union
     {
@@ -109,7 +117,7 @@ typedef struct _TWAPI_EVT_VARIANT
     DWORD Count;   // number of elements (not length) in bytes.
     DWORD Type;
 
-} TWAPI_EVT_VARIANT;
+} EVT_VARIANT;
 
 
 static struct {
@@ -120,34 +128,35 @@ static struct {
     HANDLE (WINAPI *_EvtQuery)(HANDLE, LPCWSTR, LPCWSTR, DWORD);
     BOOL (WINAPI *_EvtNext)(HANDLE, DWORD, HANDLE *, DWORD, DWORD, DWORD *);
     BOOL (WINAPI *_EvtSeek)(HANDLE, LONGLONG, HANDLE, DWORD, DWORD);
-    HANDLE (WINAPI *_EvtSubscribe)(HANDLE,HANDLE,LPCWSTR,LPCWSTR,HANDLE,PVOID,TWAPI_EVT_SUBSCRIBE_CALLBACK, DWORD);
+    HANDLE (WINAPI *_EvtSubscribe)(HANDLE,HANDLE,LPCWSTR,LPCWSTR,HANDLE,PVOID,EVT_SUBSCRIBE_CALLBACK, DWORD);
     HANDLE (WINAPI *_EvtCreateRenderContext)(DWORD, LPCWSTR*, DWORD);
     BOOL (WINAPI *_EvtRender)(HANDLE,HANDLE,DWORD,DWORD,PVOID, PDWORD, PDWORD);
-    BOOL (WINAPI *_EvtFormatMessage)(HANDLE,HANDLE,DWORD,DWORD, TWAPI_EVT_VARIANT*,DWORD,DWORD, LPWSTR, PDWORD);
+    BOOL (WINAPI *_EvtFormatMessage)(HANDLE,HANDLE,DWORD,DWORD, EVT_VARIANT*,DWORD,DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtOpenLog)(HANDLE,LPCWSTR,DWORD);
-    BOOL (WINAPI *_EvtGetLogInfo)(HANDLE,int,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtGetLogInfo)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtClearLog)(HANDLE,LPCWSTR,LPCWSTR,DWORD);
+
     BOOL (WINAPI *_EvtExportLog)(HANDLE,LPCWSTR,LPCWSTR,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtArchiveExportedLog)(HANDLE,LPCWSTR,LCID,DWORD);
     HANDLE (WINAPI *_EvtOpenChannelEnum)(HANDLE,DWORD);
     BOOL (WINAPI *_EvtNextChannelPath)(HANDLE,DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtOpenChannelConfig)(HANDLE,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtSaveChannelConfig)(HANDLE,DWORD);
-    BOOL (WINAPI *_EvtSetChannelConfigProperty)(HANDLE, int, DWORD, TWAPI_EVT_VARIANT *);
-    BOOL (WINAPI *_EvtGetChannelConfigProperty)(HANDLE,int,DWORD,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtSetChannelConfigProperty)(HANDLE, int, DWORD, EVT_VARIANT *);
+    BOOL (WINAPI *_EvtGetChannelConfigProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenPublisherEnum)(HANDLE,DWORD);
     BOOL (WINAPI *_EvtNextPublisherId)(HANDLE,DWORD,LPWSTR,PDWORD);
     HANDLE (WINAPI *_EvtOpenPublisherMetadata)(HANDLE,LPCWSTR,LPCWSTR,LCID,DWORD);
-    BOOL (WINAPI *_EvtGetPublisherMetadataProperty)(HANDLE,int,DWORD,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtGetPublisherMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenEventMetadataEnum)(HANDLE,DWORD);
     HANDLE (WINAPI *_EvtNextEventMetadata)(HANDLE,DWORD);
-    BOOL (WINAPI *_EvtGetEventMetadataProperty)(HANDLE,int,DWORD,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtGetEventMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtGetObjectArraySize)(HANDLE, PDWORD);
-    BOOL (WINAPI *_EvtGetObjectArrayProperty)(HANDLE,DWORD,DWORD,DWORD,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
-    BOOL (WINAPI *_EvtGetQueryInfo)(HANDLE,int,DWORD,TWAPI_EVT_VARIANT *,PDWORD);
+    BOOL (WINAPI *_EvtGetObjectArrayProperty)(HANDLE,DWORD,DWORD,DWORD,DWORD,EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtGetQueryInfo)(HANDLE,int,DWORD,EVT_VARIANT *,PDWORD);
     HANDLE (WINAPI *_EvtCreateBookmark)(LPCWSTR);
     BOOL (WINAPI *_EvtUpdateBookmark)(HANDLE,HANDLE);
-    BOOL (WINAPI *_EvtGetEventInfo)(HANDLE,int,DWORD,TWAPI_EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *_EvtGetEventInfo)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
 } gEvtStubs;
 
 #define EvtOpenSession gEvtStubs._EvtOpenSession
@@ -194,7 +203,8 @@ EVT_HANDLE gEvtDllHandle;
 /* Used as a typedef for returning allocated memory to script level */
 #define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
 
-#define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), "EVT_HANDLE")
+#define TWAPI_EVT_HANDLE_TYPESTR "EVT_HANDLE"
+#define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), TWAPI_EVT_HANDLE_TYPESTR)
 
 static int ObjToEVT_VARIANT_ARRAY(
     Tcl_Interp *interp,
@@ -208,7 +218,7 @@ static int ObjToEVT_VARIANT_ARRAY(
     Tcl_Obj **objs;
     int nobjs;
     int sz, used, count;
-    TWAPI_EVT_VARIANT *evaP;    
+    EVT_VARIANT *evaP;    
 
     if (Tcl_ListObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK)
         return TCL_ERROR;
@@ -242,180 +252,219 @@ static int ObjToEVT_VARIANT_ARRAY(
     return TCL_OK;
 }
 
-
-#ifdef NOTNEEDED
-Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, TWAPI_EVT_VARIANT *varP)
+Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
 {
     int i;
     Tcl_Obj *objP;
-    Tcl_Obj *objPP;
-    void *pv;
+    Tcl_Obj **objPP;
     Tcl_Obj *retObjs[2];
+    int count;
 
-    if (varP->TYPE & EVT_VARIANT_TYPE_ARRAY) {
-        count = varP->Count;
-        pv = varP->ByteArr;     /* Does not really matter which field we pick */
-        objPP = MemLifoPushFrame(ticP, count * sizeof(objPP[0]), NULL);
-    } else {
-        count = 1;
-        pv = &varP->SByteVal;   /* Again no matte which union field we point to */
-        objPP = &objP;
-    }
-        
-#define PVELEM(p_, i_, t_) (*(i_ + (t_ *)p_))
-
-    TBD - check for pointers being NULL
-
-    switch (varP->Type & EVT_VARIANT_TYPE_MASK) {
-    case EvtVarTypeEvtXml:
+    objP = NULL;
+    switch (varP->Type) {
+    case EvtVarTypeNull:
+        break;
     case EvtVarTypeString:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromUnicode(PVELEM(pv, i, LPCWSTR), -1);
-        }
+        if (varP->StringVal)
+            objP = ObjFromUnicode(varP->StringVal);
         break;
     case EvtVarTypeAnsiString:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewStringObj(PVELEM(pv, i, LPCSTR), -1);
-        }
+        if (varP->AnsiStringVal)
+            objP = Tcl_NewStringObj(varP->AnsiStringVal, -1);
         break;
     case EvtVarTypeSByte:
-        /* TBD - should this be a byte array ? */
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewIntObj(PVELEM(pv, i, signed char));
-        }
+        objP = Tcl_NewIntObj(varP->SByteVal);
         break;
     case EvtVarTypeByte:
-        /* TBD - should this be a byte array ? */
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewIntObj(PVELEM(pv, i, unsigned char));
-        }
+        objP = Tcl_NewIntObj(varP->ByteVal);
         break;
     case EvtVarTypeInt16:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewIntObj(PVELEM(pv, i, signed short));
-        }
+        objP = Tcl_NewIntObj(varP->Int16Val);
         break;
     case EvtVarTypeUInt16:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewIntObj(PVELEM(pv, i, unsigned short));
-        }
+        objP = Tcl_NewIntObj(varP->UInt16Val);
         break;
     case EvtVarTypeInt32:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewIntObj(PVELEM(pv, i, int));
-        }
+        objP = Tcl_NewIntObj(varP->Int32Val);
         break;
     case EvtVarTypeUInt32:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromDWORD(PVELEM(pv, i, unsigned int));
-        }
+        objP = ObjFromDWORD(varP->UInt32Val);
         break;
     case EvtVarTypeInt64:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewWideIntObj(PVELEM(pv, i, Tcl_WideInt));
-        }
+        objP = Tcl_NewWideIntObj(varP->Int64Val);
         break;
     case EvtVarTypeUInt64:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromULONGLONG(PVELEM(pv, i, ULONGLONG));
-        }
+        objP = ObjFromULONGLONG(varP->UInt64Val);
         break;
     case EvtVarTypeSingle:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewDoubleObj(PVELEM(pv,i,float));
-        }
+        objP =  Tcl_NewDoubleObj(varP->SingleVal);
         break;
     case EvtVarTypeDouble:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewDoubleObj(PVELEM(pv,i,double));
-        }
+        objP =  Tcl_NewDoubleObj(varP->DoubleVal);
         break;
     case EvtVarTypeBoolean:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = Tcl_NewBooleanObj(PVELEM(pv,i,BOOL));
-        }
+        objP = Tcl_NewBooleanObj(varP->BooleanVal != 0);
+        break;
+    case EvtVarTypeBinary:      /* TBD - do not know how to interpret this  */
         break;
     case EvtVarTypeGuid:
-        /* The way guid fields are defined, the standard way using
-           PVELEM will not work for non-arrays. Do explicitly
-        */
-        if (varP->Type & EVT_VARIANT_TYPE_ARRAY) {
+        objP = ObjFromGUID(varP->GuidVal); /* OK if NULL */
+        break;
+    case EvtVarTypeSizeT:
+        objP = ObjFromSIZE_T(varP->SizeTVal);
+        break;
+    case EvtVarTypeFileTime:
+        objP = ObjFromULONGLONG(varP->FileTimeVal);
+        break;
+    case EvtVarTypeSysTime:
+        if (varP->SysTimeVal)
+            objP = ObjFromSYSTEMTIME(varP->SysTimeVal);
+        break;
+    case EvtVarTypeSid:
+        objP = ObjFromSIDNoFail(varP->SidVal);
+        break;
+    case EvtVarTypeHexInt32:      /* TBD - do not know how to interpret this  */
+        break;
+    case EvtVarTypeHexInt64:      /* TBD - do not know how to interpret this  */
+        break;
+    default:
+        /* Check if an array. */
+        if ((varP->Type & EVT_VARIANT_TYPE_ARRAY) == 0)
+            break;
+
+        /* Check count and non-null pointer. Union so check any field */
+        count = varP->Count;
+        if (count == 0 || varP->BooleanArr == NULL)
+            break;
+
+        objPP = MemLifoPushFrame(&ticP->memlifo,
+                                 count * sizeof(objPP[0]), NULL);
+
+        switch (varP->Type & EVT_VARIANT_TYPE_MASK) {
+        case EvtVarTypeString:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = varP->StringArr[i] ?
+                    ObjFromUnicode(varP->StringArr[i])
+                    : Tcl_NewObj();
+            }
+            break;
+        case EvtVarTypeAnsiString:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = varP->AnsiStringArr[i] ?
+                    Tcl_NewStringObj(varP->AnsiStringArr[i], -1)
+                    : Tcl_NewObj();
+            }
+            break;
+        case EvtVarTypeSByte:
+            /* TBD - should this be a byte array ? */
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewIntObj(varP->SByteArr[i]);
+            }
+            break;
+        case EvtVarTypeByte:
+            /* TBD - should this be a byte array ? */
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewIntObj(varP->ByteArr[i]);
+            }
+            break;
+        case EvtVarTypeInt16:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewIntObj(varP->Int16Arr[i]);
+            }
+            break;
+        case EvtVarTypeUInt16:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewIntObj(varP->UInt16Arr[i]);
+            }
+            break;
+        case EvtVarTypeInt32:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewIntObj(varP->Int32Arr[i]);
+            }
+            break;
+        case EvtVarTypeUInt32:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = ObjFromDWORD(varP->UInt32Arr[i]);
+            }
+            break;
+        case EvtVarTypeInt64:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewWideIntObj(varP->Int64Arr[i]);
+            }
+            break;
+        case EvtVarTypeUInt64:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = ObjFromULONGLONG(varP->UInt64Arr[i]);
+            }
+            break;
+        case EvtVarTypeSingle:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewDoubleObj(varP->SingleArr[i]);
+            }
+            break;
+        case EvtVarTypeDouble:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewDoubleObj(varP->DoubleArr[i]);
+            }
+            break;
+        case EvtVarTypeBoolean:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = Tcl_NewBooleanObj(varP->BooleanArr[i] != 0);
+            }
+            break;
+        case EvtVarTypeGuid:
             for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromGUID(&varP->GuidArr[i]);
             }
-        } else {
-            objPP[0] = ObjFromGUID(varP->GuidVal);
-        }
-        break;
-    case EvtVarTypeSizeT:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromSIZE_T(PVELEM(pv,i,size_t));
-        }
-        break;
-    case EvtVarTypeFileTime:
-        /* The way file time fields are defined, the standard way using
-           PVELEM will not work for non-arrays. Do explicitly
-        */
-        if (varP->Type & EVT_VARIANT_TYPE_ARRAY) {
+            break;
+        case EvtVarTypeSizeT:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = ObjFromSIZE_T(varP->SizeTArr[i]);
+            }
+            break;
+        case EvtVarTypeFileTime:
             for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromFILETIME(&varP->FileTimeArr[i]);
             }
-        } else {
-            objPP[0] = ObjFromULONGLONG(varP->FileTimeVal);
-        }
-        break;
-    case EvtVarTypeSysTime:
-        /* The way file time fields are defined, the standard way using
-           PVELEM will not work for non-arrays. Do explicitly
-        */
-        if (varP->Type & EVT_VARIANT_TYPE_ARRAY) {
+            break;
+        case EvtVarTypeSysTime:
             for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromSYSTEMTIME(&varP->SysTimeArr[i]);
             }
-        } else {
-            objPP[0] = ObjFromSYSTEMTIME(varP->SysTimeVal);
+            break;
+        case EvtVarTypeSid:
+            for (i = 0; i < count; ++i) {
+                objPP[i] = ObjFromSIDNoFail(varP->SidArr[i]);
+            }
+            break;
+        case EvtVarTypeNull:
+        case EvtVarTypeBinary: /* TBD */
+        case EvtVarTypeHexInt32: /* TBD */
+        case EvtVarTypeHexInt64: /* TBD */
+        default:
+            /* Stuff that we do not handle or is unknown. Create an
+             * array with that many elements
+             */
+            TWAPI_ASSERT(count != 0);
+            objPP[0] = Tcl_NewObj();
+            for (i = 1; i < count; ++i) {
+                objPP[i] = objPP[0];
+            }
+            break;
         }
-        break;
-    case EvtVarTypeSid:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromSIDNoFail(PVELEM(pv,i,PSID));
-        }
-        break;
-    case EvtVarTypeEvtHandle:
-        for (i = 0; i < count; ++i) {
-            objPP[i] = ObjFromOpaque(PVELEM(pv,i,void*), "EVT_HANDLE");
-        }
-        break;
-    case EvtVarTypeHexInt32: /* TBD - what field to use ? */
-    case EvtVarTypeHexInt64: /* TBD - what field to use ? */
-    case EvtVarTypeBinary:
-        /* No DOCS as to what this is. Type is PBYTE but length ? TBD */
-        /* FALLTHRU */
-    case EvtVarTypeNull:
-    default:        
-        /* Current contract always calls for valid Tcl_Obj to be returned
-           so cannot raise error 
-        */
-        objPP[0] = Tcl_NewObj();
-        for (i = 1; i < count; ++i) {
-            objPP[i] = objPP[0];
-        }
+        TWAPI_ASSERT(count > 0 && objPP);
+        objP = Tcl_NewListObj(count, objPP);
+        MemLifoPopFrame(&ticP->memlifo);
         break;
     }
 
-    if (objPP != &objP) {
-        /* Array of objects */
-        objP = Tcl_NewListObj(count, objPP);
-        MemLifoPopFrame(&ticP->memlifo);
-    }
+    if (objP == NULL) 
+        objP = Tcl_NewObj();
 
     retObjs[0] = Tcl_NewIntObj(varP->Type);
     retObjs[1] = objP;
     return Tcl_NewListObj(2, retObjs);
-#undef PVELEM
 }
-#endif
-
 
 /* Should be called only once at init time */
 void TwapiInitEvtStubs(Tcl_Interp *interp)
@@ -694,7 +743,7 @@ static TCL_RESULT Twapi_EvtFormatMessage(TwapiInterpContext *ticP, int objc,
     Tcl_Interp *interp = ticP->interp;
     EVT_HANDLE hpub, hev;
     DWORD msgid, flags;
-    TWAPI_EVT_VARIANT *valuesP;
+    EVT_VARIANT *valuesP;
     int nvalues;
     WCHAR buf[500];
     int used;
@@ -742,17 +791,69 @@ static TCL_RESULT Twapi_EvtFormatMessage(TwapiInterpContext *ticP, int objc,
     return winerr == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
+static TCL_RESULT Twapi_EvtGetLogInfo(TwapiInterpContext *ticP, int objc,
+                                Tcl_Obj *CONST objv[])
+{
+    Tcl_Interp *interp = ticP->interp;
+    EVT_HANDLE hevt;
+    int propid, sz;
+    EVT_VARIANT var;
+
+    if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETINT(propid),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (EvtGetLogInfo(hevt, propid, sizeof(var), &var, &sz) == FALSE)
+        return TwapiReturnSystemError(interp);
+
+    Tcl_SetObjResult(interp, ObjFromEVT_VARIANT(ticP, &var));
+    return TCL_OK;
+}
+
+static TCL_RESULT Twapi_EvtOpenSession(TwapiInterpContext *ticP, int objc,
+                                       Tcl_Obj *CONST objv[])
+{
+    Tcl_Interp *interp = ticP->interp;
+    int login_class;
+    DWORD timeout, flags;
+    Tcl_Obj **loginObjs;
+    int nobjs;
+    EVT_RPC_LOGIN erl;
+
+    if (TwapiGetArgs(interp, objc, objv, GETINT(login_class),
+                     ARGSKIP, ARGUSEDEFAULT, GETINT(timeout), GETINT(flags),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (login_class != 1) {
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid login class");
+    }
+    if (Tcl_ListObjGetElements(interp, objv[1], &nobjs, &loginObjs) != TCL_OK)
+        return TCL_ERROR;
+
+    if (nobjs != 5 || Tcl_GetIntFromObj(interp, loginObjs[4], &erl.Flags) != TCL_OK) {
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid EVT_RPC_LOGIN structure");
+    }
+
+    erl.Server = Tcl_GetUnicode(loginObjs[0]);
+    erl.User = Tcl_GetUnicode(loginObjs[1]);
+    erl.Domain = Tcl_GetUnicode(loginObjs[2]);
+    erl.Password = Tcl_GetUnicode(loginObjs[3]);
+
+    return TwapiReturnNonnullHandle(interp,
+        EvtOpenSession(login_class, &erl, timeout, flags),
+        TWAPI_EVT_HANDLE_TYPESTR);
+}
+
+
 int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     int func;
-    DWORD dw, dw2, dw3;
+    DWORD dw, dw2;
     LPWSTR s, s2;
-    HANDLE hevt, hevt2, hevt3;
-    HANDLE *hevtP;
-    Tcl_Obj *objPP;
+    HANDLE hevt, hevt2;
     Tcl_WideInt wide;
-    void *bufP;
     
     if (gEvtStatus != 1)
         return Twapi_AppendSystemError(interp, ERROR_CALL_NOT_IMPLEMENTED);
@@ -767,20 +868,20 @@ int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     switch (func) {
     case 1:
     case 2:
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETWSTR(s), GETWSTR(s2), GETINT(dw)) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw)) != TCL_OK)
             return TCL_ERROR;
         if (func == 1) {
-            result.type = TRT_EMPTY;
-            if (! EvtClearLog(hevt, s, s2, dw))
-                result.type = TRT_GETLASTERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = EvtClearLog(hevt, s, s2, dw);
         } else {
-            result.type = TRT_OPAQUE;
-            if ((result.value.opaque.p = EvtQuery(hevt, s, s2, dw)) == NULL)
-                result.type = TRT_GETLASTERROR;
+            result.type = TRT_NONNULL;
+            result.value.nonnull.name = TWAPI_EVT_HANDLE_TYPESTR;
+            result.value.nonnull.p = EvtQuery(hevt, s, s2, dw);
         }
         break;
     case 3: // EvtOpenSession
-        break;  /* TBD */
+        return Twapi_EvtOpenSession(ticP, objc, objv);
+
     case 4: // EvtGetExtendedStatus
         break; // TBD - and does this even need a Tcl level access ?
     case 5: // EvtSubscribe - TBD
@@ -808,6 +909,18 @@ int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
     case 11:
         return Twapi_EvtFormatMessage(ticP, objc, objv);
+
+    case 12:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
+                         GETWSTR(s), GETINT(dw)) != TCL_OK)
+            return TCL_ERROR;
+
+        result.type = TRT_NONNULL;
+        result.value.nonnull.name = TWAPI_EVT_HANDLE_TYPESTR;
+        result.value.nonnull.p = EvtOpenLog(hevt, s, dw);
+        break;
+    case 13:
+        return Twapi_EvtGetLogInfo(ticP, objc, objv);
 
     default:
         /* Params - HANDLE followed by optional DWORD */

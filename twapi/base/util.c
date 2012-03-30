@@ -517,6 +517,20 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
     return TCL_OK;
 }
 
+/* Sets interp result as handle if not null else GetLastError value */
+TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *interp, HANDLE h, char *typestr)
+{
+    if (h == NULL)
+        return TwapiReturnSystemError(interp);
+
+    if (typestr == NULL)
+        typestr = "HANDLE";
+
+    Tcl_SetObjResult(interp, ObjFromOpaque(h, typestr));
+    return TCL_OK;
+}
+
+
 #ifdef TWAPI_REPLACE_CRT
 /* 
  * strtoul.c --

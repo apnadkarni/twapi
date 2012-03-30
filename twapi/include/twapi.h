@@ -553,7 +553,7 @@ typedef enum {
     TRT_HDESK = 23,
     TRT_HWINSTA = 24,
     TRT_POINT = 25,
-    TRT_VALID_HANDLE = 26, // Unlike TRT_HANDLE, NULL is not an error
+    TRT_VALID_HANDLE = 26, // Unlike TRT_HANDLE, INVALID_HANDLE is an error, not NULL
     TRT_GETLASTERROR = 27,   /* Set result as error code from GetLastError() */
     TRT_EXCEPTION_ON_WNET_ERROR = 28,
     TRT_DWORD_PTR = 29,
@@ -570,7 +570,7 @@ typedef enum {
     TRT_DOUBLE = 38,
     TRT_GUID = 39,  /* Also use for IID, CLSID; string rep differs from TRT_UUID
  */
-    TRT_OPAQUE = 40,
+    TRT_NONNULL = 40,    /* Non-null typed ptr, GetLastError() on NULL */
     TRT_TCL_RESULT = 41,             /* Interp result already set. Return ival
                                         field as status */
     TRT_NTSTATUS = 42,
@@ -629,7 +629,7 @@ typedef struct {
         struct {
             void *p;
             char *name;
-        } opaque;
+        } nonnull;
         VARIANT var;            /* Must VariantInit before use!! */
         LPOLESTR lpolestr; /* WCHAR string to be freed through CoTaskMemFree */
         SYSTEMTIME systime;
@@ -1384,5 +1384,6 @@ TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
 TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
 
 TWAPI_EXTERN Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP);
+TWAPI_EXTERN TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *, HANDLE, char *typestr);
 
 #endif // TWAPI_H
