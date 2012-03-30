@@ -227,7 +227,7 @@ static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
 }
 #endif
 
-Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH)
+Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
 {
     DWORD sz;
     WCHAR path[MAX_PATH+1+1]; /* Extra one char to detect errors */
@@ -241,8 +241,8 @@ Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH)
         sz = GetLastError();
         if (sz == ERROR_SUCCESS)
             sz = ERROR_INSUFFICIENT_BUFFER;
-        if (ticP && ticP->interp)
-            Twapi_AppendSystemError(ticP->interp, sz);
+        if (interp)
+            Twapi_AppendSystemError(interp, sz);
         return NULL;
     }
 

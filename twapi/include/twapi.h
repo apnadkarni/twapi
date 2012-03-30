@@ -1379,7 +1379,7 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
 #define NEW_TIC     1
     );
 
-TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(TwapiInterpContext *ticP, HANDLE dllH);
+TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH);
 
 TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
 

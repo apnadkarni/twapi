@@ -251,6 +251,100 @@ void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code
     Tcl_CreateAlias(interp, fn, interp, callcmd, 1, &code);
 }
 
+int Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    union {
+        WCHAR buf[MAX_PATH+1];
+        SYSTEM_POWER_STATUS power_status;
+    } u;
+    int func = (int) clientdata;
+    
+    if (objc != 1)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    switch (func) {
+    case 1:
+        result.type = TRT_HANDLE;
+        result.value.hval = GetCurrentProcess();
+        break;
+    case 2:
+        return Twapi_GetVersionEx(interp);
+    case 3: // UuidCreateNil
+        Tcl_SetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
+        return TCL_OK;
+    case 4: // Twapi_GetInstallDir
+        result.value.obj = TwapiGetInstallDir(interp, NULL);
+        if (result.value.obj == NULL)
+            return TCL_ERROR; /* interp error result already set */
+        result.type = TRT_OBJ;
+        break;
+    case 5:
+        return Twapi_EnumWindows(interp);
+    case 6:                /* GetSystemWindowsDirectory */
+    case 7:                /* GetWindowsDirectory */
+    case 8:                /* GetSystemDirectory */
+        result.type = TRT_UNICODE;
+        result.value.unicode.str = u.buf;
+        result.value.unicode.len =
+            (func == 6
+             ? GetSystemWindowsDirectoryW
+             : (func == 7 ? GetWindowsDirectoryW : GetSystemDirectoryW)
+                ) (u.buf, ARRAYSIZE(u.buf));
+        if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
+            result.value.unicode.len == 0) {
+            result.type = TRT_GETLASTERROR;
+        }
+        break;
+    case 9:
+        result.type = TRT_DWORD;
+        result.value.uval = GetCurrentThreadId();
+        break;
+    case 10:
+        result.type = TRT_DWORD;
+        result.value.uval = GetTickCount();
+        break;
+    case 11:
+        result.type = TRT_FILETIME;
+        GetSystemTimeAsFileTime(&result.value.filetime);
+        break;
+    case 12:
+        result.type = AllocateLocallyUniqueId(&result.value.luid) ? TRT_LUID : TRT_GETLASTERROR;
+        break;
+    case 13:
+        result.value.ival = LockWorkStation();
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        break;
+    case 14:
+        result.value.ival = RevertToSelf();
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        break;
+    case 15:
+        if (GetSystemPowerStatus(&u.power_status)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromSYSTEM_POWER_STATUS(&u.power_status);
+        } else
+            result.type = TRT_EXCEPTION_ON_FALSE;
+        break;
+    case 16:
+        result.type = TRT_EMPTY;
+        DebugBreak();
+        break;
+    case 17:
+        result.value.unicode.len = ARRAYSIZE(u.buf);
+        if (GetDefaultPrinterW(u.buf, &result.value.unicode.len)) {
+            result.value.unicode.len -= 1; /* Discard \0 */
+            result.value.unicode.str = u.buf;
+            result.type = TRT_UNICODE;
+        } else {
+            result.type = TRT_GETLASTERROR;
+        }
+        break;
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* Create the underlying call dispatch commands */
@@ -278,7 +372,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
     do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
+        Tcl_CreateObjCommand(interp, "twapi::" #fn_, Twapi_CallNoargsObjCmd, (ClientData) code_, NULL); \
     } while (0);
 
     CALL_(GetCurrentProcess, Call, 1);
@@ -291,18 +385,27 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(GetSystemDirectory, Call, 8);        /* TBD Tcl */
     CALL_(GetCurrentThreadId, Call, 9);
     CALL_(GetTickCount, Call, 10);
-    CALL_(Twapi_GetAtomStats, Call, 11);
-
-    CALL_(GetSystemTimeAsFileTime, Call, 40);
-    CALL_(AllocateLocallyUniqueId, Call, 48);
-    CALL_(LockWorkStation, Call, 49);
-    CALL_(RevertToSelf, Call, 51); /* Left in base module as it might be
+    CALL_(GetSystemTimeAsFileTime, Call, 11);
+    CALL_(AllocateLocallyUniqueId, Call, 12);
+    CALL_(LockWorkStation, Call, 13);
+    CALL_(RevertToSelf, Call, 14); /* Left in base module as it might be
                                       used from multiple extensions */
-    CALL_(GetSystemPowerStatus, Call, 68);
+    CALL_(GetSystemPowerStatus, Call, 15);
+    CALL_(DebugBreak, Call, 16);
+    CALL_(GetDefaultPrinter, Call, 17);         /* TBD Tcl */
+
+#undef CALL_
+
+    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
+#define CALL_(fn_, call_, code_)                                         \
+    do {                                                                \
+        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
+    } while (0);
+
+
+    CALL_(Twapi_GetAtomStats, Call, 11);
     CALL_(TwapiId, Call, 74);
-    CALL_(DebugBreak, Call, 75);
     CALL_(Twapi_GetNotificationWindow, Call, 77);
-    CALL_(GetDefaultPrinter, Call, 82);         /* TBD Tcl */
 
     CALL_(Twapi_AddressToPointer, Call, 1001);
     CALL_(IsValidSid, Call, 1002);
@@ -433,7 +536,6 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
         TOKEN_PRIVILEGES *tokprivsP;
         MIB_TCPROW tcprow;
         struct sockaddr_in sinaddr;
-        SYSTEM_POWER_STATUS power_status;
         TwapiId twapi_id;
         GUID guid;
         SID *sidP;
@@ -471,101 +573,20 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
-        case 1:
-            result.type = TRT_HANDLE;
-            result.value.hval = GetCurrentProcess();
-            break;
-        case 2:
-            return Twapi_GetVersionEx(interp);
-        case 3: // UuidCreateNil
-            Tcl_SetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
-            return TCL_OK;
-        case 4: // Twapi_GetInstallDir
-            result.value.obj = TwapiGetInstallDir(ticP, NULL);
-            if (result.value.obj == NULL)
-                return TCL_ERROR; /* interp error result already set */
-            result.type = TRT_OBJ;
-            break;
-        case 5:
-            return Twapi_EnumWindows(interp);
-        case 6:                /* GetSystemWindowsDirectory */
-        case 7:                /* GetWindowsDirectory */
-        case 8:                /* GetSystemDirectory */
-            result.type = TRT_UNICODE;
-            result.value.unicode.str = u.buf;
-            result.value.unicode.len =
-                (func == 78
-                 ? GetSystemWindowsDirectoryW
-                 : (func == 79 ? GetWindowsDirectoryW : GetSystemDirectoryW)
-                    ) (u.buf, ARRAYSIZE(u.buf));
-            if (result.value.unicode.len >= ARRAYSIZE(u.buf) ||
-                result.value.unicode.len == 0) {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
-        case 9:
-            result.type = TRT_DWORD;
-            result.value.uval = GetCurrentThreadId();
-            break;
-        case 10:
-            result.type = TRT_DWORD;
-            result.value.uval = GetTickCount();
-            break;
         case 11:
             result.type = TRT_OBJ;
             result.value.obj = Twapi_GetAtomStats(ticP);
             break;
-        // 12-39 UNUSED
-        case 40:
-            result.type = TRT_FILETIME;
-            GetSystemTimeAsFileTime(&result.value.filetime);
-            break;
-        // 41-47 UNUSED
-        case 48:
-            result.type = AllocateLocallyUniqueId(&result.value.luid) ? TRT_LUID : TRT_GETLASTERROR;
-            break;
-        case 49:
-            result.value.ival = LockWorkStation();
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-            // 50
-        case 51:
-            result.value.ival = RevertToSelf();
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
             // 52-67 UNUSED
-        case 68:
-            if (GetSystemPowerStatus(&u.power_status)) {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromSYSTEM_POWER_STATUS(&u.power_status);
-            } else
-                result.type = TRT_EXCEPTION_ON_FALSE;
-            break;
-        // 69-73 UNUSED
         case 74:
             result.type = TRT_WIDE;
             result.value.wide = TWAPI_NEWID(ticP);
             break;
-        case 75:
-            result.type = TRT_EMPTY;
-            DebugBreak();
-            break;
-            // 76 UNUSED
         case 77:
             result.type = TRT_HWND;
             result.value.hwin = Twapi_GetNotificationWindow(ticP);
             break;
             // 78-81 - UNUSED
-        case 82:
-            result.value.unicode.len = ARRAYSIZE(u.buf);
-            if (GetDefaultPrinterW(u.buf, &result.value.unicode.len)) {
-                result.value.unicode.len -= 1; /* Discard \0 */
-                result.value.unicode.str = u.buf;
-                result.type = TRT_UNICODE;
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
         }
 
         return TwapiSetResult(interp, &result);
