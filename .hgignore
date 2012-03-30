@@ -5,6 +5,9 @@ syntax: glob
 # Emacs backups
 *~
 
+# .cod - Cl assembler output
+*.cod
+
 *.log
 *.orig
 *.pdb
