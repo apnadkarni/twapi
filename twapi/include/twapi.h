@@ -1123,7 +1123,7 @@ TwapiTclObjCmd Twapi_CallWUObjCmd;
 int WINAPI TwapiGlobCmp (const char *s, const char *pat);
 int WINAPI TwapiGlobCmpCase (const char *s, const char *pat);
 
-int Twapi_MemLifoDump(TwapiInterpContext *ticP, MemLifo *l);
+int Twapi_MemLifoDump(Tcl_Interp *, MemLifo *l);
 
 #ifdef __cplusplus
 } // extern "C"

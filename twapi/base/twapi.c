@@ -200,7 +200,7 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
     }
 
     /* No resource found. Try loading external file from the DLL directory */
-    pathObj = TwapiGetInstallDir(ticP, dllH);
+    pathObj = TwapiGetInstallDir(interp, dllH);
     if (pathObj == NULL)
         return TCL_ERROR;
     Tcl_AppendToObj(pathObj, name, -1);

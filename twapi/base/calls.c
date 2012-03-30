@@ -251,6 +251,17 @@ void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code
     Tcl_CreateAlias(interp, fn, interp, callcmd, 1, &code);
 }
 
+void Twapi_MakeObjCmd(Tcl_Interp *interp, char *fn, TwapiTclObjCmd *callcmd, ClientData clientdata)
+{
+   /*
+    * Why a single line function ?
+    * Making this a function instead of directly calling Tcl_CreateAlias from
+    * Twapi_InitCalls saves about 4K in code space. (Yes, every K is important,
+    * users are already complaining wrt the DLL size
+    */
+    Tcl_CreateObjCommand(interp, fn, callcmd, clientdata, NULL);
+}
+
 int Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -370,31 +381,64 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::tcltype", Twapi_GetTclTypeObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
+#define MAKECMD_(fn_, call_, code_)                                         \
     do {                                                                \
-        Tcl_CreateObjCommand(interp, "twapi::" #fn_, Twapi_CallNoargsObjCmd, (ClientData) code_, NULL); \
+        Twapi_MakeObjCmd(interp, "twapi::" #fn_, Twapi_ ## call_ ## ObjCmd, (ClientData) code_); \
     } while (0);
 
-    CALL_(GetCurrentProcess, Call, 1);
-    CALL_(GetVersionEx, Call, 2);
-    CALL_(UuidCreateNil, Call, 3);
-    CALL_(Twapi_GetInstallDir, Call ,4);
-    CALL_(EnumWindows, Call, 5);
-    CALL_(GetSystemWindowsDirectory, Call, 6); /* TBD Tcl */
-    CALL_(GetWindowsDirectory, Call, 7);       /* TBD Tcl */
-    CALL_(GetSystemDirectory, Call, 8);        /* TBD Tcl */
-    CALL_(GetCurrentThreadId, Call, 9);
-    CALL_(GetTickCount, Call, 10);
-    CALL_(GetSystemTimeAsFileTime, Call, 11);
-    CALL_(AllocateLocallyUniqueId, Call, 12);
-    CALL_(LockWorkStation, Call, 13);
-    CALL_(RevertToSelf, Call, 14); /* Left in base module as it might be
+    MAKECMD_(GetCurrentProcess, CallNoargs, 1);
+    MAKECMD_(GetVersionEx, CallNoargs, 2);
+    MAKECMD_(UuidCreateNil, CallNoargs, 3);
+    MAKECMD_(Twapi_GetInstallDir, CallNoargs ,4);
+    MAKECMD_(EnumWindows, CallNoargs, 5);
+    MAKECMD_(GetSystemWindowsDirectory, CallNoargs, 6); /* TBD Tcl */
+    MAKECMD_(GetWindowsDirectory, CallNoargs, 7);       /* TBD Tcl */
+    MAKECMD_(GetSystemDirectory, CallNoargs, 8);        /* TBD Tcl */
+    MAKECMD_(GetCurrentThreadId, CallNoargs, 9);
+    MAKECMD_(GetTickCount, CallNoargs, 10);
+    MAKECMD_(GetSystemTimeAsFileTime, CallNoargs, 11);
+    MAKECMD_(AllocateLocallyUniqueId, CallNoargs, 12);
+    MAKECMD_(LockWorkStation, CallNoargs, 13);
+    MAKECMD_(RevertToSelf, CallNoargs, 14); /* Left in base module as it might be
                                       used from multiple extensions */
-    CALL_(GetSystemPowerStatus, Call, 15);
-    CALL_(DebugBreak, Call, 16);
-    CALL_(GetDefaultPrinter, Call, 17);         /* TBD Tcl */
+    MAKECMD_(GetSystemPowerStatus, CallNoargs, 15);
+    MAKECMD_(DebugBreak, CallNoargs, 16);
+    MAKECMD_(GetDefaultPrinter, CallNoargs, 17);         /* TBD Tcl */
 
-#undef CALL_
+    // CallH - function(HANDLE)
+    MAKECMD_(WTSEnumerateProcesses, CallH, 1); // Kepp in base as commonly useful
+    MAKECMD_(ReleaseMutex, CallH, 2);
+    MAKECMD_(CloseHandle, CallH, 3);
+    MAKECMD_(CastToHANDLE, CallH, 4);
+    MAKECMD_(GlobalFree, CallH, 5);
+    MAKECMD_(GlobalUnlock, CallH, 6);
+    MAKECMD_(GlobalSize, CallH, 7);
+    MAKECMD_(GlobalLock, CallH, 8);
+    MAKECMD_(Twapi_MemLifoClose, CallH, 9);
+    MAKECMD_(Twapi_MemLifoPopFrame, CallH, 10);
+    MAKECMD_(SetEvent, CallH, 11);
+    MAKECMD_(ResetEvent, CallH, 12);
+    MAKECMD_(LsaClose, CallH, 13);
+    MAKECMD_(GetHandleInformation, CallH, 14);
+    MAKECMD_(FreeLibrary, CallH, 15);
+    MAKECMD_(GetDevicePowerState, CallH, 16); // TBD - which module ?
+    MAKECMD_(Twapi_MemLifoPushMark, CallH, 60);
+    MAKECMD_(Twapi_MemLifoPopMark, CallH, 61);
+    MAKECMD_(Twapi_MemLifoValidate, CallH, 62);
+    MAKECMD_(Twapi_MemLifoDump, CallH, 63);
+
+    MAKECMD_(ReleaseSemaphore, CallH, 1001);
+    MAKECMD_(WaitForSingleObject, CallH, 1017);
+    MAKECMD_(Twapi_MemLifoAlloc, CallH, 1018);
+    MAKECMD_(Twapi_MemLifoPushFrame, CallH, 1019);
+
+    MAKECMD_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
+    MAKECMD_(Twapi_MemLifoExpandLast, CallH, 2008);
+    MAKECMD_(Twapi_MemLifoShrinkLast, CallH, 2009);
+    MAKECMD_(Twapi_MemLifoResizeLast, CallH, 2010);
+
+
+#undef MAKECMD_
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
 #define CALL_(fn_, call_, code_)                                         \
@@ -475,39 +519,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     CALL_(Twapi_IsPtr, Call, 10121);
     CALL_(CreateEvent, Call, 10122);
     CALL_(IsEqualGUID, Call, 10136); // Tcl
-
-    // CallH - function(HANDLE)
-    CALL_(WTSEnumerateProcesses, CallH, 1); // Kepp in base as commonly useful
-    CALL_(ReleaseMutex, CallH, 2);
-    CALL_(CloseHandle, CallH, 3);
-    CALL_(CastToHANDLE, CallH, 4);
-    CALL_(GlobalFree, CallH, 5);
-    CALL_(GlobalUnlock, CallH, 6);
-    CALL_(GlobalSize, CallH, 7);
-    CALL_(GlobalLock, CallH, 8);
-    CALL_(Twapi_MemLifoClose, CallH, 9);
-    CALL_(Twapi_MemLifoPopFrame, CallH, 10);
-    CALL_(SetEvent, CallH, 11);
-    CALL_(ResetEvent, CallH, 12);
-    CALL_(LsaClose, CallH, 13);
-    CALL_(GetHandleInformation, CallH, 14);
-    CALL_(FreeLibrary, CallH, 15);
-    CALL_(GetDevicePowerState, CallH, 16); // TBD - which module ?
-    CALL_(Twapi_MemLifoPushMark, CallH, 60);
-    CALL_(Twapi_MemLifoPopMark, CallH, 61);
-    CALL_(Twapi_MemLifoValidate, CallH, 62);
-    CALL_(Twapi_MemLifoDump, CallH, 63);
-
-    CALL_(ReleaseSemaphore, CallH, 1001);
-    CALL_(WaitForSingleObject, CallH, 1017);
-    CALL_(Twapi_MemLifoAlloc, CallH, 1018);
-    CALL_(Twapi_MemLifoPushFrame, CallH, 1019);
-
-    CALL_(SetHandleInformation, CallH, 2007); /* TBD - Tcl wrapper */
-    CALL_(Twapi_MemLifoExpandLast, CallH, 2008);
-    CALL_(Twapi_MemLifoShrinkLast, CallH, 2009);
-    CALL_(Twapi_MemLifoResizeLast, CallH, 2010);
-    CALL_(Twapi_RegisterWaitOnHandle, CallH, 2011);
+    CALL_(Twapi_RegisterWaitOnHandle, Call, 10137);
 
     CALL_(GetWindowLongPtr, CallWU, 8);
 
@@ -1157,6 +1169,13 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = IsEqualGUID(&guid, &u.guid);
             break;
+        case 10137:
+            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+                             GETINT(dw), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return TwapiThreadPoolRegister(
+                ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
 
         }
     }
@@ -1164,15 +1183,15 @@ int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl
     return TwapiSetResult(interp, &result);
 }
 
-int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE h;
     DWORD dw, dw2;
     TwapiResult result;
-    int func;
+    int func = (int) clientdata;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETHANDLE(h),
+                     GETHANDLE(h),
                      ARGTERM) != TCL_OK) {
         return TCL_ERROR;
     }
@@ -1270,7 +1289,7 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.value.ival = MemLifoValidate(h);
             break;
         case 63:
-            return Twapi_MemLifoDump(ticP, h);
+            return Twapi_MemLifoDump(interp, h);
         }
     } else if (func < 2000) {
 
@@ -1327,9 +1346,6 @@ int Twapi_CallHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tc
             result.type = TRT_LPVOID;
             result.value.pv = MemLifoResizeLast(h, dw, dw2);
             break;
-        case 2011:
-            return TwapiThreadPoolRegister(
-                ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
         }
     }
     return TwapiSetResult(interp, &result);
