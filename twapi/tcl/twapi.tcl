@@ -436,7 +436,7 @@ proc twapi::_timestring_to_timelist {timestring} {
 
 # Parse raw memory like binary scan command
 proc twapi::mem_binary_scan {mem off mem_sz args} {
-    uplevel [list binary scan [Twapi_ReadMemoryBinary $mem $off $mem_sz]] $args
+    uplevel [list binary scan [Twapi_ReadMemory 1 $mem $off $mem_sz]] $args
 }
 
 
@@ -496,7 +496,7 @@ proc twapi::_guid_to_binary {guid} {
 
 # Return a guid from raw memory
 proc twapi::_decode_mem_guid {mem {off 0}} {
-    return [_binary_to_guid [Twapi_ReadMemoryBinary $mem $off 16]]
+    return [_binary_to_guid [Twapi_ReadMemory 1 $mem $off 16]]
 }
 
 # Convert a Windows registry value to Tcl form. mem is a raw
@@ -509,7 +509,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
         1 -
         2 {
             return [list [expr {$type == 2 ? "expand_sz" : "sz"}] \
-                        [Twapi_ReadMemoryUnicode $mem $off $len 1]]
+                        [Twapi_ReadMemory 3 $mem $off $len 1]]
         }
         7 {
             # Collect strings until we come across an empty string
@@ -519,7 +519,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
             # it as the former so we do too.
            set multi [list ]
             while {1} {
-                set str [Twapi_ReadMemoryUnicode $mem $off -1]
+                set str [Twapi_ReadMemory 3 $mem $off -1]
                 set n [string length $str]
                 # Check for out of bounds. Cannot check for this before
                 # actually reading the string since we do not know size
@@ -540,7 +540,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
             if {$len < 4} {
                 error "Insufficient number of bytes to convert to integer."
             }
-            return [list dword [Twapi_ReadMemoryInt $mem $off]]
+            return [list dword [Twapi_ReadMemory 0 $mem $off]]
         }
         5 {
             if {$len < 4} {
@@ -567,7 +567,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
         }
     }
 
-    set val [Twapi_ReadMemoryBinary $mem $off $len]
+    set val [Twapi_ReadMemory 1 $mem $off $len]
     if {[info exists scanfmt]} {
         if {[binary scan $val $scanfmt val] != 1} {
             error "Could not convert from binary value using scan format $scanfmt"

@@ -1394,7 +1394,7 @@ proc twapi::get_process_commandline {pid args} {
             set pointer_size 4
         }
         ReadProcessMemory $hpid [expr {$peb_addr+(4*$pointer_size)}] $pgbl $pointer_size
-        set proc_param_addr [Twapi_PtrToAddress [Twapi_ReadMemoryPointer $pgbl 0]]
+        set proc_param_addr [Twapi_PtrToAddress [Twapi_ReadMemory 4 $pgbl 0]]
 
         # Now proc_param_addr contains the address of the Process parameter
         # structure which looks like:
@@ -1418,7 +1418,7 @@ proc twapi::get_process_commandline {pid args} {
             $::tcl_platform(pointerSize) == 8} {
             # Read the CommandLine field
             ReadProcessMemory $hpid [expr {$proc_param_addr + 112}] $pgbl 16
-            if {![binary scan [Twapi_ReadMemoryBinary $pgbl 0 16] tutunum cmdline_bytelen cmdline_bufsize unused cmdline_addr]} {
+            if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 16] tutunum cmdline_bytelen cmdline_bufsize unused cmdline_addr]} {
                 error "Could not get address of command line"
             }
         } else {
@@ -1428,11 +1428,11 @@ proc twapi::get_process_commandline {pid args} {
             if {[string match 8.4* [info tclversion]]} {
                 # 8.4 does not support t, n and u specifiers. Make do with
                 # what we have
-                if {![binary scan [Twapi_ReadMemoryBinary $pgbl 0 8] ssi cmdline_bytelen cmdline_bufsize cmdline_addr]} {
+                if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] ssi cmdline_bytelen cmdline_bufsize cmdline_addr]} {
                     error "Could not get address of command line"
                 }
             } else {
-                if {![binary scan [Twapi_ReadMemoryBinary $pgbl 0 8] tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
+                if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
                     error "Could not get address of command line"
                 }
             }
@@ -1452,7 +1452,7 @@ proc twapi::get_process_commandline {pid args} {
                     # Retry
                     ReadProcessMemory $hpid $cmdline_addr $pgbl $cmdline_bytelen
                 }
-                set cmdline [Twapi_ReadMemoryUnicode $pgbl 0 $cmdline_bytelen 1]
+                set cmdline [Twapi_ReadMemory 3 $pgbl 0 $cmdline_bytelen 1]
             }
         } else {
             # Old pre-2.3 code
@@ -1473,7 +1473,7 @@ proc twapi::get_process_commandline {pid args} {
             # OK, got something. It's in Unicode format, may not be null terminated
             # or may have multiple null terminated strings. THe command line
             # is the first string.
-            set cmdline [encoding convertfrom unicode [Twapi_ReadMemoryBinary $pgbl 0 $max_len]]
+            set cmdline [encoding convertfrom unicode [Twapi_ReadMemory 1 $pgbl 0 $max_len]]
             set null_offset [string first "\0" $cmdline]
             if {$null_offset >= 0} {
                 set cmdline [string range $cmdline 0 [expr {$null_offset-1}]]

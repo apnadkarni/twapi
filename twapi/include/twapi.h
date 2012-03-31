@@ -960,6 +960,12 @@ typedef struct _TwapiTclEvent {
  * Prototypes and globals
  *****************************************************************/
 
+typedef int TwapiTclObjCmd(
+    ClientData dummy,           /* Not used. */
+    Tcl_Interp *interp,         /* Current interpreter. */
+    int objc,                   /* Number of arguments. */
+    Tcl_Obj *CONST objv[]);     /* Argument objects. */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -1046,9 +1052,6 @@ int Twapi_LookupAccountName (Tcl_Interp *interp, LPCWSTR sysname, LPCWSTR name);
 int Twapi_LookupAccountSid (Tcl_Interp *interp, LPCWSTR sysname, PSID sidP);
 int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp);
 
-/* Printers */
-int Twapi_EnumPrinters_Level4(Tcl_Interp *interp, DWORD flags);
-
 /* ADSI related */
 int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
                       LPCWSTR domainnameP, UUID *guidP,
@@ -1098,11 +1101,6 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
 
 /* Built-in commands */
 
-typedef int TwapiTclObjCmd(
-    ClientData dummy,           /* Not used. */
-    Tcl_Interp *interp,         /* Current interpreter. */
-    int objc,                   /* Number of arguments. */
-    Tcl_Obj *CONST objv[]);     /* Argument objects. */
 
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TryObjCmd;
@@ -1112,11 +1110,10 @@ TwapiTclObjCmd Twapi_RecordArrayObjCmd;
 TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_InternalCastObjCmd;
 TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
+TwapiTclObjCmd Twapi_EnumPrintersLevel4ObjCmd;
 
 /* Dispatcher routines */
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
-TwapiTclObjCmd Twapi_CallObjCmd;
-TwapiTclObjCmd Twapi_CallHObjCmd;
 
 /* General utility functions */
 int WINAPI TwapiGlobCmp (const char *s, const char *pat);
@@ -1349,8 +1346,6 @@ TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *se
 TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
 
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
-TWAPI_EXTERN TCL_RESULT TwapiReadMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-TWAPI_EXTERN TCL_RESULT TwapiWriteMemory (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
