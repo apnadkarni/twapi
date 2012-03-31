@@ -902,13 +902,13 @@ proc twapi::get_system_parameters_info {uiaction} {
     trap {
         if {[lsearch -exact $modifiers cbsize] >= 0} {
             # A structure that needs first field set to its size
-            Twapi_WriteMemoryBinary $mem 0 $sz [binary format i $sz]
+            Twapi_WriteMemory 1 $mem 0 $sz [binary format i $sz]
         }
         SystemParametersInfo $index $uiparam $mem 0
         if {$fmt eq "unicode"} {
-            return [Twapi_ReadMemoryUnicode $mem 0 $sz 1]
+            return [Twapi_ReadMemory 3 $mem 0 $sz 1]
         } else {
-            set n [binary scan [Twapi_ReadMemoryBinary $mem 0 $sz] $fmt {*}[lrange {val0 val1 val2 val3 val4 val5 val6 val7 val8 val9 val10 val11 val12 val13 val14 val15 val16 val17 val17} 0 [llength $fmt]-1]]
+            set n [binary scan [Twapi_ReadMemory 1 $mem 0 $sz] $fmt {*}[lrange {val0 val1 val2 val3 val4 val5 val6 val7 val8 val9 val10 val11 val12 val13 val14 val15 val16 val17 val17} 0 [llength $fmt]-1]]
             if {$n == 1} {
                 return $val0
             } else {
