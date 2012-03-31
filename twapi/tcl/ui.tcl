@@ -934,7 +934,7 @@ proc twapi::set_desktop_wallpaper {path args} {
     set mem_size [expr {2 * ([string length $path] + 1)}]
     set mem [malloc $mem_size]
     trap {
-        twapi::Twapi_WriteMemoryUnicode $mem 0 $mem_size $path
+        twapi::Twapi_WriteMemory 3 $mem 0 $mem_size $path
         SystemParametersInfo 0x14 0 $mem $flags
     } finally {
         free $mem

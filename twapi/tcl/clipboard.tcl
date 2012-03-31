@@ -33,7 +33,7 @@ proc twapi::read_clipboard {fmt} {
     trap {
         set h [GetClipboardData $fmt]
         set p [GlobalLock $h]
-        set data [Twapi_ReadMemoryBinary $p 0 [GlobalSize $h]]
+        set data [Twapi_ReadMemory 1 $p 0 [GlobalSize $h]]
     } onerror {} {
         catch {close_clipboard}
         error $errorResult $errorInfo $errorCode
@@ -56,7 +56,7 @@ proc twapi::read_clipboard_text {args} {
         set h [GetClipboardData 13];    # 13 -> Unicode
         set p [GlobalLock $h]
         # Read data discarding terminating null
-        set data [Twapi_ReadMemoryUnicode $p 0 [GlobalSize $h] 1]
+        set data [Twapi_ReadMemory 3 $p 0 [GlobalSize $h] 1]
         if {! $opts(raw)} {
             set data [string map {"\r\n" "\n"} $data]
         }
@@ -85,7 +85,7 @@ proc twapi::write_clipboard {fmt data} {
         set mem_h [GlobalAlloc 2 $len]
         set mem_p [GlobalLock $mem_h]
 
-        Twapi_WriteMemoryBinary $mem_p 0 $len $data
+        Twapi_WriteMemory 1 $mem_p 0 $len $data
 
         # The rest of this code just to ensure we do not free
         # memory beyond this point irrespective of error/success
@@ -118,7 +118,7 @@ proc twapi::write_clipboard_text {data} {
         set mem_h [GlobalAlloc 2 $mem_size]
         set mem_p [GlobalLock $mem_h]
 
-        Twapi_WriteMemoryUnicode $mem_p 0 $mem_size $data
+        Twapi_WriteMemory 3 $mem_p 0 $mem_size $data
 
         # The rest of this code just to ensure we do not free
         # memory beyond this point irrespective of error/success

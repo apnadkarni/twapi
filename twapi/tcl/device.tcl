@@ -398,7 +398,7 @@ proc twapi::device_ioctl {h code args} {
         break
     }
 
-    set bin [Twapi_ReadMemoryBinary $_ioctl_membuf 0 $outcount]
+    set bin [Twapi_ReadMemory 1 $_ioctl_membuf 0 $outcount]
 
     # Do not hold on to cache memory is it is too big
     if {$_ioctl_membuf_size >= 1000} {

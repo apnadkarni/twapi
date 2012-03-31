@@ -7,10 +7,7 @@
 
 #include "twapi.h"
 
-int Twapi_EnumPrinters_Level4(
-    Tcl_Interp *interp,
-    DWORD flags         // printer object types
-)
+int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     void   *buf = NULL;
     DWORD   sz = 1000;
@@ -19,23 +16,28 @@ int Twapi_EnumPrinters_Level4(
     DWORD   i;
     Tcl_Obj *resultObj;
     PRINTER_INFO_4W *printerInfoP;
+    int flags;
 
-    buf = ckalloc(sz);
+    if (objc != 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, flags, objv[1]);
+
+    buf = MemLifoPushFrame(&ticP->memlifo, sz, &sz);
 
     if (EnumPrintersW(flags, NULL, 4, buf, sz, &needed_sz, &num_printers) == FALSE) {
         DWORD err = GetLastError();
         if (err != ERROR_INSUFFICIENT_BUFFER) {
-            Tcl_Free(buf);
+            MemLifoPopFrame(&ticP->memlifo);
             return Twapi_AppendSystemError(interp, err);
         }
     }
 
     if (needed_sz > sz) {
-        Tcl_Free(buf);
-        buf = ckalloc(needed_sz);
-        if (EnumPrintersW(flags, NULL, 4, buf, needed_sz, &needed_sz, &num_printers) == FALSE) {
+        /* Note - No need to free previous alloc. Will all get freed together */
+        buf = MemLifoAlloc(&ticP->memlifo, needed_sz, &sz); 
+        if (EnumPrintersW(flags, NULL, 4, buf, sz, &needed_sz, &num_printers) == FALSE) {
             TwapiReturnSystemError(interp); /* Store before calling free */
-            Tcl_Free(buf);
+            MemLifoPopFrame(&ticP->memlifo);
             return TCL_ERROR;
         }
     }
@@ -51,7 +53,7 @@ int Twapi_EnumPrinters_Level4(
     }
 
     Tcl_SetObjResult(interp, resultObj);
-    Tcl_Free(buf);
+    MemLifoPopFrame(&ticP->memlifo);
 
     return TCL_OK;
 }
