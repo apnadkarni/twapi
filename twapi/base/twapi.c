@@ -147,7 +147,7 @@ int Twapi_Init(Tcl_Interp *interp)
 /*
  * Loads the initialization script from image file resource
  */
-TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name, int try_file)
+TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *name, int try_file)
 {
     HRSRC hres = NULL;
     unsigned char *dataP;
@@ -155,7 +155,6 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
     HGLOBAL hglob;
     int result;
     int compressed;
-    Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *pathObj;
 
     /*
@@ -181,9 +180,9 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
             if (dataP) {
                 /* If compressed, we need to uncompress it first */
                 if (compressed) {
-                    dataP = TwapiLzmaUncompressBuffer(ticP, dataP, sz, &sz);
+                    dataP = TwapiLzmaUncompressBuffer(interp, dataP, sz, &sz);
                     if (dataP == NULL)
-                        return TCL_ERROR; /* ticP->interp already has error */
+                        return TCL_ERROR; /* interp already has error */
                 }
                 
                 /* The resource is expected to be UTF-8 (actually strict ASCII) */
@@ -210,22 +209,6 @@ TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const cha
 
     return result;
 }
-
-#ifdef OBSOLETE
-/*
- * Loads the initialization script from image file resource
- */
-static TCL_RESULT TwapiLoadInitScript(TwapiInterpContext *ticP)
-{
-    int result;
-    result = Twapi_SourceResource(ticP, gTwapiModuleHandle,
-                                  WLITERAL(MODULENAME), 1);
-    if (result == TCL_OK) {
-        gTwapiEmbedType = "embedded";
-    }
-    return result;
-}
-#endif
 
 Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
 {
@@ -702,7 +685,7 @@ TwapiInterpContext *TwapiRegisterModule(
     TWAPI_ASSERT(ticP);
 
     if (modP->initializer && modP->initializer(interp, ticP) != TCL_OK ||
-        Twapi_SourceResource(ticP, hmod, modP->name, 1) != TCL_OK ||
+        Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK ||
         Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
         ) {
         if (context_type)
