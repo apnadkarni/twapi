@@ -26,8 +26,8 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
     char *cP;
     int len;
 
-    cP = Tcl_GetStringFromObj(objP, &len);
-    resultObj = Tcl_NewStringObj(cP, len);
+    cP = ObjToStringN(objP, &len);
+    resultObj = ObjFromStringN(cP, len);
     len = Tcl_UtfToLower(ObjToString(resultObj));
     Tcl_SetObjLength(resultObj, len);
     return resultObj;
@@ -92,7 +92,7 @@ WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *objP, int *lenP) {
     int len;
     if (lenP == NULL)
         lenP = &len;
-    wP = Tcl_GetUnicodeFromObj(objP, lenP);
+    wP = ObjToUnicodeN(objP, lenP);
     return TwapiAllocWString(wP, *lenP);
 }
 
@@ -113,7 +113,7 @@ char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
     int len;
     if (lenP == NULL)
         lenP = &len;
-    cP = Tcl_GetStringFromObj(objP, lenP);
+    cP = ObjToStringN(objP, lenP);
     return TwapiAllocAString(cP, *lenP);
 }
 
@@ -348,7 +348,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
     if (var) {
         if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {
             /* Not a list. Some error, blow it all away. */
-            var = Tcl_NewObj();
+            var = ObjFromEmptyString();
             Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, var, 0);
             len = 0;
         } else {
@@ -365,7 +365,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
         Tcl_ListObjAppendElement(interp, var, msgObj);
     } else {
         /* log variable is currently not set */
-        Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, Tcl_NewListObj(1, &msgObj), 0);
+        Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, ObjNewList(1, &msgObj), 0);
     }
     return TCL_OK;
 }
@@ -379,8 +379,7 @@ TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *interp, HANDLE h, char *typestr)
     if (typestr == NULL)
         typestr = "HANDLE";
 
-    Tcl_SetObjResult(interp, ObjFromOpaque(h, typestr));
-    return TCL_OK;
+    return TwapiSetObjResult(interp, ObjFromOpaque(h, typestr));
 }
 
 

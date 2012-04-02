@@ -161,7 +161,7 @@ int Twapi_RecordArrayObjCmd(
     /* Special case - empty list */
     if (i == 0) {
         if (cmd == RA_EXISTS)
-            Tcl_SetObjResult(interp, Tcl_NewBooleanObj(0));
+            TwapiSetObjResult(interp, ObjFromBoolean(0));
         else
             Tcl_ResetResult(interp);
         return TCL_OK;
@@ -213,7 +213,7 @@ int Twapi_RecordArrayObjCmd(
      */
 
     if (cmd == RA_KEYS || (cmd == RA_GET && objc == 3)) {
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         for (i=0; i < nrecs; i += 2) {
             Tcl_ListObjAppendElement(interp, resultObj, recs[i]); // Key
             if (cmd == RA_GET) {
@@ -223,8 +223,7 @@ int Twapi_RecordArrayObjCmd(
                 Tcl_ListObjAppendElement(interp, resultObj, objP); // Value
             }
         }
-        Tcl_SetObjResult(interp, resultObj);
-        return TCL_OK;
+        return TwapiSetObjResult(interp, resultObj);
     }
 
     /* Locate the key. */
@@ -259,7 +258,7 @@ int Twapi_RecordArrayObjCmd(
 
     switch (cmd) {
     case RA_EXISTS:
-        resultObj = Tcl_NewBooleanObj(i < nrecs ? 1 : 0);
+        resultObj = ObjFromBoolean(i < nrecs ? 1 : 0);
         break;
     case RA_GET:
         /* i - index of matched key, i+1 - index of corresponding record */
@@ -290,7 +289,7 @@ int Twapi_RecordArrayObjCmd(
 
         /* j now holds position of the field we have to check */
 
-        resultObj = Tcl_NewListObj(0, NULL); /* Will hold records, is released on error */
+        resultObj = ObjNewList(0, NULL); /* Will hold records, is released on error */
         if (cmptype == 1) {
             /* Do comparisons as integer */
             if (ObjToInt(interp, objv[objc-1], &integer_key) != TCL_OK)
@@ -334,7 +333,7 @@ int Twapi_RecordArrayObjCmd(
         // raObj POINTS INTO THE LIST object. We have to use a separate array.
         new_ra[0] = raObj[0];
         new_ra[1] = resultObj;
-        resultObj = Tcl_NewListObj(2, new_ra);
+        resultObj = ObjNewList(2, new_ra);
         break;
 
     case RA_FIELD:
@@ -353,7 +352,7 @@ int Twapi_RecordArrayObjCmd(
         }
         if (objc == 4) {
             /* Return ALL values */
-            resultObj = Tcl_NewListObj(0, NULL);
+            resultObj = ObjNewList(0, NULL);
             for (i=0; i < nrecs; i += 2) {
                 Tcl_Obj *objP;
                 // Append key
@@ -408,11 +407,11 @@ int Twapi_RecordArrayObjCmd(
                 TwapiSetStaticResult(interp, "Invalid slice field renaming entry.");
                 return TCL_ERROR;
             }
-            s = Tcl_GetStringFromObj(names[0], &slen);
+            s = ObjToStringN(names[0], &slen);
             for (j = 0; j < nfields; ++j) {
                 char *f;
                 int flen;
-                f = Tcl_GetStringFromObj(fields[j], &flen);
+                f = ObjToStringN(fields[j], &flen);
                 if (flen == slen && !strcmp(s, f)) {
                     slice_fieldindices[i] = j;
                     break;
@@ -436,8 +435,8 @@ int Twapi_RecordArrayObjCmd(
         // raObj[0] contains field names
         // NOTE WE CANNOT JUST REUSE raobj ARRAY AND OVERWRITE raObj[1] AS
         // raObj POINTS INTO THE LIST object. We have to use a separate array.
-        new_ra[0] = Tcl_NewListObj(nslice_fields, slice_newfields);
-        new_ra[1] = Tcl_NewListObj(0, NULL);
+        new_ra[0] = ObjNewList(nslice_fields, slice_newfields);
+        new_ra[1] = ObjNewList(0, NULL);
         emptyObj = STRING_LITERAL_OBJ(""); /* So we don't create multiple empty objs */
         Tcl_IncrRefCount(emptyObj);
         for (i=0; i < nrecs; i += 2) {
@@ -457,16 +456,16 @@ int Twapi_RecordArrayObjCmd(
                 }
             }
             Tcl_ListObjAppendElement(interp, new_ra[1],
-                                     Tcl_NewListObj(nslice_fields, slice_values));
+                                     ObjNewList(nslice_fields, slice_values));
         }
         Tcl_DecrRefCount(emptyObj);
-        resultObj = Tcl_NewListObj(2, new_ra);
+        resultObj = ObjNewList(2, new_ra);
         break;
     }
 
         
     if (resultObj)              /* May legitimately be NULL */
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
     else
         Tcl_ResetResult(interp); /* Because some intermediate checks might
                                     have left error messages */

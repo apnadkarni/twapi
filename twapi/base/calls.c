@@ -129,7 +129,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             sval = "";
             len = 0;
             if (objP)
-                sval = Tcl_GetStringFromObj(objP, &len);
+                sval = ObjToStringN(objP, &len);
             if (p)
                 *(char **)p = sval;
             if (lenP)
@@ -154,7 +154,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             uval = L""; // Defaults
             len = 0;
             if (objP)
-                uval = Tcl_GetUnicodeFromObj(objP, &len);
+                uval = ObjToUnicodeN(objP, &len);
             if (p)
                 *(WCHAR **)p = uval;
             if (lenP)
@@ -261,7 +261,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 2:
         return Twapi_GetVersionEx(interp);
     case 3: // UuidCreateNil
-        Tcl_SetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
+        TwapiSetObjResult(interp, STRING_LITERAL_OBJ("00000000-0000-0000-0000-000000000000"));
         return TCL_OK;
     case 4: // Twapi_GetInstallDir
         result.value.obj = TwapiGetInstallDir(interp, NULL);
@@ -832,7 +832,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                         /* Caller also wants indicator of whether object
                            already existed */
                         objs[0] = ObjFromHANDLE(result.value.hval);
-                        objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS);
+                        objs[1] = ObjFromBoolean(GetLastError() == ERROR_ALREADY_EXISTS);
                         result.value.objv.objPP = objs;
                         result.value.objv.nobj = 2;
                         result.type = TRT_OBJV;
@@ -859,7 +859,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                     /* Caller also wants indicator of whether object
                        already existed */
                     objs[0] = ObjFromHANDLE(result.value.hval);
-                    objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS);
+                    objs[1] = ObjFromBoolean(GetLastError() == ERROR_ALREADY_EXISTS);
                     result.value.objv.objPP = objs;
                     result.value.objv.nobj = 2;
                     result.type = TRT_OBJV;
@@ -932,7 +932,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                              ARGEND) == TCL_OK) {
                 h = CreateEventW(secattrP, dw, dw2, s);
                 if (h) {
-                    objs[1] = Tcl_NewBooleanObj(GetLastError() == ERROR_ALREADY_EXISTS); /* Do this before any other call */
+                    objs[1] = ObjFromBoolean(GetLastError() == ERROR_ALREADY_EXISTS); /* Do this before any other call */
                     objs[0] = ObjFromHANDLE(h);
                     result.type = TRT_OBJV;
                     result.value.objv.objPP = objs;
@@ -1234,7 +1234,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
     p += offset;
     switch (type) {
     case 0:                     /* Int */
-        objP = Tcl_NewLongObj(*(int UNALIGNED *) p);
+        objP = ObjFromLong(*(int UNALIGNED *) p);
         break;
 
     case 1:                     /* binary */
@@ -1248,7 +1248,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
                 ;
             len = modifier;
         }
-        objP = Tcl_NewStringObj(p, len);
+        objP = ObjFromStringN(p, len);
         break;
         
     case 3:                     /* wide chars */
@@ -1262,7 +1262,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
                 ;
             len = modifier;
         }
-        objP = Tcl_NewUnicodeObj(wp, len);
+        objP = ObjFromUnicodeN(wp, len);
         break;
         
     case 4:                     /* pointer */
@@ -1270,7 +1270,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     case 5:                     /* int64 */
-        objP = Tcl_NewWideIntObj(*(Tcl_WideInt UNALIGNED *)p);
+        objP = ObjFromWideInt(*(Tcl_WideInt UNALIGNED *)p);
         break;
 
     default:
@@ -1278,8 +1278,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, objP);
 }
 
 
@@ -1317,14 +1316,14 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
         CopyMemory(offset + bufP, cp, sz);
         break;
     case 2: // Chars
-        cp = Tcl_GetStringFromObj(objv[4], &sz);
+        cp = ObjToStringN(objv[4], &sz);
         /* Note we also include the terminating null */
         if ((offset + sz + 1) > buf_size)
             goto overrun;
         CopyMemory(offset + bufP, cp, sz+1);
         break;
     case 3: // Unicode
-        wp = Tcl_GetUnicodeFromObj(objv[4], &sz);
+        wp = ObjToUnicodeN(objv[4], &sz);
         /* Note we also include the terminating null */
         if ((offset + (sizeof(WCHAR)*(sz + 1))) > buf_size)
             goto overrun;
@@ -1607,8 +1606,7 @@ int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, ObjFromHANDLE(h));
-    return TCL_OK;
+    return TwapiSetObjResult(interp, ObjFromHANDLE(h));
 }
 
 int Twapi_LookupAccountSid (
@@ -1665,9 +1663,8 @@ int Twapi_LookupAccountSid (
      */
     objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
-    objs[2] = Tcl_NewIntObj(account_type);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
-    result = TCL_OK;
+    objs[2] = ObjFromInt(account_type);
+    return TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
     if (domainP)
@@ -1771,9 +1768,8 @@ int Twapi_LookupAccountName (
     if (result != TCL_OK)
         goto done;
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
-    objs[2] = Tcl_NewIntObj(account_type);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objs));
-    result = TCL_OK;
+    objs[2] = ObjFromInt(account_type);
+    return TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
     if (domainP)
@@ -1792,7 +1788,7 @@ int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainnam
     if (status != NERR_Success) {
         return Twapi_AppendSystemError(interp, status);
     }
-    Tcl_SetObjResult(interp, ObjFromUnicode((wchar_t *)bufP));
+    TwapiSetObjResult(interp, ObjFromUnicode((wchar_t *)bufP));
     NetApiBufferFree(bufP);
     return TCL_OK;
 }
@@ -1815,7 +1811,7 @@ int Twapi_EnumWindows(Tcl_Interp *interp)
     TwapiEnumCtx enum_win_ctx;
 
     enum_win_ctx.interp = interp;
-    enum_win_ctx.objP = Tcl_NewListObj(0, NULL);
+    enum_win_ctx.objP = ObjNewList(0, NULL);
     
     if (EnumWindows(Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
         TwapiReturnSystemError(interp);
@@ -1823,8 +1819,7 @@ int Twapi_EnumWindows(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_win_ctx.objP);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, enum_win_ctx.objP);
 }
 
 TCL_RESULT Twapi_LsaQueryInformationPolicy (
@@ -1859,7 +1854,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
             &(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainName)
             );
         objs[1] = ObjFromSIDNoFail(((POLICY_ACCOUNT_DOMAIN_INFO *) buf)->DomainSid);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+        TwapiSetObjResult(interp, ObjNewList(2, objs));
         break;
 
     case PolicyDnsDomainInformation:
@@ -1876,7 +1871,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
             (UUID *) &(((POLICY_DNS_DOMAIN_INFO *) buf)->DomainGuid)
             );
         objs[4] = ObjFromSIDNoFail(((POLICY_DNS_DOMAIN_INFO *) buf)->Sid);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(5, objs));
+        TwapiSetObjResult(interp, ObjNewList(5, objs));
 
         break;
 

@@ -43,16 +43,16 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     }
 
     printerInfoP = (PRINTER_INFO_4W *)buf;
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     for (i = 0; i < num_printers; ++i, ++printerInfoP) {
-        Tcl_Obj *printerObj = Tcl_NewListObj(0, NULL);
+        Tcl_Obj *printerObj = ObjNewList(0, NULL);
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pPrinterName);
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pServerName);
         Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, printerObj, printerInfoP, Attributes);
         Tcl_ListObjAppendElement(interp, resultObj, printerObj);
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     MemLifoPopFrame(&ticP->memlifo);
 
     return TCL_OK;

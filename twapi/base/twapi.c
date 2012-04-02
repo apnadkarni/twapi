@@ -237,7 +237,7 @@ Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
         }
     }
     path[sz] = 0;
-    return Tcl_NewUnicodeObj(path, sz);
+    return ObjFromUnicodeN(path, sz);
 }
 
 int Twapi_GetTwapiBuildInfo(
@@ -255,17 +255,17 @@ int Twapi_GetTwapiBuildInfo(
 
     /* Return a keyed list */
     
-    objP = Tcl_NewListObj(0, NULL);
+    objP = ObjNewList(0, NULL);
 
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler"));
 #if defined(_MSC_VER)
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("vc++"));
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(_MSC_VER));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(_MSC_VER));
 #elif defined(__GNUC__)
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("gcc"));
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(__VERSION__, -1));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromString(__VERSION__));
 #else
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
@@ -273,18 +273,18 @@ int Twapi_GetTwapiBuildInfo(
 #endif
 
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("sdk_version"));
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(VER_PRODUCTBUILD));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(VER_PRODUCTBUILD));
 
     /* Are we building with TEA ? */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
 #if defined(HAVE_SYS_TYPES_H)
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(1));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(1));
 #else
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(0));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(0));
 #endif
 
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
-    elemP = Tcl_NewListObj(0, NULL);
+    elemP = ObjNewList(0, NULL);
 #ifdef TWAPI_NODESKTOP
     Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nodesktop"));
 #endif
@@ -296,26 +296,18 @@ int Twapi_GetTwapiBuildInfo(
 #endif
     Tcl_ListObjAppendElement(interp, objP, elemP);
 
-#if 0
-    /* No point to this. Not used and not reliable since in the current
-       build, tcl scripts are sourced via a command in the resource script */
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("embed_type"));
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(gTwapiEmbedType, -1));
-#endif
-
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
 #if defined(TWAPI_SINGLE_MODULE)
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(1));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(1));
 #else
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewLongObj(0));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(0));
 #endif
 
     /* Which Tcl did we build against ? (As opposed to run time) */
     Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
-    Tcl_ListObjAppendElement(interp, objP, Tcl_NewStringObj(TCL_PATCH_LEVEL, -1));
+    Tcl_ListObjAppendElement(interp, objP, ObjFromString(TCL_PATCH_LEVEL));
 
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, objP);
 }
 
 
@@ -705,7 +697,7 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
         return TwapiReturnSystemError(interp);
     }
 
-    objP = Tcl_NewListObj(0, NULL);
+    objP = ObjNewList(0, NULL);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwOSVersionInfoSize);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMajorVersion);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, objP, &vi, dwMinorVersion);
@@ -718,8 +710,7 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
     Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
     Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
 
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, objP);
 }
 
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
@@ -738,13 +729,13 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
 
 
     /* Now create the data records */
-    records = Tcl_NewListObj(0, NULL);
+    records = ObjNewList(0, NULL);
     for (i = 0; i < count; ++i) {
         Tcl_Obj *sidObj;
 
         /* Create a list corresponding to the fields for the process entry */
-        objv[0] = Tcl_NewLongObj(processP[i].SessionId);
-        objv[1] = Tcl_NewLongObj(processP[i].ProcessId);
+        objv[0] = ObjFromLong(processP[i].SessionId);
+        objv[1] = ObjFromLong(processP[i].ProcessId);
         objv[2] = ObjFromUnicode(processP[i].pProcessName);
         if (processP[i].pUserSid) {
             if (ObjFromSID(interp, processP[i].pUserSid, &sidObj) != TCL_OK) {
@@ -759,8 +750,8 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
             objv[3] = STRING_LITERAL_OBJ("");
         }
 
-        Tcl_ListObjAppendElement(interp, records, Tcl_NewLongObj(processP[i].ProcessId));
-        Tcl_ListObjAppendElement(interp, records, Tcl_NewListObj(4, objv));
+        Tcl_ListObjAppendElement(interp, records, ObjFromLong(processP[i].ProcessId));
+        Tcl_ListObjAppendElement(interp, records, ObjNewList(4, objv));
     }
 
     Twapi_WTSFreeMemory(processP);
@@ -770,13 +761,12 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
     objv[1] = STRING_LITERAL_OBJ("ProcessId");
     objv[2] = STRING_LITERAL_OBJ("pProcessName");
     objv[3] = STRING_LITERAL_OBJ("pUserSid");
-    fields = Tcl_NewListObj(4, objv);
+    fields = ObjNewList(4, objv);
 
     /* Put field names and records to make up the recordarray */
     objv[0] = fields;
     objv[1] = records;
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
-    return TCL_OK;
+    return TwapiSetObjResult(interp, ObjNewList(2, objv));
 }
 
 
@@ -795,7 +785,7 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
     
     he = Tcl_CreateHashEntry(&ticP->atoms, key, &new_entry);
     if (new_entry) {
-        Tcl_Obj *objP = Tcl_NewStringObj(key, -1);
+        Tcl_Obj *objP = ObjFromString(key);
         Tcl_IncrRefCount(objP);
         Tcl_SetHashValue(he, objP);
         return objP;
@@ -807,7 +797,7 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
 Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) 
 {
     char *stats = Tcl_HashStats(&ticP->atoms);
-    Tcl_Obj *objP = Tcl_NewStringObj(stats, -1);
+    Tcl_Obj *objP = ObjFromString(stats);
     ckfree(stats);
     return objP;
 }
