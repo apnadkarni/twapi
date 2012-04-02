@@ -23,10 +23,8 @@ int Twapi_TwineObjCmd(
         Tcl_Obj **nested_list;
         if (Tcl_ListObjGetElements(interp, objv[1], &n, &nested_list) != TCL_OK)
             return TCL_ERROR;
-        if (n != 2) {
-            Tcl_SetResult(interp, "If a single argument is specified, it must be a list of exactly two sublists.", TCL_STATIC);
-            return TCL_ERROR;
-        }
+        if (n != 2)
+            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
         list1 = nested_list[0];
         list2 = nested_list[1];
     } else if (objc == 3) {

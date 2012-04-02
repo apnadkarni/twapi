@@ -32,7 +32,7 @@ int Twapi_TryObjCmd(
     final = 0;
     i = 2;
     while (i < objc) {
-        char *s = Tcl_GetString(objv[i]);
+        char *s = ObjToString(objv[i]);
         if (STREQ("onerror", s)) {
             /* There should be at least two more args */
             if ((i+2) >= objc)
@@ -79,9 +79,9 @@ int Twapi_TryObjCmd(
     facilityP = "";
     codeP     = "";
     if (errorCodeObjc > 0) {
-        facilityP = Tcl_GetString(errorCodeObjv[0]);
+        facilityP = ObjToString(errorCodeObjv[0]);
         if (errorCodeObjc > 1)
-            codeP = Tcl_GetString(errorCodeObjv[1]);
+            codeP = ObjToString(errorCodeObjv[1]);
     }
 
     /* Check if any error conditions match */
@@ -105,19 +105,19 @@ int Twapi_TryObjCmd(
 
         if (codeObjc == 0)
             match = 1;        /* Note empty patterns matches any thing */
-        else if (! lstrcmpA(facilityP, Tcl_GetString(codeObjv[0]))) {
+        else if (! lstrcmpA(facilityP, ObjToString(codeObjv[0]))) {
             /* Facility matches. */
             if (codeObjc == 1)
                 match = 1;  /* No code specified so facility need match */
-            else if (! lstrcmpA(codeP, Tcl_GetString(codeObjv[1]))) {
+            else if (! lstrcmpA(codeP, ObjToString(codeObjv[1]))) {
                 /* Code specified and matches */
                 match = 1;
             } else {
                 /* Code does not match as string. Try for integer match */
                 int errorCodeInt, patInt;
-                if (Tcl_GetIntFromObj(interp, codeObjv[1], &patInt) == TCL_OK &&
+                if (ObjToInt(interp, codeObjv[1], &patInt) == TCL_OK &&
                     codeP[0] &&
-                    Tcl_GetIntFromObj(interp, errorCodeObjv[1], &errorCodeInt) == TCL_OK &&
+                    ObjToInt(interp, errorCodeObjv[1], &errorCodeInt) == TCL_OK &&
                     errorCodeInt == patInt) {
                     match = 1; /* Matched as integers */
                 }
@@ -179,7 +179,7 @@ finalize:
 badsyntax:
     Tcl_ResetResult(interp);
     Tcl_AppendResult(interp, "Invalid syntax: should be ",
-                     Tcl_GetString(objv[0]),
+                     ObjToString(objv[0]),
                      " SCRIPT ?onerror ERROR ERRORSCRIPT? ...?finally FINALSCRIPT?",
         NULL);
     goto pop_and_return;
