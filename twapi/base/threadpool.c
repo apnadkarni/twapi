@@ -156,8 +156,7 @@ TCL_RESULT TwapiThreadPoolRegister(
                                     wait_ms,
                                     flags)) {
         
-        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(tprP->id));
-        return TCL_OK;
+        return TwapiSetObjResult(ticP->interp, ObjFromTwapiId(tprP->id));
     } else {
         tprP->tp_handle = INVALID_HANDLE_VALUE; /* Just to be sure */
         /* Back out the ref for thread pool since it failed */
@@ -192,7 +191,7 @@ void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE 
     Tcl_Obj *objs[4];
     int i;
 
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_wait_handler", -1);
+    objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_wait_handler");
     objs[1] = ObjFromTwapiId(id);
     objs[2] = ObjFromHANDLE(h);
     if (timeout) 

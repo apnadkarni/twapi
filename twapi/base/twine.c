@@ -39,8 +39,7 @@ int Twapi_TwineObjCmd(
     if (resultObj == NULL)
         return TCL_ERROR;
 
-    Tcl_SetObjResult(interp, resultObj);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, resultObj);
 }
 
 /* Twine (merge) two lists */
@@ -66,13 +65,13 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 
     if (i < n1) {
         /* n1 != n2 and n2 was the minimum. Use an empty object for list2 */
-        Tcl_Obj *empty = Tcl_NewStringObj("", 0);
+        Tcl_Obj *empty = ObjFromEmptyString();
         for ( ; i < n1; ++i) {
             Tcl_DictObjPut(interp, resultObj, list1[i], empty);
         }
     } else if (i < n2) {
         /* n1 != n2 and n1 was the minimum. Use an empty object for list1 */
-        Tcl_Obj *empty = Tcl_NewStringObj("", 0);
+        Tcl_Obj *empty = ObjFromEmptyString();
         for ( ; i < n2; ++i) {
             Tcl_DictObjPut(interp, resultObj, empty, list2[i]);
         }
@@ -110,7 +109,7 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
         objs[1 + 2*i] = second[i];
     }
 
-    resultObj = Tcl_NewListObj(2*n, objs);
+    resultObj = ObjNewList(2*n, objs);
 
     if (objs != objv)
         TwapiFree(objs);

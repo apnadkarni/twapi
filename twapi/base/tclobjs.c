@@ -84,7 +84,7 @@ int TwapiInitTclTypes(void)
      *  by hook or by crook
      */
     if (gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr == NULL) {
-        Tcl_Obj *objP = Tcl_NewStringObj("true", -1);
+        Tcl_Obj *objP = STRING_LITERAL_OBJ("true");
         Tcl_GetBooleanFromObj(NULL, objP, &i);
         /* This may still be NULL, but what can we do ? */
         gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
@@ -116,7 +116,7 @@ int Twapi_GetTclTypeObjCmd(
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (objv[1]->typePtr != NULL) {
-        Tcl_SetObjResult(interp, Tcl_NewStringObj(objv[1]->typePtr->name, -1));
+        TwapiSetObjResult(interp, ObjFromString(objv[1]->typePtr->name));
     } else {
         /* Leave result as empty string */
     }
@@ -142,8 +142,7 @@ int Twapi_InternalCastObjCmd(
 
     if (*typename == '\0') {
         /* No type, keep as is */
-        Tcl_SetObjResult(interp, objv[2]);
-        return TCL_OK;
+        return TwapiSetObjResult(interp, objv[2]);
     }
         
     /*
@@ -156,10 +155,9 @@ int Twapi_InternalCastObjCmd(
         if (Tcl_GetBooleanFromObj(interp, objv[2], &i) == TCL_ERROR)
             return TCL_ERROR;
         /* Directly calling Tcl_NewBooleanObj returns an int type object */
-        objP = Tcl_NewStringObj(i ? "true" : "false", -1);
+        objP = ObjFromString(i ? "true" : "false");
         Tcl_GetBooleanFromObj(NULL, objP, &i);
-        Tcl_SetObjResult(interp, objP);
-        return TCL_OK;
+        return TwapiSetObjResult(interp, objP);
     }
 
     typeP = Tcl_GetObjType(typename);
@@ -191,8 +189,7 @@ int Twapi_InternalCastObjCmd(
         }
     }
 
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, objP);
 }
 
 /* Call to set static result */
@@ -201,6 +198,11 @@ void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[])
     Tcl_SetResult(interp, (char *) s, TCL_STATIC);
 }
 
+TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
 
 /*
  * Generic function for setting a Tcl result. Note following special cases
@@ -222,7 +224,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         return TwapiReturnSystemError(interp);
 
     case TRT_BOOL:
-        resultObj = Tcl_NewBooleanObj(resultP->value.bval);
+        resultObj = ObjFromBoolean(resultP->value.bval);
         break;
 
     case TRT_EXCEPTION_ON_FALSE:
@@ -232,7 +234,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             return TwapiReturnSystemError(interp);
 
         if (resultP->type == TRT_NONZERO_RESULT)
-            resultObj = Tcl_NewLongObj(resultP->value.ival);
+            resultObj = ObjFromLong(resultP->value.ival);
         /* else an empty result is returned */
         break;
 
@@ -256,7 +258,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             return TwapiReturnSystemError(interp);
 
         /* Other values are to be returned */
-        resultObj = Tcl_NewLongObj(resultP->value.ival);
+        resultObj = ObjFromLong(resultP->value.ival);
         break;
 
     case TRT_UNICODE_DYNAMIC:
@@ -270,7 +272,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_CHARS_DYNAMIC:
     case TRT_CHARS:
         if (resultP->value.chars.str)
-            resultObj = Tcl_NewStringObj(resultP->value.chars.str,
+            resultObj = ObjFromStringN(resultP->value.chars.str,
                                          resultP->value.chars.len);
         break;
 
@@ -284,7 +286,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         break;
 
     case TRT_OBJV:
-        resultObj = Tcl_NewListObj(resultP->value.objv.nobj, resultP->value.objv.objPP);
+        resultObj = ObjNewList(resultP->value.objv.nobj, resultP->value.objv.objPP);
         break;
 
     case TRT_RECT:
@@ -376,15 +378,15 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         break;
 
     case TRT_LONG:
-        resultObj = Tcl_NewLongObj(resultP->value.ival);
+        resultObj = ObjFromLong(resultP->value.ival);
         break;
 
     case TRT_DWORD:
-        resultObj = Tcl_NewWideIntObj((Tcl_WideInt) resultP->value.uval);
+        resultObj = ObjFromWideInt((Tcl_WideInt) resultP->value.uval);
         break;
         
     case TRT_WIDE:
-        resultObj = Tcl_NewWideIntObj(resultP->value.wide);
+        resultObj = ObjFromWideInt(resultP->value.wide);
         break;
 
     case TRT_DOUBLE:
@@ -473,7 +475,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     TwapiClearResult(resultP);  /* Clear out resources */
 
     if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
 
 
     return TCL_OK;
@@ -531,7 +533,7 @@ Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
 #endif
 
     for (i = 0;  i < objc;  ++i) {
-        s = Tcl_GetStringFromObj(objv[i], &len);
+        s = ObjToStringN(objv[i], &len);
         if (i > 0) {
             Tcl_AppendToObj(resultObj, joiner, joinlen);
         }
@@ -547,7 +549,7 @@ LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP)
 {
     if (objP) {
         int len;
-        LPWSTR p = Tcl_GetUnicodeFromObj(objP, &len);
+        LPWSTR p = ObjToUnicodeN(objP, &len);
         if (len > 0)
             return p;
     }
@@ -576,7 +578,7 @@ int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
         wcharP = L"";
         len = 0;
     } else {
-        wcharP = Tcl_GetUnicodeFromObj(objP, &len);
+        wcharP = ObjToUnicodeN(objP, &len);
     }
     if (bstrP) {
         *bstrP = SysAllocStringLen(wcharP, len);
@@ -588,7 +590,9 @@ int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
 
 Tcl_Obj *ObjFromBSTR (BSTR bstr)
 {
-    return bstr ? ObjFromUnicodeN(bstr, SysStringLen(bstr)) : Tcl_NewStringObj("", 0);
+    return bstr ?
+        ObjFromUnicodeN(bstr, SysStringLen(bstr))
+        : ObjFromEmptyString();
 }
 
 Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
@@ -598,7 +602,7 @@ Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
     if (max < 0) {
         if (remainP)
             *remainP = 0;
-        return Tcl_NewStringObj(strP, -1);
+        return ObjFromString(strP);
     }        
 
     for (len = 0; len < max && strP[len]; ++len)
@@ -614,7 +618,7 @@ Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
             *remainP = 0;       /* max reached case */
     }        
 
-    return Tcl_NewStringObj(strP, len);
+    return ObjFromStringN(strP, len);
 }
 
 Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
@@ -657,7 +661,7 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
 
     if (i < low || i > high) {
         if (interp) {
-            Tcl_SetObjResult(interp,
+            TwapiSetObjResult(interp,
                              Tcl_ObjPrintf("Integer '%d' not within range %d-%d", i, low, high));
         }
         return TCL_ERROR;
@@ -677,15 +681,15 @@ Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP)
 {
     Tcl_Obj *objv[7];
 
-    objv[0] = Tcl_NewIntObj(timeP->wYear);
-    objv[1] = Tcl_NewIntObj(timeP->wMonth);
-    objv[2] = Tcl_NewIntObj(timeP->wDay);
-    objv[3] = Tcl_NewIntObj(timeP->wHour);
-    objv[4] = Tcl_NewIntObj(timeP->wMinute);
-    objv[5] = Tcl_NewIntObj(timeP->wSecond);
-    objv[6] = Tcl_NewIntObj(timeP->wMilliseconds);
+    objv[0] = ObjFromInt(timeP->wYear);
+    objv[1] = ObjFromInt(timeP->wMonth);
+    objv[2] = ObjFromInt(timeP->wDay);
+    objv[3] = ObjFromInt(timeP->wHour);
+    objv[4] = ObjFromInt(timeP->wMinute);
+    objv[5] = ObjFromInt(timeP->wSecond);
+    objv[6] = ObjFromInt(timeP->wMilliseconds);
 
-    return Tcl_NewListObj(7, objv);
+    return ObjNewList(7, objv);
 }
 
 
@@ -797,7 +801,7 @@ int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *ftimeP)
 Tcl_Obj *ObjFromCY(const CY *cyP)
 {
     /* TBD - for now just return as 8 byte wide int */
-    return Tcl_NewWideIntObj(*(Tcl_WideInt *)cyP);
+    return ObjFromWideInt(*(Tcl_WideInt *)cyP);
 }
 
 
@@ -821,7 +825,7 @@ Tcl_Obj *ObjFromDECIMAL(DECIMAL *decP)
     Tcl_Obj *obj;
     BSTR bstr = NULL;
     if (VarBstrFromDec(decP, 0, 0, &bstr) != S_OK) {
-        return Tcl_NewStringObj("", 0);
+        return ObjFromEmptyString();
     }
 
     obj = ObjFromBSTR(bstr);
@@ -837,7 +841,7 @@ int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *decP)
 
     if (decP == NULL)
         decP = &dec;
-    hr = VarDecFromStr(Tcl_GetUnicodeFromObj(obj, NULL), 0, 0, decP);
+    hr = VarDecFromStr(ObjToUnicode(obj), 0, 0, decP);
     if (FAILED(hr)) {
         if (interp)
             Twapi_AppendSystemError(interp, hr);
@@ -929,7 +933,7 @@ Tcl_Obj *ObjFromGUID(GUID *guidP)
 
 
     if (guidP == NULL || StringFromGUID2(guidP, str, sizeof(str)/sizeof(str[0])) == 0)
-        return Tcl_NewStringObj("", 0);
+        return ObjFromEmptyString("", 0);
 
     obj = ObjFromUnicode(str);
     return obj;
@@ -983,7 +987,7 @@ Tcl_Obj *ObjFromUUID (UUID *uuidP)
 
     /* NOTE UUID and GUID have same binary format but are formatted
        differently based on the component. */
-    objP = Tcl_NewStringObj(uuidStr, -1);
+    objP = ObjFromString(uuidStr);
     RpcStringFree(&uuidStr);
     return objP;
 }
@@ -1023,7 +1027,7 @@ Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP)
 void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP)
 {
     int nchars;
-    lsauniP->Buffer = Tcl_GetUnicodeFromObj(objP, &nchars);
+    lsauniP->Buffer = ObjToUnicodeN(objP, &nchars);
     lsauniP->Length = (USHORT) (sizeof(WCHAR)*nchars); /* in bytes */
     lsauniP->MaximumLength = lsauniP->Length;
 }
@@ -1040,7 +1044,7 @@ int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
         return TCL_ERROR;
     }
 
-    *objPP = Tcl_NewStringObj(strP, -1);
+    *objPP = ObjFromString(strP);
     LocalFree(strP);
     return TCL_OK;
 }
@@ -1050,7 +1054,7 @@ Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
 {
     Tcl_Obj *objP;
     if (sidP == NULL || ObjFromSID(NULL, sidP, &objP) != TCL_OK)
-        return Tcl_NewObj();
+        return ObjFromEmptyString();
     else
         return objP;
 }
@@ -1093,7 +1097,7 @@ int ObjToMultiSz (
         }
         if (objPtr == NULL)
             break;              /* No more items */
-        src = Tcl_GetUnicodeFromObj(objPtr, &len);
+        src = ObjToUnicodeN(objPtr, &len);
         if (src) {
             ++len;               /* Include the terminating null */
             CopyMemory(dst, src, len*sizeof(*src));
@@ -1121,7 +1125,7 @@ int ObjToMultiSz (
  */
 Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
 {
-    Tcl_Obj *listPtr = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *listPtr = ObjNewList(0, NULL);
     LPCWSTR start = lpcw;
 
     if (lpcw == NULL || maxlen == 0)
@@ -1204,11 +1208,11 @@ Tcl_Obj *ObjFromRECT(RECT *rectP)
 {
     Tcl_Obj *objv[4];
 
-    objv[0] = Tcl_NewLongObj(rectP->left);
-    objv[1] = Tcl_NewLongObj(rectP->top);
-    objv[2] = Tcl_NewLongObj(rectP->right);
-    objv[3] = Tcl_NewLongObj(rectP->bottom);
-    return Tcl_NewListObj(4, objv);
+    objv[0] = ObjFromLong(rectP->left);
+    objv[1] = ObjFromLong(rectP->top);
+    objv[2] = ObjFromLong(rectP->right);
+    objv[3] = ObjFromLong(rectP->bottom);
+    return ObjNewList(4, objv);
 }
 
 /* Return a Tcl Obj from a POINT structure */
@@ -1216,9 +1220,9 @@ Tcl_Obj *ObjFromPOINT(POINT *ptP)
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewLongObj(ptP->x);
-    objv[1] = Tcl_NewLongObj(ptP->y);
-    return Tcl_NewListObj(2, objv);
+    objv[0] = ObjFromLong(ptP->x);
+    objv[1] = ObjFromLong(ptP->y);
+    return ObjNewList(2, objv);
 }
 
 /* Convert a Tcl_Obj to a POINT */
@@ -1248,10 +1252,10 @@ Tcl_Obj *ObjFromPOINTS(POINTS *ptP)
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewIntObj(ptP->x);
-    objv[1] = Tcl_NewIntObj(ptP->y);
+    objv[0] = ObjFromInt(ptP->x);
+    objv[1] = ObjFromInt(ptP->y);
 
-    return Tcl_NewListObj(2, objv);
+    return ObjNewList(2, objv);
 }
 
 
@@ -1268,7 +1272,7 @@ int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP)
 {
     char *markerP;
     int   len;
-    char *strP = Tcl_GetStringFromObj(objP, &len);
+    char *strP = ObjToStringN(objP, &len);
 
     /* Format must be "XXXXXXXX-XXXXXXXX" */
     if ((len == 17) && (strP[8] == '-')) {
@@ -1333,14 +1337,14 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
         if (count != 4)
             goto badformat;
         typestr = regtype == REG_DWORD ? "dword" : "dword_be";
-        objv[1] = Tcl_NewLongObj(*(int *)bufP);
+        objv[1] = ObjFromLong(*(int *)bufP);
         break;
 
     case REG_QWORD:
         if (count != 8)
             goto badformat;
         typestr = regtype == REG_QWORD ? "qword" : "qword_be";
-        objv[1] = Tcl_NewWideIntObj(*(Tcl_WideInt *)bufP);
+        objv[1] = ObjFromWideInt(*(Tcl_WideInt *)bufP);
         break;
 
     case REG_MULTI_SZ:
@@ -1357,10 +1361,10 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
     }
 
     if (typestr)
-        objv[0] = Tcl_NewStringObj(typestr, -1);
+        objv[0] = ObjFromString(typestr);
     else
-        objv[0] = Tcl_NewLongObj(regtype);
-    return Tcl_NewListObj(2, objv);
+        objv[0] = ObjFromLong(regtype);
+    return ObjNewList(2, objv);
 
 badformat:
     TwapiSetStaticResult(interp, "Badly formatted registry value");
@@ -1412,8 +1416,8 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name)
 {
     Tcl_Obj *objs[2];
     objs[0] = ObjFromDWORD_PTR(pv);
-    objs[1] = Tcl_NewStringObj(name ? name : "void*", -1);
-    return Tcl_NewListObj(2, objs);
+    objs[1] = ObjFromString(name ? name : "void*");
+    return ObjNewList(2, objs);
 }
 
 int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
@@ -1495,13 +1499,13 @@ int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP)
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 {
     Tcl_Obj *objv[6];
-    objv[0] = Tcl_NewIntObj(spsP->ACLineStatus);
-    objv[1] = Tcl_NewIntObj(spsP->BatteryFlag);
-    objv[2] = Tcl_NewIntObj(spsP->BatteryLifePercent);
-    objv[3] = Tcl_NewIntObj(spsP->Reserved1);
+    objv[0] = ObjFromInt(spsP->ACLineStatus);
+    objv[1] = ObjFromInt(spsP->BatteryFlag);
+    objv[2] = ObjFromInt(spsP->BatteryLifePercent);
+    objv[3] = ObjFromInt(spsP->Reserved1);
     objv[4] = ObjFromDWORD(spsP->BatteryLifeTime);
     objv[5] = ObjFromDWORD(spsP->BatteryFullLifeTime);
-    return Tcl_NewListObj(6, objv);
+    return ObjNewList(6, objv);
 }
 
 
@@ -1519,7 +1523,7 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 
     /* Note WideChar... does not like 0 length strings */
     if (wsP == NULL || nchars == 0)
-        return Tcl_NewObj();
+        return ObjFromEmptyString();
 
     Tcl_DStringInit(&ds);
 
@@ -1561,7 +1565,7 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
      */
     if (nchars < 0)
         --nbytes;                /* Exclude terminating \0 */
-    objP = Tcl_NewStringObj(Tcl_DStringValue(&ds), nbytes);
+    objP = ObjFromStringN(Tcl_DStringValue(&ds), nbytes);
 
     Tcl_DStringFree(&ds);
     return objP;
@@ -1604,13 +1608,13 @@ Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull)
     /* Unfortunately, Tcl_Objprintf does not handle 64 bits currently */
 #if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
     Tcl_Obj *wideObj;
-    wideobj = Tcl_NewWideIntObj((Tcl_WideInt) ull);
+    wideobj = ObjFromWideInt((Tcl_WideInt) ull);
     objP = Tcl_Format(NULL, "0x%16.16lx", 1, &wideobj);
     Tcl_DecrRefCount(wideobj);
 #else
     char buf[40];
     _snprintf(buf, sizeof(buf), "0x%16.16I64x", ull);
-    objP = Tcl_NewStringObj(buf, -1);
+    objP = ObjFromString(buf);
 #endif
     return objP;
 }
@@ -1628,14 +1632,14 @@ Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull)
         mp_int mpi;
 #if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
         Tcl_Obj *mpobj;
-        objP = Tcl_NewWideIntObj((Tcl_WideInt) ull);
+        objP = ObjFromWideInt((Tcl_WideInt) ull);
         mpobj = Tcl_Format(NULL, "0x%lx", 1, &objP);
         Tcl_DecrRefCount(objP);
         objP = mpobj;
 #else
         char buf[40];
         _snprintf(buf, sizeof(buf), "%I64u", ull);
-        objP = Tcl_NewStringObj(buf, -1);
+        objP = ObjFromString(buf);
 #endif
         /* Force to bignum because COM interface sometimes needs to check type*/
         if (Tcl_GetBignumFromObj(NULL, objP, &mpi) == TCL_ERROR)
@@ -1646,7 +1650,7 @@ Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull)
         TclBN_mp_clear(&mpi);
         return objP;
     } else {
-        return Tcl_NewWideIntObj((Tcl_WideInt) ull);
+        return ObjFromWideInt((Tcl_WideInt) ull);
     }
 }
 
@@ -1655,7 +1659,7 @@ Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 {
     struct in_addr inaddr;
     inaddr.S_un.S_addr = addr;
-    return Tcl_NewStringObj(inet_ntoa(inaddr), -1);
+    return ObjFromString(inet_ntoa(inaddr));
 }
 
 /* Given a string, return the IP address */
@@ -1683,16 +1687,16 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
     Tcl_Interp *interp, const IP_ADDR_STRING *ipaddrstrP
 )
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *resultObj = ObjNewList(0, NULL);
     while (ipaddrstrP) {
         Tcl_Obj *objv[3];
 
         if (ipaddrstrP->IpAddress.String[0]) {
-            objv[0] = Tcl_NewStringObj(ipaddrstrP->IpAddress.String, -1);
-            objv[1] = Tcl_NewStringObj(ipaddrstrP->IpMask.String, -1);
+            objv[0] = ObjFromString(ipaddrstrP->IpAddress.String);
+            objv[1] = ObjFromString(ipaddrstrP->IpMask.String);
             objv[2] = ObjFromDWORD(ipaddrstrP->Context);
             Tcl_ListObjAppendElement(interp, resultObj,
-                                     Tcl_NewListObj(3, objv));
+                                     ObjNewList(3, objv));
         }
 
         ipaddrstrP = ipaddrstrP->Next;
@@ -1715,7 +1719,7 @@ Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
                             &bufsz) == 0) {
         if (bufsz && buf[bufsz-1] == 0)
             --bufsz;        /* Terminating \0 */
-        return Tcl_NewStringObj(buf, bufsz);
+        return ObjFromStringN(buf, bufsz);
     }
     /* Error already set */
     return NULL;
@@ -1740,7 +1744,7 @@ Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
     if (objv[0] == NULL)
         return NULL;
 
-    objv[1] = Tcl_NewIntObj((WORD)(ntohs(save_port)));
+    objv[1] = ObjFromInt((WORD)(ntohs(save_port)));
 
     if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
         ((SOCKADDR_IN6 *)saP)->sin6_port = save_port;
@@ -1748,7 +1752,7 @@ Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
         ((SOCKADDR_IN *)saP)->sin_port = save_port;
     }
 
-    return Tcl_NewListObj(2, objv);
+    return ObjNewList(2, objv);
 }
 
 
@@ -1767,7 +1771,7 @@ Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     if (interp) {
-        Tcl_SetObjResult(interp,
+        (void) TwapiSetObjResult(interp,
                          Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
                                        vt));
     }
@@ -1804,7 +1808,7 @@ static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
         Tcl_Obj *objP; 
         objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
         Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
-        Tcl_SetObjResult(interp, objP);
+        (void)TwapiSetObjResult(interp, objP);
     }
 
     return TCL_ERROR;
@@ -1878,9 +1882,9 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     /* We require the safearray to have a type associated */
     objc = 1;
     if (SafeArrayGetVartype(arrP, &vt) == S_OK) {
-        objv[0] = Tcl_NewIntObj(vt|VT_ARRAY);
+        objv[0] = ObjFromInt(vt|VT_ARRAY);
     } else {
-        objv[0] = Tcl_NewIntObj(VT_ARRAY);
+        objv[0] = ObjFromInt(VT_ARRAY);
         goto alldone;
     }
 
@@ -1888,11 +1892,11 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     if (FAILED(hr))
         goto alldone;
 
-    objv[1] = Tcl_NewListObj(0, NULL);
+    objv[1] = ObjNewList(0, NULL);
     num_elems = 1;
     for (i = 0; i < arrP->cDims; ++i) {
-        Tcl_ListObjAppendElement(NULL, objv[1], Tcl_NewLongObj(arrP->rgsabound[i].lLbound));
-        Tcl_ListObjAppendElement(NULL, objv[1], Tcl_NewLongObj(arrP->rgsabound[i].cElements));
+        Tcl_ListObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].lLbound));
+        Tcl_ListObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].cElements));
         num_elems *= arrP->rgsabound[i].cElements;
     }
 
@@ -1901,7 +1905,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
        Tcl_ListObjAppend for each element
     */
 
-    objv[2] = Tcl_NewListObj(0, NULL); /* Value object */
+    objv[2] = ObjNewList(0, NULL); /* Value object */
     objc = 3;
 
     switch (vt) {
@@ -1912,7 +1916,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_I2: {
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,short)));
+                                     ObjFromInt(GETVAL(i,short)));
         }
         break;
     }
@@ -1921,7 +1925,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_I4:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewLongObj(GETVAL(i,long)));
+                                     ObjFromLong(GETVAL(i,long)));
         }
         break;
 
@@ -1979,7 +1983,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_ERROR:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,SCODE)));
+                                     ObjFromInt(GETVAL(i,SCODE)));
         }
         break;
 
@@ -1987,7 +1991,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(
                 NULL, objv[2],
-                Tcl_NewBooleanObj(GETVAL(i,VARIANT_BOOL))
+                ObjFromBoolean(GETVAL(i,VARIANT_BOOL))
                 );
         }
         break;
@@ -2022,21 +2026,21 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_I1:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,char)));
+                                     ObjFromInt(GETVAL(i,char)));
         }
         break;
 
     case VT_UI1:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,unsigned char)));
+                                     ObjFromInt(GETVAL(i,unsigned char)));
         }
         break;
 
     case VT_UI2:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewIntObj(GETVAL(i,unsigned short)));
+                                     ObjFromInt(GETVAL(i,unsigned short)));
         }
         break;
 
@@ -2053,7 +2057,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_UI8:
         for (i = 0; i < num_elems; ++i) {
             Tcl_ListObjAppendElement(NULL, objv[2],
-                                     Tcl_NewWideIntObj(GETVAL(i,__int64)));
+                                     ObjFromWideInt(GETVAL(i,__int64)));
         }
         break;
 
@@ -2066,7 +2070,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     SafeArrayUnaccessData(arrP);
 
  alldone:
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 /* 
@@ -2101,7 +2105,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
     if ((V_VT(varP) == (VT_BYREF|VT_VARIANT)) && varP->pvarVal)
         return ObjFromVARIANT(varP->pvarVal, 0);
 
-    objv[0] = Tcl_NewIntObj(V_VT(varP) & ~VT_BYREF);
+    objv[0] = ObjFromInt(V_VT(varP) & ~VT_BYREF);
     objv[1] = NULL;
 
     switch (V_VT(varP)) {
@@ -2113,12 +2117,12 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 
     case VT_I2|VT_BYREF:
     case VT_I2:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I2 ? V_I2(varP) : * V_I2REF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_I2 ? V_I2(varP) : * V_I2REF(varP));
         break;
 
     case VT_I4|VT_BYREF:
     case VT_I4:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I4 ? V_I4(varP) : * V_I4REF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_I4 ? V_I4(varP) : * V_I4REF(varP));
         break;
 
     case VT_R4|VT_BYREF:
@@ -2169,12 +2173,12 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 
     case VT_ERROR|VT_BYREF:
     case VT_ERROR:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_ERROR ? V_ERROR(varP) : * V_ERRORREF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_ERROR ? V_ERROR(varP) : * V_ERRORREF(varP));
         break;
 
     case VT_BOOL|VT_BYREF:
     case VT_BOOL:
-        objv[1] = Tcl_NewBooleanObj(V_VT(varP) == VT_BOOL ? V_BOOL(varP) : * V_BOOLREF(varP));
+        objv[1] = ObjFromBoolean(V_VT(varP) == VT_BOOL ? V_BOOL(varP) : * V_BOOLREF(varP));
         break;
 
     case VT_DATE|VT_BYREF:
@@ -2215,17 +2219,17 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 
     case VT_I1|VT_BYREF:
     case VT_I1:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_I1 ? V_I1(varP) : * V_I1REF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_I1 ? V_I1(varP) : * V_I1REF(varP));
         break;
 
     case VT_UI1|VT_BYREF:
     case VT_UI1:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_UI1 ? V_UI1(varP) : * V_UI1REF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_UI1 ? V_UI1(varP) : * V_UI1REF(varP));
         break;
 
     case VT_UI2|VT_BYREF:
     case VT_UI2:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_UI2 ? V_UI2(varP) : * V_UI2REF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_UI2 ? V_UI2(varP) : * V_UI2REF(varP));
         break;
 
     case VT_UI4|VT_BYREF:
@@ -2237,18 +2241,18 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 
     case VT_I8|VT_BYREF:
     case VT_I8:
-        objv[1] = Tcl_NewWideIntObj(V_VT(varP) == VT_I8 ? V_I8(varP) : * V_I8REF(varP));
+        objv[1] = ObjFromWideInt(V_VT(varP) == VT_I8 ? V_I8(varP) : * V_I8REF(varP));
         break;
 
     case VT_UI8|VT_BYREF:
     case VT_UI8:
-        objv[1] = Tcl_NewWideIntObj(V_VT(varP) == VT_UI8 ? V_UI8(varP) : * V_UI8REF(varP));
+        objv[1] = ObjFromWideInt(V_VT(varP) == VT_UI8 ? V_UI8(varP) : * V_UI8REF(varP));
         break;
 
 
     case VT_INT|VT_BYREF:
     case VT_INT:
-        objv[1] = Tcl_NewIntObj(V_VT(varP) == VT_INT ? V_INT(varP) : * V_INTREF(varP));
+        objv[1] = ObjFromInt(V_VT(varP) == VT_INT ? V_INT(varP) : * V_INTREF(varP));
         break;
 
     case VT_UINT|VT_BYREF:
@@ -2256,10 +2260,10 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
         /* store as wide integer if it does not fit in signed 32 bits */
         ulval = V_VT(varP) == VT_UINT ? V_UINT(varP) : * V_UINTREF(varP);
         if (ulval & 0x80000000) {
-            objv[1] = Tcl_NewWideIntObj(ulval);
+            objv[1] = ObjFromWideInt(ulval);
         }
         else {
-            objv[1] = Tcl_NewLongObj(ulval);
+            objv[1] = ObjFromLong(ulval);
         }
         break;
 
@@ -2277,7 +2281,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
             // the IRecordInfo interface. We should change this to be
             // more typesafe
             valObj[1] = ObjFromLPVOID(recdataP);
-            objv[1] = Tcl_NewListObj(2, valObj);
+            objv[1] = ObjNewList(2, valObj);
         }
         break;
 
@@ -2289,9 +2293,9 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
     }
 
     if (value_only)
-        return objv[1] ? objv[1] : Tcl_NewStringObj("", 0);
+        return objv[1] ? objv[1] : ObjFromEmptyString();
     else
-        return Tcl_NewListObj(objv[1] ? 2 : 1, objv);
+        return ObjNewList(objv[1] ? 2 : 1, objv);
 }
 
 /* Returned memory in *arrayPP has to be freed by caller */
@@ -2319,7 +2323,7 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
     for (i = 0; i < nitems; ++i) {
         WCHAR *srcP;
         int    slen;
-        srcP = Tcl_GetUnicodeFromObj(listobjv[i], &slen);
+        srcP = ObjToUnicodeN(listobjv[i], &slen);
         CopyMemory(dstP, srcP, sizeof(WCHAR)*(slen+1));
         ustrP[i].Buffer = dstP;
         ustrP[i].Length = (USHORT) (sizeof(WCHAR) * slen); /* Num *bytes*, not WCHARs */
@@ -2394,7 +2398,7 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
     SID  *sidP;
     DWORD winerror;
 
-    s = Tcl_GetStringFromObj(obj, &len);
+    s = ObjToStringN(obj, &len);
     if (len == 0) {
         *sidPP = NULL;
         return TCL_OK;
@@ -2439,15 +2443,15 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
         return NULL;
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
 
     /* ACE type */
     Tcl_ListObjAppendElement(interp, resultObj,
-                             Tcl_NewIntObj(acehdrP->AceType));
+                             ObjFromInt(acehdrP->AceType));
 
     /* ACE flags */
     Tcl_ListObjAppendElement(interp, resultObj,
-                             Tcl_NewIntObj(acehdrP->AceFlags));
+                             ObjFromInt(acehdrP->AceFlags));
 
     /* Now for type specific fields */
     switch (acehdrP->AceType) {
@@ -2481,16 +2485,16 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
                 Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->InheritedObjectType));
                 sidP = (SID *) &objectAceP->SidStart;
             } else {
-                Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+                Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
                 sidP = (SID *) &objectAceP->InheritedObjectType;
             }
         } else if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
             Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
             sidP = (SID *) &objectAceP->InheritedObjectType;
         } else {
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewObj());
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
+            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
             sidP = (SID *) &objectAceP->ObjectType;
         }
         obj = NULL;                /* In case of errors */
@@ -2615,10 +2619,9 @@ Tcl_Obj *ObjFromACL (
     ACL_REVISION_INFORMATION acl_rev;
     ACL_SIZE_INFORMATION     acl_szinfo;
     DWORD                    i;
-    Tcl_Obj                 *resultObj;
 
     if (aclP == NULL) {
-        return Tcl_NewStringObj("null", -1);
+        return STRING_LITERAL_OBJ("null");
     }
 
     if ((GetAclInformation(aclP, &acl_rev, sizeof(acl_rev),
@@ -2629,8 +2632,8 @@ Tcl_Obj *ObjFromACL (
         return NULL;
     }
 
-    objv[0] = Tcl_NewIntObj(acl_rev.AclRevision);
-    objv[1] = Tcl_NewListObj(0, NULL);
+    objv[0] = ObjFromInt(acl_rev.AclRevision);
+    objv[1] = ObjNewList(0, NULL);
 
     /* Loop and add the list of ACE's */
     for (i = 0; i < acl_szinfo.AceCount; ++i) {
@@ -2650,7 +2653,7 @@ Tcl_Obj *ObjFromACL (
     }
 
 
-    return Tcl_NewListObj(2, objv);
+    return ObjNewList(2, objv);
 
  error_return:
     Twapi_FreeNewTclObj(objv[0]); /* OK if null */
@@ -2793,7 +2796,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     BOOL     defaulted;
 
     if (secdP == NULL) {
-        return Tcl_NewListObj(0, NULL);
+        return ObjNewList(0, NULL);
     }
 
     if (! GetSecurityDescriptorControl(secdP, &secd_control, &rev))
@@ -2807,13 +2810,13 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     }
 
     /* Control bits */
-    objv[0] = Tcl_NewIntObj(secd_control);
+    objv[0] = ObjFromInt(secd_control);
 
     /* Owner SID */
     if (! GetSecurityDescriptorOwner(secdP, &sidP, &defaulted))
         goto system_error;
     if (sidP == NULL)
-        objv[1] = Tcl_NewStringObj("", -1);
+        objv[1] = ObjFromEmptyString();
     else {
         if (ObjFromSID(interp, sidP, &objv[1]) != TCL_OK)
             goto error_return;
@@ -2823,7 +2826,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     if (! GetSecurityDescriptorGroup(secdP, &sidP, &defaulted))
         goto system_error;
     if (sidP == NULL)
-        objv[2] = Tcl_NewStringObj("", -1);
+        objv[2] = ObjFromEmptyString();
     else {
         if (ObjFromSID(interp, sidP, &objv[2]) != TCL_OK)
             goto error_return;
@@ -2844,7 +2847,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     objv[4] = ObjFromACL(interp, aclP);
 
     /* All done, phew ... */
-    return Tcl_NewListObj(5, objv);
+    return ObjNewList(5, objv);
 
  system_error:
     TwapiReturnSystemError(interp);
@@ -2927,7 +2930,7 @@ int ObjToPSECURITY_DESCRIPTOR(
     /*
      * Set Owner field if specified
      */
-    s = Tcl_GetStringFromObj(objv[1], &slen);
+    s = ObjToStringN(objv[1], &slen);
     if (slen) {
         owner_sidP = TwapiGetSidFromStringRep(s);
         if (owner_sidP == NULL)
@@ -2941,7 +2944,7 @@ int ObjToPSECURITY_DESCRIPTOR(
     /*
      * Set group field if specified
      */
-    s = Tcl_GetStringFromObj(objv[2], &slen);
+    s = ObjToStringN(objv[2], &slen);
     if (slen) {
         group_sidP = TwapiGetSidFromStringRep(s);
         if (group_sidP == NULL)
@@ -3108,10 +3111,32 @@ int ObjToPSECURITY_ATTRIBUTES(
     return TCL_ERROR;
 }
 
-
 Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP)
 {
     return Tcl_GetUnicode(objP);
+}
+
+Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP)
+{
+    return Tcl_GetUnicodeFromObj(objP, lenP);
+}
+
+Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len)
+{
+#if USE_UNICODE_OBJ
+    return Tcl_NewUnicodeObj(ws, len);
+#else
+    return TwapiUtf8ObjFromUnicode(ws, len);
+#endif
+}
+
+Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws)
+{
+#if USE_UNICODE_OBJ
+    return Tcl_NewUnicodeObj(ws, -1);
+#else
+    return TwapiUtf8ObjFromUnicode(ws, -1);
+#endif
 }
 
 char *ObjToString(Tcl_Obj *objP)
@@ -3119,7 +3144,52 @@ char *ObjToString(Tcl_Obj *objP)
     return Tcl_GetString(objP);
 }
 
+char *ObjToStringN(Tcl_Obj *objP, int *lenP)
+{
+    return Tcl_GetStringFromObj(objP, lenP);
+}
+
+Tcl_Obj *ObjFromStringN(const char *s, int len)
+{
+    return Tcl_NewStringObj(s, len);
+}
+
+Tcl_Obj *ObjFromString(const char *s)
+{
+    return Tcl_NewStringObj(s, -1);
+}
+
 TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP)
 {
     return Tcl_GetLongFromObj(interp, objP, lvalP);
+}
+
+TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
+{
+    return Tcl_GetWideIntFromObj(interp, objP, wideP);
+}
+
+Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv)
+{
+    return Tcl_NewListObj(objc, objv);
+}
+
+Tcl_Obj *ObjFromLong(long val)
+{
+    return Tcl_NewLongObj(val);
+}
+
+Tcl_Obj *ObjFromWideInt(Tcl_WideInt val)
+{
+    return Tcl_NewWideIntObj(val);
+}
+
+Tcl_Obj *ObjFromBoolean(int bval)
+{
+    return Tcl_NewBooleanObj(bval);
+}
+
+Tcl_Obj *ObjFromEmptyString()
+{
+    return Tcl_NewObj();
 }

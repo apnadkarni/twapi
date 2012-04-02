@@ -716,22 +716,22 @@ int Twapi_MemLifoDump(Tcl_Interp *interp, MemLifo *l)
     objs[6] = STRING_LITERAL_OBJ("chunk_size");
     objs[7] = ObjFromDWORD_PTR(l->lifo_chunk_size);
     objs[8] = STRING_LITERAL_OBJ("magic");
-    objs[9] = Tcl_NewLongObj(l->lifo_magic);
+    objs[9] = ObjFromLong(l->lifo_magic);
     objs[10] = STRING_LITERAL_OBJ("top_mark");
     objs[11] = ObjFromDWORD_PTR(l->lifo_top_mark);
     objs[12] = STRING_LITERAL_OBJ("bot_mark");
     objs[13] = ObjFromDWORD_PTR(l->lifo_bot_mark);
 
     objs[14] = STRING_LITERAL_OBJ("marks");
-    objs[15] = Tcl_NewListObj(0, NULL);
+    objs[15] = ObjNewList(0, NULL);
 
     m = l->lifo_top_mark;
     do {
         Tcl_Obj *mobjs[16];
         mobjs[0] = STRING_LITERAL_OBJ("magic");
-        mobjs[1] = Tcl_NewLongObj(m->lm_magic);
+        mobjs[1] = ObjFromLong(m->lm_magic);
         mobjs[2] = STRING_LITERAL_OBJ("seq");
-        mobjs[3] = Tcl_NewLongObj(m->lm_seq);
+        mobjs[3] = ObjFromLong(m->lm_seq);
         mobjs[4] = STRING_LITERAL_OBJ("lifo");
         mobjs[5] = ObjFromOpaque(m->lm_lifo, "MemLifo*");
         mobjs[6] = STRING_LITERAL_OBJ("prev");
@@ -744,15 +744,14 @@ int Twapi_MemLifoDump(Tcl_Interp *interp, MemLifo *l)
         mobjs[13] = ObjFromLPVOID(m->lm_chunks);
         mobjs[14] = STRING_LITERAL_OBJ("lm_freeptr");
         mobjs[15] = ObjFromDWORD_PTR(m->lm_freeptr);
-        Tcl_ListObjAppendElement(interp, objs[15], Tcl_NewListObj(ARRAYSIZE(mobjs), mobjs));
+        Tcl_ListObjAppendElement(interp, objs[15], ObjNewList(ARRAYSIZE(mobjs), mobjs));
         
         if (m == m->lm_prev)
             break;
         m = m->lm_prev;
     } while (1);
     
-    Tcl_SetObjResult(interp, Tcl_NewListObj(ARRAYSIZE(objs),objs));
-    return TCL_OK;
+    return TwapiSetObjResult(interp, ObjNewList(ARRAYSIZE(objs),objs));
 }
 
 #if 0

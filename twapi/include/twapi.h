@@ -318,7 +318,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 /* Verify a Tcl_Obj is an integer/long and return error if not */
 #define CHECK_INTEGER_OBJ(interp_, intvar_, objp_)       \
     do {                                                                \
-        if (Tcl_GetIntFromObj((interp_), (objp_), &(intvar_)) != TCL_OK) \
+        if (ObjToInt((interp_), (objp_), &(intvar_)) != TCL_OK) \
             return TCL_ERROR;                                           \
     } while (0)
 
@@ -355,7 +355,7 @@ enum {
 
 
 /* Create a string obj from a string literal. */
-#define STRING_LITERAL_OBJ(x) Tcl_NewStringObj(x, sizeof(x)-1)
+#define STRING_LITERAL_OBJ(x) ObjFromStringN(x, sizeof(x)-1)
 
 
 
@@ -371,20 +371,20 @@ enum {
 #define Twapi_APPEND_LONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewLongObj(((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromLong(((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_WORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewLongObj((WORD)((structp_)->field_))); \
+    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromLong((WORD)((structp_)->field_))); \
   } while (0)
 
 /* Appends a struct ULONGLONG field name and value pair to a given Tcl list object */
 #define Twapi_APPEND_ULONGLONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewWideIntObj((ULONGLONG)(structp_)->field_)); \
+    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromWideInt((ULONGLONG)(structp_)->field_)); \
   } while (0)
 
 /* Append a struct SIZE_T field name and value pair to a Tcl list object */
@@ -399,7 +399,7 @@ enum {
 #define Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), Tcl_NewWideIntObj((structp_)->field_.QuadPart)); \
+    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromWideInt((structp_)->field_.QuadPart)); \
   } while (0)
 
 /* Appends a struct Unicode field name and string pair to a Tcl list object */
@@ -413,7 +413,7 @@ enum {
 #define Twapi_APPEND_LPCSTR_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), Tcl_NewStringObj(((structp_)->field_ ? (structp_)->field_ : ""), -1)); \
+    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromString(((structp_)->field_ ? (structp_)->field_ : ""))); \
   } while (0)
 
 
@@ -440,7 +440,7 @@ enum {
   do { \
     Tcl_Obj *obj = ObjFromSIDNoFail((structp_)->field_); \
     Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), obj ? obj : Tcl_NewStringObj("", 0)); \
+    Tcl_ListObjAppendElement((interp_),(listp_), obj ? obj : ObjFromEmptyString()); \
   } while (0)
 
 #define Twapi_APPEND_GUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
@@ -1015,6 +1015,8 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
+TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv);
+
 #if 0
 void Twapi_FreeNewTclObj(Tcl_Obj *objPtr) 
 #endif
@@ -1146,6 +1148,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
 TWAPI_EXTERN void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[]);
+TWAPI_EXTERN TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP);
 
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
@@ -1199,38 +1202,45 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
 /* Unsigned ints/longs need to be promoted to wide ints */
-#define ObjFromDWORD(dw_) Tcl_NewWideIntObj((DWORD)(dw_))
+#define ObjFromDWORD(dw_) ObjFromWideInt((DWORD)(dw_))
 #define ObjFromULONG      ObjFromDWORD
 
-TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP);
+TWAPI_EXTERN Tcl_Obj *ObjFromBoolean(int bval);
+TWAPI_EXTERN Tcl_Obj *ObjFromLong(long val);
+#define ObjFromInt ObjFromLong
+TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP);
 #define ObjToInt ObjToLong
 
+TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
+TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
+
 #ifdef _WIN64
-#define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
+#define ObjToDWORD_PTR        ObjToWideInt
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
 #else  // ! _WIN64
-#define ObjToDWORD_PTR        Tcl_GetLongFromObj
+#define ObjToDWORD_PTR        ObjToLong
 #define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
 #endif // _WIN64
 #define ObjToULONG_PTR    ObjToDWORD_PTR
 #define ObjFromULONG_PTR  ObjFromDWORD_PTR
 #define ObjFromSIZE_T     ObjFromDWORD_PTR
 
-#define ObjFromLARGE_INTEGER(val_) Tcl_NewWideIntObj((val_).QuadPart)
+#define ObjFromLARGE_INTEGER(val_) ObjFromWideInt((val_).QuadPart)
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
 TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP);
+TWAPI_EXTERN char *ObjToStringN(Tcl_Obj *objP, int *lenP);
 TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
+TWAPI_EXTERN Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP);
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
-#if USE_UNICODE_OBJ
-#define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
-#else
-#define ObjFromUnicodeN(p_, n_) TwapiUtf8ObjFromUnicode((p_), (n_))
-#endif
+TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();
+TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
+TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
+TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, int len);
+TWAPI_EXTERN Tcl_Obj *ObjFromString(const char *s);
 
-#define ObjFromUnicode(p_)    ObjFromUnicodeN(p_, -1)
 TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *remain);
 

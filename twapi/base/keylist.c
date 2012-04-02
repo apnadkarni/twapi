@@ -39,15 +39,13 @@ int Twapi_KlGetObjCmd(
     for (i = 0; i < count; i += 2) {
         char *entry = ObjToString(klObj[i]);
         if (STREQ(key, entry)) {
-            Tcl_SetObjResult(interp, klObj[i+1]);
-            return TCL_OK;
+            return TwapiSetObjResult(interp, klObj[i+1]);
         }
     }
 
     /* Not found. see if a default was specified */
     if (objc == 4) {
-        Tcl_SetObjResult(interp, objv[3]);
-        return TCL_OK;
+        return TwapiSetObjResult(interp, objv[3]);
     }
 
     Tcl_AppendResult(interp, "No field ", key, " found in keyed list.", NULL);
