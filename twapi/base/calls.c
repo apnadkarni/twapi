@@ -580,10 +580,12 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
     TwapiResult result;
 
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
         case 10001:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETINT(dw2), GETVOIDP(pv), GETINT(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -593,7 +595,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         case 10002:
             u.sidP = NULL;
             result.type = TRT_TCL_RESULT;
-            result.value.ival = TwapiGetArgs(interp, objc-2, objv+2,
+            result.value.ival = TwapiGetArgs(interp, objc, objv,
                                              GETNULLIFEMPTY(s),
                                              GETVAR(u.sidP, ObjToPSID),
                                              ARGEND);
@@ -604,7 +606,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             break;
         case 10003:
         case 10004:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETNULLIFEMPTY(s), GETWSTR(s2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -616,7 +618,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             break;
         case 10005:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETINT(dw2), GETINT(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -624,7 +626,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.bval = AttachThreadInput(dw, dw2, dw3);
             break;
         case 10006:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETVAR(dwp, ObjToDWORD_PTR),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -632,7 +634,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.hval = GlobalAlloc(dw, dwp);
             break;
         case 10007:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETWSTR(s),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -640,7 +642,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.uval = LHashValOfName(dw, s);
             break;
         case 10008:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETHANDLE(h2),
                              GETHANDLE(h3), GETINT(dw), GETBOOL(dw2),
                              GETINT(dw3),
@@ -652,9 +654,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 result.type = TRT_GETLASTERROR;
             break;
         case 10009:
-            return Twapi_TclGetChannelHandle(interp, objc-2, objv+2);
+            return Twapi_TclGetChannelHandle(interp, objc, objv);
         case 10010:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETHANDLE(h),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -662,15 +664,30 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.ival = SetStdHandle(dw, h);
             break;
         case 10011:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
             result.value.hval = LoadLibraryExW(s, NULL, dw);
             break;
+        case 10012: // CreateFile
+            secattrP = NULL;
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETWSTR(s), GETINT(dw), GETINT(dw2),
+                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                             GETINT(dw3), GETINT(dw4), GETHANDLE(h),
+                             ARGEND) == TCL_OK) {
+                result.type = TRT_VALID_HANDLE;
+                result.value.hval = CreateFileW(s, dw, dw2, secattrP, dw3, dw4, h);
+            } else {
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            }
+            TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+            break;
         case 10013:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETASTR(cP), ARGUSEDEFAULT,
                              GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -678,7 +695,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 h = gTwapiModuleHandle;
             return Twapi_SourceResource(interp, h, cP, dw);
         case 10014: // FindWindowEx in twapi_base because of common use
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLET(u.hwnd, HWND),
                              GETHANDLET(u.hwnd2, HWND),
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
@@ -688,9 +705,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.hval = FindWindowExW(u.hwnd, u.hwnd2, s, s2);
             break;
         case 10015:
-            return Twapi_LsaQueryInformationPolicy(interp, objc-2, objv+2);
+            return Twapi_LsaQueryInformationPolicy(interp, objc, objv);
         case 10016: // LsaOpenPolicy
-            if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETINT(dw),
+            if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
@@ -705,7 +722,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             break;
             
         case 10017:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLET(u.hwnd, HWND), GETINT(dw),
                              ARGTERM) != TCL_OK)
                 return TCL_ERROR;
@@ -721,7 +738,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         case 10019:
         case 10020:
             // HWIN UINT WPARAM LPARAM ?ARGS?
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLET(u.hwnd, HWND), GETINT(dw),
                              GETDWORD_PTR(dwp), GETDWORD_PTR(dwp2),
                              ARGUSEDEFAULT,
@@ -751,7 +768,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             break;
         case 10021:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLET(u.hwnd, HWND), GETINT(dw),
                              GETDWORD_PTR(dwp),
                              ARGEND) != TCL_OK)
@@ -759,36 +776,17 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = Twapi_SetWindowLongPtr(u.hwnd, dw, dwp, &result.value.dwp)
                 ? TRT_DWORD_PTR : TRT_GETLASTERROR;
             break;
-
-        // 10022-30 UNUSED
-        case 10031: // CreateFile
-            secattrP = NULL;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2),
-                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                             GETINT(dw3), GETINT(dw4), GETHANDLE(h),
-                             ARGEND) == TCL_OK) {
-                result.type = TRT_VALID_HANDLE;
-                result.value.hval = CreateFileW(s, dw, dw2, secattrP, dw3, dw4, h);
-            } else {
-                result.type = TRT_TCL_RESULT;
-                result.value.ival = TCL_ERROR;
-            }
-            TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
-            break;
-        // 10032-57 UNUSED
-        case 10058: // DsGetDcName
+        case 10022: // DsGetDcName
             guidP = &guid;
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
                              GETVAR(guidP, ObjToUUID_NULL),
                              GETNULLIFEMPTY(s3), GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_DsGetDcName(interp, s, s2, guidP, s3, dw);
-        // 10059 - 10072 UNUSED
-        case 10073: // Twapi_FormatMessageFromModule
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10023: // Twapi_FormatMessageFromModule
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETHANDLE(h), GETINT(dw2),
                              GETINT(dw3),
                              GETWARGV(u.wargv, ARRAYSIZE(u.wargv), dw4),
@@ -800,8 +798,8 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_FROM_HMODULE;
             dw |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
             return TwapiFormatMessageHelper(interp, dw, h, dw2, dw3, dw4, u.wargv);
-        case 10074: // Twapi_FormatMessageFromString
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10024: // Twapi_FormatMessageFromString
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETWSTR(s),
                              GETWARGV(u.wargv, ARRAYSIZE(u.wargv), dw4),
                              ARGEND) != TCL_OK)
@@ -812,18 +810,16 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             dw &= FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK | FORMAT_MESSAGE_FROM_STRING;
             dw |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
             return TwapiFormatMessageHelper(interp, dw, s, 0, 0, dw4, u.wargv);
-            // 10075 - 10080 UNUSED
-        case 10081:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10025:
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             NULLIFY_EMPTY(cP);
             return Twapi_GenerateWin32Error(interp, dw, cP);
-        // 10082-97: // UNUSED
-        case 10097:
+        case 10026:
             secattrP = NULL;        /* Even on error, it might be filled */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                              GETBOOL(dw), GETNULLIFEMPTY(s),
                              ARGUSEDEFAULT, GETINT(dw2),
@@ -848,15 +844,15 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-        case 10098: // OpenMutex
-        case 10099: // OpenSemaphore
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10027: // OpenMutex
+        case 10028: // OpenSemaphore
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETBOOL(dw2), GETWSTR(s),
                              ARGUSEDEFAULT, GETINT(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
-            result.value.hval = (func == 10098 ? OpenMutexW : OpenSemaphoreW)
+            result.value.hval = (func == 10027 ? OpenMutexW : OpenSemaphoreW)
                 (dw, dw2, s);
             if (result.value.hval) {
                 if (dw3 & 1) {
@@ -870,9 +866,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 }
             }
             break;
-        case 10100:
+        case 10029:
             secattrP = NULL;        /* Even on error, it might be filled */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                              GETINT(dw), GETINT(dw2), GETNULLIFEMPTY(s),
                              ARGEND) == TCL_OK) {
@@ -884,9 +880,8 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-            // 10101-10109 UNUSED
-        case 10110:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10030:
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -894,12 +889,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.nonnull.name = cP[0] ? cP : "void*";
             result.type = TRT_NONNULL;
             break;
-
-        case 10117: // UNUSED
-        case 10118: // UNUSED
-            break;
-
-        case 10119: // IsEqualPtr
+        case 10031: // IsEqualPtr
             if (objc != 4)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             if (ObjToOpaque(interp, objv[2], &pv, NULL) != TCL_OK ||
@@ -909,7 +899,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_BOOL;
             result.value.bval = (pv == pv2);
             break;
-        case 10120: // IsNullPtr
+        case 10032: // IsNullPtr
             if (objc < 3 || objc > 4)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
@@ -922,7 +912,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_BOOL;
             result.value.bval = (pv == NULL);
             break;
-        case 10121: // IsPtr
+        case 10033: // IsPtr
             if (objc < 3 || objc > 4)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
@@ -933,9 +923,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_BOOL;
             result.value.bval = (ObjToOpaque(interp, objv[2], &pv, cP) == TCL_OK);
             break;
-        case 10122:
+        case 10034:
             secattrP = NULL;        /* Even on error, it might be filled */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                              GETBOOL(dw), GETBOOL(dw2),
                              GETNULLIFEMPTY(s),
@@ -956,16 +946,13 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
             break;
-            // 10123 - 10135 UNUSED
-        case 10136: // IsEqualGuid
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+        case 10035: // IsEqualGuid
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETGUID(u.guid), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_BOOL;
             result.value.bval = IsEqualGUID(&guid, &u.guid);
             break;
-
-
     }
 
     return TwapiSetResult(interp, &result);
@@ -989,93 +976,74 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
 
+    objc -= 2;
+    objv += 2;
+
     result.type = TRT_BADFUNCTIONCODE;
-
-    if (func < 1000) {
-        /* Functions taking no arguments */
-        if (objc != 2)
+    switch (func) {
+    case 1:
+        result.type = TRT_OBJ;
+        result.value.obj = Twapi_GetAtomStats(ticP);
+        break;
+    case 2:
+        result.type = TRT_WIDE;
+        result.value.wide = TWAPI_NEWID(ticP);
+        break;
+    case 3:
+        result.type = TRT_HWND;
+        result.value.hwin = Twapi_GetNotificationWindow(ticP);
+        break;
+    case 4:
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-        switch (func) {
-        case 11:
-            result.type = TRT_OBJ;
-            result.value.obj = Twapi_GetAtomStats(ticP);
-            break;
-            // 52-67 UNUSED
-        case 74:
-            result.type = TRT_WIDE;
-            result.value.wide = TWAPI_NEWID(ticP);
-            break;
-        case 77:
-            result.type = TRT_HWND;
-            result.value.hwin = Twapi_GetNotificationWindow(ticP);
-            break;
-            // 78-81 - UNUSED
-        }
-
-        return TwapiSetResult(interp, &result);
-    }
-
-    if (func < 2000) {
-        /* We should have exactly one additional argument. */
-
-        if (objc != 3)
+        if (ObjToTwapiId(interp, objv[0], &twapi_id) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EMPTY;
+        TwapiThreadPoolUnregister(ticP, twapi_id);
+        break;
+    case 5: // atomize
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        
-        switch (func) {
-        case 1020:
-            if (ObjToTwapiId(interp, objv[2], &twapi_id) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EMPTY;
-            TwapiThreadPoolUnregister(ticP, twapi_id);
-            break;
-        case 1023: // atomize
-            result.type = TRT_OBJ;
-            result.value.obj = TwapiGetAtom(ticP, Tcl_GetString(objv[2]));
-            break;
-        }
-    } else {
-        /* Free-for-all - each func responsible for checking arguments */
-        switch (func) {
-        case 10012:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            bufP = buf;
-            dw3 = ARRAYSIZE(buf);
-            if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
+        result.type = TRT_OBJ;
+        result.value.obj = TwapiGetAtom(ticP, Tcl_GetString(objv[0]));
+        break;
+    case 6:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETWSTR(s), GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        bufP = buf;
+        dw3 = ARRAYSIZE(buf);
+        if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
+            result.value.ival = GetLastError();
+            if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
                 result.value.ival = GetLastError();
-                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                    result.value.ival = GetLastError();
-                    break;
-                }
-                /* Retry with larger buffer */
-                bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
-                                        &dw3);
-                dw3 /= sizeof(WCHAR);
-                if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
-                    result.type = TRT_EXCEPTION_ON_ERROR;
-                    result.value.ival = GetLastError();
-                    MemLifoPopFrame(&ticP->memlifo);
-                    break;
-                }
+                break;
             }
-            result.value.obj = ObjFromUnicodeN(bufP, dw3-1);
-            result.type = TRT_OBJ;
-            if (bufP != buf)
+            /* Retry with larger buffer */
+            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*dw3,
+                                    &dw3);
+            dw3 /= sizeof(WCHAR);
+            if (! TranslateNameW(s, dw, dw2, bufP, &dw3)) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = GetLastError();
                 MemLifoPopFrame(&ticP->memlifo);
-            break;
-        case 10137:
-            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
-                             GETINT(dw), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return TwapiThreadPoolRegister(
-                ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
-
+                break;
+            }
         }
+        result.value.obj = ObjFromUnicodeN(bufP, dw3-1);
+        result.type = TRT_OBJ;
+        if (bufP != buf)
+            MemLifoPopFrame(&ticP->memlifo);
+        break;
+    case 7:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
+                         GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        return TwapiThreadPoolRegister(
+            ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
     }
 
     return TwapiSetResult(interp, &result);
@@ -1503,6 +1471,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         MAKEFNCMD_(Tcl_GetChannelHandle, 10009),
         MAKEFNCMD_(SetStdHandle, 10010),
         MAKEFNCMD_(LoadLibraryEx, 10011),
+        MAKEFNCMD_(CreateFile, 10012),
         MAKEFNCMD_(Twapi_SourceResource, 10013),
         MAKEFNCMD_(FindWindowEx, 10014),
         MAKEFNCMD_(LsaQueryInformationPolicy, 10015),
@@ -1512,34 +1481,32 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         MAKEFNCMD_(SendNotifyMessage, 10019),
         MAKEFNCMD_(SendMessageTimeout, 10020),
         MAKEFNCMD_(SetWindowLongPtr, 10021),
-
-        MAKEFNCMD_(CreateFile, 10031),
-        MAKEFNCMD_(DsGetDcName, 10058),
-        MAKEFNCMD_(FormatMessageFromModule, 10073),
-        MAKEFNCMD_(FormatMessageFromString, 10074),
-        MAKEFNCMD_(win32_error, 10081),
-        MAKEFNCMD_(CreateMutex, 10097),
-        MAKEFNCMD_(OpenMutex, 10098),
-        MAKEFNCMD_(OpenSemaphore, 10099), /* TBD - Tcl wrapper */
-        MAKEFNCMD_(CreateSemaphore, 10100), /* TBD - Tcl wrapper */
-        MAKEFNCMD_(malloc, 10110),        /* TBD - document, change to memalloc */
-        MAKEFNCMD_(Twapi_IsEqualPtr, 10119),
-        MAKEFNCMD_(Twapi_IsNullPtr, 10120),
-        MAKEFNCMD_(Twapi_IsPtr, 10121),
-        MAKEFNCMD_(CreateEvent, 10122),
-        MAKEFNCMD_(IsEqualGUID, 10136), // Tcl
+        MAKEFNCMD_(DsGetDcName, 10022),
+        MAKEFNCMD_(FormatMessageFromModule, 10023),
+        MAKEFNCMD_(FormatMessageFromString, 10024),
+        MAKEFNCMD_(win32_error, 10025),
+        MAKEFNCMD_(CreateMutex, 10026),
+        MAKEFNCMD_(OpenMutex, 10027),
+        MAKEFNCMD_(OpenSemaphore, 10028), /* TBD - Tcl wrapper */
+        MAKEFNCMD_(CreateSemaphore, 10029), /* TBD - Tcl wrapper */
+        MAKEFNCMD_(malloc, 10030),        /* TBD - document, change to memalloc */
+        MAKEFNCMD_(Twapi_IsEqualPtr, 10031),
+        MAKEFNCMD_(Twapi_IsNullPtr, 10032),
+        MAKEFNCMD_(Twapi_IsPtr, 10033),
+        MAKEFNCMD_(CreateEvent, 10034),
+        MAKEFNCMD_(IsEqualGUID, 10035), // Tcl
     };
 
     static struct alias_table_s AliasDispatch[] = {
-        MAKEALIAS_(Twapi_GetAtomStats, 11),
-        MAKEALIAS_(TwapiId, 74),
-        MAKEALIAS_(Twapi_GetNotificationWindow, 77),
+        MAKEALIAS_(Twapi_GetAtomStats, 1),
+        MAKEALIAS_(TwapiId, 2),
+        MAKEALIAS_(Twapi_GetNotificationWindow, 3),
 
-        MAKEALIAS_(Twapi_UnregisterWaitOnHandle, 1020),
-        MAKEALIAS_(atomize, 1023),
+        MAKEALIAS_(Twapi_UnregisterWaitOnHandle, 4),
+        MAKEALIAS_(atomize, 5),
 
-        MAKEALIAS_(TranslateName, 10012),
-        MAKEALIAS_(Twapi_RegisterWaitOnHandle, 10137),
+        MAKEALIAS_(TranslateName, 6),
+        MAKEALIAS_(Twapi_RegisterWaitOnHandle, 7),
     };
 
     struct tic_dispatch_s TicDispatch[] = {
