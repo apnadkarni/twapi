@@ -13,6 +13,20 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     Tcl_Obj *CONST objv[]
     );
 
+/* TBD - remove this call */
+void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code)
+{
+   /*
+    * Why a single line function ?
+    * Making this a function instead of directly calling Tcl_CreateAlias from
+    * Twapi_InitCalls saves about 4K in code space. (Yes, every K is important,
+    * users are already complaining wrt the DLL size
+    */
+
+    Tcl_CreateAlias(interp, fn, interp, callcmd, 1, &code);
+}
+
+
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -346,9 +360,9 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         WCHAR buf[MAX_PATH+1];
     } u;
 
-    if (objc != 3)
+    if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+    CHECK_INTEGER_OBJ(interp, dw, objv[1]);
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
@@ -432,13 +446,15 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     WCHAR *bufP;
     SYSTEMTIME systime;
 
-    if (objc != 3)
+    if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
+    --objc;
+    ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1008:
-        if (ObjToDWORD_PTR(interp, objv[2], &dwp) != TCL_OK)
+        if (ObjToDWORD_PTR(interp, objv[0], &dwp) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_LPVOID;
         result.value.pv = (void *) dwp;
@@ -446,44 +462,44 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1009:
         u.sidP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = (ObjToPSID(interp, objv[2], &u.sidP) == TCL_OK);
+        result.value.bval = (ObjToPSID(interp, objv[0], &u.sidP) == TCL_OK);
         if (u.sidP)
             TwapiFree(u.sidP);
         break;
     case 1010:
-        if (Tcl_GetDoubleFromObj(interp, objv[2], &u.d) != TCL_OK)
+        if (Tcl_GetDoubleFromObj(interp, objv[0], &u.d) != TCL_OK)
             return TCL_ERROR;
         result.type = VariantTimeToSystemTime(u.d, &result.value.systime) ?
             TRT_SYSTEMTIME : TRT_GETLASTERROR;
         break;
     case 1011:
-        if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
+        if (ObjToSYSTEMTIME(interp, objv[0], &systime) != TCL_OK)
             return TCL_ERROR;
         result.type = SystemTimeToVariantTime(&systime, &result.value.dval) ?
             TRT_DOUBLE : TRT_GETLASTERROR;
         break;
     case 1012: // canonicalize_guid
         /* Turn a GUID into canonical form */
-        if (ObjToGUID(interp, objv[2], &result.value.guid) != TCL_OK)
+        if (ObjToGUID(interp, objv[0], &result.value.guid) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_GUID;
         break;
     case 1013:
-        return Twapi_AppendLog(interp, ObjToUnicode(objv[2]));
+        return Twapi_AppendLog(interp, ObjToUnicode(objv[0]));
     case 1014: // GlobalAddAtom
-        result.value.ival = GlobalAddAtomW(ObjToUnicode(objv[2]));
+        result.value.ival = GlobalAddAtomW(ObjToUnicode(objv[0]));
         result.type = result.value.ival ? TRT_LONG : TRT_GETLASTERROR;
         break;
     case 1015:
         u.sidP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = ConvertStringSidToSidW(ObjToUnicode(objv[2]),
+        result.value.bval = ConvertStringSidToSidW(ObjToUnicode(objv[0]),
                                                    &u.sidP);
         if (u.sidP)
             LocalFree(u.sidP);
         break;
     case 1016:
-        if (ObjToFILETIME(interp, objv[2], &u.filetime) != TCL_OK)
+        if (ObjToFILETIME(interp, objv[0], &u.filetime) != TCL_OK)
             return TCL_ERROR;
         if (FileTimeToSystemTime(&u.filetime, &result.value.systime))
             result.type = TRT_SYSTEMTIME;
@@ -491,7 +507,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_GETLASTERROR;
         break;
     case 1017:
-        if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
+        if (ObjToSYSTEMTIME(interp, objv[0], &systime) != TCL_OK)
             return TCL_ERROR;
         if (SystemTimeToFileTime(&systime, &result.value.filetime))
             result.type = TRT_FILETIME;
@@ -499,7 +515,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_GETLASTERROR;
         break;
     case 1018: /* In twapi_base because needed in multiple modules */
-        if (ObjToHWND(interp, objv[2], &u.hwnd) != TCL_OK)
+        if (ObjToHWND(interp, objv[0], &u.hwnd) != TCL_OK)
             return TCL_ERROR;
         dw2 = GetWindowThreadProcessId(u.hwnd, &dw);
         if (dw2 == 0) {
@@ -514,11 +530,11 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 1019: // Twapi_IsValidGUID
         result.type = TRT_BOOL;
-        result.value.bval = (ObjToGUID(NULL, objv[2], &guid) == TCL_OK);
+        result.value.bval = (ObjToGUID(NULL, objv[0], &guid) == TCL_OK);
         break;
     case 1020:
         bufP = u.buf;
-        s = ObjToUnicode(objv[2]);
+        s = ObjToUnicode(objv[0]);
         dw = ExpandEnvironmentStringsW(s, bufP, ARRAYSIZE(u.buf));
         if (dw > ARRAYSIZE(u.buf)) {
             // Need a bigger buffer
@@ -541,7 +557,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             TwapiFree(bufP);
         break;
     case 1021: // free
-        if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
+        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EMPTY;
         if (pv)
@@ -710,7 +726,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            ObjToLSA_UNICODE_STRING(objv[2], &lsa_ustr);
+            ObjToLSA_UNICODE_STRING(objv[0], &lsa_ustr);
             TwapiZeroMemory(&u.lsa_oattr, sizeof(u.lsa_oattr));
             dw2 = LsaOpenPolicy(&lsa_ustr, &u.lsa_oattr, dw, &result.value.hval);
             if (dw2 == STATUS_SUCCESS) {
@@ -890,38 +906,38 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_NONNULL;
             break;
         case 10031: // IsEqualPtr
-            if (objc != 4)
+            if (objc != 2)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            if (ObjToOpaque(interp, objv[2], &pv, NULL) != TCL_OK ||
-                ObjToOpaque(interp, objv[3], &pv2, NULL) != TCL_OK) {
+            if (ObjToOpaque(interp, objv[0], &pv, NULL) != TCL_OK ||
+                ObjToOpaque(interp, objv[1], &pv2, NULL) != TCL_OK) {
                 return TCL_ERROR;
             }
             result.type = TRT_BOOL;
             result.value.bval = (pv == pv2);
             break;
         case 10032: // IsNullPtr
-            if (objc < 3 || objc > 4)
+            if (objc == 0 || objc > 2)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
-            if (objc == 4) {
-                cP = ObjToString(objv[3]);
+            if (objc == 2) {
+                cP = ObjToString(objv[1]);
                 NULLIFY_EMPTY(cP);
             }
-            if (ObjToOpaque(interp, objv[2], &pv, cP) != TCL_OK)
+            if (ObjToOpaque(interp, objv[0], &pv, cP) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_BOOL;
             result.value.bval = (pv == NULL);
             break;
         case 10033: // IsPtr
-            if (objc < 3 || objc > 4)
+            if (objc == 0 || objc > 2)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
-            if (objc == 4) {
-                cP = ObjToString(objv[3]);
+            if (objc == 2) {
+                cP = ObjToString(objv[1]);
                 NULLIFY_EMPTY(cP);
             }
             result.type = TRT_BOOL;
-            result.value.bval = (ObjToOpaque(interp, objv[2], &pv, cP) == TCL_OK);
+            result.value.bval = (ObjToOpaque(interp, objv[0], &pv, cP) == TCL_OK);
             break;
         case 10034:
             secattrP = NULL;        /* Even on error, it might be filled */
@@ -1062,11 +1078,12 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
         return TCL_ERROR;
     }
 
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
-
     if (func < 1000) {
         /* Command with a single handle argument */
-        if (objc != 2)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
@@ -1076,7 +1093,6 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ReleaseMutex(h);
             break;
-
         case 3:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = CloseHandle(h);
@@ -1121,8 +1137,6 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.value.ival = ResetEvent(h);
             break;
         case 13:
-            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
-                return TCL_ERROR;
             result.value.uval = LsaClose(h);
             result.type = TRT_DWORD; /* Not TRT_NTSTATUS because do not
                                         want error on invalid handle */
@@ -1158,9 +1172,9 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
     } else if (func < 2000) {
 
         // A single additional DWORD arg is present
-        if (objc != 3)
+        if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[3]);
+        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
 
         switch (func) {
         case 1001:
@@ -1187,7 +1201,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
     } else if (func < 3000) {
 
         // Two additional DWORD args present
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc-1, objv+1,
                          GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
