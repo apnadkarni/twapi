@@ -138,7 +138,7 @@ int Twapi_InternalCastObjCmd(
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    typename = Tcl_GetString(objv[1]);
+    typename = ObjToString(objv[1]);
 
     if (*typename == '\0') {
         /* No type, keep as is */
@@ -193,6 +193,12 @@ int Twapi_InternalCastObjCmd(
 
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
+}
+
+/* Call to set static result */
+void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[])
+{
+    Tcl_SetResult(interp, (char *) s, TCL_STATIC);
 }
 
 
@@ -359,7 +365,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             typenameP = "HRGN";
             break;
         default:
-            Tcl_SetResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements");
             return TCL_ERROR;
         }
         resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
@@ -460,7 +466,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         return TwapiReturnError(interp, resultP->value.ival);
 
     default:
-        Tcl_SetResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult");
         return TCL_ERROR;
     }
 
@@ -551,7 +557,7 @@ LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP)
 LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP)
 {
     if (objP) {
-        LPWSTR s = Tcl_GetUnicode(objP);
+        LPWSTR s = ObjToUnicode(objP);
         if (lstrcmpW(s, NULL_TOKEN_L) == 0) {
             s = NULL;
         }
@@ -646,7 +652,7 @@ Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
 int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
 {
     int i;
-    if (Tcl_GetIntFromObj(interp, obj, &i) != TCL_OK)
+    if (ObjToInt(interp, obj, &i) != TCL_OK)
         return TCL_ERROR;
 
     if (i < low || i > high) {
@@ -889,9 +895,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
              * The 2 is for the trailing 2 null bytes
              */
             if (itemlen > (numbytes-2)) {
-                Tcl_SetResult(interp,
-                              "Invalid item id list format",
-                              TCL_STATIC);
+                TwapiSetStaticResult(interp, "Invalid item id list format");
                 return TCL_ERROR;
             }
             numbytes -= itemlen;
@@ -902,9 +906,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
     *idsPP = CoTaskMemAlloc(numbytes);
     if (*idsPP == NULL) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "CoTaskMemAlloc failed in SHChangeNotify",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "CoTaskMemAlloc failed in SHChangeNotify");
         return TCL_ERROR;
     }
 
@@ -938,7 +940,7 @@ int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
     HRESULT hr;
     WCHAR *wsP;
     if (objP) {
-        wsP = Tcl_GetUnicode(objP);
+        wsP = ObjToUnicode(objP);
 
         /* Accept both GUID and UUID forms */
         if (*wsP == L'{') {
@@ -992,7 +994,7 @@ int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP)
        differently based on the component.  We accept both forms here */
 
     if (objP) {
-        RPC_STATUS status = UuidFromStringA(Tcl_GetString(objP), uuidP);
+        RPC_STATUS status = UuidFromStringA(ObjToString(objP), uuidP);
         if (status != RPC_S_OK) {
             /* Try as GUID form */
             return ObjToGUID(interp, objP, uuidP);
@@ -1149,11 +1151,11 @@ Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
 int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
 {
     long lval;
-    if (Tcl_GetLongFromObj(interp, obj, &lval) != TCL_OK)
+    if (ObjToLong(interp, obj, &lval) != TCL_OK)
         return TCL_ERROR;
     if (lval & 0xffff0000) {
         if (interp)
-            Tcl_SetResult(interp, "Integer value must be less than 65536", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Integer value must be less than 65536");
         return TCL_ERROR;
     }
     *wordP = (WORD) lval;
@@ -1170,13 +1172,13 @@ int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP)
     }
 
     if (objc != 4) {
-        Tcl_SetResult(interp, "Need to specify exactly 4 integers for a RECT structure", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid RECT format.");
         return TCL_ERROR;
     }
-    if ((Tcl_GetLongFromObj(interp, objv[0], &rectP->left) != TCL_OK) ||
-        (Tcl_GetLongFromObj(interp, objv[1], &rectP->top) != TCL_OK) ||
-        (Tcl_GetLongFromObj(interp, objv[2], &rectP->right) != TCL_OK) ||
-        (Tcl_GetLongFromObj(interp, objv[3], &rectP->bottom) != TCL_OK)) {
+    if ((ObjToLong(interp, objv[0], &rectP->left) != TCL_OK) ||
+        (ObjToLong(interp, objv[1], &rectP->top) != TCL_OK) ||
+        (ObjToLong(interp, objv[2], &rectP->right) != TCL_OK) ||
+        (ObjToLong(interp, objv[3], &rectP->bottom) != TCL_OK)) {
         return TCL_ERROR;
     }
 
@@ -1230,11 +1232,11 @@ int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP)
     }
 
     if (objc != 2) {
-        Tcl_SetResult(interp, "Need to specify exactly 2 integers for a POINT structure", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid POINT format.");
         return TCL_ERROR;
     }
-    if ((Tcl_GetLongFromObj(interp, objv[0], &ptP->x) != TCL_OK) ||
-        (Tcl_GetLongFromObj(interp, objv[1], &ptP->y) != TCL_OK)) {
+    if ((ObjToLong(interp, objv[0], &ptP->x) != TCL_OK) ||
+        (ObjToLong(interp, objv[1], &ptP->y) != TCL_OK)) {
         return TCL_ERROR;
     }
 
@@ -1278,7 +1280,7 @@ int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP)
         }
     }
     if (interp) {
-        Tcl_SetResult(interp, "Invalid LUID format: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid LUID format: ");
         Tcl_AppendResult(interp, strP, NULL);
     }
     return TCL_ERROR;
@@ -1361,7 +1363,7 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
     return Tcl_NewListObj(2, objv);
 
 badformat:
-    Tcl_SetResult(interp, "Badly formatted registry value", TCL_STATIC);
+    TwapiSetStaticResult(interp, "Badly formatted registry value");
     return NULL;
 }
 
@@ -1380,7 +1382,7 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
     }
 
     for (i = 0; i < objc; ++i)
-        argv[i] = Tcl_GetString(objv[i]);
+        argv[i] = ObjToString(objv[i]);
     argv[i] = NULL;
     *argcP = objc;
     return TCL_OK;
@@ -1400,7 +1402,7 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
     }
 
     for (i = 0; i < objc; ++i)
-        argv[i] = Tcl_GetUnicode(objv[i]);
+        argv[i] = ObjToUnicode(objv[i]);
     argv[i] = NULL;
     *argcP = objc;
     return TCL_OK;
@@ -1426,8 +1428,8 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
         /* For backward compat with SWIG based script, we accept NULL
            as a valid pointer of any type and for convenience 0 as well */
         if (nobj == 1 &&
-            (lstrcmpA(Tcl_GetString(obj), "NULL") == 0 ||
-             (Tcl_GetIntFromObj(interp, obj, &val) == TCL_OK && val == 0))) {
+            (lstrcmpA(ObjToString(obj), "NULL") == 0 ||
+             (ObjToInt(interp, obj, &val) == TCL_OK && val == 0))) {
             *pvP = 0;
             return TCL_OK;
         }
@@ -1435,14 +1437,14 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
         if (interp) {
             Tcl_ResetResult(interp);
             Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
-                             Tcl_GetString(obj), "'.", NULL);
+                             ObjToString(obj), "'.", NULL);
         }
         return TCL_ERROR;
     }
 
     /* If a type name is specified, see that it matches. Else any type ok */
     if (name) {
-        char *s = Tcl_GetString(objsP[1]);
+        char *s = ObjToString(objsP[1]);
         if (! STREQ(s, name)) {
             if (interp) {
                 Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
@@ -1455,7 +1457,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
     if (ObjToDWORD_PTR(NULL, objsP[0], &dwp) != TCL_OK) {
         if (interp)
             Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
-                             Tcl_GetString(objsP[0]), "'.", NULL);
+                             ObjToString(objsP[0]), "'.", NULL);
         return TCL_ERROR;
     }
     *pvP = (void*) dwp;
@@ -1660,7 +1662,7 @@ Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP)
 {
     DWORD addr;
-    char *p = Tcl_GetString(objP);
+    char *p = ObjToString(objP);
     if ((addr = inet_addr(p)) == INADDR_NONE) {
         /* Bad format or 255.255.255.255 */
         if (! STREQ("255.255.255.255", p)) {
@@ -1822,10 +1824,10 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
      *    - list {ptr VT}
      *    - list {userdefined VT}
      */
-    if (Tcl_GetIntFromObj(NULL, obj, &i) == TCL_OK) {
+    if (ObjToInt(NULL, obj, &i) == TCL_OK) {
         *vtP = (VARTYPE) i;
         return TCL_OK;
-    } else if (LookupBaseVTToken(interp, Tcl_GetString(obj), vtP) == TCL_OK) {
+    } else if (LookupBaseVTToken(interp, ObjToString(obj), vtP) == TCL_OK) {
         return TCL_OK;
     }
 
@@ -1837,9 +1839,9 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
         objc < 2) {
         return TCL_ERROR;
     }
-    if (Tcl_GetIntFromObj(NULL, objv[0], &i) == TCL_OK) {
+    if (ObjToInt(NULL, objv[0], &i) == TCL_OK) {
         vt = (VARTYPE) i;
-    } else if (LookupBaseVTToken(NULL, Tcl_GetString(objv[0]), &vt) != TCL_OK) {
+    } else if (LookupBaseVTToken(NULL, ObjToString(objv[0]), &vt) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -2398,7 +2400,7 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
         return TCL_OK;
     }
 
-    *sidPP = TwapiGetSidFromStringRep(Tcl_GetString(obj));
+    *sidPP = TwapiGetSidFromStringRep(ObjToString(obj));
     if (*sidPP)
         return TCL_OK;
 
@@ -2433,13 +2435,11 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
 
     if (aceP == NULL) {
         if (interp)
-            Tcl_SetResult(interp, "NULL ACE pointer", TCL_STATIC);
+            TwapiSetStaticResult(interp, "NULL ACE pointer");
         return NULL;
     }
 
     resultObj = Tcl_NewListObj(0, NULL);
-    if (resultObj == NULL)
-        goto allocation_error_return;
 
     /* ACE type */
     Tcl_ListObjAppendElement(interp, resultObj,
@@ -2507,8 +2507,6 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
          * should work, I think :)
          */
         obj = Tcl_NewByteArrayObj((unsigned char *) aceP, acehdrP->AceSize);
-        if (obj == NULL)
-            goto allocation_error_return;
 
         if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
             goto error_return;
@@ -2518,12 +2516,6 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
 
 
     return resultObj;
-
-
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate Tcl object", TCL_STATIC);
-    }
 
  error_return:
     Twapi_FreeNewTclObj(obj); /* OK if null */
@@ -2552,8 +2544,8 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
     if (objc < 2)
         goto format_error;
 
-    if ((Tcl_GetIntFromObj(interp, objv[0], &acetype) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &aceflags) != TCL_OK)) {
+    if ((ObjToInt(interp, objv[0], &acetype) != TCL_OK) ||
+        (ObjToInt(interp, objv[1], &aceflags) != TCL_OK)) {
         return TCL_ERROR;
     }
 
@@ -2574,10 +2566,10 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
         aceP->Header.AceFlags = aceflags;
         aceP->Header.AceSize  = acesz; /* TBD - this is a upper bound since we
                                           allocated max SID size. Is that OK?*/
-        if (Tcl_GetIntFromObj(interp, objv[2], &aceP->Mask) != TCL_OK)
+        if (ObjToInt(interp, objv[2], &aceP->Mask) != TCL_OK)
             goto format_error;
 
-        sidP = TwapiGetSidFromStringRep(Tcl_GetString(objv[3]));
+        sidP = TwapiGetSidFromStringRep(ObjToString(objv[3]));
         if (sidP == NULL)
             goto system_error;
 
@@ -2607,7 +2599,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
 
  format_error:
     if (interp)
-        Tcl_SetResult(interp, "Invalid ACE format.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid ACE format.");
     return TCL_ERROR;
 
  system_error:
@@ -2639,9 +2631,6 @@ Tcl_Obj *ObjFromACL (
 
     objv[0] = Tcl_NewIntObj(acl_rev.AclRevision);
     objv[1] = Tcl_NewListObj(0, NULL);
-    if (objv[0] == NULL || objv[1] == NULL) {
-        goto allocation_error_return;
-    }
 
     /* Loop and add the list of ACE's */
     for (i = 0; i < acl_szinfo.AceCount; ++i) {
@@ -2661,16 +2650,7 @@ Tcl_Obj *ObjFromACL (
     }
 
 
-    resultObj = Tcl_NewListObj(2, objv);
-    if (resultObj == NULL)
-        goto allocation_error_return;
-
-    return resultObj;
-
- allocation_error_return:
-    if (interp) {
-        Tcl_SetResult(interp, "Could not allocate Tcl object", TCL_STATIC);
-    }
+    return Tcl_NewListObj(2, objv);
 
  error_return:
     Twapi_FreeNewTclObj(objv[0]); /* OK if null */
@@ -2697,7 +2677,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     int       aclrev;
 
     *aclPP = NULL;
-    if (!lstrcmpA("null", Tcl_GetString(aclObj)))
+    if (!lstrcmpA("null", ObjToString(aclObj)))
         return TCL_OK;
 
     if (Tcl_ListObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
@@ -2705,9 +2685,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
 
     if (objc != 2) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid ACL format. Should be 'null' or have exactly two elements",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "Invalid ACL format.");
         return TCL_ERROR;
     }
 
@@ -2717,7 +2695,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
      */
 #if 0
     objv[0] is the ACL rev. We always recalculate it, ignore value passed in.
-    if (Tcl_GetIntFromObj(interp, objv[0], &aclrev) != TCL_OK)
+    if (ObjToInt(interp, objv[0], &aclrev) != TCL_OK)
         goto error_return;
 #endif
     if (Tcl_ListObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
@@ -2772,9 +2750,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
 
     if (! IsValidAcl(*aclPP)) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "Internal error constructing ACL",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "Internal error constructing ACL");
         goto error_return;
     }
 
@@ -2826,7 +2802,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     if (rev != SECURITY_DESCRIPTOR_REVISION) {
         /* Dunno how to handle this */
         if (interp)
-            Tcl_SetResult(interp, "Unsupported SECURITY_DESCRIPTOR version", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Unsupported SECURITY_DESCRIPTOR version");
         goto error_return;
     }
 
@@ -2915,9 +2891,7 @@ int ObjToPSECURITY_DESCRIPTOR(
 
     if (objc != 5) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid SECURITY_DESCRIPTOR format. Should have 0 or five elements",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "Invalid SECURITY_DESCRIPTOR format.");
         return TCL_ERROR;
     }
 
@@ -2929,13 +2903,13 @@ int ObjToPSECURITY_DESCRIPTOR(
     /*
      * Set control field
      */
-    if (Tcl_GetIntFromObj(interp, objv[0], &temp) != TCL_OK)
+    if (ObjToInt(interp, objv[0], &temp) != TCL_OK)
         goto error_return;
     secd_control = (SECURITY_DESCRIPTOR_CONTROL) temp;
     if (secd_control != temp) {
         /* Truncation error */
         if (interp)
-            Tcl_SetResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR");
         goto error_return;
     }
 
@@ -3106,9 +3080,7 @@ int ObjToPSECURITY_ATTRIBUTES(
 
     if (objc != 2) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "Invalid SECURITY_ATTRIBUTES format. Should have 0 or 2 elements",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "Invalid SECURITY_ATTRIBUTES format.");
         return TCL_ERROR;
     }
 
@@ -3116,7 +3088,7 @@ int ObjToPSECURITY_ATTRIBUTES(
     *secattrPP = TwapiAlloc (sizeof(**secattrPP));
     (*secattrPP)->nLength = sizeof(**secattrPP);
 
-    if (Tcl_GetIntFromObj(interp, objv[1], &inherit) == TCL_ERROR)
+    if (ObjToInt(interp, objv[1], &inherit) == TCL_ERROR)
         goto error_return;
     (*secattrPP)->bInheritHandle = (inherit != 0);
 
@@ -3137,3 +3109,17 @@ int ObjToPSECURITY_ATTRIBUTES(
 }
 
 
+Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP)
+{
+    return Tcl_GetUnicode(objP);
+}
+
+char *ObjToString(Tcl_Obj *objP)
+{
+    return Tcl_GetString(objP);
+}
+
+TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP)
+{
+    return Tcl_GetLongFromObj(interp, objP, lvalP);
+}

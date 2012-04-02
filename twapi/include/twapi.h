@@ -1145,6 +1145,7 @@ TWAPI_EXTERN void *TwapiReallocTry(void *p, size_t sz);
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
@@ -1201,6 +1202,9 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 #define ObjFromDWORD(dw_) Tcl_NewWideIntObj((DWORD)(dw_))
 #define ObjFromULONG      ObjFromDWORD
 
+TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP);
+#define ObjToInt ObjToLong
+
 #ifdef _WIN64
 #define ObjToDWORD_PTR        Tcl_GetWideIntFromObj
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
@@ -1217,6 +1221,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
+TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP);
+TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
 #if USE_UNICODE_OBJ
 #define ObjFromUnicodeN(p_, n_)    Tcl_NewUnicodeObj((p_), (n_))
