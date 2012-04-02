@@ -31,7 +31,7 @@ int Twapi_DsGetDcName(
         objv[2] = STRING_LITERAL_OBJ("DomainControllerAddress");
         objv[3] = ObjFromUnicode(dcP->DomainControllerAddress);
         objv[4] = STRING_LITERAL_OBJ("DomainControllerAddressType");
-        objv[5] = Tcl_NewLongObj(dcP->DomainControllerAddressType);
+        objv[5] = ObjFromLong(dcP->DomainControllerAddressType);
         objv[6] = STRING_LITERAL_OBJ("DomainGuid");
         objv[7] = ObjFromUUID(&dcP->DomainGuid);
         objv[8] = STRING_LITERAL_OBJ("DomainName");
@@ -39,13 +39,13 @@ int Twapi_DsGetDcName(
         objv[10] = STRING_LITERAL_OBJ("DnsForestName");
         objv[11] = ObjFromUnicode(dcP->DnsForestName);
         objv[12] = STRING_LITERAL_OBJ("Flags");
-        objv[13] = Tcl_NewLongObj(dcP->Flags);
+        objv[13] = ObjFromLong(dcP->Flags);
         objv[14] = STRING_LITERAL_OBJ("DcSiteName");
         objv[15] = ObjFromUnicode(dcP->DcSiteName);
         objv[16] = STRING_LITERAL_OBJ("ClientSiteName");
         objv[17] = ObjFromUnicode(dcP->ClientSiteName);
 
-        Tcl_SetObjResult(interp, Tcl_NewListObj(18, objv));
+        TwapiSetObjResult(interp, ObjNewList(18, objv));
 
         NetApiBufferFree(dcP);
     }

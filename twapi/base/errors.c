@@ -61,7 +61,7 @@ int TwapiFormatMessageHelper(
 
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
     if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
-        Tcl_SetObjResult(interp, ObjFromUnicode(msgP));
+        TwapiSetObjResult(interp, ObjFromUnicode(msgP));
         LocalFree(msgP);
         return TCL_OK;
     } else {
@@ -121,7 +121,7 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
             if (msgPtr[length-1] == L'\r')
                 --length;
         }
-        objP = Tcl_NewStringObj(msgPtr, length);
+        objP = ObjFromStringN(msgPtr, length);
         LocalFree(msgPtr);
         return objP;
     }
@@ -157,7 +157,7 @@ Tcl_Obj *TwapiGetErrorMsg(int error)
 {
     const char *msg = TwapiMapErrorCode(error);
     if (msg)
-        return Tcl_NewStringObj(msg, -1);
+        return ObjFromString(msg);
     else
         return Tcl_ObjPrintf("Twapi error %d.", error);
 }
@@ -167,17 +167,17 @@ Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int error)
 {
     Tcl_Obj *objv[3];
 
-    objv[0] = Tcl_NewStringObj("TWAPI", 5);
-    objv[1] = Tcl_NewIntObj(error);
+    objv[0] = STRING_LITERAL_OBJ("TWAPI");
+    objv[1] = ObjFromInt(error);
     objv[2] = TwapiGetErrorMsg(error);
-    return Tcl_NewListObj(3, objv);
+    return ObjNewList(3, objv);
 }
 
 int TwapiReturnError(Tcl_Interp *interp, int code)
 {
     if (interp) {
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(code));
-        Tcl_SetObjResult(interp, TwapiGetErrorMsg(code));
+        (void) TwapiSetObjResult(interp, TwapiGetErrorMsg(code));
     }
     return TCL_ERROR;           /* Always, so caller can just return */
 }
@@ -185,7 +185,7 @@ int TwapiReturnError(Tcl_Interp *interp, int code)
 int TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg)
 {
     if (msg)
-        return TwapiReturnErrorEx(interp, code, Tcl_NewStringObj(msg, -1));
+        return TwapiReturnErrorEx(interp, code, ObjFromString(msg));
     else
         return TwapiReturnError(interp, code);
 }
@@ -204,7 +204,7 @@ int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
                 Tcl_AppendStringsToObj(objP, " TWAPI error: ", msgP, NULL);
             else
                 Tcl_AppendPrintfToObj(objP, " TWAPI error code: %d", code);
-            Tcl_SetObjResult(interp, objP);
+            (void) TwapiSetObjResult(interp, objP);
         } else {
             TwapiReturnError(interp, code);
         }
@@ -305,10 +305,10 @@ Tcl_Obj *Twapi_MakeWindowsErrorCodeObj(DWORD error, Tcl_Obj *extra)
     Tcl_Obj *objv[4];
 
     objv[0] = STRING_LITERAL_OBJ(TWAPI_WIN32_ERRORCODE_TOKEN);
-    objv[1] = Tcl_NewLongObj(error);
+    objv[1] = ObjFromLong(error);
     objv[2] = Twapi_MapWindowsErrorToString(error);
     objv[3] = extra;
-    return Tcl_NewListObj(objv[3] ? 4 : 3, objv);
+    return ObjNewList(objv[3] ? 4 : 3, objv);
 }
 
 /*
@@ -342,7 +342,7 @@ int Twapi_AppendSystemErrorEx(
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         }
         Tcl_AppendObjToObj(resultObj, msgObj);
-        Tcl_SetObjResult(interp, resultObj);
+        (void) TwapiSetObjResult(interp, resultObj);
     }
     Tcl_SetObjErrorCode(interp, errorCodeObj);
 
@@ -394,7 +394,7 @@ int Twapi_AppendWNetError(
         Tcl_AppendUnicodeToObj(resultObj, provider, -1);
         Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
         Tcl_AppendUnicodeToObj(resultObj, errorbuf, -1);
-        Tcl_SetObjResult(interp, resultObj);
+        (void) TwapiSetObjResult(interp, resultObj);
     }
 
     return TCL_ERROR;

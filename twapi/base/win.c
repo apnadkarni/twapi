@@ -141,7 +141,7 @@ static int TwapiScriptWMCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *objs[6];
 
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_script_wm_handler", -1);
+    objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_script_wm_handler");
     objs[1] = ObjFromTwapiId(cbP->receiver_id);
     objs[2] = ObjFromDWORD_PTR(cbP->clientdata);
     objs[3] = ObjFromDWORD_PTR(cbP->clientdata2);
@@ -252,7 +252,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
 
     pos = GetMessagePos();
     pts = MAKEPOINTS(pos);
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_script_wm_handler", -1);
+    objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_script_wm_handler");
     objs[1] = ObjFromDWORD(msg);
     objs[2] = ObjFromDWORD_PTR(wParam);
     objs[3] = ObjFromDWORD_PTR(lParam);

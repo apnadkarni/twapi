@@ -224,10 +224,10 @@ GlobalImport (interp)
         goto errorExit;
     }
 
-    globalObjv [0] = Tcl_NewStringObj (global, -1);
-    globalObjv [1] = Tcl_NewStringObj ("errorResult", -1);
-    globalObjv [2] = Tcl_NewStringObj ("errorInfo", -1);
-    globalObjv [3] = Tcl_NewStringObj ("errorCode", -1);
+    globalObjv [0] = ObjFromString (global);
+    globalObjv [1] = ObjFromString ("errorResult");
+    globalObjv [2] = ObjFromString ("errorInfo");
+    globalObjv [3] = ObjFromString ("errorCode");
 
     for (idx = 0; idx < globalObjc; idx++) {
         Tcl_IncrRefCount (globalObjv [idx]);
@@ -244,8 +244,7 @@ GlobalImport (interp)
     if (code == TCL_ERROR)
         goto errorExit;
 
-    Tcl_SetObjResult (interp, savedResult);
-    return TCL_OK;
+    return TwapiSetObjResult (interp, savedResult);
 
   errorExit:
     Tcl_DecrRefCount (savedResult);
