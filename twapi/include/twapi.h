@@ -1101,7 +1101,6 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
 
 /* Built-in commands */
 
-
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TryObjCmd;
 TwapiTclObjCmd Twapi_KlGetObjCmd;
@@ -1322,7 +1321,7 @@ TWAPI_EXTERN int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               DWORD dwLanguageId, int argc, LPCWSTR *argv );
 
 /* LZMA */
-TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(TwapiInterpContext *ticP,
+TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(Tcl_Interp *,
                                          unsigned char *buf,
                                          DWORD sz, DWORD *outsz);
 TWAPI_EXTERN void TwapiLzmaFreeBuffer(unsigned char *buf);
@@ -1341,7 +1340,7 @@ TWAPI_EXTERN DWORD Twapi_SetWindowLongPtr(HWND hWnd, int nIndex, LONG_PTR lValue
 TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 
 /* General utility */
-TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(TwapiInterpContext *ticP, HANDLE dllH, const char *name, int try_file);
+TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *name, int try_file);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
 TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
 
