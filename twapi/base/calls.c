@@ -1798,7 +1798,7 @@ BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
     TwapiEnumCtx *p_enum_win_ctx =
         (TwapiEnumCtx *) p_ctx;
 
-    Tcl_ListObjAppendElement(p_enum_win_ctx->interp,
+    ObjAppendElement(p_enum_win_ctx->interp,
                              p_enum_win_ctx->objP,
                              ObjFromHWND(hwnd));
     

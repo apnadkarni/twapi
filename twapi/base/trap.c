@@ -70,7 +70,7 @@ int Twapi_TryObjCmd(
         goto finalize;          /* No errorCode set so cannot match */
 
     /* Get the error code facility and code */
-    if (Tcl_ListObjGetElements(interp, errorCodeVar, &errorCodeObjc,
+    if (ObjGetElements(interp, errorCodeVar, &errorCodeObjc,
                                &errorCodeObjv) != TCL_OK) {
         /* Not in list format. Will not match any error patterns below */
         goto finalize;
@@ -99,7 +99,7 @@ int Twapi_TryObjCmd(
 
         /* Get the error code patterns and see if they matche */
         match = 0;
-        if (Tcl_ListObjGetElements(interp, objv[i+1], &codeObjc, &codeObjv) != TCL_OK) {
+        if (ObjGetElements(interp, objv[i+1], &codeObjc, &codeObjv) != TCL_OK) {
             goto pop_and_return;
         }
 

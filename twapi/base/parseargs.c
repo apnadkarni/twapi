@@ -24,32 +24,25 @@ static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
                                     Tcl_Obj *value,
                                     const char *opt_name, int opt_name_len)
 {
-    Tcl_Obj *resultObj = ObjFromEmptyString();
-    Tcl_AppendStringsToObj(resultObj, error_type, " value '", ObjToString(value),
-                           "' specified for option '-", NULL);
-    Tcl_AppendToObj(resultObj, opt_name, opt_name_len);
-    Tcl_AppendToObj(resultObj, "'", 1);
-    return resultObj;
+    return Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'",
+                         error_type, ObjToString(value), opt_name_len, opt_name);
 }
 
 static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct OptionDescriptor *opts, int nopts)
 {
+    Tcl_Obj *objP;
     int j;
-    Tcl_DString ds;
     char *sep = "-";
 
-    Tcl_DStringInit(&ds);
-    Tcl_DStringAppend(&ds, "Invalid option '", -1);
-    Tcl_DStringAppend(&ds, badopt, -1);
-    Tcl_DStringAppend(&ds, "'. Must be one of ", -1);
+    objP = Tcl_ObjPrintf("Invalid option '%s'. Must be one of ", badopt);
+
     for (j = 0; j < nopts; ++j) {
-        Tcl_DStringAppend(&ds, sep, -1);
-        Tcl_DStringAppend(&ds, opts[j].name, opts[j].name_len);
+        Tcl_AppendPrintfToObj(objP, "%s%.*s", sep, opts[j].name_len, opts[j].name);
         sep = ", -";
     }
-    
-    Tcl_DStringResult(interp, &ds);
-    Tcl_DStringFree(&ds);
+
+    TwapiSetObjResult(interp, objP);
+    return;
 }
 
 
@@ -119,11 +112,11 @@ int Twapi_ParseargsObjCmd(
     if (argvObj == NULL)
         return TCL_ERROR;
 
-    if (Tcl_ListObjGetElements(interp, argvObj, &argc, &argv) != TCL_OK)
+    if (ObjGetElements(interp, argvObj, &argc, &argv) != TCL_OK)
         return TCL_ERROR;
 
     /* Now construct the option descriptors */
-    if (Tcl_ListObjGetElements(interp, objv[2], &nopts, &optObjs) != TCL_OK)
+    if (ObjGetElements(interp, objv[2], &nopts, &optObjs) != TCL_OK)
         return TCL_ERROR;
 
     if (nopts > (sizeof(opts)/sizeof(opts[0]))) {
@@ -136,7 +129,7 @@ int Twapi_ParseargsObjCmd(
         int       nelems;
         const char     *type;
 
-        if (Tcl_ListObjGetElements(interp, optObjs[k],
+        if (ObjGetElements(interp, optObjs[k],
                                     &nelems, &elems) != TCL_OK) {
             Tcl_AppendResult(interp, "Badly formed option descriptor: '",
                              ObjToString(optObjs[k]), "'", NULL);
@@ -233,13 +226,13 @@ int Twapi_ParseargsObjCmd(
              * argument. If it does not begin with a "-" assume it
              * is the value of the unknown option. Else it is the next option
              */
-            Tcl_ListObjAppendElement(interp, newargvObj, argv[iarg]);
+            ObjAppendElement(interp, newargvObj, argv[iarg]);
             if (iarg < (argc-1)) {
                 argp = ObjToString(argv[iarg+1]);
                 if (*argp != '-') {
                     /* Assume this is the value for the option */
                     ++iarg;
-                    Tcl_ListObjAppendElement(interp, newargvObj, argv[iarg]);
+                    ObjAppendElement(interp, newargvObj, argv[iarg]);
                 }
             }
         }
@@ -268,7 +261,7 @@ int Twapi_ParseargsObjCmd(
                 /* Construct array of allowed values if specified.
                  * Since we created the list ourselves, call cannot fail
                  */
-                (void) Tcl_ListObjGetElements(NULL, opts[k].valid_values,
+                (void) ObjGetElements(NULL, opts[k].valid_values,
                                               &nvalid, &validObjs);
             }
             /* FALLTHRU to check for defaults */
@@ -384,8 +377,8 @@ int Twapi_ParseargsObjCmd(
         } else {
             objP = ObjFromStringN(opts[k].name, opts[k].name_len);
         }
-        Tcl_ListObjAppendElement(interp, namevalList, objP);
-        Tcl_ListObjAppendElement(interp, namevalList, opts[k].value);
+        ObjAppendElement(interp, namevalList, objP);
+        ObjAppendElement(interp, namevalList, opts[k].value);
     }
 
 
@@ -401,7 +394,7 @@ int Twapi_ParseargsObjCmd(
 
     /* Tack on the remaining items in the argument list to new argv */
     while (iarg < argc) {
-        Tcl_ListObjAppendElement(interp, newargvObj, argv[iarg]);
+        ObjAppendElement(interp, newargvObj, argv[iarg]);
         ++iarg;
     }
 

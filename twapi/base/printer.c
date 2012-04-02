@@ -49,7 +49,7 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pPrinterName);
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pServerName);
         Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, printerObj, printerInfoP, Attributes);
-        Tcl_ListObjAppendElement(interp, resultObj, printerObj);
+        ObjAppendElement(interp, resultObj, printerObj);
     }
 
     TwapiSetObjResult(interp, resultObj);

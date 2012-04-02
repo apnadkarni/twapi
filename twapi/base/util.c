@@ -362,7 +362,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
             /* Remove elements from front of list */
             Tcl_ListObjReplace(interp, var, 0, len-limit+1, 0, NULL);
         }
-        Tcl_ListObjAppendElement(interp, var, msgObj);
+        ObjAppendElement(interp, var, msgObj);
     } else {
         /* log variable is currently not set */
         Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, ObjNewList(1, &msgObj), 0);
