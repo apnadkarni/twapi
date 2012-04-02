@@ -915,10 +915,13 @@ typedef struct _TwapiInterpContext {
      */
     CRITICAL_SECTION lock;
 
+#ifdef OBSOLETE
     /* Tcl Async callback token. This is created on initialization
      * Note this CANNOT be left to be done when the event actually occurs.
      */
     Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
+#endif
+
     HWND          notification_win; /* Window used for various notifications */
 #ifdef OBSOLETE
     DWORD         device_notification_tid; /* device notification thread id */
@@ -1011,7 +1014,9 @@ TWAPI_EXTERN int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char 
 
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
 
+#ifdef OBSOLETE
 int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
+#endif
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 

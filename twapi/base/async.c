@@ -64,6 +64,7 @@ int TwapiEnqueueCallback(
     }
     
     if (enqueue_method == TWAPI_ENQUEUE_ASYNC) {
+#ifdef OBSOLETE
         /* Queue via the older Tcl_Async mechanism. */
         EnterCriticalSection(&ticP->lock);
 
@@ -96,6 +97,12 @@ int TwapiEnqueueCallback(
         Tcl_AsyncMark(ticP->async_handler);
     
         LeaveCriticalSection(&ticP->lock);
+#else
+        /* No longer support this method - deprecated in Tcl */
+        return ERROR_NOT_SUPPORTED;
+
+#endif
+
     } else {
         /* Queue directly to the Tcl event loop for the thread */
         /* Note the CallbackEvent gets freed by the Tcl code and hence
@@ -103,7 +110,17 @@ int TwapiEnqueueCallback(
         TwapiTclEvent *tteP = (TwapiTclEvent *) ckalloc(sizeof(*tteP));
         tteP->event.proc = Twapi_TclEventProc;
         tteP->pending_callback = cbP;
-        /* For similar reasons to above, bump ref counts */
+
+        /* Place on the pending queue. The Ref ensures it does not get
+         * deallocated while on the queue. The corresponding Unref will 
+         * be done by the receiver. ALWAYS. Do NOT add a Unref here 
+         *
+         * In addition, if we are not done with the cbP after queueing
+         * as we need to await for a response, we have to add another Ref
+         * to make sure it does not go away. In that case we Ref by 2.
+         * The corresponding Unref will happen below after we get the response
+         * or time out.
+         */
         TwapiCallbackRef(cbP, (timeout ? 2 : 1));
         cbP->ticP = ticP;
         TwapiInterpContextRef(ticP, 1);
@@ -133,7 +150,7 @@ int TwapiEnqueueCallback(
     return winerr;
 }
 
-    
+#ifdef OBSOLETE    
 /*
  * Called from Tcl loop to check for events. The function checks if
  * any events are pending and queues on the Tcl event queue
@@ -193,7 +210,7 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
     LeaveCriticalSection(&ticP->lock);
     return code;
 }
-
+#endif
 
 /*
  * Invoked from the Tcl event loop to execute a registered callback script
