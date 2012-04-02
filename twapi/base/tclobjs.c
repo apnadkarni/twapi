@@ -703,7 +703,7 @@ int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP)
     int       itemp;
     int       hindex;
 
-    if (Tcl_ListObjGetElements(interp, timeObj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, timeObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     /*
@@ -1145,7 +1145,7 @@ Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
             break;
         }
 
-        Tcl_ListObjAppendElement(NULL, listPtr, ObjFromUnicodeN(s, (int) (lpcw-s)));
+        ObjAppendElement(NULL, listPtr, ObjFromUnicodeN(s, (int) (lpcw-s)));
         ++lpcw;            /* Point beyond this string, possibly beyond end */
     }
 
@@ -1171,7 +1171,7 @@ int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP)
     Tcl_Obj **objv;
     int       objc;
 
-    if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
+    if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
@@ -1231,7 +1231,7 @@ int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP)
     Tcl_Obj **objv;
     int       objc;
 
-    if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
+    if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
@@ -1377,7 +1377,7 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
     int       objc, i;
     Tcl_Obj **objv;
 
-    if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
     if ((objc+1) > argc) {
         return TwapiReturnErrorEx(interp,
@@ -1397,7 +1397,7 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
     int       objc, i;
     Tcl_Obj **objv;
 
-    if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
     if ((objc+1) > argc) {
         return TwapiReturnErrorEx(interp,
@@ -1426,7 +1426,7 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
     int       nobj, val;
     DWORD_PTR dwp;
 
-    if (Tcl_ListObjGetElements(interp, obj, &nobj, &objsP) != TCL_OK)
+    if (ObjGetElements(interp, obj, &nobj, &objsP) != TCL_OK)
         return TCL_ERROR;
     if (nobj != 2) {
         /* For backward compat with SWIG based script, we accept NULL
@@ -1695,7 +1695,7 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
             objv[0] = ObjFromString(ipaddrstrP->IpAddress.String);
             objv[1] = ObjFromString(ipaddrstrP->IpMask.String);
             objv[2] = ObjFromDWORD(ipaddrstrP->Context);
-            Tcl_ListObjAppendElement(interp, resultObj,
+            ObjAppendElement(interp, resultObj,
                                      ObjNewList(3, objv));
         }
 
@@ -1839,7 +1839,7 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
      * See if it's a list. Note interp contains an error msg at this point
      */
 
-    if (Tcl_ListObjGetElements(NULL, obj, &objc, &objv) != TCL_OK ||
+    if (ObjGetElements(NULL, obj, &objc, &objv) != TCL_OK ||
         objc < 2) {
         return TCL_ERROR;
     }
@@ -1895,8 +1895,8 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     objv[1] = ObjNewList(0, NULL);
     num_elems = 1;
     for (i = 0; i < arrP->cDims; ++i) {
-        Tcl_ListObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].lLbound));
-        Tcl_ListObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].cElements));
+        ObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].lLbound));
+        ObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].cElements));
         num_elems *= arrP->rgsabound[i].cElements;
     }
 
@@ -1915,8 +1915,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
 
     case VT_I2: {
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     ObjFromInt(GETVAL(i,short)));
+            ObjAppendElement(NULL, objv[2], ObjFromInt(GETVAL(i,short)));
         }
         break;
     }
@@ -1924,37 +1923,33 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_INT: /* FALLTHROUGH */
     case VT_I4:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
-                                     ObjFromLong(GETVAL(i,long)));
+            ObjAppendElement(NULL, objv[2], ObjFromLong(GETVAL(i,long)));
         }
         break;
 
     case VT_R4:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      Tcl_NewDoubleObj(GETVAL(i,float)));
         }
         break;
 
     case VT_R8:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      Tcl_NewDoubleObj(GETVAL(i,double)));
         }
         break;
 
     case VT_CY:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
-                NULL, objv[2],
-                ObjFromCY(&(((CY *)valP)[i]))
-                );
+            ObjAppendElement(NULL, objv[2], ObjFromCY(&(((CY *)valP)[i])) );
         }
         break;
 
     case VT_DATE:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 Tcl_NewDoubleObj(GETVAL(i,double)));
         }
@@ -1963,7 +1958,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_BSTR:
         for (i = 0; i < num_elems; ++i) {
             BSTR bstr = GETVAL(i,BSTR);
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromUnicodeN(bstr, SysStringLen(bstr))
                 );
@@ -1973,7 +1968,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_DISPATCH:
         for (i = 0; i < num_elems; ++i) {
             IDispatch *idispP = GETVAL(i,IDispatch *);
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromIDispatch(idispP)
                 );
@@ -1982,14 +1977,14 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
 
     case VT_ERROR:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      ObjFromInt(GETVAL(i,SCODE)));
         }
         break;
 
     case VT_BOOL:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromBoolean(GETVAL(i,VARIANT_BOOL))
                 );
@@ -1999,7 +1994,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_VARIANT:
         for (i = 0; i < num_elems; ++i) {
             VARIANT *varP = &((( VARIANT *)valP)[i]);
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromVARIANT(varP, 0));
         }
@@ -2007,7 +2002,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
 
     case VT_DECIMAL:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromDECIMAL(&((( DECIMAL *)valP)[i]))
                 );
@@ -2017,7 +2012,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
     case VT_UNKNOWN:
         for (i = 0; i < num_elems; ++i) {
             IUnknown *idispP = GETVAL(i, IUnknown *);
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL, objv[2],
                 ObjFromIUnknown(idispP));
         }
@@ -2025,21 +2020,21 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
 
     case VT_I1:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      ObjFromInt(GETVAL(i,char)));
         }
         break;
 
     case VT_UI1:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      ObjFromInt(GETVAL(i,unsigned char)));
         }
         break;
 
     case VT_UI2:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      ObjFromInt(GETVAL(i,unsigned short)));
         }
         break;
@@ -2049,14 +2044,14 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *arrP)
         for (i = 0; i < num_elems; ++i) {
             unsigned long ulval = GETVAL(i, unsigned long);
             /* store as wide integer if it does not fit in signed 32 bits */
-            Tcl_ListObjAppendElement(NULL, objv[2], ObjFromDWORD(ulval));
+            ObjAppendElement(NULL, objv[2], ObjFromDWORD(ulval));
         }
         break;
 
     case VT_I8: /* FALLTHRU */
     case VT_UI8:
         for (i = 0; i < num_elems; ++i) {
-            Tcl_ListObjAppendElement(NULL, objv[2],
+            ObjAppendElement(NULL, objv[2],
                                      ObjFromWideInt(GETVAL(i,__int64)));
         }
         break;
@@ -2306,7 +2301,7 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
     LSA_UNICODE_STRING *ustrP;
     WCHAR    *dstP;
 
-    if (Tcl_ListObjGetElements(interp, obj, &nitems, &listobjv) == TCL_ERROR) {
+    if (ObjGetElements(interp, obj, &nitems, &listobjv) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
@@ -2446,11 +2441,11 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     resultObj = ObjNewList(0, NULL);
 
     /* ACE type */
-    Tcl_ListObjAppendElement(interp, resultObj,
+    ObjAppendElement(interp, resultObj,
                              ObjFromInt(acehdrP->AceType));
 
     /* ACE flags */
-    Tcl_ListObjAppendElement(interp, resultObj,
+    ObjAppendElement(interp, resultObj,
                              ObjFromInt(acehdrP->AceFlags));
 
     /* Now for type specific fields */
@@ -2459,7 +2454,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     case ACCESS_DENIED_ACE_TYPE:
     case SYSTEM_AUDIT_ACE_TYPE:
     case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  ObjFromDWORD(((ACCESS_ALLOWED_ACE *)aceP)->Mask));
 
         /* and the SID */
@@ -2470,37 +2465,37 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
             != TCL_OK) {
             goto error_return;
         }
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        ObjAppendElement(interp, resultObj, obj);
         break;
 
     case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
     case ACCESS_DENIED_OBJECT_ACE_TYPE:
     case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
         objectAceP = (ACCESS_ALLOWED_OBJECT_ACE *)aceP;
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  ObjFromDWORD(objectAceP->Mask));
         if (objectAceP->Flags & ACE_OBJECT_TYPE_PRESENT) {
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
+            ObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
             if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
-                Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->InheritedObjectType));
+                ObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->InheritedObjectType));
                 sidP = (SID *) &objectAceP->SidStart;
             } else {
-                Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
+                ObjAppendElement(interp, resultObj, ObjFromEmptyString());
                 sidP = (SID *) &objectAceP->InheritedObjectType;
             }
         } else if (objectAceP->Flags & ACE_INHERITED_OBJECT_TYPE_PRESENT) {
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
+            ObjAppendElement(interp, resultObj, ObjFromEmptyString());
+            ObjAppendElement(interp, resultObj, ObjFromGUID(&objectAceP->ObjectType));
             sidP = (SID *) &objectAceP->InheritedObjectType;
         } else {
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromEmptyString());
+            ObjAppendElement(interp, resultObj, ObjFromEmptyString());
+            ObjAppendElement(interp, resultObj, ObjFromEmptyString());
             sidP = (SID *) &objectAceP->ObjectType;
         }
         obj = NULL;                /* In case of errors */
         if (ObjFromSID(interp, sidP, &obj) != TCL_OK)
             goto error_return;
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        ObjAppendElement(interp, resultObj, obj);
         
         break;
 
@@ -2512,7 +2507,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
          */
         obj = Tcl_NewByteArrayObj((unsigned char *) aceP, acehdrP->AceSize);
 
-        if (Tcl_ListObjAppendElement(interp, resultObj, obj) != TCL_OK)
+        if (ObjAppendElement(interp, resultObj, obj) != TCL_OK)
             goto error_return;
 
         break;
@@ -2542,7 +2537,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
 
     *acePP = NULL;
 
-    if (Tcl_ListObjGetElements(interp, aceobj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, aceobj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if (objc < 2)
@@ -2647,7 +2642,7 @@ Tcl_Obj *ObjFromACL (
         ace_obj = ObjFromACE(interp, aceP);
         if (ace_obj == NULL)
             goto error_return;
-        if (Tcl_ListObjAppendElement(interp, objv[1], ace_obj) != TCL_OK) {
+        if (ObjAppendElement(interp, objv[1], ace_obj) != TCL_OK) {
             goto error_return;
         }
     }
@@ -2683,7 +2678,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     if (!lstrcmpA("null", ObjToString(aclObj)))
         return TCL_OK;
 
-    if (Tcl_ListObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if (objc != 2) {
@@ -2701,7 +2696,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
     if (ObjToInt(interp, objv[0], &aclrev) != TCL_OK)
         goto error_return;
 #endif
-    if (Tcl_ListObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
+    if (ObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
         goto error_return;
 
     aclsz = sizeof(ACL);
@@ -2886,7 +2881,7 @@ int ObjToPSECURITY_DESCRIPTOR(
     owner_sidP = group_sidP = NULL;
     *secdPP = NULL;
 
-    if (Tcl_ListObjGetElements(interp, secdObj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, secdObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if (objc == 0)
@@ -3075,7 +3070,7 @@ int ObjToPSECURITY_ATTRIBUTES(
 
     *secattrPP = NULL;
 
-    if (Tcl_ListObjGetElements(interp, secattrObj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, secattrObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if (objc == 0)
@@ -3172,6 +3167,16 @@ TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
 Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv)
 {
     return Tcl_NewListObj(objc, objv);
+}
+
+TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e)
+{
+    return Tcl_ListObjAppendElement(interp, l, e);
+}
+
+TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP)
+{
+    return Tcl_ListObjGetElements(interp, l, objcP, objvP);
 }
 
 Tcl_Obj *ObjFromLong(long val)

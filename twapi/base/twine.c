@@ -21,7 +21,7 @@ int Twapi_TwineObjCmd(
     if (objc == 2) {
         /* Single argument - must be a nested list of two lists */
         Tcl_Obj **nested_list;
-        if (Tcl_ListObjGetElements(interp, objv[1], &n, &nested_list) != TCL_OK)
+        if (ObjGetElements(interp, objv[1], &n, &nested_list) != TCL_OK)
             return TCL_ERROR;
         if (n != 2)
             return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
@@ -50,8 +50,8 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
     int i, n1, n2, nmin;
     Tcl_Obj *resultObj;
 
-    if (Tcl_ListObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
-        Tcl_ListObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
+    if (ObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
+        ObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
         return NULL;
     }
 

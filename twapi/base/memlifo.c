@@ -744,7 +744,7 @@ int Twapi_MemLifoDump(Tcl_Interp *interp, MemLifo *l)
         mobjs[13] = ObjFromLPVOID(m->lm_chunks);
         mobjs[14] = STRING_LITERAL_OBJ("lm_freeptr");
         mobjs[15] = ObjFromDWORD_PTR(m->lm_freeptr);
-        Tcl_ListObjAppendElement(interp, objs[15], ObjNewList(ARRAYSIZE(mobjs), mobjs));
+        ObjAppendElement(interp, objs[15], ObjNewList(ARRAYSIZE(mobjs), mobjs));
         
         if (m == m->lm_prev)
             break;

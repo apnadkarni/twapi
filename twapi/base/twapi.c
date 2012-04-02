@@ -257,55 +257,55 @@ int Twapi_GetTwapiBuildInfo(
     
     objP = ObjNewList(0, NULL);
 
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler"));
 #if defined(_MSC_VER)
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("vc++"));
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(_MSC_VER));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("vc++"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    ObjAppendElement(interp, objP, ObjFromLong(_MSC_VER));
 #elif defined(__GNUC__)
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("gcc"));
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    Tcl_ListObjAppendElement(interp, objP, ObjFromString(__VERSION__));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("gcc"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    ObjAppendElement(interp, objP, ObjFromString(__VERSION__));
 #else
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
 #endif
 
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("sdk_version"));
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(VER_PRODUCTBUILD));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("sdk_version"));
+    ObjAppendElement(interp, objP, ObjFromLong(VER_PRODUCTBUILD));
 
     /* Are we building with TEA ? */
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
 #if defined(HAVE_SYS_TYPES_H)
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(1));
+    ObjAppendElement(interp, objP, ObjFromLong(1));
 #else
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(0));
+    ObjAppendElement(interp, objP, ObjFromLong(0));
 #endif
 
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
     elemP = ObjNewList(0, NULL);
 #ifdef TWAPI_NODESKTOP
-    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nodesktop"));
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nodesktop"));
 #endif
 #ifdef TWAPI_NOSERVER
-    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("noserver"));
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("noserver"));
 #endif
 #ifdef TWAPI_LEAN
-    Tcl_ListObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("lean"));
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("lean"));
 #endif
-    Tcl_ListObjAppendElement(interp, objP, elemP);
+    ObjAppendElement(interp, objP, elemP);
 
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
 #if defined(TWAPI_SINGLE_MODULE)
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(1));
+    ObjAppendElement(interp, objP, ObjFromLong(1));
 #else
-    Tcl_ListObjAppendElement(interp, objP, ObjFromLong(0));
+    ObjAppendElement(interp, objP, ObjFromLong(0));
 #endif
 
     /* Which Tcl did we build against ? (As opposed to run time) */
-    Tcl_ListObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
-    Tcl_ListObjAppendElement(interp, objP, ObjFromString(TCL_PATCH_LEVEL));
+    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
+    ObjAppendElement(interp, objP, ObjFromString(TCL_PATCH_LEVEL));
 
     return TwapiSetObjResult(interp, objP);
 }
@@ -750,8 +750,8 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
             objv[3] = STRING_LITERAL_OBJ("");
         }
 
-        Tcl_ListObjAppendElement(interp, records, ObjFromLong(processP[i].ProcessId));
-        Tcl_ListObjAppendElement(interp, records, ObjNewList(4, objv));
+        ObjAppendElement(interp, records, ObjFromLong(processP[i].ProcessId));
+        ObjAppendElement(interp, records, ObjNewList(4, objv));
     }
 
     Twapi_WTSFreeMemory(processP);
@@ -775,7 +775,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
  * Caller MUST NOT call Tcl_DecrRefCount on the object without
  * a prior Tcl_IncrRefCount. Moreover, if it wants to hang on to it
  * it must do a Tcl_IncrRefCount itself directly, or implicitly via
- * a call such as Tcl_ListObjAppendElement.
+ * a call such as ObjAppendElement.
  * (This is similar to Tcl_ListObjIndex)
  */
 Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)

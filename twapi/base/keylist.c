@@ -25,7 +25,7 @@ int Twapi_KlGetObjCmd(
         return TCL_ERROR;
     }
 
-    if (Tcl_ListObjGetElements(interp, objv[1], &count, &klObj) != TCL_OK) {
+    if (ObjGetElements(interp, objv[1], &count, &klObj) != TCL_OK) {
         return TCL_ERROR;
     }
 

@@ -155,7 +155,7 @@ int Twapi_RecordArrayObjCmd(
         return TCL_ERROR;
     }
 
-    if (Tcl_ListObjGetElements(interp, objv[raindex], &i, &raObj) != TCL_OK)
+    if (ObjGetElements(interp, objv[raindex], &i, &raObj) != TCL_OK)
         return TCL_ERROR;
 
     /* Special case - empty list */
@@ -167,7 +167,7 @@ int Twapi_RecordArrayObjCmd(
         return TCL_OK;
     }
     if (i != 2 ||
-         Tcl_ListObjGetElements(interp, raObj[1], &nrecs, &recs) != TCL_OK ||
+         ObjGetElements(interp, raObj[1], &nrecs, &recs) != TCL_OK ||
          (nrecs & 1) != 0) {
         /* Record array must have exactly two elements
            the second of which (the key,record list) must have an even
@@ -215,12 +215,12 @@ int Twapi_RecordArrayObjCmd(
     if (cmd == RA_KEYS || (cmd == RA_GET && objc == 3)) {
         resultObj = ObjNewList(0, NULL);
         for (i=0; i < nrecs; i += 2) {
-            Tcl_ListObjAppendElement(interp, resultObj, recs[i]); // Key
+            ObjAppendElement(interp, resultObj, recs[i]); // Key
             if (cmd == RA_GET) {
                 Tcl_Obj *objP = TwapiTwine(interp, raObj[0], recs[i+1]);
                 if (objP == NULL)
                     goto error_return;
-                Tcl_ListObjAppendElement(interp, resultObj, objP); // Value
+                ObjAppendElement(interp, resultObj, objP); // Value
             }
         }
         return TwapiSetObjResult(interp, resultObj);
@@ -271,7 +271,7 @@ int Twapi_RecordArrayObjCmd(
 
     case RA_FILTER:
         /* Find position of the requested field as j */
-        if (Tcl_ListObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
+        if (ObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
             return TCL_ERROR;
 
         /* For field names we don't use Unicode compares as they are
@@ -307,8 +307,8 @@ int Twapi_RecordArrayObjCmd(
                 if (ival != integer_key)
                     continue;   /* Field value does not match */
                 /* Matched. Add the record to filtered list */
-                Tcl_ListObjAppendElement(interp, resultObj, recs[i]);
-                Tcl_ListObjAppendElement(interp, resultObj, recs[i+1]);
+                ObjAppendElement(interp, resultObj, recs[i]);
+                ObjAppendElement(interp, resultObj, recs[i+1]);
             }
         } else {
             skey = ObjToString(objv[objc-1]);
@@ -322,8 +322,8 @@ int Twapi_RecordArrayObjCmd(
                 if (cmpfn(ObjToString(objP), skey))
                     continue;   /* Field value does not match */
                 /* Matched. Add the record to filtered list */
-                Tcl_ListObjAppendElement(interp, resultObj, recs[i]);
-                Tcl_ListObjAppendElement(interp, resultObj, recs[i+1]);
+                ObjAppendElement(interp, resultObj, recs[i]);
+                ObjAppendElement(interp, resultObj, recs[i+1]);
             }
         }
 
@@ -338,7 +338,7 @@ int Twapi_RecordArrayObjCmd(
 
     case RA_FIELD:
         /* Find position of the requested field as j */
-        if (Tcl_ListObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
+        if (ObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
             return TCL_ERROR;
         skey = ObjToString(objv[objc-1]); /* Field name we want */
         for (j=0; j < nfields; ++j) {
@@ -356,11 +356,11 @@ int Twapi_RecordArrayObjCmd(
             for (i=0; i < nrecs; i += 2) {
                 Tcl_Obj *objP;
                 // Append key
-                Tcl_ListObjAppendElement(interp, resultObj, recs[i]);
+                ObjAppendElement(interp, resultObj, recs[i]);
                 if (Tcl_ListObjIndex(interp, recs[i+1], j, &objP) != TCL_OK)
                     goto error_return;
                 // Append field value
-                Tcl_ListObjAppendElement(interp, resultObj,
+                ObjAppendElement(interp, resultObj,
                                          objP ? objP : STRING_LITERAL_OBJ(""));
             }
         } else {
@@ -376,11 +376,11 @@ int Twapi_RecordArrayObjCmd(
         /* Return a vertical slice of the array */
 
         /* Get list of fields in current recordarray */
-        if (Tcl_ListObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
+        if (ObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
             return TCL_ERROR;
 
         /* Get list of fields to include in slice */
-        if (Tcl_ListObjGetElements(interp, objv[3],
+        if (ObjGetElements(interp, objv[3],
                                    &nslice_fields, &slice_fields) != TCL_OK)
             return TCL_ERROR;
         if (nslice_fields > MAX_SLICE_WIDTH) {
@@ -393,7 +393,7 @@ int Twapi_RecordArrayObjCmd(
             int slen;
             char *s;
             Tcl_Obj **names;
-            if (Tcl_ListObjGetElements(interp, slice_fields[i], &j, &names) != TCL_OK) {
+            if (ObjGetElements(interp, slice_fields[i], &j, &names) != TCL_OK) {
                 return TCL_ERROR;
             }
             if (j == 1) {
@@ -442,8 +442,8 @@ int Twapi_RecordArrayObjCmd(
         for (i=0; i < nrecs; i += 2) {
             Tcl_Obj **values;
             int nvalues;
-            Tcl_ListObjAppendElement(interp, new_ra[1], recs[i]); // Key
-            if (Tcl_ListObjGetElements(interp, recs[i+1], &nvalues, &values)
+            ObjAppendElement(interp, new_ra[1], recs[i]); // Key
+            if (ObjGetElements(interp, recs[i+1], &nvalues, &values)
                 != TCL_OK) {
                 return TCL_ERROR;
             }
@@ -455,7 +455,7 @@ int Twapi_RecordArrayObjCmd(
                     slice_values[j] = values[slice_fieldindices[j]];
                 }
             }
-            Tcl_ListObjAppendElement(interp, new_ra[1],
+            ObjAppendElement(interp, new_ra[1],
                                      ObjNewList(nslice_fields, slice_values));
         }
         Tcl_DecrRefCount(emptyObj);
