@@ -374,11 +374,13 @@ static TwapiInterpContext *TwapiInterpContextNew(
     ZLIST_INIT(&ticP->pending);
     ZLIST_INIT(&ticP->threadpool_registrations);
 
+#ifdef OBSOLETE
     /* Register a async callback with Tcl. */
     /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
      * or should it be per process ? Or per thread ? Do we need this at all?
      */
     ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
+#endif
 
     ticP->notification_win = NULL; /* Created only on demand */
 #ifdef OBSOLETE
@@ -427,10 +429,12 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 
     TWAPI_ASSERT(ticP->interp == NULL);
 
+#ifdef OBSOLETE
     /* TBD - does this need to be done only from the Tcl thread ? */
     if (ticP->async_handler)
         Tcl_AsyncDelete(ticP->async_handler);
     ticP->async_handler = 0;    /* Just in case */
+#endif
 
     DeleteCriticalSection(&ticP->lock);
 
