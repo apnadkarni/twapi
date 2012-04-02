@@ -642,9 +642,7 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 {
     if (! gTclIsThreaded) {
         if (interp)
-            Tcl_SetResult(interp,
-                          "This command requires a threaded build of Tcl.",
-                          TCL_STATIC);
+            TwapiSetStaticResult(interp, "Tcl build is not threaded.");
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -661,7 +659,8 @@ TwapiInterpContext *TwapiRegisterModule(
     TwapiInterpContext *ticP;
 
     if (modP->finalizer && ! context_type) {
-        Tcl_SetResult(interp, "Non-private context cannot be requested if finalalizer is specified", TCL_STATIC);
+        /* Non-private context cannot be requested if finalizer is specified */
+        TwapiSetStaticResult(interp, "Finalizer mandates private context");
     }
 
     if (context_type != DEFAULT_TIC) {

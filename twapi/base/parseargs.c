@@ -25,7 +25,7 @@ static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
                                     const char *opt_name, int opt_name_len)
 {
     Tcl_Obj *resultObj = Tcl_NewStringObj("", 0);
-    Tcl_AppendStringsToObj(resultObj, error_type, " value '", Tcl_GetString(value),
+    Tcl_AppendStringsToObj(resultObj, error_type, " value '", ObjToString(value),
                            "' specified for option '-", NULL);
     Tcl_AppendToObj(resultObj, opt_name, opt_name_len);
     Tcl_AppendToObj(resultObj, "'", 1);
@@ -86,7 +86,7 @@ int Twapi_ParseargsObjCmd(
     }
 
     for (j = 3 ; j < objc ; ++j) {
-        char *s = Tcl_GetString(objv[j]);
+        char *s = ObjToString(objv[j]);
         if (STREQ("-ignoreunknown", s)) {
             ignoreunknown = 1;
         }
@@ -99,18 +99,17 @@ int Twapi_ParseargsObjCmd(
         else if (STREQ("-maxleftover", s)) {
             ++j;
             if (j == objc) {
-                Tcl_SetResult(interp, "Missing value for -maxleftover", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Missing value for -maxleftover");
                 goto invalid_args_error;
             }
 
-            if (Tcl_GetIntFromObj(interp, objv[j], &maxleftover) != TCL_OK) {
-                Tcl_SetResult(interp, "Non-integer value specified for -maxleftover", TCL_STATIC);
+            if (ObjToInt(interp, objv[j], &maxleftover) != TCL_OK) {
                 goto invalid_args_error;
             }
         }
         else {
             Tcl_AppendResult(interp, "Extra argument or unknown option '",
-                             Tcl_GetString(objv[j]), "'", NULL);
+                             ObjToString(objv[j]), "'", NULL);
             goto invalid_args_error;
         }
     }
@@ -140,7 +139,7 @@ int Twapi_ParseargsObjCmd(
         if (Tcl_ListObjGetElements(interp, optObjs[k],
                                     &nelems, &elems) != TCL_OK) {
             Tcl_AppendResult(interp, "Badly formed option descriptor: '",
-                             Tcl_GetString(optObjs[k]), "'", NULL);
+                             ObjToString(optObjs[k]), "'", NULL);
             Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
             return TCL_ERROR;
         }
@@ -236,7 +235,7 @@ int Twapi_ParseargsObjCmd(
              */
             Tcl_ListObjAppendElement(interp, newargvObj, argv[iarg]);
             if (iarg < (argc-1)) {
-                argp = Tcl_GetString(argv[iarg+1]);
+                argp = ObjToString(argv[iarg+1]);
                 if (*argp != '-') {
                     /* Assume this is the value for the option */
                     ++iarg;
@@ -328,8 +327,8 @@ int Twapi_ParseargsObjCmd(
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
-                    if (!lstrcmpA(Tcl_GetString(validObjs[ivalid]),
-                                  Tcl_GetString(opts[k].value)))
+                    if (!lstrcmpA(ObjToString(validObjs[ivalid]),
+                                  ObjToString(opts[k].value)))
                         break;
                 }
             }

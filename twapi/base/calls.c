@@ -89,7 +89,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
         case ARGINT:  // int
             ival = 0; // Default
-            if (objP && Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
+            if (objP && ObjToInt(interp, objP, &ival) != TCL_OK)
                 goto argerror;
             if (p)
                 *(int *)p = ival;
@@ -122,7 +122,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
         case ARGASTR: // char string
             if (p)
-                *(char **)p = objP ? Tcl_GetString(objP) : "";
+                *(char **)p = objP ? ObjToString(objP) : "";
             break;
         case ARGASTRN: // char string and its length
             lenP = va_arg(ap, int *);
@@ -137,7 +137,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
         case ARGWSTR: // Unicode string
             if (p) {
-                *(WCHAR **)p = objP ? Tcl_GetUnicode(objP) : L"" ;
+                *(WCHAR **)p = objP ? ObjToUnicode(objP) : L"" ;
             }
             break;
         case ARGNULLIFEMPTY:
@@ -162,7 +162,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
         case ARGWORD: // WORD - 16 bits
             ival = 0;
-            if (objP && Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
+            if (objP && ObjToInt(interp, objP, &ival) != TCL_OK)
                 goto argerror;
             if (ival & ~0xffff) {
                 TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
@@ -175,7 +175,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             
         case ARGVAR: // Does not handle default.
             if (objP == NULL) {
-                Tcl_SetResult(interp, "Default values cannot be used for ARGVAR types.", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Default values invalid used for ARGVAR types.");
                 goto argerror;
             }
             // FALLTHRU
@@ -206,7 +206,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
 
         default:
-            Tcl_SetResult(interp, "Unexpted format character passed to TwapiGetArgs.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "TwapiGetArgs: unexpected format character.");
             goto argerror;
         }
 
@@ -225,7 +225,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
         /* Caller only wants partial parse, don't care to check more args */
     } else {
         /* Premature end of arguments */
-        Tcl_SetResult(interp, "Insufficient number of arguments.", TCL_STATIC);
+        TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         goto argerror;
     }
 
@@ -469,15 +469,15 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_GUID;
         break;
     case 1013:
-        return Twapi_AppendLog(interp, Tcl_GetUnicode(objv[2]));
+        return Twapi_AppendLog(interp, ObjToUnicode(objv[2]));
     case 1014: // GlobalAddAtom
-        result.value.ival = GlobalAddAtomW(Tcl_GetUnicode(objv[2]));
+        result.value.ival = GlobalAddAtomW(ObjToUnicode(objv[2]));
         result.type = result.value.ival ? TRT_LONG : TRT_GETLASTERROR;
         break;
     case 1015:
         u.sidP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = ConvertStringSidToSidW(Tcl_GetUnicode(objv[2]),
+        result.value.bval = ConvertStringSidToSidW(ObjToUnicode(objv[2]),
                                                    &u.sidP);
         if (u.sidP)
             LocalFree(u.sidP);
@@ -518,7 +518,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 1020:
         bufP = u.buf;
-        s = Tcl_GetUnicode(objv[2]);
+        s = ObjToUnicode(objv[2]);
         dw = ExpandEnvironmentStringsW(s, bufP, ARRAYSIZE(u.buf));
         if (dw > ARRAYSIZE(u.buf)) {
             // Need a bigger buffer
@@ -904,7 +904,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
             if (objc == 4) {
-                cP = Tcl_GetString(objv[3]);
+                cP = ObjToString(objv[3]);
                 NULLIFY_EMPTY(cP);
             }
             if (ObjToOpaque(interp, objv[2], &pv, cP) != TCL_OK)
@@ -917,7 +917,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             cP = NULL;
             if (objc == 4) {
-                cP = Tcl_GetString(objv[3]);
+                cP = ObjToString(objv[3]);
                 NULLIFY_EMPTY(cP);
             }
             result.type = TRT_BOOL;
@@ -1005,7 +1005,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         result.type = TRT_OBJ;
-        result.value.obj = TwapiGetAtom(ticP, Tcl_GetString(objv[0]));
+        result.value.obj = TwapiGetAtom(ticP, ObjToString(objv[0]));
         break;
     case 6:
         if (TwapiGetArgs(interp, objc, objv,
@@ -1274,7 +1274,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     default:
-        Tcl_SetResult(interp, "Unknown type passed to Twapi_ReadMemory", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown type.");
         return TCL_ERROR;
     }
 
@@ -1306,7 +1306,7 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
     case 0: // Int
         if ((offset + sizeof(int)) > buf_size)
             goto overrun;
-        if (Tcl_GetIntFromObj(interp, objv[4], &val) != TCL_OK)
+        if (ObjToInt(interp, objv[4], &val) != TCL_OK)
             return TCL_ERROR;
         *(int UNALIGNED *)(offset + bufP) = val;
         break;
@@ -1345,7 +1345,7 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
         *(Tcl_WideInt UNALIGNED *)(offset + bufP) = wide;
         break;
     default:
-        Tcl_SetResult(interp, "Unknown type passed to Twapi_WriteMemory", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown type.");
         return TCL_ERROR;
     }        
 
@@ -1596,14 +1596,14 @@ int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
 
     chan = Tcl_GetChannel(interp, chan_name, &mode);
     if (chan == NULL) {
-        Tcl_SetResult(interp, "Unknown channel", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown channel");
         return TCL_ERROR;
     }
     
     direction = direction ? TCL_WRITABLE : TCL_READABLE;
     
     if (Tcl_GetChannelHandle(chan, direction, &h) == TCL_ERROR) {
-        Tcl_SetResult(interp, "Error getting channel handle", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error getting channel handle");
         return TCL_ERROR;
     }
 
@@ -1643,7 +1643,7 @@ int Twapi_LookupAccountSid (
     }
 
     if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error looking up account SID: ");
         Twapi_AppendSystemError(interp, error);
         goto done;
     }
@@ -1654,7 +1654,7 @@ int Twapi_LookupAccountSid (
 
     if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
                           domainP, &domain_buf_size, &account_type) == 0) {
-        Tcl_SetResult(interp, "Error looking up account SID: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error looking up account SID: ");
         Twapi_AppendSystemError(interp, GetLastError());
         goto done;
     }
@@ -1717,7 +1717,7 @@ int Twapi_LookupAccountName (
     }
 
     if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error looking up account name: ");
         Twapi_AppendSystemError(interp, error);
         return TCL_ERROR;
     }
@@ -1728,7 +1728,7 @@ int Twapi_LookupAccountName (
 
     if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
                           domainP, &domain_buf_size, &account_type) == 0) {
-        Tcl_SetResult(interp, "Error looking up account name: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error looking up account name: ");
         Twapi_AppendSystemError(interp, GetLastError());
         goto done;
     }
@@ -1842,7 +1842,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
 
     if (objc != 2 ||
         ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
-        Tcl_GetLongFromObj(interp, objv[1], &infoclass) != TCL_OK) {
+        ObjToLong(interp, objv[1], &infoclass) != TCL_OK) {
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
     }    
 
@@ -1881,7 +1881,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
         break;
 
     default:
-        Tcl_SetResult(interp, "Invalid or unsupported information class passed to Twapi_LsaQueryInformationPolicy", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid/unsupported information class");
         retval = TCL_ERROR;
     }
 

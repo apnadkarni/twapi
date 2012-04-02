@@ -100,7 +100,7 @@ int Twapi_RecordArrayObjCmd(
     }
 
     keyindex = -1;
-    cmdstr = Tcl_GetString(objv[1]);
+    cmdstr = ObjToString(objv[1]);
     if (STREQ("get", cmdstr)) {
         cmd = RA_GET;
         if (objc == 3) {
@@ -151,7 +151,7 @@ int Twapi_RecordArrayObjCmd(
         cmd = RA_SLICE;
         raindex = 2;
     } else {
-        Tcl_SetResult(interp, "Invalid command. Must be one of 'exists', 'field', 'filter', 'get', 'keys' or 'slice'.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid command. Must be one of 'exists', 'field', 'filter', 'get', 'keys' or 'slice'.");
         return TCL_ERROR;
     }
 
@@ -172,14 +172,14 @@ int Twapi_RecordArrayObjCmd(
         /* Record array must have exactly two elements
            the second of which (the key,record list) must have an even
            number of elements */
-        Tcl_SetResult(interp, "Invalid format of record array.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid format.");
         return TCL_ERROR;
     }
 
     /* Parse any options */
     cmptype = 0;
     for (i=2; i < raindex; ++i) {
-        char *s = Tcl_GetString(objv[i]);
+        char *s = ObjToString(objv[i]);
         if (STREQ("-integer", s))
             cmptype = 1;
         else if (STREQ("-string", s))
@@ -189,7 +189,7 @@ int Twapi_RecordArrayObjCmd(
         else if (STREQ("-glob", s))
             cmptype |= 0x4;
         else {
-            Tcl_SetResult(interp, "Invalid option. Must be -string, -nocase, -glob, -integer.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Option must be -string, -nocase, -glob, -integer.");
             return TCL_ERROR;
         }
     }
@@ -201,7 +201,7 @@ int Twapi_RecordArrayObjCmd(
     case 4:  cmpfn = TwapiGlobCmp; break; /* Case sensitive glob match */
     case 6:  cmpfn = TwapiGlobCmpCase; break;  /* Case insensitive flob match */
     default:
-        Tcl_SetResult(interp, "Invalid combination of options specified.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid combination of options specified.");
         return TCL_ERROR;
     }
 
@@ -233,21 +233,21 @@ int Twapi_RecordArrayObjCmd(
         i = nrecs;
     } else {
         if (cmptype == 1) {
-            if (Tcl_GetIntFromObj(interp, objv[keyindex], &integer_key) != TCL_OK)
+            if (ObjToInt(interp, objv[keyindex], &integer_key) != TCL_OK)
                 return TCL_ERROR;
             for (i=0; i < nrecs; i += 2) {
                 int ival;
                 /* If a key is not integer, ignore it, don't generate error */
-                if (Tcl_GetIntFromObj(interp, recs[i], &ival) == TCL_OK &&
+                if (ObjToInt(interp, recs[i], &ival) == TCL_OK &&
                     ival == integer_key) {
                     /* Found it */
                     break;
                 }
             }
         } else {
-            skey = Tcl_GetString(objv[keyindex]);
+            skey = ObjToString(objv[keyindex]);
             for (i=0; i < nrecs; i += 2) {
-                if (!cmpfn(Tcl_GetString(recs[i]), skey))
+                if (!cmpfn(ObjToString(recs[i]), skey))
                     break;
             }
         }
@@ -277,14 +277,14 @@ int Twapi_RecordArrayObjCmd(
 
         /* For field names we don't use Unicode compares as they are
            likely to be ASCII */
-        skey = Tcl_GetString(objv[objc-2]); /* Field name we want */
+        skey = ObjToString(objv[objc-2]); /* Field name we want */
         for (j=0; j < nfields; ++j) {
-            char *s = Tcl_GetString(fields[j]);
+            char *s = ObjToString(fields[j]);
             if (STREQ(skey, s))
                 break;
         }
         if (j >= nfields) {
-            Tcl_SetResult(interp, "Specified field name not found.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Field name not found.");
             return TCL_ERROR;
         }
 
@@ -293,7 +293,7 @@ int Twapi_RecordArrayObjCmd(
         resultObj = Tcl_NewListObj(0, NULL); /* Will hold records, is released on error */
         if (cmptype == 1) {
             /* Do comparisons as integer */
-            if (Tcl_GetIntFromObj(interp, objv[objc-1], &integer_key) != TCL_OK)
+            if (ObjToInt(interp, objv[objc-1], &integer_key) != TCL_OK)
                 goto error_return; /* Need to deallocate resultObj */
             /* Iterate over all records matching on the field */
             for (i = 0; i < nrecs; i += 2) {
@@ -303,7 +303,7 @@ int Twapi_RecordArrayObjCmd(
                     goto error_return;
                 if (objP == NULL)
                     continue;   /* This field not in the record */
-                if (Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
+                if (ObjToInt(interp, objP, &ival) != TCL_OK)
                     continue;   /* Not int value hence no match */
                 if (ival != integer_key)
                     continue;   /* Field value does not match */
@@ -312,7 +312,7 @@ int Twapi_RecordArrayObjCmd(
                 Tcl_ListObjAppendElement(interp, resultObj, recs[i+1]);
             }
         } else {
-            skey = Tcl_GetString(objv[objc-1]);
+            skey = ObjToString(objv[objc-1]);
             /* Iterate over all records matching on the field */
             for (i = 0; i < nrecs; i += 2) {
                 Tcl_Obj *objP;
@@ -320,7 +320,7 @@ int Twapi_RecordArrayObjCmd(
                     goto error_return;
                 if (objP == NULL)
                     continue;   /* This field not in the record */
-                if (cmpfn(Tcl_GetString(objP), skey))
+                if (cmpfn(ObjToString(objP), skey))
                     continue;   /* Field value does not match */
                 /* Matched. Add the record to filtered list */
                 Tcl_ListObjAppendElement(interp, resultObj, recs[i]);
@@ -341,14 +341,14 @@ int Twapi_RecordArrayObjCmd(
         /* Find position of the requested field as j */
         if (Tcl_ListObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
             return TCL_ERROR;
-        skey = Tcl_GetString(objv[objc-1]); /* Field name we want */
+        skey = ObjToString(objv[objc-1]); /* Field name we want */
         for (j=0; j < nfields; ++j) {
-            char *s = Tcl_GetString(fields[j]);
+            char *s = ObjToString(fields[j]);
             if (STREQ(skey, s))
                 break;
         }
         if (j >= nfields) {
-            Tcl_SetResult(interp, "Specified field name not found.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Field name not found.");
             return TCL_ERROR;
         }
         if (objc == 4) {
@@ -385,25 +385,9 @@ int Twapi_RecordArrayObjCmd(
                                    &nslice_fields, &slice_fields) != TCL_OK)
             return TCL_ERROR;
         if (nslice_fields > MAX_SLICE_WIDTH) {
-            Tcl_SetResult(interp, "Internal limit on number of fields in recordarray slice exceeded.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Limit on fields in slice exceeded.");
             return TCL_ERROR;
         }
-
-#if 0
-        /* Get new field names, if specified, to use for the slice */
-        if (objc == 5) {
-            if (Tcl_ListObjGetElements(interp, objv[4],
-                                       &i, &slice_renamedfields) != TCL_OK)
-                return TCL_ERROR;
-            if (i != nslice_fields) {
-                Tcl_SetResult(interp, "Number of renamed fields differs from number of original fields in recordarray slice.", TCL_STATIC);
-                return TCL_ERROR;
-            }
-        } else {
-            /* Slice keeps original names */
-            slice_renamedfields = slice_fields;
-        }
-#endif
 
         /* Figure out which columns go into the slice, and their names */
         for (i=0; i < nslice_fields; ++i) {
@@ -420,7 +404,8 @@ int Twapi_RecordArrayObjCmd(
                 /* Field name is to be changed */
                 slice_newfields[i] = names[1];
             } else {
-                Tcl_SetResult(interp, "There must be just 1 or 2 elements in a slice field renaming entry.", TCL_STATIC);
+                /* Should be just 1 or 2 elements in renaming entry */
+                TwapiSetStaticResult(interp, "Invalid slice field renaming entry.");
                 return TCL_ERROR;
             }
             s = Tcl_GetStringFromObj(names[0], &slen);
@@ -434,7 +419,7 @@ int Twapi_RecordArrayObjCmd(
                 }
             }
             if (j == nfields) {
-                Tcl_SetResult(interp, "Slice field not found in recordarray.", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Field not found.");
                 return TCL_ERROR;
             }
         }

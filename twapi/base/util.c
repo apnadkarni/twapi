@@ -28,7 +28,7 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
 
     cP = Tcl_GetStringFromObj(objP, &len);
     resultObj = Tcl_NewStringObj(cP, len);
-    len = Tcl_UtfToLower(Tcl_GetString(resultObj));
+    len = Tcl_UtfToLower(ObjToString(resultObj));
     Tcl_SetObjLength(resultObj, len);
     return resultObj;
 }
@@ -280,7 +280,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
         break;
     case TRT_LONG:
     case TRT_DWORD:
-        tcl_status = Tcl_GetLongFromObj(cbP->ticP->interp, objP,
+        tcl_status = ObjToLong(cbP->ticP->interp, objP,
                                         &responseP->value.ival);
         /* Errors will be handled below */
         break;
@@ -337,7 +337,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
         return TCL_OK;          /* Logging not enabled */
 
 
-    if (Tcl_GetIntFromObj(interp, var, &limit) != TCL_OK ||
+    if (ObjToInt(interp, var, &limit) != TCL_OK ||
         limit == 0) {
         Tcl_ResetResult(interp); /* GetInt might have stuck error message */
         return TCL_OK;          /* Logging not enabled */

@@ -30,14 +30,14 @@ int Twapi_KlGetObjCmd(
     }
 
     if (count & 1) {
-        Tcl_SetResult(interp, "Invalid keyed list format. Must have even number of elements.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Keyed list must have even number of elements.");
         return TCL_ERROR;
     }
 
     /* Search for the key. */
-    key = Tcl_GetString(objv[2]);
+    key = ObjToString(objv[2]);
     for (i = 0; i < count; i += 2) {
-        char *entry = Tcl_GetString(klObj[i]);
+        char *entry = ObjToString(klObj[i]);
         if (STREQ(key, entry)) {
             Tcl_SetObjResult(interp, klObj[i+1]);
             return TCL_OK;
