@@ -51,8 +51,7 @@ int Twapi_LoadUserProfile(
         return TwapiReturnSystemError(interp);
     }
 
-    TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
-    return TCL_OK;
+    return TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
 }
 
 /*
@@ -631,8 +630,7 @@ int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp)
     if (resultObj == NULL)
         return TCL_ERROR;
 
-    TwapiSetObjResult(interp, resultObj);
-    return TCL_OK;
+    return TwapiSetObjResult(interp, resultObj);
 }
 
 int Twapi_GetNamedSecurityInfo (
