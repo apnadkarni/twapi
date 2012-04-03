@@ -100,8 +100,8 @@ Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
 {
     Tcl_Obj *objv[2];
     objv[0] = ObjFromIUnknown(cdP->pUnk);
-    objv[1] = Tcl_NewLongObj(cdP->dwCookie);
-    return Tcl_NewListObj(2, objv);
+    objv[1] = ObjFromLong(cdP->dwCookie);
+    return ObjNewList(2, objv);
 }
 
 
@@ -118,7 +118,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
 
     if (tdP == NULL) {
         if (interp) {
-            Tcl_SetResult(interp, "Internal error: ObjFromTYPEDESC: NULL TYPEDESC pointer", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Internal error: ObjFromTYPEDESC: NULL TYPEDESC pointer");
         }
         return NULL;
     }
@@ -137,12 +137,12 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         objv[1] = ObjFromTYPEDESC(interp, &tdP->lpadesc->tdescElem, tiP);
         if (objv[1] == NULL)
             return NULL;
-        objv[2] = Tcl_NewListObj(0, NULL); /* For dimension info */
+        objv[2] = ObjNewList(0, NULL); /* For dimension info */
         for (i = 0; i < tdP->lpadesc->cDims; ++i) {
-            Tcl_ListObjAppendElement(interp, objv[2],
-                                     Tcl_NewIntObj(tdP->lpadesc->rgbounds[i].lLbound));
-            Tcl_ListObjAppendElement(interp, objv[2],
-                                     Tcl_NewIntObj(tdP->lpadesc->rgbounds[i].cElements));
+            ObjAppendElement(interp, objv[2],
+                                     ObjFromInt(tdP->lpadesc->rgbounds[i].lLbound));
+            ObjAppendElement(interp, objv[2],
+                                     ObjFromInt(tdP->lpadesc->rgbounds[i].cElements));
         }
         objc = 3;
         break;
@@ -165,7 +165,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         }
         if (objv[1] == NULL) {
             /* Could not get name of custom type. */
-            objv[1] = Tcl_NewStringObj(NULL, 0);
+            objv[1] = ObjFromEmptyString();
         }
 #endif
         objc = 2;
@@ -176,15 +176,15 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         break;
     }
 
-    objv[0] = Tcl_NewIntObj(tdP->vt);
-    return Tcl_NewListObj(objc, objv);
+    objv[0] = ObjFromInt(tdP->vt);
+    return ObjNewList(objc, objv);
 }
 
 static Tcl_Obj *ObjFromPARAMDESC(Tcl_Interp *interp, PARAMDESC *vdP, ITypeInfo *tiP)
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewIntObj(vdP->wParamFlags);
+    objv[0] = ObjFromInt(vdP->wParamFlags);
     objv[1] = NULL;
     if ((vdP->wParamFlags & PARAMFLAG_FOPT) &&
         (vdP->wParamFlags & PARAMFLAG_FHASDEFAULT) &&
@@ -192,12 +192,12 @@ static Tcl_Obj *ObjFromPARAMDESC(Tcl_Interp *interp, PARAMDESC *vdP, ITypeInfo *
         objv[1] = ObjFromVARIANT(&vdP->pparamdescex->varDefaultValue, 0);
     }
 
-    return Tcl_NewListObj(objv[1] ? 2 : 1, objv);
+    return ObjNewList(objv[1] ? 2 : 1, objv);
 }
 
 static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, 0);
+    Tcl_Obj *resultObj = ObjNewList(0, 0);
     Tcl_Obj *obj;
 
     Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, vdP, memid);
@@ -205,8 +205,8 @@ static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
         Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, vdP, lpstrSchema);
     }
     else {
-        Tcl_ListObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("lpstrSchema"));
-        Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewStringObj("", 0));
+        ObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("lpstrSchema"));
+        ObjAppendElement(interp, resultObj, ObjFromEmptyString());
     }
 
     switch (vdP->varkind) {
@@ -216,20 +216,20 @@ static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
         Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, vdP, oInst);
         break;
     case VAR_CONST:
-        Tcl_ListObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("lpvarValue"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromVARIANT(vdP->lpvarValue, 0));
+        ObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("lpvarValue"));
+        ObjAppendElement(interp, resultObj, ObjFromVARIANT(vdP->lpvarValue, 0));
         break;
     }
 
-    Tcl_ListObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescVar.tdesc"));
+    ObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescVar.tdesc"));
     obj = ObjFromTYPEDESC(interp, &vdP->elemdescVar.tdesc, tiP);
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             obj ? obj : Tcl_NewListObj(0, NULL));
+    ObjAppendElement(interp, resultObj,
+                             obj ? obj : ObjNewList(0, NULL));
 
-    Tcl_ListObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescVar.paramdesc"));
+    ObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescVar.paramdesc"));
     obj = ObjFromPARAMDESC(interp, &vdP->elemdescVar.paramdesc, tiP);
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             obj ? obj : Tcl_NewListObj(0, NULL));
+    ObjAppendElement(interp, resultObj,
+                             obj ? obj : ObjNewList(0, NULL));
 
     Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, vdP, varkind);
     Twapi_APPEND_WORD_FIELD_TO_LIST(interp, resultObj, vdP, wVarFlags);
@@ -240,7 +240,7 @@ static Tcl_Obj *ObjFromVARDESC(Tcl_Interp *interp, VARDESC *vdP, ITypeInfo *tiP)
 
 static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *tiP)
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, 0);
+    Tcl_Obj *resultObj = ObjNewList(0, 0);
     Tcl_Obj *obj;
     int      i;
 
@@ -252,31 +252,31 @@ static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *ti
     Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, cParamsOpt);
     Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, oVft);
     Twapi_APPEND_LONG_FIELD_TO_LIST(interp, resultObj, fdP, wFuncFlags);
-    Tcl_ListObjAppendElement(interp, resultObj,
+    ObjAppendElement(interp, resultObj,
                              STRING_LITERAL_OBJ("elemdescFunc.tdesc"));
     obj = ObjFromTYPEDESC(interp, &fdP->elemdescFunc.tdesc, tiP);
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             obj ? obj : Tcl_NewListObj(0, NULL));
+    ObjAppendElement(interp, resultObj,
+                             obj ? obj : ObjNewList(0, NULL));
 
-    Tcl_ListObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescFunc.paramdesc"));
+    ObjAppendElement(interp, resultObj, STRING_LITERAL_OBJ("elemdescFunc.paramdesc"));
     obj = ObjFromPARAMDESC(interp, &fdP->elemdescFunc.paramdesc, tiP);
-    Tcl_ListObjAppendElement(interp, resultObj,
-                             obj ? obj : Tcl_NewListObj(0, NULL));
+    ObjAppendElement(interp, resultObj,
+                             obj ? obj : ObjNewList(0, NULL));
 
     /* List of possible return codes */
-    obj = Tcl_NewListObj(0, NULL);
+    obj = ObjNewList(0, NULL);
     if (fdP->lprgscode) {
         for (i = 0; i < fdP->cScodes; ++i) {
-            Tcl_ListObjAppendElement(interp, resultObj,
+            ObjAppendElement(interp, resultObj,
                                      ObjFromDWORD(fdP->lprgscode[i]));
         }
     }
-    Tcl_ListObjAppendElement(interp, resultObj,
+    ObjAppendElement(interp, resultObj,
                              STRING_LITERAL_OBJ("lprgscode"));
-    Tcl_ListObjAppendElement(interp, resultObj, obj);
+    ObjAppendElement(interp, resultObj, obj);
 
     /* List of parameter descriptors */
-    obj = Tcl_NewListObj(0, NULL);
+    obj = ObjNewList(0, NULL);
     if (fdP->lprgelemdescParam) {
         for (i = 0; i < fdP->cParams; ++i) {
             Tcl_Obj *paramObj[2];
@@ -284,18 +284,18 @@ static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *ti
                 ObjFromTYPEDESC(interp,
                                 &(fdP->lprgelemdescParam[i].tdesc), tiP);
             if (paramObj[0] == NULL)
-                paramObj[0] = Tcl_NewListObj(0, 0);
+                paramObj[0] = ObjNewList(0, 0);
             paramObj[1] =
                 ObjFromPARAMDESC(interp,
                                  &(fdP->lprgelemdescParam[i].paramdesc), tiP);
             if (paramObj[1] == NULL)
-                paramObj[1] = Tcl_NewListObj(0, 0);
-            Tcl_ListObjAppendElement(interp, obj, Tcl_NewListObj(2, paramObj));
+                paramObj[1] = ObjNewList(0, 0);
+            ObjAppendElement(interp, obj, ObjNewList(2, paramObj));
         }
     }
-    Tcl_ListObjAppendElement(interp, resultObj,
+    ObjAppendElement(interp, resultObj,
                              STRING_LITERAL_OBJ("lprgelemdescParam"));
-    Tcl_ListObjAppendElement(interp, resultObj, obj);
+    ObjAppendElement(interp, resultObj, obj);
 
     return resultObj;
 }
@@ -378,7 +378,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     if (me == NULL)
         return E_POINTER;
 
-    if (Tcl_ListObjGetElements(NULL, me->cmd, &cmdobjc, &cmdprefixv) != TCL_OK) {
+    if (ObjGetElements(NULL, me->cmd, &cmdobjc, &cmdprefixv) != TCL_OK) {
         /* Internal error - should not happen. Should we log background error?*/
         return E_FAIL;
     }
@@ -391,17 +391,17 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
         cmdobjv[i] = cmdprefixv[i];
     }
 
-    cmdobjv[cmdobjc] = Tcl_NewLongObj(dispid);
-    cmdobjv[cmdobjc+1] = Tcl_NewLongObj(lcid);
-    cmdobjv[cmdobjc+2] = Tcl_NewIntObj(flags);
+    cmdobjv[cmdobjc] = ObjFromLong(dispid);
+    cmdobjv[cmdobjc+1] = ObjFromLong(lcid);
+    cmdobjv[cmdobjc+2] = ObjFromInt(flags);
     cmdobjc += 3;
 
     /* Add the passed parameters */
-    cmdobjv[cmdobjc] = Tcl_NewListObj(0, NULL);
+    cmdobjv[cmdobjc] = ObjNewList(0, NULL);
     if (dispparamsP) {
         /* Note parameters are in reverse order */
         for (i = dispparamsP->cArgs - 1; i >= 0 ; --i) {
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 NULL,
                 cmdobjv[cmdobjc],
                 ObjFromVARIANT(&dispparamsP->rgvarg[i], 0)
@@ -483,7 +483,7 @@ int Twapi_ComEventSinkObjCmd(
         return TCL_ERROR;
     }
     
-    hr = IIDFromString(Tcl_GetUnicode(objv[1]), &iid);
+    hr = IIDFromString(ObjToUnicode(objv[1]), &iid);
     if (FAILED(hr)) {
         Twapi_AppendSystemError(interp, hr);
         return TCL_ERROR;
@@ -501,7 +501,7 @@ int Twapi_ComEventSinkObjCmd(
     Tcl_IncrRefCount(objv[2]);
     sinkP->cmd = objv[2];
 
-    Tcl_SetObjResult(interp, ObjFromIUnknown(sinkP));
+    TwapiSetObjResult(interp, ObjFromIUnknown(sinkP));
 
 
     return TCL_OK;
@@ -565,7 +565,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     if (ObjToIDispatch(interp, objv[1], &idispP) != TCL_OK)
         return TCL_ERROR;
 
-    if (Tcl_ListObjGetElements(interp, objv[2], &protoc, &protov) != TCL_OK)
+    if (ObjGetElements(interp, objv[2], &protoc, &protov) != TCL_OK)
         return TCL_ERROR;
 
     /* Extract prototype information */
@@ -574,24 +574,24 @@ int Twapi_IDispatch_InvokeObjCmd(
                      GETINT(dispid), GETINT(lcid),
                      GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
                      ARGTERM) != TCL_OK) {
-        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
         return TCL_ERROR;
     }
 #else
     if (protoc < 5) {
-        Tcl_SetResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
         return TCL_ERROR;
     }
 
-    if (Tcl_GetLongFromObj(interp, protov[0], &dispid) != TCL_OK)
+    if (ObjToLong(interp, protov[0], &dispid) != TCL_OK)
         return TCL_ERROR;
 
     /* Note We do not care about RIID in protov[1] */
 
-    if (Tcl_GetLongFromObj(interp, protov[2], &lcid) != TCL_OK)
+    if (ObjToLong(interp, protov[2], &lcid) != TCL_OK)
         return TCL_ERROR;
     
-    if (Tcl_GetIntFromObj(interp, protov[3], &i) != TCL_OK)
+    if (ObjToInt(interp, protov[3], &i) != TCL_OK)
         return TCL_ERROR;
     flags = (WORD) i;
 
@@ -601,7 +601,7 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     if (protoc >= 5) {
         /* Extract the parameter information */
-        if (Tcl_ListObjGetElements(interp, protov[4], &nparams, &params) != TCL_OK)
+        if (ObjGetElements(interp, protov[4], &nparams, &params) != TCL_OK)
             return TCL_ERROR;
     } else {
         /* No parameter information available. Base count on number of
@@ -639,7 +639,7 @@ int Twapi_IDispatch_InvokeObjCmd(
 #if 0
         if (nparams != 1) {
             /* TBD - not sure if this is the case. What about indexed props ? */
-            Tcl_SetResult(interp, "Property put methods must have exactly one parameter", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Property put methods must have exactly one parameter");
             goto vamoose;
         }
 #endif
@@ -709,17 +709,17 @@ int Twapi_IDispatch_InvokeObjCmd(
             /* Yep, one of those funky results */
             if (SUCCEEDED(V_I4(&dispargP[0]))) {
                 /* Yes return status is success, pick up return value */
-                Tcl_SetObjResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
+                TwapiSetObjResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
             } else {
                 /* Hmm, toplevel HRESULT is success, retval HRESULT is not
                    WTF does that mean ? Treat as error */
                 /* Not sure if standard COM error handling should apply  so skip */
-                Tcl_SetResult(interp, "Unexpected COM result: Invoke returned success but retval param is error.", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Unexpected COM result: Invoke returned success but retval param is error.");
                 goto vamoose;
             }
         } else {
             if (retvar_vt != VT_VOID) {
-                Tcl_SetObjResult(interp, ObjFromVARIANT(&dispargP[0], 0));
+                TwapiSetObjResult(interp, ObjFromVARIANT(&dispargP[0], 0));
             }
         }
 
@@ -747,36 +747,36 @@ int Twapi_IDispatch_InvokeObjCmd(
                 einfo.pfnDeferredFillIn(&einfo);
             
             /* Create an extra argument for the error code */
-            errorcode_extra = Tcl_NewListObj(0, NULL);
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            errorcode_extra = ObjNewList(0, NULL);
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("bstrSource"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      ObjFromBSTR(einfo.bstrSource));
 
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("bstrDescription"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      ObjFromBSTR(einfo.bstrDescription));
 
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("bstrHelpFile"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      ObjFromBSTR(einfo.bstrHelpFile));
             
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("dwHelpContext"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
-                                     Tcl_NewLongObj(einfo.dwHelpContext));
+            ObjAppendElement(NULL, errorcode_extra,
+                                     ObjFromLong(einfo.dwHelpContext));
 
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("scode"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
-                                     Tcl_NewLongObj(einfo.scode));
+            ObjAppendElement(NULL, errorcode_extra,
+                                     ObjFromLong(einfo.scode));
 
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
+            ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("wCode"));
-            Tcl_ListObjAppendElement(NULL, errorcode_extra,
-                                     Tcl_NewLongObj(einfo.wCode));
+            ObjAppendElement(NULL, errorcode_extra,
+                                     ObjFromLong(einfo.wCode));
 
             Twapi_AppendSystemErrorEx(interp, hr, errorcode_extra);
             if (einfo.bstrDescription) {
@@ -785,7 +785,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                 Tcl_AppendUnicodeToObj(errorResultObj,
                                        einfo.bstrDescription,
                                        SysStringLen(einfo.bstrDescription));
-                Tcl_SetObjResult(interp, errorResultObj);
+                TwapiSetObjResult(interp, errorResultObj);
             } else {
                 /* No error description. Perhaps the scode field
                  * tells us something more.
@@ -801,7 +801,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                         errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
-                        Tcl_SetObjResult(interp, errorResultObj);
+                        TwapiSetObjResult(interp, errorResultObj);
                         Tcl_DecrRefCount(scodeObj);
                     }
                 }
@@ -817,7 +817,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  * the Tcl perspective, numbered from the end. In that
                  * case, we should probably map badarg_index appropriately
                  */
-                Tcl_SetObjResult(interp,
+                TwapiSetObjResult(interp,
                                  Tcl_ObjPrintf(
                                      "Parameter error. Offending parameter index %d.", badarg_index));
             }
@@ -865,13 +865,13 @@ static int TwapiGetIDsOfNamesHelper(
     LPWSTR *names = NULL;
 
     /* Convert the list object into an array of points to strings */
-    if (Tcl_ListObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
+    if (ObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
         return TCL_ERROR;
 
     names = MemLifoPushFrame(&ticP->memlifo, nitems*sizeof(*names), NULL);
 
     for (i = 0; i < nitems; i++)
-        names[i] = Tcl_GetUnicode(items[i]);
+        names[i] = ObjToUnicode(items[i]);
 
     /* Allocate an array to hold returned ids */
     ids = MemLifoAlloc(&ticP->memlifo, nitems * sizeof(*ids), NULL);
@@ -894,12 +894,12 @@ static int TwapiGetIDsOfNamesHelper(
         Tcl_Obj *resultObj;
         int      i;
 
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         for (i = 0; i < nitems; ++i) {
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
-            Tcl_ListObjAppendElement(interp, resultObj, Tcl_NewLongObj(ids[i]));
+            ObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
+            ObjAppendElement(interp, resultObj, ObjFromLong(ids[i]));
         }
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
         status = TCL_OK;
     }
     else {
@@ -926,47 +926,47 @@ int Twapi_ITypeInfo_GetTypeAttr(Tcl_Interp *interp, ITypeInfo *tiP)
     objv[0] = STRING_LITERAL_OBJ("guid");
     objv[1] = ObjFromGUID(&taP->guid);
     objv[2] = STRING_LITERAL_OBJ("lcid");
-    objv[3] = Tcl_NewLongObj(taP->lcid);
+    objv[3] = ObjFromLong(taP->lcid);
     objv[4] = STRING_LITERAL_OBJ("dwReserved");
-    objv[5] = Tcl_NewLongObj(taP->dwReserved);
+    objv[5] = ObjFromLong(taP->dwReserved);
     objv[6] = STRING_LITERAL_OBJ("memidConstructor");
-    objv[7] = Tcl_NewLongObj(taP->memidConstructor);
+    objv[7] = ObjFromLong(taP->memidConstructor);
     objv[8] = STRING_LITERAL_OBJ("memidDestructor");
-    objv[9] = Tcl_NewLongObj(taP->memidDestructor);
+    objv[9] = ObjFromLong(taP->memidDestructor);
     objv[10] = STRING_LITERAL_OBJ("lpstrSchema");
     objv[11] = ObjFromUnicode(taP->lpstrSchema ? taP->lpstrSchema : L"");
     objv[12] = STRING_LITERAL_OBJ("cbSizeInstance");
-    objv[13] = Tcl_NewLongObj(taP->cbSizeInstance);
+    objv[13] = ObjFromLong(taP->cbSizeInstance);
     objv[14] = STRING_LITERAL_OBJ("typekind");
-    objv[15] = Tcl_NewLongObj(taP->typekind);
+    objv[15] = ObjFromLong(taP->typekind);
     objv[16] = STRING_LITERAL_OBJ("cFuncs");
-    objv[17] = Tcl_NewLongObj(taP->cFuncs);
+    objv[17] = ObjFromLong(taP->cFuncs);
     objv[18] = STRING_LITERAL_OBJ("cVars");
-    objv[19] = Tcl_NewLongObj(taP->cVars);
+    objv[19] = ObjFromLong(taP->cVars);
     objv[20] = STRING_LITERAL_OBJ("cImplTypes");
-    objv[21] = Tcl_NewLongObj(taP->cImplTypes);
+    objv[21] = ObjFromLong(taP->cImplTypes);
     objv[22] = STRING_LITERAL_OBJ("cbSizeVft");
-    objv[23] = Tcl_NewLongObj(taP->cbSizeVft);
+    objv[23] = ObjFromLong(taP->cbSizeVft);
     objv[24] = STRING_LITERAL_OBJ("cbAlignment");
-    objv[25] = Tcl_NewLongObj(taP->cbAlignment);
+    objv[25] = ObjFromLong(taP->cbAlignment);
     objv[26] = STRING_LITERAL_OBJ("wTypeFlags");
-    objv[27] = Tcl_NewLongObj(taP->wTypeFlags);
+    objv[27] = ObjFromLong(taP->wTypeFlags);
     objv[28] = STRING_LITERAL_OBJ("wMajorVerNum");
-    objv[29] = Tcl_NewLongObj(taP->wMajorVerNum);
+    objv[29] = ObjFromLong(taP->wMajorVerNum);
     objv[30] = STRING_LITERAL_OBJ("wMinorVerNum");
-    objv[31] = Tcl_NewLongObj(taP->wMinorVerNum);
+    objv[31] = ObjFromLong(taP->wMinorVerNum);
     objv[32] = STRING_LITERAL_OBJ("tdescAlias");
     objv[33] = NULL;
     if (taP->typekind == TKIND_ALIAS) {
         objv[33] = ObjFromTYPEDESC(interp, &taP->tdescAlias, tiP);
     }
     if (objv[33] == NULL)
-        objv[33] = Tcl_NewListObj(0, NULL);
+        objv[33] = ObjNewList(0, NULL);
     objv[34] = STRING_LITERAL_OBJ("idldescType");
-    objv[35] = Tcl_NewIntObj(taP->idldescType.wIDLFlags);
+    objv[35] = ObjFromInt(taP->idldescType.wIDLFlags);
 
     tiP->lpVtbl->ReleaseTypeAttr(tiP, taP);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(36, objv));
+    TwapiSetObjResult(interp, ObjNewList(36, objv));
     return TCL_OK;
 }
 
@@ -988,16 +988,16 @@ int Twapi_ITypeInfo_GetNames(
         Tcl_Obj *resultObj;
         int      i;
 
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         for (i = 0; i < name_count; ++i) {
-            Tcl_ListObjAppendElement(
+            ObjAppendElement(
                 interp,
                 resultObj,
                 ObjFromUnicodeN(names[i], SysStringLen(names[i])));
             SysFreeString(names[i]);
             names[i] = NULL;
         }
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
         return TCL_OK;
     }
     else {
@@ -1016,19 +1016,19 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
         objv[0] = STRING_LITERAL_OBJ("guid");
         objv[1] = ObjFromGUID(&attrP->guid);
         objv[2] = STRING_LITERAL_OBJ("lcid");
-        objv[3] = Tcl_NewLongObj(attrP->lcid);
+        objv[3] = ObjFromLong(attrP->lcid);
         objv[4] = STRING_LITERAL_OBJ("syskind");
-        objv[5] = Tcl_NewLongObj(attrP->syskind);
+        objv[5] = ObjFromLong(attrP->syskind);
         objv[6] = STRING_LITERAL_OBJ("wMajorVerNum");
-        objv[7] = Tcl_NewLongObj(attrP->wMajorVerNum);
+        objv[7] = ObjFromLong(attrP->wMajorVerNum);
         objv[8] = STRING_LITERAL_OBJ("wMinorVerNum");
-        objv[9] = Tcl_NewLongObj(attrP->wMinorVerNum);
+        objv[9] = ObjFromLong(attrP->wMinorVerNum);
         objv[10] = STRING_LITERAL_OBJ("wLibFlags");
-        objv[11] = Tcl_NewLongObj(attrP->wLibFlags);
+        objv[11] = ObjFromLong(attrP->wLibFlags);
 
         tlP->lpVtbl->ReleaseTLibAttr(tlP, attrP);
 
-        Tcl_SetObjResult(interp, Tcl_NewListObj(12, objv));
+        TwapiSetObjResult(interp, ObjNewList(12, objv));
         return TCL_OK;
     }
     else {
@@ -1088,12 +1088,12 @@ int TwapiMakeVariantParam(
     paramv = NULL;
     typec = 0;
     if (paramDescriptorP) {
-        if (Tcl_ListObjGetElements(interp, paramDescriptorP, &paramc, &paramv) != TCL_OK)
+        if (ObjGetElements(interp, paramDescriptorP, &paramc, &paramv) != TCL_OK)
             return TCL_ERROR;
 
         if (paramc >= 1) {
             /* The type information is a list of one or two elements */
-            if (Tcl_ListObjGetElements(interp, paramv[0], &typec, &typev) != TCL_OK)
+            if (ObjGetElements(interp, paramv[0], &typec, &typev) != TCL_OK)
                 return TCL_ERROR;
 
             if (typec == 0 ||
@@ -1119,16 +1119,16 @@ int TwapiMakeVariantParam(
         }
 
         /* Get the flags and default value */
-        if (Tcl_ListObjGetElements(interp, paramv[1], &paramfieldsc, &paramfields) != TCL_OK)
+        if (ObjGetElements(interp, paramv[1], &paramfieldsc, &paramfields) != TCL_OK)
             goto vamoose;
 
         /* First field is the flags */
         if (paramfieldsc > 0) {
-            if (Tcl_GetIntFromObj(NULL, paramfields[0], &itemp) == TCL_OK) {
+            if (ObjToInt(NULL, paramfields[0], &itemp) == TCL_OK) {
                 *paramflagsP = (USHORT) (itemp ? itemp : PARAMFLAG_FIN);
             } else {
                 /* Not an int, see if it is a token */
-                char *s = Tcl_GetStringFromObj(paramfields[0], &len);
+                char *s = ObjToStringN(paramfields[0], &len);
                 if (len == 0 || STREQ(s, "in"))
                     *paramflagsP = PARAMFLAG_FIN;
                 else if (STREQ(s, "out"))
@@ -1136,7 +1136,7 @@ int TwapiMakeVariantParam(
                 else if (STREQ(s, "inout"))
                     *paramflagsP = PARAMFLAG_FOUT | PARAMFLAG_FIN;
                 else {
-                    Tcl_SetResult(interp, "Unknown parameter modifiers", TCL_STATIC);
+                    TwapiSetStaticResult(interp, "Unknown parameter modifiers");
                     goto vamoose;
                 }
             }
@@ -1179,7 +1179,7 @@ int TwapiMakeVariantParam(
          * not allow more than one level of indirection so we don't need
          * keep recursing
          */
-        if (Tcl_ListObjGetElements(interp, typev[1], &reftypec, &reftypev) != TCL_OK)
+        if (ObjGetElements(interp, typev[1], &reftypec, &reftypev) != TCL_OK)
             goto vamoose;
         /*
          * Only support base types so there should be exactly one element
@@ -1256,7 +1256,7 @@ int TwapiMakeVariantParam(
                 vt = VT_ERROR;  // Indicates optional param below
                 target_vt = VT_ERROR;
             } else {
-                Tcl_SetResult(interp, "Missing value and no default for IDispatch invoke parameter", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Missing value and no default for IDispatch invoke parameter");
                 goto vamoose;
             }
         }
@@ -1320,7 +1320,7 @@ int TwapiMakeVariantParam(
         case VT_INT:
         case VT_UINT:
         case VT_HRESULT:
-            if (Tcl_GetLongFromObj(interp, valueObj, &targetP->lVal) != TCL_OK)
+            if (ObjToLong(interp, valueObj, &targetP->lVal) != TCL_OK)
                 goto vamoose;
             targetP->vt = VT_I4;
             break;
@@ -1355,7 +1355,7 @@ int TwapiMakeVariantParam(
              * when to GetLong and GetDouble as we don't want an
              * error message left in the interp.
              */
-            if (Tcl_GetLongFromObj(NULL, valueObj, &targetP->lVal) == TCL_OK) {
+            if (ObjToLong(NULL, valueObj, &targetP->lVal) == TCL_OK) {
                 targetP->vt = VT_I4;
             } else if (Tcl_GetDoubleFromObj(NULL, valueObj, &targetP->dblVal) == TCL_OK) {
                 targetP->vt = VT_R8;
@@ -1365,10 +1365,10 @@ int TwapiMakeVariantParam(
                 targetP->vt = VT_UNKNOWN;
             } else {
                 /* Cannot guess type, just pass as a BSTR */
-                wcharP = Tcl_GetUnicodeFromObj(valueObj,&len);
+                wcharP = ObjToUnicodeN(valueObj,&len);
                 targetP->bstrVal = SysAllocStringLen(wcharP, len);
                 if (targetP->bstrVal == NULL) {
-                    Tcl_SetResult(interp, "Insufficient memory", TCL_STATIC);
+                    TwapiSetStaticResult(interp, "Insufficient memory");
                     goto vamoose;
                 }
                 targetP->vt = VT_BSTR;
@@ -1377,10 +1377,10 @@ int TwapiMakeVariantParam(
             break;
 
         case VT_BSTR:
-            wcharP = Tcl_GetUnicodeFromObj(valueObj,&len);
+            wcharP = ObjToUnicodeN(valueObj,&len);
             targetP->bstrVal = SysAllocStringLen(wcharP, len);
             if (targetP->bstrVal == NULL) {
-                Tcl_SetResult(interp, "Insufficient memory", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Insufficient memory");
                 goto vamoose;
             }
             targetP->vt = VT_BSTR;
@@ -1422,13 +1422,13 @@ int TwapiMakeVariantParam(
 
         case VT_I8:
         case VT_UI8:
-            if (Tcl_GetWideIntFromObj(interp, valueObj, &targetP->llVal) != TCL_OK)
+            if (ObjToWideInt(interp, valueObj, &targetP->llVal) != TCL_OK)
                 goto vamoose;
             targetP->vt = VT_I8;
             break;
 
         default:
-            Tcl_SetObjResult(interp,
+            TwapiSetObjResult(interp,
                              Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
                                            vt));
             goto vamoose;
@@ -1544,7 +1544,7 @@ int TwapiMakeVariantParam(
                 V_UI8REF(varP) = &V_UI8(targetP);
                 break;
             default:
-                Tcl_SetResult(interp, "Internal error while constructing referenced VARIANT parameter", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Internal error while constructing referenced VARIANT parameter");
                 goto vamoose;
             }
         }
@@ -1558,9 +1558,9 @@ vamoose:
 
     return status;
 
-    invalid_type:
-        Tcl_SetResult(interp, "Unsupported or invalid type information format in parameter", TCL_STATIC);
-        goto vamoose;
+invalid_type:
+    TwapiSetStaticResult(interp, "Unsupported or invalid type information format in parameter");
+    goto vamoose;
 }
 
 /*
@@ -1601,7 +1601,7 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long 
     status = TCL_ERROR;
     switch (desckind) {
     case DESCKIND_NONE:
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         status = TCL_OK;
         break;
 
@@ -1610,7 +1610,7 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long 
         objv[1] = ObjFromFUNCDESC(interp, bind.lpfuncdesc, tiP);
         objv[2] = ObjFromOpaque(tiP, "ITypeInfo");
         tiP->lpVtbl->ReleaseFuncDesc(tiP, bind.lpfuncdesc);
-        resultObj = Tcl_NewListObj(3, objv);
+        resultObj = ObjNewList(3, objv);
         status = TCL_OK;
         break;
 
@@ -1619,14 +1619,14 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long 
         objv[1] = ObjFromVARDESC(interp, bind.lpvardesc, tiP);
         objv[2] = ObjFromOpaque(tiP, "ITypeInfo");
         tiP->lpVtbl->ReleaseVarDesc(tiP, bind.lpvardesc);
-        resultObj = Tcl_NewListObj(3, objv);
+        resultObj = ObjNewList(3, objv);
         status = TCL_OK;
         break;
 
     case DESCKIND_TYPECOMP:
         objv[0] = STRING_LITERAL_OBJ("typecomp");
         objv[1] = ObjFromOpaque(bind.lptcomp, "ITypeComp");
-        resultObj = Tcl_NewListObj(2, objv);
+        resultObj = ObjNewList(2, objv);
         status = TCL_OK;
         break;
 
@@ -1636,7 +1636,7 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long 
         break;
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     return status;
 }
 
@@ -1661,7 +1661,7 @@ int Twapi_IRecordInfo_GetFieldNames(Tcl_Interp *interp, IRecordInfo *riP)
         SysFreeString(bstrs[i]);
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(nbstrs, objv));
+    TwapiSetObjResult(interp, ObjNewList(nbstrs, objv));
     return TCL_OK;
 }
 
@@ -1694,9 +1694,9 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     size_t elem_size;
 
     if (count == 0) {
-        objv[0] = Tcl_NewBooleanObj(1);
-        objv[1] = Tcl_NewListObj(0, NULL);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+        objv[0] = ObjFromBoolean(1);
+        objv[1] = ObjNewList(0, NULL);
+        TwapiSetObjResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     }
 
@@ -1713,7 +1713,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
         elem_size = sizeof(*(u.icpP));
         break;
     default:
-        Tcl_SetResult(interp, "Unknown enum_type passed to TwapiIEnumNextHelper", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown enum_type passed to TwapiIEnumNextHelper");
         return TCL_ERROR;
         
     }
@@ -1760,22 +1760,22 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
         return Twapi_AppendSystemError(interp, hr);
     }
 
-    objv[0] = Tcl_NewBooleanObj(hr == S_OK); // More to come?
-    objv[1] = Tcl_NewListObj(0, NULL);
+    objv[0] = ObjFromBoolean(hr == S_OK); // More to come?
+    objv[1] = ObjNewList(0, NULL);
     for (i = 0; i < ret_count; ++i) {
         switch (enum_type) {
         case 0:
-            Tcl_ListObjAppendElement(interp, objv[1],
+            ObjAppendElement(interp, objv[1],
                                      ObjFromCONNECTDATA(&(u.cdP[i])));
             break;
         case 1:
-            Tcl_ListObjAppendElement(interp, objv[1],
+            ObjAppendElement(interp, objv[1],
                                      ObjFromVARIANT(&(u.varP[i]), flags));
             if (u.varP[i].vt == VT_BSTR)
                 VariantClear(&(u.varP[i])); // TBD - any other types need clearing?
             break;
         case 3:
-            Tcl_ListObjAppendElement(interp, objv[1],
+            ObjAppendElement(interp, objv[1],
                                      ObjFromOpaque(u.icpP[i],
                                                    "IConnectionPoint"));
             break;
@@ -1783,7 +1783,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     }
         
     MemLifoPopFrame(&ticP->memlifo);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    TwapiSetObjResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -1842,7 +1842,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
             return TCL_ERROR;
         if (pv == NULL) {
-            Tcl_SetResult(interp, "NULL interface pointer.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "NULL interface pointer.");
             return TCL_ERROR;
         }
     }
@@ -1871,11 +1871,11 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 3:
             if (objc < 5)
                 return TCL_ERROR;
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[3]), &guid);
+            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
             if (hr != S_OK)
                 break;
             result.type = TRT_INTERFACE;
-            result.value.ifc.name = Tcl_GetString(objv[4]);
+            result.value.ifc.name = ObjToString(objv[4]);
             hr = ifc.unknown->lpVtbl->QueryInterface(ifc.unknown, &guid,
                                                      &result.value.ifc.p);
             break;
@@ -2032,7 +2032,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (hr == S_OK) {
                 result.type = TRT_OBJV;
                 objs[0] = ObjFromOpaque(pv, "ITypeLib");
-                objs[1] = Tcl_NewLongObj(dw1);
+                objs[1] = ObjFromLong(dw1);
                 result.value.objv.nobj = 2;
                 result.value.objv.objPP = objs;
             }
@@ -2044,7 +2044,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (hr == S_OK) {
                 objs[0] = ObjFromBSTR(bstr1);
                 objs[1] = ObjFromBSTR(bstr2);
-                objs[2] = Tcl_NewLongObj(dw2);
+                objs[2] = ObjFromLong(dw2);
                 objs[3] = ObjFromBSTR(bstr3);
                 result.value.objv.nobj = 4;
                 result.value.objv.objPP = objs;
@@ -2106,7 +2106,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (hr == S_OK) {
                 objs[0] = ObjFromBSTR(bstr1);
                 objs[1] = ObjFromBSTR(bstr2);
-                objs[2] = Tcl_NewLongObj(dw2);
+                objs[2] = ObjFromLong(dw2);
                 objs[3] = ObjFromBSTR(bstr3);
                 result.value.objv.nobj = 4;
                 result.value.objv.objPP = objs;
@@ -2140,7 +2140,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 405: // GetTypeInfoOfGuid
             if (objc != 4)
                 goto badargs;
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[3]), &guid);
+            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "ITypeInfo";
@@ -2155,10 +2155,10 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 407: // RegisterTypeLib
             if (objc != 5)
                 goto badargs;
-            s = Tcl_GetUnicode(objv[4]);
+            s = ObjToUnicode(objv[4]);
             NULLIFY_EMPTY(s);
             result.type = TRT_EMPTY;
-            hr = RegisterTypeLib(ifc.typelib, Tcl_GetUnicode(objv[3]), s);
+            hr = RegisterTypeLib(ifc.typelib, ObjToUnicode(objv[3]), s);
             break;
         }
     } else if (func < 600) {
@@ -2399,7 +2399,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 902: // FindConnectionPoint
             if (objc != 4)
                 goto badargs;
-            hr = CLSIDFromString(Tcl_GetUnicode(objv[3]), &guid);
+            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "IConnectionPoint";
@@ -2537,7 +2537,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 break;
             /* Note S_FALSE also is a success return */
             result.type = TRT_OBJV;
-            objs[0] = Tcl_NewLongObj(hr);
+            objs[0] = ObjFromLong(hr);
             objs[1] = ObjFromUnicode(result.value.lpolestr);
             result.value.objv.nobj = 2;
             result.value.objv.objPP = objs;
@@ -2569,7 +2569,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->SaveCompleted(
-                ifc.persistfile, Tcl_GetUnicode(objv[3]));
+                ifc.persistfile, ObjToUnicode(objv[3]));
             break;
         }
     } else {
@@ -2580,7 +2580,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 10001: // CreateFileMoniker
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IMoniker";
-            hr = CreateFileMoniker(Tcl_GetUnicode(objv[2]),
+            hr = CreateFileMoniker(ObjToUnicode(objv[2]),
                                    (IMoniker **)&result.value.ifc.p);
             break;
         case 10002: // CreateBindCtx
@@ -2639,7 +2639,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "ITypeLib";
-            hr = LoadTypeLibEx(Tcl_GetUnicode(objv[2]), dw1,
+            hr = LoadTypeLibEx(ObjToUnicode(objv[2]), dw1,
                                               (ITypeLib **)&result.value.ifc.p);
             break;
         case 10008: // CoGetObject
@@ -2649,7 +2649,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 return TCL_ERROR;
             if (Tcl_ListObjLength(interp, objv[3], &dw1) == TCL_ERROR ||
                 dw1 != 0) {
-                Tcl_SetResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty.", TCL_STATIC); // TBD
+                TwapiSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
                 goto ret_error;
             }
             result.type = TRT_INTERFACE;
@@ -2677,7 +2677,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             if (objc != 3)
                 goto badargs;
             result.type = TRT_GUID;
-            hr = CLSIDFromProgID(Tcl_GetUnicode(objv[2]), &result.value.guid);
+            hr = CLSIDFromProgID(ObjToUnicode(objv[2]), &result.value.guid);
             break;
         case 10012: // CoCreateInstance
             if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -2739,6 +2739,114 @@ EXCEPTION_ON_ERROR UnRegisterTypeLibForUser(
 
 static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    /* TBD - break apart commands that do not require a ticP */
+
+    static struct alias_dispatch_s ComAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(IUnknown_Release, 1),
+        DEFINE_ALIAS_CMD(IUnknown_AddRef, 2),
+        DEFINE_ALIAS_CMD(Twapi_IUnknown_QueryInterface, 3),
+        DEFINE_ALIAS_CMD(OleRun, 4), // Note - function, NOT method
+
+        DEFINE_ALIAS_CMD(IDispatch_GetTypeInfoCount, 101),
+        DEFINE_ALIAS_CMD(IDispatch_GetTypeInfo, 102),
+        DEFINE_ALIAS_CMD(IDispatch_GetIDsOfNames, 103),
+
+        DEFINE_ALIAS_CMD(IDispatchEx_GetDispID, 201),
+        DEFINE_ALIAS_CMD(IDispatchEx_GetMemberName, 202),
+        DEFINE_ALIAS_CMD(IDispatchEx_GetMemberProperties, 203),
+        DEFINE_ALIAS_CMD(IDispatchEx_GetNextDispID, 204),
+        DEFINE_ALIAS_CMD(IDispatchEx_GetNameSpaceParent, 205),
+        DEFINE_ALIAS_CMD(IDispatchEx_DeleteMemberByName, 206),
+        DEFINE_ALIAS_CMD(IDispatchEx_DeleteMemberByDispID, 207),
+
+        DEFINE_ALIAS_CMD(ITypeInfo_GetRefTypeOfImplType, 301),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetRefTypeInfo, 302),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetTypeComp, 303),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetContainingTypeLib, 304),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetDocumentation, 305),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetImplTypeFlags, 306),
+        DEFINE_ALIAS_CMD(GetRecordInfoFromTypeInfo, 307), // Note - function, not method
+        DEFINE_ALIAS_CMD(ITypeInfo_GetNames, 308),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetTypeAttr, 309),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetFuncDesc, 310),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetVarDesc, 311),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetIDsOfNames, 399),
+
+        DEFINE_ALIAS_CMD(ITypeLib_GetDocumentation, 401),
+        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoCount, 402),
+        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoType, 403),
+        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfo, 404),
+        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoOfGuid, 405),
+        DEFINE_ALIAS_CMD(ITypeLib_GetLibAttr, 406),
+        DEFINE_ALIAS_CMD(RegisterTypeLib, 407), // Function, not method
+
+        DEFINE_ALIAS_CMD(IRecordInfo_GetField, 501),
+        DEFINE_ALIAS_CMD(IRecordInfo_GetGuid, 502),
+        DEFINE_ALIAS_CMD(IRecordInfo_GetName, 503),
+        DEFINE_ALIAS_CMD(IRecordInfo_GetSize, 504),
+        DEFINE_ALIAS_CMD(IRecordInfo_GetTypeInfo, 505),
+        DEFINE_ALIAS_CMD(IRecordInfo_IsMatchingType, 506),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordClear, 507),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordCopy, 508),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordCreate, 509),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordCreateCopy, 510),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordDestroy, 511),
+        DEFINE_ALIAS_CMD(IRecordInfo_RecordInit, 512),
+        DEFINE_ALIAS_CMD(IRecordInfo_GetFieldNames, 513),
+
+        DEFINE_ALIAS_CMD(IMoniker_GetDisplayName,601),
+
+        DEFINE_ALIAS_CMD(IEnumVARIANT_Clone, 701),
+        DEFINE_ALIAS_CMD(IEnumVARIANT_Reset, 702),
+        DEFINE_ALIAS_CMD(IEnumVARIANT_Skip, 703),
+        DEFINE_ALIAS_CMD(IEnumVARIANT_Next, 704),
+
+        DEFINE_ALIAS_CMD(IConnectionPoint_Advise, 801),
+        DEFINE_ALIAS_CMD(IConnectionPoint_EnumConnections, 802),
+        DEFINE_ALIAS_CMD(IConnectionPoint_GetConnectionInterface, 803),
+        DEFINE_ALIAS_CMD(IConnectionPoint_GetConnectionPointContainer, 804),
+        DEFINE_ALIAS_CMD(IConnectionPoint_Unadvise, 805),
+
+        DEFINE_ALIAS_CMD(IConnectionPointContainer_EnumConnectionPoints, 901),
+        DEFINE_ALIAS_CMD(IConnectionPointContainer_FindConnectionPoint, 902),
+
+        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Clone, 1001),
+        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Reset, 1002),
+        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Skip, 1003),
+        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Next, 1004),
+
+        DEFINE_ALIAS_CMD(IEnumConnections_Clone, 1101),
+        DEFINE_ALIAS_CMD(IEnumConnections_Reset, 1102),
+        DEFINE_ALIAS_CMD(IEnumConnections_Skip, 1103),
+        DEFINE_ALIAS_CMD(IEnumConnections_Next, 1104),
+
+        DEFINE_ALIAS_CMD(IProvideClassInfo_GetClassInfo, 1201),
+
+        DEFINE_ALIAS_CMD(IProvideClassInfo2_GetGUID, 1301),
+
+        DEFINE_ALIAS_CMD(ITypeComp_Bind, 1401),
+
+
+        DEFINE_ALIAS_CMD(IPersistFile_GetCurFile, 5501),
+        DEFINE_ALIAS_CMD(IPersistFile_IsDirty, 5502),
+        DEFINE_ALIAS_CMD(IPersistFile_Load, 5503),
+        DEFINE_ALIAS_CMD(IPersistFile_Save, 5504),
+        DEFINE_ALIAS_CMD(IPersistFile_SaveCompleted, 5505),
+
+        DEFINE_ALIAS_CMD(CreateFileMoniker, 10001),
+        DEFINE_ALIAS_CMD(CreateBindCtx, 10002),
+        DEFINE_ALIAS_CMD(GetRecordInfoFromGuids, 10003),
+        DEFINE_ALIAS_CMD(QueryPathOfRegTypeLib, 10004),
+        DEFINE_ALIAS_CMD(UnRegisterTypeLib, 10005),
+        DEFINE_ALIAS_CMD(LoadRegTypeLib, 10006),
+        DEFINE_ALIAS_CMD(LoadTypeLibEx, 10007),
+        DEFINE_ALIAS_CMD(Twapi_CoGetObject, 10008),
+        DEFINE_ALIAS_CMD(GetActiveObject, 10009),
+        DEFINE_ALIAS_CMD(ProgIDFromCLSID, 10010),
+        DEFINE_ALIAS_CMD(CLSIDFromProgID, 10011),
+        DEFINE_ALIAS_CMD(Twapi_CoCreateInstance, 10012),
+    };
+
     Tcl_CreateObjCommand(interp, "twapi::ComCall",
                          Twapi_CallCOMObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
@@ -2746,116 +2854,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::ComEventSink",
                          Twapi_ComEventSinkObjCmd, ticP, NULL);
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-    // CallCOM
-#define CALLCOM_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ComCall", # code_); \
-    } while (0);
-    CALLCOM_(IUnknown_Release, 1);
-    CALLCOM_(IUnknown_AddRef, 2);
-    CALLCOM_(Twapi_IUnknown_QueryInterface, 3);
-    CALLCOM_(OleRun, 4);       /* Note - function, NOT method */
-
-    CALLCOM_(IDispatch_GetTypeInfoCount, 101);
-    CALLCOM_(IDispatch_GetTypeInfo, 102);
-    CALLCOM_(IDispatch_GetIDsOfNames, 103);
-
-    CALLCOM_(IDispatchEx_GetDispID, 201);
-    CALLCOM_(IDispatchEx_GetMemberName, 202);
-    CALLCOM_(IDispatchEx_GetMemberProperties, 203);
-    CALLCOM_(IDispatchEx_GetNextDispID, 204);
-    CALLCOM_(IDispatchEx_GetNameSpaceParent, 205);
-    CALLCOM_(IDispatchEx_DeleteMemberByName, 206);
-    CALLCOM_(IDispatchEx_DeleteMemberByDispID, 207);
-
-    CALLCOM_(ITypeInfo_GetRefTypeOfImplType, 301);
-    CALLCOM_(ITypeInfo_GetRefTypeInfo, 302);
-    CALLCOM_(ITypeInfo_GetTypeComp, 303);
-    CALLCOM_(ITypeInfo_GetContainingTypeLib, 304);
-    CALLCOM_(ITypeInfo_GetDocumentation, 305);
-    CALLCOM_(ITypeInfo_GetImplTypeFlags, 306);
-    CALLCOM_(GetRecordInfoFromTypeInfo, 307); /* Note - function, not method */
-    CALLCOM_(ITypeInfo_GetNames, 308);
-    CALLCOM_(ITypeInfo_GetTypeAttr, 309);
-    CALLCOM_(ITypeInfo_GetFuncDesc, 310);
-    CALLCOM_(ITypeInfo_GetVarDesc, 311);
-    CALLCOM_(ITypeInfo_GetIDsOfNames, 399);
-
-    CALLCOM_(ITypeLib_GetDocumentation, 401);
-    CALLCOM_(ITypeLib_GetTypeInfoCount, 402);
-    CALLCOM_(ITypeLib_GetTypeInfoType, 403);
-    CALLCOM_(ITypeLib_GetTypeInfo, 404);
-    CALLCOM_(ITypeLib_GetTypeInfoOfGuid, 405);
-    CALLCOM_(ITypeLib_GetLibAttr, 406);
-    CALLCOM_(RegisterTypeLib, 407); /* Function, not method */
-
-    CALLCOM_(IRecordInfo_GetField, 501);
-    CALLCOM_(IRecordInfo_GetGuid, 502);
-    CALLCOM_(IRecordInfo_GetName, 503);
-    CALLCOM_(IRecordInfo_GetSize, 504);
-    CALLCOM_(IRecordInfo_GetTypeInfo, 505);
-    CALLCOM_(IRecordInfo_IsMatchingType, 506);
-    CALLCOM_(IRecordInfo_RecordClear, 507);
-    CALLCOM_(IRecordInfo_RecordCopy, 508);
-    CALLCOM_(IRecordInfo_RecordCreate, 509);
-    CALLCOM_(IRecordInfo_RecordCreateCopy, 510);
-    CALLCOM_(IRecordInfo_RecordDestroy, 511);
-    CALLCOM_(IRecordInfo_RecordInit, 512);
-    CALLCOM_(IRecordInfo_GetFieldNames, 513);
-
-    CALLCOM_(IMoniker_GetDisplayName,601);
-
-    CALLCOM_(IEnumVARIANT_Clone, 701);
-    CALLCOM_(IEnumVARIANT_Reset, 702);
-    CALLCOM_(IEnumVARIANT_Skip, 703);
-    CALLCOM_(IEnumVARIANT_Next, 704);
-
-    CALLCOM_(IConnectionPoint_Advise, 801);
-    CALLCOM_(IConnectionPoint_EnumConnections, 802);
-    CALLCOM_(IConnectionPoint_GetConnectionInterface, 803);
-    CALLCOM_(IConnectionPoint_GetConnectionPointContainer, 804);
-    CALLCOM_(IConnectionPoint_Unadvise, 805);
-
-    CALLCOM_(IConnectionPointContainer_EnumConnectionPoints, 901);
-    CALLCOM_(IConnectionPointContainer_FindConnectionPoint, 902);
-
-    CALLCOM_(IEnumConnectionPoints_Clone, 1001);
-    CALLCOM_(IEnumConnectionPoints_Reset, 1002);
-    CALLCOM_(IEnumConnectionPoints_Skip, 1003);
-    CALLCOM_(IEnumConnectionPoints_Next, 1004);
-
-    CALLCOM_(IEnumConnections_Clone, 1101);
-    CALLCOM_(IEnumConnections_Reset, 1102);
-    CALLCOM_(IEnumConnections_Skip, 1103);
-    CALLCOM_(IEnumConnections_Next, 1104);
-
-    CALLCOM_(IProvideClassInfo_GetClassInfo, 1201);
-
-    CALLCOM_(IProvideClassInfo2_GetGUID, 1301);
-
-    CALLCOM_(ITypeComp_Bind, 1401);
-
-
-    CALLCOM_(IPersistFile_GetCurFile, 5501);
-    CALLCOM_(IPersistFile_IsDirty, 5502);
-    CALLCOM_(IPersistFile_Load, 5503);
-    CALLCOM_(IPersistFile_Save, 5504);
-    CALLCOM_(IPersistFile_SaveCompleted, 5505);
-
-    CALLCOM_(CreateFileMoniker, 10001);
-    CALLCOM_(CreateBindCtx, 10002);
-    CALLCOM_(GetRecordInfoFromGuids, 10003);
-    CALLCOM_(QueryPathOfRegTypeLib, 10004);
-    CALLCOM_(UnRegisterTypeLib, 10005);
-    CALLCOM_(LoadRegTypeLib, 10006);
-    CALLCOM_(LoadTypeLibEx, 10007);
-    CALLCOM_(Twapi_CoGetObject, 10008);
-    CALLCOM_(GetActiveObject, 10009);
-    CALLCOM_(ProgIDFromCLSID, 10010);
-    CALLCOM_(CLSIDFromProgID, 10011);
-    CALLCOM_(Twapi_CoCreateInstance, 10012);
-#undef CALLCOM_
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComCall");
 
     return TCL_OK;
 }
