@@ -29,6 +29,31 @@ Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
                                  const TOKEN_PRIVILEGES *tokprivP);
 void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 
+int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
+                          LPWSTR username, LPWSTR profilepath);
+/* TBD - why is this LoadUserProfile in the apputil module ? Put it with createprocess or security or account */
+int Twapi_LoadUserProfile(
+    Tcl_Interp *interp,
+    HANDLE  hToken,
+    DWORD                 flags,
+    LPWSTR username,
+    LPWSTR profilepath
+    )
+{
+    PROFILEINFOW profileinfo;
+
+    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
+    profileinfo.dwSize        = sizeof(profileinfo);
+    profileinfo.lpUserName    = username;
+    profileinfo.lpProfilePath = profilepath;
+
+    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
+        return TwapiReturnSystemError(interp);
+    }
+
+    TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+    return TCL_OK;
+}
 
 /*
  * Allocate and return memory for a TOKEN_PRIVILEGES structure big enough
@@ -873,6 +898,10 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             return Twapi_LsaEnumerateLogonSessions(interp);
         case 2:
             return Twapi_InitializeSecurityDescriptor(interp);
+        case 3:
+            result.type =
+                GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
         }
     } else if (func < 200) {
         /* Single arg */
@@ -1050,6 +1079,14 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10013:
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETHANDLE(h), GETHANDLE(h2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = UnloadUserProfile(h, h2);
+            break;
         case 10014:
             if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
@@ -1120,8 +1157,13 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             if (secdP)
                 TwapiFreeSECURITY_DESCRIPTOR(secdP);
             break;
-        case 10018: // UNUSED
-            break;
+        case 10018: // LoadUserProfile
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETHANDLE(h), GETINT(dw), GETWSTR(s),
+                             GETNULLIFEMPTY(s2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_LoadUserProfile(interp, h, dw, s, s2);
         case 10019:
             return Twapi_LsaGetLogonSessionData(interp, objc, objv);
         case 10020: // SetNamedSecurityInfo
@@ -1235,6 +1277,8 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct fncode_dispatch_s SecCallDispatch[] = {
         DEFINE_FNCODE_CMD(LsaEnumerateLogonSessions, 1),
         DEFINE_FNCODE_CMD(Twapi_InitializeSecurityDescriptor, 2),
+        DEFINE_FNCODE_CMD(GetProfileType, 3), // TBD - Tcl
+
         DEFINE_FNCODE_CMD(IsValidSecurityDescriptor, 101),
         DEFINE_FNCODE_CMD(IsValidAcl, 102),
         DEFINE_FNCODE_CMD(ImpersonateSelf, 103),
@@ -1256,10 +1300,13 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CheckTokenMembership, 4002),
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
+
+        DEFINE_FNCODE_CMD(UnloadUserProfile, 10013), // TBD - Tcl
         DEFINE_FNCODE_CMD(LogonUser, 10014),
         DEFINE_FNCODE_CMD(LsaAddAccountRights, 10015),
         DEFINE_FNCODE_CMD(LsaRemoveAccountRights, 10016),
         DEFINE_FNCODE_CMD(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017),
+        DEFINE_FNCODE_CMD(Twapi_LoadUserProfile, 10018), // TBD - Tcl
         DEFINE_FNCODE_CMD(LsaGetLogonSessionData, 10019),
         DEFINE_FNCODE_CMD(SetNamedSecurityInfo, 10020),
         DEFINE_FNCODE_CMD(LookupPrivilegeName, 10021),
