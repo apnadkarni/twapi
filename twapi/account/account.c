@@ -54,7 +54,7 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewLongObj(groupinfoP->lgrpi1_ ## fld); \
+        objv[objc++] = ObjFromLong(groupinfoP->lgrpi1_ ## fld); \
     } while (0)
 
     switch (info_level) {
@@ -73,7 +73,7 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -93,7 +93,7 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewLongObj(groupinfoP->grui1_ ## fld); \
+        objv[objc++] = ObjFromLong(groupinfoP->grui1_ ## fld); \
     } while (0)
 
     switch (info_level) {
@@ -112,7 +112,7 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 /*
@@ -144,7 +144,7 @@ Tcl_Obj *ObjFromUSER_INFO(
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = Tcl_NewLongObj(userinfoP->usri3_ ## fld); \
+        objv[--objc] = ObjFromLong(userinfoP->usri3_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 
@@ -196,7 +196,7 @@ Tcl_Obj *ObjFromUSER_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 }
 
 
@@ -227,7 +227,7 @@ Tcl_Obj *ObjFromGROUP_INFO(
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewLongObj(groupinfoP->grpi3_ ## fld); \
+        objv[objc++] = ObjFromLong(groupinfoP->grpi3_ ## fld); \
     } while (0)
 
     switch (info_level) {
@@ -257,7 +257,7 @@ Tcl_Obj *ObjFromGROUP_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -277,7 +277,7 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
         objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = Tcl_NewLongObj(groupinfoP->lgrui0_ ## fld); \
+        objv[objc++] = ObjFromLong(groupinfoP->lgrui0_ ## fld); \
     } while (0)
 
     switch (info_level) {
@@ -293,7 +293,7 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -316,7 +316,7 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
         objv[objc++] = STRING_LITERAL_OBJ("sid");
         objv[objc++] = ObjFromSIDNoFail(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sid);
         objv[objc++] = STRING_LITERAL_OBJ("sidusage");
-        objv[objc++] = Tcl_NewLongObj(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sidusage);
+        objv[objc++] = ObjFromLong(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sidusage);
         if (info_level == 1) {
             objv[objc++] = STRING_LITERAL_OBJ("name");
             objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name);
@@ -336,7 +336,7 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
         return NULL;
     }
 
-    return Tcl_NewListObj(objc, objv);
+    return ObjNewList(objc, objv);
 }
 
 int TwapiNetUserOrGroupGetInfoHelper(
@@ -352,7 +352,6 @@ int TwapiNetUserOrGroupGetInfoHelper(
     typedef NET_API_STATUS NET_API_FUNCTION NETGETINFO(LPCWSTR, LPCWSTR, DWORD, LPBYTE*);
     NETGETINFO    *get_fn;
     Tcl_Obj *      (*fmt_fn)(Tcl_Interp *, LPBYTE, DWORD);
-
 
     switch (level) {
     case 0:
@@ -373,21 +372,21 @@ int TwapiNetUserOrGroupGetInfoHelper(
             fmt_fn = ObjFromLOCALGROUP_INFO;
             break;
         default:
-            Tcl_SetResult(interp, "Internal error: bad type passed to TwapiNetUserOrGroupGetInfoHelper", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Internal error: bad type passed to TwapiNetUserOrGroupGetInfoHelper");
             return TCL_ERROR;
         }
         status = (*get_fn)(servername, name, level, &infoP);
         if (status != NERR_Success) {
-            Tcl_SetResult(interp,
-                          "Could not retrieve global user or group information: ", TCL_STATIC);
+            TwapiSetStaticResult(interp,
+                                 "Could not retrieve global user or group information: ");
             return Twapi_AppendSystemError(interp, status);
         }
-        Tcl_SetObjResult(interp, (*fmt_fn)(interp, infoP, level));
+        TwapiSetObjResult(interp, (*fmt_fn)(interp, infoP, level));
         NetApiBufferFree(infoP);
         break;
 
     default:
-        Tcl_SetResult(interp, "Invalid or unsupported user or group information level specified", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
         return TCL_ERROR;
     }
 
@@ -424,7 +423,7 @@ int Twapi_NetLocalGroupGetInfo(
     )
 {
     if (level != 1) {
-        Tcl_SetResult(interp, "Invalid or unsupported user or group information level specified", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
         return TCL_ERROR;
     }
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
@@ -461,7 +460,7 @@ int Twapi_NetUserAdd(
         return TCL_OK;
 
     /* Indicate the parameter */
-    Tcl_SetResult(interp, "Error adding user account: ", TCL_STATIC);
+    TwapiSetStaticResult(interp, "Error adding user account: ");
     error_field = NULL;
     switch (error_parm) {
     case 0: error_field = "user name"; break;
@@ -599,7 +598,7 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1052:
     case 1053:
         result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1, s2, Tcl_GetUnicode(objv[4]));
+        result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1, s2, ObjToUnicode(objv[4]));
         break;
     }
 
@@ -607,9 +606,8 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 }
 
 
-static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     DWORD i;
     LPBYTE     p;
     LPWSTR s1, s2;
@@ -619,10 +617,10 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
     Tcl_Obj *(*objfn)(Tcl_Interp *, LPBYTE, DWORD);
     Tcl_Obj *objs[4];
     Tcl_Obj *enumObj = NULL;
+    int func = (int) clientdata;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETNULLIFEMPTY(s1),
-                     ARGTERM) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETNULLIFEMPTY(s1), ARGTERM)
+        != TCL_OK)
         return TCL_ERROR;
 
     /* WARNING:
@@ -631,12 +629,14 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
        Win32 function prototypes they call like const / non-const,
        size of resume handle etc. */
 
+    objc -= 2;
+    objv += 2;
     netenum.netbufP = NULL;
     switch (func) {
     case 3: // NetGroupEnum system level resumehandle
     case 4: // NetLocalGroupEnum system level resumehandle
         // Not shared with case 1: because different const qualifier on function
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -669,7 +669,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
 
     case 5:
         // NetUserEnum system level filter resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(netenum.level), GETINT(dw), GETINT(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -691,7 +691,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
         break;
 
     case 6:  // NetUserGetGroups server user level
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s2), GETINT(netenum.level),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -709,7 +709,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
 
     case 7:
         // NetUserGetLocalGroups server user level flags
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s2), GETINT(netenum.level), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -725,7 +725,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
     case 8:
     case 9:
         // NetLocalGroupGetMembers server group level resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s2), GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -757,22 +757,22 @@ static int Twapi_AcctCallNetEnumGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *
         goto error_return;
     }
 
-    enumObj = Tcl_NewListObj(0, NULL);
+    enumObj = ObjNewList(0, NULL);
     p = netenum.netbufP;
     for (i = 0; i < netenum.entriesread; ++i, p += struct_size) {
         Tcl_Obj *objP;
         objP = objfn(interp, p, netenum.level);
         if (objP == NULL)
             goto error_return;
-        Tcl_ListObjAppendElement(interp, enumObj, objP);
+        ObjAppendElement(interp, enumObj, objP);
     }
 
-    objs[0] = Tcl_NewIntObj(netenum.status == ERROR_MORE_DATA);
+    objs[0] = ObjFromInt(netenum.status == ERROR_MORE_DATA);
     objs[1] = ObjFromDWORD_PTR(netenum.hresume);
-    objs[2] = Tcl_NewLongObj(netenum.totalentries);
+    objs[2] = ObjFromLong(netenum.totalentries);
     objs[3] = enumObj;
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(4, objs));
+    TwapiSetObjResult(interp, ObjNewList(4, objs));
 
     if (netenum.netbufP)
         NetApiBufferFree((LPBYTE) netenum.netbufP);
@@ -792,9 +792,8 @@ invalid_level_error:
 }
 
 
-static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s1, s2, s3, s4, s5, s6;
     DWORD   dw, dw2;
     TwapiResult result;
@@ -807,16 +806,19 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
         SECURITY_DESCRIPTOR *secdP;
         SECURITY_ATTRIBUTES *secattrP;
     } u;
+    int func = (int) clientdata;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETNULLIFEMPTY(s1),
+                     GETNULLIFEMPTY(s1),
                      GETWSTR(s2), ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
+    objc -= 3;
+    objv += 3;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 9: // NetUserAdd
-        if (TwapiGetArgs(interp, objc-4, objv+4,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s3), GETINT(dw),
                          GETNULLIFEMPTY(s4), GETNULLIFEMPTY(s5),
                          GETINT(dw2), GETNULLIFEMPTY(s6),
@@ -826,7 +828,7 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
     case 10:
     case 11:
     case 12:
-        if (TwapiGetArgs(interp, objc-4, objv+4, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 10:
@@ -850,9 +852,9 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
         result.value.ival = NetUserDel(s1, s2);
         break;
     default:
-        if (objc != 5)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s3 = Tcl_GetUnicode(objv[4]);
+        s3 = ObjToUnicode(objv[0]);
         switch (func) {
         case 16:
             u.lgi1.lgrpi1_name = s2;
@@ -892,52 +894,42 @@ static int Twapi_AcctCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, in
 
     return TwapiSetResult(interp, &result);
 
-
-
 }
 
 static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct fncode_dispatch_s AcctCallDispatch[] = {
+        DEFINE_FNCODE_CMD(NetUserAdd, 9),
+        DEFINE_FNCODE_CMD(NetUserGetInfo, 10),
+        DEFINE_FNCODE_CMD(NetGroupGetInfo, 11),
+        DEFINE_FNCODE_CMD(NetLocalGroupGetInfo, 12),
+        DEFINE_FNCODE_CMD(NetGroupDel, 13),
+        DEFINE_FNCODE_CMD(NetLocalGroupDel, 14),
+        DEFINE_FNCODE_CMD(NetUserDel, 15),
+        DEFINE_FNCODE_CMD(NetLocalGroupAdd, 16),
+        DEFINE_FNCODE_CMD(NetGroupAdd, 17),
+        DEFINE_FNCODE_CMD(Twapi_NetLocalGroupDelMembers, 18),
+        DEFINE_FNCODE_CMD(NetGroupAddUser, 19),
+        DEFINE_FNCODE_CMD(NetGroupDelUser, 20),
+        DEFINE_FNCODE_CMD(Twapi_NetLocalGroupAddMembers, 21),
+    };
+
+    static struct fncode_dispatch_s AcctCallNetEnumGetDispatch[] = {
+        DEFINE_FNCODE_CMD(NetGroupEnum, 3),
+        DEFINE_FNCODE_CMD(NetLocalGroupEnum, 4),
+        DEFINE_FNCODE_CMD(NetUserEnum, 5),
+        DEFINE_FNCODE_CMD(NetUserGetGroups, 6),
+        DEFINE_FNCODE_CMD(NetUserGetLocalGroups, 7),
+        DEFINE_FNCODE_CMD(NetLocalGroupGetMembers, 8),
+        DEFINE_FNCODE_CMD(NetGroupGetUsers, 9),
+    };
+
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallDispatch), AcctCallDispatch, Twapi_AcctCallObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallNetEnumGetDispatch), AcctCallNetEnumGetDispatch, Twapi_AcctCallNetEnumGetObjCmd);
+
     /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::AcctCall", Twapi_AcctCallObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::AcctCallNetEnumGet", Twapi_AcctCallNetEnumGetObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NetUserSetInfo", Twapi_NetUserSetInfoObjCmd, ticP, NULL);
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Acct" #call_, # code_); \
-    } while (0);
-
-
-
-    CALL_(NetUserAdd, Call, 9);
-    CALL_(NetUserGetInfo, Call, 10);
-    CALL_(NetGroupGetInfo, Call, 11);
-    CALL_(NetLocalGroupGetInfo, Call, 12);
-    CALL_(NetGroupDel, Call, 13);
-    CALL_(NetLocalGroupDel, Call, 14);
-    CALL_(NetUserDel, Call, 15);
-    CALL_(NetLocalGroupAdd, Call, 16);
-    CALL_(NetGroupAdd, Call, 17);
-    CALL_(Twapi_NetLocalGroupDelMember, Call, 18);
-    CALL_(NetGroupAddUser, Call, 19);
-    CALL_(NetGroupDelUser, Call, 20);
-    CALL_(Twapi_NetLocalGroupAddMember, Call, 21);
-
-
-
-
-    CALL_(NetGroupEnum, CallNetEnumGet, 3);
-    CALL_(NetLocalGroupEnum, CallNetEnumGet, 4);
-    CALL_(NetUserEnum, CallNetEnumGet, 5);
-    CALL_(NetUserGetGroups, CallNetEnumGet, 6);
-    CALL_(NetUserGetLocalGroups, CallNetEnumGet, 7);
-    CALL_(NetLocalGroupGetMembers, CallNetEnumGet, 8);
-    CALL_(NetGroupGetUsers, CallNetEnumGet, 9);
-
-
-#undef CALL_
 
     return TCL_OK;
 }
