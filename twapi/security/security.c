@@ -63,20 +63,20 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
     }
 
     objv[1] = ObjFromDWORD(sidattrP->Attributes);
-    return Tcl_NewListObj(2, objv);
+    return ObjNewList(2, objv);
 }
 
 Tcl_Obj *ObjFromSID_AND_ATTRIBUTES_Array (
     Tcl_Interp *interp, const SID_AND_ATTRIBUTES *sidattrP, int count
 )
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *resultObj = ObjNewList(0, NULL);
     Tcl_Obj *obj;
     int i;
     for (i = 0; i < count; ++i, ++sidattrP) {
         obj = ObjFromSID_AND_ATTRIBUTES(interp, sidattrP);
         if (obj)
-            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            ObjAppendElement(interp, resultObj, obj);
         else {
             Tcl_DecrRefCount(resultObj);
             return NULL;
@@ -93,9 +93,9 @@ int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES
     Tcl_Obj **objv;
     int       objc;
 
-    if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) == TCL_OK &&
+    if (ObjGetElements(interp, obj, &objc, &objv) == TCL_OK &&
         objc == 2 &&
-        Tcl_GetLongFromObj(interp, objv[1], &sidattrP->Attributes) == TCL_OK &&
+        ObjToLong(interp, objv[1], &sidattrP->Attributes) == TCL_OK &&
         ObjToPSID(interp, objv[0], &sidattrP->Sid) == TCL_OK) {
 
         return TCL_OK;
@@ -113,8 +113,8 @@ Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (
 
     objv[0] = ObjFromLUID(&luidattrP->Luid);
     /* Create as wide int to try and preserve sign */
-    objv[1] = Tcl_NewWideIntObj((ULONG_PTR)luidattrP->Attributes);
-    return Tcl_NewListObj(2, objv);
+    objv[1] = ObjFromWideInt((ULONG_PTR)luidattrP->Attributes);
+    return ObjNewList(2, objv);
 }
 
 /* interp may be NULL */
@@ -125,16 +125,16 @@ int ObjToLUID_AND_ATTRIBUTES (
     int       objc;
     Tcl_Obj **objv;
 
-    if (Tcl_ListObjGetElements(interp, listobj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, listobj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if ((objc != 2) ||
-        (Tcl_GetLongFromObj(interp,objv[1],&luidattrP->Attributes) != TCL_OK) ||
+        (ObjToLong(interp,objv[1],&luidattrP->Attributes) != TCL_OK) ||
         (ObjToLUID(interp, objv[0], &luidattrP->Luid) != TCL_OK)) {
         if (interp) {
             Tcl_AppendResult(interp,
                              "\nInvalid LUID_AND_ATTRIBUTES: ",
-                             Tcl_GetString(listobj),
+                             ObjToString(listobj),
                              NULL);
         }
         return TCL_ERROR;
@@ -152,11 +152,11 @@ static Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES_Array(
 {
     int      i;
     Tcl_Obj *obj;
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *resultObj = ObjNewList(0, NULL);
     for (i = 0; i < count; ++i) {
         obj = ObjFromLUID_AND_ATTRIBUTES(interp, luidattrP + i);
         if (obj)
-            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            ObjAppendElement(interp, resultObj, obj);
         else {
             Twapi_FreeNewTclObj(resultObj);
             return NULL;
@@ -187,7 +187,7 @@ int ObjToPTOKEN_PRIVILEGES(
     int       objc;
     Tcl_Obj **objv;
 
-    if (Tcl_ListObjGetElements(interp, tokprivObj, &objc, &objv) != TCL_OK ||
+    if (ObjGetElements(interp, tokprivObj, &objc, &objv) != TCL_OK ||
         TwapiAllocateTOKEN_PRIVILEGES(interp, objc, tokprivPP) != TCL_OK)
         return TCL_ERROR;
 
@@ -326,12 +326,12 @@ int Twapi_GetTokenInformation(
                 break;
 
             case TwapiTokenElevationType:
-                resultObj = Tcl_NewIntObj(value.elevation_type);
+                resultObj = ObjFromInt(value.elevation_type);
                 result = TCL_OK;
                 break;
 
             case TokenImpersonationLevel:
-                resultObj = Tcl_NewIntObj(value.sil);
+                resultObj = ObjFromInt(value.sil);
                 result = TCL_OK;
                 break;
 
@@ -346,7 +346,7 @@ int Twapi_GetTokenInformation(
                 break;
                 
             case TokenType:
-                resultObj = Tcl_NewIntObj(value.type);
+                resultObj = ObjFromInt(value.type);
                 result = TCL_OK;
                 break;
 
@@ -359,7 +359,7 @@ int Twapi_GetTokenInformation(
              * case, resultObj will be freed if non-NULL
              */
             if (result == TCL_OK)
-                Tcl_SetObjResult(interp, resultObj);
+                TwapiSetObjResult(interp, resultObj);
             else if (resultObj)
                 Twapi_FreeNewTclObj(resultObj);
 
@@ -375,7 +375,7 @@ int Twapi_GetTokenInformation(
     }
 
     if (infoP == NULL) {
-        Tcl_SetResult(interp, "Error getting security token information: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Error getting security token information: ");
         Twapi_AppendSystemError(interp, GetLastError());
         return TCL_ERROR;
     }
@@ -419,28 +419,28 @@ int Twapi_GetTokenInformation(
         break;
 
     case TokenGroupsAndPrivileges:
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         obj = ObjFromSID_AND_ATTRIBUTES_Array(
             interp,
             ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->Sids,
             ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->SidCount);
         if (obj) {
-            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            ObjAppendElement(interp, resultObj, obj);
             obj = ObjFromSID_AND_ATTRIBUTES_Array(
                 interp,
                 ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->RestrictedSids,
                 ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->RestrictedSidCount);
             if (obj) {
-                Tcl_ListObjAppendElement(interp, resultObj, obj);
+                ObjAppendElement(interp, resultObj, obj);
                 obj = ObjFromLUID_AND_ATTRIBUTES_Array(
                     interp, 
                     ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->Privileges,
                     ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->PrivilegeCount);
                 if (obj) {
-                    Tcl_ListObjAppendElement(interp, resultObj, obj);
+                    ObjAppendElement(interp, resultObj, obj);
                     obj = ObjFromLUID(&((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->AuthenticationId);
                     if (obj) {
-                        Tcl_ListObjAppendElement(interp, resultObj, obj);
+                        ObjAppendElement(interp, resultObj, obj);
                         result = TCL_OK;
                     }
                 }
@@ -450,47 +450,47 @@ int Twapi_GetTokenInformation(
         break;
 
     case TokenSource:
-        resultObj = Tcl_NewListObj(0, NULL);
-        obj = Tcl_NewStringObj(((TOKEN_SOURCE *)infoP)->SourceName, 8);
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        resultObj = ObjNewList(0, NULL);
+        obj = ObjFromStringN(((TOKEN_SOURCE *)infoP)->SourceName, 8);
+        ObjAppendElement(interp, resultObj, obj);
         obj =
             ObjFromLUID(&((TOKEN_SOURCE *)infoP)->SourceIdentifier);
         if (obj) {
-            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            ObjAppendElement(interp, resultObj, obj);
             result = TCL_OK;
         } else {
-            Tcl_SetResult(interp, "Could not convert token source to LUID", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Could not convert token source to LUID");
         }
         break;
 
     case TokenStatistics:
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjNewList(0, NULL);
         obj = ObjFromLUID(&((TOKEN_STATISTICS *)infoP)->TokenId);
         if (obj == NULL)
             break;
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        ObjAppendElement(interp, resultObj, obj);
         obj = ObjFromLUID(&((TOKEN_STATISTICS *)infoP)->AuthenticationId);
         if (obj == NULL)
             break;
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewWideIntObj(((TOKEN_STATISTICS *)infoP)->ExpirationTime.QuadPart));
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->TokenType));
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->ImpersonationLevel));
-        Tcl_ListObjAppendElement(interp, resultObj,
-                                 Tcl_NewIntObj(((TOKEN_STATISTICS *)infoP)->DynamicCharged));
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj, obj);
+        ObjAppendElement(interp, resultObj,
+                                 ObjFromWideInt(((TOKEN_STATISTICS *)infoP)->ExpirationTime.QuadPart));
+        ObjAppendElement(interp, resultObj,
+                                 ObjFromInt(((TOKEN_STATISTICS *)infoP)->TokenType));
+        ObjAppendElement(interp, resultObj,
+                                 ObjFromInt(((TOKEN_STATISTICS *)infoP)->ImpersonationLevel));
+        ObjAppendElement(interp, resultObj,
+                                 ObjFromInt(((TOKEN_STATISTICS *)infoP)->DynamicCharged));
+        ObjAppendElement(interp, resultObj,
                                  ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->DynamicAvailable));
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->GroupCount));
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  ObjFromDWORD(((TOKEN_STATISTICS *)infoP)->PrivilegeCount));
         obj = ObjFromLUID(&((TOKEN_STATISTICS *)infoP)->ModifiedId);
         if (obj == NULL)
             break;
-        Tcl_ListObjAppendElement(interp, resultObj, obj);
+        ObjAppendElement(interp, resultObj, obj);
         result = TCL_OK;
         break;
 
@@ -505,11 +505,11 @@ int Twapi_GetTokenInformation(
 
     case TokenSessionReference:
     case TokenDefaultDacl:
-        Tcl_SetResult(interp, "Unsupported token information type", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unsupported token information type");
         break;
 
     default:
-        Tcl_SetResult(interp, "Unknown token information type", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown token information type");
         break;
     }
 
@@ -520,7 +520,7 @@ int Twapi_GetTokenInformation(
      *  case, resultObj will be freed if non-NULL
      */
     if (result == TCL_OK)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
     else if (resultObj)
         Twapi_FreeNewTclObj(resultObj);
 
@@ -531,7 +531,7 @@ int Twapi_GetTokenInformation(
 }
 
 int Twapi_AdjustTokenPrivileges(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     HANDLE tokenH,
     BOOL   disableAll,
     TOKEN_PRIVILEGES *tokprivP
@@ -539,13 +539,13 @@ int Twapi_AdjustTokenPrivileges(
 {
     BOOL ret;
     Tcl_Obj *objP;
-    Tcl_Interp *interp = ticP->interp;
-    DWORD buf_size = 128;
-    void *bufP;
+    DWORD buf_size;
+    void *bufP = NULL;
     WIN32_ERROR winerr;
     TCL_RESULT tcl_result = TCL_ERROR;
 
-    bufP = MemLifoPushFrame(&ticP->memlifo, buf_size, &buf_size);
+    buf_size = 128;             /* TBD - instrument */
+    bufP = TwapiAlloc(buf_size);
     ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
                                 buf_size,
                                 (PTOKEN_PRIVILEGES) bufP, &buf_size);
@@ -553,7 +553,8 @@ int Twapi_AdjustTokenPrivileges(
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             /* Retry with larger buffer */
-            bufP = MemLifoAlloc(&ticP->memlifo, buf_size, NULL);
+            TwapiFree(bufP);
+            bufP = TwapiAlloc(buf_size);
             ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
                                         buf_size,
                                         (PTOKEN_PRIVILEGES) bufP, &buf_size);
@@ -561,7 +562,7 @@ int Twapi_AdjustTokenPrivileges(
         if (!ret) {
             /* No joy.*/
             winerr = GetLastError();
-            MemLifoPopFrame(&ticP->memlifo);
+            TwapiFree(bufP);
             return Twapi_AppendSystemError(interp, winerr);
         }
     }
@@ -579,14 +580,15 @@ int Twapi_AdjustTokenPrivileges(
     } else {
         objP = ObjFromTOKEN_PRIVILEGES(interp, (PTOKEN_PRIVILEGES) bufP);
         if (objP) {
-            Tcl_SetObjResult(interp, objP);
+            TwapiSetObjResult(interp, objP);
             tcl_result = TCL_OK;
         }
         else {
             /* interp->result should already contain the error */
         }
     }
-    MemLifoPopFrame(&ticP->memlifo);
+    if (bufP)
+        TwapiFree(bufP);
     return tcl_result;
 }
 
@@ -604,11 +606,10 @@ int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp)
     if (resultObj == NULL)
         return TCL_ERROR;
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 }
 
-#ifndef TWAPI_LEAN
 int Twapi_GetNamedSecurityInfo (
     Tcl_Interp *interp,
     LPWSTR name,
@@ -626,21 +627,17 @@ int Twapi_GetNamedSecurityInfo (
 
     error = GetNamedSecurityInfoW(name, type, wanted_fields,
                                   &ownerP, &groupP, &daclP, &saclP, &secdP);
-    if (error) {
-        TwapiReturnSystemError(interp);
-        return TCL_ERROR;
-    }
+    if (error)
+        return Twapi_AppendSystemError(interp, error);
 
     resultObj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
     LocalFree(secdP);
     if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 int Twapi_GetSecurityInfo (
     Tcl_Interp *interp,
     HANDLE h,
@@ -658,20 +655,16 @@ int Twapi_GetSecurityInfo (
 
     error = GetSecurityInfo(h, type, wanted_fields,
                             &ownerP, &groupP, &daclP, &saclP, &secdP);
-    if (error) {
-        TwapiReturnSystemError(interp);
-        return TCL_ERROR;
-    }
+    if (error)
+        Twapi_AppendSystemError(interp, error);
 
     resultObj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
     LocalFree(secdP);
     if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 // TBD - should this be in account.c ?
 int Twapi_LsaEnumerateAccountRights(
     Tcl_Interp *interp,
@@ -687,14 +680,13 @@ int Twapi_LsaEnumerateAccountRights(
 
     ntstatus = LsaEnumerateAccountRights(policyH, sidP, &rightsP, &count);
     if (ntstatus != STATUS_SUCCESS) {
-        Tcl_SetResult(interp, "Could not enumerate account rights: ",
-                      TCL_STATIC);
+        TwapiSetStaticResult(interp, "Could not enumerate account rights: ");
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     for (i = 0; i < count; ++i) {
-        result = Tcl_ListObjAppendElement(
+        result = ObjAppendElement(
             interp,
             resultObj,
             ObjFromLSA_UNICODE_STRING(&rightsP[i])
@@ -705,13 +697,11 @@ int Twapi_LsaEnumerateAccountRights(
     LsaFreeMemory(rightsP);
 
     if (result == TCL_OK)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
 
     return result;
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 // TBD - should this be in account.c ?
 int Twapi_LsaEnumerateAccountsWithUserRight(
     Tcl_Interp *interp,
@@ -728,35 +718,31 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
     ntstatus = LsaEnumerateAccountsWithUserRight(policyH, rightP,
                                                  (void **) &buf, &count);
     if (ntstatus != STATUS_SUCCESS) {
-        Tcl_SetResult(interp, "Could not enumerate accounts with specified privileges: ",
-                      TCL_STATIC);
+        TwapiSetStaticResult(interp, "Could not enumerate accounts with specified privileges: ");
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     for (i = 0; i < count; ++i) {
         Tcl_Obj *objP;
         result = ObjFromSID(interp, buf[i].Sid, &objP);
         if (result != TCL_OK)
             break;              /* Break loop on error */
 
-        result = Tcl_ListObjAppendElement(interp, resultObj, objP);
+        result = ObjAppendElement(interp, resultObj, objP);
         if (result != TCL_OK)
             break;              /* Break loop on error */
     }
     LsaFreeMemory(buf);
 
     if (result == TCL_OK)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
 
     return result;
 
 
 }
-#endif // TWAPI_LEAN
 
-
-#ifndef TWAPI_LEAN
 /* Note LsaEnumerateLogonSessions is present on Win2k too although not documented*/
 int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp)
 {
@@ -771,21 +757,19 @@ int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp)
                                        TwapiNTSTATUSToError(status));
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     for (i = 0; i < count; ++i) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  ObjFromLUID(&luids[i]));
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
 
     LsaFreeReturnBuffer(luids);
 
     return TCL_OK;
 }
-#endif // TWAPI_LEAN
 
-#ifndef TWAPI_LEAN
 int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     NTSTATUS status;
@@ -793,8 +777,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     Tcl_Obj *resultObj;
     LUID    luid;
 
-    if (objc != 1 ||
-        ObjToLUID(interp, objv[0], &luid) != TCL_OK)
+    if (objc != 1 || ObjToLUID(interp, objv[0], &luid) != TCL_OK)
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
 
     status = LsaGetLogonSessionData(&luid, &sessionP);
@@ -811,7 +794,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         return TCL_OK;
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
 
     Twapi_APPEND_LUID_FIELD_TO_LIST(interp, resultObj, sessionP, LogonId);
     Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp, resultObj, sessionP, UserName);
@@ -821,7 +804,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, sessionP, Session);
     Twapi_APPEND_PSID_FIELD_TO_LIST(interp, resultObj, sessionP, Sid);
     Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, resultObj, sessionP, LogonTime);
-    /* Some fields are not present on Windows 2000 */
+    /* Some fields are not present on Windows 2000 - TBD */
     if (sessionP->Size > offsetof(struct _SECURITY_LOGON_SESSION_DATA, LogonServer)) {
         Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp, resultObj, sessionP, LogonServer);
     }
@@ -832,12 +815,11 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp, resultObj, sessionP, Upn);
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
 
     LsaFreeReturnBuffer(sessionP);
     return TCL_OK;
 }
-#endif // TWAPI_LEAN
 
 
 #if 0
@@ -847,9 +829,8 @@ BOOL IsUserAnAdmin();
 #endif
 
 
-static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2, s3;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
@@ -871,23 +852,21 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     ULONG  lsa_count;
     LSA_UNICODE_STRING *lsa_strings;
     TwapiResult result;
-
+    int func = (int) clientdata;
 
     /* These will be freed at end of routine if not NULL! */
     daclP = saclP = NULL;
     osidP = gsidP = NULL;
 
     /* secdP is allocated multiple ways so no common free */
-   secdP = NULL;
-
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    secdP = NULL;
 
     result.type = TRT_BADFUNCTIONCODE;
 
+    --objc;
+    ++objv;
     if (func < 100) {
-        if (objc != 2)
+        if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 1:
@@ -896,11 +875,12 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             return Twapi_InitializeSecurityDescriptor(interp);
         }
     } else if (func < 200) {
-        if (objc != 3)
+        /* Single arg */
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 101:
-            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[2], &secdP) != TCL_OK)
+            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[0], &secdP) != TCL_OK)
                 return TCL_ERROR;
             // Note secdP may be NULL
             result.type = TRT_BOOL;
@@ -909,29 +889,30 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
                 TwapiFreeSECURITY_DESCRIPTOR(secdP);
             break;
         case 102:
-            if (ObjToPACL(interp, objv[2], &daclP) != TCL_OK)
+            if (ObjToPACL(interp, objv[0], &daclP) != TCL_OK)
                 return TCL_ERROR;
             // Note aclP may me NULL even on TCL_OK
             result.type = TRT_BOOL;
             result.value.bval = daclP ? IsValidAcl(daclP) : 0;
             break;
         case 103:
-            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            CHECK_INTEGER_OBJ(interp, dw, objv[0]);
             result.value.ival = ImpersonateSelf(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         case 104:
-            if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+            if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival = ImpersonateLoggedOnUser(h);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         }
     } else if (func < 500) {
-        if (objc != 4)
+        /* Two string args */
+        if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s = Tcl_GetUnicode(objv[2]);
-        s2 = Tcl_GetUnicode(objv[3]);
+        s = Tcl_GetUnicode(objv[0]);
+        s2 = Tcl_GetUnicode(objv[1]);
         switch (func) {
         case 401:
             result.value.unicode.len = ARRAYSIZE(u.buf);
@@ -950,7 +931,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         }
     } else if (func < 1000) {
         /* Args - string, dw, optional dw2 */
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETINT(dw), ARGUSEDEFAULT,
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -973,7 +954,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         }
     } else if (func < 2000) {
         /* Args - handle, int, optional int */
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETINT(dw), ARGUSEDEFAULT,
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1006,23 +987,23 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             break;
         }
     } else if (func < 4000) {
-        if (objc != 4)
+        if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 3002: // SetThreadToken
-            if (ObjToHANDLE(interp, objv[3], &h2) != TCL_OK)
+            if (ObjToHANDLE(interp, objv[1], &h2) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetThreadToken(h, h2);
             break;
         case 3003:
-            ObjToLSA_UNICODE_STRING(objv[3], &u.lsa_ustr);
+            ObjToLSA_UNICODE_STRING(objv[1], &u.lsa_ustr);
             return Twapi_LsaEnumerateAccountsWithUserRight(interp, h,
                                                            &u.lsa_ustr);
         case 3004:
-            if (ObjToSID_AND_ATTRIBUTES(interp, objv[3], &u.ttml.Label) != TCL_OK)
+            if (ObjToSID_AND_ATTRIBUTES(interp, objv[1], &u.ttml.Label) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetTokenInformation(h,
@@ -1038,7 +1019,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
          */
         result.type = TRT_TCL_RESULT;
         result.value.ival =
-            TwapiGetArgs(interp, objc-2, objv+2,
+            TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETVAR(osidP, ObjToPSID),
                          ARGEND);
         if (result.value.ival == TCL_OK) {
@@ -1070,7 +1051,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         /* Arbitrary args */
         switch (func) {
         case 10014:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -1082,13 +1063,13 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             
         case 10015:
             result.value.ival =
-                TwapiGetArgs(interp, objc-2, objv+2,
+                TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETVAR(osidP, ObjToPSID),
                              ARGSKIP, ARGEND);
             result.type = TRT_TCL_RESULT;
             if (result.value.ival != TCL_OK)
                 break;
-            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[4],
+            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[2],
                                                     &lsa_strings, &lsa_count);
             if (result.value.ival != TCL_OK)
                 break;
@@ -1101,13 +1082,13 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
         case 10016:
             result.value.ival =
-                TwapiGetArgs(interp, objc-2, objv+2,
+                TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETVAR(osidP, ObjToPSID),
                              GETINT(dw), ARGSKIP, ARGEND);
             result.type = TRT_TCL_RESULT;
             if (result.value.ival != TCL_OK)
                 break;
-            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[5],
+            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[3],
                                                     &lsa_strings, &lsa_count);
             if (result.value.ival != TCL_OK)
                 break;
@@ -1119,7 +1100,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             break;
 
         case 10017:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(secdP, ObjToPSECURITY_DESCRIPTOR),
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK) {
                 if (secdP)
@@ -1142,10 +1123,10 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         case 10018: // UNUSED
             break;
         case 10019:
-            return Twapi_LsaGetLogonSessionData(interp, objc-2, objv+2);
+            return Twapi_LsaGetLogonSessionData(interp, objc, objv);
         case 10020: // SetNamedSecurityInfo
             /* Note even in case of errors, sids and acls might have been alloced */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), GETINT(dw), GETINT(dw2),
                              GETVAR(osidP, ObjToPSID),
                              GETVAR(gsidP, ObjToPSID),
@@ -1161,7 +1142,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             }
             break;
         case 10021: // LookupPrivilegeName
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), GETVAR(luid, ObjToLUID),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -1179,7 +1160,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         case 10022:
             /* Init to NULL as they may be partially init'ed on error
                and have to be freed */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETINT(dw), GETINT(dw2),
                              GETVAR(osidP, ObjToPSID),
                              GETVAR(gsidP, ObjToPSID),
@@ -1197,7 +1178,7 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
         case 10023: // DuplicateTokenEx
             secattrP = NULL;        /* Even on error, it might be filled */
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETINT(dw),
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                              GETINT(dw2), GETINT(dw3),
@@ -1214,18 +1195,18 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
             break;
 
         case 10024: // AdjustTokenPrivileges
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETBOOL(dw),
                              GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_TCL_RESULT;
             result.value.ival = Twapi_AdjustTokenPrivileges(
-                ticP, h, dw, u.tokprivsP);
+                interp, h, dw, u.tokprivsP);
             TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
             break;
         case 10025: // PrivilegeCheck
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h),
                              GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
                              GETBOOL(dw),
@@ -1251,51 +1232,44 @@ static int Twapi_SecurityCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
 static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::SecCall", Twapi_SecurityCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s SecCallDispatch[] = {
+        DEFINE_FNCODE_CMD(LsaEnumerateLogonSessions, 1),
+        DEFINE_FNCODE_CMD(Twapi_InitializeSecurityDescriptor, 2),
+        DEFINE_FNCODE_CMD(IsValidSecurityDescriptor, 101),
+        DEFINE_FNCODE_CMD(IsValidAcl, 102),
+        DEFINE_FNCODE_CMD(ImpersonateSelf, 103),
+        DEFINE_FNCODE_CMD(ImpersonateLoggedOnUser, 104),
+        DEFINE_FNCODE_CMD(LookupPrivilegeDisplayName, 401),
+        DEFINE_FNCODE_CMD(LookupPrivilegeValue, 402),
+        DEFINE_FNCODE_CMD(ConvertStringSecurityDescriptorToSecurityDescriptor, 501),
+        DEFINE_FNCODE_CMD(GetNamedSecurityInfo, 502),
+        DEFINE_FNCODE_CMD(GetSecurityInfo, 1003),
+        DEFINE_FNCODE_CMD(OpenThreadToken, 1004),
+        DEFINE_FNCODE_CMD(OpenProcessToken, 1005),
+        DEFINE_FNCODE_CMD(GetTokenInformation, 1006),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenVirtualizationEnabled, 1007),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenMandatoryPolicy, 1008),
+        DEFINE_FNCODE_CMD(SetThreadToken, 3002),
+        DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountsWithUserRight, 3003),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenIntegrityLevel, 3004),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenPrimaryGroup, 4001),
+        DEFINE_FNCODE_CMD(CheckTokenMembership, 4002),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
+        DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
+        DEFINE_FNCODE_CMD(LogonUser, 10014),
+        DEFINE_FNCODE_CMD(LsaAddAccountRights, 10015),
+        DEFINE_FNCODE_CMD(LsaRemoveAccountRights, 10016),
+        DEFINE_FNCODE_CMD(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017),
+        DEFINE_FNCODE_CMD(LsaGetLogonSessionData, 10019),
+        DEFINE_FNCODE_CMD(SetNamedSecurityInfo, 10020),
+        DEFINE_FNCODE_CMD(LookupPrivilegeName, 10021),
+        DEFINE_FNCODE_CMD(SetSecurityInfo, 10022),
+        DEFINE_FNCODE_CMD(DuplicateTokenEx, 10023),
+        DEFINE_FNCODE_CMD(Twapi_AdjustTokenPrivileges, 10024),
+        DEFINE_FNCODE_CMD(Twapi_PrivilegeCheck, 10025),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::SecCall", # code_); \
-    } while (0);
-
-    CALL_(LsaEnumerateLogonSessions, 1);
-    CALL_(Twapi_InitializeSecurityDescriptor, 2);
-    CALL_(IsValidSecurityDescriptor, 101);
-    CALL_(IsValidAcl, 102);
-    CALL_(ImpersonateSelf, 103);
-    CALL_(ImpersonateLoggedOnUser, 104);
-    CALL_(LookupPrivilegeDisplayName, 401);
-    CALL_(LookupPrivilegeValue, 402);
-    CALL_(ConvertStringSecurityDescriptorToSecurityDescriptor, 501);
-    CALL_(GetNamedSecurityInfo, 502);
-    CALL_(GetSecurityInfo, 1003);
-    CALL_(OpenThreadToken, 1004);
-    CALL_(OpenProcessToken, 1005);
-    CALL_(GetTokenInformation, 1006);
-    CALL_(Twapi_SetTokenVirtualizationEnabled, 1007);
-    CALL_(Twapi_SetTokenMandatoryPolicy, 1008);
-    CALL_(SetThreadToken, 3002);
-    CALL_(Twapi_LsaEnumerateAccountsWithUserRight, 3003);
-    CALL_(Twapi_SetTokenIntegrityLevel, 3004);
-    CALL_(Twapi_SetTokenPrimaryGroup, 4001);
-    CALL_(CheckTokenMembership, 4002);
-    CALL_(Twapi_SetTokenOwner, 4003);
-    CALL_(Twapi_LsaEnumerateAccountRights, 4004);
-    CALL_(LogonUser, 10014);
-    CALL_(LsaAddAccountRights, 10015);
-    CALL_(LsaRemoveAccountRights, 10016);
-    CALL_(ConvertSecurityDescriptorToStringSecurityDescriptor, 10017);
-    CALL_(LsaGetLogonSessionData, 10019);
-    CALL_(SetNamedSecurityInfo, 10020);
-    CALL_(LookupPrivilegeName, 10021);
-    CALL_(SetSecurityInfo, 10022);
-    CALL_(DuplicateTokenEx, 10023);
-    CALL_(Twapi_AdjustTokenPrivileges, 10024);
-    CALL_(Twapi_PrivilegeCheck, 10025);
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(SecCallDispatch), SecCallDispatch, Twapi_SecCallObjCmd);
 
     return TCL_OK;
 }
