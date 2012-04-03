@@ -485,6 +485,7 @@ extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
 #define TWAPI_TCL85_INT_PLAT_STUB(fn_) (((struct TwapiTcl85IntPlatStubs *)tclIntPlatStubsPtr)->fn_)
 
 
+
 /*******************
  * Misc definitions
  *******************/
@@ -1401,5 +1402,32 @@ TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
 
 TWAPI_EXTERN Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP);
 TWAPI_EXTERN TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *, HANDLE, char *typestr);
+
+/*
+ * Definitions used for defining Tcl commands dispatched via a function code
+ * passed as ClientData
+ */
+struct fncode_dispatch_s {
+    const char *command_name;
+    int fncode;
+};
+#define DEFINE_FNCODE_CMD(fn_, code_)  {#fn_, code_}
+TWAPI_EXTERN void TwapiDefineFncodeCmds(Tcl_Interp *, int, struct fncode_dispatch_s *, TwapiTclObjCmd *);
+
+/* Commands that take a TwapiInterpContext as ClientData param */
+struct tic_dispatch_s {
+    char *command_name;
+    TwapiTclObjCmd *command_ptr;
+};
+#define DEFINE_TIC_CMD(fn_, cmdptr_) {#fn_, cmdptr_}
+TWAPI_EXTERN void TwapiDefineTicCmds(Tcl_Interp *, int, struct tic_dispatch_s *, TwapiInterpContext *ticP);
+
+/* Command that are defined as an alias */
+struct alias_dispatch_s {
+    const char *command_name;
+    char *fncode;
+};
+#define DEFINE_ALIAS_CMD(fn_, code_)  {#fn_, #code_}
+TWAPI_EXTERN void TwapiDefineAliasCmds(Tcl_Interp *, int, struct alias_dispatch_s *, const char *);
 
 #endif // TWAPI_H

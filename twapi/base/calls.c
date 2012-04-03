@@ -1368,229 +1368,213 @@ overrun:
     return TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
 }
 
-
-int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+void TwapiDefineFncodeCmds(Tcl_Interp *interp, int count,
+                                        struct fncode_dispatch_s *tabP, TwapiTclObjCmd *cmdfn)
 {
-    int i;
     Tcl_DString ds;
-
-    struct dispatch_table_s {
-        const char *command_name;
-        int fncode;
-    };
-#define MAKEFNCMD_(fn_, code_)  {#fn_, code_}
-    struct alias_table_s {
-        const char *command_name;
-        char *fncode;
-    };
-#define MAKEALIAS_(fn_, code_)  {#fn_, #code_}
-
-    /* Commands that take a TwapiInterpContext as ClientData param */
-    struct tic_dispatch_s {
-        char *command_name;
-        TwapiTclObjCmd *command_ptr;
-    };
-#define MAKETICCMD_(fn_, cmdptr_) {#fn_, cmdptr_}
-
-    static struct dispatch_table_s CallHDispatch[] = {
-        MAKEFNCMD_(WTSEnumerateProcesses, 1), // Kepp in base as commonly useful
-        MAKEFNCMD_(ReleaseMutex, 2),
-        MAKEFNCMD_(CloseHandle, 3),
-        MAKEFNCMD_(CastToHANDLE, 4),
-        MAKEFNCMD_(GlobalFree, 5),
-        MAKEFNCMD_(GlobalUnlock, 6),
-        MAKEFNCMD_(GlobalSize, 7),
-        MAKEFNCMD_(GlobalLock, 8),
-        MAKEFNCMD_(Twapi_MemLifoClose, 9),
-        MAKEFNCMD_(Twapi_MemLifoPopFrame, 10),
-        MAKEFNCMD_(SetEvent, 11),
-        MAKEFNCMD_(ResetEvent, 12),
-        MAKEFNCMD_(LsaClose, 13),
-        MAKEFNCMD_(GetHandleInformation, 14),
-        MAKEFNCMD_(FreeLibrary, 15),
-        MAKEFNCMD_(GetDevicePowerState, 16), // TBD - which module ?
-        MAKEFNCMD_(Twapi_MemLifoPushMark, 17),
-        MAKEFNCMD_(Twapi_MemLifoPopMark, 18),
-        MAKEFNCMD_(Twapi_MemLifoValidate, 19),
-        MAKEFNCMD_(Twapi_MemLifoDump, 20),
-
-        MAKEFNCMD_(ReleaseSemaphore, 1001),
-        MAKEFNCMD_(WaitForSingleObject, 1002),
-        MAKEFNCMD_(Twapi_MemLifoAlloc, 1003),
-        MAKEFNCMD_(Twapi_MemLifoPushFrame, 1004),
-
-        MAKEFNCMD_(SetHandleInformation, 2001), /* TBD - Tcl wrapper */
-        MAKEFNCMD_(Twapi_MemLifoExpandLast, 2002),
-        MAKEFNCMD_(Twapi_MemLifoShrinkLast, 2003),
-        MAKEFNCMD_(Twapi_MemLifoResizeLast, 2004),
-    };
-
-    static struct dispatch_table_s CallNoargsDispatch[] = {
-        MAKEFNCMD_(GetCurrentProcess, 1),
-        MAKEFNCMD_(GetVersionEx, 2),
-        MAKEFNCMD_(UuidCreateNil, 3),
-        MAKEFNCMD_(Twapi_GetInstallDir, 4),
-        MAKEFNCMD_(EnumWindows, 5),
-        MAKEFNCMD_(GetSystemWindowsDirectory, 6), /* TBD Tcl */
-        MAKEFNCMD_(GetWindowsDirectory, 7),       /* TBD Tcl */
-        MAKEFNCMD_(GetSystemDirectory, 8),        /* TBD Tcl */
-        MAKEFNCMD_(GetCurrentThreadId, 9),
-        MAKEFNCMD_(GetTickCount, 10),
-        MAKEFNCMD_(GetSystemTimeAsFileTime, 11),
-        MAKEFNCMD_(AllocateLocallyUniqueId, 12),
-        MAKEFNCMD_(LockWorkStation, 13),
-        MAKEFNCMD_(RevertToSelf, 14), /* Left in base module as it might be
-                                       used from multiple extensions */
-        MAKEFNCMD_(GetSystemPowerStatus, 15),
-        MAKEFNCMD_(DebugBreak, 16),
-        MAKEFNCMD_(GetDefaultPrinter, 17),         /* TBD Tcl */
-    };
-
-    static struct dispatch_table_s CallIntArgDispatch[] = {
-        MAKEFNCMD_(GetStdHandle, 1),
-        MAKEFNCMD_(UuidCreate, 2),
-        MAKEFNCMD_(GetUserNameEx, 3),
-        MAKEFNCMD_(Twapi_MapWindowsErrorToString, 4),
-        MAKEFNCMD_(Twapi_MemLifoInit, 5),
-        MAKEFNCMD_(GlobalDeleteAtom, 6), // TBD - tcl interface
-    };
-
-    static struct dispatch_table_s CallOneArgDispatch[] = {
-        MAKEFNCMD_(Twapi_AddressToPointer, 1008),
-        MAKEFNCMD_(IsValidSid, 1009),
-        MAKEFNCMD_(VariantTimeToSystemTime, 1010),
-        MAKEFNCMD_(SystemTimeToVariantTime, 1011),
-        MAKEFNCMD_(canonicalize_guid, 1012), // TBD Document
-        MAKEFNCMD_(Twapi_AppendLog, 1013),
-        MAKEFNCMD_(GlobalAddAtom, 1014), // TBD - Tcl interface
-        MAKEFNCMD_(is_valid_sid_syntax, 1015),
-        MAKEFNCMD_(FileTimeToSystemTime, 1016),
-        MAKEFNCMD_(SystemTimeToFileTime, 1017),
-        MAKEFNCMD_(GetWindowThreadProcessId, 1018),
-        MAKEFNCMD_(Twapi_IsValidGUID, 1019),
-        MAKEFNCMD_(ExpandEnvironmentStrings, 1020),
-        MAKEFNCMD_(free, 1021),
-    };
-
-    static struct dispatch_table_s CallArgsDispatch[] = {
-        MAKEFNCMD_(SystemParametersInfo, 10001),
-        MAKEFNCMD_(LookupAccountSid, 10002),
-        MAKEFNCMD_(LookupAccountName, 10003),
-        MAKEFNCMD_(NetGetDCName, 10004),
-        MAKEFNCMD_(AttachThreadInput, 10005),
-        MAKEFNCMD_(GlobalAlloc, 10006),
-        MAKEFNCMD_(LHashValOfName, 10007),
-        MAKEFNCMD_(DuplicateHandle, 10008),
-        MAKEFNCMD_(Tcl_GetChannelHandle, 10009),
-        MAKEFNCMD_(SetStdHandle, 10010),
-        MAKEFNCMD_(LoadLibraryEx, 10011),
-        MAKEFNCMD_(CreateFile, 10012),
-        MAKEFNCMD_(Twapi_SourceResource, 10013),
-        MAKEFNCMD_(FindWindowEx, 10014),
-        MAKEFNCMD_(LsaQueryInformationPolicy, 10015),
-        MAKEFNCMD_(Twapi_LsaOpenPolicy, 10016),
-        MAKEFNCMD_(GetWindowLongPtr, 10017),
-        MAKEFNCMD_(PostMessage, 10018),
-        MAKEFNCMD_(SendNotifyMessage, 10019),
-        MAKEFNCMD_(SendMessageTimeout, 10020),
-        MAKEFNCMD_(SetWindowLongPtr, 10021),
-        MAKEFNCMD_(DsGetDcName, 10022),
-        MAKEFNCMD_(FormatMessageFromModule, 10023),
-        MAKEFNCMD_(FormatMessageFromString, 10024),
-        MAKEFNCMD_(win32_error, 10025),
-        MAKEFNCMD_(CreateMutex, 10026),
-        MAKEFNCMD_(OpenMutex, 10027),
-        MAKEFNCMD_(OpenSemaphore, 10028), /* TBD - Tcl wrapper */
-        MAKEFNCMD_(CreateSemaphore, 10029), /* TBD - Tcl wrapper */
-        MAKEFNCMD_(malloc, 10030),        /* TBD - document, change to memalloc */
-        MAKEFNCMD_(Twapi_IsEqualPtr, 10031),
-        MAKEFNCMD_(Twapi_IsNullPtr, 10032),
-        MAKEFNCMD_(Twapi_IsPtr, 10033),
-        MAKEFNCMD_(CreateEvent, 10034),
-        MAKEFNCMD_(IsEqualGUID, 10035), // Tcl
-    };
-
-    static struct alias_table_s AliasDispatch[] = {
-        MAKEALIAS_(Twapi_GetAtomStats, 1),
-        MAKEALIAS_(TwapiId, 2),
-        MAKEALIAS_(Twapi_GetNotificationWindow, 3),
-
-        MAKEALIAS_(Twapi_UnregisterWaitOnHandle, 4),
-        MAKEALIAS_(atomize, 5),
-
-        MAKEALIAS_(TranslateName, 6),
-        MAKEALIAS_(Twapi_RegisterWaitOnHandle, 7),
-    };
-
-    struct tic_dispatch_s TicDispatch[] = {
-        MAKETICCMD_(Call, Twapi_CallObjCmd),
-        MAKETICCMD_(parseargs, Twapi_ParseargsObjCmd),
-        MAKETICCMD_(trap, Twapi_TryObjCmd),
-        MAKETICCMD_(try, Twapi_TryObjCmd),
-        MAKETICCMD_(kl_get, Twapi_KlGetObjCmd),
-        MAKETICCMD_(twine, Twapi_TwineObjCmd),
-        MAKETICCMD_(recordarray, Twapi_RecordArrayObjCmd),
-        MAKETICCMD_(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
-        MAKETICCMD_(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),
-        MAKETICCMD_(Twapi_WriteMemory, Twapi_WriteMemoryObjCmd),
-        MAKETICCMD_(tclcast, Twapi_InternalCastObjCmd),
-        MAKETICCMD_(tcltype, Twapi_GetTclTypeObjCmd),
-        MAKETICCMD_(Twapi_EnumPrinters_Level4, Twapi_EnumPrintersLevel4ObjCmd),
-    };
-
-
-
-
-#undef MAKEFNCMD_
-#undef MAKEALIAS_
-#undef MAKETICPCMD_
-
+    
     Tcl_DStringInit(&ds);
     Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
 
-    for (i = 0; i < ARRAYSIZE(CallHDispatch); ++i) {
+    while (count--) {
         Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, CallHDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), Twapi_CallHObjCmd, (ClientData) CallHDispatch[i].fncode, NULL);
+        Tcl_DStringAppend(&ds, tabP->command_name, -1);
+        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), cmdfn, (ClientData) tabP->fncode, NULL);
+        ++tabP;
     }
+}
 
-    for (i = 0; i < ARRAYSIZE(CallNoargsDispatch); ++i) {
+
+void TwapiDefineTicCmds(Tcl_Interp *interp, int count,
+                                     struct tic_dispatch_s *tabP,
+                                     TwapiInterpContext *ticP
+    )
+{
+    Tcl_DString ds;
+    
+    Tcl_DStringInit(&ds);
+    Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
+
+    while (count--) {
         Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, CallNoargsDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), Twapi_CallNoargsObjCmd, (ClientData) CallNoargsDispatch[i].fncode, NULL);
+        Tcl_DStringAppend(&ds, tabP->command_name, -1);
+        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), tabP->command_ptr, (ClientData) ticP, NULL);
+        ++tabP;
     }
+}
 
-    for (i = 0; i < ARRAYSIZE(CallIntArgDispatch); ++i) {
+void TwapiDefineAliasCmds(Tcl_Interp *interp, int count, struct alias_dispatch_s *tabP, const char *aliascmd)
+{
+    Tcl_DString ds;
+    
+    Tcl_DStringInit(&ds);
+    Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
+
+    while (count--) {
         Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, CallIntArgDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), Twapi_CallIntArgObjCmd, (ClientData) CallIntArgDispatch[i].fncode, NULL);
+        Tcl_DStringAppend(&ds, tabP->command_name, -1);
+        Tcl_CreateAlias(interp, Tcl_DStringValue(&ds), interp, aliascmd, 1, &tabP->fncode);
+        ++tabP;
     }
+}
 
-    for (i = 0; i < ARRAYSIZE(CallOneArgDispatch); ++i) {
-        Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, CallOneArgDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), Twapi_CallOneArgObjCmd, (ClientData) CallOneArgDispatch[i].fncode, NULL);
-    }
+int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+{
+    static struct fncode_dispatch_s CallHDispatch[] = {
+        DEFINE_FNCODE_CMD(WTSEnumerateProcesses, 1), // Kepp in base as commonly useful
+        DEFINE_FNCODE_CMD(ReleaseMutex, 2),
+        DEFINE_FNCODE_CMD(CloseHandle, 3),
+        DEFINE_FNCODE_CMD(CastToHANDLE, 4),
+        DEFINE_FNCODE_CMD(GlobalFree, 5),
+        DEFINE_FNCODE_CMD(GlobalUnlock, 6),
+        DEFINE_FNCODE_CMD(GlobalSize, 7),
+        DEFINE_FNCODE_CMD(GlobalLock, 8),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoClose, 9),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoPopFrame, 10),
+        DEFINE_FNCODE_CMD(SetEvent, 11),
+        DEFINE_FNCODE_CMD(ResetEvent, 12),
+        DEFINE_FNCODE_CMD(LsaClose, 13),
+        DEFINE_FNCODE_CMD(GetHandleInformation, 14),
+        DEFINE_FNCODE_CMD(FreeLibrary, 15),
+        DEFINE_FNCODE_CMD(GetDevicePowerState, 16), // TBD - which module ?
+        DEFINE_FNCODE_CMD(Twapi_MemLifoPushMark, 17),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoPopMark, 18),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoValidate, 19),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoDump, 20),
 
-    for (i = 0; i < ARRAYSIZE(CallArgsDispatch); ++i) {
-        Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, CallArgsDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), Twapi_CallArgsObjCmd, (ClientData) CallArgsDispatch[i].fncode, NULL);
-    }
+        DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
+        DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoAlloc, 1003),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoPushFrame, 1004),
 
-    for (i = 0; i < ARRAYSIZE(AliasDispatch); ++i) {
-        Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, AliasDispatch[i].command_name, -1);
-        Tcl_CreateAlias(interp, Tcl_DStringValue(&ds), interp, "twapi::Call", 1, &AliasDispatch[i].fncode);
-    }
+        DEFINE_FNCODE_CMD(SetHandleInformation, 2001), /* TBD - Tcl wrapper */
+        DEFINE_FNCODE_CMD(Twapi_MemLifoExpandLast, 2002),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoShrinkLast, 2003),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoResizeLast, 2004),
+    };
 
-    for (i = 0; i < ARRAYSIZE(TicDispatch); ++i) {
-        Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
-        Tcl_DStringAppend(&ds, TicDispatch[i].command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), TicDispatch[i].command_ptr, (ClientData) ticP, NULL);
-    }
+    static struct fncode_dispatch_s CallNoargsDispatch[] = {
+        DEFINE_FNCODE_CMD(GetCurrentProcess, 1),
+        DEFINE_FNCODE_CMD(GetVersionEx, 2),
+        DEFINE_FNCODE_CMD(UuidCreateNil, 3),
+        DEFINE_FNCODE_CMD(Twapi_GetInstallDir, 4),
+        DEFINE_FNCODE_CMD(EnumWindows, 5),
+        DEFINE_FNCODE_CMD(GetSystemWindowsDirectory, 6), /* TBD Tcl */
+        DEFINE_FNCODE_CMD(GetWindowsDirectory, 7),       /* TBD Tcl */
+        DEFINE_FNCODE_CMD(GetSystemDirectory, 8),        /* TBD Tcl */
+        DEFINE_FNCODE_CMD(GetCurrentThreadId, 9),
+        DEFINE_FNCODE_CMD(GetTickCount, 10),
+        DEFINE_FNCODE_CMD(GetSystemTimeAsFileTime, 11),
+        DEFINE_FNCODE_CMD(AllocateLocallyUniqueId, 12),
+        DEFINE_FNCODE_CMD(LockWorkStation, 13),
+        DEFINE_FNCODE_CMD(RevertToSelf, 14), /* Left in base module as it might be
+                                       used from multiple extensions */
+        DEFINE_FNCODE_CMD(GetSystemPowerStatus, 15),
+        DEFINE_FNCODE_CMD(DebugBreak, 16),
+        DEFINE_FNCODE_CMD(GetDefaultPrinter, 17),         /* TBD Tcl */
+    };
 
-    Tcl_DStringFree(&ds);
+    static struct fncode_dispatch_s CallIntArgDispatch[] = {
+        DEFINE_FNCODE_CMD(GetStdHandle, 1),
+        DEFINE_FNCODE_CMD(UuidCreate, 2),
+        DEFINE_FNCODE_CMD(GetUserNameEx, 3),
+        DEFINE_FNCODE_CMD(Twapi_MapWindowsErrorToString, 4),
+        DEFINE_FNCODE_CMD(Twapi_MemLifoInit, 5),
+        DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
+    };
+
+    static struct fncode_dispatch_s CallOneArgDispatch[] = {
+        DEFINE_FNCODE_CMD(Twapi_AddressToPointer, 1008),
+        DEFINE_FNCODE_CMD(IsValidSid, 1009),
+        DEFINE_FNCODE_CMD(VariantTimeToSystemTime, 1010),
+        DEFINE_FNCODE_CMD(SystemTimeToVariantTime, 1011),
+        DEFINE_FNCODE_CMD(canonicalize_guid, 1012), // TBD Document
+        DEFINE_FNCODE_CMD(Twapi_AppendLog, 1013),
+        DEFINE_FNCODE_CMD(GlobalAddAtom, 1014), // TBD - Tcl interface
+        DEFINE_FNCODE_CMD(is_valid_sid_syntax, 1015),
+        DEFINE_FNCODE_CMD(FileTimeToSystemTime, 1016),
+        DEFINE_FNCODE_CMD(SystemTimeToFileTime, 1017),
+        DEFINE_FNCODE_CMD(GetWindowThreadProcessId, 1018),
+        DEFINE_FNCODE_CMD(Twapi_IsValidGUID, 1019),
+        DEFINE_FNCODE_CMD(ExpandEnvironmentStrings, 1020),
+        DEFINE_FNCODE_CMD(free, 1021),
+    };
+
+    static struct fncode_dispatch_s CallArgsDispatch[] = {
+        DEFINE_FNCODE_CMD(SystemParametersInfo, 10001),
+        DEFINE_FNCODE_CMD(LookupAccountSid, 10002),
+        DEFINE_FNCODE_CMD(LookupAccountName, 10003),
+        DEFINE_FNCODE_CMD(NetGetDCName, 10004),
+        DEFINE_FNCODE_CMD(AttachThreadInput, 10005),
+        DEFINE_FNCODE_CMD(GlobalAlloc, 10006),
+        DEFINE_FNCODE_CMD(LHashValOfName, 10007),
+        DEFINE_FNCODE_CMD(DuplicateHandle, 10008),
+        DEFINE_FNCODE_CMD(Tcl_GetChannelHandle, 10009),
+        DEFINE_FNCODE_CMD(SetStdHandle, 10010),
+        DEFINE_FNCODE_CMD(LoadLibraryEx, 10011),
+        DEFINE_FNCODE_CMD(CreateFile, 10012),
+        DEFINE_FNCODE_CMD(Twapi_SourceResource, 10013),
+        DEFINE_FNCODE_CMD(FindWindowEx, 10014),
+        DEFINE_FNCODE_CMD(LsaQueryInformationPolicy, 10015),
+        DEFINE_FNCODE_CMD(Twapi_LsaOpenPolicy, 10016),
+        DEFINE_FNCODE_CMD(GetWindowLongPtr, 10017),
+        DEFINE_FNCODE_CMD(PostMessage, 10018),
+        DEFINE_FNCODE_CMD(SendNotifyMessage, 10019),
+        DEFINE_FNCODE_CMD(SendMessageTimeout, 10020),
+        DEFINE_FNCODE_CMD(SetWindowLongPtr, 10021),
+        DEFINE_FNCODE_CMD(DsGetDcName, 10022),
+        DEFINE_FNCODE_CMD(FormatMessageFromModule, 10023),
+        DEFINE_FNCODE_CMD(FormatMessageFromString, 10024),
+        DEFINE_FNCODE_CMD(win32_error, 10025),
+        DEFINE_FNCODE_CMD(CreateMutex, 10026),
+        DEFINE_FNCODE_CMD(OpenMutex, 10027),
+        DEFINE_FNCODE_CMD(OpenSemaphore, 10028), /* TBD - Tcl wrapper */
+        DEFINE_FNCODE_CMD(CreateSemaphore, 10029), /* TBD - Tcl wrapper */
+        DEFINE_FNCODE_CMD(malloc, 10030),        /* TBD - document, change to memalloc */
+        DEFINE_FNCODE_CMD(Twapi_IsEqualPtr, 10031),
+        DEFINE_FNCODE_CMD(Twapi_IsNullPtr, 10032),
+        DEFINE_FNCODE_CMD(Twapi_IsPtr, 10033),
+        DEFINE_FNCODE_CMD(CreateEvent, 10034),
+        DEFINE_FNCODE_CMD(IsEqualGUID, 10035), // Tcl
+    };
+
+    static struct alias_dispatch_s AliasDispatch[] = {
+        DEFINE_ALIAS_CMD(Twapi_GetAtomStats, 1),
+        DEFINE_ALIAS_CMD(TwapiId, 2),
+        DEFINE_ALIAS_CMD(Twapi_GetNotificationWindow, 3),
+
+        DEFINE_ALIAS_CMD(Twapi_UnregisterWaitOnHandle, 4),
+        DEFINE_ALIAS_CMD(atomize, 5),
+
+        DEFINE_ALIAS_CMD(TranslateName, 6),
+        DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
+    };
+
+    struct tic_dispatch_s TicDispatch[] = {
+        DEFINE_TIC_CMD(Call, Twapi_CallObjCmd),
+        DEFINE_TIC_CMD(parseargs, Twapi_ParseargsObjCmd),
+        DEFINE_TIC_CMD(trap, Twapi_TryObjCmd),
+        DEFINE_TIC_CMD(try, Twapi_TryObjCmd),
+        DEFINE_TIC_CMD(kl_get, Twapi_KlGetObjCmd),
+        DEFINE_TIC_CMD(twine, Twapi_TwineObjCmd),
+        DEFINE_TIC_CMD(recordarray, Twapi_RecordArrayObjCmd),
+        DEFINE_TIC_CMD(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
+        DEFINE_TIC_CMD(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),
+        DEFINE_TIC_CMD(Twapi_WriteMemory, Twapi_WriteMemoryObjCmd),
+        DEFINE_TIC_CMD(tclcast, Twapi_InternalCastObjCmd),
+        DEFINE_TIC_CMD(tcltype, Twapi_GetTclTypeObjCmd),
+        DEFINE_TIC_CMD(Twapi_EnumPrinters_Level4, Twapi_EnumPrintersLevel4ObjCmd),
+    };
+
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallHDispatch), CallHDispatch, Twapi_CallHObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallNoargsDispatch), CallNoargsDispatch, Twapi_CallNoargsObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallIntArgDispatch), CallIntArgDispatch, Twapi_CallIntArgObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallOneArgDispatch), CallOneArgDispatch, Twapi_CallOneArgObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallArgsDispatch), CallArgsDispatch, Twapi_CallArgsObjCmd);
+
+    TwapiDefineTicCmds(interp, ARRAYSIZE(TicDispatch), TicDispatch, ticP);
+
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
 
     return TCL_OK;
 }
