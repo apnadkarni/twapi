@@ -18,8 +18,6 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
 BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
 BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
-int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
-                          LPWSTR username, LPWSTR profilepath);
 
 static int TwapiGetProfileSectionHelper(
     Tcl_Interp *interp,
@@ -63,29 +61,6 @@ static int TwapiGetProfileSectionHelper(
     return TCL_OK;
 }
 
-/* TBD - why is this LoadUserProfile in the apputil module ? Put it with createprocess or security or account */
-int Twapi_LoadUserProfile(
-    Tcl_Interp *interp,
-    HANDLE  hToken,
-    DWORD                 flags,
-    LPWSTR username,
-    LPWSTR profilepath
-    )
-{
-    PROFILEINFOW profileinfo;
-
-    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
-    profileinfo.dwSize        = sizeof(profileinfo);
-    profileinfo.lpUserName    = username;
-    profileinfo.lpProfilePath = profilepath;
-
-    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
-    return TCL_OK;
-}
 
 
 typedef BOOLEAN (WINAPI *Wow64EnableWow64FsRedirection_t)(BOOLEAN);
@@ -158,7 +133,6 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 {
     LPWSTR s, s2, s3, s4;
     DWORD dw;
-    HANDLE h, h2;
     TwapiResult result;
     LPVOID pv;
     int func = (int) clientdata;
@@ -167,10 +141,6 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     --objc;
     ++objv;
     switch (func) {
-    case 1: // TBD - move to account
-        result.type =
-            GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
-        break;
     case 2:
         result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
             TRT_LPVOID : TRT_GETLASTERROR;
@@ -207,18 +177,19 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
     case 7:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETINT(dw), GETWSTR(s),
-                         GETNULLIFEMPTY(s2),
+                         GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        return Twapi_LoadUserProfile(interp, h, dw, s, s2);
+        result.type = TRT_LONG;
+        result.value.ival = GetPrivateProfileIntW(s, s2, dw, s3);
+        break;
     case 8:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETHANDLE(h2),
+                         GETWSTR(s), GETWSTR(s2), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = UnloadUserProfile(h, h2);
+        result.type = TRT_LONG;
+        result.value.ival = GetProfileIntW(s, s2, dw);
         break;
     case 9:
     case 10:
@@ -226,7 +197,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         /* Single string arg */
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s = ObjFromUnicode(objv[0]);
+        s = ObjToUnicode(objv[0]);
         switch (func) {
         case 9:
             CHECK_INTEGER_OBJ(interp, dw, objv[0]);
@@ -246,22 +217,6 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return TwapiGetProfileSectionHelper(interp, s, s2);
-    case 13:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_LONG;
-        result.value.ival = GetPrivateProfileIntW(s, s2, dw, s3);
-        break;
-    case 14:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETWSTR(s2), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_LONG;
-        result.value.ival = GetProfileIntW(s, s2, dw);
-        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -271,20 +226,17 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 static int TwapiApputilInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s AppCallDispatch[] = {
-        DEFINE_FNCODE_CMD(GetProfileType, 1),
         DEFINE_FNCODE_CMD(Wow64DisableWow64FsRedirection, 2),
         DEFINE_FNCODE_CMD(GetCommandLineW, 3),
         DEFINE_FNCODE_CMD(Wow64RevertWow64FsRedirection, 4),
         DEFINE_FNCODE_CMD(WritePrivateProfileString, 5),
         DEFINE_FNCODE_CMD(WriteProfileString, 6),
-        DEFINE_FNCODE_CMD(Twapi_LoadUserProfile, 7),
-        DEFINE_FNCODE_CMD(UnloadUserProfile, 8),
+        DEFINE_FNCODE_CMD(GetPrivateProfileInt, 7),
+        DEFINE_FNCODE_CMD(GetProfileInt, 8),
         DEFINE_FNCODE_CMD(Wow64EnableWow64FsRedirection, 9),
         DEFINE_FNCODE_CMD(CommandLineToArgv, 10),
         DEFINE_FNCODE_CMD(GetPrivateProfileSectionNames, 11),
         DEFINE_FNCODE_CMD(GetPrivateProfileSection, 12),
-        DEFINE_FNCODE_CMD(GetPrivateProfileInt, 13),
-        DEFINE_FNCODE_CMD(GetProfileInt, 14),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AppCallDispatch), AppCallDispatch, Twapi_AppCallObjCmd);
