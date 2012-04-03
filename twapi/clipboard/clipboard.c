@@ -20,24 +20,24 @@ static DWORD TwapiClipboardCallbackFn(TwapiCallback *pcbP);
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
 {
     UINT clip_fmt;
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
-
-    Tcl_SetObjResult(interp, resultObj);
+    Tcl_Obj *resultObj = ObjNewList(0, NULL);
 
     clip_fmt = 0;
     while (1) {
         clip_fmt = EnumClipboardFormats(clip_fmt);
         if (clip_fmt)
-            Tcl_ListObjAppendElement(interp, resultObj, ObjFromDWORD(clip_fmt));
+            ObjAppendElement(interp, resultObj, ObjFromDWORD(clip_fmt));
         else {
             DWORD error = GetLastError();
             if (error != ERROR_SUCCESS) {
+                Tcl_DecrRefCount(resultObj);
                 return TwapiReturnSystemError(interp);
             }
             break;
         }
     }
-    return TCL_OK;
+
+    return TwapiSetObjResult(interp, resultObj);
 }
 
 /* Structure to hold callback data */
@@ -102,7 +102,7 @@ TCL_RESULT Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP)
     struct TwapiClipboardMonitorState *clip_stateP;
 
     if (ticP->module.data.hwnd) {
-        Tcl_SetResult(ticP->interp, "Clipboard monitoring is already in progress", TCL_STATIC);
+        TwapiSetStaticResult(ticP->interp, "Clipboard monitoring is already in progress");
         return TCL_ERROR;
     }
 
@@ -141,7 +141,7 @@ TCL_RESULT Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP)
  */
 static DWORD TwapiClipboardCallbackFn(TwapiCallback *cbP)
 {
-    Tcl_Obj *objP = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_clipboard_handler", -1);
+    Tcl_Obj *objP = ObjFromString(TWAPI_TCL_NAMESPACE "::_clipboard_handler");
     return TwapiEvalAndUpdateCallback(cbP, 1, &objP, TRT_EMPTY);
 }
 
@@ -160,6 +160,8 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
 
+    objc -= 2;
+    objv += 2;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
@@ -187,9 +189,9 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     case 8:
     case 9:
     case 10:
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 8:
             result.type = TRT_BOOL;
@@ -207,19 +209,19 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         }
         break;
     case 11:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HANDLE;
         result.value.hval = SetClipboardData(dw, h);
         break;
     case 12:
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         result.type = TRT_NONZERO_RESULT;
-        result.value.ival = RegisterClipboardFormatW(Tcl_GetUnicode(objv[2]));
+        result.value.ival = RegisterClipboardFormatW(Tcl_GetUnicode(objv[0]));
         break;
     case 13:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHWND(hwnd), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHWND(hwnd), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = OpenClipboard(hwnd);
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -232,31 +234,26 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 
 static int TwapiClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
+    static struct alias_dispatch_s ClipAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(Twapi_EnumClipboardFormats, 1),
+        DEFINE_ALIAS_CMD(CloseClipboard, 2),
+        DEFINE_ALIAS_CMD(EmptyClipboard, 3),
+        DEFINE_ALIAS_CMD(GetOpenClipboardWindow, 4),
+        DEFINE_ALIAS_CMD(GetClipboardOwner, 5),
+        DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStart, 6),
+        DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStop, 7),
+        DEFINE_ALIAS_CMD(IsClipboardFormatAvailable, 8),
+        DEFINE_ALIAS_CMD(GetClipboardData, 9),
+        DEFINE_ALIAS_CMD(GetClipboardFormatName, 10),
+        DEFINE_ALIAS_CMD(SetClipboardData, 11),
+        DEFINE_ALIAS_CMD(RegisterClipboardFormat, 12),
+        DEFINE_ALIAS_CMD(OpenClipboard, 13),
+    };
+
+
     Tcl_CreateObjCommand(interp, "twapi::ClipCall", Twapi_ClipboardCallObjCmd, ticP, NULL);
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ClipCall", # code_); \
-    } while (0);
-
-    CALL_(Twapi_EnumClipboardFormats, 1);
-    CALL_(CloseClipboard, 2);
-    CALL_(EmptyClipboard, 3);
-    CALL_(GetOpenClipboardWindow, 4);
-    CALL_(GetClipboardOwner, 5);
-    CALL_(Twapi_ClipboardMonitorStart, 6);
-    CALL_(Twapi_ClipboardMonitorStop, 7);
-    CALL_(IsClipboardFormatAvailable, 8);
-    CALL_(GetClipboardData, 9);
-    CALL_(GetClipboardFormatName, 10);
-    CALL_(SetClipboardData, 11);
-    CALL_(RegisterClipboardFormat, 12);
-    CALL_(OpenClipboard, 13);
-
-
-#undef CALL_
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(ClipAliasDispatch), ClipAliasDispatch, "twapi::ClipCall");
 
     return TCL_OK;
 }
