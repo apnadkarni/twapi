@@ -20,12 +20,9 @@ BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
 BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
 int Twapi_LoadUserProfile(Tcl_Interp *interp, HANDLE hToken, DWORD flags,
                           LPWSTR username, LPWSTR profilepath);
-int Twapi_GetPrivateProfileSection(TwapiInterpContext *ticP,
-                                   LPCWSTR app, LPCWSTR fn);
-int Twapi_GetPrivateProfileSectionNames(TwapiInterpContext *,LPCWSTR filename);
 
 static int TwapiGetProfileSectionHelper(
-    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
     LPCWSTR lpAppName, /* If NULL, section names are retrieved */
     LPCWSTR lpFileName /* If NULL, win.ini is used */
     )
@@ -34,7 +31,8 @@ static int TwapiGetProfileSectionHelper(
     DWORD  bufsz;
     DWORD  numchars;
 
-    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &bufsz);
+    bufsz = 4000;
+    bufP = TwapiAlloc(bufsz);
     while (1) {
         DWORD bufchars = bufsz/sizeof(WCHAR);
         if (lpAppName) {
@@ -51,38 +49,21 @@ static int TwapiGetProfileSectionHelper(
 
         if (numchars >= (bufchars-2)) {
             /* Buffer not big enough */
-            MemLifoPopFrame(&ticP->memlifo);
+            TwapiFree(bufP);
             bufsz = 2*bufsz;
-            bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
+            bufP = TwapiAlloc(bufsz);
         } else
             break;
     }
 
     if (numchars)
-        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(bufP, numchars+1));
+        TwapiSetObjResult(interp, ObjFromMultiSz(bufP, numchars+1));
 
-    MemLifoPopFrame(&ticP->memlifo);
-
+    TwapiFree(bufP);
     return TCL_OK;
 }
 
-int Twapi_GetPrivateProfileSection(
-    TwapiInterpContext *ticP,
-    LPCWSTR lpAppName,
-    LPCWSTR lpFileName
-    )
-{
-    return TwapiGetProfileSectionHelper(ticP, lpAppName, lpFileName);
-}
-
-int Twapi_GetPrivateProfileSectionNames(
-    TwapiInterpContext *ticP,
-    LPCWSTR lpFileName
-    )
-{
-    return TwapiGetProfileSectionHelper(ticP, NULL, lpFileName);
-}
-
+/* TBD - why is this LoadUserProfile in the apputil module ? Put it with createprocess or security or account */
 int Twapi_LoadUserProfile(
     Tcl_Interp *interp,
     HANDLE  hToken,
@@ -102,7 +83,7 @@ int Twapi_LoadUserProfile(
         return TwapiReturnSystemError(interp);
     }
 
-    Tcl_SetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+    TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
     return TCL_OK;
 }
 
@@ -162,33 +143,31 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
         return TwapiReturnSystemError(interp);
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     for (i= 0; i < argc; ++i) {
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
 
     GlobalFree(argv);
     return TCL_OK;
 }
 
-static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2, s3, s4;
     DWORD dw;
     HANDLE h, h2;
     TwapiResult result;
     LPVOID pv;
-
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    int func = (int) clientdata;
 
     result.type = TRT_BADFUNCTIONCODE;
+    --objc;
+    ++objv;
     switch (func) {
-    case 1:
+    case 1: // TBD - move to account
         result.type =
             GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
         break;
@@ -202,7 +181,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.type = TRT_UNICODE;
         break;
     case 4:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETVOIDP(pv),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -210,7 +189,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
         break;
     case 5: // WritePrivateProfileString
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
                          GETWSTR(s4),
                          ARGEND) != TCL_OK)
@@ -219,7 +198,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.value.ival = WritePrivateProfileStringW(s, s2, s3, s4);
         break;
     case 6:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETNULLTOKEN(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -227,14 +206,14 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.value.ival = WriteProfileStringW(s, s2, s3);
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETINT(dw), GETWSTR(s),
                          GETNULLIFEMPTY(s2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_LoadUserProfile(interp, h, dw, s, s2);
     case 8:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETHANDLE(h2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -245,31 +224,30 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 10:
     case 11:
         /* Single string arg */
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s = Tcl_GetUnicode(objv[2]);
+        s = ObjFromUnicode(objv[0]);
         switch (func) {
         case 9:
-            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            CHECK_INTEGER_OBJ(interp, dw, objv[0]);
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
             break;
         case 10:
             return Twapi_CommandLineToArgv(interp, s);
-        case 11:
+        case 11: // GetPrivateProfileSectionNames
             NULLIFY_EMPTY(s);
-            return Twapi_GetPrivateProfileSectionNames(ticP, s);
+            return TwapiGetProfileSectionHelper(interp, NULL, s);
         }
         break;
-    case 12:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+    case 12: // GetPrivateProfileSection
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETNULLIFEMPTY(s2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        return Twapi_GetPrivateProfileSection(ticP, s, s2);
-
+        return TwapiGetProfileSectionHelper(interp, s, s2);
     case 13:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -277,7 +255,7 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.value.ival = GetPrivateProfileIntW(s, s2, dw, s3);
         break;
     case 14:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETWSTR(s2), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -292,31 +270,24 @@ static int Twapi_AppCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 
 static int TwapiApputilInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::AppCall", Twapi_AppCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s AppCallDispatch[] = {
+        DEFINE_FNCODE_CMD(GetProfileType, 1),
+        DEFINE_FNCODE_CMD(Wow64DisableWow64FsRedirection, 2),
+        DEFINE_FNCODE_CMD(GetCommandLineW, 3),
+        DEFINE_FNCODE_CMD(Wow64RevertWow64FsRedirection, 4),
+        DEFINE_FNCODE_CMD(WritePrivateProfileString, 5),
+        DEFINE_FNCODE_CMD(WriteProfileString, 6),
+        DEFINE_FNCODE_CMD(Twapi_LoadUserProfile, 7),
+        DEFINE_FNCODE_CMD(UnloadUserProfile, 8),
+        DEFINE_FNCODE_CMD(Wow64EnableWow64FsRedirection, 9),
+        DEFINE_FNCODE_CMD(CommandLineToArgv, 10),
+        DEFINE_FNCODE_CMD(GetPrivateProfileSectionNames, 11),
+        DEFINE_FNCODE_CMD(GetPrivateProfileSection, 12),
+        DEFINE_FNCODE_CMD(GetPrivateProfileInt, 13),
+        DEFINE_FNCODE_CMD(GetProfileInt, 14),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::AppCall", # code_); \
-    } while (0);
-
-    CALL_(GetProfileType, 1);
-    CALL_(Wow64DisableWow64FsRedirection, 2);
-    CALL_(GetCommandLineW, 3);
-    CALL_(Wow64RevertWow64FsRedirection, 4);
-    CALL_(WritePrivateProfileString, 5);
-    CALL_(WriteProfileString, 6);
-    CALL_(Twapi_LoadUserProfile, 7);
-    CALL_(UnloadUserProfile, 8);
-    CALL_(Wow64EnableWow64FsRedirection, 9);
-    CALL_(CommandLineToArgv, 10);
-    CALL_(GetPrivateProfileSectionNames, 11);
-    CALL_(GetPrivateProfileSection, 12);
-    CALL_(GetPrivateProfileInt, 13);
-    CALL_(GetProfileInt, 14);
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(AppCallDispatch), AppCallDispatch, Twapi_AppCallObjCmd);
 
     return TCL_OK;
 }
