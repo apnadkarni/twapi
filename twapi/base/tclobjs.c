@@ -277,7 +277,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         break;
 
     case TRT_BINARY:
-        resultObj = Tcl_NewByteArrayObj(resultP->value.binary.p,
+        resultObj = ObjFromByteArray(resultP->value.binary.p,
                                         resultP->value.binary.len);
         break;
 
@@ -864,7 +864,7 @@ Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl)
     } while (1);
 
     /* p points to terminating null field */
-    return Tcl_NewByteArrayObj((unsigned char *)pidl,
+    return ObjFromByteArray((unsigned char *)pidl,
                                (int) (2 + p - (unsigned char *)pidl));
 
 }
@@ -880,7 +880,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
     int      numbytes;
     LPITEMIDLIST idsP;
 
-    idsP = (LPITEMIDLIST) Tcl_GetByteArrayFromObj(objP, &numbytes);
+    idsP = (LPITEMIDLIST) ObjToByteArray(objP, &numbytes);
     if (numbytes < 2) {
         *idsPP = NULL;              /* Empty string */
         return TCL_OK;
@@ -1356,7 +1356,7 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
         typestr = "binary";
         // FALLTHRU
     default:
-        objv[1] = Tcl_NewByteArrayObj(bufP, count);
+        objv[1] = ObjFromByteArray(bufP, count);
         break;
     }
 
@@ -1576,7 +1576,7 @@ Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
     /*
      * We mostly just pass this around, so just keep as binary structure
      */
-    return Tcl_NewByteArrayObj((unsigned char *)tzP, sizeof(*tzP));
+    return ObjFromByteArray((unsigned char *)tzP, sizeof(*tzP));
 }
 
 TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
@@ -1586,7 +1586,7 @@ TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
     unsigned char *p;
     int len;
 
-    p = Tcl_GetByteArrayFromObj(tzObj, &len);
+    p = ObjToByteArray(tzObj, &len);
     if (len != sizeof(*tzP)) {
         return TwapiReturnErrorEx(interp,
                                   TWAPI_INVALID_ARGS,
@@ -2406,7 +2406,7 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
     winerror = GetLastError();
 
     /* Not a string rep. See if it is a binary of the right size */
-    sidP = (SID *) Tcl_GetByteArrayFromObj(obj, &len);
+    sidP = (SID *) ObjToByteArray(obj, &len);
     if (len >= sizeof(*sidP)) {
         /* Seems big enough, validate revision and size */
         if (IsValidSid(sidP) && GetLengthSid(sidP) == len) {
@@ -2505,7 +2505,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
          * There are no pointers in there, just values so this
          * should work, I think :)
          */
-        obj = Tcl_NewByteArrayObj((unsigned char *) aceP, acehdrP->AceSize);
+        obj = ObjFromByteArray((unsigned char *) aceP, acehdrP->AceSize);
 
         if (ObjAppendElement(interp, resultObj, obj) != TCL_OK)
             goto error_return;
@@ -2586,7 +2586,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
     default:
         if (objc != 3)
             goto format_error;
-        bytes = Tcl_GetByteArrayFromObj(objv[2], &bytecount);
+        bytes = ObjToByteArray(objv[2], &bytecount);
         acesz += bytecount;
         aceP = (ACCESS_ALLOWED_ACE *) TwapiAlloc(acesz);
         CopyMemory(aceP, bytes, bytecount);
@@ -3197,4 +3197,14 @@ Tcl_Obj *ObjFromBoolean(int bval)
 Tcl_Obj *ObjFromEmptyString()
 {
     return Tcl_NewObj();
+}
+
+Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
+{
+    return Tcl_NewByteArrayObj(bytes, len);
+}
+
+unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
+{
+    return Tcl_GetByteArrayFromObj(objP, lenP);
 }
