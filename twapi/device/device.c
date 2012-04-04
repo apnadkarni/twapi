@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2010, Ashok P. Nadkarni
+ * Copyright (c) 2007-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -111,9 +111,9 @@ Tcl_Obj *ObjFromSP_DEVINFO_DATA(SP_DEVINFO_DATA *sddP)
 {
     Tcl_Obj *objv[3];
     objv[0] = ObjFromGUID(&sddP->ClassGuid);
-    objv[1] = Tcl_NewLongObj(sddP->DevInst);
+    objv[1] = ObjFromLong(sddP->DevInst);
     objv[2] = ObjFromDWORD_PTR(sddP->Reserved);
-    return Tcl_NewListObj(3, objv);
+    return ObjNewList(3, objv);
 }
 
 /* objP may be NULL */
@@ -123,7 +123,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
         /* Initialize based on passed param */
         Tcl_Obj **objs;
         int  nobjs;
-        if (Tcl_ListObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
+        if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sddP->ClassGuid, ObjToGUID),
@@ -154,9 +154,9 @@ Tcl_Obj *ObjFromSP_DEVICE_INTERFACE_DATA(SP_DEVICE_INTERFACE_DATA *sdidP)
 {
     Tcl_Obj *objv[3];
     objv[0] = ObjFromGUID(&sdidP->InterfaceClassGuid);
-    objv[1] = Tcl_NewLongObj(sdidP->Flags);
+    objv[1] = ObjFromLong(sdidP->Flags);
     objv[2] = ObjFromDWORD_PTR(sdidP->Reserved);
-    return Tcl_NewListObj(3, objv);
+    return ObjNewList(3, objv);
 }
 
 /* objP may be NULL */
@@ -166,7 +166,7 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
         /* Initialize based on passed param */
         Tcl_Obj **objs;
         int  nobjs;
-        if (Tcl_ListObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
+        if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sdiP->InterfaceClassGuid, ObjToGUID),
@@ -223,7 +223,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     /* Success. regprop contains the registry property type */
     objP = ObjFromRegValue(ticP->interp, regtype, bufP, buf_sz);
     if (objP) {
-        Tcl_SetObjResult(ticP->interp, objP);
+        TwapiSetObjResult(ticP->interp, objP);
         tcl_status = TCL_OK;
     }
 
@@ -266,7 +266,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     if (success) {
         objs[0] = ObjFromUnicode(sdiddP->DevicePath);
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
-        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objs));
+        TwapiSetObjResult(ticP->interp, ObjNewList(2, objs));
     } else
         Twapi_AppendSystemError(ticP->interp, winerr);
 
@@ -316,12 +316,12 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     }
 
     if (success) {
-        Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+        Tcl_Obj *objP = ObjNewList(0, NULL);
         /* Note - use 'needed', not 'allocated' in loop! */
         for (i = 0; i < needed; ++i) {
-            Tcl_ListObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
+            ObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
         }
-        Tcl_SetObjResult(ticP->interp, objP);
+        TwapiSetObjResult(ticP->interp, objP);
     } else
         Twapi_AppendSystemError(ticP->interp, GetLastError());
 
@@ -349,10 +349,10 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
 
     /* Deal with the error notification case first. */
     if (cbP->cb.winerr != ERROR_SUCCESS) {
-        objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_device_notification_handler", -1);
+        objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_device_notification_handler");
         objs[1] = ObjFromTwapiId(cbP->cb.receiver_id);
         objs[2] = STRING_LITERAL_OBJ("error");
-        objs[3] = Tcl_NewLongObj(cbP->cb.winerr);
+        objs[3] = ObjFromLong(cbP->cb.winerr);
         return TwapiEvalAndUpdateCallback(&cbP->cb, 4, objs, TRT_EMPTY);
     }
 
@@ -423,8 +423,8 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
             break;
 
         case DBT_DEVTYP_OEM:
-            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_OEM)dbhP)->dbco_identifier);
-            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_OEM)dbhP)->dbco_suppfunc);
+            objs[nobjs++] = ObjFromLong(((PDEV_BROADCAST_OEM)dbhP)->dbco_identifier);
+            objs[nobjs++] = ObjFromLong(((PDEV_BROADCAST_OEM)dbhP)->dbco_suppfunc);
             break;
 
         case DBT_DEVTYP_PORT:
@@ -432,8 +432,8 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
             break;
 
         case DBT_DEVTYP_VOLUME:
-            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_unitmask);
-            objs[nobjs++] = Tcl_NewLongObj(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_flags);
+            objs[nobjs++] = ObjFromLong(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_unitmask);
+            objs[nobjs++] = ObjFromLong(((PDEV_BROADCAST_VOLUME)dbhP)->dbcv_flags);
             break;
         }
         
@@ -450,7 +450,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
 
     case DBT_USERDEFINED:
         notification_str = "userdefined";
-        objs[nobjs++] = Tcl_NewStringObj(((struct _DEV_BROADCAST_USERDEFINED *)dbhP)->dbud_szName, -1);
+        objs[nobjs++] = ObjFromString(((struct _DEV_BROADCAST_USERDEFINED *)dbhP)->dbud_szName);
         break;
 
     default:
@@ -463,7 +463,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
 
     objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_device_notification_handler");
     objs[1] = ObjFromTwapiId(cbP->cb.receiver_id);
-    objs[2] = Tcl_NewStringObj(notification_str, -1);
+    objs[2] = ObjFromString(notification_str);
     if (response_type == TRT_EMPTY) {
         /*
          * Return true, even on errors as we do not want to block a
@@ -865,7 +865,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0)) {
-        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
+        TwapiSetObjResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();
@@ -972,7 +972,7 @@ static Tcl_Obj *ObjFromDevtype(DWORD devtype)
         cP = "unknown";
         break;
     }
-    return Tcl_NewStringObj(cP, -1);
+    return ObjFromString(cP);
 }
 
 
@@ -988,7 +988,7 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
      */
     if (dbhP->dbch_devicetype != DBT_DEVTYP_HANDLE ||
         dbhP->dbch_size < offsetof(DEV_BROADCAST_HANDLE, dbch_nameoffset))
-        return Tcl_NewObj();
+        return ObjFromEmptyString();
     
     if (IsEqualGUID(&dhP->dbch_eventguid, &GUID_IO_VOLUME_CHANGE))
         custom_str = "io_volume_change";
@@ -1029,15 +1029,15 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
     else
         custom_str = "unknown_guid";
 
-    objs[0] = Tcl_NewStringObj(custom_str, -1);
+    objs[0] = ObjFromString(custom_str);
     objs[1] = ObjFromGUID(&dhP->dbch_eventguid);
     if (dhP->dbch_size > sizeof(DEV_BROADCAST_HANDLE) &&
         dhP->dbch_nameoffset > 0) {
-        objs[2] = Tcl_NewStringObj(dhP->dbch_nameoffset + (char*)dhP, -1);
+        objs[2] = ObjFromString(dhP->dbch_nameoffset + (char*)dhP);
     } else
-        objs[2] = Tcl_NewObj();
+        objs[2] = ObjFromEmptyString();
     
-    return Tcl_NewListObj(3, objs);
+    return ObjNewList(3, objs);
 }
 
 
@@ -1226,33 +1226,28 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
 static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::DeviceCall", Twapi_DeviceCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::DeviceCall", # code_); \
-    } while (0);
-
     /* Dispatch function codes start at 60 for historical reasons.
        Nothing magic but change Twapi_DeviceCallObjCmd accordingly 
     */
-    CALL_(SetupDiCreateDeviceInfoListEx, 60);
-    CALL_(SetupDiGetClassDevsEx, 61);
-    CALL_(SetupDiEnumDeviceInfo, 62);
-    CALL_(SetupDiGetDeviceRegistryProperty, 63);
-    CALL_(SetupDiEnumDeviceInterfaces, 64);
-    CALL_(SetupDiGetDeviceInterfaceDetail, 65);
-    CALL_(SetupDiClassNameFromGuidEx, 66);
-    CALL_(SetupDiGetDeviceInstanceId, 67);
-    CALL_(SetupDiClassGuidsFromNameEx, 68);
-    CALL_(DeviceIoControl, 69);
-    CALL_(SetupDiDestroyDeviceInfoList, 70);
-    CALL_(Twapi_RegisterDeviceNotification, 71);
-    CALL_(Twapi_UnregisterDeviceNotification, 72);
+    static struct alias_dispatch_s DeviceAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(SetupDiCreateDeviceInfoListEx, 60),
+        DEFINE_ALIAS_CMD(SetupDiGetClassDevsEx, 61),
+        DEFINE_ALIAS_CMD(SetupDiEnumDeviceInfo, 62),
+        DEFINE_ALIAS_CMD(SetupDiGetDeviceRegistryProperty, 63),
+        DEFINE_ALIAS_CMD(SetupDiEnumDeviceInterfaces, 64),
+        DEFINE_ALIAS_CMD(SetupDiGetDeviceInterfaceDetail, 65),
+        DEFINE_ALIAS_CMD(SetupDiClassNameFromGuidEx, 66),
+        DEFINE_ALIAS_CMD(SetupDiGetDeviceInstanceId, 67),
+        DEFINE_ALIAS_CMD(SetupDiClassGuidsFromNameEx, 68),
+        DEFINE_ALIAS_CMD(DeviceIoControl, 69),
+        DEFINE_ALIAS_CMD(SetupDiDestroyDeviceInfoList, 70),
+        DEFINE_ALIAS_CMD(Twapi_RegisterDeviceNotification, 71),
+        DEFINE_ALIAS_CMD(Twapi_UnregisterDeviceNotification, 72),
+    };
 
-#undef CALL_
+    /* Create the underlying call dispatch commands */
+    Tcl_CreateObjCommand(interp, "twapi::DeviceCall", Twapi_DeviceCallObjCmd, ticP, NULL);
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(DeviceAliasDispatch), DeviceAliasDispatch, "twapi::DeviceCall");
 
     return TCL_OK;
 }
