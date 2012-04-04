@@ -86,7 +86,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                 ptrval = NULL; // Default
                 len = 0; // Default
                 if (objP)
-                    ptrval = Tcl_GetByteArrayFromObj(objP, &len);
+                    ptrval = ObjToByteArray(objP, &len);
             }
             if (p)
                 *(unsigned char **)p = (unsigned char *)ptrval;
@@ -1252,7 +1252,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     case 1:                     /* binary */
-        objP = Tcl_NewByteArrayObj(p, len);
+        objP = ObjFromByteArray(p, len);
         break;
 
     case 2:                     /* chars */
@@ -1324,7 +1324,7 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
         *(int UNALIGNED *)(offset + bufP) = val;
         break;
     case 1: // Binary
-        cp = Tcl_GetByteArrayFromObj(objv[4], &sz);
+        cp = ObjToByteArray(objv[4], &sz);
         if ((offset + sz) > buf_size)
             goto overrun;
         CopyMemory(offset + bufP, cp, sz);
