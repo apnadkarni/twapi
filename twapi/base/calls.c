@@ -1385,9 +1385,9 @@ void TwapiDefineFncodeCmds(Tcl_Interp *interp, int count,
 }
 
 
-void TwapiDefineTicCmds(Tcl_Interp *interp, int count,
-                                     struct tic_dispatch_s *tabP,
-                                     TwapiInterpContext *ticP
+void TwapiDefineTclCmds(Tcl_Interp *interp, int count,
+                        struct tcl_dispatch_s *tabP,
+                        ClientData clientdata
     )
 {
     Tcl_DString ds;
@@ -1398,7 +1398,7 @@ void TwapiDefineTicCmds(Tcl_Interp *interp, int count,
     while (count--) {
         Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
         Tcl_DStringAppend(&ds, tabP->command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), tabP->command_ptr, (ClientData) ticP, NULL);
+        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), tabP->command_ptr, clientdata, NULL);
         ++tabP;
     }
 }
@@ -1550,20 +1550,20 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
     };
 
-    struct tic_dispatch_s TicDispatch[] = {
-        DEFINE_TIC_CMD(Call, Twapi_CallObjCmd),
-        DEFINE_TIC_CMD(parseargs, Twapi_ParseargsObjCmd),
-        DEFINE_TIC_CMD(trap, Twapi_TryObjCmd),
-        DEFINE_TIC_CMD(try, Twapi_TryObjCmd),
-        DEFINE_TIC_CMD(kl_get, Twapi_KlGetObjCmd),
-        DEFINE_TIC_CMD(twine, Twapi_TwineObjCmd),
-        DEFINE_TIC_CMD(recordarray, Twapi_RecordArrayObjCmd),
-        DEFINE_TIC_CMD(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
-        DEFINE_TIC_CMD(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),
-        DEFINE_TIC_CMD(Twapi_WriteMemory, Twapi_WriteMemoryObjCmd),
-        DEFINE_TIC_CMD(tclcast, Twapi_InternalCastObjCmd),
-        DEFINE_TIC_CMD(tcltype, Twapi_GetTclTypeObjCmd),
-        DEFINE_TIC_CMD(Twapi_EnumPrinters_Level4, Twapi_EnumPrintersLevel4ObjCmd),
+    struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(Call, Twapi_CallObjCmd),
+        DEFINE_TCL_CMD(parseargs, Twapi_ParseargsObjCmd),
+        DEFINE_TCL_CMD(trap, Twapi_TryObjCmd),
+        DEFINE_TCL_CMD(try, Twapi_TryObjCmd),
+        DEFINE_TCL_CMD(kl_get, Twapi_KlGetObjCmd),
+        DEFINE_TCL_CMD(twine, Twapi_TwineObjCmd),
+        DEFINE_TCL_CMD(recordarray, Twapi_RecordArrayObjCmd),
+        DEFINE_TCL_CMD(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
+        DEFINE_TCL_CMD(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),
+        DEFINE_TCL_CMD(Twapi_WriteMemory, Twapi_WriteMemoryObjCmd),
+        DEFINE_TCL_CMD(tclcast, Twapi_InternalCastObjCmd),
+        DEFINE_TCL_CMD(tcltype, Twapi_GetTclTypeObjCmd),
+        DEFINE_TCL_CMD(Twapi_EnumPrinters_Level4, Twapi_EnumPrintersLevel4ObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallHDispatch), CallHDispatch, Twapi_CallHObjCmd);
@@ -1572,7 +1572,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallOneArgDispatch), CallOneArgDispatch, Twapi_CallOneArgObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallArgsDispatch), CallArgsDispatch, Twapi_CallArgsObjCmd);
 
-    TwapiDefineTicCmds(interp, ARRAYSIZE(TicDispatch), TicDispatch, ticP);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
 
     TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
 
