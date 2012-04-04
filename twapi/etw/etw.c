@@ -5,14 +5,21 @@
  * See the file LICENSE for license
  */
 
+/*
+ * TBD - replace use of string object cache with TwapiGetAtom
+ * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
+ */
+ 
+
+
 #include "twapi.h"
 #include <evntrace.h>
 
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
-#define ObjFromTRACEHANDLE(val_) Tcl_NewWideIntObj(val_)
-#define ObjToTRACEHANDLE Tcl_GetWideIntFromObj
+#define ObjFromTRACEHANDLE(val_) ObjFromWideInt(val_)
+#define ObjToTRACEHANDLE ObjToWideInt
 
 /*
  * The Microsoft docs are not clear about invalid trace session handles.
@@ -267,15 +274,15 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     TRACE_LOGFILE_HEADER *adjustedP;
 
     for (i = 0; g_trace_logfile_header_fields[i]; ++i) {
-        objs[2*i] = Tcl_NewStringObj(g_trace_logfile_header_fields[i], -1);
+        objs[2*i] = ObjFromString(g_trace_logfile_header_fields[i]);
     }
     TWAPI_ASSERT((2*i) == ARRAYSIZE(objs));
 
     objs[1] = ObjFromULONG(tlhP->BufferSize);
-    objs[3] = Tcl_NewIntObj(tlhP->VersionDetail.MajorVersion);
-    objs[5] = Tcl_NewIntObj(tlhP->VersionDetail.MinorVersion);
-    objs[7] = Tcl_NewIntObj(tlhP->VersionDetail.SubVersion);
-    objs[9] = Tcl_NewIntObj(tlhP->VersionDetail.SubMinorVersion);
+    objs[3] = ObjFromInt(tlhP->VersionDetail.MajorVersion);
+    objs[5] = ObjFromInt(tlhP->VersionDetail.MinorVersion);
+    objs[7] = ObjFromInt(tlhP->VersionDetail.SubVersion);
+    objs[9] = ObjFromInt(tlhP->VersionDetail.SubMinorVersion);
     objs[11] = ObjFromULONG(tlhP->ProviderVersion);
     objs[13] = ObjFromULONG(tlhP->NumberOfProcessors);
     objs[15] = ObjFromLARGE_INTEGER(tlhP->EndTime);
@@ -309,12 +316,12 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
      * empty strings;
     */
 #if 1
-    objs[31] = Tcl_NewObj();
+    objs[31] = ObjFromEmptyString();
     objs[33] = objs[31];    /* OK, Tcl_NewListObj will just incr ref twice */
 #else
     ws = (WCHAR *)(sizeof(*adjustedP)+(char *)adjustedP);
     objs[31] = ObjFromUnicode(ws);
-    Tcl_GetUnicodeFromObj(objs[31], &i); /* Get length of LoggerName... */
+    ObjToUnicodeN(objs[31], &i); /* Get length of LoggerName... */
     ws += (i+1);                         /* so we can point beyond it... */
     objs[33] = ObjFromUnicode(ws);       /* to the LogFileName */
 #endif
@@ -326,7 +333,7 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     objs[41] = ObjFromLARGE_INTEGER(adjustedP->StartTime);
     objs[43] = ObjFromULONG(adjustedP->BuffersLost);
 
-    return Tcl_NewListObj(ARRAYSIZE(objs), objs);
+    return ObjNewList(ARRAYSIZE(objs), objs);
 }
 #endif
 
@@ -347,11 +354,11 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_WideInt wide;
     int field;
 
-    if (Tcl_ListObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
 
     if (objc & 1) {
-        Tcl_SetResult(interp, "EVENT_TRACE_PROPERTIES must contain even number of elements", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid EVENT_TRACE_PROPERTIES format");
         return TCL_ERROR;
     }
 
@@ -372,13 +379,13 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     }
     
     if (session_name_i >= 0) {
-        session_name = Tcl_GetUnicodeFromObj(objv[session_name_i+1], &session_name_i);
+        session_name = ObjToUnicodeN(objv[session_name_i+1], &session_name_i);
     } else {
         session_name_i = 0;
     }
 
     if (logfile_name_i >= 0) {
-        logfile_name = Tcl_GetUnicodeFromObj(objv[logfile_name_i+1], &logfile_name_i);
+        logfile_name = ObjToUnicodeN(objv[logfile_name_i+1], &logfile_name_i);
     } else {
         logfile_name_i = 0;
     }
@@ -500,19 +507,19 @@ st */
             ulP = &etP->RealTimeBuffersLost;
             break;
         case 18: // -loggerthread
-            if (Tcl_GetWideIntFromObj(interp, objv[i+1], &wide) != TCL_OK)
+            if (ObjToWideInt(interp, objv[i+1], &wide) != TCL_OK)
                 goto error_handler;
             etP->LoggerThreadId = (HANDLE) wide;
             break;
         default:
-            Tcl_SetResult(interp, "Internal error: Unexpected field index.", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Internal error: Unexpected field index.");
             goto error_handler;
         }
         
         if (ulP == NULL) {
             /* Nothing to do, value already set in the switch */
         } else {
-            if (Tcl_GetLongFromObj(interp, objv[i+1], ulP) != TCL_OK)
+            if (ObjToLong(interp, objv[i+1], ulP) != TCL_OK)
                 goto error_handler;
         }
     }
@@ -533,39 +540,39 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     Tcl_Obj *objs[38];
 
     for (i = 0; g_event_trace_fields[i]; ++i) {
-        objs[2*i] = Tcl_NewStringObj(g_event_trace_fields[i], -1);
+        objs[2*i] = ObjFromString(g_event_trace_fields[i]);
     }
     TWAPI_ASSERT((2*i) == ARRAYSIZE(objs));
 
     if (etP->LogFileNameOffset)
-        objs[1] = Tcl_NewUnicodeObj((WCHAR *)(etP->LogFileNameOffset + (char *) etP), -1);
+        objs[1] = ObjFromUnicode((WCHAR *)(etP->LogFileNameOffset + (char *) etP));
     else
-        objs[1] = Tcl_NewObj();
+        objs[1] = ObjFromEmptyString();
 
     if (etP->LoggerNameOffset)
-        objs[3] = Tcl_NewUnicodeObj((WCHAR *)(etP->LoggerNameOffset + (char *) etP), -1);
+        objs[3] = ObjFromUnicode((WCHAR *)(etP->LoggerNameOffset + (char *) etP));
     else
-        objs[3] = Tcl_NewObj();
+        objs[3] = ObjFromEmptyString();
 
     objs[5] = ObjFromGUID(&etP->Wnode.Guid);
-    objs[7] = Tcl_NewLongObj(etP->BufferSize);
-    objs[9] = Tcl_NewLongObj(etP->MinimumBuffers);
-    objs[11] = Tcl_NewLongObj(etP->MaximumBuffers);
-    objs[13] = Tcl_NewLongObj(etP->MaximumFileSize);
-    objs[15] = Tcl_NewLongObj(etP->LogFileMode);
-    objs[17] = Tcl_NewLongObj(etP->FlushTimer);
-    objs[19] = Tcl_NewLongObj(etP->EnableFlags);
-    objs[21] = Tcl_NewLongObj(etP->Wnode.ClientContext);
-    objs[23] = Tcl_NewLongObj(etP->AgeLimit);
-    objs[25] = Tcl_NewLongObj(etP->NumberOfBuffers);
-    objs[27] = Tcl_NewLongObj(etP->FreeBuffers);
-    objs[29] = Tcl_NewLongObj(etP->EventsLost);
-    objs[31] = Tcl_NewLongObj(etP->BuffersWritten);
-    objs[33] = Tcl_NewLongObj(etP->LogBuffersLost);
-    objs[35] = Tcl_NewLongObj(etP->RealTimeBuffersLost);
-    objs[37] = Tcl_NewWideIntObj((Tcl_WideInt) etP->LoggerThreadId);
+    objs[7] = ObjFromLong(etP->BufferSize);
+    objs[9] = ObjFromLong(etP->MinimumBuffers);
+    objs[11] = ObjFromLong(etP->MaximumBuffers);
+    objs[13] = ObjFromLong(etP->MaximumFileSize);
+    objs[15] = ObjFromLong(etP->LogFileMode);
+    objs[17] = ObjFromLong(etP->FlushTimer);
+    objs[19] = ObjFromLong(etP->EnableFlags);
+    objs[21] = ObjFromLong(etP->Wnode.ClientContext);
+    objs[23] = ObjFromLong(etP->AgeLimit);
+    objs[25] = ObjFromLong(etP->NumberOfBuffers);
+    objs[27] = ObjFromLong(etP->FreeBuffers);
+    objs[29] = ObjFromLong(etP->EventsLost);
+    objs[31] = ObjFromLong(etP->BuffersWritten);
+    objs[33] = ObjFromLong(etP->LogBuffersLost);
+    objs[35] = ObjFromLong(etP->RealTimeBuffersLost);
+    objs[37] = ObjFromWideInt((Tcl_WideInt) etP->LoggerThreadId);
 
-    return Tcl_NewListObj(ARRAYSIZE(objs), objs);
+    return ObjNewList(ARRAYSIZE(objs), objs);
 }
 
 
@@ -651,19 +658,19 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
     
     if (IsEqualGUID(&provider_guid, &gNullGuid) ||
         IsEqualGUID(&event_class_guid, &gNullGuid)) {
-        Tcl_SetResult(interp, "NULL provider GUID specified.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "NULL provider GUID specified.");
         return TCL_ERROR;
     }
 
     /* We should not already have registered a different provider */
     if (! IsEqualGUID(&gETWProviderGuid, &gNullGuid)) {
         if (IsEqualGUID(&gETWProviderGuid, &provider_guid)) {
-            Tcl_SetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
+            TwapiSetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
 
             return TCL_OK;      /* Same GUID - ok */
         }
         else {
-            Tcl_SetResult(interp, "ETW Provider GUID already registered", TCL_STATIC);
+            TwapiSetStaticResult(interp, "ETW Provider GUID already registered");
             return TCL_ERROR;
         }
     }
@@ -685,7 +692,7 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
         gETWProviderGuid = provider_guid;
         gETWProviderEventClassGuid = event_class_guid;
         gETWProviderEventClassRegistrationHandle = event_class_reg.RegHandle;
-        Tcl_SetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
+        TwapiSetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
@@ -705,7 +712,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
         return TCL_ERROR;
 
     if (traceH != gETWProviderRegistrationHandle) {
-        Tcl_SetResult(interp, "Unknown ETW provider registration handle", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown ETW provider registration handle");
         return TCL_ERROR;
     }
 
@@ -758,7 +765,7 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     event.eth.Class.Level = level;
 
     for (i = 0; i < objc; ++i) {
-        event.mof[i].DataPtr = (ULONG64) Tcl_GetByteArrayFromObj(objv[i], &event.mof[i].Length);
+        event.mof[i].DataPtr = (ULONG64) ObjToByteArray(objv[i], &event.mof[i].Length);
     }
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
@@ -786,7 +793,7 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         etP->LogFileNameOffset = 0;
 
     if (StartTraceW(&htrace,
-                    Tcl_GetUnicode(objv[0]),
+                    ObjToUnicode(objv[0]),
                     etP) != ERROR_SUCCESS) {
         Twapi_AppendSystemError(interp, GetLastError());
         TwapiFree(etP);
@@ -796,7 +803,7 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     objs[0] = ObjFromTRACEHANDLE(htrace);
     objs[1] = ObjFromEVENT_TRACE_PROPERTIES(etP);
     TwapiFree(etP);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+    TwapiSetObjResult(interp, ObjNewList(2, objs));
     return TCL_OK;
 }
 
@@ -808,13 +815,13 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     Tcl_Interp *interp = ticP->interp;
     ULONG code;
 
-    if (Tcl_GetLongFromObj(interp, objv[0], &code) != TCL_OK)
+    if (ObjToLong(interp, objv[0], &code) != TCL_OK)
         return TCL_ERROR;
 
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (Tcl_GetWideIntFromObj(interp, objv[1], &htrace) != TCL_OK)
+    if (ObjToWideInt(interp, objv[1], &htrace) != TCL_OK)
         return TCL_ERROR;
 
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
@@ -830,7 +837,7 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         Twapi_AppendSystemError(interp, GetLastError());
         code = TCL_ERROR;
     } else {
-        Tcl_SetObjResult(interp, ObjFromEVENT_TRACE_PROPERTIES(etP));
+        TwapiSetObjResult(interp, ObjFromEVENT_TRACE_PROPERTIES(etP));
         code = TCL_OK;
     }
 
@@ -876,9 +883,9 @@ void WINAPI TwapiETWEventCallback(
 
     /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
     evObj = Tcl_NewDictObj();
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[0].keyObj, Tcl_NewIntObj(evP->Header.Class.Type));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[1].keyObj, Tcl_NewIntObj(evP->Header.Class.Level));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[2].keyObj, Tcl_NewIntObj(evP->Header.Class.Version));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[0].keyObj, ObjFromInt(evP->Header.Class.Type));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[1].keyObj, ObjFromInt(evP->Header.Class.Level));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[2].keyObj, ObjFromInt(evP->Header.Class.Version));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[3].keyObj, ObjFromULONG(evP->Header.ThreadId));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[4].keyObj, ObjFromULONG(evP->Header.ProcessId));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[5].keyObj, ObjFromLARGE_INTEGER(evP->Header.TimeStamp));
@@ -891,16 +898,16 @@ void WINAPI TwapiETWEventCallback(
      */
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[7].keyObj, ObjFromULONG(evP->Header.KernelTime));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[8].keyObj, ObjFromULONG(evP->Header.UserTime));
-    Tcl_DictObjPut(interp, evObj, gETWEventKeys[9].keyObj, Tcl_NewWideIntObj(evP->Header.ProcessorTime));
+    Tcl_DictObjPut(interp, evObj, gETWEventKeys[9].keyObj, ObjFromWideInt(evP->Header.ProcessorTime));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[10].keyObj, ObjFromULONG(evP->InstanceId));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[11].keyObj, ObjFromULONG(evP->ParentInstanceId));
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[12].keyObj, ObjFromGUID(&evP->ParentGuid));
     if (evP->MofData && evP->MofLength)
-        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, Tcl_NewByteArrayObj(evP->MofData, evP->MofLength));
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, ObjFromByteArray(evP->MofData, evP->MofLength));
     else
-        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, Tcl_NewObj());
+        Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, ObjFromEmptyString());
     
-    Tcl_ListObjAppendElement(interp, gETWContext.eventsObj, evObj);
+    ObjAppendElement(interp, gETWContext.eventsObj, evObj);
 
 
     return;
@@ -948,15 +955,15 @@ ULONG WINAPI TwapiETWBufferCallback(
 
     /* Build up the arguments */
     bufObj = Tcl_NewDictObj();
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[0].keyObj, Tcl_NewUnicodeObj(etlP->LogFileName ? etlP->LogFileName : L"", -1));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[1].keyObj, Tcl_NewUnicodeObj(etlP->LoggerName ? etlP->LoggerName : L"", -1));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[0].keyObj, ObjFromUnicode(etlP->LogFileName ? etlP->LogFileName : L""));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[1].keyObj, ObjFromUnicode(etlP->LoggerName ? etlP->LoggerName : L""));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[2].keyObj, ObjFromULONGLONG(etlP->CurrentTime));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[3].keyObj, Tcl_NewLongObj(etlP->BuffersRead));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[4].keyObj, Tcl_NewLongObj(etlP->LogFileMode));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[5].keyObj, Tcl_NewLongObj(etlP->BufferSize));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[6].keyObj, Tcl_NewLongObj(etlP->Filled));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[7].keyObj, Tcl_NewLongObj(etlP->EventsLost));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[8].keyObj, Tcl_NewLongObj(etlP->IsKernelTrace));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[3].keyObj, ObjFromLong(etlP->BuffersRead));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[4].keyObj, ObjFromLong(etlP->LogFileMode));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[5].keyObj, ObjFromLong(etlP->BufferSize));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[6].keyObj, ObjFromLong(etlP->Filled));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[7].keyObj, ObjFromLong(etlP->EventsLost));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[8].keyObj, ObjFromLong(etlP->IsKernelTrace));
 
 
     /* Add the fields from the logfile header */
@@ -964,10 +971,10 @@ ULONG WINAPI TwapiETWBufferCallback(
     tlhP = &etlP->LogfileHeader;
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[9].keyObj, ObjFromULONG(tlhP->CpuSpeedInMHz));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[10].keyObj, ObjFromULONG(tlhP->BufferSize));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[11].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.MajorVersion));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[12].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.MinorVersion));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[13].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.SubVersion));
-    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[14].keyObj, Tcl_NewIntObj(tlhP->VersionDetail.SubMinorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[11].keyObj, ObjFromInt(tlhP->VersionDetail.MajorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[12].keyObj, ObjFromInt(tlhP->VersionDetail.MinorVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[13].keyObj, ObjFromInt(tlhP->VersionDetail.SubVersion));
+    Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[14].keyObj, ObjFromInt(tlhP->VersionDetail.SubMinorVersion));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[15].keyObj, ObjFromULONG(tlhP->ProviderVersion));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[16].keyObj, ObjFromULONG(tlhP->NumberOfProcessors));
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[17].keyObj, ObjFromLARGE_INTEGER(tlhP->EndTime));
@@ -1015,7 +1022,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
     Tcl_DecrRefCount(gETWContext.eventsObj); /* AFTER we place on list */
 
-    gETWContext.eventsObj = Tcl_NewListObj(0, NULL);/* For next set of events */
+    gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
     Tcl_IncrRefCount(gETWContext.eventsObj);
 
     code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
@@ -1053,15 +1060,15 @@ TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (Tcl_GetIntFromObj(interp, objv[1], &real_time) != TCL_OK)
+    if (ObjToInt(interp, objv[1], &real_time) != TCL_OK)
         return TCL_ERROR;
 
     ZeroMemory(&etl, sizeof(etl));
     if (real_time) {
-        etl.LoggerName = Tcl_GetUnicode(objv[0]);
+        etl.LoggerName = ObjToUnicode(objv[0]);
         etl.LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
     } else 
-        etl.LogFileName = Tcl_GetUnicode(objv[0]);
+        etl.LogFileName = ObjToUnicode(objv[0]);
 
     etl.BufferCallback = TwapiETWBufferCallback;
     etl.EventCallback = TwapiETWEventCallback;
@@ -1070,7 +1077,7 @@ TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST ob
     if (INVALID_SESSIONTRACE_HANDLE(htrace))
         return TwapiReturnSystemError(ticP->interp);
 
-    Tcl_SetObjResult(ticP->interp, ObjFromTRACEHANDLE(htrace));
+    TwapiSetObjResult(ticP->interp, ObjFromTRACEHANDLE(htrace));
     return TCL_OK;
 }
 
@@ -1110,7 +1117,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (objc != 4)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (Tcl_ListObjGetElements(interp, objv[0], &ntraces, &htraceObjs) != TCL_OK)
+    if (ObjGetElements(interp, objv[0], &ntraces, &htraceObjs) != TCL_OK)
         return TCL_ERROR;
 
     for (i = 0; i < ntraces; ++i) {
@@ -1146,7 +1153,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     gETWContext.traceH = htraces[0];
     gETWContext.buffer_cmdlen = buffer_cmdlen;
     gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[1] : NULL;
-    gETWContext.eventsObj = Tcl_NewListObj(0, NULL);
+    gETWContext.eventsObj = ObjNewList(0, NULL);
     Tcl_IncrRefCount(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
     gETWContext.ticP = ticP;
@@ -1157,11 +1164,11 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
      * may not be the same.
      */
     for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
-        gETWEventKeys[i].keyObj = Tcl_NewStringObj(gETWEventKeys[i].keystring, -1);
+        gETWEventKeys[i].keyObj = ObjFromString(gETWEventKeys[i].keystring);
         Tcl_IncrRefCount(gETWEventKeys[i].keyObj);
     }
     for (i = 0; i < ARRAYSIZE(gETWBufferKeys); ++i) {
-        gETWBufferKeys[i].keyObj = Tcl_NewStringObj(gETWBufferKeys[i].keystring, -1);
+        gETWBufferKeys[i].keyObj = ObjFromString(gETWBufferKeys[i].keystring);
         Tcl_IncrRefCount(gETWBufferKeys[i].keyObj);
     }
 
@@ -1231,11 +1238,11 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     
-    bytesP = Tcl_GetByteArrayFromObj(objv[0], &nbytes);
+    bytesP = ObjToByteArray(objv[0], &nbytes);
 
     /* The field descriptor is a list of alternating field types and names */
-    if (Tcl_ListObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK ||
-        Tcl_GetIntFromObj(interp, objv[2], &pointer_size) != TCL_OK)
+    if (ObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK ||
+        ObjToInt(interp, objv[2], &pointer_size) != TCL_OK)
         return TCL_ERROR;
         
     if (ntypes & 1) {
@@ -1256,7 +1263,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
 
         /* Index i is field name, i+1 is field type */
 
-        if (Tcl_GetIntFromObj(interp, types[i+1], &typeenum) != TCL_OK) {
+        if (ObjToInt(interp, types[i+1], &typeenum) != TCL_OK) {
             goto error_handler;
         }
 
@@ -1300,7 +1307,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
                 /* truncated */
                 eaten = remain-2;
             }
-            objP = Tcl_NewStringObj(bytesP+2, eaten);
+            objP = ObjFromStringN(bytesP+2, eaten);
             eaten += 2;         /* include the length field */
             break;
 
@@ -1335,20 +1342,20 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         case 7: // boolean
             if (remain < sizeof(int))
                 goto done;      /* Data truncation */
-            objP = Tcl_NewBooleanObj((*(int UNALIGNED *)bytesP) ? 1 : 0);
+            objP = ObjFromBoolean((*(int UNALIGNED *)bytesP) ? 1 : 0);
             eaten = sizeof(int);
             break;
 
         case 8: // sint8
         case 9: // uint8
-            objP = Tcl_NewIntObj(typeenum == 8 ? *(signed char *)bytesP : *(unsigned char *)bytesP);
+            objP = ObjFromInt(typeenum == 8 ? *(signed char *)bytesP : *(unsigned char *)bytesP);
             eaten = sizeof(char);
             break;
             
         case 10: // csint8
         case 11: // cuint8
             /* Return as an ascii char */
-            objP = Tcl_NewStringObj(bytesP, 1);
+            objP = ObjFromStringN(bytesP, 1);
             eaten = sizeof(char);
             break;
 
@@ -1356,7 +1363,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         case 13: // uint16
             if (remain < sizeof(short))
                 goto done;      /* Data truncation */
-            objP = Tcl_NewIntObj(typeenum == 12 ?
+            objP = ObjFromInt(typeenum == 12 ?
                                  *(signed short UNALIGNED *)bytesP :
                                  *(unsigned short UNALIGNED *)bytesP);
             eaten = sizeof(short);
@@ -1365,7 +1372,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
         case 14: // sint32
             if (remain < sizeof(int))
                 goto done;      /* Data truncation */
-            objP = Tcl_NewIntObj(*(signed int UNALIGNED *)bytesP);
+            objP = ObjFromInt(*(signed int UNALIGNED *)bytesP);
             eaten = sizeof(int);
             break;
 
@@ -1383,7 +1390,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             if (typeenum == 17) {
                 objP = ObjFromULONGLONG(*(unsigned __int64 UNALIGNED *)bytesP);
             } else {
-                objP = Tcl_NewWideIntObj(*(__int64 UNALIGNED *)bytesP);
+                objP = ObjFromWideInt(*(__int64 UNALIGNED *)bytesP);
             }
             eaten = sizeof(__int64);
             break;
@@ -1437,7 +1444,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             if (remain < sizeof(WCHAR))
                 goto done;      /* Data truncation */
             wc = *(WCHAR UNALIGNED *) bytesP;
-            objP = Tcl_NewUnicodeObj(&wc, 1);
+            objP = ObjFromUnicodeN(&wc, 1);
             eaten = sizeof(WCHAR);
             break;
 
@@ -1468,7 +1475,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             eaten = *(ULONG UNALIGNED *)bytesP;
             if (remain < (eaten + sizeof(ULONG)))
                 goto done;      /* Data truncation */
-            objP = Tcl_NewByteArrayObj(sizeof(ULONG)+bytesP, eaten);
+            objP = ObjFromByteArray(sizeof(ULONG)+bytesP, eaten);
             eaten += sizeof(ULONG);
             break;
 
@@ -1478,7 +1485,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             if (*(ULONG UNALIGNED *)bytesP == 0) {
                 /* Empty SID */
                 eaten = sizeof(ULONG);
-                objP = Tcl_NewObj();
+                objP = ObjFromEmptyString();
                 break;
             }
 
@@ -1535,7 +1542,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             if (remain < sizeof(short))
                 goto done;      /* Data truncation */
             port = *(short UNALIGNED *)bytesP;
-            objP = Tcl_NewIntObj((WORD)port);
+            objP = ObjFromInt((WORD)port);
             eaten = sizeof(short);
             break;
 
@@ -1544,7 +1551,7 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             break;
             
         case 41: // stringnotcounted
-            objP = Tcl_NewStringObj(bytesP, remain);
+            objP = ObjFromStringN(bytesP, remain);
             eaten = remain;
             break;
 
@@ -1562,18 +1569,18 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             break;
 
         default:
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
+            TwapiSetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
             goto error_handler;
         }
 
         /* Some calls may result in objP being NULL */
         if (objP == NULL)
-            objP = Tcl_NewObj();
+            objP = ObjFromEmptyString();
         Tcl_DictObjPut(interp, resultObj, types[i], objP);
     }
     
     done:
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 
 error_handler:
@@ -1597,13 +1604,13 @@ static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     objP = NULL;
     switch (func) {
     case 1: // etw_provider_enable_flags
-        objP = Tcl_NewLongObj(gETWProviderTraceEnableFlags);
+        objP = ObjFromLong(gETWProviderTraceEnableFlags);
         break;
     case 2: // etw_provider_enable_level
-        objP = Tcl_NewLongObj(gETWProviderTraceEnableLevel);
+        objP = ObjFromLong(gETWProviderTraceEnableLevel);
         break;
     case 3: // etw_provider_enabled
-        objP = Tcl_NewBooleanObj((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
+        objP = ObjFromBoolean((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
         break;
     case 4: // StartTrace
         return Twapi_StartTrace(ticP, objc-2, objv+2);
@@ -1629,7 +1636,7 @@ static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
     }
 
-    Tcl_SetObjResult(interp, objP);
+    TwapiSetObjResult(interp, objP);
     return TCL_OK;
 }
 
