@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Event log" n ""]
-[copyright "2004, Ashok P. Nadkarni"]
+[copyright "2004-2012, Ashok P. Nadkarni"]
 [moddesc "Event Log"]
 [titledesc "Commands relating to reading and writing the Windows event log"]
 [require twapi_eventlog]
@@ -9,16 +9,29 @@
 
 This module provides commands for reading and writing the Windows event log.
 
+[emph "The following commands, although described here, are available in the twapi_base package itself and do not require this module to be loaded:"]
+[uri \#eventlog_open [cmd eventlog_open]],
+[uri \#eventlog_log [cmd eventlog_log]],
+[uri \#eventlog_write [cmd eventlog_write]]
+and [uri \#eventlog_close [cmd eventlog_close]]. This allows applications
+to write to the event log without this module being loaded.
+
 [section Overview]
 
 Most access to the event log requires a handle returned by
 the [uri \#eventlog_open [cmd eventlog_open]]
 command. A handle allows either read or write
-access, but never both. Events can be written using the
+access, but never both. Returned handles must be closed when no
+longer required by calling
+[uri \#eventlog_close [cmd eventlog_close]].
+[para]
+Events can be written using the
 [uri \#eventlog_write [cmd eventlog_write]]
 command. The [uri \#eventlog_log [cmd eventlog_log]]
 command provides an alternate, simpler but less flexible,
-interface for writing events. Events can be read from an event log
+interface for writing events. 
+[para]
+Events can be read from an event log
 through the [uri \#eventlog_read [cmd eventlog_read]]
 command. The returned event record can be
 formatted using [uri \#eventlog_format_message [cmd eventlog_format_message]] and

@@ -168,48 +168,6 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test eventlog_log-1.0 {
-        Log a message to the default log
-    } -constraints {
-        nt
-    } -body {
-        twapi::eventlog_log "TWAPI test message"
-        twapi::eventlog_format_message [get_last_event application]
-    } -match glob -result  "*TWAPI test message"
-
-    test eventlog_log-1.1 {
-        Log a message to the application log
-    } -constraints {
-        nt
-    } -body {
-        twapi::eventlog_log "TWAPI Application log test message" -source application
-        twapi::eventlog_format_message [get_last_event application]
-    } -match glob -result  "*TWAPI Application log test message"
-
-    test eventlog_log-1.2 {
-        Log a message to the system log
-    } -constraints {
-        nt
-    } -body {
-        twapi::eventlog_log "TWAPI System log test message" -source system
-        twapi::eventlog_format_message [get_last_event system]
-    } -match glob -result  "*TWAPI System log test message"
-    
-    set testnum 0
-    foreach source {application system} {
-        foreach type {success error warning information} {
-            test eventlog_log-2.[incr testnum] "Log a message of type $type to the $source log" -constraints {
-                nt
-            } -body {
-                twapi::eventlog_log "TWAPI log $type message" -type $type -source $source
-                array set event [get_last_event $source]
-                set event(-type)
-            } -result $type
-        }
-    }
-
-    ################################################################
-
     test eventlog_oldest-1.0 {
         Get the oldest record number in the event log
     } -constraints {
@@ -247,17 +205,6 @@ namespace eval twapi::eventlog::test {
         catch {twapi::eventlog_close $hevl}
     } -result 1
 
-
-    test eventlog_close-1.1 {
-        Close a write event log handle
-    } -constraints {
-        nt
-    } -body {
-        set hevl [twapi::eventlog_open -write]
-        twapi::eventlog_close $hevl
-        # Should generate error when closing
-        catch {twapi::eventlog_close $hevl}
-    } -result 1
 
     ################################################################
 
@@ -383,58 +330,6 @@ namespace eval twapi::eventlog::test {
             twapi::eventlog_close $hevl
         } -result ""
     }
-
-    ################################################################
-
-    set testnum 0
-    foreach source {application system} {
-        foreach type {success error warning information} {
-            test eventlog_write-1.[incr testnum] "Write a message of type $type to the $source log" -constraints {
-                nt
-            } -body {
-                set hevl [twapi::eventlog_open -source $source -write]
-                twapi::eventlog_write $hevl 1 -params [list "TWAPI log $type message"] -type $type
-                twapi::eventlog_close $hevl
-                set eventrec [get_last_event $source]
-                expr {([twapi::kl_get $eventrec -type] == $type) &&
-                      [string match "*TWAPI log $type message" [twapi::eventlog_format_message $eventrec]]}
-            } -result 1
-        }
-    }
-
-    test eventlog_write-2.0 {
-        Verify -loguser option when writing to event log
-    } -constraints {
-        nt
-    } -body {
-        set hevl [twapi::eventlog_open -write]
-        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with SID"] -loguser
-        twapi::eventlog_close $hevl
-        twapi::kl_get [get_last_event application] -sid
-    } -result [name2sid $::env(USERNAME)]
-
-    test eventlog_write-3.0 {
-        Verify -data option with text when writing to event log
-    } -constraints {
-        nt
-    } -body {
-        set hevl [twapi::eventlog_open -write]
-        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with data"] -data "SOME JUNK DATA"
-        twapi::eventlog_close $hevl
-        twapi::kl_get [get_last_event application] -data
-    } -result "SOME JUNK DATA"
-
-    test eventlog_write-3.1 {
-        Verify -data option with binary data when writing to event log
-    } -constraints {
-        nt
-    } -body {
-        set hevl [twapi::eventlog_open -write]
-        twapi::eventlog_write $hevl 1 -params [list "TWAPI log message with data"] -data [binary format h* abcdef]
-        twapi::eventlog_close $hevl
-        binary scan [twapi::kl_get [get_last_event application] -data] h* data
-        set data
-    } -result abcdef
 
     ################################################################
 
