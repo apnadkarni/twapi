@@ -1789,7 +1789,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
 
 
 /* Dispatcher for calling COM object methods */
-int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     union {
         IUnknown *unknown;
@@ -1809,7 +1809,6 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         ITypeComp *typecomp;
         IPersistFile *persistfile;
     } ifc;
-    int func;
     HRESULT hr;
     TwapiResult result;
     DWORD dw1,dw2,dw3;
@@ -1827,19 +1826,22 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     FUNCDESC *funcdesc;
     VARDESC  *vardesc;
     char *cP;
+    int func = (int) clientdata;
+
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    --objc;
+    ++objv;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), ARGSKIP,
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
-
-    // ARGSKIP makes sure at least one more argument
     if (func < 10000) {
-        /* Interface based calls. func codes are all below 10000 */
-        if (ObjToLPVOID(interp, objv[2], &pv) != TCL_OK)
+        /* Interface based calls. func codes are all below 10000. Make sure
+         * pointer is not null
+         */
+        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         if (pv == NULL) {
             TwapiSetStaticResult(interp, "NULL interface pointer.");
@@ -1869,13 +1871,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.value.uval = ifc.unknown->lpVtbl->AddRef(ifc.unknown);
             break;
         case 3:
-            if (objc < 5)
-                return TCL_ERROR;
-            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
+            if (objc < 3)
+                goto badargs;
+            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
             if (hr != S_OK)
                 break;
             result.type = TRT_INTERFACE;
-            result.value.ifc.name = ObjToString(objv[4]);
+            result.value.ifc.name = ObjToString(objv[2]);
             hr = ifc.unknown->lpVtbl->QueryInterface(ifc.unknown, &guid,
                                                      &result.value.ifc.p);
             break;
@@ -1888,7 +1890,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
     } else if (func < 200) {
         /* IDispatch */
         /* We accept both IDispatch and IDispatchEx interfaces here */
-        if (ObjToIDispatch(interp, objv[2], (void **)&ifc.dispatch) != TCL_OK)
+        if (ObjToIDispatch(interp, objv[0], (void **)&ifc.dispatch) != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
@@ -1897,7 +1899,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = ifc.dispatch->lpVtbl->GetTypeInfoCount(ifc.dispatch, &result.value.uval);
             break;
         case 102:
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETINT(dw1), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 goto ret_error;
@@ -1906,24 +1908,16 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.value.ifc.name = "ITypeInfo";
             hr = ifc.dispatch->lpVtbl->GetTypeInfo(ifc.dispatch, dw1, dw2, (ITypeInfo **)&result.value.ifc.p);
             break;
-        case 103: // GetIDsOfNames
-            if (objc < 5)
-                return TCL_ERROR;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
-            return TwapiGetIDsOfNamesHelper(
-                ticP, ifc.dispatch, objv[3],
-                dw1,              /* LCID */
-                0);             /* 0->IDispatch interface */
         }
     } else if (func < 300) {
         /* IDispatchEx */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.dispatchex, "IDispatchEx")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.dispatchex, "IDispatchEx")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 201: // GetDispID
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
@@ -1932,9 +1926,9 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                                                    dw1, &result.value.ival);
             break;
         case 202: // GetMemberName
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             VariantInit(&result.value.var);
             hr = ifc.dispatchex->lpVtbl->GetMemberName(
                 ifc.dispatchex, dw1, &result.value.var.bstrVal);
@@ -1945,7 +1939,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
         case 203: // GetMemberProperties
         case 204: // GetNextDispID
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETINT(dw1), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 goto ret_error;
@@ -1964,7 +1958,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                                                             (IUnknown **)&result.value.ifc.p);
             break;
         case 206: // DeleteMemberByName
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
@@ -1974,7 +1968,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.dispatchex, bstr1, dw1) == S_OK ? 1 : 0;
             break;
         case 207: // DeleteMemberByDispID
-            if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw1), ARGEND)
+            if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw1), ARGEND)
                 != TCL_OK)
                 goto ret_error;
             // hr = S_OK; -> Already set at top of function
@@ -1986,26 +1980,17 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 400) {
         /* ITypeInfo */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.typeinfo, "ITypeInfo")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.typeinfo, "ITypeInfo")
             != TCL_OK)
             return TCL_ERROR;
 
-        if (func == 399) {
-            if (objc != 4)
-                goto badargs;
-            return TwapiGetIDsOfNamesHelper(
-                ticP, ifc.typeinfo, objv[3],
-                0,              /* Unused */
-                1);             /* 1->ITypeInfo interface */
-        }
-
         /* Every other method either has no params or one integer param */
-        if (objc > 4)
+        if (objc > 2)
             goto badargs;
 
         dw1 = 0;
-        if (objc == 4)
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+        if (objc == 2)
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
 
         switch (func) {
         case 301: //GetRefTypeOfImplType
@@ -2091,15 +2076,15 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 500) {
         /* ITypeLib */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.typelib, "ITypeLib")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.typelib, "ITypeLib")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 401: // GetDocumentation
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_OBJV;
             hr = ifc.typelib->lpVtbl->GetDocumentation(
                 ifc.typelib, dw1, &bstr1, &bstr2, &dw2, &bstr3);
@@ -2113,34 +2098,34 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         case 402: // GetTypeInfoCount
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_DWORD;
             result.value.uval =
                 ifc.typelib->lpVtbl->GetTypeInfoCount(ifc.typelib);
             break;
         case 403: // GetTypeInfoType
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_LONG;
             hr = ifc.typelib->lpVtbl->GetTypeInfoType(ifc.typelib, dw1, &tk);
             if (hr == S_OK)
                 result.value.ival = tk;
             break;
         case 404: // GetTypeInfo
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "ITypeInfo";
             hr = ifc.typelib->lpVtbl->GetTypeInfo(
                 ifc.typelib, dw1, (ITypeInfo **)&result.value.ifc.p);
             break;
         case 405: // GetTypeInfoOfGuid
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
+            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "ITypeInfo";
@@ -2153,12 +2138,12 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return Twapi_ITypeLib_GetLibAttr(interp, ifc.typelib);
 
         case 407: // RegisterTypeLib
-            if (objc != 5)
+            if (objc != 3)
                 goto badargs;
-            s = ObjToUnicode(objv[4]);
+            s = ObjToUnicode(objv[2]);
             NULLIFY_EMPTY(s);
             result.type = TRT_EMPTY;
-            hr = RegisterTypeLib(ifc.typelib, ObjToUnicode(objv[3]), s);
+            hr = RegisterTypeLib(ifc.typelib, ObjToUnicode(objv[1]), s);
             break;
         }
     } else if (func < 600) {
@@ -2166,13 +2151,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         /* TBD - for record data, we should create dummy type-safe pointers
            instead of passing around voids even though that is what
            the IRecordInfo interface does */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.recordinfo, "IRecordInfo")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.recordinfo, "IRecordInfo")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 501: // GetField
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETVOIDP(pv), GETWSTR(s),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -2182,13 +2167,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.recordinfo, pv, s, &result.value.var);
             break;
         case 502: // GetGuid
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_GUID;
             hr = ifc.recordinfo->lpVtbl->GetGuid(ifc.recordinfo, &result.value.guid);
             break;
         case 503: // GetName
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             VariantInit(&result.value.var);
             hr = ifc.recordinfo->lpVtbl->GetName(ifc.recordinfo, &result.value.var.bstrVal);
@@ -2198,13 +2183,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         case 504: // GetSize
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_DWORD;
             hr = ifc.recordinfo->lpVtbl->GetSize(ifc.recordinfo, &result.value.uval);
             break;
         case 505: // GetTypeInfp
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "ITypeInfo";
@@ -2212,27 +2197,27 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.recordinfo, (ITypeInfo **)&result.value.ifc.p);
             break;
         case 506: // IsMatchingType
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            if (ObjToOpaque(interp, objv[3], &pv, "IRecordInfo") != TCL_OK)
+            if (ObjToOpaque(interp, objv[1], &pv, "IRecordInfo") != TCL_OK)
                 goto ret_error;
             result.type = TRT_BOOL;
             result.value.bval = ifc.recordinfo->lpVtbl->IsMatchingType(
                 ifc.recordinfo, (IRecordInfo *) pv);
             break;
         case 507: // RecordClear
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK)
                 goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.recordinfo->lpVtbl->RecordClear(ifc.recordinfo, pv);
             break;
         case 508: // RecordCopy
-            if (objc != 5)
+            if (objc != 3)
                 goto badargs;
-            if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK &&
-                ObjToLPVOID(interp, objv[4], &pv2) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK &&
+                ObjToLPVOID(interp, objv[2], &pv2) != TCL_OK)
                 goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.recordinfo->lpVtbl->RecordCopy(ifc.recordinfo, pv, pv2);
@@ -2243,16 +2228,16 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.recordinfo->lpVtbl->RecordCreate(ifc.recordinfo);
             break;
         case 510: // RecordCreateCopy
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK)
                 goto ret_error;
             result.type = TRT_LPVOID;
             hr = ifc.recordinfo->lpVtbl->RecordCreateCopy(ifc.recordinfo, pv,
                                                           &result.value.pv);
             break;
         case 511: // RecordDestroy
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
             if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK)
                 goto ret_error;
@@ -2260,31 +2245,31 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = ifc.recordinfo->lpVtbl->RecordDestroy(ifc.recordinfo, pv);
             break;
         case 512: // RecordInit
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            if (ObjToLPVOID(interp, objv[3], &pv) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK)
                 goto ret_error;
             result.type = TRT_EMPTY;
             hr = ifc.recordinfo->lpVtbl->RecordInit(ifc.recordinfo, pv);
             break;
         case 513:
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             return Twapi_IRecordInfo_GetFieldNames(interp, ifc.recordinfo);
         }
     } else if (func < 700) {
         /* IMoniker */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.moniker, "IMoniker")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.moniker, "IMoniker")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 601: // GetDisplayName
-            if (objc != 5)
+            if (objc != 3)
                 goto badargs;
-            if (ObjToOpaque(interp, objv[3], &pv, "IBindCtx") != TCL_OK)
+            if (ObjToOpaque(interp, objv[1], &pv, "IBindCtx") != TCL_OK)
                 goto ret_error;
-            if (ObjToOpaque(interp, objv[4], &pv2, "IMoniker") != TCL_OK)
+            if (ObjToOpaque(interp, objv[2], &pv2, "IMoniker") != TCL_OK)
                 goto ret_error;
             result.type = TRT_LPOLESTR;
             hr = ifc.moniker->lpVtbl->GetDisplayName(
@@ -2294,13 +2279,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 800) {
         /* IEnumVARIANT */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumvariant, "IEnumVARIANT")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.enumvariant, "IEnumVARIANT")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 701: // Clone
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IEnumVARIANT";
@@ -2308,41 +2293,31 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.enumvariant, (IEnumVARIANT **)&result.value.ifc.p);
             break;
         case 702: // Reset
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.enumvariant->lpVtbl->Reset(ifc.enumvariant);
             break;
         case 703: // Skip
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.enumvariant->lpVtbl->Skip(ifc.enumvariant, dw1);
             break;
-        case 704: // Next
-            if (objc < 4)
-                goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            /* Let caller decide if he wants flat untagged variant list
-               or a tagged variant value */
-            dw2 = 0;            /* By default tagged value */
-            if (objc > 4)
-                CHECK_INTEGER_OBJ(interp, dw2, objv[4]);
-            return TwapiIEnumNextHelper(ticP,ifc.enumvariant,dw1,1,dw2);
         }        
     } else if (func < 900) {
         /* IConnectionPoint */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.connectionpoint,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.connectionpoint,
                         "IConnectionPoint")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 801: // Advise
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            if (ObjToIUnknown(interp, objv[3], &pv) != TCL_OK)
+            if (ObjToIUnknown(interp, objv[1], &pv) != TCL_OK)
                 goto ret_error;
             result.type = TRT_DWORD;
             hr = ifc.connectionpoint->lpVtbl->Advise(
@@ -2350,7 +2325,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
             
         case 802: // EnumConnections
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IEnumConnections";
@@ -2358,14 +2333,14 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
 
         case 803: // GetConnectionInterface
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_GUID;
             hr = ifc.connectionpoint->lpVtbl->GetConnectionInterface(ifc.connectionpoint, &result.value.guid);
             break;
 
         case 804: // GetConnectionPointContainer
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IConnectionPointContainer";
@@ -2373,22 +2348,22 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
 
         case 805: // Unadvise
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.connectionpoint->lpVtbl->Unadvise(ifc.connectionpoint, dw1);
             break;
         }
     } else if (func < 1000) {
         /* IConnectionPointContainer */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.connectionpointcontainer,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.connectionpointcontainer,
                         "IConnectionPointContainer") != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 901: // EnumConnectionPoints
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IEnumConnectionPoints";
@@ -2397,9 +2372,9 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 (IEnumConnectionPoints **)&result.value.ifc.p);
             break;
         case 902: // FindConnectionPoint
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            hr = CLSIDFromString(ObjToUnicode(objv[3]), &guid);
+            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "IConnectionPoint";
@@ -2412,13 +2387,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 1100) {
         /* IEnumConnectionPoints */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumconnectionpoints,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.enumconnectionpoints,
                         "IEnumConnectionPoints") != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 1001: // Clone
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IEnumConnectionPoints";
@@ -2427,36 +2402,30 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 (IEnumConnectionPoints **) &result.value.ifc.p);
             break;
         case 1002: // Reset
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.enumconnectionpoints->lpVtbl->Reset(
                 ifc.enumconnectionpoints);
             break;
         case 1003: // Skip
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.enumconnectionpoints->lpVtbl->Skip(
                 ifc.enumconnectionpoints,   dw1);
             break;
-        case 1004: // Next
-            if (objc != 4)
-                goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            return TwapiIEnumNextHelper(ticP,ifc.enumconnectionpoints,
-                                        dw1, 2, 0);
         }        
     } else if (func < 1200) {
         /* IEnumConnections */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.enumconnections,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.enumconnections,
                         "IEnumConnections") != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 1101: // Clone
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IEnumConnections";
@@ -2464,30 +2433,25 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ifc.enumconnections, (IEnumConnections **)&result.value.ifc.p);
             break;
         case 1102: // Reset
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.enumconnections->lpVtbl->Reset(ifc.enumconnections);
             break;
         case 1103: // Skip
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.enumconnections->lpVtbl->Skip(ifc.enumconnections, dw1);
             break;
-        case 1104: // Next
-            if (objc != 4)
-                goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
-            return TwapiIEnumNextHelper(ticP, ifc.enumconnections,dw1,0,0);
         }        
     } else if (func == 1201) {
         /* IProvideClassInfo */
         /* We accept both IProvideClassInfo and IProvideClassInfo2 interfaces */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo,
+        if (ObjToOpaque(NULL, objv[0], (void **)&ifc.provideclassinfo,
                         "IProvideClassInfo") != TCL_OK &&
-            ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo,
+            ObjToOpaque(interp, objv[0], (void **)&ifc.provideclassinfo,
                         "IProvideClassInfo2") != TCL_OK)
             return TCL_ERROR;
 
@@ -2496,26 +2460,26 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         hr = ifc.provideclassinfo->lpVtbl->GetClassInfo(
             ifc.provideclassinfo, (ITypeInfo **)&result.value.ifc.p);
     } else if (func == 1301) {
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.provideclassinfo2,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.provideclassinfo2,
                         "IProvideClassInfo2")
             != TCL_OK)
             return TCL_ERROR;
 
-        if (objc != 3)
+        if (objc != 2)
             goto badargs;
-        CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+        CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
         result.type = TRT_GUID;
         hr = ifc.provideclassinfo2->lpVtbl->GetGUID(ifc.provideclassinfo2,
                                                     dw1, &result.value.guid);
     } else if (func < 1500) {
         /* ITypeComp */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.typecomp, "ITypeComp")
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.typecomp, "ITypeComp")
             != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 1401:
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETWSTR(s), GETINT(dw1), GETWORD(w),
                              ARGEND) != TCL_OK)
                 goto ret_error;
@@ -2523,13 +2487,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 5600) {
         /* IPersistFile */
-        if (ObjToOpaque(interp, objv[2], (void **)&ifc.persistfile,
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.persistfile,
                         "IPersistFile") != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {
         case 5501: // GetCurFile
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             hr = ifc.persistfile->lpVtbl->GetCurFile(
                 ifc.persistfile, &result.value.lpolestr);
@@ -2543,13 +2507,13 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             result.value.objv.objPP = objs;
             break;
         case 5502: // IsDirty
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_BOOL;
             result.value.bval = ifc.persistfile->lpVtbl->IsDirty(ifc.persistfile) == S_OK;
             break;
         case 5503: // Load
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETWSTR(s), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -2557,7 +2521,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile, s, dw1);
             break;
         case 5504: // Save
-            if (TwapiGetArgs(interp, objc-3, objv+3,
+            if (TwapiGetArgs(interp, objc-1, objv+1,
                              GETNULLIFEMPTY(s), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -2565,11 +2529,11 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = ifc.persistfile->lpVtbl->Save(ifc.persistfile, s, dw1);
             break;
         case 5505: // SaveCompleted
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->SaveCompleted(
-                ifc.persistfile, ObjToUnicode(objv[3]));
+                ifc.persistfile, ObjToUnicode(objv[1]));
             break;
         }
     } else {
@@ -2580,17 +2544,17 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         case 10001: // CreateFileMoniker
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IMoniker";
-            hr = CreateFileMoniker(ObjToUnicode(objv[2]),
+            hr = CreateFileMoniker(ObjToUnicode(objv[0]),
                                    (IMoniker **)&result.value.ifc.p);
             break;
         case 10002: // CreateBindCtx
-            CHECK_INTEGER_OBJ(interp, dw1, objv[2]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[0]);
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IBindCtx";
             hr = CreateBindCtx(dw1, (IBindCtx **)&result.value.ifc.p);
             break;
         case 10003: // GetRecordInfoFromGuids
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETINT(dw1), GETINT(dw2),
                              GETINT(dw3), GETGUID(guid2),
                              ARGEND) != TCL_OK)
@@ -2601,7 +2565,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                                         (IRecordInfo **) &result.value.ifc.p);
             break;
         case 10004: // QueryPathOfRegTypeLib
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
                              GETINT(dw3),
                              ARGEND) != TCL_OK)
@@ -2614,7 +2578,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             }
             break;
         case 10005: // UnRegisterTypeLib
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
                              GETINT(dw3),
                              ARGEND) != TCL_OK)
@@ -2623,7 +2587,7 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = UnRegisterTypeLib(&guid, w, w2, dw3, SYS_WIN32);
             break;
         case 10006: // LoadRegTypeLib
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
                              GETINT(dw3),
                              ARGEND) != TCL_OK)
@@ -2634,20 +2598,20 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                                 (ITypeLib **) &result.value.ifc.p);
             break;
         case 10007: // LoadTypeLibEx
-            if (objc != 4)
+            if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "ITypeLib";
-            hr = LoadTypeLibEx(ObjToUnicode(objv[2]), dw1,
+            hr = LoadTypeLibEx(ObjToUnicode(objv[0]), dw1,
                                               (ITypeLib **)&result.value.ifc.p);
             break;
         case 10008: // CoGetObject
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (Tcl_ListObjLength(interp, objv[3], &dw1) == TCL_ERROR ||
+            if (Tcl_ListObjLength(interp, objv[1], &dw1) == TCL_ERROR ||
                 dw1 != 0) {
                 TwapiSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
                 goto ret_error;
@@ -2657,35 +2621,35 @@ int Twapi_CallCOMObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             hr = CoGetObject(s, NULL, &guid, &result.value.ifc.p);
             break;
         case 10009: // GetActiveObject
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
-            if (ObjToGUID(interp, objv[2], &guid) != TCL_OK)
+            if (ObjToGUID(interp, objv[0], &guid) != TCL_OK)
                 goto ret_error;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IUnknown";
             hr = GetActiveObject(&guid, NULL, (IUnknown **)&result.value.ifc.p);
             break;
         case 10010: // ProgIDFromCLSID
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
-            if (ObjToGUID(interp, objv[2], &guid) != TCL_OK)
+            if (ObjToGUID(interp, objv[0], &guid) != TCL_OK)
                 goto ret_error;
             result.type = TRT_LPOLESTR;
             hr = ProgIDFromCLSID(&guid, &result.value.lpolestr);
             break;
         case 10011:  // CLSIDFromProgID
-            if (objc != 3)
+            if (objc != 1)
                 goto badargs;
             result.type = TRT_GUID;
-            hr = CLSIDFromProgID(ObjToUnicode(objv[2]), &result.value.guid);
+            hr = CLSIDFromProgID(ObjToUnicode(objv[0]), &result.value.guid);
             break;
         case 10012: // CoCreateInstance
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), ARGSKIP, GETINT(dw1),
                              GETGUID(guid2), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (ObjToIUnknown(interp, objv[3], (void **)&ifc.unknown)
+            if (ObjToIUnknown(interp, objv[1], (void **)&ifc.unknown)
                 != TCL_OK)
                 goto ret_error;
             result.type = TRT_INTERFACE;
@@ -2720,6 +2684,110 @@ ret_error:
 }
 
 
+/* Dispatcher for calling COM object methods that require a TwapiInterpContext */
+int Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    void *ifc;
+    int func;
+    HRESULT hr;
+    TwapiResult result;
+    DWORD dw1,dw2;
+    const char *ifctype;
+
+    hr = S_OK;
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETINT(func), ARGSKIP,
+                     ARGTERM) != TCL_OK)
+        return TCL_ERROR;
+
+    // ARGSKIP makes sure at least one more argument
+
+    /* We want stronger type checking so we have to convert the interface
+       pointer on a per interface type basis even though it is repetitive. */
+
+    switch (func) {
+    case 1:   /* IDispatch.GetIDsOfNames */
+        /* We accept both IDispatch and IDispatchEx interfaces here */
+        if (ObjToIDispatch(interp, objv[2], &ifc) != TCL_OK)
+            return TCL_ERROR;
+        if (ifc == NULL)
+            goto null_interface_error;
+        if (objc != 5)
+            goto badargs;
+        CHECK_INTEGER_OBJ(interp, dw1, objv[4]);
+        return TwapiGetIDsOfNamesHelper(
+            ticP, ifc, objv[3],
+            dw1,              /* LCID */
+            0);             /* 0->IDispatch interface */
+    case 2: /* ITypeInfo.GetIDsOfNames */
+        if (ObjToOpaque(interp, objv[2], &ifc, "ITypeInfo") != TCL_OK)
+            return TCL_ERROR;
+        if (ifc == NULL)
+            goto null_interface_error;
+        if (objc != 4)
+            goto badargs;
+        return TwapiGetIDsOfNamesHelper(
+            ticP, ifc, objv[3],
+            0,              /* Unused */
+            1);             /* 1->ITypeInfo interface */
+    case 3:  /* IEnumVARIANT.Next */
+        if (ObjToOpaque(interp, objv[2], &ifc, "IEnumVARIANT")
+            != TCL_OK)
+            return TCL_ERROR;
+        if (ifc == NULL)
+            goto null_interface_error;
+        if (objc < 4)
+            goto badargs;
+        CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+        /* Let caller decide if he wants flat untagged variant list
+           or a tagged variant value */
+        dw2 = 0;            /* By default tagged value */
+        if (objc > 4)
+            CHECK_INTEGER_OBJ(interp, dw2, objv[4]);
+        return TwapiIEnumNextHelper(ticP,ifc,dw1,1,dw2);
+
+    case 4: /* IEnumConnectionPoints.Next */
+        if (ObjToOpaque(interp, objv[2], &ifc, "IEnumConnectionPoints") != TCL_OK)
+            return TCL_ERROR;
+        if (ifc == NULL)
+            goto null_interface_error;
+        if (objc != 4)
+            goto badargs;
+        CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+        return TwapiIEnumNextHelper(ticP,ifc,
+                                    dw1, 2, 0);
+    case 5: /* IEnumConnections.Next */
+        if (ObjToOpaque(interp, objv[2], &ifc, "IEnumConnections") != TCL_OK)
+            return TCL_ERROR;
+        if (ifc == NULL)
+            goto null_interface_error;
+        if (objc != 4)
+            goto badargs;
+        CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
+        return TwapiIEnumNextHelper(ticP, ifc, dw1, 0, 0);
+    }
+
+    if (hr != S_OK) {
+        result.type = TRT_EXCEPTION_ON_ERROR;
+        result.value.ival = hr;
+    }
+
+    /* Note when hr == 0, result.type can be BADFUNCTION code! */
+    return TwapiSetResult(interp, &result);
+
+badargs:
+    return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+null_interface_error:
+    TwapiSetStaticResult(interp, "NULL interface pointer.");
+    return TCL_ERROR;
+}
+
+
+
+
 #if 0
 // TBD Only on Win2k3
 EXCEPTION_ON_ERROR RegisterTypeLibForUser(
@@ -2741,120 +2809,125 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* TBD - break apart commands that do not require a ticP */
 
-    static struct alias_dispatch_s ComAliasDispatch[] = {
-        DEFINE_ALIAS_CMD(IUnknown_Release, 1),
-        DEFINE_ALIAS_CMD(IUnknown_AddRef, 2),
-        DEFINE_ALIAS_CMD(Twapi_IUnknown_QueryInterface, 3),
-        DEFINE_ALIAS_CMD(OleRun, 4), // Note - function, NOT method
+    static struct fncode_dispatch_s ComDispatch[] = {
+        DEFINE_FNCODE_CMD(IUnknown_Release, 1),
+        DEFINE_FNCODE_CMD(IUnknown_AddRef, 2),
+        DEFINE_FNCODE_CMD(Twapi_IUnknown_QueryInterface, 3),
+        DEFINE_FNCODE_CMD(OleRun, 4), // Note - function, NOT method
 
-        DEFINE_ALIAS_CMD(IDispatch_GetTypeInfoCount, 101),
-        DEFINE_ALIAS_CMD(IDispatch_GetTypeInfo, 102),
-        DEFINE_ALIAS_CMD(IDispatch_GetIDsOfNames, 103),
+        DEFINE_FNCODE_CMD(IDispatch_GetTypeInfoCount, 101),
+        DEFINE_FNCODE_CMD(IDispatch_GetTypeInfo, 102),
 
-        DEFINE_ALIAS_CMD(IDispatchEx_GetDispID, 201),
-        DEFINE_ALIAS_CMD(IDispatchEx_GetMemberName, 202),
-        DEFINE_ALIAS_CMD(IDispatchEx_GetMemberProperties, 203),
-        DEFINE_ALIAS_CMD(IDispatchEx_GetNextDispID, 204),
-        DEFINE_ALIAS_CMD(IDispatchEx_GetNameSpaceParent, 205),
-        DEFINE_ALIAS_CMD(IDispatchEx_DeleteMemberByName, 206),
-        DEFINE_ALIAS_CMD(IDispatchEx_DeleteMemberByDispID, 207),
+        DEFINE_FNCODE_CMD(IDispatchEx_GetDispID, 201),
+        DEFINE_FNCODE_CMD(IDispatchEx_GetMemberName, 202),
+        DEFINE_FNCODE_CMD(IDispatchEx_GetMemberProperties, 203),
+        DEFINE_FNCODE_CMD(IDispatchEx_GetNextDispID, 204),
+        DEFINE_FNCODE_CMD(IDispatchEx_GetNameSpaceParent, 205),
+        DEFINE_FNCODE_CMD(IDispatchEx_DeleteMemberByName, 206),
+        DEFINE_FNCODE_CMD(IDispatchEx_DeleteMemberByDispID, 207),
 
-        DEFINE_ALIAS_CMD(ITypeInfo_GetRefTypeOfImplType, 301),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetRefTypeInfo, 302),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetTypeComp, 303),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetContainingTypeLib, 304),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetDocumentation, 305),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetImplTypeFlags, 306),
-        DEFINE_ALIAS_CMD(GetRecordInfoFromTypeInfo, 307), // Note - function, not method
-        DEFINE_ALIAS_CMD(ITypeInfo_GetNames, 308),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetTypeAttr, 309),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetFuncDesc, 310),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetVarDesc, 311),
-        DEFINE_ALIAS_CMD(ITypeInfo_GetIDsOfNames, 399),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetRefTypeOfImplType, 301),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetRefTypeInfo, 302),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetTypeComp, 303),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetContainingTypeLib, 304),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetDocumentation, 305),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetImplTypeFlags, 306),
+        DEFINE_FNCODE_CMD(GetRecordInfoFromTypeInfo, 307), // Note - function, not method
+        DEFINE_FNCODE_CMD(ITypeInfo_GetNames, 308),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetTypeAttr, 309),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetFuncDesc, 310),
+        DEFINE_FNCODE_CMD(ITypeInfo_GetVarDesc, 311),
 
-        DEFINE_ALIAS_CMD(ITypeLib_GetDocumentation, 401),
-        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoCount, 402),
-        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoType, 403),
-        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfo, 404),
-        DEFINE_ALIAS_CMD(ITypeLib_GetTypeInfoOfGuid, 405),
-        DEFINE_ALIAS_CMD(ITypeLib_GetLibAttr, 406),
-        DEFINE_ALIAS_CMD(RegisterTypeLib, 407), // Function, not method
+        DEFINE_FNCODE_CMD(ITypeLib_GetDocumentation, 401),
+        DEFINE_FNCODE_CMD(ITypeLib_GetTypeInfoCount, 402),
+        DEFINE_FNCODE_CMD(ITypeLib_GetTypeInfoType, 403),
+        DEFINE_FNCODE_CMD(ITypeLib_GetTypeInfo, 404),
+        DEFINE_FNCODE_CMD(ITypeLib_GetTypeInfoOfGuid, 405),
+        DEFINE_FNCODE_CMD(ITypeLib_GetLibAttr, 406),
+        DEFINE_FNCODE_CMD(RegisterTypeLib, 407), // Function, not method
 
-        DEFINE_ALIAS_CMD(IRecordInfo_GetField, 501),
-        DEFINE_ALIAS_CMD(IRecordInfo_GetGuid, 502),
-        DEFINE_ALIAS_CMD(IRecordInfo_GetName, 503),
-        DEFINE_ALIAS_CMD(IRecordInfo_GetSize, 504),
-        DEFINE_ALIAS_CMD(IRecordInfo_GetTypeInfo, 505),
-        DEFINE_ALIAS_CMD(IRecordInfo_IsMatchingType, 506),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordClear, 507),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordCopy, 508),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordCreate, 509),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordCreateCopy, 510),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordDestroy, 511),
-        DEFINE_ALIAS_CMD(IRecordInfo_RecordInit, 512),
-        DEFINE_ALIAS_CMD(IRecordInfo_GetFieldNames, 513),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetField, 501),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetGuid, 502),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetName, 503),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetSize, 504),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetTypeInfo, 505),
+        DEFINE_FNCODE_CMD(IRecordInfo_IsMatchingType, 506),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordClear, 507),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordCopy, 508),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordCreate, 509),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordCreateCopy, 510),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordDestroy, 511),
+        DEFINE_FNCODE_CMD(IRecordInfo_RecordInit, 512),
+        DEFINE_FNCODE_CMD(IRecordInfo_GetFieldNames, 513),
 
-        DEFINE_ALIAS_CMD(IMoniker_GetDisplayName,601),
+        DEFINE_FNCODE_CMD(IMoniker_GetDisplayName,601),
 
-        DEFINE_ALIAS_CMD(IEnumVARIANT_Clone, 701),
-        DEFINE_ALIAS_CMD(IEnumVARIANT_Reset, 702),
-        DEFINE_ALIAS_CMD(IEnumVARIANT_Skip, 703),
-        DEFINE_ALIAS_CMD(IEnumVARIANT_Next, 704),
+        DEFINE_FNCODE_CMD(IEnumVARIANT_Clone, 701),
+        DEFINE_FNCODE_CMD(IEnumVARIANT_Reset, 702),
+        DEFINE_FNCODE_CMD(IEnumVARIANT_Skip, 703),
 
-        DEFINE_ALIAS_CMD(IConnectionPoint_Advise, 801),
-        DEFINE_ALIAS_CMD(IConnectionPoint_EnumConnections, 802),
-        DEFINE_ALIAS_CMD(IConnectionPoint_GetConnectionInterface, 803),
-        DEFINE_ALIAS_CMD(IConnectionPoint_GetConnectionPointContainer, 804),
-        DEFINE_ALIAS_CMD(IConnectionPoint_Unadvise, 805),
+        DEFINE_FNCODE_CMD(IConnectionPoint_Advise, 801),
+        DEFINE_FNCODE_CMD(IConnectionPoint_EnumConnections, 802),
+        DEFINE_FNCODE_CMD(IConnectionPoint_GetConnectionInterface, 803),
+        DEFINE_FNCODE_CMD(IConnectionPoint_GetConnectionPointContainer, 804),
+        DEFINE_FNCODE_CMD(IConnectionPoint_Unadvise, 805),
 
-        DEFINE_ALIAS_CMD(IConnectionPointContainer_EnumConnectionPoints, 901),
-        DEFINE_ALIAS_CMD(IConnectionPointContainer_FindConnectionPoint, 902),
+        DEFINE_FNCODE_CMD(IConnectionPointContainer_EnumConnectionPoints, 901),
+        DEFINE_FNCODE_CMD(IConnectionPointContainer_FindConnectionPoint, 902),
 
-        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Clone, 1001),
-        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Reset, 1002),
-        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Skip, 1003),
-        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Next, 1004),
+        DEFINE_FNCODE_CMD(IEnumConnectionPoints_Clone, 1001),
+        DEFINE_FNCODE_CMD(IEnumConnectionPoints_Reset, 1002),
+        DEFINE_FNCODE_CMD(IEnumConnectionPoints_Skip, 1003),
 
-        DEFINE_ALIAS_CMD(IEnumConnections_Clone, 1101),
-        DEFINE_ALIAS_CMD(IEnumConnections_Reset, 1102),
-        DEFINE_ALIAS_CMD(IEnumConnections_Skip, 1103),
-        DEFINE_ALIAS_CMD(IEnumConnections_Next, 1104),
+        DEFINE_FNCODE_CMD(IEnumConnections_Clone, 1101),
+        DEFINE_FNCODE_CMD(IEnumConnections_Reset, 1102),
+        DEFINE_FNCODE_CMD(IEnumConnections_Skip, 1103),
 
-        DEFINE_ALIAS_CMD(IProvideClassInfo_GetClassInfo, 1201),
+        DEFINE_FNCODE_CMD(IProvideClassInfo_GetClassInfo, 1201),
 
-        DEFINE_ALIAS_CMD(IProvideClassInfo2_GetGUID, 1301),
+        DEFINE_FNCODE_CMD(IProvideClassInfo2_GetGUID, 1301),
 
-        DEFINE_ALIAS_CMD(ITypeComp_Bind, 1401),
+        DEFINE_FNCODE_CMD(ITypeComp_Bind, 1401),
 
 
-        DEFINE_ALIAS_CMD(IPersistFile_GetCurFile, 5501),
-        DEFINE_ALIAS_CMD(IPersistFile_IsDirty, 5502),
-        DEFINE_ALIAS_CMD(IPersistFile_Load, 5503),
-        DEFINE_ALIAS_CMD(IPersistFile_Save, 5504),
-        DEFINE_ALIAS_CMD(IPersistFile_SaveCompleted, 5505),
+        DEFINE_FNCODE_CMD(IPersistFile_GetCurFile, 5501),
+        DEFINE_FNCODE_CMD(IPersistFile_IsDirty, 5502),
+        DEFINE_FNCODE_CMD(IPersistFile_Load, 5503),
+        DEFINE_FNCODE_CMD(IPersistFile_Save, 5504),
+        DEFINE_FNCODE_CMD(IPersistFile_SaveCompleted, 5505),
 
-        DEFINE_ALIAS_CMD(CreateFileMoniker, 10001),
-        DEFINE_ALIAS_CMD(CreateBindCtx, 10002),
-        DEFINE_ALIAS_CMD(GetRecordInfoFromGuids, 10003),
-        DEFINE_ALIAS_CMD(QueryPathOfRegTypeLib, 10004),
-        DEFINE_ALIAS_CMD(UnRegisterTypeLib, 10005),
-        DEFINE_ALIAS_CMD(LoadRegTypeLib, 10006),
-        DEFINE_ALIAS_CMD(LoadTypeLibEx, 10007),
-        DEFINE_ALIAS_CMD(Twapi_CoGetObject, 10008),
-        DEFINE_ALIAS_CMD(GetActiveObject, 10009),
-        DEFINE_ALIAS_CMD(ProgIDFromCLSID, 10010),
-        DEFINE_ALIAS_CMD(CLSIDFromProgID, 10011),
-        DEFINE_ALIAS_CMD(Twapi_CoCreateInstance, 10012),
+        DEFINE_FNCODE_CMD(CreateFileMoniker, 10001),
+        DEFINE_FNCODE_CMD(CreateBindCtx, 10002),
+        DEFINE_FNCODE_CMD(GetRecordInfoFromGuids, 10003),
+        DEFINE_FNCODE_CMD(QueryPathOfRegTypeLib, 10004),
+        DEFINE_FNCODE_CMD(UnRegisterTypeLib, 10005),
+        DEFINE_FNCODE_CMD(LoadRegTypeLib, 10006),
+        DEFINE_FNCODE_CMD(LoadTypeLibEx, 10007),
+        DEFINE_FNCODE_CMD(Twapi_CoGetObject, 10008),
+        DEFINE_FNCODE_CMD(GetActiveObject, 10009),
+        DEFINE_FNCODE_CMD(ProgIDFromCLSID, 10010),
+        DEFINE_FNCODE_CMD(CLSIDFromProgID, 10011),
+        DEFINE_FNCODE_CMD(Twapi_CoCreateInstance, 10012),
+        
     };
 
-    Tcl_CreateObjCommand(interp, "twapi::ComCall",
+    static struct alias_dispatch_s ComAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(IDispatch_GetIDsOfNames, 1),
+        DEFINE_ALIAS_CMD(ITypeInfo_GetIDsOfNames, 2),
+        DEFINE_ALIAS_CMD(IEnumVARIANT_Next, 3),
+        DEFINE_ALIAS_CMD(IEnumConnectionPoints_Next, 4),
+        DEFINE_ALIAS_CMD(IEnumConnections_Next, 5),
+    };
+
+    Tcl_CreateObjCommand(interp, "twapi::ComTicCall",
                          Twapi_CallCOMObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
                          Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::ComEventSink",
                          Twapi_ComEventSinkObjCmd, ticP, NULL);
 
-    TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComCall");
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComTicCall");
 
     return TCL_OK;
 }
