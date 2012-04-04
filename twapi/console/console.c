@@ -19,14 +19,14 @@ static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
     int       objc;
     int i;
 
-    if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) != TCL_OK ||
+    if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK ||
         objc != 2 ||
-        Tcl_GetIntFromObj(interp, objv[1], &i) != TCL_OK) {
-        Tcl_SetResult(interp, "Invalid CHAR_INFO structure.", TCL_STATIC);
+        ObjToInt(interp, objv[1], &i) != TCL_OK) {
+        TwapiSetStaticResult(interp, "Invalid CHAR_INFO structure.");
         return TCL_ERROR;
     }
 
-    ciP->Char.UnicodeChar = * Tcl_GetUnicode(objv[0]);
+    ciP->Char.UnicodeChar = * ObjToUnicode(objv[0]);
     ciP->Attributes = (WORD) i;
     return TCL_OK;
 }
@@ -35,13 +35,13 @@ static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
 {
     int objc, x, y;
     Tcl_Obj **objv;
-    if (Tcl_ListObjGetElements(interp, coordObj, &objc, &objv) != TCL_OK)
+    if (ObjGetElements(interp, coordObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
     if (objc != 2)
         goto format_error;
     
-    if ((Tcl_GetIntFromObj(interp, objv[0], &x) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &y) != TCL_OK))
+    if ((ObjToInt(interp, objv[0], &x) != TCL_OK) ||
+        (ObjToInt(interp, objv[1], &y) != TCL_OK))
         goto format_error;
 
     if (x < 0 || x > 32767 || y < 0 || y > 32767)
@@ -54,9 +54,7 @@ static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
 
  format_error:
     if (interp)
-        Tcl_SetResult(interp,
-                      "Invalid Console coordinates format. Should have exactly 2 integer elements between 0 and 65535",
-                      TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid Console coordinates format.");
     return TCL_ERROR;
 }
 
@@ -67,10 +65,10 @@ static Tcl_Obj *ObjFromCOORD(
 {
     Tcl_Obj *objv[2];
 
-    objv[0] = Tcl_NewIntObj(coordP->X);
-    objv[1] = Tcl_NewIntObj(coordP->Y);
+    objv[0] = ObjFromInt(coordP->X);
+    objv[1] = ObjFromInt(coordP->Y);
 
-    return Tcl_NewListObj(2, objv);
+    return ObjNewList(2, objv);
 }
 
 static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
@@ -79,18 +77,18 @@ static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
     int       objc;
     int l, t, r, b;
 
-    if (Tcl_ListObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
+    if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
     if (objc != 4) {
-        Tcl_SetResult(interp, "Need to specify exactly 4 integers for a SMALL_RECT structure", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid SMALL_RECT structure");
         return TCL_ERROR;
     }
-    if ((Tcl_GetIntFromObj(interp, objv[0], &l) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[1], &t) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[2], &r) != TCL_OK) ||
-        (Tcl_GetIntFromObj(interp, objv[3], &b) != TCL_OK)) {
+    if ((ObjToInt(interp, objv[0], &l) != TCL_OK) ||
+        (ObjToInt(interp, objv[1], &t) != TCL_OK) ||
+        (ObjToInt(interp, objv[2], &r) != TCL_OK) ||
+        (ObjToInt(interp, objv[3], &b) != TCL_OK)) {
         return TCL_ERROR;
     }
     rectP->Left   = (SHORT) l;
@@ -107,12 +105,12 @@ static Tcl_Obj *ObjFromSMALL_RECT(
 {
     Tcl_Obj *objv[4];
 
-    objv[0] = Tcl_NewIntObj(rectP->Left);
-    objv[1] = Tcl_NewIntObj(rectP->Top);
-    objv[2] = Tcl_NewIntObj(rectP->Right);
-    objv[3] = Tcl_NewIntObj(rectP->Bottom);
+    objv[0] = ObjFromInt(rectP->Left);
+    objv[1] = ObjFromInt(rectP->Top);
+    objv[2] = ObjFromInt(rectP->Right);
+    objv[3] = ObjFromInt(rectP->Bottom);
 
-    return Tcl_NewListObj(4, objv);
+    return ObjNewList(4, objv);
 }
 
 static Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
@@ -124,31 +122,37 @@ static Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
 
     objv[0] = ObjFromCOORD(interp, &csbiP->dwSize);
     objv[1] = ObjFromCOORD(interp, &csbiP->dwCursorPosition);
-    objv[2] = Tcl_NewIntObj(csbiP->wAttributes);
+    objv[2] = ObjFromInt(csbiP->wAttributes);
     objv[3] = ObjFromSMALL_RECT(interp, &csbiP->srWindow);
     objv[4] = ObjFromCOORD(interp, &csbiP->dwMaximumWindowSize);
 
-    return Tcl_NewListObj(5, objv);
+    return ObjNewList(5, objv);
 }
 
 
-static int Twapi_ReadConsole(TwapiInterpContext *ticP, HANDLE conh, unsigned int numchars)
+static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
 {
+    WCHAR buf[300];
     WCHAR *bufP;
     DWORD  len;
     int status;
 
-    bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR) * numchars, NULL);
+    if (numchars > ARRAYSIZE(buf))
+        bufP = TwapiAlloc(numchars * sizeof(WCHAR));
+    else
+        bufP = buf;
 
     if (ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
-        Tcl_SetObjResult(ticP->interp, ObjFromUnicodeN(bufP, len));
+        TwapiSetObjResult(interp, ObjFromUnicodeN(bufP, len));
         status = TCL_OK;
     } else {
-        TwapiReturnSystemError(ticP->interp);
+        TwapiReturnSystemError(interp);
         status = TCL_ERROR;
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    if (bufP != buf)
+        TwapiFree(bufP);
+
     return status;
 }
 
@@ -183,8 +187,8 @@ static int TwapiConsoleCtrlCallbackFn(TwapiCallback *cbP)
         return ERROR_INVALID_PARAMETER;
     }
 
-    objs[0] = Tcl_NewStringObj(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler", -1);
-    objs[1] = Tcl_NewStringObj(event_str, -1);
+    objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_console_ctrl_handler");
+    objs[1] = ObjFromString(event_str);
     return TwapiEvalAndUpdateCallback(cbP, 2, objs, TRT_BOOL);
 }
 
@@ -227,7 +231,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
     pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            ticP, NULL);
     if (pv) {
-        Tcl_SetResult(ticP->interp, "Console control handler is already set.", TCL_STATIC);
+        TwapiSetStaticResult(ticP->interp, "Console control handler is already set.");
         return TCL_ERROR;
     }
 
@@ -249,7 +253,7 @@ static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
     pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            NULL, ticP);
     if (pv != (void*) ticP) {
-        Tcl_SetResult(ticP->interp, "Console control handler not set by this interpreter.", TCL_STATIC);
+        TwapiSetStaticResult(ticP->interp, "Console control handler not set by this interpreter.");
         return TCL_ERROR;
     }
     SetConsoleCtrlHandler(TwapiConsoleCtrlHandler, FALSE);
@@ -257,6 +261,20 @@ static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
 
     TwapiInterpContextUnref(ticP, 1);
     return TCL_OK;
+}
+
+static int Twapi_ConsoleEventNotifierObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int func;
+
+    if (objc != 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    
+    if (func)
+        return Twapi_StartConsoleEventNotifier(ticP);
+    else
+        return Twapi_StopConsoleEventNotifier(ticP);
 }
 
 static void TwapiConsoleCleanup(TwapiInterpContext *ticP)
@@ -371,13 +389,13 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             if (GetConsoleScreenBufferInfo(h, &u.csbi) == 0)
                 result.type = TRT_GETLASTERROR;
             else {
-                Tcl_SetObjResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
+                TwapiSetObjResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
                 return TCL_OK;
             }
             break;
         case 204:
             coord = GetLargestConsoleWindowSize(h);
-            Tcl_SetObjResult(interp, ObjFromCOORD(interp, &coord));
+            TwapiSetObjResult(interp, ObjFromCOORD(interp, &coord));
             return TCL_OK;
         case 205:
             result.type = GetNumberOfConsoleInputEvents(h, &result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
@@ -465,7 +483,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 1008:
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleTitleW(Tcl_GetUnicode(objv[2]));
+            result.value.ival = SetConsoleTitleW(ObjToUnicode(objv[2]));
             break;
         case 1009:
         case 1010:
@@ -474,7 +492,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                              GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (func == 1011)
-                return Twapi_ReadConsole(ticP, h, dw);
+                return Twapi_ReadConsole(interp, h, dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival =
                 func == 1009 ? SetConsoleMode(h, dw) : SetConsoleTextAttribute(h, (WORD) dw);
@@ -508,51 +526,46 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 
 static int TwapiConsoleInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::ConsoleCall", Twapi_ConsoleCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s ConsoleDispatch[] = {
+        DEFINE_FNCODE_CMD(AllocConsole, 1),
+        DEFINE_FNCODE_CMD(FreeConsole, 2),
+        DEFINE_FNCODE_CMD(GetConsoleCP, 3),
+        DEFINE_FNCODE_CMD(GetConsoleOutputCP, 4),
+        DEFINE_FNCODE_CMD(GetNumberOfConsoleMouseButtons, 5),
+        DEFINE_FNCODE_CMD(GetConsoleTitle, 6),
+        DEFINE_FNCODE_CMD(GetConsoleWindow, 7),
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Console" #call_, # code_); \
-    } while (0);
+        DEFINE_FNCODE_CMD(SetConsoleCP, 101),
+        DEFINE_FNCODE_CMD(SetConsoleOutputCP, 102),
+        DEFINE_FNCODE_CMD(GenerateConsoleCtrlEvent, 103),
 
-    CALL_(AllocConsole, Call, 1);
-    CALL_(FreeConsole, Call, 2);
-    CALL_(GetConsoleCP, Call, 3);
-    CALL_(GetConsoleOutputCP, Call, 4);
-    CALL_(GetNumberOfConsoleMouseButtons, Call, 5);
-    CALL_(GetConsoleTitle, Call, 6);
-    CALL_(GetConsoleWindow, Call, 7);
-    CALL_(Twapi_StopConsoleEventNotifier, Call, 8);
-    CALL_(Twapi_StartConsoleEventNotifier, Call, 9);
+        DEFINE_FNCODE_CMD(FlushConsoleInputBuffer, 201),
+        DEFINE_FNCODE_CMD(GetConsoleMode, 202),
+        DEFINE_FNCODE_CMD(GetConsoleScreenBufferInfo, 203),
+        DEFINE_FNCODE_CMD(GetLargestConsoleWindowSize, 204),
+        DEFINE_FNCODE_CMD(GetNumberOfConsoleInputEvents, 205),
+        DEFINE_FNCODE_CMD(SetConsoleActiveScreenBuffer, 206),
 
-    CALL_(SetConsoleCP, Call, 101);
-    CALL_(SetConsoleOutputCP, Call, 102);
-    CALL_(GenerateConsoleCtrlEvent, Call, 103);
+        DEFINE_FNCODE_CMD(SetConsoleWindowInfo, 1001),
+        DEFINE_FNCODE_CMD(FillConsoleOutputAttribute, 1002),
+        DEFINE_FNCODE_CMD(ScrollConsoleScreenBuffer, 1003),
+        DEFINE_FNCODE_CMD(WriteConsoleOutputCharacter, 1004),
+        DEFINE_FNCODE_CMD(SetConsoleCursorPosition, 1005),
+        DEFINE_FNCODE_CMD(SetConsoleScreenBufferSize, 1006),
+        DEFINE_FNCODE_CMD(CreateConsoleScreenBuffer, 1007),
+        DEFINE_FNCODE_CMD(SetConsoleTitle, 1008),
+        DEFINE_FNCODE_CMD(SetConsoleMode, 1009),
+        DEFINE_FNCODE_CMD(SetConsoleTextAttribute, 1010),
+        DEFINE_FNCODE_CMD(ReadConsole, 1011),
+        DEFINE_FNCODE_CMD(WriteConsole, 1012),
+        DEFINE_FNCODE_CMD(FillConsoleOutputCharacter, 1013),
+    };
 
-    CALL_(FlushConsoleInputBuffer, Call, 201);
-    CALL_(GetConsoleMode, Call, 202);
-    CALL_(GetConsoleScreenBufferInfo, Call, 203);
-    CALL_(GetLargestConsoleWindowSize, Call, 204);
-    CALL_(GetNumberOfConsoleInputEvents, Call, 205);
-    CALL_(SetConsoleActiveScreenBuffer, Call, 206);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ConsoleDispatch), ConsoleDispatch,
+                          Twapi_ConsoleCallObjCmd);
 
-    CALL_(SetConsoleWindowInfo, Call, 1001);
-    CALL_(FillConsoleOutputAttribute, Call, 1002);
-    CALL_(ScrollConsoleScreenBuffer, Call, 1003);
-    CALL_(WriteConsoleOutputCharacter, Call, 1004);
-    CALL_(SetConsoleCursorPosition, Call, 1005);
-    CALL_(SetConsoleScreenBufferSize, Call, 1006);
-    CALL_(CreateConsoleScreenBuffer, Call, 1007);
-    CALL_(SetConsoleTitle, Call, 1008);
-    CALL_(SetConsoleMode, Call, 1009);
-    CALL_(SetConsoleTextAttribute, Call, 1010);
-    CALL_(ReadConsole, Call, 1011);
-    CALL_(WriteConsole, Call, 1012);
-    CALL_(FillConsoleOutputCharacter, Call, 1013);
-
-#undef CALL_
+    /* The following command requires a ticP so cannot be included above */
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_ConsoleEventNotifier", Twapi_ConsoleEventNotifierObjCmd, ticP, NULL);
 
     return TCL_OK;
 }
