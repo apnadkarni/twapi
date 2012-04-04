@@ -283,10 +283,8 @@ static void TwapiConsoleCleanup(TwapiInterpContext *ticP)
         Twapi_StopConsoleEventNotifier(ticP);
 }
 
-static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiResult result;
-    int func;
     union {
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         WCHAR buf[MAX_PATH+1];
@@ -299,16 +297,17 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
     WORD w;
+    int func = (int) clientdata;
+    TwapiResult result;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
 
     if (func < 100) {
         /* Functions taking no arguments */
-        if (objc != 2)
+        if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
@@ -343,16 +342,12 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.value.hwin = GetConsoleWindow();
             result.type = result.value.hwin ? TRT_HWND : TRT_GETLASTERROR;
             break;
-        case 8:
-            return Twapi_StopConsoleEventNotifier(ticP);
-        case 9:
-            return Twapi_StartConsoleEventNotifier(ticP);
         }
     } else if (func < 200) {
         /* First arg integer, maybe two more */
-        if (objc < 3)
+        if (objc == 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 101:
             result.value.ival = SetConsoleCP(dw);
@@ -363,18 +358,18 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         case 103:
-            if (objc != 4)
+            if (objc != 2)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
+            CHECK_INTEGER_OBJ(interp, dw2, objv[1]);
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = GenerateConsoleCtrlEvent(dw, dw2);
             break;
         }
     } else if (func < 300) {
         /* A single handle arguments */
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
         switch (func) {
         case 201:
@@ -409,12 +404,12 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         /* At least one arg present */
-        if (objc < 3)
+        if (objc == 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
         case 1001: // SetConsoleWindowInfo
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETBOOL(dw), GETVAR(u.srect[0], ObjToSMALL_RECT),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -422,7 +417,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.value.ival = SetConsoleWindowInfo(h, dw, &u.srect[0]);
             break;
         case 1002: // FillConsoleOutputAttribute
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETWORD(w), GETINT(dw),
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
@@ -434,7 +429,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 result.type = TRT_GETLASTERROR;
             break;
         case 1003: // ScrollConsoleScreenBuffer
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h),
                              GETVAR(u.srect[0], ObjToSMALL_RECT),
                              GETVAR(u.srect[1], ObjToSMALL_RECT),
@@ -448,7 +443,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 h, &u.srect[0], &u.srect[1], coord, &chinfo);
             break;
         case 1004:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETWSTRN(s, dw),
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
@@ -460,7 +455,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 1005: // SetConsoleCursorPosition
         case 1006: // SetConsoleScreenBufferSize
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -470,7 +465,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 (h, coord);
             break;
         case 1007: // CreateConsoleScreenBuffer
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw),
                              GETINT(dw2),
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
@@ -483,12 +478,12 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 1008:
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleTitleW(ObjToUnicode(objv[2]));
+            result.value.ival = SetConsoleTitleW(ObjToUnicode(objv[0]));
             break;
         case 1009:
         case 1010:
         case 1011:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (func == 1011)
@@ -498,7 +493,7 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 func == 1009 ? SetConsoleMode(h, dw) : SetConsoleTextAttribute(h, (WORD) dw);
             break;
         case 1012:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETWSTR(s), ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (WriteConsoleW(h, s, dw, &result.value.uval, NULL))
@@ -507,10 +502,10 @@ static int Twapi_ConsoleCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 result.type = TRT_GETLASTERROR;
             break;
         case 1013:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETWSTR(s), GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (ObjToCOORD(interp, objv[5], &coord) != TCL_OK)
+            if (ObjToCOORD(interp, objv[3], &coord) != TCL_OK)
                 return TCL_ERROR;
             if (FillConsoleOutputCharacterW(h, s[0], dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
