@@ -1419,12 +1419,12 @@ struct fncode_dispatch_s {
 TWAPI_EXTERN void TwapiDefineFncodeCmds(Tcl_Interp *, int, struct fncode_dispatch_s *, TwapiTclObjCmd *);
 
 /* Commands that take a TwapiInterpContext as ClientData param */
-struct tic_dispatch_s {
+struct tcl_dispatch_s {
     char *command_name;
     TwapiTclObjCmd *command_ptr;
 };
-#define DEFINE_TIC_CMD(fn_, cmdptr_) {#fn_, cmdptr_}
-TWAPI_EXTERN void TwapiDefineTicCmds(Tcl_Interp *, int, struct tic_dispatch_s *, TwapiInterpContext *ticP);
+#define DEFINE_TCL_CMD(fn_, cmdptr_) {#fn_, cmdptr_}
+TWAPI_EXTERN void TwapiDefineTclCmds(Tcl_Interp *, int, struct tcl_dispatch_s *, ClientData clientdata);
 
 /* Command that are defined as an alias */
 struct alias_dispatch_s {

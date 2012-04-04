@@ -8,9 +8,8 @@
 /*
  * TBD - replace use of string object cache with TwapiGetAtom
  * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
+ * TBD - replace dict ops with list ops if possible
  */
- 
-
 
 #include "twapi.h"
 #include <evntrace.h>
@@ -102,7 +101,7 @@ static const char * g_trace_logfile_header_fields[] = {
 
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
-    TwapiInterpContext *ticP;
+    Tcl_Interp *interp;
 
     Tcl_Obj *buffer_cmdObj;     /* Callback for buffers */
 
@@ -222,18 +221,16 @@ HMODULE gModuleHandle;     /* DLL handle to ourselves */
 static GUID gNullGuid;             /* Initialized to all zeroes */
 
 /* Prototypes */
-TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-
-
+TCL_RESULT Twapi_RegisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_UnregisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_TraceEvent(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_EnableTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 
 /*
  * Functions
@@ -645,14 +642,13 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
 }
 
 
-TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_RegisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Interp *interp = ticP->interp;
     DWORD rc;
     GUID provider_guid, event_class_guid;
     TRACE_GUID_REGISTRATION event_class_reg;
     
-    if (TwapiGetArgs(interp, objc, objv, GETUUID(provider_guid),
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETUUID(provider_guid),
                      GETUUID(event_class_guid), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
@@ -699,16 +695,15 @@ TCL_RESULT Twapi_RegisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj 
     }
 }
 
-TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_UnregisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Interp *interp = ticP->interp;
     TRACEHANDLE traceH;
     DWORD rc;
     
-    if (objc != 1)
+    if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjToTRACEHANDLE(interp, objv[0], &traceH) != TCL_OK)
+    if (ObjToTRACEHANDLE(interp, objv[1], &traceH) != TCL_OK)
         return TCL_ERROR;
 
     if (traceH != gETWProviderRegistrationHandle) {
@@ -726,7 +721,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(TwapiInterpContext *ticP, int objc, Tcl_Ob
     }
 }
 
-TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_TraceEvent(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int i;
     struct {
@@ -744,13 +739,13 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     if (INVALID_SESSIONTRACE_HANDLE(gETWProviderSessionHandle))
         return TCL_OK;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(htrace, ObjToTRACEHANDLE),
                      GETINT(type), GETINT(level), ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
-    objc -= 3;
-    objv += 3;
+    objc -= 4;
+    objv += 4;
 
     /* We will only log up to 16 strings. Additional will be silently ignored */
     if (objc > 16)
@@ -770,20 +765,20 @@ TCL_RESULT Twapi_TraceEvent(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
     return rc == ERROR_SUCCESS ?
-        TCL_OK : Twapi_AppendSystemError(ticP->interp, rc);
+        TCL_OK : Twapi_AppendSystemError(interp, rc);
 }
 
 
-TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVENT_TRACE_PROPERTIES *etP;
     TRACEHANDLE htrace;
-    Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *objs[2];
     
-    if (objc != 2)
+    if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[1], &etP) != TCL_OK)
+
+    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
         return TCL_ERROR;
 
     /* If no log file specified, set logfilenameoffset to 0 
@@ -793,7 +788,7 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         etP->LogFileNameOffset = 0;
 
     if (StartTraceW(&htrace,
-                    ObjToUnicode(objv[0]),
+                    ObjToUnicode(objv[1]),
                     etP) != ERROR_SUCCESS) {
         Twapi_AppendSystemError(interp, GetLastError());
         TwapiFree(etP);
@@ -807,24 +802,19 @@ TCL_RESULT Twapi_StartTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     return TCL_OK;
 }
 
-TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
     EVENT_TRACE_PROPERTIES *etP;
     WCHAR *session_name;
-    Tcl_Interp *interp = ticP->interp;
     ULONG code;
 
-    if (ObjToLong(interp, objv[0], &code) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETINT(code), GETWIDE(htrace), ARGSKIP,
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (objc != 3)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-    if (ObjToWideInt(interp, objv[1], &htrace) != TCL_OK)
-        return TCL_ERROR;
-
-    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
+    if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[3], &etP) != TCL_OK)
         return TCL_ERROR;
 
     if (etP->LoggerNameOffset &&
@@ -845,14 +835,13 @@ TCL_RESULT Twapi_ControlTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     return code;
 }
 
-TCL_RESULT Twapi_EnableTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_EnableTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     GUID guid;
     TRACEHANDLE htrace;
     ULONG enable, flags, level;
-    Tcl_Interp *interp = ticP->interp;
 
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(enable), GETINT(flags), GETINT(level),
                      GETUUID(guid), GETWIDE(htrace),
                      ARGEND) != TCL_OK) {
@@ -874,9 +863,8 @@ void WINAPI TwapiETWEventCallback(
     Tcl_Obj *evObj;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
-    TWAPI_ASSERT(gETWContext.ticP != NULL);
-    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
-    interp = gETWContext.ticP->interp;
+    TWAPI_ASSERT(gETWContext.interp != NULL);
+    interp = gETWContext.interp;
 
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return;
@@ -926,11 +914,10 @@ ULONG WINAPI TwapiETWBufferCallback(
     int code;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
-    TWAPI_ASSERT(gETWContext.ticP != NULL);
-    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
-    interp = gETWContext.ticP->interp;
+    TWAPI_ASSERT(gETWContext.interp != NULL);
+    interp = gETWContext.interp;
 
-    if (Tcl_InterpDeleted(gETWContext.ticP->interp))
+    if (Tcl_InterpDeleted(interp))
         return FALSE;
 
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
@@ -1025,7 +1012,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
     Tcl_IncrRefCount(gETWContext.eventsObj);
 
-    code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
+    code = Tcl_EvalObjEx(gETWContext.interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
     /* Get rid of the command obj if we created it */
     if (objP != gETWContext.buffer_cmdObj)
@@ -1036,7 +1023,7 @@ ULONG WINAPI TwapiETWBufferCallback(
         /* Any other value - not an error, but stop processing */
         return FALSE;
     case TCL_ERROR:
-        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.ticP->interp,
+        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.interp,
                                                     code);
         Tcl_IncrRefCount(gETWContext.errorObj);
         Tcl_DecrRefCount(gETWContext.eventsObj);
@@ -1050,47 +1037,45 @@ ULONG WINAPI TwapiETWBufferCallback(
 
 
 
-TCL_RESULT Twapi_OpenTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
     EVENT_TRACE_LOGFILEW etl;
     int real_time;
-    Tcl_Interp *interp = ticP->interp;
+    WCHAR *s;
 
-    if (objc != 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-    if (ObjToInt(interp, objv[1], &real_time) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETWSTR(s), GETINT(real_time),
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     ZeroMemory(&etl, sizeof(etl));
     if (real_time) {
-        etl.LoggerName = ObjToUnicode(objv[0]);
+        etl.LoggerName = s;
         etl.LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
     } else 
-        etl.LogFileName = ObjToUnicode(objv[0]);
+        etl.LogFileName = s;
 
     etl.BufferCallback = TwapiETWBufferCallback;
     etl.EventCallback = TwapiETWEventCallback;
 
     htrace = OpenTraceW(&etl);
     if (INVALID_SESSIONTRACE_HANDLE(htrace))
-        return TwapiReturnSystemError(ticP->interp);
+        return TwapiReturnSystemError(interp);
 
-    TwapiSetObjResult(ticP->interp, ObjFromTRACEHANDLE(htrace));
+    TwapiSetObjResult(interp, ObjFromTRACEHANDLE(htrace));
     return TCL_OK;
 }
 
-TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
     ULONG err;
-    Tcl_Interp *interp = ticP->interp;
 
-    if (objc != 1)
+    if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjToTRACEHANDLE(interp, objv[0], &htrace) != TCL_OK)
+    if (ObjToTRACEHANDLE(interp, objv[1], &htrace) != TCL_OK)
         return TCL_ERROR;
 
     err = CloseTrace(htrace);
@@ -1101,11 +1086,10 @@ TCL_RESULT Twapi_CloseTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 }
 
 
-TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int i;
     FILETIME start, end, *startP, *endP;
-    Tcl_Interp *interp = ticP->interp;
     struct TwapiETWContext etwc;
     int buffer_cmdlen;
     int code;
@@ -1114,10 +1098,10 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     TRACEHANDLE htraces[8];
     int       ntraces;
 
-    if (objc != 4)
+    if (objc != 5)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjGetElements(interp, objv[0], &ntraces, &htraceObjs) != TCL_OK)
+    if (ObjGetElements(interp, objv[1], &ntraces, &htraceObjs) != TCL_OK)
         return TCL_ERROR;
 
     for (i = 0; i < ntraces; ++i) {
@@ -1129,26 +1113,26 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
      * effectively drain the buffer without doing anything
      */
     buffer_cmdlen = 0;
-    if (Tcl_ListObjLength(interp, objv[1], &buffer_cmdlen) != TCL_OK)
+    if (Tcl_ListObjLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
         return TCL_ERROR;
 
-    if (Tcl_GetCharLength(objv[2]) == 0)
+    if (Tcl_GetCharLength(objv[3]) == 0)
         startP = NULL;
-    else if (ObjToFILETIME(interp, objv[2], &start) != TCL_OK)
+    else if (ObjToFILETIME(interp, objv[3], &start) != TCL_OK)
             return TCL_ERROR;
     else
         startP = &start;
     
-    if (Tcl_GetCharLength(objv[3]) == 0)
+    if (Tcl_GetCharLength(objv[4]) == 0)
         endP = NULL;
-    else if (ObjToFILETIME(interp, objv[3], &end) != TCL_OK)
+    else if (ObjToFILETIME(interp, objv[4], &end) != TCL_OK)
             return TCL_ERROR;
     else
         endP = &end;
     
     EnterCriticalSection(&gETWCS);
     
-    TWAPI_ASSERT(gETWContext.ticP == NULL);
+    TWAPI_ASSERT(gETWContext.interp == NULL);
 
     gETWContext.traceH = htraces[0];
     gETWContext.buffer_cmdlen = buffer_cmdlen;
@@ -1156,7 +1140,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     gETWContext.eventsObj = ObjNewList(0, NULL);
     Tcl_IncrRefCount(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
-    gETWContext.ticP = ticP;
+    gETWContext.interp = interp;
 
     /*
      * Initialize the dictionary objects we will use as keys. These are
@@ -1179,7 +1163,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     gETWContext.buffer_cmdObj = NULL;
     gETWContext.eventsObj = NULL;
     gETWContext.errorObj = NULL;
-    gETWContext.ticP = NULL;
+    gETWContext.interp = NULL;
 
     LeaveCriticalSection(&gETWCS);
 
@@ -1214,11 +1198,10 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     return TCL_OK;
 }
 
-TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int       i;
     ULONG eaten;
-    Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **types;            /* Field types */
     int       ntypes;           /* Number of fields/types */
     char     *bytesP;
@@ -1234,15 +1217,14 @@ TCL_RESULT Twapi_ParseEventMofData(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     } u;
     short     port;
 
-    if (objc != 3)
+    if (objc != 4)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
     
-    bytesP = ObjToByteArray(objv[0], &nbytes);
+    bytesP = ObjToByteArray(objv[1], &nbytes);
 
     /* The field descriptor is a list of alternating field types and names */
-    if (ObjGetElements(interp, objv[1], &ntypes, &types) != TCL_OK ||
-        ObjToInt(interp, objv[2], &pointer_size) != TCL_OK)
+    if (ObjGetElements(interp, objv[2], &ntypes, &types) != TCL_OK ||
+        ObjToInt(interp, objv[3], &pointer_size) != TCL_OK)
         return TCL_ERROR;
         
     if (ntypes & 1) {
@@ -1592,14 +1574,10 @@ error_handler:
 }
 
 
-static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     Tcl_Obj *objP;
-
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    int func = (int) clientdata;
 
     objP = NULL;
     switch (func) {
@@ -1612,26 +1590,6 @@ static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 3: // etw_provider_enabled
         objP = ObjFromBoolean((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
         break;
-    case 4: // StartTrace
-        return Twapi_StartTrace(ticP, objc-2, objv+2);
-    case 5: // ControlTrace
-        return Twapi_ControlTrace(ticP, objc-2, objv+2);
-    case 6: // EnableTrace
-        return Twapi_EnableTrace(ticP, objc-2, objv+2);
-    case 7: // OpenTrace
-        return Twapi_OpenTrace(ticP, objc-2, objv+2);
-    case 8: // CloseTrace
-        return Twapi_CloseTrace(ticP, objc-2, objv+2);
-    case 9: // ProcessTrace
-        return Twapi_ProcessTrace(ticP, objc-2, objv+2);
-    case 10: // RegisterTraceGuids
-        return Twapi_RegisterTraceGuids(ticP, objc-2, objv+2);
-    case 11: // UnregisterTraceGuids
-        return Twapi_UnregisterTraceGuids(ticP, objc-2, objv+2);
-    case 12: // TraceEvent
-        return Twapi_TraceEvent(ticP, objc-2, objv+2);
-    case 13:
-        return Twapi_ParseEventMofData(ticP, objc-2, objv+2);
     default:
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
     }
@@ -1643,30 +1601,31 @@ static int Twapi_ETWCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 
 static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    struct tcl_dispatch_s EtwDispatch[] = {
+        DEFINE_TCL_CMD(StartTrace, Twapi_StartTrace),
+        DEFINE_TCL_CMD(ControlTrace, Twapi_ControlTrace),
+        DEFINE_TCL_CMD(EnableTrace, Twapi_EnableTrace),
+        DEFINE_TCL_CMD(OpenTrace, Twapi_OpenTrace),
+        DEFINE_TCL_CMD(CloseTrace, Twapi_CloseTrace),
+        DEFINE_TCL_CMD(ProcessTrace, Twapi_ProcessTrace),
+        DEFINE_TCL_CMD(RegisterTraceGuids, Twapi_RegisterTraceGuids),
+        DEFINE_TCL_CMD(UnregisterTraceGuids, Twapi_UnregisterTraceGuids),
+        DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
+        DEFINE_TCL_CMD(Twapi, Twapi_ParseEventMofData),
+    };
+
+    struct fncode_dispatch_s EtwCallDispatch[] = {
+        DEFINE_FNCODE_CMD(etw_provider_enable_flags, 1),     /* TBD docs */
+        DEFINE_FNCODE_CMD(etw_provider_enable_level, 2),     /* TBD docs */
+        DEFINE_FNCODE_CMD(etw_provider_enabled, 3),          /* TBD docs */
+    };
+
+    TwapiDefineTclCmds(interp, ARRAYSIZE(EtwDispatch), EtwDispatch, NULL);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(EtwCallDispatch), EtwCallDispatch, Twapi_ETWCallObjCmd);
+
+
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::ETWCall", Twapi_ETWCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ETW" #call_, # code_); \
-    } while (0);
-
-    CALL_(etw_provider_enable_flags, Call, 1);     /* TBD docs */
-    CALL_(etw_provider_enable_level, Call, 2);     /* TBD docs */
-    CALL_(etw_provider_enabled, Call, 3);          /* TBD docs */
-    CALL_(StartTrace, Call, 4); // Tcl
-    CALL_(ControlTrace, Call, 5); // Tcl
-    CALL_(EnableTrace, Call, 6); // Tcl
-    CALL_(OpenTrace, Call, 7); // Tcl
-    CALL_(CloseTrace, Call, 8); // Tcl
-    CALL_(ProcessTrace, Call, 9); // Tcl
-    CALL_(RegisterTraceGuids, Call, 10); // Tcl
-    CALL_(UnregisterTraceGuids, Call, 11); // Tcl
-    CALL_(TraceEvent, Call, 12); // Tcl
-    CALL_(Twapi_ParseEventMofData, Call, 13); // Tcl
-
-#undef CALL_
 
     return TCL_OK;
 }
