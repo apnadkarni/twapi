@@ -73,6 +73,12 @@ information about the error. The first element is the error class
 and determines the format of the rest of the list. This may take
 one of the following values:
 
+[section "Writing to the Windows event log"]
+Commands for writing to the Windows event log are included
+in the [package twapi_base] package. Documentation for these
+is however part of the
+[uri eventlog.html [package twapi_eventlog]] package.
+
 [list_begin opt]
 [opt_def [const TWAPI_WIN32]]
 This error class corresponds to Windows error codes. The second element of
