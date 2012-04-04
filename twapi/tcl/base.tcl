@@ -970,3 +970,122 @@ proc twapi::close_lsa_policy_handle {h} {
     return
 }
 
+# Eventlog stuff in the base package
+
+namespace eval twapi {
+    # Keep track of event log handles - values are "r" or "w"
+    variable eventlog_handles
+    array set eventlog_handles {}
+}
+
+# Open an eventlog for reading or writing
+proc twapi::eventlog_open {args} {
+    variable eventlog_handles
+
+    array set opts [parseargs args {
+        system.arg
+        source.arg
+        file.arg
+        write
+    } -nulldefault -maxleftover 0]
+    if {$opts(source) == ""} {
+        # Source not specified
+        if {$opts(file) == ""} {
+            # No source or file specified, default to current event log 
+            # using executable name as source
+            set opts(source) [file rootname [file tail [info nameofexecutable]]]
+        } else {
+            if {$opts(write)} {
+                error "Option -file may not be used with -write"
+            }
+        }
+    } else {
+        # Source explicitly specified
+        if {$opts(file) != ""} {
+            error "Option -file may not be used with -source"
+        }
+    }
+
+    if {$opts(write)} {
+        set handle [RegisterEventSource $opts(system) $opts(source)]
+        set mode write
+    } else {
+        if {$opts(source) != ""} {
+            set handle [OpenEventLog $opts(system) $opts(source)]
+        } else {
+            set handle [OpenBackupEventLog $opts(system) $opts(file)]
+        }
+        set mode read
+    }
+
+    set eventlog_handles($handle) $mode
+    return $handle
+}
+
+# Close an event log opened for writing
+proc twapi::eventlog_close {hevl} {
+    variable eventlog_handles
+
+    if {[_eventlog_valid_handle $hevl read]} {
+        CloseEventLog $hevl
+    } else {
+        DeregisterEventSource $hevl
+    }
+
+    unset eventlog_handles($hevl)
+}
+
+
+# Log an event
+proc twapi::eventlog_write {hevl id args} {
+    _eventlog_valid_handle $hevl write raise
+
+    array set opts [parseargs args {
+        {type.arg information {success error warning information auditsuccess auditfailure}}
+        {category.int 1}
+        loguser
+        params.arg
+        data.arg
+    } -nulldefault]
+
+
+    switch -exact -- $opts(type) {
+        success          {set opts(type) 0}
+        error            {set opts(type) 1}
+        warning          {set opts(type) 2}
+        information      {set opts(type) 4}
+        auditsuccess     {set opts(type) 8}
+        auditfailure     {set opts(type) 16}
+        default {error "Invalid value '$opts(type)' for option -type"}
+    }
+    
+    if {$opts(loguser)} {
+        set user [get_current_user -sid]
+    } else {
+        set user ""
+    }
+
+    ReportEvent $hevl $opts(type) $opts(category) $id \
+        $user $opts(params) $opts(data)
+}
+
+
+# Log a message 
+proc twapi::eventlog_log {message args} {
+    array set opts [parseargs args {
+        system.arg
+        source.arg
+        {type.arg information}
+        {category.int 1}
+    } -nulldefault]
+
+    set hevl [eventlog_open -write -source $opts(source) -system $opts(system)]
+
+    trap {
+        eventlog_write $hevl 1 -params [list $message] -type $opts(type) -category $opts(category)
+    } finally {
+        eventlog_close $hevl
+    }
+    return
+}
+

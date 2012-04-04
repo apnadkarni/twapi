@@ -16,40 +16,6 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 
 static TwapiOneTimeInitState TwapiEventlogOneTimeInitialized;
 
-int Twapi_ReportEvent(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    HANDLE hEventLog;
-    WORD   wType;
-    WORD  wCategory;
-    DWORD dwEventID;
-    PSID  lpUserSid = NULL;
-    int   datalen;
-    void *data;
-    int     argc;
-    LPCWSTR argv[32];
-    int   status;
-
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETHANDLE(hEventLog), GETWORD(wType), GETWORD(wCategory),
-                     GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSID),
-                     GETWARGV(argv, ARRAYSIZE(argv), argc),
-                     GETBIN(data, datalen),
-                     ARGEND) != TCL_OK) {
-        if (lpUserSid)
-            TwapiFree(lpUserSid);
-        return TCL_ERROR;
-    }
-
-    if (datalen == 0)
-        data = NULL;
-
-    status = ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
-                          (WORD) argc, datalen, argv, data);
-    if (lpUserSid)
-        TwapiFree(lpUserSid);
-
-    return status ? TCL_OK : TwapiReturnSystemError(interp);
-}
     
 BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP)
 {
@@ -64,13 +30,11 @@ BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP)
     return FALSE;
 }
 
-int Twapi_ReadEventLog(
-    TwapiInterpContext *ticP,
-    HANDLE evlH,
-    DWORD  flags,
-    DWORD  offset
-    )
+static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    HANDLE evlH;
+    DWORD  flags;
+    DWORD  offset;
     DWORD  buf_sz;
     char  *bufP;
     DWORD  num_read;
@@ -78,7 +42,6 @@ int Twapi_ReadEventLog(
     EVENTLOGRECORD *evlP;
     Tcl_Obj *resultObj;
     DWORD winerr = ERROR_SUCCESS;
-    Tcl_Interp *interp = ticP->interp;
     static const char *fieldnames[] = {
         "-source", "-system", "-reserved", "-recordnum", "-timegenerated",
         "-timewritten", "-eventid", "-type", "-category", "-reservedflags",
@@ -86,7 +49,11 @@ int Twapi_ReadEventLog(
 
     Tcl_Obj *fields[ARRAYSIZE(fieldnames)];
 
-    /* Ask for 1000 bytes alloc, will get more if available */
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(evlH),
+                     GETINT(flags), GETINT(offset), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    /* Ask for 1000 bytes alloc, will get more if available. TBD - instrument */
     bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
 
     if (! ReadEventLogW(evlH, flags, offset,
@@ -120,7 +87,7 @@ int Twapi_ReadEventLog(
     }
     
     evlP = (EVENTLOGRECORD *) bufP;
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjNewList(0, NULL);
     while (num_read > 0) {
         Tcl_Obj *objv[14];
         PSID     sidP;
@@ -138,18 +105,18 @@ int Twapi_ReadEventLog(
         objv[4] = ObjFromDWORD(evlP->TimeGenerated);
         objv[5] = ObjFromDWORD(evlP->TimeWritten);
         objv[6] = ObjFromDWORD(evlP->EventID);
-        objv[7] = Tcl_NewIntObj(evlP->EventType);
-        objv[8] = Tcl_NewIntObj(evlP->EventCategory);
-        objv[9] = Tcl_NewIntObj(evlP->ReservedFlags);
+        objv[7] = ObjFromInt(evlP->EventType);
+        objv[8] = ObjFromInt(evlP->EventCategory);
+        objv[9] = ObjFromInt(evlP->ReservedFlags);
         objv[10] = ObjFromDWORD(evlP->ClosingRecordNumber);
 
         /* Collect all the strings together into a list */
-        objv[11] = Tcl_NewListObj(0, NULL);
+        objv[11] = ObjNewList(0, NULL);
         for (strP = (WCHAR *)(evlP->StringOffset + (char *)evlP), strindex = 0;
              strindex < evlP->NumStrings;
              ++strindex) {
             len = lstrlenW(strP);
-            Tcl_ListObjAppendElement(interp, objv[11],
+            ObjAppendElement(interp, objv[11],
                                      ObjFromUnicodeN(strP, len));
             strP += len + 1;
         }
@@ -163,12 +130,12 @@ int Twapi_ReadEventLog(
 
         /* Get the binary data */
         objv[13] =
-            Tcl_NewByteArrayObj(evlP->DataOffset + (unsigned char *) evlP,
+            ObjFromByteArray(evlP->DataOffset + (unsigned char *) evlP,
                                 evlP->DataLength);
 
         /* Now attach this record to event record list */
         TWAPI_ASSERT(ARRAYSIZE(objv) == ARRAYSIZE(fields));
-        Tcl_ListObjAppendElement(interp, resultObj, TwapiTwineObjv(fields, objv, ARRAYSIZE(objv)));
+        ObjAppendElement(interp, resultObj, TwapiTwineObjv(fields, objv, ARRAYSIZE(objv)));
 
         /* Move onto next record */
         num_read -= evlP->Length;
@@ -178,7 +145,7 @@ int Twapi_ReadEventLog(
 vamoose:
     MemLifoPopFrame(&ticP->memlifo);
     if (winerr == ERROR_SUCCESS) {
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
         return TCL_OK;
     } else {
         Twapi_AppendSystemError(interp, winerr);
@@ -187,36 +154,29 @@ vamoose:
 }
 
 
-static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
-    int func;
-    DWORD dw, dw2;
+    int func = (int) clientdata;
     LPWSTR s, s2;
     HANDLE h, h2;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
-
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 100) {
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), ARGUSEDEFAULT, GETHANDLE(h2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         
         /* func 1 has 2 args, rest all have 1 arg */
-        if ((objc != 3) && (func !=1 || objc != 4))
+        if ((objc != 1) && (func !=1 || objc != 2))
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
-        case 1:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = NotifyChangeEventLog(h, h2);
-            break;
         case 2:
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseEventLog(h);
+            result.value.ival = NotifyChangeEventLog(h, h2);
             break;
         case 3:
             result.type = GetNumberOfEventLogRecords(h,
@@ -241,31 +201,21 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     } else {
         /* Arbitrary args */
         switch (func) {
-        case 1001:
-            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
-                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            return Twapi_ReadEventLog(ticP, h, dw, dw2);
         case 1002:
         case 1003:
-            if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
                              GETWSTR(s), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = (func == 1002 ? BackupEventLogW : ClearEventLogW)(h, s);
             break;
         case 1004:
-        case 1005:
-        case 1006:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETNULLIFEMPTY(s), GETWSTR(s2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
-            result.value.hval = (func == 1004 ? OpenEventLogW :
-                                 (func == 1005 ? OpenBackupEventLogW : RegisterEventSourceW))(s, s2);
+            result.value.hval = OpenBackupEventLogW(s, s2);
             break;
-        case 1007:
-            return Twapi_ReportEvent(interp, objc-2, objv+2);
         }
     }
 
@@ -274,32 +224,23 @@ static int Twapi_EventlogCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
 static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::EvogCall", Twapi_EventlogCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s EvlogCallDispatch[] = {
+        DEFINE_FNCODE_CMD(NotifyChangeEventLog, 2),
+        DEFINE_FNCODE_CMD(GetNumberOfEventLogRecords, 3),
+        DEFINE_FNCODE_CMD(GetOldestEventLogRecord, 4),
+        DEFINE_FNCODE_CMD(Twapi_IsEventLogFull, 5),
+        DEFINE_FNCODE_CMD(DeregisterEventSource, 6),
+        DEFINE_FNCODE_CMD(BackupEventLog, 1002),
+        DEFINE_FNCODE_CMD(ClearEventLog, 1003),
+        DEFINE_FNCODE_CMD(OpenBackupEventLog, 1004),
+    };
+
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvlogCallDispatch), EvlogCallDispatch, Twapi_EventlogCallObjCmd);
+
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_ReadEventLog", Twapi_ReadEventLogObjCmd, ticP, NULL);
+
+
     Tcl_CreateObjCommand(interp, "twapi::EvtCall", Twapi_EvtCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Evlog" #call_, # code_); \
-    } while (0);
-
-    CALL_(NotifyChangeEventLog, Call, 1);
-    CALL_(CloseEventLog, Call, 2);
-    CALL_(GetNumberOfEventLogRecords, Call, 3);
-    CALL_(GetOldestEventLogRecord, Call, 4);
-    CALL_(Twapi_IsEventLogFull, Call, 5);
-    CALL_(DeregisterEventSource, Call, 6);
-    CALL_(ReadEventLog, Call, 1001);
-    CALL_(BackupEventLog, Call, 1002);
-    CALL_(ClearEventLog, Call, 1003);
-    CALL_(OpenEventLog, Call, 1004);
-    CALL_(OpenBackupEventLog, Call, 1005);
-    CALL_(RegisterEventSource, Call, 1006);
-    CALL_(ReportEvent, Call, 1007);
-
-
-#undef CALL_
 
     return TCL_OK;
 }
