@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004, Ashok P. Nadkarni
+# Copyright (c) 2004-2012, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -621,12 +621,12 @@ proc twapi::set_console_control_handler {script} {
     variable _console_control_script
     if {[string length $script]} {
         if {![info exists _console_control_script]} {
-            Twapi_StartConsoleEventNotifier
+            Twapi_ConsoleEventNotifier 1
         }
         set _console_control_script $script
     } else {
         if {[info exists _console_control_script]} {
-            Twapi_StopConsoleEventNotifier
+            Twapi_ConsoleEventNotifier 0
             unset _console_control_script
         }
     }
