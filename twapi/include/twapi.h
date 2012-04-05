@@ -1021,7 +1021,8 @@ int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
-TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv);
+TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[]);
+TWAPI_EXTERN Tcl_Obj *ObjEmptyList(void);
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 

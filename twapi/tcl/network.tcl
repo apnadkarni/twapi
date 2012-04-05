@@ -962,7 +962,7 @@ proc twapi::get_route {args} {
 
 # Get the interface for a destination
 proc twapi::get_outgoing_interface {{dest 0.0.0.0}} {
-    return [GetBestInterface $dest]
+    return [GetBestInterfaceEx $dest]
 }
 
 proc twapi::get_ipaddr_version {addr} {
