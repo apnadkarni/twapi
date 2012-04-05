@@ -64,7 +64,7 @@ int Twapi_PdhLookupPerfNameByIndex(
     bufsz=ARRAYSIZE(buf);
     status = PdhLookupPerfNameByIndexW(szMachineName, ctr_index, buf, &bufsz);
     if (status == ERROR_SUCCESS) {
-        Tcl_SetObjResult(interp, ObjFromUnicode(buf));
+        TwapiSetObjResult(interp, ObjFromUnicode(buf));
         return TCL_OK;
     }
     else {
@@ -105,7 +105,7 @@ int Twapi_PdhEnumObjects(
     status = PdhEnumObjectsW(szDataSource, szMachineName, buf, &buf_sz,
                             dwDetailLevel, 0);
     if (status == ERROR_SUCCESS)
-        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(buf, buf_sz));
+        TwapiSetObjResult(ticP->interp, ObjFromMultiSz(buf, buf_sz));
     else
         Twapi_AppendSystemError(ticP->interp, status);
 
@@ -169,8 +169,8 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
         objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
         if (instance_buf_size)
             objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
-        Tcl_SetObjResult(ticP->interp,
-                         Tcl_NewListObj((instance_buf_size ? 2 : 1), objs));
+        TwapiSetObjResult(ticP->interp,
+                         ObjNewList((instance_buf_size ? 2 : 1), objs));
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -229,7 +229,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         result = TCL_ERROR;
     }
     else {
-        Tcl_SetObjResult(ticP->interp, ObjFromUnicode(path_buf));
+        TwapiSetObjResult(ticP->interp, ObjFromUnicode(path_buf));
         result = TCL_OK;
     }
     MemLifoPopFrame(&ticP->memlifo);
@@ -276,10 +276,10 @@ int Twapi_PdhParseCounterPath(
             objs[6] = STRING_LITERAL_OBJ("szParentInstance");
             objs[7] = ObjFromUnicode(pdh_elems->szParentInstance);
             objs[8] = STRING_LITERAL_OBJ("dwInstanceIndex");
-            objs[9] = Tcl_NewLongObj(pdh_elems->dwInstanceIndex);
+            objs[9] = ObjFromLong(pdh_elems->dwInstanceIndex);
             objs[10] = STRING_LITERAL_OBJ("szCounterName");
             objs[11] = ObjFromUnicode(pdh_elems->szCounterName);
-            Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(12, objs));
+            TwapiSetObjResult(ticP->interp, ObjNewList(12, objs));
             result = TCL_OK;
         }
         MemLifoPopFrame(&ticP->memlifo);
@@ -306,7 +306,7 @@ int Twapi_PdhGetFormattedCounterValue(
 
     if ((pdh_status != ERROR_SUCCESS)
         || (counter_value.CStatus != ERROR_SUCCESS)) {
-        Tcl_SetObjResult(interp,
+        TwapiSetObjResult(interp,
                          Tcl_ObjPrintf("Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus));
         return Twapi_AppendSystemError(interp,
                                        (counter_value.CStatus != ERROR_SUCCESS ?
@@ -319,11 +319,11 @@ int Twapi_PdhGetFormattedCounterValue(
     value_type = dwFormat & (PDH_FMT_LARGE | PDH_FMT_DOUBLE | PDH_FMT_LONG);
     switch (value_type) {
     case PDH_FMT_LONG:
-        objs[0] = Tcl_NewLongObj(counter_value.longValue);
+        objs[0] = ObjFromLong(counter_value.longValue);
         break;
 
     case PDH_FMT_LARGE:
-        objs[0] = Tcl_NewWideIntObj(counter_value.largeValue);
+        objs[0] = ObjFromWideInt(counter_value.largeValue);
         break;
 
     case PDH_FMT_DOUBLE:
@@ -331,7 +331,7 @@ int Twapi_PdhGetFormattedCounterValue(
         break;
 
     default:
-        Tcl_SetObjResult(interp,
+        TwapiSetObjResult(interp,
                          Tcl_ObjPrintf("Invalid PDH counter format value 0x%x",
                                        dwFormat));
         return  TCL_ERROR;
@@ -340,7 +340,7 @@ int Twapi_PdhGetFormattedCounterValue(
     objs[1] = Tcl_ObjPrintf("0x%x", counter_type);
 
     /* Create the result list consisting of type and value */
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+    TwapiSetObjResult(interp, ObjNewList(2, objs));
     return TCL_OK;
 }
 
@@ -393,7 +393,7 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, pdh_status);
     }
 
-    Tcl_SetObjResult(interp, ObjFromMultiSz(browse_dlg.szReturnPathBuffer,
+    TwapiSetObjResult(interp, ObjFromMultiSz(browse_dlg.szReturnPathBuffer,
                                             browse_dlg.cchReturnPathLength));
     TwapiFree(browse_dlg.szReturnPathBuffer);
     return TCL_OK;
@@ -444,7 +444,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
         switch (func) {
         case 101:
-            if (Tcl_GetLongFromObj(interp, objv[2], &dw) != TCL_OK)
+            if (ObjToLong(interp, objv[2], &dw) != TCL_OK)
                 return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = PdhSetDefaultRealTimeDataSource(dw);
@@ -455,7 +455,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
         case 103:
             result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = PdhValidatePathW(Tcl_GetUnicode(objv[2]));
+            result.value.ival = PdhValidatePathW(ObjToUnicode(objv[2]));
             break;
         }
     } else if (func < 300) {
@@ -555,33 +555,28 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
 static int TwapiPdhInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct alias_dispatch_s PdhDispatch[] = {
+        DEFINE_ALIAS_CMD(PdhGetDllVersion, 1),
+        DEFINE_ALIAS_CMD(PdhBrowseCounters, 2),
+        DEFINE_ALIAS_CMD(PdhSetDefaultRealTimeDataSource, 101),
+        DEFINE_ALIAS_CMD(PdhConnectMachine, 102),
+        DEFINE_ALIAS_CMD(PdhValidatePath, 103),
+        DEFINE_ALIAS_CMD(PdhParseCounterPath, 201),
+        DEFINE_ALIAS_CMD(PdhLookupPerfNameByIndex, 202),
+        DEFINE_ALIAS_CMD(PdhOpenQuery, 203),
+        DEFINE_ALIAS_CMD(PdhRemoveCounter, 301),
+        DEFINE_ALIAS_CMD(PdhCollectQueryData, 302),
+        DEFINE_ALIAS_CMD(PdhCloseQuery, 303),
+        DEFINE_ALIAS_CMD(PdhGetFormattedCounterValue, 1001),
+        DEFINE_ALIAS_CMD(PdhAddCounter, 1002),
+        DEFINE_ALIAS_CMD(PdhMakeCounterPath, 1003),
+        DEFINE_ALIAS_CMD(PdhEnumObjectItems, 1004),
+        DEFINE_ALIAS_CMD(PdhEnumObjects, 1005),
+    };
+
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::CallPdh", Twapi_CallPdhObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::" #call_, # code_); \
-    } while (0);
-
-    CALL_(PdhGetDllVersion, CallPdh, 1);
-    CALL_(PdhBrowseCounters, CallPdh, 2);
-    CALL_(PdhSetDefaultRealTimeDataSource, CallPdh, 101);
-    CALL_(PdhConnectMachine, CallPdh, 102);
-    CALL_(PdhValidatePath, CallPdh, 103);
-    CALL_(PdhParseCounterPath, CallPdh, 201);
-    CALL_(PdhLookupPerfNameByIndex, CallPdh, 202);
-    CALL_(PdhOpenQuery, CallPdh, 203);
-    CALL_(PdhRemoveCounter, CallPdh, 301);
-    CALL_(PdhCollectQueryData, CallPdh, 302);
-    CALL_(PdhCloseQuery, CallPdh, 303);
-    CALL_(PdhGetFormattedCounterValue, CallPdh, 1001);
-    CALL_(PdhAddCounter, CallPdh, 1002);
-    CALL_(PdhMakeCounterPath, CallPdh, 1003);
-    CALL_(PdhEnumObjectItems, CallPdh, 1004);
-    CALL_(PdhEnumObjects, CallPdh, 1005);
-
-#undef CALL_
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(PdhDispatch), PdhDispatch, "twapi::CallPdh");
 
     return TCL_OK;
 }
