@@ -114,12 +114,12 @@ int Twapi_BecomeAService(
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (Tcl_GetLongFromObj(interp, objv[0], &service_type) != TCL_OK)
+    if (ObjToLong(interp, objv[0], &service_type) != TCL_OK)
         return TCL_ERROR;
 
     if (InterlockedCompareExchangePointer(&gServiceInterpContextP, ticP, NULL)
         != NULL) {
-        Tcl_SetResult(interp, "Twapi_BecomeAService called multiple times", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Twapi_BecomeAService multiple invocations.");
         return TCL_ERROR;
     }
     TwapiInterpContextRef(ticP, 1);
@@ -132,14 +132,14 @@ int Twapi_BecomeAService(
         int       n;
         int       ctrls;
         WCHAR    *nameP;
-        if (Tcl_ListObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||
+        if (ObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||
             n != 2 ||
-            Tcl_GetIntFromObj(interp, objs[1], &ctrls) != TCL_OK) {
-            Tcl_SetResult(interp, "Invalid service specification format.", TCL_STATIC);
+            ObjToLong(interp, objs[1], &ctrls) != TCL_OK) {
+            TwapiSetStaticResult(interp, "Invalid service specification.");
             goto error_handler;
         }
         /* Allocate a single block for the context and name */
-        nameP = Tcl_GetUnicodeFromObj(objs[0], &n);
+        nameP = ObjToUnicodeN(objs[0], &n);
         gServiceContexts[i] = TwapiAlloc(SIZE_TwapiServiceContext(n));
         CopyMemory(gServiceContexts[i]->name, nameP, sizeof(WCHAR)*(n+1));
         gServiceContexts[i]->controls_accepted = ctrls;
@@ -154,7 +154,7 @@ int Twapi_BecomeAService(
      * Note: originally we were doing this in the Tcl code.
      */
     if (! SetConsoleCtrlHandler( (PHANDLER_ROUTINE) ConsoleCtrlHandler, TRUE )) {
-        Tcl_SetResult(interp, "Could not install console control handler.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Console control handler install failed.");
         return TCL_ERROR;
     }
 
