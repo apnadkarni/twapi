@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -22,18 +22,18 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
 
     /* Note wtsH == NULL means current server */
     if (! (BOOL) (WTSEnumerateSessionsW)(wtsH, 0, 1, &sessP, &count)) {
-        return Twapi_AppendSystemError(interp, GetLastError());
+        return TwapiReturnSystemError(interp);
     }
 
-    records = Tcl_NewListObj(0, NULL);
+    records = ObjEmptyList();
     for (i = 0; i < count; ++i) {
-        objv[0] = Tcl_NewLongObj(sessP[i].SessionId);
+        objv[0] = ObjFromLong(sessP[i].SessionId);
         objv[1] = ObjFromUnicode(sessP[i].pWinStationName);
-        objv[2] = Tcl_NewLongObj(sessP[i].State);
+        objv[2] = ObjFromLong(sessP[i].State);
 
         /* Attach the session id as key and record to the result */
-        Tcl_ListObjAppendElement(interp, records, objv[0]);
-        Tcl_ListObjAppendElement(interp, records, Tcl_NewListObj(3, objv));
+        ObjAppendElement(interp, records, objv[0]);
+        ObjAppendElement(interp, records, ObjNewList(3, objv));
     }
 
     Twapi_WTSFreeMemory(sessP);
@@ -42,11 +42,11 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     objv[0] = STRING_LITERAL_OBJ("SessionId");
     objv[1] = STRING_LITERAL_OBJ("pWinStationName");
     objv[2] = STRING_LITERAL_OBJ("State");
-    fields = Tcl_NewListObj(3, objv);
+    fields = ObjNewList(3, objv);
 
     objv[0] = fields;
     objv[1] = records;
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    TwapiSetObjResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -78,7 +78,7 @@ int Twapi_WTSQuerySessionInformation(
         }
         /* Note bufP can be NULL even on success! */
         if (bufP)
-            Tcl_SetObjResult(interp, ObjFromUnicode(bufP));
+            TwapiSetObjResult(interp, ObjFromUnicode(bufP));
         break;
 
     case WTSClientBuildNumber:
@@ -90,7 +90,7 @@ int Twapi_WTSQuerySessionInformation(
             goto handle_error;
         }
         if (bufP)
-            Tcl_SetObjResult(interp, Tcl_NewLongObj(*(long *)bufP));
+            TwapiSetObjResult(interp, ObjFromLong(*(long *)bufP));
         break;
         
     case WTSClientProductId:
@@ -100,7 +100,7 @@ int Twapi_WTSQuerySessionInformation(
             goto handle_error;
         }
         if (bufP)
-            Tcl_SetObjResult(interp, Tcl_NewLongObj(*(USHORT *)bufP));
+            TwapiSetObjResult(interp, ObjFromLong(*(USHORT *)bufP));
         break;
 
     case WTSClientAddress: /* TBD */
@@ -120,36 +120,36 @@ int Twapi_WTSQuerySessionInformation(
     if (bufP)
         Twapi_WTSFreeMemory(bufP);
 
-    Tcl_SetResult(interp,
-                  "Could not query terminal session information. ",
-                  TCL_STATIC);
+    TwapiSetStaticResult(interp, "Could not query TS information.");
 
     return Twapi_AppendSystemError(interp, winerr);
 }
 
 
-static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2;
     DWORD dw, dw2, dw3, dw4;
     HANDLE h;
     int i, i2;
     TwapiResult result;
+    int func = (int) clientdata;
 
     /* At least one arg for every command */
-    if (objc < 3)
+    if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
         result.type = TRT_HANDLE;
-        result.value.hval = WTSOpenServerW(Tcl_GetUnicode(objv[2]));
+        result.value.hval = WTSOpenServerW(ObjToUnicode(objv[0]));
         break;
     case 2:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETINT(dw),
                          GETWSTRN(s, i), GETWSTRN(s2, i2),
                          GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
@@ -163,7 +163,7 @@ static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
             result.type = TRT_GETLASTERROR;    
         break;
     default:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
                          ARGUSEDEFAULT, GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -195,24 +195,17 @@ static int Twapi_RDSCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 
 static int TwapiRdsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::RDSCall", Twapi_RDSCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s RdsDispatch[] = {
+        DEFINE_FNCODE_CMD(WTSOpenServer, 1),
+        DEFINE_FNCODE_CMD(WTSSendMessage, 2),
+        DEFINE_FNCODE_CMD(WTSEnumerateSessions, 101),
+        DEFINE_FNCODE_CMD(WTSCloseServer, 102),
+        DEFINE_FNCODE_CMD(WTSDisconnectSession, 103),
+        DEFINE_FNCODE_CMD(WTSLogoffSession, 104), // TBD - tcl wrapper
+        DEFINE_FNCODE_CMD(WTSQuerySessionInformation, 105), // TBD - tcl wrapper
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::RDSCall", # code_); \
-    } while (0);
-
-    CALL_(WTSOpenServer, 1);
-    CALL_(WTSSendMessage, 2);
-    CALL_(WTSEnumerateSessions, 101);
-    CALL_(WTSCloseServer, 102);
-    CALL_(WTSDisconnectSession, 103);
-    CALL_(WTSLogoffSession, 104);        /* TBD - tcl wrapper */
-    CALL_(WTSQuerySessionInformation, 105); /* TBD - tcl wrapper */
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(RdsDispatch), RdsDispatch, Twapi_RDSCallObjCmd);
 
     return TCL_OK;
 }
