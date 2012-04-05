@@ -21,7 +21,6 @@ Tcl_Obj *ObjFromGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 Tcl_Obj *ObjFromLOCALGROUP_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 Tcl_Obj *ObjFromGROUP_USERS_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 
-int Twapi_WNetGetUniversalName(TwapiInterpContext *ticP, LPCWSTR localpathP);
 int Twapi_WNetGetUser(Tcl_Interp *interp, LPCWSTR  lpName);
 int Twapi_NetScheduleJobEnum(Tcl_Interp *interp, LPCWSTR servername);
 int Twapi_NetShareEnum(Tcl_Interp *interp, LPWSTR server_name);
@@ -42,9 +41,6 @@ int Twapi_NetSessionEnum(Tcl_Interp    *interp, LPWSTR server, LPWSTR client,
                          LPWSTR user, DWORD level);
 int Twapi_NetSessionGetInfo(Tcl_Interp *interp, LPWSTR server,
                             LPWSTR client, LPWSTR user, DWORD level);
-int Twapi_WNetGetResourceInformation(TwapiInterpContext *ticP,
-                                     LPWSTR remoteName, LPWSTR provider,
-                                     DWORD  resourcetype);
 int Twapi_WNetUseConnection(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_NetShareAdd(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);
 
@@ -93,13 +89,13 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
     objc = sizeof(objv)/sizeof(objv[0]);
     switch (level) {
     case 1:
-        objv[--objc] = Tcl_NewLongObj(ciP->coni1_type);
+        objv[--objc] = ObjFromLong(ciP->coni1_type);
         objv[--objc] = STRING_LITERAL_OBJ("type");
-        objv[--objc] = Tcl_NewLongObj(ciP->coni1_num_opens);
+        objv[--objc] = ObjFromLong(ciP->coni1_num_opens);
         objv[--objc] = STRING_LITERAL_OBJ("num_opens");
-        objv[--objc] = Tcl_NewLongObj(ciP->coni1_time);
+        objv[--objc] = ObjFromLong(ciP->coni1_time);
         objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = Tcl_NewLongObj(ciP->coni1_num_users);
+        objv[--objc] = ObjFromLong(ciP->coni1_num_users);
         objv[--objc] = STRING_LITERAL_OBJ("num_users");
         objv[--objc] = ObjFromUnicode(ciP->coni1_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
@@ -107,7 +103,7 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("netname");
         /* FALLTHRU */
     case 0:
-        objv[--objc] = Tcl_NewLongObj(ciP->coni1_id);
+        objv[--objc] = ObjFromLong(ciP->coni1_id);
         objv[--objc] = STRING_LITERAL_OBJ("id");
         break;
     default:
@@ -116,7 +112,7 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
         return NULL;
     }
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 }
 
 /* Convert USE_INFO_* to list */
@@ -140,7 +136,7 @@ Tcl_Obj *ObjFromUSE_INFO(
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = Tcl_NewLongObj(uiP->ui2_ ## fld); \
+        objv[--objc] = ObjFromLong(uiP->ui2_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 
@@ -170,7 +166,7 @@ Tcl_Obj *ObjFromUSE_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 
 }
 
@@ -194,7 +190,7 @@ Tcl_Obj *ObjFromSHARE_INFO(
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 #define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = Tcl_NewLongObj(siP->shi502_ ## fld); \
+        objv[--objc] = ObjFromLong(siP->shi502_ ## fld); \
         objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
     } while (0)
 
@@ -228,7 +224,7 @@ Tcl_Obj *ObjFromSHARE_INFO(
 #undef ADD_DWORD_
 #undef ADD_LPWSTR_
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 }
 
 
@@ -249,9 +245,9 @@ Tcl_Obj *ObjFromFILE_INFO(
     objc = sizeof(objv)/sizeof(objv[0]);
     switch (level) {
     case 3:
-        objv[--objc] = Tcl_NewLongObj(fiP->fi3_permissions);
+        objv[--objc] = ObjFromLong(fiP->fi3_permissions);
         objv[--objc] = STRING_LITERAL_OBJ("permissions");
-        objv[--objc] = Tcl_NewLongObj(fiP->fi3_num_locks);
+        objv[--objc] = ObjFromLong(fiP->fi3_num_locks);
         objv[--objc] = STRING_LITERAL_OBJ("num_locks");
         objv[--objc] = ObjFromUnicode(fiP->fi3_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
@@ -259,7 +255,7 @@ Tcl_Obj *ObjFromFILE_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("pathname");
         /* FALLTHRU */
     case 2:
-        objv[--objc] = Tcl_NewLongObj(fiP->fi3_id);
+        objv[--objc] = ObjFromLong(fiP->fi3_id);
         objv[--objc] = STRING_LITERAL_OBJ("id");
         break;
     default:
@@ -268,7 +264,7 @@ Tcl_Obj *ObjFromFILE_INFO(
         return NULL;
     }
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 }
 
 
@@ -300,15 +296,15 @@ Tcl_Obj *ObjFromSESSION_INFO(
     case 1:
         objv[--objc] = ObjFromUnicode(((SESSION_INFO_1 *)infoP)->sesi1_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
         objv[--objc] = STRING_LITERAL_OBJ("num_opens");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_1 *)infoP)->sesi1_time);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_time);
 
         objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_1 *)infoP)->sesi1_idle_time);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_idle_time);
 
         objv[--objc] = STRING_LITERAL_OBJ("idle_time");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_1 *)infoP)->sesi1_user_flags);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_user_flags);
 
         objv[--objc] = STRING_LITERAL_OBJ("user_flags");
         /* FALLTHRU */
@@ -322,10 +318,10 @@ Tcl_Obj *ObjFromSESSION_INFO(
         objv[--objc] = STRING_LITERAL_OBJ("cname");
         objv[--objc] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_username);
         objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_10 *)infoP)->sesi10_time);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_time);
 
         objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = Tcl_NewLongObj(((SESSION_INFO_10 *)infoP)->sesi10_idle_time);
+        objv[--objc] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_idle_time);
 
         objv[--objc] = STRING_LITERAL_OBJ("idle_time");
         break;
@@ -335,7 +331,7 @@ Tcl_Obj *ObjFromSESSION_INFO(
         return NULL;
     }
 
-    return Tcl_NewListObj((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
 }
 
 
@@ -348,7 +344,7 @@ static Tcl_Obj *ListObjFromNETRESOURCEW(
     NETRESOURCEW    *nrP
     ) 
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *resultObj = ObjEmptyList();
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwScope);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwType);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwDisplayType);
@@ -377,7 +373,7 @@ static Tcl_Obj *ListObjFromREMOTE_NAME_INFOW(
     objv[1] = ObjFromUnicode(rniP->lpConnectionName);
     objv[2] = ObjFromUnicode(rniP->lpRemainingPath);
 
-    return Tcl_NewListObj(3, objv);
+    return ObjNewList(3, objv);
 }
 
 int Twapi_NetShareAdd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -433,14 +429,14 @@ int Twapi_NetShareCheck(
 
     status = NetShareCheck(server_name, device_name, &type);
     if (status == NERR_Success) {
-        objv[0] = Tcl_NewIntObj(1);
+        objv[0] = ObjFromLong(1);
         objv[1] = ObjFromDWORD(type);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+        TwapiSetObjResult(interp, ObjNewList(2, objv));
     }
     else if (status == NERR_DeviceNotShared) {
-        objv[0] = Tcl_NewIntObj(0);
-        objv[1] = Tcl_NewIntObj(0);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+        objv[0] = ObjFromLong(0);
+        objv[1] = ObjFromLong(0);
+        TwapiSetObjResult(interp, ObjNewList(2, objv));
     }
     else {
         return Twapi_AppendSystemError(interp, status);
@@ -466,11 +462,10 @@ int Twapi_NetShareGetInfo(
     case 502:
         status = NetShareGetInfo(servername, netname, level, &shareP);
         if (status != NERR_Success) {
-            Tcl_SetResult(interp,
-                          "Could not retrieve share information: ", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Could not retrieve share information: ");
             return Twapi_AppendSystemError(interp, status);
         }
-        Tcl_SetObjResult(
+        TwapiSetObjResult(
             interp,
             ObjFromSHARE_INFO(interp, shareP, level)
             );
@@ -478,7 +473,7 @@ int Twapi_NetShareGetInfo(
         break;
 
     default:
-        Tcl_SetResult(interp, "Invalid or unsupported share information level specified", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid or unsupported share information level specified");
         return TCL_ERROR;
     }
 
@@ -501,8 +496,7 @@ int Twapi_NetShareSetInfo(
 
     status = NetShareGetInfo(server_name, net_name, 502, (LPBYTE *) &shareP);
     if (status != NERR_Success) {
-        Tcl_SetResult(interp,
-                      "Could not retrieve share information: ", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Could not retrieve share information: ");
         return Twapi_AppendSystemError(interp, status);
     }
 
@@ -559,7 +553,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     error = WNetUseConnectionW(winH, &netresource, passwordP, usernameP, flags,
                                accessname, &accessname_size, &outflags);
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(interp, ObjFromUnicode(accessname));
+        TwapiSetObjResult(interp, ObjFromUnicode(accessname));
         return TCL_OK;
     }
     else {
@@ -567,15 +561,18 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     }
 }
 
-int Twapi_WNetGetUniversalName (
-    TwapiInterpContext *ticP, 
-    LPCWSTR      localpathP
-)
+static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int result;
     DWORD error;
     DWORD buf_sz;
     void *buf;
+    LPCWSTR      localpathP;
+
+    if (objc != 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    localpathP = ObjToUnicode(objv[1]);
 
     buf = MemLifoPushFrame(&ticP->memlifo, MAX_PATH+1, &buf_sz);
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
@@ -587,7 +584,7 @@ int Twapi_WNetGetUniversalName (
                                       buf, &buf_sz);
     }
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(ticP->interp,
+        TwapiSetObjResult(ticP->interp,
                          ListObjFromREMOTE_NAME_INFOW(ticP->interp,
                                                       (REMOTE_NAME_INFOW *) buf));
         result = TCL_OK;
@@ -602,21 +599,26 @@ int Twapi_WNetGetUniversalName (
     return result;
 }
 
-
-
-int Twapi_WNetGetResourceInformation(
-    TwapiInterpContext *ticP,
-    LPWSTR remoteName,
-    LPWSTR provider,
-    DWORD   resourcetype
-    )
+static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    LPWSTR remoteName;
+    LPWSTR provider;
+    DWORD   resourcetype;
+
     NETRESOURCEW in;
     NETRESOURCEW *outP;
     DWORD       outsz;
     int         error;
     LPWSTR      systempart;
-    Tcl_Obj    *objv[2];
+    Tcl_Obj    *objs[2];
+
+    /* TBD - check if GETNULLIFEMPTY is ok */
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETNULLIFEMPTY(remoteName),
+                     GETNULLIFEMPTY(provider),
+                     GETINT(resourcetype),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
 
     in.dwType = resourcetype;
     in.lpRemoteName = remoteName;
@@ -631,9 +633,9 @@ int Twapi_WNetGetResourceInformation(
         error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
     }
     if (error == ERROR_SUCCESS) {
-        objv[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
-        objv[1] = ObjFromUnicode(systempart);
-        Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(2, objv));
+        objs[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
+        objs[1] = ObjFromUnicode(systempart);
+        TwapiSetObjResult(ticP->interp, ObjNewList(2, objs));
     } else
         Twapi_AppendWNetError(ticP->interp, error);
 
@@ -661,7 +663,7 @@ int Twapi_NetUseGetInfo(
 
     objP = ObjFromUSE_INFO(interp, buf, level);
     if (objP)
-        Tcl_SetObjResult(interp, objP);
+        TwapiSetObjResult(interp, objP);
 
     NetApiBufferFree(buf);
     return objP ? TCL_OK : TCL_ERROR;
@@ -680,7 +682,7 @@ int Twapi_WNetGetUser(
     if (error != NO_ERROR)
         return Twapi_AppendWNetError(interp, error);
 
-    Tcl_SetObjResult(interp, ObjFromUnicode(buf));
+    TwapiSetObjResult(interp, ObjFromUnicode(buf));
     return TCL_OK;
 }
 
@@ -704,7 +706,7 @@ int Twapi_NetSessionGetInfo(
     
     resultObj = ObjFromSESSION_INFO(interp, bufP, level);
     if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
 
     NetApiBufferFree(bufP);
     return resultObj ? TCL_OK : TCL_ERROR;
@@ -729,7 +731,7 @@ int Twapi_NetFileGetInfo(
     
     resultObj = ObjFromFILE_INFO(interp, bufP, level);
     if (resultObj)
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
 
     NetApiBufferFree(bufP);
     return resultObj ? TCL_OK : TCL_ERROR;
@@ -737,9 +739,8 @@ int Twapi_NetFileGetInfo(
 
 
 
-static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     DWORD i;
     LPBYTE     p;
     LPWSTR s1, s2, s3;
@@ -749,11 +750,15 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     Tcl_Obj *(*objfn)(Tcl_Interp *, LPBYTE, DWORD);
     Tcl_Obj *objs[4];
     Tcl_Obj *enumObj = NULL;
+    int func = (int) clientdata;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETNULLIFEMPTY(s1),
-                     ARGTERM) != TCL_OK)
-        return TCL_ERROR;
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    s1 = ObjToLPWSTR_NULL_IF_EMPTY(objv[1]);
+
+    objc -= 2;
+    objv += 2;
 
     /* WARNING:
        Many of the cases in the switch below cannot be combined even
@@ -764,7 +769,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     netenum.netbufP = NULL;
     switch (func) {
     case 1: // NetUseEnum system level resumehandle
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(netenum.level), GETINT(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -789,7 +794,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         // Not shared with above code because first param has a const
         // qualifier in above cases which results in warnings if 
         // combined with this case.
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(netenum.level), GETINT(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -814,7 +819,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         // Not shared with other code because first param has a const
         // qualifier in above cases which results in warnings if 
         // combined with this case.
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s2), GETINT(netenum.level), GETINT(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -826,7 +831,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         objfn = ObjFromCONNECTION_INFO;
         netenum.status = NetConnectionEnum (
             s1,
-            Tcl_GetUnicode(objv[3]),
+            ObjToUnicode(objv[0]),
             netenum.level,
             &netenum.netbufP,
             MAX_PREFERRED_LENGTH,
@@ -837,7 +842,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         break;
 
     case 4:
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETNULLIFEMPTY(s2), GETNULLIFEMPTY(s3),
                          GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
@@ -858,7 +863,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         break;
 
     case 5:
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETNULLIFEMPTY(s2), GETNULLIFEMPTY(s3),
                          GETINT(netenum.level), GETINT(dwresume),
                          ARGEND) != TCL_OK)
@@ -889,7 +894,7 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         goto error_return;
     }
 
-    enumObj = Tcl_NewListObj(0, NULL);
+    enumObj = ObjEmptyList();
     p = netenum.netbufP;
     for (i = 0; i < netenum.entriesread; ++i, p += struct_size) {
         Tcl_Obj *objP;
@@ -899,12 +904,12 @@ static int Twapi_ShareCallNetEnumObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         Tcl_ListObjAppendElement(interp, enumObj, objP);
     }
 
-    objs[0] = Tcl_NewIntObj(netenum.status == ERROR_MORE_DATA);
+    objs[0] = ObjFromLong(netenum.status == ERROR_MORE_DATA);
     objs[1] = ObjFromDWORD_PTR(netenum.hresume);
-    objs[2] = Tcl_NewLongObj(netenum.totalentries);
+    objs[2] = ObjFromLong(netenum.totalentries);
     objs[3] = enumObj;
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(4, objs));
+    TwapiSetObjResult(interp, ObjNewList(4, objs));
 
     if (netenum.netbufP)
         NetApiBufferFree((LPBYTE) netenum.netbufP);
@@ -923,29 +928,31 @@ invalid_level_error:
     goto error_return;
 }
 
-
-static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s1, s2, s3;
     DWORD   dw, dw2;
     SECURITY_DESCRIPTOR *secdP;
     TwapiResult result;
+    int func = (int) clientdata;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func), GETWSTR(s1), ARGTERM) != TCL_OK)
+                     GETWSTR(s1), ARGTERM) != TCL_OK)
         return TCL_ERROR;
+
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
-        return Twapi_WNetUseConnection(interp, objc-2, objv+2);
+        return Twapi_WNetUseConnection(interp, objc, objv);
     case 2:
-        return Twapi_NetShareAdd(interp, objc-2, objv+2);
+        return Twapi_NetShareAdd(interp, objc, objv);
     case 3:
         return Twapi_WNetGetUser(interp, s1);
     case 4: // NetFileClose
-        if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         NULLIFY_EMPTY(s1);
         result.type = TRT_EXCEPTION_ON_ERROR;
@@ -953,7 +960,7 @@ static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         break;
     case 5:
     case 6:
-        if (TwapiGetArgs(interp, objc-3, objv+3, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (func == 5) {
@@ -965,11 +972,11 @@ static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         }
         break;
     case 7: // NetShareSetInfo
-        if (TwapiGetArgs(interp, objc-3, objv+3,
+        if (TwapiGetArgs(interp, objc-1, objv+1,
                          GETWSTR(s2), GETWSTR(s3), GETINT(dw), ARGSKIP,
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[6], &secdP) != TCL_OK)
+        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[4], &secdP) != TCL_OK)
             return TCL_ERROR;
         /* Note secdP may be NULL even on success */
         result.value.ival = Twapi_NetShareSetInfo(interp, s1, s2, s3, dw, secdP);
@@ -981,8 +988,7 @@ static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     case 9:
     case 10:
     case 11:
-    case 12:
-        if (TwapiGetArgs(interp, objc-3, objv+3, GETWSTR(s2),
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETWSTR(s2),
                          ARGUSEDEFAULT, GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -997,29 +1003,23 @@ static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         case 10:
             return Twapi_NetShareGetInfo(interp, s1,s2,dw);
         case 11:
-            /* TBD - test when s1 is empty (NULL) */
-            NULLIFY_EMPTY(s2);
-            return Twapi_WNetGetResourceInformation(ticP, s1, s2, dw);
-        case 12:
             return Twapi_NetShareCheck(interp, s1, s2);
         }
         break;
-    case 13:
-        if (TwapiGetArgs(interp, objc-3, objv+3, GETWSTR(s2),
-                         GETWSTR(s3), GETINT(dw), ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        NULLIFY_EMPTY(s1);
-        return Twapi_NetSessionGetInfo(interp, s1,s2,s3,dw);
-    case 14:
-        if (TwapiGetArgs(interp, objc-3, objv+3, GETNULLIFEMPTY(s2),
+    case 12:
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETNULLIFEMPTY(s2),
                          GETNULLIFEMPTY(s3), ARGEND) != TCL_OK)
             return TCL_ERROR;
         NULLIFY_EMPTY(s1);
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = NetSessionDel(s1,s2,s3);
         break;
-    case 15:
-        return Twapi_WNetGetUniversalName(ticP, s1);
+    case 13:
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETWSTR(s2),
+                         GETWSTR(s3), GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        NULLIFY_EMPTY(s1);
+        return Twapi_NetSessionGetInfo(interp, s1,s2,s3,dw);
     }
 
     return TwapiSetResult(interp, &result);
@@ -1027,41 +1027,39 @@ static int Twapi_ShareCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
 
 static int TwapiShareInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::ShareCall", Twapi_ShareCallObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::ShareCallNetEnum", Twapi_ShareCallNetEnumObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s ShareEnumDispatch[] = {
+        DEFINE_FNCODE_CMD(NetUseEnum, 1),
+        DEFINE_FNCODE_CMD(NetShareEnum, 2),
+        DEFINE_FNCODE_CMD(NetConnectionEnum, 3),
+        DEFINE_FNCODE_CMD(NetFileEnum, 4),
+        DEFINE_FNCODE_CMD(NetSessionEnum, 5),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, call_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::Share" #call_, # code_); \
-    } while (0);
+    static struct fncode_dispatch_s ShareDispatch[] = {
+        DEFINE_FNCODE_CMD(Twapi_WNetUseConnection, 1),
+        DEFINE_FNCODE_CMD(NetShareAdd, 2),
+        DEFINE_FNCODE_CMD(WNetGetUser, 3),
+        DEFINE_FNCODE_CMD(NetFileClose, 4),
+        DEFINE_FNCODE_CMD(WNetCancelConnection2, 5),
+        DEFINE_FNCODE_CMD(NetFileGetInfo, 6),
+        DEFINE_FNCODE_CMD(NetShareSetInfo, 7),
+        DEFINE_FNCODE_CMD(NetUseGetInfo, 8),
+        DEFINE_FNCODE_CMD(NetShareDel, 9),
+        DEFINE_FNCODE_CMD(NetShareGetInfo, 10),
+        DEFINE_FNCODE_CMD(Twapi_NetShareCheck, 11),
+        DEFINE_FNCODE_CMD(NetSessionDel, 12),
+        DEFINE_FNCODE_CMD(NetSessionGetInfo, 13),
+    };
 
-    CALL_(Twapi_WNetUseConnection, Call, 1);
-    CALL_(NetShareAdd, Call, 2);
-    CALL_(WNetGetUser, Call, 3);
-    CALL_(NetFileClose, Call, 4);
-    CALL_(WNetCancelConnection2, Call, 5);
-    CALL_(NetFileGetInfo, Call, 6);
-    CALL_(NetShareSetInfo, Call, 7);
-    CALL_(NetUseGetInfo, Call, 8);
-    CALL_(NetShareDel, Call, 9);
-    CALL_(NetShareGetInfo, Call, 10);
-    CALL_(Twapi_WNetGetResourceInformation, Call, 11);
-    CALL_(Twapi_NetShareCheck, Call, 12);
-    CALL_(NetSessionGetInfo, Call, 13);
-    CALL_(NetSessionDel, Call, 14);
-    CALL_(WNetGetUniversalName, Call, 15);
+    static struct tcl_dispatch_s ShareCmdDispatch[] = {
+        DEFINE_TCL_CMD(Twapi_WNetGetResourceInformation, Twapi_WNetGetResourceInformationObjCmd),
+        DEFINE_TCL_CMD(WNetGetUniversalName, Twapi_WNetGetUniversalNameObjCmd),
+    };
 
-    CALL_(NetUseEnum, CallNetEnum, 1);
-    CALL_(NetShareEnum, CallNetEnum, 2);
-    CALL_(NetConnectionEnum, CallNetEnum, 3);
-    CALL_(NetFileEnum, CallNetEnum, 4);
-    CALL_(NetSessionEnum, CallNetEnum, 5);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ShareEnumDispatch), ShareEnumDispatch, Twapi_ShareCallNetEnumObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ShareDispatch), ShareDispatch, Twapi_ShareCallObjCmd);
 
-
-
-#undef CALL_
+    TwapiDefineTclCmds(interp, ARRAYSIZE(ShareCmdDispatch), ShareCmdDispatch, ticP);
 
     return TCL_OK;
 }
