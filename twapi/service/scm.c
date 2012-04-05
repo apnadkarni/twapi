@@ -67,10 +67,10 @@ static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     */
     rec[0] = STRING_LITERAL_OBJ("servicetype");
     cP = ServiceTypeString(ssp.dwServiceType);
-    rec[1] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(ssp.dwServiceType);
+    rec[1] = cP ? ObjFromString(cP) : ObjFromDWORD(ssp.dwServiceType);
     rec[2] = STRING_LITERAL_OBJ("state");
     cP = ServiceStateString(ssp.dwCurrentState);
-    rec[3] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(ssp.dwCurrentState);
+    rec[3] = cP ? ObjFromString(cP) : ObjFromDWORD(ssp.dwCurrentState);
     rec[4] = STRING_LITERAL_OBJ("control_accepted");
     rec[5] = ObjFromDWORD(ssp.dwControlsAccepted);
     rec[6] = STRING_LITERAL_OBJ("exitcode");
@@ -86,9 +86,9 @@ static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     rec[16] = STRING_LITERAL_OBJ("serviceflags");
     rec[17] = ObjFromDWORD(ssp.dwServiceFlags);
     rec[18] = STRING_LITERAL_OBJ("interactive");
-    rec[19] = Tcl_NewBooleanObj(ssp.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+    rec[19] = ObjFromBoolean(ssp.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(ARRAYSIZE(rec), rec));
+    TwapiSetObjResult(interp, ObjNewList(ARRAYSIZE(rec), rec));
     return TCL_OK;
 }
 
@@ -147,9 +147,8 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     objv[16] = STRING_LITERAL_OBJ("-displayname");
     objv[17] = ObjFromUnicode(qbuf->lpDisplayName);
     objv[18] = STRING_LITERAL_OBJ("-interactive");
-    objv[19] = Tcl_NewBooleanObj(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
-
-    Tcl_SetObjResult(ticP->interp, Tcl_NewListObj(20,objv));
+    objv[19] = ObjFromBoolean(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
+    TwapiSetObjResult(ticP->interp, ObjNewList(20,objv));
     tcl_result = TCL_OK;
 
 vamoose:
@@ -198,7 +197,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
 
     /* If NULL, we keep result as empty string. Not an error */
     if (bufP->lpDescription)
-        Tcl_SetObjResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
+        TwapiSetObjResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
     tcl_result = TCL_OK;
 
 vamoose:
@@ -243,14 +242,14 @@ int  Twapi_QueryServiceLockStatus(
         return TCL_ERROR;
     }
 
-    obj = Tcl_NewListObj(0, NULL);
+    obj = ObjEmptyList();
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, sbuf, fIsLocked);
     Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, obj, sbuf, lpLockOwner);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, sbuf, dwLockDuration);
 
     MemLifoPopFrame(&ticP->memlifo);
 
-    Tcl_SetObjResult(interp, obj);
+    TwapiSetObjResult(interp, obj);
 
     return TCL_OK;
 }
@@ -290,7 +289,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         return TCL_ERROR;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
-        Tcl_SetResult(interp, "Unsupported information level", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unsupported information level");
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
 
@@ -392,7 +391,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
@@ -506,7 +505,7 @@ int Twapi_EnumDependentServices(
         Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[7]), TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
     }
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
@@ -536,7 +535,7 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (Tcl_GetLongFromObj(interp, objv[6], &tag_id) == TCL_OK)
+    if (ObjToLong(interp, objv[6], &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
@@ -545,7 +544,7 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = Tcl_GetUnicode(objv[7]);
+    dependencies = ObjToUnicode(objv[7]);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
@@ -561,7 +560,7 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
          * an empty tagid, return it, else return empty string.
          */
         if (tag_idP)
-            Tcl_SetObjResult(interp, Tcl_NewLongObj(*tag_idP));
+            TwapiSetObjResult(interp, Tcl_NewLongObj(*tag_idP));
     } else
         TwapiReturnSystemError(interp);
 
@@ -601,7 +600,7 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
         return TCL_ERROR;
 
 
-    if (Tcl_GetLongFromObj(NULL, objv[9], &tag_id) == TCL_OK)
+    if (ObjToLong(NULL, objv[9], &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
@@ -610,7 +609,7 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = Tcl_GetUnicode(objv[10]);
+    dependencies = ObjToUnicode(objv[10]);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
@@ -625,7 +624,7 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
 
     /* Check return handle validity */
     if (svcH) {
-        Tcl_SetObjResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
+        TwapiSetObjResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
         tcl_result = TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
@@ -646,23 +645,22 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int     i, nargs;
     
     if (objc != 2) {
-        Tcl_SetResult(interp, "Invalid number of arguments.", TCL_STATIC);
-        return TCL_ERROR;
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     }
 
     if (ObjToHANDLE(interp, objv[0], &svcH) != TCL_OK)
         return TCL_ERROR;
 
-    if (Tcl_ListObjGetElements(interp, objv[1], &nargs, &argObjs) == TCL_ERROR)
+    if (ObjGetElements(interp, objv[1], &nargs, &argObjs) == TCL_ERROR)
         return TCL_ERROR;
 
     if (nargs > ARRAYSIZE(args)) {
-        Tcl_SetResult(interp, "Exceeded limit on number of service arguments.", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Exceeded limit on number of service arguments.");
         return TCL_ERROR;
     }
 
     for (i = 0; i < nargs; i++) {
-        args[i] = Tcl_GetUnicode(argObjs[i]);
+        args[i] = ObjToUnicode(argObjs[i]);
     }
     if (StartServiceW(svcH, nargs, args))
         return TCL_OK;
@@ -815,37 +813,32 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 
 static int TwapiServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct alias_dispatch_s ServiceDispatch[] = {
+        DEFINE_ALIAS_CMD(DeleteService, 1),
+        DEFINE_ALIAS_CMD(CloseServiceHandle, 2),
+        DEFINE_ALIAS_CMD(QueryServiceConfig, 3),
+
+        DEFINE_ALIAS_CMD(ControlService, 101),
+        DEFINE_ALIAS_CMD(EnumDependentServices, 102),
+        DEFINE_ALIAS_CMD(QueryServiceStatusEx, 103),
+        DEFINE_ALIAS_CMD(QueryServiceConfig2, 104),
+
+        DEFINE_ALIAS_CMD(GetServiceKeyName, 201),
+        DEFINE_ALIAS_CMD(GetServiceDisplayName, 202),
+        DEFINE_ALIAS_CMD(OpenService, 203),
+
+        DEFINE_ALIAS_CMD(EnumServicesStatusEx, 10001),
+        DEFINE_ALIAS_CMD(ChangeServiceConfig, 10002),
+        DEFINE_ALIAS_CMD(CreateService, 10003),
+        DEFINE_ALIAS_CMD(StartService, 10004),
+        DEFINE_ALIAS_CMD(Twapi_SetServiceStatus, 10005),
+        DEFINE_ALIAS_CMD(Twapi_BecomeAService, 10006),
+        DEFINE_ALIAS_CMD(OpenSCManager, 10007),
+    };
+
     /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::ServiceCall", Twapi_ServiceCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ServiceCall", # code_); \
-    } while (0);
-
-    CALL_(DeleteService, 1);
-    CALL_(CloseServiceHandle, 2);
-    CALL_(QueryServiceConfig, 3);
-
-    CALL_(ControlService, 101);
-    CALL_(EnumDependentServices, 102);
-    CALL_(QueryServiceStatusEx, 103);
-    CALL_(QueryServiceConfig2, 104);
-
-    CALL_(GetServiceKeyName, 201);
-    CALL_(GetServiceDisplayName, 202);
-    CALL_(OpenService, 203);
-
-    CALL_(EnumServicesStatusEx, 10001);
-    CALL_(ChangeServiceConfig, 10002);
-    CALL_(CreateService, 10003);
-    CALL_(StartService, 10004);
-    CALL_(Twapi_SetServiceStatus, 10005);
-    CALL_(Twapi_BecomeAService, 10006);
-    CALL_(OpenSCManager, 10007);
-
-#undef CALL_
+    Tcl_CreateObjCommand(interp, "twapi::SvcCall", Twapi_ServiceCallObjCmd, ticP, NULL);
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(ServiceDispatch), ServiceDispatch, "twapi::SvcCall");
 
     return TCL_OK;
 }
