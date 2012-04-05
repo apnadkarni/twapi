@@ -14,22 +14,20 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 
-static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s;
     DWORD dw, dw2;
     HMODULE hmod;
     TwapiResult result;
+    int func = (int) clientdata;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
-
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETNULLIFEMPTY(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -37,7 +35,7 @@ static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         result.value.ival = PlaySoundW(s, hmod, dw);
         break;
     case 2:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -45,7 +43,7 @@ static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         result.value.bval = MessageBeep(dw);
         break;
     case 3:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -60,21 +58,14 @@ static int Twapi_MmCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
 
 static int TwapiMmInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::MmCall", Twapi_MmCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s MmDispatch[] = {
+        DEFINE_FNCODE_CMD(PlaySound, 1),
+        DEFINE_FNCODE_CMD(MessageBeep, 2),
+        DEFINE_FNCODE_CMD(Beep, 3),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::MmCall", # code_); \
-    } while (0);
-
-    CALL_(PlaySound, 1);
-    CALL_(MessageBeep, 2);
-    CALL_(Beep, 3);
-
-#undef CALL_
-
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(MmDispatch), MmDispatch, Twapi_MmCallObjCmd);
+    
     return TCL_OK;
 }
 
