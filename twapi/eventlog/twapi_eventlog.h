@@ -3,5 +3,5 @@
 
 void TwapiInitEvtStubs(Tcl_Interp *interp);
 int Twapi_EvtCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-
+static int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 #endif
