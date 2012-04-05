@@ -35,11 +35,11 @@ TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *
      * Resource type and name can be integers or strings. If integer,
      * they must pass the IS_INTRESOURCE test as not all integers are valid.
      */
-    if (Tcl_GetLongFromObj(NULL, objP, &i) == TCL_OK &&
+    if (ObjToLong(NULL, objP, &i) == TCL_OK &&
         IS_INTRESOURCE(i))
         *wsP = MAKEINTRESOURCEW(i);
     else
-        *wsP = Tcl_GetUnicode(objP);
+        *wsP = ObjToUnicode(objP);
 
     return TCL_OK;
 }
@@ -95,7 +95,7 @@ int Twapi_VerQueryValue_FIXEDFILEINFO(
         return TCL_OK;
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjEmptyList();
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, ffiP, dwSignature);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, ffiP, dwStrucVersion);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, ffiP, dwFileVersionMS);
@@ -110,7 +110,7 @@ int Twapi_VerQueryValue_FIXEDFILEINFO(
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, ffiP, dwFileDateMS);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, ffiP, dwFileDateLS);
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 }
 
@@ -131,7 +131,7 @@ int Twapi_VerQueryValue_STRING(
         return TCL_ERROR;
 
     objP = Tcl_ObjPrintf("\\StringFileInfo\\%s\\%s", lang_and_cp, name);
-    if ((! VerQueryValueW(verP, Tcl_GetUnicode(objP), (LPVOID) &valueP, &len)) ||
+    if ((! VerQueryValueW(verP, ObjToUnicode(objP), (LPVOID) &valueP, &len)) ||
         len == 0) {
         /* Return empty string, not error */
         Tcl_DecrRefCount(objP);
@@ -140,7 +140,7 @@ int Twapi_VerQueryValue_STRING(
     Tcl_DecrRefCount(objP);
 
     /* Note valueP does not have to be freed, points into verP */
-    Tcl_SetObjResult(interp, ObjFromUnicode(valueP));
+    TwapiSetObjResult(interp, ObjFromUnicode(valueP));
     return TCL_OK;
 }
 
@@ -156,22 +156,21 @@ int Twapi_VerQueryValue_TRANSLATIONS(
 
     if (! VerQueryValue(verP, "\\VarFileInfo\\Translation", (LPVOID) &bufP, &len)) {
         /* Return empty list, not error */
-        //Tcl_SetResult(interp, "VerQueryValue returned 0", TCL_STATIC);
         return TCL_OK;
     }
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjEmptyList();
     for (dwP = bufP; ((char *)dwP) <= (len - sizeof(*dwP) + (char *)bufP) ; ++dwP) {
         WORD *wP = (WORD *) dwP;
         /* Print as langid,codepage */
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  Tcl_ObjPrintf("%04x%04x", wP[0], wP[1])
             );
     }
 
     /* Note bufP does not have to be freed, points into verP */
 
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     return TCL_OK;
 }
 
@@ -227,7 +226,7 @@ TCL_RESULT Twapi_FindResourceEx(
 
     hrsrc = FindResourceExW(h, restype, resname, langid);
     if (hrsrc) {
-        Tcl_SetObjResult(interp, ObjFromOpaque(hrsrc, "HRSRC"));
+        TwapiSetObjResult(interp, ObjFromOpaque(hrsrc, "HRSRC"));
         return TCL_OK;
     } else
         return TwapiReturnSystemError(interp);
@@ -257,7 +256,7 @@ TCL_RESULT Twapi_LoadResource(
         if (hglob) {
             resP = LockResource(hglob);
             if (resP) {
-                Tcl_SetObjResult(interp, Tcl_NewByteArrayObj(resP, ressize));
+                TwapiSetObjResult(interp, ObjFromByteArray(resP, ressize));
                 return TCL_OK;
             }
         }
@@ -276,7 +275,7 @@ static BOOL CALLBACK EnumResourceNamesProc(
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
 
-    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP,
+    ObjAppendElement(ctxP->interp, ctxP->objP,
                              ObjFromResourceIntOrString(lpszName));
 
     return TRUE;
@@ -300,10 +299,10 @@ TCL_RESULT Twapi_EnumResourceNames(
     }
 
     ctx.interp = interp;
-    ctx.objP = Tcl_NewListObj(0, NULL);
+    ctx.objP = ObjEmptyList();
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceNamesW(hmodule, restype, EnumResourceNamesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(interp, ctx.objP);
+        TwapiSetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
@@ -321,7 +320,7 @@ static BOOL CALLBACK EnumResourceTypesProc(
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
 
-    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP,
+    ObjAppendElement(ctxP->interp, ctxP->objP,
                              ObjFromResourceIntOrString(lpszType));
     return TRUE;
 }
@@ -333,10 +332,10 @@ TCL_RESULT Twapi_EnumResourceTypes(
     TwapiEnumCtx ctx;
 
     ctx.interp = interp;
-    ctx.objP = Tcl_NewListObj(0, NULL);
+    ctx.objP = ObjEmptyList();
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceTypesW(hmodule, EnumResourceTypesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(interp, ctx.objP);
+        TwapiSetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
@@ -356,7 +355,7 @@ static BOOL CALLBACK EnumResourceLanguagesProc(
 {
     TwapiEnumCtx *ctxP = (TwapiEnumCtx *) lParam;
 
-    Tcl_ListObjAppendElement(ctxP->interp, ctxP->objP, ObjFromDWORD(langid));
+    ObjAppendElement(ctxP->interp, ctxP->objP, ObjFromDWORD(langid));
     return TRUE;
 }
 
@@ -379,11 +378,11 @@ TCL_RESULT Twapi_EnumResourceLanguages(
     }
 
     ctx.interp = interp;
-    ctx.objP = Tcl_NewListObj(0, NULL);
+    ctx.objP = ObjEmptyList();
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceLanguagesW(hmodule, restype, resname,
                                EnumResourceLanguagesProc, (LONG_PTR) &ctx)) {
-        Tcl_SetObjResult(interp, ctx.objP);
+        TwapiSetObjResult(interp, ctx.objP);
         Tcl_DecrRefCount(ctx.objP);
         return TCL_OK;
     } else {
@@ -401,7 +400,7 @@ TCL_RESULT Twapi_SplitStringResource(
 {
     WCHAR *wP;
     int len;
-    Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *objP = ObjEmptyList();
     
     if (TwapiGetArgs(interp, objc, objv,
                      GETBIN(wP, len),
@@ -415,13 +414,13 @@ TCL_RESULT Twapi_SplitStringResource(
             /* Should not happen */
             break;
         }
-        Tcl_ListObjAppendElement(interp, objP,
+        ObjAppendElement(interp, objP,
                                  ObjFromUnicodeN(wP, slen));
         wP += slen;
         len -= sizeof(WCHAR)*(1+slen);
     }
 
-    Tcl_SetObjResult(interp, objP);
+    TwapiSetObjResult(interp, objP);
     return TCL_OK;
 }
 
@@ -450,41 +449,42 @@ TCL_RESULT Twapi_LoadImage(
     return TwapiSetResult(interp, &result);
 }
 
-static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2, s3;
     DWORD dw;
     HANDLE h;
     TwapiResult result;
     void *pv;
+    int func = (int) clientdata;
 
     /* Every command has at least one argument */
-    if (objc < 3)
+    if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:              /* DestroyIcon */
-        if (ObjToOpaque(interp, objv[2], &pv, "HICON") != TCL_OK)
+        if (ObjToOpaque(interp, objv[0], &pv, "HICON") != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = DestroyIcon(pv);
         break;
     case 2:              /* DestroyCursor */
-        if (ObjToOpaque(interp, objv[2], &pv, "HCURSOR") != TCL_OK)
+        if (ObjToOpaque(interp, objv[0], &pv, "HCURSOR") != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = DestroyCursor(pv);
         break;
     case 3: // VerQueryValue_STRING
-        return Twapi_VerQueryValue_STRING(interp, objc-2, objv+2);
+        return Twapi_VerQueryValue_STRING(interp, objc, objv);
     case 4: // FALLTHRU
     case 5: // FALLTHRU
     case 6:
-        if (ObjToOpaque(interp, objv[2], &pv, "TWAPI_FILEVERINFO") != TCL_OK)
+        if (ObjToOpaque(interp, objv[0], &pv, "TWAPI_FILEVERINFO") != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 4:
@@ -497,27 +497,27 @@ static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         }
         break;
     case 7:
-        return Twapi_UpdateResource(interp, objc-2, objv+2);
+        return Twapi_UpdateResource(interp, objc, objv);
     case 8:
-        return Twapi_FindResourceEx(interp, objc-2, objv+2);
+        return Twapi_FindResourceEx(interp, objc, objv);
     case 9:
-        return Twapi_LoadResource(interp, objc-2, objv+2);
+        return Twapi_LoadResource(interp, objc, objv);
     case 10:
-        return Twapi_EnumResourceNames(interp, objc-2, objv+2);
+        return Twapi_EnumResourceNames(interp, objc, objv);
     case 11:
-        return Twapi_EnumResourceLanguages(interp, objc-2, objv+2);
+        return Twapi_EnumResourceLanguages(interp, objc, objv);
     case 12:
-        return Twapi_SplitStringResource(interp, objc-2, objv+2);
+        return Twapi_SplitStringResource(interp, objc, objv);
     case 13: // LoadImage
-        return Twapi_LoadImage(interp, objc-2, objv+2);
+        return Twapi_LoadImage(interp, objc, objv);
     case 14:
         result.type = TRT_NONNULL;
         result.value.nonnull.name = "TWAPI_FILEVERINFO";
-        result.value.nonnull.p = Twapi_GetFileVersionInfo(Tcl_GetUnicode(objv[2]));
+        result.value.nonnull.p = Twapi_GetFileVersionInfo(ObjToUnicode(objv[0]));
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (func == 15) {
             result.type = TRT_LONG;
@@ -528,24 +528,24 @@ static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         }
         break;
     case 17:
-        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
             return TCL_ERROR;
         return Twapi_EnumResourceTypes(interp, h);
     case 18: // EndUpdateResource
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h), GETBOOL(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETBOOL(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = EndUpdateResourceW(h, dw);
         break;
     case 19:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETWSTR(s),
+        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), GETWSTR(s),
                          GETWSTR(s2), GETWSTR(s3), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = CreateScalableFontResourceW(dw, s, s2, s3);
         break;
     case 20:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETWSTR(s), GETINT(dw),
+        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
@@ -559,38 +559,30 @@ static int Twapi_ResourceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
 static int TwapiResourceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::ResourceCall", Twapi_ResourceCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s ResDispatch[] = {
+        DEFINE_FNCODE_CMD(DestroyIcon, 1),
+        DEFINE_FNCODE_CMD(DestroyCursor, 2),
+        DEFINE_FNCODE_CMD(Twapi_VerQueryValue_STRING, 3),
+        DEFINE_FNCODE_CMD(Twapi_VerQueryValue_FIXEDFILEINFO, 4),
+        DEFINE_FNCODE_CMD(Twapi_VerQueryValue_TRANSLATIONS, 5),
+        DEFINE_FNCODE_CMD(Twapi_FreeFileVersionInfo, 6),
+        DEFINE_FNCODE_CMD(UpdateResource, 7),
+        DEFINE_FNCODE_CMD(FindResourceEx, 8),
+        DEFINE_FNCODE_CMD(Twapi_LoadResource, 9),
+        DEFINE_FNCODE_CMD(Twapi_EnumResourceNames, 10),
+        DEFINE_FNCODE_CMD(Twapi_EnumResourceLanguages, 11),
+        DEFINE_FNCODE_CMD(Twapi_SplitStringResource, 12),
+        DEFINE_FNCODE_CMD(LoadImage, 13),
+        DEFINE_FNCODE_CMD(Twapi_GetFileVersionInfo, 14),
+        DEFINE_FNCODE_CMD(AddFontResourceEx, 15), // TBD - Tcl wrapper
+        DEFINE_FNCODE_CMD(BeginUpdateResource, 16),
+        DEFINE_FNCODE_CMD(Twapi_EnumResourceTypes, 17),
+        DEFINE_FNCODE_CMD(EndUpdateResource, 18),
+        DEFINE_FNCODE_CMD(CreateScalableFontResource, 19), // TBD Tcl
+        DEFINE_FNCODE_CMD(RemoveFontResourceEx, 20), // TBD Tcl 
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ResourceCall", # code_); \
-    } while (0);
-
-    CALL_(DestroyIcon, 1);
-    CALL_(DestroyCursor, 2);
-    CALL_(Twapi_VerQueryValue_STRING, 3);
-    CALL_(Twapi_VerQueryValue_FIXEDFILEINFO, 4);
-    CALL_(Twapi_VerQueryValue_TRANSLATIONS, 5);
-    CALL_(Twapi_FreeFileVersionInfo, 6);
-    CALL_(UpdateResource, 7);
-    CALL_(FindResourceEx, 8);
-    CALL_(Twapi_LoadResource, 9);
-    CALL_(Twapi_EnumResourceNames, 10);
-    CALL_(Twapi_EnumResourceLanguages, 11);
-    CALL_(Twapi_SplitStringResource, 12);
-    CALL_(LoadImage, 13);
-    CALL_(Twapi_GetFileVersionInfo, 14);
-    CALL_(AddFontResourceEx, 15); /* TBD - Tcl wrapper */
-    CALL_(BeginUpdateResource, 16);
-    CALL_(Twapi_EnumResourceTypes, 17);
-    CALL_(EndUpdateResource, 18);
-    CALL_(CreateScalableFontResource, 19); // TBD Tcl wrapper
-    CALL_(RemoveFontResourceEx, 20); // TBD Tcl wrapper
-
-#undef CALL_
-
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ResDispatch), ResDispatch, Twapi_ResourceCallObjCmd);
     return TCL_OK;
 }
 
