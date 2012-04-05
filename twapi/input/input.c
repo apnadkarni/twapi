@@ -51,15 +51,11 @@ int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id)
         return TwapiReturnSystemError(ticP->interp);
 }
 
-
-
-
-
 int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 {
     BOOL result = BlockInput(block);
     if (result || (GetLastError() == 0)) {
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(result));
+        TwapiSetObjResult(interp, ObjFromInt(result));
         return TCL_OK;
     } else {
         return TwapiReturnSystemError(interp);
@@ -115,10 +111,10 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
                 if (Tcl_ListObjIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
                     goto done;
                 if (field_obj[j] == NULL) {
-                    Tcl_SetResult(interp, "Missing field in event of type key", TCL_STATIC);
+                    TwapiSetStaticResult(interp, "Missing field in key event");
                     goto done;
                 }
-                if (Tcl_GetLongFromObj(interp, field_obj[j], &value[j]) != TCL_OK)
+                if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
                     goto done;
             }
 
@@ -126,11 +122,11 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
              * Validate and add to input
              */
             if (value[1] < 0 || value[1] > 254) {
-                Tcl_SetResult(interp, "Invalid value specified for virtual key code. Must be between 1 and 254", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Invalid virtual key code");
                 goto done;
             }
             if (value[2] < 0 || value[2] > 65535) {
-                Tcl_SetResult(interp, "Invalid value specified for scan code. Must be between 1 and 65535", TCL_STATIC);
+                TwapiSetStaticResult(interp, "Invalid scan code value.");
                 goto done;
             }
             init_keyboard_input(&input[i], (WORD) value[1], value[3]);
@@ -146,10 +142,10 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
                 if (Tcl_ListObjIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
                     goto done;
                 if (field_obj[j] == NULL) {
-                    Tcl_SetResult(interp, "Missing field in event of type mouse", TCL_STATIC);
+                    TwapiSetStaticResult(interp, "Missing field in mouse event");
                     goto done;
                 }
-                if (Tcl_GetLongFromObj(interp, field_obj[j], &value[j]) != TCL_OK)
+                if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
                     goto done;
             }
             
@@ -164,7 +160,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
          default:
             /* Shouldn't happen else Tcl_GetIndexFromObj would return error */
-            Tcl_SetResult(interp, "Unknown field event type", TCL_STATIC);
+             TwapiSetStaticResult(interp, "Unknown field event type");
             goto done;
         }
 
@@ -173,7 +169,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     
     /* i is actual number of elements found */
     if (i != num_inputs) {
-        Tcl_SetResult(interp, "Invalid or empty element specified in input event list", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Invalid or empty element in input event list");
         goto done;
     }
 
@@ -182,13 +178,13 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         num_inputs = SendInput(i, input, sizeof(input[0]));
         if (num_inputs == 0) {
             j = GetLastError();
-            Tcl_SetResult(interp, "Error sending input events: ", TCL_STATIC);
+            TwapiSetStaticResult(interp, "Error sending input events: ");
             Twapi_AppendSystemError(interp, j);
             goto done;
         }
     }    
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(num_inputs));
+    TwapiSetObjResult(interp, ObjFromInt(num_inputs));
     result = TCL_OK;
 
  done:
@@ -238,7 +234,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         sent_inputs = SendInput(j, input, sizeof(input[0]));
         if (sent_inputs == 0) {
             i = GetLastError();
-            Tcl_SetResult(ticP->interp, "Error sending input events: ", TCL_STATIC);
+            TwapiSetStaticResult(ticP->interp, "Error sending input events: ");
             Twapi_AppendSystemError(ticP->interp, i);
             goto done;
         }
@@ -247,7 +243,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         sent_inputs = 0;
     }
 
-    Tcl_SetObjResult(ticP->interp, Tcl_NewIntObj(sent_inputs));
+    TwapiSetObjResult(ticP->interp, ObjFromInt(sent_inputs));
     result = TCL_OK;
 
  done:
@@ -337,27 +333,24 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
 
 static int TwapiInputInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct alias_dispatch_s InputAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(GetDoubleClickTime, 1),
+        DEFINE_ALIAS_CMD(GetLastInputInfo, 2),
+        DEFINE_ALIAS_CMD(GetAsyncKeyState, 3), // TBD - Tcl
+        DEFINE_ALIAS_CMD(GetKeyState, 4),  // TBD - Tcl
+        DEFINE_ALIAS_CMD(BlockInput, 5),
+        DEFINE_ALIAS_CMD(UnregisterHotKey, 6),
+        DEFINE_ALIAS_CMD(MapVirtualKey, 7),
+        DEFINE_ALIAS_CMD(RegisterHotKey, 8),
+        DEFINE_ALIAS_CMD(SendInput, 9),
+        DEFINE_ALIAS_CMD(Twapi_SendUnicode, 10),
+    };
+
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::InputCall", Twapi_InputCallObjCmd, ticP, NULL);
 
     /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::InputCall", # code_); \
-    } while (0);
-
-    CALL_(GetDoubleClickTime, 1);
-    CALL_(GetLastInputInfo, 2);
-    CALL_(GetAsyncKeyState, 3); // TBD - Tcl
-    CALL_(GetKeyState, 4);  // TBD - Tcl
-    CALL_(BlockInput, 5);
-    CALL_(UnregisterHotKey, 6);
-    CALL_(MapVirtualKey, 7);
-    CALL_(RegisterHotKey, 8);
-    CALL_(SendInput, 9);
-    CALL_(Twapi_SendUnicode, 10);
-
-#undef CALL_
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(InputAliasDispatch), InputAliasDispatch, "twapi::InputCall");
 
     return TCL_OK;
 }
