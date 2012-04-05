@@ -5,8 +5,6 @@
  * See the file LICENSE for license
  */
 
-/* TBD - maybe OpenEventLog and ReportEvent should be in base package */
-
 #include "twapi.h"
 #include "twapi_eventlog.h"
 
