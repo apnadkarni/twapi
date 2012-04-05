@@ -938,8 +938,8 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         /* Two string args */
         if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s = Tcl_GetUnicode(objv[0]);
-        s2 = Tcl_GetUnicode(objv[1]);
+        s = ObjToUnicode(objv[0]);
+        s2 = ObjToUnicode(objv[1]);
         switch (func) {
         case 401:
             result.value.unicode.len = ARRAYSIZE(u.buf);
