@@ -16,7 +16,7 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp);
 TCL_RESULT Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 TCL_RESULT Twapi_GetPerformanceInformation(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
-int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP);
+int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
@@ -27,18 +27,18 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp)
     Tcl_Obj *objv[10];
 
     GetSystemInfo(&sysinfo);
-    objv[0] = Tcl_NewIntObj((unsigned) sysinfo.wProcessorArchitecture);
+    objv[0] = ObjFromInt((unsigned) sysinfo.wProcessorArchitecture);
     objv[1] = ObjFromDWORD(sysinfo.dwPageSize);
     objv[2] = ObjFromDWORD_PTR((DWORD_PTR) sysinfo.lpMinimumApplicationAddress);
     objv[3] = ObjFromDWORD_PTR((DWORD_PTR) sysinfo.lpMaximumApplicationAddress);
     objv[4] = ObjFromDWORD_PTR(sysinfo.dwActiveProcessorMask);
-    objv[5] = Tcl_NewLongObj(sysinfo.dwNumberOfProcessors);
-    objv[6] = Tcl_NewLongObj(sysinfo.dwProcessorType);
-    objv[7] = Tcl_NewLongObj(sysinfo.dwAllocationGranularity);
-    objv[8] = Tcl_NewIntObj((unsigned)sysinfo.wProcessorLevel);
-    objv[9] = Tcl_NewIntObj((unsigned)sysinfo.wProcessorRevision);
+    objv[5] = ObjFromLong(sysinfo.dwNumberOfProcessors);
+    objv[6] = ObjFromLong(sysinfo.dwProcessorType);
+    objv[7] = ObjFromLong(sysinfo.dwAllocationGranularity);
+    objv[8] = ObjFromInt((unsigned)sysinfo.wProcessorLevel);
+    objv[9] = ObjFromInt((unsigned)sysinfo.wProcessorRevision);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(10, objv));
+    TwapiSetObjResult(interp, ObjNewList(10, objv));
     return TCL_OK;
 }
 
@@ -64,7 +64,7 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
         objv[12] = STRING_LITERAL_OBJ("ullAvailVirtual");
         objv[13] = ObjFromULONGLONG(memstatex.ullAvailVirtual);
         
-        Tcl_SetObjResult(interp, Tcl_NewListObj(14, objv));
+        TwapiSetObjResult(interp, ObjNewList(14, objv));
         return TCL_OK;
     } else {
         return TwapiReturnSystemError(interp);
@@ -105,13 +105,13 @@ int Twapi_GetPerformanceInformation(Tcl_Interp *interp)
         objv[24] = STRING_LITERAL_OBJ("ThreadCount");
         objv[25] = ObjFromDWORD(perf.ThreadCount);
 
-        Tcl_SetObjResult(interp, Tcl_NewListObj(26, objv));
+        TwapiSetObjResult(interp, ObjNewList(26, objv));
         return TCL_OK;
     } else
         return TwapiReturnSystemError(interp);
 }
 
-int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
+static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SYSTEM_INFO sysinfo;
     void  *bufP;
@@ -121,7 +121,6 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
     DWORD    i;
     NtQuerySystemInformation_t NtQuerySystemInformationPtr = Twapi_GetProc_NtQuerySystemInformation();
     Tcl_Obj *resultObj;
-    Tcl_Interp *interp = ticP->interp;
 
     if (NtQuerySystemInformationPtr == NULL) {
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
@@ -143,9 +142,9 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
     status = (*NtQuerySystemInformationPtr)(8, bufP, bufsz, &dummy);
 
     if (status == 0) {
-        resultObj = Tcl_NewListObj(0, NULL);
+        resultObj = ObjEmptyList();
         for (i = 0; i < sysinfo.dwNumberOfProcessors; ++i) {
-            Tcl_Obj *obj = Tcl_NewListObj(0, NULL);
+            Tcl_Obj *obj = ObjEmptyList();
             SYSTEM_PROCESSOR_TIMES *timesP = i+((SYSTEM_PROCESSOR_TIMES *)bufP);
 
             Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, IdleTime);
@@ -154,10 +153,10 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP)
             Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, DpcTime);
             Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp, obj, timesP, InterruptTime);
             Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, timesP, InterruptCount);
-            Tcl_ListObjAppendElement(interp, resultObj, obj);
+            ObjAppendElement(interp, resultObj, obj);
         }
 
-        Tcl_SetObjResult(interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -182,7 +181,7 @@ static BOOL WINAPI TwapiEnumPageFilesProc(
     objs[1] = ObjFromSIZE_T(pfiP->TotalInUse);
     objs[2] = ObjFromSIZE_T(pfiP->PeakUsage);
     objs[3] = ObjFromUnicode(fnP);
-    Tcl_ListObjAppendElement(NULL, objP, Tcl_NewListObj(4, objs));
+    ObjAppendElement(NULL, objP, ObjNewList(4, objs));
 
     return TRUE;
 }
@@ -192,9 +191,9 @@ static BOOL WINAPI TwapiEnumPageFilesProc(
  *  Wrapper around NtQuerySystemInformation to get swapfile information
  *
  */
-int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP)
+int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
 {
-    Tcl_Obj *resultObj = Tcl_NewListObj(0, NULL);
+    Tcl_Obj *resultObj = ObjEmptyList();
 
     /* MS HEADER BUG WORKAROUND: see http://www.ureader.com/msg/147433.aspx
        Despite what the SDK headers say, the callback function should
@@ -204,12 +203,12 @@ int Twapi_SystemPagefileInformation(TwapiInterpContext *ticP)
     */
 
     if (EnumPageFilesW((PENUM_PAGE_FILE_CALLBACKW) TwapiEnumPageFilesProc, resultObj)) {
-        Tcl_SetObjResult(ticP->interp, resultObj);
+        TwapiSetObjResult(interp, resultObj);
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();
         Tcl_DecrRefCount(resultObj);
-        return Twapi_AppendSystemError(ticP->interp, winerr);
+        return Twapi_AppendSystemError(interp, winerr);
     }
 }
 
@@ -233,13 +232,12 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, ERROR_INSUFFICIENT_BUFFER);
     }
 
-    Tcl_SetObjResult(interp, ObjFromUnicodeN(path, len));
+    TwapiSetObjResult(interp, ObjFromUnicodeN(path, len));
     return TCL_OK;
 }
 
-static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2;
     DWORD dw, dw2, dw3;
     TwapiResult result;
@@ -250,14 +248,14 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     Tcl_Obj *objs[2];
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
+    int func = (int) clientdata;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 100) {
-        if (objc != 2)
+        if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 33:
@@ -273,9 +271,9 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         case 35:
             return Twapi_GlobalMemoryStatus(interp);
         case 36:
-            return Twapi_SystemProcessorTimes(ticP);
+            return Twapi_GetPerformanceInformation(interp);
         case 37:
-            return Twapi_SystemPagefileInformation(ticP);
+            return Twapi_SystemPagefileInformation(interp);
         case 38:
             return Twapi_GetSystemWow64Directory(interp);
         case 39:
@@ -284,7 +282,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             case TIME_ZONE_ID_UNKNOWN:
             case TIME_ZONE_ID_STANDARD:
             case TIME_ZONE_ID_DAYLIGHT:
-                objs[0] = Tcl_NewLongObj(dw);
+                objs[0] = ObjFromLong(dw);
                 objs[1] = ObjFromTIME_ZONE_INFORMATION(&u.tzinfo);
                 result.type = TRT_OBJV;
                 result.value.objv.objPP = objs;
@@ -295,13 +293,11 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                 break;
             }
             break;
-        case 40:
-            return Twapi_GetPerformanceInformation(ticP->interp);
         }
     } else if (func < 300) {
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 201:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
@@ -323,20 +319,20 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     } else {
         switch (func) {
         case 1001:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ExitWindowsEx(dw, dw2);
             break;
         case 1002:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETNULLIFEMPTY(s), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = AbortSystemShutdownW(s);
         case 1003:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
                              GETINT(dw), GETBOOL(dw2), GETBOOL(dw3),
                              ARGEND) != TCL_OK)
@@ -345,7 +341,7 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             result.value.ival = InitiateSystemShutdownW(s, s2, dw, dw2, dw3);
             break;
         case 1004:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
+            if (TwapiGetArgs(interp, objc, objv,
                              GETBOOL(dw), GETBOOL(dw2), GETBOOL(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -354,17 +350,17 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
             break;
         case 1005: // TzLocalSpecificTimeToSystemTime
         case 1006: // SystemTimeToTzSpecificLocalTime
-            if (objc == 3) {
+            if (objc == 1) {
                 tzinfoP = NULL;
-            } else if (objc == 4) {
-                if (ObjToTIME_ZONE_INFORMATION(ticP->interp, objv[3], &u.tzinfo) != TCL_OK) {
+            } else if (objc == 2) {
+                if (ObjToTIME_ZONE_INFORMATION(interp, objv[1], &u.tzinfo) != TCL_OK) {
                     return TCL_ERROR;
                 }
                 tzinfoP = &u.tzinfo;
             } else {
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             }
-            if (ObjToSYSTEMTIME(interp, objv[2], &systime) != TCL_OK)
+            if (ObjToSYSTEMTIME(interp, objv[0], &systime) != TCL_OK)
                 return TCL_ERROR;
             if ((func == 10134 ? TzSpecificLocalTimeToSystemTime : SystemTimeToTzSpecificLocalTime) (tzinfoP, &systime, &result.value.systime))
                 result.type = TRT_SYSTEMTIME;
@@ -380,34 +376,27 @@ static int Twapi_OsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
 
 static int TwapiOsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::OsCall", Twapi_OsCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s OsDispatch[] = {
+        DEFINE_FNCODE_CMD(GetComputerName, 33),
+        DEFINE_FNCODE_CMD(GetSystemInfo, 34),
+        DEFINE_FNCODE_CMD(GlobalMemoryStatus, 35),
+        DEFINE_FNCODE_CMD(GetPerformanceInformation, 36),
+        DEFINE_FNCODE_CMD(Twapi_SystemPagefileInformation, 37),
+        DEFINE_FNCODE_CMD(GetSystemWow64Directory, 38),
+        DEFINE_FNCODE_CMD(GetTimeZoneInformation, 39),    /* TBD Tcl */
+        DEFINE_FNCODE_CMD(GetComputerNameEx, 201),
+        DEFINE_FNCODE_CMD(GetSystemMetrics, 202),
+        DEFINE_FNCODE_CMD(Sleep, 203),
+        DEFINE_FNCODE_CMD(ExitWindowsEx, 1001),
+        DEFINE_FNCODE_CMD(AbortSystemShutdown, 1002),
+        DEFINE_FNCODE_CMD(InitiateSystemShutdown, 1003),
+        DEFINE_FNCODE_CMD(SetSuspendState, 1004),
+        DEFINE_FNCODE_CMD(TzSpecificLocalTimeToSystemTime, 1005), // Tcl
+        DEFINE_FNCODE_CMD(SystemTimeToTzSpecificLocalTime, 1006), // Tcl
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::OsCall", # code_); \
-    } while (0);
-
-    CALL_(GetComputerName, 33);
-    CALL_(GetSystemInfo, 34);
-    CALL_(GlobalMemoryStatus, 35);
-    CALL_(Twapi_SystemProcessorTimes, 36);
-    CALL_(Twapi_SystemPagefileInformation, 37);
-    CALL_(GetSystemWow64Directory, 38);
-    CALL_(GetTimeZoneInformation, 39);    /* TBD Tcl */
-    CALL_(GetPerformanceInformation, 40);
-    CALL_(GetComputerNameEx, 201);
-    CALL_(GetSystemMetrics, 202);
-    CALL_(Sleep, 203);
-    CALL_(ExitWindowsEx, 1001);
-    CALL_(AbortSystemShutdown, 1002);
-    CALL_(InitiateSystemShutdown, 1003);
-    CALL_(SetSuspendState, 1004);
-    CALL_(TzSpecificLocalTimeToSystemTime, 1005); // Tcl
-    CALL_(SystemTimeToTzSpecificLocalTime, 1006); // Tcl
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(OsDispatch), OsDispatch, Twapi_OsCallObjCmd);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_SystemProcessorTimes", Twapi_SystemProcessorTimesObjCmd, ticP, NULL);
 
     return TCL_OK;
 }

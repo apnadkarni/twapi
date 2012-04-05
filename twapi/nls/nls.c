@@ -227,30 +227,25 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 
 static int TwapiNlsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct alias_dispatch_s NlsAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(GetUserDefaultLangID, 23),
+        DEFINE_ALIAS_CMD(GetSystemDefaultLangID, 24),
+        DEFINE_ALIAS_CMD(GetUserDefaultLCID, 25),
+        DEFINE_ALIAS_CMD(GetSystemDefaultLCID, 26),
+        DEFINE_ALIAS_CMD(GetUserDefaultUILanguage, 27),
+        DEFINE_ALIAS_CMD(GetSystemDefaultUILanguage, 28),
+        DEFINE_ALIAS_CMD(GetThreadLocale, 29),
+        DEFINE_ALIAS_CMD(GetACP, 30),
+        DEFINE_ALIAS_CMD(GetOEMCP, 31),
+        DEFINE_ALIAS_CMD(GetNumberFormat, 32),
+        DEFINE_ALIAS_CMD(GetCurrencyFormat, 33),
+        DEFINE_ALIAS_CMD(VerLanguageName, 34),
+        DEFINE_ALIAS_CMD(GetLocaleInfo, 35),
+    };
+
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::NlsCall", Twapi_NlsCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::NlsCall", # code_); \
-    } while (0);
-
-    CALL_(GetUserDefaultLangID, 23);
-    CALL_(GetSystemDefaultLangID, 24);
-    CALL_(GetUserDefaultLCID, 25);
-    CALL_(GetSystemDefaultLCID, 26);
-    CALL_(GetUserDefaultUILanguage, 27);
-    CALL_(GetSystemDefaultUILanguage, 28);
-    CALL_(GetThreadLocale, 29);
-    CALL_(GetACP, 30);
-    CALL_(GetOEMCP, 31);
-    CALL_(GetNumberFormat, 32);
-    CALL_(GetCurrencyFormat, 33);
-    CALL_(VerLanguageName, 34);
-    CALL_(GetLocaleInfo, 35);
-
-#undef CALL_
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(NlsAliasDispatch), NlsAliasDispatch, "twapi::NlsCall");
 
     return TCL_OK;
 }
