@@ -3169,6 +3169,11 @@ Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv)
     return Tcl_NewListObj(objc, objv);
 }
 
+Tcl_Obj *ObjEmptyList(void)
+{
+    return Tcl_NewObj();
+}
+
 TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e)
 {
     return Tcl_ListObjAppendElement(interp, l, e);
