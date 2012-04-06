@@ -5,8 +5,19 @@
 # loading. The module names are picked up from the pkgindex.modules
 # file in the directory.
 
+proc get_ns_commands {ns} {
+    if {![namespace exists ${ns}]} {
+        return {}
+    }
+    set cmds [info commands ${ns}::*]
+    foreach childns [namespace children $ns] {
+        lappend cmds {*}[get_ns_commands $childns]
+    }
+    return $cmds
+}
+
 proc get_twapi_commands {} {
-    return [concat [info commands ::twapi::*] [info commands ::metoo::*]]
+    return [concat [get_ns_commands ::twapi] [get_ns_commands ::metoo]]
 }
 
 proc makeindex {pkgdir lazy ver} {
