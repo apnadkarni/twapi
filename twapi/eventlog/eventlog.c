@@ -169,28 +169,31 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             return TCL_ERROR;
         
         /* func 1 has 2 args, rest all have 1 arg */
-        if ((objc != 1) && (func !=1 || objc != 2))
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        switch (func) {
-        case 2:
+        if (func == 2) {
+            if (objc != 2)
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = NotifyChangeEventLog(h, h2);
-            break;
-        case 3:
-            result.type = GetNumberOfEventLogRecords(h,
-                                                     &result.value.uval)
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 4:
-            result.type = GetOldestEventLogRecord(h,
-                                                  &result.value.uval) 
-                ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 5:
-            result.type = Twapi_IsEventLogFull(h,
-                                               &result.value.ival) 
-                ? TRT_LONG : TRT_GETLASTERROR;
-            break;
+        } else {
+            if (objc != 1)
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+            switch (func) {
+            case 3:
+                result.type = GetNumberOfEventLogRecords(h,
+                                                         &result.value.uval)
+                    ? TRT_DWORD : TRT_GETLASTERROR;
+                break;
+            case 4:
+                result.type = GetOldestEventLogRecord(h,
+                                                      &result.value.uval) 
+                    ? TRT_DWORD : TRT_GETLASTERROR;
+                break;
+            case 5:
+                result.type = Twapi_IsEventLogFull(h,
+                                                   &result.value.ival) 
+                    ? TRT_LONG : TRT_GETLASTERROR;
+                break;
+            }
         }
     } else {
         /* Arbitrary args */
@@ -230,7 +233,7 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvlogCallDispatch), EvlogCallDispatch, Twapi_EventlogCallObjCmd);
 
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_ReadEventLog", Twapi_ReadEventLogObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::ReadEventLog", Twapi_ReadEventLogObjCmd, ticP, NULL);
 
 
     Tcl_CreateObjCommand(interp, "twapi::EvtCall", Twapi_EvtCallObjCmd, ticP, NULL);
