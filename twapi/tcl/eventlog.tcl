@@ -326,25 +326,6 @@ proc twapi::_eventlog_notification_handler {hevent event} {
 
 # Utility procs
 
-# Validate a handle for a mode. Always raises error if handle is invalid
-# If handle valid but not for that mode, will raise error iff $raise_error
-# is non-empty. Returns 1 if valid, 0 otherwise
-proc twapi::_eventlog_valid_handle {hevl mode {raise_error ""}} {
-    variable eventlog_handles
-    if {![info exists eventlog_handles($hevl)]} {
-        error "Invalid event log handle '$hevl'"
-    }
-
-    if {[string compare $eventlog_handles($hevl) $mode]} {
-        if {$raise_error != ""} {
-            error "Eventlog handle '$hevl' not valid for $mode"
-        }
-        return 0
-    } else {
-        return 1
-    }
-}
-
 # Find the registry key corresponding the given event log source
 proc twapi::_find_eventlog_regkey {source} {
     set topkey {HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Eventlog}

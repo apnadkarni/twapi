@@ -1181,6 +1181,10 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = CloseEventLog(h);
             break;
+        case 22:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeregisterEventSource(h);
+            break;
         }
     } else if (func < 2000) {
 
@@ -1355,6 +1359,7 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
     WCHAR *wp;
     void  *pv;
     Tcl_WideInt wide;
+    Tcl_Obj *dataObj;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(func), GETVOIDP(bufP), GETDWORD_PTR(offset),
@@ -1362,30 +1367,32 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+    dataObj = objv[5];
+
     /* Note the ARGSKIP ensures the objv[] in that position exists */
     switch (func) {
     case 0: // Int
         if ((offset + sizeof(int)) > buf_size)
             goto overrun;
-        if (ObjToInt(interp, objv[4], &val) != TCL_OK)
+        if (ObjToInt(interp, dataObj, &val) != TCL_OK)
             return TCL_ERROR;
         *(int UNALIGNED *)(offset + bufP) = val;
         break;
     case 1: // Binary
-        cp = ObjToByteArray(objv[4], &sz);
+        cp = ObjToByteArray(dataObj, &sz);
         if ((offset + sz) > buf_size)
             goto overrun;
         CopyMemory(offset + bufP, cp, sz);
         break;
     case 2: // Chars
-        cp = ObjToStringN(objv[4], &sz);
+        cp = ObjToStringN(dataObj, &sz);
         /* Note we also include the terminating null */
         if ((offset + sz + 1) > buf_size)
             goto overrun;
         CopyMemory(offset + bufP, cp, sz+1);
         break;
     case 3: // Unicode
-        wp = ObjToUnicodeN(objv[4], &sz);
+        wp = ObjToUnicodeN(dataObj, &sz);
         /* Note we also include the terminating null */
         if ((offset + (sizeof(WCHAR)*(sz + 1))) > buf_size)
             goto overrun;
@@ -1394,14 +1401,14 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
     case 4: // Pointer
         if ((offset + sizeof(void*)) > buf_size)
             goto overrun;
-        if (ObjToLPVOID(interp, objv[4], &pv) != TCL_OK)
+        if (ObjToLPVOID(interp, dataObj, &pv) != TCL_OK)
             return TCL_ERROR;
         CopyMemory(offset + bufP, &pv, sizeof(void*));
         break;
     case 5:
         if ((offset + sizeof(Tcl_WideInt)) > buf_size)
             goto overrun;
-        if (Tcl_GetWideIntFromObj(interp, objv[4], &wide) != TCL_OK)
+        if (Tcl_GetWideIntFromObj(interp, dataObj, &wide) != TCL_OK)
             return TCL_ERROR;
         *(Tcl_WideInt UNALIGNED *)(offset + bufP) = wide;
         break;
@@ -1490,6 +1497,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MemLifoValidate, 19),
         DEFINE_FNCODE_CMD(Twapi_MemLifoDump, 20),
         DEFINE_FNCODE_CMD(CloseEventLog, 21),
+        DEFINE_FNCODE_CMD(DeregisterEventSource, 22),
 
         DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
         DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),
