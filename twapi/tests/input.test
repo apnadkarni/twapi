@@ -419,8 +419,9 @@ namespace eval twapi::input::test {
         incr left 100
         twapi::move_mouse $left $top
         twapi::click_mouse_button right
+        after 50;               # Just to show the popup menu
     } -cleanup {
-        kill $np_pid -wait $end_process_timeout
+        kill $np_pid -force -wait $end_process_timeout
     } -result ""
 
     ################################################################
