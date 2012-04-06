@@ -940,10 +940,13 @@ namespace eval twapi {
             return [lsort -unique $objs]
         }
     } else {
+        package require metoo
         interp alias {} ::twapi::class {} ::metoo::class
-        proc ::metoo::define::twapi_exportall {args} {
-            # args is dummy to match metoo's class definition signature
-            # Nothing to do, all methods are metoo are public
+        namespace eval ::metoo::define {
+            proc twapi_exportall {args} {
+                # args is dummy to match metoo's class definition signature
+                # Nothing to do, all methods are metoo are public
+            }
         }
         proc comobj? {cobj} {
             return [metoo::introspect object isa $cobj ::twapi::Automation]
