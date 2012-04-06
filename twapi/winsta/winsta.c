@@ -20,7 +20,7 @@ BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARA
     TwapiEnumCtx *p_enum_ctx =
         (TwapiEnumCtx *) p_ctx;
 
-    Tcl_ListObjAppendElement(p_enum_ctx->interp,
+    ObjAppendElement(p_enum_ctx->interp,
                              p_enum_ctx->objP,
                              ObjFromUnicode(p_winsta));
     return 1;
@@ -32,7 +32,7 @@ int Twapi_EnumWindowStations(Tcl_Interp *interp)
     TwapiEnumCtx enum_ctx;
 
     enum_ctx.interp = interp;
-    enum_ctx.objP = Tcl_NewListObj(0, NULL);
+    enum_ctx.objP = ObjEmptyList();
 
     
     if (EnumWindowStationsW(Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
@@ -41,7 +41,7 @@ int Twapi_EnumWindowStations(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.objP);
+    TwapiSetObjResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 
@@ -51,7 +51,7 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
     TwapiEnumCtx enum_ctx;
 
     enum_ctx.interp = interp;
-    enum_ctx.objP = Tcl_NewListObj(0, NULL);
+    enum_ctx.objP = ObjEmptyList();
 
     
     if (EnumDesktopsW(hwinsta, Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
@@ -60,23 +60,21 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.objP);
+    TwapiSetObjResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 
-static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
+    int func = (int) clientdata;
     TwapiResult result;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
-
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
@@ -86,7 +84,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.value.hval = GetProcessWindowStation();
         break;
     case 3:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETINT(dw), GETINT(dw2),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                          ARGEND) != TCL_OK)
@@ -96,7 +94,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;
     case 4:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETINT(dw), GETINT(dw2), GETINT(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -104,13 +102,13 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.value.hval = OpenDesktopW(s, dw, dw2, dw3);
         break;
     case 5:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.hval = GetThreadDesktop(dw);
         result.type = TRT_HDESK;
         break;
     case 6:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), GETINT(dw2), GETINT(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -118,7 +116,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         result.value.hval = OpenInputDesktop(dw, dw2, dw3);
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
@@ -126,11 +124,11 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         break;
     case 8: // CreateDesktopW
         /* Note second, third args are ignored and are reserved as NULL */
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), ARGSKIP, ARGSKIP, GETINT(dw),
                          GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (ObjToPSECURITY_ATTRIBUTES(interp, objv[7], &secattrP) != TCL_OK)
+        if (ObjToPSECURITY_ATTRIBUTES(interp, objv[5], &secattrP) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
         result.value.hval = CreateDesktopW(s, NULL, NULL, dw, dw2, secattrP);
@@ -138,7 +136,7 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;
     default:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -174,31 +172,24 @@ static int Twapi_WinstaCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
 static int TwapiWinstaInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::WinstaCall", Twapi_WinstaCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s WinstaDispatch[] = {
+        DEFINE_FNCODE_CMD(EnumWindowStations, 1),
+        DEFINE_FNCODE_CMD(GetProcessWindowStation, 2),
+        DEFINE_FNCODE_CMD(CreateWindowStation, 3),
+        DEFINE_FNCODE_CMD(OpenDesktop, 4),
+        DEFINE_FNCODE_CMD(GetThreadDesktop, 5),
+        DEFINE_FNCODE_CMD(OpenInputDesktop, 6), // TBD - Tcl
+        DEFINE_FNCODE_CMD(OpenWindowStation, 7),
+        DEFINE_FNCODE_CMD(CreateDesktop, 8), // TBD - Tcl
+        DEFINE_FNCODE_CMD(CloseDesktop, 31),
+        DEFINE_FNCODE_CMD(SwitchDesktop, 32),
+        DEFINE_FNCODE_CMD(SetThreadDesktop, 33),
+        DEFINE_FNCODE_CMD(EnumDesktops, 34),
+        DEFINE_FNCODE_CMD(SetProcessWindowStation, 35),
+        DEFINE_FNCODE_CMD(CloseWindowStation, 36),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::WinstaCall", # code_); \
-    } while (0);
-
-    CALL_(EnumWindowStations, 1);
-    CALL_(GetProcessWindowStation, 2);
-    CALL_(CreateWindowStation, 3);
-    CALL_(OpenDesktop, 4);
-    CALL_(GetThreadDesktop, 5);
-    CALL_(OpenInputDesktop, 6); // TBD - Tcl
-    CALL_(OpenWindowStation, 7);
-    CALL_(CreateDesktop, 8); // TBD - Tcl
-    CALL_(CloseDesktop, 31);
-    CALL_(SwitchDesktop, 32);
-    CALL_(SetThreadDesktop, 33);
-    CALL_(EnumDesktops, 34);
-    CALL_(SetProcessWindowStation, 35);
-    CALL_(CloseWindowStation, 36);
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(WinstaDispatch), WinstaDispatch, Twapi_WinstaCallObjCmd);
 
     return TCL_OK;
 }

@@ -49,9 +49,6 @@ The commands [uri \#OpenThemeData [cmd OpenThemeData]],
 [uri \#GetThemeFont [cmd GetThemeFont]] provide access to information
 related to the current theme if the underlying platform supports themes.
 See the Windows SDK for documentation about these.
-[uri \#TwapiThemeDefineValue [cmd TwapiThemeDefineValue]] is a utility
-function that translates various theme-related symbols described in
-the SDk to their integer values to be passed to the above functions.
 
 [section "Shortcuts"]
 The commands

@@ -12,7 +12,7 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
-TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int type, int objc, Tcl_Obj *CONST objv[])
 {
     IMofCompiler *ifc;
     WCHAR *server_namespace;
@@ -26,7 +26,7 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
     WBEM_COMPILE_STATUS_INFO wcsi;
 
     if (type == 2) {
-        if (TwapiGetArgs(ticP->interp, objc, objv,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(ifc, IMofCompiler), ARGSKIP, ARGSKIP,
                          ARGUSEDEFAULT,
                          GETNULLIFEMPTY(server_namespace),
@@ -34,7 +34,7 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
                          GETINT(instflags), ARGEND) != TCL_OK)
             return TCL_ERROR;
     } else {
-        if (TwapiGetArgs(ticP->interp, objc, objv,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(ifc, IMofCompiler), ARGSKIP, ARGUSEDEFAULT,
                          GETNULLIFEMPTY(server_namespace), GETNULLIFEMPTY(user),
                          GETNULLIFEMPTY(authority), GETNULLIFEMPTY(password),
@@ -70,7 +70,7 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
         break;
 
     default:
-        return TwapiReturnErrorEx(ticP->interp,
+        return TwapiReturnErrorEx(interp,
                                   TWAPI_BUG,
                                   Tcl_ObjPrintf("Invalid IMofCompiler function code %d", type));
     }
@@ -82,31 +82,27 @@ TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int 
 
     case WBEM_S_FALSE: /* Fall thru */
     default:
-        Tcl_SetObjResult(ticP->interp,
+        Tcl_SetObjResult(interp,
                          Tcl_ObjPrintf("IMofCompiler error: phase: %d, object number: %d, first line: %d, last line: %d.",
                                        wcsi.lPhaseError,
                                        wcsi.ObjectNum,
                                        wcsi.FirstLine,
                                        wcsi.LastLine));
-        return Twapi_AppendSystemError(ticP->interp, wcsi.hRes ? wcsi.hRes : hr);
+        return Twapi_AppendSystemError(interp, wcsi.hRes ? wcsi.hRes : hr);
     }
 }                     
 
-static int Twapi_WmiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_WmiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
-
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
-
-    switch (func) {
+    --objc;
+    ++objv;
+    switch ((int) clientdata) {
     case 1: // IMofCompiler_CompileBuffer
-        return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 0, objc-2, objv+2);
+        return Twapi_IMofCompiler_CompileFileOrBuffer(interp, 0, objc, objv);
     case 2: // IMofCompiler_CompileFile
-        return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 1, objc-2, objv+2);
+        return Twapi_IMofCompiler_CompileFileOrBuffer(interp, 1, objc, objv);
     case 3: // IMofCompiler_CreateBMOF
-        return Twapi_IMofCompiler_CompileFileOrBuffer(ticP, 2, objc-2, objv+2);
+        return Twapi_IMofCompiler_CompileFileOrBuffer(interp, 2, objc, objv);
     }
 
     return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
@@ -115,20 +111,15 @@ static int Twapi_WmiCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 
 static int TwapiWmiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
+    static struct fncode_dispatch_s WmiDispatch[] = {
+        DEFINE_FNCODE_CMD(IMofCompiler_CompileBuffer, 1),
+        DEFINE_FNCODE_CMD(IMofCompiler_CompileFile, 2),
+        DEFINE_FNCODE_CMD(IMofCompiler_CreateBMOF, 3),
+    };
+
     /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::WmiCall", Twapi_WmiCallObjCmd, ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::WmiCall", # code_); \
-    } while (0);
-
-    CALL_(IMofCompiler_CompileBuffer, 1); // Tcl
-    CALL_(IMofCompiler_CompileFile, 2); // Tcl
-    CALL_(IMofCompiler_CreateBMOF, 3); // Tcl
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(WmiDispatch), WmiDispatch,
+                          Twapi_WmiCallObjCmd);
 
     return TCL_OK;
 }
