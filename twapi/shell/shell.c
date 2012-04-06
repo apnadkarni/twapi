@@ -5,7 +5,7 @@
  * See the file LICENSE for license
  */
 
-/* Define interface to Windows API related to process information */
+/* TBD - move theme functions to UI module ? */
 
 #include "twapi.h"
 
