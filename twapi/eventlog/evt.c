@@ -19,6 +19,7 @@ typedef DWORD (WINAPI *EVT_SUBSCRIBE_CALLBACK)(
     PVOID UserContext,
     HANDLE Event );
 
+/* TBD - use VER_PRODUCTVERSION to selectively include SDK defs */
 typedef enum _EVT_VARIANT_TYPE
 {
     EvtVarTypeNull        = 0,
