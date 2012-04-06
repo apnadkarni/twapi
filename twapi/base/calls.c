@@ -1191,7 +1191,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
         // A single additional DWORD arg is present
         if (objc != 2)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_INTEGER_OBJ(interp, dw, objv[1]);
 
         switch (func) {
         case 1001:
