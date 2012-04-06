@@ -6,6 +6,8 @@
 
 package require twapi_com
 
+# TBD - document?
+
 twapi::class create ::twapi::IMofCompilerProxy {
     superclass ::twapi::IUnknownProxy
 
