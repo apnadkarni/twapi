@@ -42,7 +42,7 @@ static DLLVERSIONINFO *TwapiShellVersion()
 int Twapi_GetShellVersion(Tcl_Interp *interp)
 {
     DLLVERSIONINFO *ver = TwapiShellVersion();
-    Tcl_SetObjResult(interp,
+    TwapiSetObjResult(interp,
                      Tcl_ObjPrintf("%u.%u.%u",
                                    ver->dwMajorVersion,
                                    ver->dwMinorVersion,
@@ -265,7 +265,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         goto fail;
 #endif
 
-    resultObj = Tcl_NewListObj(0, NULL);
+    resultObj = ObjEmptyList();
 
     /*
      * Get each field. Note that inability to get a field is not treated
@@ -273,71 +273,71 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
      */
     hres = psl->lpVtbl->GetArguments(psl, buf, sizeof(buf)/sizeof(buf[0]));
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-args"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetDescription(psl, buf, sizeof(buf)/sizeof(buf[0]));
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-desc"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetHotkey(psl, &wordval);
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-hotkey"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewIntObj(wordval));
+        ObjAppendElement(interp, resultObj, 
+                                 ObjFromLong(wordval));
     }
 
     hres = psl->lpVtbl->GetIconLocation(psl,
                                         buf, sizeof(buf)/sizeof(buf[0]),
                                         &intval);
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconindex"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewIntObj(intval));
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj, 
+                                 ObjFromLong(intval));
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconpath"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetIDList(psl, &pidl);
     if (hres == NOERROR) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-idl"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromPIDL(pidl));
+        ObjAppendElement(interp, resultObj, ObjFromPIDL(pidl));
         CoTaskMemFree(pidl);
     }
 
     hres = psl->lpVtbl->GetPath(psl, buf, sizeof(buf)/sizeof(buf[0]),
                                 NULL, pathFlags);
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-path"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
 
     hres = psl->lpVtbl->GetShowCmd(psl, &intval);
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-showcmd"));
-        Tcl_ListObjAppendElement(interp, resultObj, 
-                                 Tcl_NewIntObj(intval));
+        ObjAppendElement(interp, resultObj, 
+                                 ObjFromLong(intval));
     }
 
     hres = psl->lpVtbl->GetWorkingDirectory(psl, buf, sizeof(buf)/sizeof(buf[0]));
     if (SUCCEEDED(hres)) {
-        Tcl_ListObjAppendElement(interp, resultObj,
+        ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-workdir"));
-        Tcl_ListObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
     
-    Tcl_SetObjResult(interp, resultObj);
+    TwapiSetObjResult(interp, resultObj);
     retval = TCL_OK;
 
  vamoose:
@@ -432,7 +432,7 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
     if (FAILED(hres))
         goto fail;
 
-    Tcl_SetObjResult(interp, ObjFromUnicode(url));
+    TwapiSetObjResult(interp, ObjFromUnicode(url));
     CoTaskMemFree(url);
 
     retval = TCL_OK;
@@ -529,22 +529,22 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (SHFileOperationW(&sfop) != 0) {
         // Note GetLastError() is not set by the call
-        Tcl_SetResult(interp, "SHFileOperation failed", TCL_STATIC);
+        TwapiSetStaticResult(interp, "SHFileOperation failed");
         goto vamoose;
     }
 
-    objs[0] = Tcl_NewBooleanObj(sfop.fAnyOperationsAborted);
-    objs[1] = Tcl_NewListObj(0, NULL);
+    objs[0] = ObjFromBoolean(sfop.fAnyOperationsAborted);
+    objs[1] = ObjEmptyList();
 
     if (sfop.hNameMappings) {
         int i;
         SHNAMEMAPPINGW *mapP = *(SHNAMEMAPPINGW **)(((char *)sfop.hNameMappings) + 4);
         for (i = 0; i < *(int *) (sfop.hNameMappings); ++i) {
-            Tcl_ListObjAppendElement(interp, objs[1],
+            ObjAppendElement(interp, objs[1],
                                      ObjFromUnicodeN(
                                          mapP[i].pszOldPath,
                                          mapP[i].cchOldPath));
-            Tcl_ListObjAppendElement(interp, objs[1],
+            ObjAppendElement(interp, objs[1],
                                      ObjFromUnicodeN(
                                          mapP[i].pszNewPath,
                                          mapP[i].cchNewPath));
@@ -553,7 +553,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         SHFreeNameMappings(sfop.hNameMappings);
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objs));
+    TwapiSetObjResult(interp, ObjNewList(2, objs));
     tcl_status = TCL_OK;
 
 vamoose:
@@ -616,14 +616,13 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     /* Success, see if any fields to be returned */
     if (sei.fMask & SEE_MASK_NOCLOSEPROCESS) {
-        Tcl_SetObjResult(interp, ObjFromHANDLE(sei.hProcess));
+        TwapiSetObjResult(interp, ObjFromHANDLE(sei.hProcess));
     }
     return TCL_OK;
 }
 
 
 int Twapi_SHChangeNotify(
-    ClientData notused,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
@@ -636,16 +635,10 @@ int Twapi_SHChangeNotify(
     LPITEMIDLIST idl2P = NULL;
     int status = TCL_ERROR;
 
+    if (TwapiGetArgs(interp, objc, objv, GETINT(event_id), GETINT(flags),
+                     ARGTERM) != TCL_OK)
+        return TCL_ERROR;
 
-    if (objc < 3) {
-        goto wrong_nargs_error;
-    }
-
-    if (Tcl_GetLongFromObj(interp, objv[1], &event_id) != TCL_OK ||
-        Tcl_GetIntFromObj(interp, objv[2], &flags) != TCL_OK) {
-        goto vamoose;
-    }
-        
     switch (flags & SHCNF_TYPE) {
     case SHCNF_DWORD:
     case SHCNF_PATHW:
@@ -694,17 +687,17 @@ int Twapi_SHChangeNotify(
     case SHCNE_SERVERDISCONNECT:
         /* For the above, only dwItem1 used, dwItem2 remains 0 */
 
-        if (objc < 4)
+        if (objc < 3)
             goto wrong_nargs_error;
 
         switch (flags & SHCNF_TYPE) {
         case SHCNF_IDLIST:
-            if (ObjToPIDL(interp, objv[3], &idl1P) != TCL_OK)
+            if (ObjToPIDL(interp, objv[2], &idl1P) != TCL_OK)
                 goto vamoose;
             dwItem1 = idl1P;
             break;
         case SHCNF_PATHW:
-            dwItem1 = Tcl_GetUnicode(objv[3]);
+            dwItem1 = ObjToUnicode(objv[2]);
             break;
         default:
             goto invalid_flags_error;
@@ -715,20 +708,20 @@ int Twapi_SHChangeNotify(
     case SHCNE_RENAMEITEM:
     case SHCNE_RENAMEFOLDER:
         /* Both dwItem1 and dwItem2 used */
-        if (objc < 5)
+        if (objc < 4)
             goto wrong_nargs_error;
 
         switch (flags & SHCNF_TYPE) {
         case SHCNF_IDLIST:
-            if (ObjToPIDL(interp, objv[3], &idl1P) != TCL_OK ||
-                ObjToPIDL(interp, objv[4], &idl2P) != TCL_OK)
+            if (ObjToPIDL(interp, objv[2], &idl1P) != TCL_OK ||
+                ObjToPIDL(interp, objv[3], &idl2P) != TCL_OK)
                 goto vamoose;
             dwItem1 = idl1P;
             dwItem2 = idl2P;
             break;
         case SHCNF_PATHW:
-            dwItem1 = Tcl_GetUnicode(objv[3]);
-            dwItem2 = Tcl_GetUnicode(objv[4]);
+            dwItem1 = ObjToUnicode(objv[2]);
+            dwItem2 = ObjToUnicode(objv[3]);
             break;
         default:
             goto invalid_flags_error;
@@ -738,9 +731,9 @@ int Twapi_SHChangeNotify(
 
     case SHCNE_UPDATEIMAGE:
         /* dwItem1 not used, dwItem2 is a DWORD */
-        if (objc < 5)
+        if (objc < 4)
             goto wrong_nargs_error;
-        if (Tcl_GetLongFromObj(interp, objv[4], (long *)&dwItem2) != TCL_OK)
+        if (ObjToLong(interp, objv[3], (long *)&dwItem2) != TCL_OK)
             goto vamoose;
         break;
         
@@ -755,30 +748,30 @@ int Twapi_SHChangeNotify(
          * caller. If number of parameters is less than 4, then assume
          * dwItem1&2 are both unused etc.
          */
-        if (objc >= 4) {
+        if (objc >= 3) {
             switch (flags & SHCNF_TYPE) {
             case SHCNF_DWORD:
-                if (Tcl_GetLongFromObj(interp, objv[3], (long *)&dwItem1) != TCL_OK)
+                if (ObjToLong(interp, objv[2], (long *)&dwItem1) != TCL_OK)
                     goto vamoose;
-                if (objc > 4 &&
-                    (Tcl_GetLongFromObj(interp, objv[4],
+                if (objc > 3 &&
+                    (ObjToLong(interp, objv[3],
                                         (long *)&dwItem2) != TCL_OK))
                     goto vamoose;
                 break;
             case SHCNF_IDLIST:
-                if (ObjToPIDL(interp, objv[3], &idl1P) != TCL_OK)
+                if (ObjToPIDL(interp, objv[2], &idl1P) != TCL_OK)
                     goto vamoose;
                 dwItem1 = idl1P;
-                if (objc > 4) {
-                    if (ObjToPIDL(interp, objv[4], &idl2P) != TCL_OK)
+                if (objc > 3) {
+                    if (ObjToPIDL(interp, objv[3], &idl2P) != TCL_OK)
                         goto vamoose;
                     dwItem2 = idl2P;
                 }
                 break;
             case SHCNF_PATHW:
-                dwItem1 = Tcl_GetUnicode(objv[3]);
-                if (objc > 4)
-                    dwItem2 = Tcl_GetUnicode(objv[4]);
+                dwItem1 = ObjToUnicode(objv[2]);
+                if (objc > 3)
+                    dwItem2 = ObjToUnicode(objv[3]);
                 break;
             default:
                 goto invalid_flags_error;
@@ -788,7 +781,7 @@ int Twapi_SHChangeNotify(
         break;
 
     default:
-        Tcl_SetResult(interp, "Unknown or unsupported SHChangeNotify event type", TCL_STATIC);
+        TwapiSetStaticResult(interp, "Unknown SHChangeNotify event type");
         goto vamoose;
 
     }
@@ -806,9 +799,7 @@ vamoose:
     return status;
 
 invalid_flags_error:
-    Tcl_SetResult(interp,
-                  "Unknown or unsupported SHChangeNotify flags type",
-                  TCL_STATIC);
+    TwapiSetStaticResult(interp, "Unknown SHChangeNotify flags type");
     goto vamoose;
 
 wrong_nargs_error:
@@ -816,9 +807,8 @@ wrong_nargs_error:
     goto vamoose;
 }
 
-static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     HWND   hwnd;
     LPWSTR s, s2;
     DWORD dw, dw2;
@@ -829,21 +819,20 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     HANDLE h;
     TwapiResult result;
     LPITEMIDLIST idlP;
+    int func = (int) clientdata;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
-
+    --objc;
+    ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
-        return Twapi_WriteShortcut(interp, objc-2, objv+2);
+        return Twapi_WriteShortcut(interp, objc, objv);
     case 2:
-        return Twapi_ReadShortcut(interp, objc-2, objv+2);
+        return Twapi_ReadShortcut(interp, objc, objv);
     case 3:
-        return Twapi_InvokeUrlShortcut(interp, objc-2, objv+2);
+        return Twapi_InvokeUrlShortcut(interp, objc, objv);
     case 4: // SHInvokePrinterCommand
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(hwnd), GETINT(dw),
                          GETWSTR(s), GETWSTR(s2), GETBOOL(dw2),
                          ARGEND) != TCL_OK)
@@ -854,7 +843,7 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     case 5:
         return Twapi_GetShellVersion(interp);
     case 6: // SHGetFolderPath - TBD Tcl wrapper
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHWND(hwnd), GETINT(dw),
                          GETHANDLE(h), GETINT(dw2),
                          ARGEND) != TCL_OK)
@@ -870,7 +859,7 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         }
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHWND(hwnd), GETINT(dw),
                          GETINT(dw2),
                          ARGEND) != TCL_OK)
@@ -883,7 +872,7 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
             result.type = TRT_GETLASTERROR;
         break;
     case 8: // SHGetPathFromIDList
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETVAR(idlP, ObjToPIDL),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -899,7 +888,7 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         TwapiFreePIDL(idlP); /* OK if NULL */
         break;
     case 9:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hwnd, HWND), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -913,7 +902,7 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         break;
 
     case 10: // Shell_NotifyIcon
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), GETBIN(u.niP, dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -926,15 +915,15 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         }
         break;
     case 11:
-        if (objc != 3)
+        if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        return Twapi_ReadUrlShortcut(interp, Tcl_GetUnicode(objv[2]));
+        return Twapi_ReadUrlShortcut(interp, ObjToUnicode(objv[0]));
     case 12:
-        return Twapi_SHFileOperation(interp, objc-2, objv+2);
+        return Twapi_SHFileOperation(interp, objc, objv);
     case 13:
-        return Twapi_ShellExecuteEx(interp, objc-2, objv+2);
+        return Twapi_ShellExecuteEx(interp, objc, objv);
     case 14:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hwnd, HWND), GETINT(dw),
                          GETWSTR(s), GETNULLIFEMPTY(s2),
                          ARGEND) != TCL_OK)
@@ -943,52 +932,38 @@ static int Twapi_ShellCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         result.value.ival = Twapi_SHObjectProperties(hwnd, dw, s, s2);
         break;
     case 15:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETWSTR(s2), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_WriteUrlShortcut(interp, s, s2, dw);
+    case 16:
+        return Twapi_SHChangeNotify(interp, objc, objv);
     }
 
     return TwapiSetResult(interp, &result);
 }
 
-
 static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::ShellCall", Twapi_ShellCallObjCmd, ticP, NULL);
-
-    /* TBD - is there a tcl wrapper for SHChangeNotify ? */
-    /* This is a separate command as opposed to using the standard dispatch
-       for historical reasons. Should probably change it some time */
-    Tcl_CreateObjCommand(interp, "twapi::SHChangeNotify", Twapi_SHChangeNotify,
-                         ticP, NULL);
-
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::ShellCall", # code_); \
-    } while (0);
-
-    CALL_(Twapi_WriteShortcut, 1);
-    CALL_(Twapi_ReadShortcut, 2);
-    CALL_(Twapi_InvokeUrlShortcut, 3);
-    CALL_(SHInvokePrinterCommand, 4); // TBD - Tcl wrapper
-    CALL_(Twapi_GetShellVersion, 5);
-    CALL_(SHGetFolderPath, 6);
-    CALL_(SHGetSpecialFolderPath, 7);
-    CALL_(SHGetPathFromIDList, 8); // TBD - Tcl wrapper
-    CALL_(SHGetSpecialFolderLocation, 9);
-    CALL_(Shell_NotifyIcon, 10);
-    CALL_(Twapi_ReadUrlShortcut, 11);
-    CALL_(Twapi_SHFileOperation, 12); // TBD - some more wrappers
-    CALL_(Twapi_ShellExecuteEx, 13);
-    CALL_(SHObjectProperties, 14);
-    CALL_(Twapi_WriteUrlShortcut, 15);
-
-
-#undef CALL_
+    static struct fncode_dispatch_s ShellDispatch[] = {
+        DEFINE_FNCODE_CMD(Twapi_WriteShortcut, 1),
+        DEFINE_FNCODE_CMD(Twapi_ReadShortcut, 2),
+        DEFINE_FNCODE_CMD(Twapi_InvokeUrlShortcut, 3),
+        DEFINE_FNCODE_CMD(SHInvokePrinterCommand, 4), // TBD - Tcl
+        DEFINE_FNCODE_CMD(Twapi_GetShellVersion, 5),
+        DEFINE_FNCODE_CMD(SHGetFolderPath, 6),
+        DEFINE_FNCODE_CMD(SHGetSpecialFolderPath, 7),
+        DEFINE_FNCODE_CMD(SHGetPathFromIDList, 8), // TBD - Tcl 
+        DEFINE_FNCODE_CMD(SHGetSpecialFolderLocation, 9),
+        DEFINE_FNCODE_CMD(Shell_NotifyIcon, 10),
+        DEFINE_FNCODE_CMD(Twapi_ReadUrlShortcut, 11),
+        DEFINE_FNCODE_CMD(Twapi_SHFileOperation, 12), // TBD - some more wrapper
+        DEFINE_FNCODE_CMD(Twapi_ShellExecuteEx, 13),
+        DEFINE_FNCODE_CMD(SHObjectProperties, 14),
+        DEFINE_FNCODE_CMD(Twapi_WriteUrlShortcut, 15),
+        DEFINE_FNCODE_CMD(SHChangeNotify, 16),
+    };
 
     return TCL_OK;
 }
