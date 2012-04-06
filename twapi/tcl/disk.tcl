@@ -486,16 +486,4 @@ proc twapi::_is_unc {path} {
     return [expr {[string match {\\\\*} $path] || [string match //* $path]}]
 }
 
-# Map bit mask to list of drive letters
-proc twapi::_drivemask_to_drivelist {drivebits} {
-    set drives [list ]
-    set i 0
-    foreach drive {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z} {
-        if {[expr {$drivebits & (1 << $i)}]} {
-            lappend drives $drive:
-        }
-        incr i
-    }
-    return $drives
-}
 
