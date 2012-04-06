@@ -93,8 +93,8 @@ typedef struct _TwapiDirectoryMonitorContext {
 } TwapiDirectoryMonitorContext;
 
 
-int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]);
-int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle);
+TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *);
 
 #endif
