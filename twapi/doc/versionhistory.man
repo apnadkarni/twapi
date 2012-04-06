@@ -61,6 +61,9 @@ as argument. Both these can be replaced by a combination of
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 [list_end]
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The command [cmd TwapiThemeDefineValue] is no longer available.
+
 [section "Version 3.1"]
 
 Note: Make sure you read list of incompatible changes at the end of this section.
