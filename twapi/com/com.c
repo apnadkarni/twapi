@@ -2920,7 +2920,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     Tcl_CreateObjCommand(interp, "twapi::ComTicCall",
-                         Twapi_CallCOMObjCmd, ticP, NULL);
+                         Twapi_CallCOMTicObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
                          Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::ComEventSink",
