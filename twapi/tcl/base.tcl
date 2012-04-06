@@ -1089,3 +1089,22 @@ proc twapi::eventlog_log {message args} {
     return
 }
 
+# Validate a handle for a mode. Always raises error if handle is invalid
+# If handle valid but not for that mode, will raise error iff $raise_error
+# is non-empty. Returns 1 if valid, 0 otherwise
+proc twapi::_eventlog_valid_handle {hevl mode {raise_error ""}} {
+    variable eventlog_handles
+    if {![info exists eventlog_handles($hevl)]} {
+        error "Invalid event log handle '$hevl'"
+    }
+
+    if {[string compare $eventlog_handles($hevl) $mode]} {
+        if {$raise_error != ""} {
+            error "Eventlog handle '$hevl' not valid for $mode"
+        }
+        return 0
+    } else {
+        return 1
+    }
+}
+

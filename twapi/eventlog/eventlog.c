@@ -191,10 +191,6 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
                                                &result.value.ival) 
                 ? TRT_LONG : TRT_GETLASTERROR;
             break;
-        case 6:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeregisterEventSource(h);
-            break;
         }
     } else {
         /* Arbitrary args */
@@ -227,7 +223,6 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetNumberOfEventLogRecords, 3),
         DEFINE_FNCODE_CMD(GetOldestEventLogRecord, 4),
         DEFINE_FNCODE_CMD(Twapi_IsEventLogFull, 5),
-        DEFINE_FNCODE_CMD(DeregisterEventSource, 6),
         DEFINE_FNCODE_CMD(BackupEventLog, 1002),
         DEFINE_FNCODE_CMD(ClearEventLog, 1003),
         DEFINE_FNCODE_CMD(OpenBackupEventLog, 1004),
