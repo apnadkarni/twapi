@@ -307,6 +307,7 @@ proc metoo::_new {class_ns cmd args} {
         error $msg $erinfo $ercode
     }
 
+    # TBD - does tracing cause a slowdown ?
     # Set up trace to track when the object is renamed/destroyed
     trace add command $objname {rename delete} [list [namespace current]::_trace_object_renames $objns]
 
@@ -592,3 +593,7 @@ proc ::metoo::demo {{ns metoo}} {
     Base destroy;               # Should destroy object d, Derived, Base
 }
 
+# Hack to work with the various build configuration.
+if {[info commands ::twapi::get_version] ne ""} {
+    package provide metoo [::twapi::get_version -patchlevel]
+}
