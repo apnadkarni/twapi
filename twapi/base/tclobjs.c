@@ -3164,7 +3164,7 @@ TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
     return Tcl_GetWideIntFromObj(interp, objP, wideP);
 }
 
-Tcl_Obj *ObjNewList(int objc, Tcl_Obj **objv)
+Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[])
 {
     return Tcl_NewListObj(objc, objv);
 }
