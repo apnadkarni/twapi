@@ -25,7 +25,7 @@ int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)
             return Twapi_AppendSystemError(interp, winerr);
         }
     }
-    Tcl_SetObjResult(interp, Tcl_NewLongObj(file_type));
+    TwapiSetObjResult(interp, ObjFromLong(file_type));
     return TCL_OK;
 }
 
@@ -49,7 +49,7 @@ int TwapiFirstVolume(
     objv[0] = ObjFromHANDLE(h);
     objv[1] = ObjFromUnicode(buf);
 
-    Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+    TwapiSetObjResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -64,16 +64,16 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
 
     if (found) {
         Tcl_Obj *objv[2];
-        objv[0] = Tcl_NewIntObj(1);
+        objv[0] = ObjFromLong(1);
         objv[1] = ObjFromUnicode(buf);
-        Tcl_SetObjResult(interp, Tcl_NewListObj(2, objv));
+        TwapiSetObjResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     } else {
         DWORD lasterr = GetLastError();
         buf[0] = 0;
         if (lasterr == ERROR_NO_MORE_FILES) {
             /* Not an error, signal no more volumes */
-            Tcl_SetObjResult(interp, Tcl_NewIntObj(0));
+            TwapiSetObjResult(interp, ObjFromLong(0));
             return TCL_OK;
         }
         else
@@ -98,27 +98,26 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
     }
 
     objv[0] = ObjFromUnicode(volname);
-    objv[1] = Tcl_NewLongObj(serial_no);
-    objv[2] = Tcl_NewLongObj(max_component_len);
-    objv[3] = Tcl_NewLongObj(sysflags);
+    objv[1] = ObjFromLong(serial_no);
+    objv[2] = ObjFromLong(max_component_len);
+    objv[3] = ObjFromLong(sysflags);
     objv[4] = ObjFromUnicode(fsname);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(5, objv));
+    TwapiSetObjResult(interp, ObjNewList(5, objv));
 
     return TCL_OK;
 }
 
 
-int Twapi_QueryDosDevice(TwapiInterpContext *ticP, LPCWSTR lpDeviceName)
+int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
 {
     WCHAR *pathP;
     DWORD  path_cch;
     DWORD result;
-    DWORD buf_sz;
 
-    pathP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
-    path_cch = buf_sz/sizeof(*pathP);
+    path_cch = MAX_PATH;
+    pathP = TwapiAlloc(sizeof(WCHAR)*path_cch); // TBD - instrument
     while (1) {
-    // TBD - Tcl interface for when lpDeviceName is NULL ?
+        // TBD - Tcl interface for when lpDeviceName is NULL ?
 
         result = QueryDosDeviceW(lpDeviceName, pathP, path_cch);
         if (result > 0) {
@@ -142,19 +141,18 @@ int Twapi_QueryDosDevice(TwapiInterpContext *ticP, LPCWSTR lpDeviceName)
             SetLastError(ERROR_INSUFFICIENT_BUFFER);
             break;
         }
-        MemLifoPopFrame(&ticP->memlifo);
-        pathP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*path_cch, NULL);
+        TwapiFree(pathP);
+        pathP = TwapiAlloc(sizeof(WCHAR)*path_cch);
     }
 
     if (result) {
-        Tcl_SetObjResult(ticP->interp, ObjFromMultiSz(pathP, result));
+        TwapiSetObjResult(interp, ObjFromMultiSz(pathP, result));
         result = TCL_OK;
     } else {
-        result = TwapiReturnSystemError(ticP->interp);
+        result = TwapiReturnSystemError(interp);
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
-
+    TwapiFree(pathP);
     return result;
 }
 
@@ -169,16 +167,15 @@ int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir)
         return TwapiReturnSystemError(interp);
     }
 
-    objv[0] = Tcl_NewWideIntObj(free_avail.QuadPart);
-    objv[1] = Tcl_NewWideIntObj(total_bytes.QuadPart);
-    objv[2] = Tcl_NewWideIntObj(free_total.QuadPart);
-    Tcl_SetObjResult(interp, Tcl_NewListObj(3, objv));
+    objv[0] = ObjFromWideInt(free_avail.QuadPart);
+    objv[1] = ObjFromWideInt(total_bytes.QuadPart);
+    objv[2] = ObjFromWideInt(free_total.QuadPart);
+    TwapiSetObjResult(interp, ObjNewList(3, objv));
     return TCL_OK;
 }
 
-static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func;
     LPWSTR s, s2;
     DWORD dw;
     HANDLE h;
@@ -189,10 +186,10 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     FILETIME *ftP[3];
     Tcl_Obj *objs[3];
     int i;
+    int func = (int) clientdata;
 
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    CHECK_INTEGER_OBJ(interp, func, objv[1]);
+    --objc;
+    ++objv;
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
@@ -211,11 +208,11 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     case 9:
     case 10:
     case 11:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETWSTR(s), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 3:
-            return Twapi_QueryDosDevice(ticP, s);
+            return Twapi_QueryDosDevice(interp, s);
         case 4:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteVolumeMountPointW(s);
@@ -267,8 +264,7 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     case 15:
     case 16:
     case 17:
-    case 18:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLE(h),ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 12:
@@ -297,14 +293,20 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             } else
                 result.type = TRT_GETLASTERROR;
             break;
-        case 18: 
-            return Twapi_UnregisterDirectoryMonitor(ticP, h);
         }
+        break;
+    case 18:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), GETWSTR(s), GETNULLIFEMPTY(s2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = DefineDosDeviceW(dw, s, s2);
         break;
     case 19:
     case 20:
     case 21:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
+        if (TwapiGetArgs(interp, objc, objv,
                          GETWSTR(s), GETWSTR(s2),
                          ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -327,31 +329,21 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         }
         break;
     case 22:
-        if (objc != 6)
+        if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        if (ObjToHANDLE(interp, objv[2], &h) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
             return TCL_ERROR;
         for (i = 0; i < 3; ++i) {
-            if (Tcl_GetCharLength(objv[3+i]) == 0)
+            if (Tcl_GetCharLength(objv[1+i]) == 0)
                 ftP[i] = NULL;
             else {
-                if (ObjToFILETIME(interp, objv[3+i], &ft[i]) != TCL_OK)
+                if (ObjToFILETIME(interp, objv[1+i], &ft[i]) != TCL_OK)
                     return TCL_ERROR;
                 ftP[i] = &ft[i];
             }
         }
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SetFileTime(h, ftP[0], ftP[1], ftP[2]);
-        break;
-    case 23:
-        return Twapi_RegisterDirectoryMonitor(ticP, objc-2, objv+2);
-    case 24:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETINT(dw), GETWSTR(s), GETNULLIFEMPTY(s2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = DefineDosDeviceW(dw, s, s2);
         break;
     }
 
@@ -361,41 +353,34 @@ static int Twapi_StorageCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 
 static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::StorCall", Twapi_StorageCallObjCmd, ticP, NULL);
+    static struct fncode_dispatch_s StorDispatch[] = {
+        DEFINE_FNCODE_CMD(GetLogicalDrives, 1),
+        DEFINE_FNCODE_CMD(FindFirstVolume, 2),
+        DEFINE_FNCODE_CMD(QueryDosDevice, 3),
+        DEFINE_FNCODE_CMD(DeleteVolumeMountPoint, 4),
+        DEFINE_FNCODE_CMD(GetVolumeNameForVolumeMountPoint, 5),
+        DEFINE_FNCODE_CMD(GetVolumePathName, 6),
+        DEFINE_FNCODE_CMD(GetDriveType, 7),
+        DEFINE_FNCODE_CMD(GetVolumeInformation, 8),
+        DEFINE_FNCODE_CMD(FindFirstVolumeMountPoint, 9),
+        DEFINE_FNCODE_CMD(GetDiskFreeSpaceEx, 10),
+        DEFINE_FNCODE_CMD(GetCompressedFileSize, 11), // TBD - Tcl
+        DEFINE_FNCODE_CMD(FindVolumeClose, 12),
+        DEFINE_FNCODE_CMD(FindVolumeMountPointClose, 13),
+        DEFINE_FNCODE_CMD(FindNextVolume, 14),
+        DEFINE_FNCODE_CMD(FindNextVolumeMountPoint, 15),
+        DEFINE_FNCODE_CMD(GetFileType, 16), // TBD - TCL 
+        DEFINE_FNCODE_CMD(GetFileTime, 17),
+        DEFINE_FNCODE_CMD(DefineDosDevice, 18),
+        DEFINE_FNCODE_CMD(MoveFileEx, 19),
+        DEFINE_FNCODE_CMD(SetVolumeLabel, 20),
+        DEFINE_FNCODE_CMD(SetVolumeMountPoint, 21),
+        DEFINE_FNCODE_CMD(SetFileTime, 22),
+    };
 
-    /* Now add in the aliases for the Win32 calls pointing to the dispatcher */
-#define CALL_(fn_, code_)                                         \
-    do {                                                                \
-        Twapi_MakeCallAlias(interp, "twapi::" #fn_, "twapi::StorCall", # code_); \
-    } while (0);
-
-    CALL_(GetLogicalDrives, 1);
-    CALL_(FindFirstVolume, 2);
-    CALL_(QueryDosDevice, 3);
-    CALL_(DeleteVolumeMountPoint, 4);
-    CALL_(GetVolumeNameForVolumeMountPoint, 5);
-    CALL_(GetVolumePathName, 6);
-    CALL_(GetDriveType, 7);
-    CALL_(GetVolumeInformation, 8);
-    CALL_(FindFirstVolumeMountPoint, 9);
-    CALL_(GetDiskFreeSpaceEx, 10);
-    CALL_(GetCompressedFileSize, 11); // TBD - Tcl interface
-    CALL_(FindVolumeClose, 12);
-    CALL_(FindVolumeMountPointClose, 13);
-    CALL_(FindNextVolume, 14);
-    CALL_(FindNextVolumeMountPoint, 15);
-    CALL_(GetFileType, 16); /* TBD - TCL wrapper */
-    CALL_(GetFileTime, 17);
-    CALL_(Twapi_UnregisterDirectoryMonitor, 18);
-    CALL_(MoveFileEx, 19);
-    CALL_(SetVolumeLabel, 20);
-    CALL_(SetVolumeMountPoint, 21);
-    CALL_(SetFileTime, 22);
-    CALL_(Twapi_RegisterDirectoryMonitor, 23);
-    CALL_(DefineDosDevice, 24);
-
-#undef CALL_
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(StorDispatch), StorDispatch, Twapi_StorageCallObjCmd);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_RegisterDirectoryMonitor", Twapi_RegisterDirectoryMonitorObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_UnregisterDirectoryMonitor", Twapi_UnregisterDirectoryMonitorObjCmd, ticP, NULL);
 
     return TCL_OK;
 }

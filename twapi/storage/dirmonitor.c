@@ -30,7 +30,7 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
 static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *p);
 static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern);
 
-int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiDirectoryMonitorContext *dmcP;
     LPWSTR pathP;
@@ -41,9 +41,9 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
     DWORD  winerr;
     DWORD filter;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
+    ERROR_IF_UNTHREADED(interp);
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
                      GETINT(filter),
                      GETWARGV(patterns, ARRAYSIZE(patterns), npatterns),
@@ -120,7 +120,7 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
             INFINITE,           /* No timeout */
             WT_EXECUTEINIOTHREAD
             )) {
-        Tcl_SetObjResult(ticP->interp, ObjFromHANDLE(dmcP->directory_handle));
+        TwapiSetObjResult(interp, ObjFromHANDLE(dmcP->directory_handle));
         return TCL_OK;
     }
 
@@ -132,13 +132,18 @@ int Twapi_RegisterDirectoryMonitor(TwapiInterpContext *ticP, int objc, Tcl_Obj *
 system_error:
     /* winerr should contain system error, waits should not registered */
     TwapiShutdownDirectoryMonitor(dmcP);
-    return Twapi_AppendSystemError(ticP->interp, winerr);
+    return Twapi_AppendSystemError(interp, winerr);
 }
 
 
-int Twapi_UnregisterDirectoryMonitor(TwapiInterpContext *ticP, HANDLE dirhandle)
+TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    HANDLE dirhandle;
     TwapiDirectoryMonitorContext *dmcP;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(dirhandle),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
 
     /* 
      * Look up the handle in list of directory monitors. No locking
@@ -445,19 +450,19 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
     // TBD - can iobP be null ?
 
     /* The object that will hold the change list */
-    changesObj = Tcl_NewListObj(0, NULL);
+    changesObj = ObjEmptyList();
     Tcl_IncrRefCount(changesObj);
 
     /* Object containing the callback script */
-    scriptObj = Tcl_NewListObj(0, NULL);
+    scriptObj = ObjEmptyList();
     Tcl_IncrRefCount(scriptObj);
-    Tcl_ListObjAppendElement(interp, scriptObj, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_filesystem_monitor_handler"));
-    Tcl_ListObjAppendElement(interp, scriptObj, ObjFromHANDLE(dmcP->directory_handle));
+    ObjAppendElement(interp, scriptObj, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_filesystem_monitor_handler"));
+    ObjAppendElement(interp, scriptObj, ObjFromHANDLE(dmcP->directory_handle));
 
     if (cbP->winerr != ERROR_SUCCESS) {
         /* Error notification. Script should close the monitor */
-        Tcl_ListObjAppendElement(interp, changesObj, STRING_LITERAL_OBJ("error"));
-        Tcl_ListObjAppendElement(interp, changesObj,
+        ObjAppendElement(interp, changesObj, STRING_LITERAL_OBJ("error"));
+        ObjAppendElement(interp, changesObj,
                                  Tcl_NewLongObj(cbP->winerr)); /* Error code */
         notify = 1;         /* So we notify script */
     } else {
@@ -508,7 +513,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 int i;
                 for (i = 0; i < dmcP->npatterns; ++i) {
                     int matched = TwapiDirectoryMonitorPatternMatch(
-                        Tcl_GetUnicode(fnObj[1]),
+                        ObjToUnicode(fnObj[1]),
                         dmcP->patterns[i]);
                     if (matched) {
                         /* Matches can be inclusive or exclusive */
@@ -574,8 +579,8 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                     fnObj[0] = actionObj[5];
                     break;
                 }
-                Tcl_ListObjAppendElement(interp, changesObj, fnObj[0]);
-                Tcl_ListObjAppendElement(interp, changesObj, fnObj[1]);
+                ObjAppendElement(interp, changesObj, fnObj[0]);
+                ObjAppendElement(interp, changesObj, fnObj[1]);
                 fnObj[1] = NULL;           /* So we don't mistakenly reuse it */
                 notify = 1;
             }
@@ -610,8 +615,8 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         /* File or error notification */
         int objc;
         Tcl_Obj **objv;
-        Tcl_ListObjAppendElement(interp, scriptObj, changesObj);
-        Tcl_ListObjGetElements(interp, scriptObj, &objc, &objv);
+        ObjAppendElement(interp, scriptObj, changesObj);
+        ObjGetElements(interp, scriptObj, &objc, &objv);
         tcl_status = TwapiEvalAndUpdateCallback(cbP, objc, objv, TRT_EMPTY);
         if (tcl_status != TCL_OK)
             Twapi_AppendLog(interp, L"CALLBACK FAIL");
