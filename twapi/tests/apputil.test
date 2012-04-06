@@ -124,7 +124,7 @@ namespace eval twapi::apputil::test {
         Get the command line of the current process
     } -body {
         twapi::get_command_line_args [twapi::get_command_line]
-    } -result "* $argv0 $argv" -match glob
+    } -result "* $argv0*$argv" -match glob
 
 
     ################################################################

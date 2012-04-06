@@ -110,11 +110,12 @@ namespace eval twapi::clipboard::test {
     } -constraints {
         userInteraction
     } -body {
-        copy2clip line1 line2
+        copy2clip lineA lineB
         twapi::open_clipboard
         set clip_text [twapi::read_clipboard_text -raw 1]
         twapi::close_clipboard
-    } -result "line1\r\nline2"; # Note \r
+        set clip_text
+    } -result "lineA\r\nlineB"; # Note \r
 
 
     ################################################################
@@ -142,7 +143,7 @@ namespace eval twapi::clipboard::test {
     test get_clipboard_formats-1.0 {
         Get formats currently stored on the clipboard
     } -constraints {
-        nt
+        userInteraction
     } -body {
         copy2clip "Some random text"
         twapi::open_clipboard
