@@ -382,14 +382,6 @@ proc metoo::class {cmd cname definition} {
         interp alias {} ${class_ns}::methods::[namespace tail $procname] {} $procname
     }
 
-    # Define the class
-    if {[catch {
-        namespace eval $class_ns $definition
-    } msg ]} {
-        namespace delete $class_ns
-        error $msg $::errorInfo $::errorCode
-    }
-
     # Define the destroy method for the class object instances
     namespace eval $class_ns {
         method destroy {} {
@@ -413,6 +405,16 @@ proc metoo::class {cmd cname definition} {
                 uplevel 1 $cmd
             }
         }
+    }
+
+    # Define the class. Note we do this *after* the standard
+    # definitions (destroy etc.) above so that they can
+    # be overridden by the class definition.
+    if {[catch {
+        namespace eval $class_ns $definition
+    } msg ]} {
+        namespace delete $class_ns
+        error $msg $::errorInfo $::errorCode
     }
 
     # Also define the call dispatcher within the class.
@@ -479,7 +481,8 @@ proc metoo::introspect {type info args} {
                     if {[llength $args] == 0 || [llength $args] > 2} {
                         error "wrong # args: should be \"metoo::introspect $type $info OBJNAME ?CLASS?\""
                     }
-                    if {![info exists _objects([lindex $args 0])]} {
+                    set objname [uplevel 1 [list namespace which -command [lindex $args 0]]]
+                    if {![info exists _objects($objname)]} {
                         return 0
                     }
                     if {[llength $args] == 1} {
@@ -487,7 +490,7 @@ proc metoo::introspect {type info args} {
                         return 1
                     }
                     # passed classname assumed to be fully qualified
-                    set objclass [namespace parent $_objects([lindex $args 0])]
+                    set objclass [namespace parent $_objects($objname)]
                     if {[string equal $objclass [lindex $args 1]]} {
                         # Direct hit
                         return 1
