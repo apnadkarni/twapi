@@ -920,6 +920,7 @@ namespace eval twapi {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
         }
         proc comobj? {cobj} {
+            set cobj [uplevel 1 [list namespace which -command $cobj]]
             if {[info object isa object $cobj] &&
                 [info object isa typeof $cobj ::twapi::Automation]} {
                 return 1
@@ -949,6 +950,7 @@ namespace eval twapi {
             }
         }
         proc comobj? {cobj} {
+            set cobj [uplevel 1 [list namespace which -command $cobj]]
             return [metoo::introspect object isa $cobj ::twapi::Automation]
         }
         proc comobj_instances {} {
