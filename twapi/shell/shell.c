@@ -965,6 +965,8 @@ static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SHChangeNotify, 16),
     };
 
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ShellDispatch), ShellDispatch, Twapi_ShellCallObjCmd);
+
     return TCL_OK;
 }
 

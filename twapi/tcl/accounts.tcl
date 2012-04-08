@@ -464,19 +464,6 @@ proc twapi::add_user_to_global_group {grpname username args} {
 }
 
 
-# Add a user to a local group
-proc twapi::add_member_to_local_group {grpname username args} {
-    array set opts [parseargs args {system.arg} -nulldefault]
-
-    # No error if already member of the group
-    trap {
-        Twapi_NetLocalGroupAddMember $opts(system) $grpname $username
-    } onerror {TWAPI_WIN32 1378} {
-        # Ignore
-    }
-}
-
-
 # Remove a user from a global group
 proc twapi::remove_user_from_global_group {grpname username args} {
     array set opts [parseargs args {system.arg} -nulldefault]
@@ -489,16 +476,54 @@ proc twapi::remove_user_from_global_group {grpname username args} {
 }
 
 
+# Add a user to a local group
+proc twapi::add_member_to_local_group {grpname username args} {
+    array set opts [parseargs args {
+        system.arg
+        {type.arg name}
+    } -nulldefault]
+
+    # No error if already member of the group
+    trap {
+        Twapi_NetLocalGroupMembers 0 $opts(system) $grpname [expr {$opts(type) eq "sid" ? 0 : 3}] [list $username]
+    } onerror {TWAPI_WIN32 1378} {
+        # Ignore
+    }
+}
+
+proc twapi::add_members_to_local_group {grpname accts args} {
+    array set opts [parseargs args {
+        system.arg
+        {type.arg name}
+    } -nulldefault]
+
+    Twapi_NetLocalGroupMembers 0 $opts(system) $grpname [expr {$opts(type) eq "sid" ? 0 : 3}] $accts
+}
+
+
 # Remove a user from a local group
 proc twapi::remove_member_from_local_group {grpname username args} {
-    array set opts [parseargs args {system.arg} -nulldefault]
+    array set opts [parseargs args {
+        system.arg
+        {type.arg name}
+    } -nulldefault]
 
     trap {
-        Twapi_NetLocalGroupDelMember $opts(system) $grpname $username
+        Twapi_NetLocalGroupMembers 1 $opts(system) $grpname [expr {$opts(type) eq "sid" ? 0 : 3}] [list $username]
     } onerror {TWAPI_WIN32 1377} {
         # Was not in group - ignore
     }
 }
+
+proc twapi::remove_members_from_local_group {grpname accts args} {
+    array set opts [parseargs args {
+        system.arg
+        {type.arg name}
+    } -nulldefault]
+
+    Twapi_NetLocalGroupMembers 1 $opts(system) $grpname [expr {$opts(type) eq "sid" ? 0 : 3}] $accts
+}
+
 
 # Get rights for an account
 proc twapi::get_account_rights {account args} {

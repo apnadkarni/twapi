@@ -102,6 +102,8 @@ proc twapi::shell_object_properties_dialog {path args} {
         {page.arg ""}
     } -maxleftover 0]
 
+    # TBD - do not try to guess type. Default to file
+
     if {$opts(type) eq ""} {
         # Try figure out object type
         if {[file exists $path]} {

@@ -990,7 +990,8 @@ proc yesno {question {default "Y"}} {
 # Pause to allow reader to read a message
 proc pause {message} {
     # Make sure we are seen
-    if {[info commands twapi::set_foreground_window] ne ""} {
+    if {[info commands twapi::set_foreground_window] ne "" &&
+        [info commands twapi::get_console_window] ne ""} {
         twapi::set_foreground_window [twapi::get_console_window]
     }
     # Would like -nonewline here but see comments in proc yesno

@@ -12,6 +12,7 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_shell
 package require twapi_ui;       # TBD - unfortunately required for find_windows
+package require twapi_process;  # TBD - required for get_pid_from_handle
 
 namespace eval twapi::shell::test {
     namespace import ::tcltest::test ::tcltest::makeFile
@@ -28,6 +29,10 @@ namespace eval twapi::shell::test {
         }
 
         return [file isdirectory [twapi::get_shell_folder $csidl]]
+    }
+
+    proc get_printers {} {
+        return [wmic_values Win32_Printer Name]
     }
 
     ################################################################
@@ -874,7 +879,7 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction haveprinter
     } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+        set printer [lindex [get_printers] 0]
     } -body {
         # Property dialogs can block the caller
         pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
@@ -888,7 +893,7 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction haveprinter
     } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+        set printer [lindex [get_printers] 0]
     } -body {
         # Property dialogs can block the caller
         pause "After hitting Return, you should see a shell properties dialog. MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
@@ -928,7 +933,7 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction haveprinter
     } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+        set printer [lindex [get_printers] 0]
     } -body {
         # Property dialogs can block the caller
         pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
@@ -942,7 +947,7 @@ namespace eval twapi::shell::test {
     } -constraints {
         userInteraction haveprinter
     } -setup {
-        set printer [twapi::kl_get [lindex [twapi::enumerate_printers] 0] name]
+        set printer [lindex [get_printers] 0]
     } -body {
         # Property dialogs can block the caller
         pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
