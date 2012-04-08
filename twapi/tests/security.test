@@ -5476,7 +5476,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     test revert_to_self-1.0 {
         Revert to self
     } -constraints {
-        nt
+        systemmodificationok
     } -setup {
         ensure_test_account
         twapi::impersonate_user $test_account_name $test_account_password -type interactive

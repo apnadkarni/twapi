@@ -1185,6 +1185,11 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeregisterEventSource(h);
             break;
+        case 23:              /* DeleteObject */
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = DeleteObject(h);
+            break;
+
         }
     } else if (func < 2000) {
 
@@ -1498,6 +1503,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MemLifoDump, 20),
         DEFINE_FNCODE_CMD(CloseEventLog, 21),
         DEFINE_FNCODE_CMD(DeregisterEventSource, 22),
+        DEFINE_FNCODE_CMD(DeleteObject, 23),
 
         DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
         DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),

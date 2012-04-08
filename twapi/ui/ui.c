@@ -1071,12 +1071,6 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
 #else
             break;
 #endif
-        case 1004:              /* DeleteObject */
-            if (ObjToOpaque(interp, objv[0], &u.hgdiobj, "HGDIOBJ") != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DeleteObject(u.hgdiobj);
-            break;
         }
     } else if (func < 4000) {
         /*
@@ -1529,8 +1523,9 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
         DEFINE_FNCODE_CMD(WindowFromPoint, 1001),
         DEFINE_FNCODE_CMD(FlashWindowEx, 1002),
+#ifdef OBSOLETE
         DEFINE_FNCODE_CMD(TwapiGetThemeDefine, 1003),
-        DEFINE_FNCODE_CMD(DeleteObject, 1004),
+#endif
         DEFINE_FNCODE_CMD(SetCaretBlinkTime, 3001),
         DEFINE_FNCODE_CMD(GetGUIThreadInfo, 3002),
         DEFINE_FNCODE_CMD(SetCaretPos, 3003),

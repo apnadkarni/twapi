@@ -26,7 +26,8 @@ namespace eval twapi::pdh::test {
     } -constraints {
         nt
     } -body {
-        twapi::PdhGetDllVersion
+        # Force loading of twapi_pdh
+        catch {twapi::connect_perf}
         # Verify expr works and PDH did not change the locale
         # (Needs to be tested on non-English systems where decimal separator is not .)
         expr {1.0*1.0}
