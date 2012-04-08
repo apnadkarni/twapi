@@ -3226,6 +3226,22 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         twapi::remove_member_from_local_group $guests_account_name "Domain Guests"
     } -result 1
 
+    test add_member_to_local_group-2.1 {
+        Add a SID to a local group
+    } -constraints {
+        systemmodificationok TBD
+    } -body {
+    } -result ""
+
+    ################################################################
+
+    test add_members_to_local_group-1.0 {
+        Add multiple members to a local group
+    } -constraints {
+        systemmodificationok TBD
+    } -body {
+    } -result ""
+
     ################################################################
 
     test remove_user_from_global_group-1.0 {
@@ -3237,7 +3253,23 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
     ################################################################
 
-    test remove_user_from_local_group-1.0 {
+    test remove_member_from_local_group-1.0 {
+        Remove a member from a local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+    } -result ""
+
+    test remove_member_from_local_group-1.0 {
+        Remove a SID from a local group
+    } -constraints {
+        nt systemmodificationok TBD
+    } -body {
+    } -result ""
+
+    ################################################################
+
+    test remove_members_from_local_group-1.0 {
         Remove a member from a local group
     } -constraints {
         nt systemmodificationok TBD
