@@ -49,6 +49,14 @@ return build information.
 Added [uri base.html#tclcast [cmd tclcast]] and
 [uri base.html#tcltype [cmd tcltype]].
 
+[bullet]
+Added commands
+[uri users.html#add_members_to_local_group [cmd add_members_to_local_group]],
+[uri users.html#remove_members_from_local_group [cmd remove_members_from_local_group]]
+and [cmd "-type sid"] option to [uri users.html#add_member_to_local_group [cmd add_member_to_local_group]],
+[uri users.html#remove_member_from_local_group [cmd remove_member_from_local_group]].
+
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]
 has changed.
@@ -59,10 +67,11 @@ is no longer available. Also the [cmd -pid] no longer accepts a process name
 as argument. Both these can be replaced by a combination of
 [uri ui.html#get_toplevel_windows] [cmd "get_toplevel_windows -pids"]]
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
-[list_end]
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The command [cmd TwapiThemeDefineValue] is no longer available.
+
+[list_end]
 
 [section "Version 3.1"]
 

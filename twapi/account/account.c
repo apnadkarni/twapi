@@ -792,6 +792,79 @@ invalid_level_error:
 }
 
 
+static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    int i;
+    int func;
+    int level;
+    Tcl_Obj **accts;
+    int naccts;
+    LPCWSTR servername, groupname;
+    
+    DWORD winerr;
+
+    union {
+        LOCALGROUP_MEMBERS_INFO_0 *lgmi0P;
+        LOCALGROUP_MEMBERS_INFO_3 *lgmi3P;
+        void *bufP;
+    } u;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func),
+                     GETNULLIFEMPTY(servername),
+                     GETWSTR(groupname), GETINT(level),
+                     ARGSKIP, ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ObjGetElements(interp, objv[3], &naccts, &accts) != TCL_OK)
+        return TCL_ERROR;
+
+    if (naccts == 0)
+        return TCL_OK;
+
+    if (level == 0) {
+        u.lgmi0P = MemLifoAlloc(&ticP->memlifo, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
+        for (i = 0; i < naccts; ++i) {
+            /* For efficiency reasons we do not use ObjToPSID */
+            if (ConvertStringSidToSidW(ObjToUnicode(accts[i]), &u.lgmi0P[0].lgrmi0_sid) == 0) {
+                winerr = GetLastError();
+                naccts = i;     /* So right num buffers get freed */
+                goto vamoose;
+            }
+        }
+    } else if (level == 3) {
+        u.lgmi3P = MemLifoAlloc(&ticP->memlifo, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
+        for (i = 0; i < naccts; ++i) {
+            u.lgmi3P[i].lgrmi3_domainandname = ObjToUnicode(accts[i]);
+        }
+    } else
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    
+    if (func == 0) {
+        winerr = NetLocalGroupAddMembers(servername, groupname, level, u.bufP, naccts);
+    } else {
+        winerr = NetLocalGroupDelMembers(servername, groupname, level, u.bufP, naccts);
+    }
+
+vamoose:
+    /* At this point naccts should be number of valid pointers in u.lgmi0P */
+    if (level == 0) {
+        for (i = 0; i < naccts; ++i) {
+            LocalFree(u.lgmi0P[i].lgrmi0_sid);
+        }
+    }
+
+    if (winerr != ERROR_SUCCESS)
+        return Twapi_AppendSystemError(interp, winerr);
+    else
+        return TCL_OK;
+}
+
+
+
 static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s1, s2, s3, s4, s5, s6;
@@ -871,22 +944,12 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.ival = NetGroupAdd(s1, 1, (LPBYTE)&u.gi1, NULL);
             break;
         case 18:
-            u.lgmi3.lgrmi3_domainandname = s3;
             result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = NetLocalGroupDelMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
+            result.value.ival = NetGroupDelUser(s1,s2,s3);
             break;
         case 19:
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = NetGroupAddUser(s1,s2,s3);
-            break;
-        case 20:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = NetGroupDelUser(s1,s2,s3);
-            break;
-        case 21:
-            u.lgmi3.lgrmi3_domainandname = s3;
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = NetLocalGroupAddMembers(s1, s2, 3, (LPBYTE) &u.lgmi3, 1);
             break;
         }
         break;
@@ -908,10 +971,8 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(NetUserDel, 15),
         DEFINE_FNCODE_CMD(NetLocalGroupAdd, 16),
         DEFINE_FNCODE_CMD(NetGroupAdd, 17),
-        DEFINE_FNCODE_CMD(Twapi_NetLocalGroupDelMembers, 18),
+        DEFINE_FNCODE_CMD(NetGroupDelUser, 18),
         DEFINE_FNCODE_CMD(NetGroupAddUser, 19),
-        DEFINE_FNCODE_CMD(NetGroupDelUser, 20),
-        DEFINE_FNCODE_CMD(Twapi_NetLocalGroupAddMembers, 21),
     };
 
     static struct fncode_dispatch_s AcctCallNetEnumGetDispatch[] = {
@@ -929,6 +990,10 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NetUserSetInfo", Twapi_NetUserSetInfoObjCmd, ticP, NULL);
+
+    /* TBD - write Tcl commands to add / delete multiple members at a time */
+    /* TBD - write Tcl commands to add / delete SIDs */
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_NetLocalGroupMembers", Twapi_NetLocalGroupMembersObjCmd, ticP, NULL);
 
 
     return TCL_OK;

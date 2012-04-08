@@ -66,8 +66,11 @@ and [uri \#delete_local_group [cmd delete_local_group]]. Users may
 be added and removed using the commands
 [uri \#add_user_to_global_group [cmd add_user_to_global_group]],
 [uri \#add_member_to_local_group [cmd add_member_to_local_group]],
-[uri \#remove_user_from_global [cmd remove_user_from_global]] and
-[uri \#remove_member_from_local_group [cmd remove_member_from_local_group]].
+[uri \#add_members_to_local_group [cmd add_members_to_local_group]],
+[uri \#remove_user_from_global [cmd remove_user_from_global]],
+[uri \#remove_member_from_local_group [cmd remove_member_from_local_group]]
+and
+[uri \#remove_members_from_local_group [cmd remove_member_from_local_group]].
 [para]
 The rights and privileges associated with accounts can be managed through
 the [uri \#get_account_rights [cmd get_account_rights]],
@@ -169,7 +172,7 @@ Adds the user account specified by [arg USERNAME] to the global group
 [arg GROUPNAME]. The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
-[call [cmd add_member_to_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd add_member_to_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
 
 Adds the account specified by [arg ACCOUNTNAME] to the local group
 [arg GROUPNAME]. [arg ACCOUNTNAME] may be either a user name or a global
@@ -177,6 +180,32 @@ group and may include a domain in the form [arg {domainname\username}].
 [nl]
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+If the option [cmd -type] has the value [const sid], [arg ACCOUNTNAME]
+is treated as an account SID. By default it treated as an account name.
+[nl]
+The command does not raise an error if the specified account
+is already a member of the group.
+
+[call [cmd add_members_to_local_group] [arg GROUP] [arg ACCOUNTS] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
+
+Adds the account specified in the list [arg ACCOUNTS] to the local group
+[arg GROUPNAME]. [arg ACCOUNTS] may contain user accounts and global
+groups and may include a domain in the form [arg {domainname\username}].
+Alternatively, [arg ACCOUNTS] may be specified as a list of SID's if
+the option [cmd -type] has the value [const sid].
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+Unlike the
+[uri #add_member_from_local_group [cmd add_member_from_local_group]]
+command, this command
+raises an error without making any changes if any of the
+specified accounts does not exist or is not a member of the group.
+
+The command does not raise an error if the specified account
+is already a member of the group.
 
 [call [cmd delete_global_group] [arg GROUPNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
@@ -619,7 +648,7 @@ logon script for the account.
 [opt_def [cmd -password] [arg STRING]] Sets the password for the account.
 [list_end]
 
-[call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"]]
+[call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
 
 Removes the user account or global group specified by [arg ACCOUNTNAME]
 from the local group [arg GROUPNAME]. [arg ACCOUNTNAME] may be a domain
@@ -627,6 +656,28 @@ account in the form [arg domainname\\username].
 [nl]
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+If the option [cmd -type] has the value [const sid], [arg ACCOUNTNAME]
+is treated as an account SID. By default it treated as an account name.
+[nl]
+The command does not raise an error if the specified account
+is not a member of the group.
+
+[call [cmd remove_members_from_local_group] [arg GROUPNAME] [arg ACCOUNTS] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
+
+Removes multiple users or global groups
+from the local group [arg GROUPNAME]. [arg ACCOUNTS] is a list
+of may be a domain accounts in the form [arg domainname\\username], or
+as a list of SID's if the [cmd -type] option has the value [const sid].
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
+[nl]
+Unlike the
+[uri #remove_member_from_local_group [cmd remove_member_from_local_group]]
+command, this command
+raises an error without making any changes if any of the
+specified accounts does not exist or is not a member of the group.
 
 [call [cmd remove_account_rights] [arg ACCOUNTNAME] [arg RIGHTS] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 Removes the privileges and account rights listed in [arg RIGHTS]

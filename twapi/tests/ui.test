@@ -11,6 +11,8 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_ui
+package require twapi_process;  # TBD - needed for get_process_info
+package require twapi_os;       # Needed for GetSystemParametersInfo
 
 namespace eval twapi::ui::test {
     namespace import ::tcltest::test
