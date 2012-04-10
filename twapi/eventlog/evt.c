@@ -125,24 +125,24 @@ static struct {
     HANDLE (WINAPI *_EvtOpenSession)(int, PVOID, DWORD, DWORD);
     BOOL (WINAPI *_EvtClose)(HANDLE);
     BOOL (WINAPI *_EvtCancel)(HANDLE);
-    DWORD (WINAPI *_EvtGetExtendedStatus)(DWORD, LPWSTR, PDWORD); // TBD
+    DWORD (WINAPI *_EvtGetExtendedStatus)(DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtQuery)(HANDLE, LPCWSTR, LPCWSTR, DWORD);
     BOOL (WINAPI *_EvtNext)(HANDLE, DWORD, HANDLE *, DWORD, DWORD, DWORD *);
     BOOL (WINAPI *_EvtSeek)(HANDLE, LONGLONG, HANDLE, DWORD, DWORD);
-    HANDLE (WINAPI *_EvtSubscribe)(HANDLE,HANDLE,LPCWSTR,LPCWSTR,HANDLE,PVOID,EVT_SUBSCRIBE_CALLBACK, DWORD); // TBD
+    HANDLE (WINAPI *_EvtSubscribe)(HANDLE,HANDLE,LPCWSTR,LPCWSTR,HANDLE,PVOID,EVT_SUBSCRIBE_CALLBACK, DWORD);
     HANDLE (WINAPI *_EvtCreateRenderContext)(DWORD, LPCWSTR*, DWORD);
     BOOL (WINAPI *_EvtRender)(HANDLE,HANDLE,DWORD,DWORD,PVOID, PDWORD, PDWORD);
     BOOL (WINAPI *_EvtFormatMessage)(HANDLE,HANDLE,DWORD,DWORD, EVT_VARIANT*,DWORD,DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtOpenLog)(HANDLE,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtGetLogInfo)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtClearLog)(HANDLE,LPCWSTR,LPCWSTR,DWORD);
-
     BOOL (WINAPI *_EvtExportLog)(HANDLE,LPCWSTR,LPCWSTR,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtArchiveExportedLog)(HANDLE,LPCWSTR,LCID,DWORD);
     HANDLE (WINAPI *_EvtOpenChannelEnum)(HANDLE,DWORD);
     BOOL (WINAPI *_EvtNextChannelPath)(HANDLE,DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtOpenChannelConfig)(HANDLE,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtSaveChannelConfig)(HANDLE,DWORD);
+
     BOOL (WINAPI *_EvtSetChannelConfigProperty)(HANDLE, int, DWORD, EVT_VARIANT *);
     BOOL (WINAPI *_EvtGetChannelConfigProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenPublisherEnum)(HANDLE,DWORD);
@@ -204,8 +204,28 @@ EVT_HANDLE gEvtDllHandle;
 /* Used as a typedef for returning allocated memory to script level */
 #define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
 
-#define TWAPI_EVT_HANDLE_TYPESTR "EVT_HANDLE"
-#define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), TWAPI_EVT_HANDLE_TYPESTR)
+#define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), "EVT_HANDLE")
+#define GETEVTH(h_) GETHANDLET((h_), "EVT_HANDLE")
+
+/* Always returns TCL_ERROR after storing extended error info */
+static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
+{
+    DWORD sz, used;
+    LPWSTR bufP;
+
+    if (EvtGetExtendedStatus(0, NULL, &sz) != FALSE)
+        return TCL_ERROR;       /* No additional info available */
+
+    
+    bufP = TwapiAlloc(sizeof(WCHAR) * sz);
+    if (EvtGetExtendedStatus(sz, bufP, &used) != FALSE && used != 0) {
+        /* TBD - verify this works (is bufP null terminated ?) */
+        Tcl_AppendResult(interp, " ", bufP, NULL);
+    }
+    TwapiFree(bufP);
+
+    return TCL_ERROR;           /* Always returns TCL_ERROR */
+}
 
 static int ObjToEVT_VARIANT_ARRAY(
     Tcl_Interp *interp,
@@ -553,8 +573,9 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     void *bufP;
     Tcl_Obj *objs[4];
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(hevt),
-                     GETHANDLE(hevt2), GETINT(flags), ARGSKIP, ARGEND) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
+                     GETHANDLET(hevt2, EVT_HANDLE),
+                     GETINT(flags), ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     bufP = NULL;
@@ -615,8 +636,8 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     void *bufP;
     Tcl_Obj *objP;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(hevt),
-                     GETHANDLE(hevt2), GETINT(flags),
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
+                     GETHANDLET(hevt2, EVT_HANDLE), GETINT(flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -658,9 +679,9 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     EVT_HANDLE hevt;
     EVT_HANDLE *hevtP;
     DWORD dw, dw2, dw3;
-     Tcl_Obj **objPP;
+    Tcl_Obj **objPP;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(hevt), GETINT(dw),
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt), GETINT(dw),
                      GETINT(dw2), GETINT(dw3)) != TCL_OK)
         return TCL_ERROR;
 
@@ -742,7 +763,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     DWORD winerr;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETHANDLE(hpub), GETHANDLE(hev),
+                     GETHANDLET(hpub, EVT_HANDLE), GETHANDLET(hev, EVT_HANDLE),
                      GETINT(msgid), ARGSKIP, GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
@@ -782,22 +803,49 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return winerr == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
-static TCL_RESULT Twapi_EvtGetLogInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVT_HANDLE hevt;
-    int propid, sz;
-    EVT_VARIANT var;
+    int sz;
+    EVT_VARIANT *varP;
+    int func;
+    DWORD dw, dw2;
+    DWORD status;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(hevt), GETINT(propid),
-                     ARGEND) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETEVTH(hevt),
+                     GETINT(dw), ARGUSEDEFAULT, GETINT(dw2), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (EvtGetLogInfo(hevt, propid, sizeof(var), &var, &sz) == FALSE)
-        return TwapiReturnSystemError(interp);
+    varP = MemLifoPushFrame(&ticP->memlifo, sizeof(EVT_VARIANT), &sz);
+    while (1) {
+        switch (func) {
+        case 1:
+            status = EvtGetLogInfo(hevt, dw, sz, varP, &sz);
+            break;
+        case 2:
+            status = EvtGetChannelConfigProperty(hevt, dw, dw2, sz, varP, &sz);
+            break;
+        default:
+            MemLifoPopFrame(&ticP->memlifo);
+            return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
+        }        
+        if (status != FALSE || GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            break;
+        /* Loop to retry larger buffer. No need to free previous alloc first */
+        varP = MemLifoAlloc(&ticP->memlifo, sz, NULL);
+    }
 
-    TwapiSetObjResult(interp, ObjFromEVT_VARIANT(ticP, &var));
-    return TCL_OK;
+    if (status == FALSE) {
+        TwapiReturnSystemError(interp);
+        Twapi_AppendEvtExtendedStatus(interp);
+    } else {
+        TwapiSetObjResult(interp, ObjFromEVT_VARIANT(ticP, varP));
+    }
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return status == FALSE ? TCL_ERROR : TCL_OK;
 }
+
 
 static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -828,19 +876,24 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     erl.Password = ObjToUnicode(loginObjs[3]);
 
     return TwapiReturnNonnullHandle(interp,
-        EvtOpenSession(login_class, &erl, timeout, flags),
-        TWAPI_EVT_HANDLE_TYPESTR);
+                                    EvtOpenSession(login_class, &erl,
+                                                   timeout, flags),
+                                    "EVT_HANDLE");
 }
+
 
 
 int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     DWORD dw, dw2;
-    LPWSTR s, s2;
-    HANDLE hevt, hevt2;
+    LPWSTR s, s2, s3;
+    EVT_HANDLE hevt, hevt2;
     Tcl_WideInt wide;
     int func = (int) clientdata;
+    HANDLE h;
+    WCHAR buf[MAX_PATH+1];
+    WCHAR *bufP;
     
     if (gEvtStatus != 1)
         return Twapi_AppendSystemError(interp, ERROR_CALL_NOT_IMPLEMENTED);
@@ -852,67 +905,133 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     switch (func) {
     case 1:
     case 2:
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw)) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw)) != TCL_OK)
             return TCL_ERROR;
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtClearLog(hevt, s, s2, dw);
         } else {
             result.type = TRT_NONNULL;
-            result.value.nonnull.name = TWAPI_EVT_HANDLE_TYPESTR;
+            result.value.nonnull.name = "EVT_HANDLE";
             result.value.nonnull.p = EvtQuery(hevt, s, s2, dw);
         }
         break;
     case 3: // EvtSeek
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
-                         GETWIDE(wide), GETHANDLE(hevt2), GETINT(dw),
-                         GETINT(dw2), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETWIDE(wide), GETHANDLET(hevt2, EVT_HANDLE),
+                         GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (EvtSeek(hevt, wide, hevt2, dw, dw2) != FALSE)
-            return TCL_OK;
-        result.type = TRT_GETLASTERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = EvtSeek(hevt, wide, hevt2, dw, dw2);
         break;
     case 4: // EvtOpenLog
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
+    case 5: // EvtOpenChannelConfig
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          GETWSTR(s), GETINT(dw)) != TCL_OK)
             return TCL_ERROR;
-
         result.type = TRT_NONNULL;
-        result.value.nonnull.name = TWAPI_EVT_HANDLE_TYPESTR;
-        result.value.nonnull.p = EvtOpenLog(hevt, s, dw);
+        result.value.nonnull.name = "EVT_HANDLE";
+        result.value.nonnull.p = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, s, dw);
+        break;
+    case 6: // EvtArchiveExportedLog
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETWSTR(s), GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = EvtArchiveExportedLog(hevt, s, dw, dw2);
+        break;
+    case 7: // EvtSubscribe
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETHANDLE(h), GETWSTR(s), GETNULLIFEMPTY(s2),
+                         GETEVTH(hevt2), GETINT(dw)) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_NONNULL;
+        result.value.nonnull.name = "EVT_HANDLE";
+        result.value.nonnull.p = EvtSubscribe(hevt, h, s, s2, hevt2, NULL, NULL, dw);
+        break;
+    case 8: // EvtExportLog
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETWSTR(s), GETWSTR(s2), GETWSTR(s3), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = EvtExportLog(hevt, s, s2, s3, dw);
         break;
     default:
         /* Params - HANDLE followed by optional DWORD */
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(hevt),
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 101:
-            if (EvtClose(hevt) != FALSE)
-                return TCL_OK;
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = EvtClose(hevt);
             break;
         case 102:
-            if (EvtCancel(hevt) != FALSE)
-                return TCL_OK;
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = EvtCancel(hevt);
             break;
+        case 103:
+            result.type = TRT_NONNULL;
+            result.value.nonnull.name = "EVT_HANDLE";
+            result.value.nonnull.p = EvtOpenChannelEnum(hevt, dw);
+            break;
+        case 104:
+            bufP = buf;
+            if (EvtNextChannelPath(hevt, ARRAYSIZE(buf), bufP, &dw) == FALSE) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = GetLastError();
+                if (result.value.ival == ERROR_NO_MORE_ITEMS) {
+                    result.value.ival = ERROR_SUCCESS;
+                    break;
+                } else if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
+                    break;
+                }
+                /* Need bigger buffer */
+                bufP = TwapiAlloc(sizeof(WCHAR) * dw);
+                if (EvtNextChannelPath(hevt, dw, bufP, &dw) == FALSE) {
+                    /* Error */
+                    result.value.ival = GetLastError();
+                    TwapiFree(bufP);
+                    break;
+                }
+            }                
+            /* TBD - dw or dw-1 ? */
+            TwapiSetObjResult(interp, ObjFromUnicodeN(bufP, dw));
+            if (bufP != buf)
+                TwapiFree(bufP);
+            return TCL_OK;
+        case 105:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = EvtSaveChannelConfig(hevt, dw);
+            break;
+
         }            
     }
 
-    return TwapiSetResult(interp, &result);
+    dw = TwapiSetResult(interp, &result);
+    if (dw == TCL_OK)
+        return TCL_OK;
+
+    return Twapi_AppendEvtExtendedStatus(interp);
 }
 
-static int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct tcl_dispatch_s EvtTclDispatch[] = {
+        DEFINE_TCL_CMD(GetEVT_VARIANT, Twapi_EvtGetEVT_VARIANTObjCmd),
         DEFINE_TCL_CMD(Twapi_EvtRenderValues, Twapi_EvtRenderValuesObjCmd),
         DEFINE_TCL_CMD(Twapi_EvtRenderUnicode, Twapi_EvtRenderUnicodeObjCmd),
         DEFINE_TCL_CMD(EvtNext, Twapi_EvtNextObjCmd),
         DEFINE_TCL_CMD(EvtCreateRenderContext, Twapi_EvtCreateRenderContextObjCmd),
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
-        DEFINE_TCL_CMD(EvtGetLogInfo, Twapi_EvtGetLogInfoObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
+    };
+
+    static struct alias_dispatch_s EvtVariantGetDispatch[] = {
+        DEFINE_ALIAS_CMD(EvtGetLogInfo, 1),
+        DEFINE_ALIAS_CMD(EvtGetChannelConfigProperty, 2),
     };
 
     static struct fncode_dispatch_s EvtFnDispatch[] = {
@@ -920,10 +1039,19 @@ static int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtQuery, 2),
         DEFINE_FNCODE_CMD(EvtSeek, 3),
         DEFINE_FNCODE_CMD(EvtOpenLog, 4),
+        DEFINE_FNCODE_CMD(EvtOpenChannelConfig, 5),
+        DEFINE_FNCODE_CMD(EvtArchiveExportedLog, 6),
+        DEFINE_FNCODE_CMD(EvtSubscribe, 7),
+        DEFINE_FNCODE_CMD(EvtExportLog, 8),
         DEFINE_FNCODE_CMD(EvtClose, 101),
         DEFINE_FNCODE_CMD(EvtCancel, 102),
+        DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
+        DEFINE_FNCODE_CMD(EvtNextChannelPath, 104),
+        DEFINE_FNCODE_CMD(EvtSaveChannelConfig, 105),
     };
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvtFnDispatch), EvtFnDispatch, Twapi_EvtCallObjCmd);
+    TwapiDefineAliasCmds(interp, ARRAYSIZE(EvtVariantGetDispatch), EvtVariantGetDispatch, "twapi::GetEVT_VARIANT");
+    return TCL_OK;
 }
