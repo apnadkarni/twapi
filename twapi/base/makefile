@@ -30,6 +30,8 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\win.tcl \
 	..\tcl\adsi.tcl
 
+EXTRALIBS = gdi32.lib 
+
 !include ..\include\rules.inc
 
 printioctl: printioctl.exe
