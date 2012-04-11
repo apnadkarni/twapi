@@ -175,13 +175,12 @@ static struct {
     BOOL (WINAPI *_EvtGetPublisherMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtGetEventMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenPublisherMetadata)(HANDLE,LPCWSTR,LPCWSTR,LCID,DWORD);
-
     BOOL (WINAPI *_EvtGetObjectArraySize)(HANDLE, PDWORD);
     BOOL (WINAPI *_EvtGetObjectArrayProperty)(HANDLE,DWORD,DWORD,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtGetQueryInfo)(HANDLE,int,DWORD,EVT_VARIANT *,PDWORD);
+    BOOL (WINAPI *_EvtGetEventInfo)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtCreateBookmark)(LPCWSTR);
     BOOL (WINAPI *_EvtUpdateBookmark)(HANDLE,HANDLE);
-    BOOL (WINAPI *_EvtGetEventInfo)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
 } gEvtStubs;
 
 #define EvtOpenSession gEvtStubs._EvtOpenSession
@@ -833,36 +832,43 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
     int sz;
     EVT_VARIANT *varP;
     int func;
-    DWORD dw, dw2;
+    DWORD dw, dw2, dw3;
     DWORD status;
     BOOL (WINAPI *fn3args)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
+    BOOL (WINAPI *fn2args)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETEVTH(hevt),
-                     GETINT(dw), ARGUSEDEFAULT, GETINT(dw2), ARGEND) != TCL_OK)
+                     GETINT(dw), ARGUSEDEFAULT, GETINT(dw2),
+                     GETINT(dw3), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     varP = MemLifoPushFrame(&ticP->memlifo, sizeof(EVT_VARIANT), &sz);
     while (1) {
         switch (func) {
-        case 1:
-            status = EvtGetLogInfo(hevt, dw, sz, varP, &sz);
-            break;
         case 2:
         case 3:
         case 4:
             switch (func) {
-            case 2:
-                fn3args = EvtGetChannelConfigProperty;
-                break;
-            case 3:
-                fn3args = EvtGetPublisherMetadataProperty;
-                break;
-            case 4:
-                fn3args = EvtGetEventMetadataProperty;
-                break;
+            case 2: fn3args = EvtGetChannelConfigProperty; break;
+            case 3: fn3args = EvtGetPublisherMetadataProperty; break;
+            case 4: fn3args = EvtGetEventMetadataProperty; break;
             }
             status = fn3args(hevt, dw, dw2, sz, varP, &sz);
             break;
+        case 5:
+            status = EvtGetObjectArrayProperty(hevt, dw, dw2, dw3, sz, varP, &sz);
+            break;
+        case 6:
+        case 7:
+        case 8:
+            switch (func) {
+            case 6: fn2args = EvtGetQueryInfo; break;
+            case 7: fn2args = EvtGetEventInfo; break;
+            case 8: fn2args = EvtGetLogInfo; break;
+            }                
+            status = fn2args(hevt, dw, sz, varP, &sz);
+            break;
+
         default:
             MemLifoPopFrame(&ticP->memlifo);
             return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
@@ -1067,6 +1073,23 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         result.value.nonnull.p = EvtOpenPublisherMetadata(hevt, s, s2, dw, dw2);
         break;
 
+    case 11: // EvtCreateBookmark
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETNULLIFEMPTY(s), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_NONNULL;
+        result.value.nonnull.name = "EVT_HANDLE";
+        result.value.nonnull.p = EvtCreateBookmark(s);
+        break;
+
+    case 12: // EvtUpdateBookmark
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETEVTH(hevt2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = EvtUpdateBookmark(hevt, hevt2);
+        break;
+
     default:
         /* Params - HANDLE followed by optional DWORD */
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1147,10 +1170,13 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
-        DEFINE_ALIAS_CMD(EvtGetLogInfo, 1),
         DEFINE_ALIAS_CMD(EvtGetChannelConfigProperty, 2),
         DEFINE_ALIAS_CMD(EvtGetPublisherMetadataProperty, 3),
         DEFINE_ALIAS_CMD(EvtGetEventMetadataProperty, 4),
+        DEFINE_ALIAS_CMD(EvtGetObjectArrayProperty, 5),
+        DEFINE_ALIAS_CMD(EvtGetQueryInfo, 6),
+        DEFINE_ALIAS_CMD(EvtGetEventInfo, 7),
+        DEFINE_ALIAS_CMD(EvtGetLogInfo, 8),
     };
 
     static struct fncode_dispatch_s EvtFnDispatch[] = {
@@ -1164,6 +1190,8 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtExportLog, 8),
         DEFINE_FNCODE_CMD(EvtSetChannelConfigProperty, 9),
         DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
+        DEFINE_FNCODE_CMD(EvtCreateBookmark, 11),
+        DEFINE_FNCODE_CMD(EvtUpdateBookmark, 12),
         DEFINE_FNCODE_CMD(EvtClose, 101),
         DEFINE_FNCODE_CMD(EvtCancel, 102),
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
