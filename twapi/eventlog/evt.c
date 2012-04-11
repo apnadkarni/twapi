@@ -120,6 +120,30 @@ typedef struct _EVT_VARIANT
 
 } EVT_VARIANT;
 
+typedef enum _EVT_CHANNEL_CONFIG_PROPERTY_ID {
+  EvtChannelConfigEnabled                 = 0,
+  EvtChannelConfigIsolation               = 1,
+  EvtChannelConfigType                    = 2,
+  EvtChannelConfigOwningPublisher         = 3,
+  EvtChannelConfigClassicEventlog         = 4,
+  EvtChannelConfigAccess                  = 5,
+  EvtChannelLoggingConfigRetention        = 6,
+  EvtChannelLoggingConfigAutoBackup       = 7,
+  EvtChannelLoggingConfigMaxSize          = 8,
+  EvtChannelLoggingConfigLogFilePath      = 9,
+  EvtChannelPublishingConfigLevel         = 10,
+  EvtChannelPublishingConfigKeywords      = 11,
+  EvtChannelPublishingConfigControlGuid   = 12,
+  EvtChannelPublishingConfigBufferSize    = 13,
+  EvtChannelPublishingConfigMinBuffers    = 14,
+  EvtChannelPublishingConfigMaxBuffers    = 15,
+  EvtChannelPublishingConfigLatency       = 16,
+  EvtChannelPublishingConfigClockType     = 17,
+  EvtChannelPublishingConfigSidType       = 18,
+  EvtChannelPublisherList                 = 18,
+  EvtChannelPublishingConfigFileMax       = 19,
+  EvtChannelConfigPropertyIdEND           = 20 
+} EVT_CHANNEL_CONFIG_PROPERTY_ID;
 
 static struct {
     HANDLE (WINAPI *_EvtOpenSession)(int, PVOID, DWORD, DWORD);
@@ -142,16 +166,16 @@ static struct {
     BOOL (WINAPI *_EvtNextChannelPath)(HANDLE,DWORD, LPWSTR, PDWORD);
     HANDLE (WINAPI *_EvtOpenChannelConfig)(HANDLE,LPCWSTR,DWORD);
     BOOL (WINAPI *_EvtSaveChannelConfig)(HANDLE,DWORD);
-
     BOOL (WINAPI *_EvtSetChannelConfigProperty)(HANDLE, int, DWORD, EVT_VARIANT *);
     BOOL (WINAPI *_EvtGetChannelConfigProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenPublisherEnum)(HANDLE,DWORD);
-    BOOL (WINAPI *_EvtNextPublisherId)(HANDLE,DWORD,LPWSTR,PDWORD);
-    HANDLE (WINAPI *_EvtOpenPublisherMetadata)(HANDLE,LPCWSTR,LPCWSTR,LCID,DWORD);
-    BOOL (WINAPI *_EvtGetPublisherMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     HANDLE (WINAPI *_EvtOpenEventMetadataEnum)(HANDLE,DWORD);
     HANDLE (WINAPI *_EvtNextEventMetadata)(HANDLE,DWORD);
+    BOOL (WINAPI *_EvtNextPublisherId)(HANDLE,DWORD,LPWSTR,PDWORD);
+    BOOL (WINAPI *_EvtGetPublisherMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtGetEventMetadataProperty)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
+    HANDLE (WINAPI *_EvtOpenPublisherMetadata)(HANDLE,LPCWSTR,LPCWSTR,LCID,DWORD);
+
     BOOL (WINAPI *_EvtGetObjectArraySize)(HANDLE, PDWORD);
     BOOL (WINAPI *_EvtGetObjectArrayProperty)(HANDLE,DWORD,DWORD,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *_EvtGetQueryInfo)(HANDLE,int,DWORD,EVT_VARIANT *,PDWORD);
@@ -811,6 +835,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
     int func;
     DWORD dw, dw2;
     DWORD status;
+    BOOL (WINAPI *fn3args)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETEVTH(hevt),
                      GETINT(dw), ARGUSEDEFAULT, GETINT(dw2), ARGEND) != TCL_OK)
@@ -823,7 +848,20 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
             status = EvtGetLogInfo(hevt, dw, sz, varP, &sz);
             break;
         case 2:
-            status = EvtGetChannelConfigProperty(hevt, dw, dw2, sz, varP, &sz);
+        case 3:
+        case 4:
+            switch (func) {
+            case 2:
+                fn3args = EvtGetChannelConfigProperty;
+                break;
+            case 3:
+                fn3args = EvtGetPublisherMetadataProperty;
+                break;
+            case 4:
+                fn3args = EvtGetEventMetadataProperty;
+                break;
+            }
+            status = fn3args(hevt, dw, dw2, sz, varP, &sz);
             break;
         default:
             MemLifoPopFrame(&ticP->memlifo);
@@ -893,7 +931,8 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     int func = (int) clientdata;
     HANDLE h;
     WCHAR buf[MAX_PATH+1];
-    WCHAR *bufP;
+    EVT_VARIANT var;
+    GUID guid;
     
     if (gEvtStatus != 1)
         return Twapi_AppendSystemError(interp, ERROR_CALL_NOT_IMPLEMENTED);
@@ -958,6 +997,76 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = EvtExportLog(hevt, s, s2, s3, dw);
         break;
+
+    case 9: // EvtSetChannelConfigProperty
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETINT(dw), GETINT(dw2), ARGSKIP,
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        var.Type = EvtVarTypeNull;
+        var.Count = 0;
+        /* dw is property id */
+        switch (dw) {
+        case EvtChannelConfigEnabled:
+        case EvtChannelConfigClassicEventlog:
+        case EvtChannelLoggingConfigRetention:
+        case EvtChannelLoggingConfigAutoBackup:
+            if (ObjToBoolean(interp, objv[3], &var.BooleanVal) != TCL_OK)
+                return TCL_ERROR;
+            var.Type = EvtVarTypeBoolean;
+            break;
+        case EvtChannelConfigIsolation:
+        case EvtChannelConfigType:
+        case EvtChannelPublishingConfigLevel:
+        case EvtChannelPublishingConfigClockType:
+        case EvtChannelPublishingConfigFileMax:
+            if (ObjToLong(interp, objv[3], &var.UInt32Val) != TCL_OK)
+                return TCL_ERROR;
+            var.Type = EvtVarTypeUInt32;
+            break;
+        case EvtChannelConfigOwningPublisher:
+        case EvtChannelConfigAccess:
+        case EvtChannelLoggingConfigLogFilePath:
+        case EvtChannelPublisherList:
+            var.StringVal = ObjToUnicode(objv[3]);
+            var.Type = EvtVarTypeString;
+            break;
+
+        case EvtChannelLoggingConfigMaxSize:
+        case EvtChannelPublishingConfigKeywords:
+            if (ObjToWideInt(interp, objv[3], &var.UInt64Val) != TCL_OK)
+                return TCL_ERROR;
+            var.Type = EvtVarTypeUInt64;
+            break;
+        case EvtChannelPublishingConfigControlGuid:
+            if (ObjToGUID(interp, objv[3], &guid) != TCL_OK)
+                return TCL_ERROR;
+            var.Type = EvtVarTypeGuid;
+            break;
+        default:
+            /* Note following properties cannot be set 
+               case EvtChannelPublishingConfigBufferSize:
+               case EvtChannelPublishingConfigMinBuffers:
+               case EvtChannelPublishingConfigMaxBuffers:
+               case EvtChannelPublishingConfigLatency:
+               case EvtChannelPublishingConfigSidType:
+            */
+            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+        }
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = EvtSetChannelConfigProperty(hevt, dw, dw2, &var);
+        break;
+
+    case 10: // EvtOpenPublisherMetadata
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
+                         GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw),
+                         GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_NONNULL;
+        result.value.nonnull.name = "EVT_HANDLE";
+        result.value.nonnull.p = EvtOpenPublisherMetadata(hevt, s, s2, dw, dw2);
+        break;
+
     default:
         /* Params - HANDLE followed by optional DWORD */
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -975,38 +1084,46 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 103:
             result.type = TRT_NONNULL;
             result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p = EvtOpenChannelEnum(hevt, dw);
+            result.value.nonnull.p =EvtOpenChannelEnum(hevt, dw);
             break;
-        case 104:
-            bufP = buf;
-            if (EvtNextChannelPath(hevt, ARRAYSIZE(buf), bufP, &dw) == FALSE) {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = GetLastError();
-                if (result.value.ival == ERROR_NO_MORE_ITEMS) {
-                    result.value.ival = ERROR_SUCCESS;
-                    break;
-                } else if (result.value.ival != ERROR_INSUFFICIENT_BUFFER) {
-                    break;
-                }
-                /* Need bigger buffer */
-                bufP = TwapiAlloc(sizeof(WCHAR) * dw);
-                if (EvtNextChannelPath(hevt, dw, bufP, &dw) == FALSE) {
-                    /* Error */
-                    result.value.ival = GetLastError();
-                    TwapiFree(bufP);
-                    break;
-                }
-            }                
-            /* TBD - dw or dw-1 ? */
-            TwapiSetObjResult(interp, ObjFromUnicodeN(bufP, dw));
-            if (bufP != buf)
-                TwapiFree(bufP);
-            return TCL_OK;
+        case 104: // EvtNextChannelPath
+        case 109: // EvtNextPublisherId
+            /* Note channel/publisher is max 255 chars so no need to check
+               for ERROR_INSUFFICIENT_BUFFER */
+            if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(buf), buf, &dw) != FALSE) {
+                /* TBD - dw or dw-1 ? */
+                TwapiSetObjResult(interp, ObjFromUnicodeN(buf, dw));
+                return TCL_OK;
+            }
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = GetLastError();
+            if (result.value.ival == ERROR_NO_MORE_ITEMS)
+                return TCL_OK;
+            break;
         case 105:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtSaveChannelConfig(hevt, dw);
             break;
-
+        case 106:
+            result.type = TRT_NONNULL;
+            result.value.nonnull.name = "EVT_HANDLE";
+            result.value.nonnull.p = EvtOpenPublisherEnum(hevt, dw);
+            break;
+        case 107:
+            result.type = TRT_NONNULL;
+            result.value.nonnull.name = "EVT_HANDLE";
+            result.value.nonnull.p = EvtOpenEventMetadataEnum(hevt, dw);
+            break;
+        case 108:
+            result.type = TRT_NONNULL;
+            result.value.nonnull.name = "EVT_HANDLE";
+            result.value.nonnull.p = EvtNextEventMetadata(hevt, dw);
+            break;
+        case 110:
+            result.type =
+                EvtGetObjectArraySize(hevt, &result.value.ival) ?
+                TRT_DWORD : TRT_GETLASTERROR;
+            break;
         }            
     }
 
@@ -1032,6 +1149,8 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
         DEFINE_ALIAS_CMD(EvtGetLogInfo, 1),
         DEFINE_ALIAS_CMD(EvtGetChannelConfigProperty, 2),
+        DEFINE_ALIAS_CMD(EvtGetPublisherMetadataProperty, 3),
+        DEFINE_ALIAS_CMD(EvtGetEventMetadataProperty, 4),
     };
 
     static struct fncode_dispatch_s EvtFnDispatch[] = {
@@ -1043,11 +1162,18 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtArchiveExportedLog, 6),
         DEFINE_FNCODE_CMD(EvtSubscribe, 7),
         DEFINE_FNCODE_CMD(EvtExportLog, 8),
+        DEFINE_FNCODE_CMD(EvtSetChannelConfigProperty, 9),
+        DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
         DEFINE_FNCODE_CMD(EvtClose, 101),
         DEFINE_FNCODE_CMD(EvtCancel, 102),
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
         DEFINE_FNCODE_CMD(EvtNextChannelPath, 104),
         DEFINE_FNCODE_CMD(EvtSaveChannelConfig, 105),
+        DEFINE_FNCODE_CMD(EvtOpenPublisherEnum, 106),
+        DEFINE_FNCODE_CMD(EvtOpenEventMetadataEnum, 107),
+        DEFINE_FNCODE_CMD(EvtNextEventMetadata, 108),
+        DEFINE_FNCODE_CMD(EvtNextPublisherId, 109),
+        DEFINE_FNCODE_CMD(EvtGetObjectArraySize, 110),
     };
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);

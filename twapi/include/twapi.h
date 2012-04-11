@@ -1215,6 +1215,7 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 #define ObjFromULONG      ObjFromDWORD
 
 TWAPI_EXTERN Tcl_Obj *ObjFromBoolean(int bval);
+TWAPI_EXTERN TCL_RESULT ObjToBoolean(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN Tcl_Obj *ObjFromLong(long val);
 #define ObjFromInt ObjFromLong
 TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP);
