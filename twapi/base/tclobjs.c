@@ -3159,6 +3159,11 @@ TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP)
     return Tcl_GetLongFromObj(interp, objP, lvalP);
 }
 
+TCL_RESULT ObjToBoolean(Tcl_Interp *interp, Tcl_Obj *objP, int *valP)
+{
+    return Tcl_GetBooleanFromObj(interp, objP, valP);
+}
+
 TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
 {
     return Tcl_GetWideIntFromObj(interp, objP, wideP);
