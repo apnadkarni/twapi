@@ -1105,11 +1105,6 @@ int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread);
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 
 
-
-/* WMI */
-TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(TwapiInterpContext *ticP, int type, int objc, Tcl_Obj *CONST objv[]);
-
-
 /* Built-in commands */
 
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
