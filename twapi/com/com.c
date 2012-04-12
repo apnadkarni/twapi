@@ -2692,7 +2692,6 @@ int Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
     HRESULT hr;
     TwapiResult result;
     DWORD dw1,dw2;
-    const char *ifctype;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;

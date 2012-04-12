@@ -12,7 +12,7 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
-TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int type, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int type, int objc, Tcl_Obj *CONST objv[])
 {
     IMofCompiler *ifc;
     WCHAR *server_namespace;
