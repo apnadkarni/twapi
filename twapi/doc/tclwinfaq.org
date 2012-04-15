@@ -1,3 +1,4 @@
+#+STYLE: <style type='text/css'>html { font-family: sans-serif;} </style>
 * About Tcl
 ** What is Tcl and why should I learn it?
    Tcl is a high-level dynamic language that runs on a wide variety of platforms,
@@ -132,58 +133,81 @@
    To run the Tcl interpreter, so that you can interactively invoke Tcl
    commands, simply type in the name of the appropriate executable.
    This will display a Tcl shell prompt where you can type in commands.
-#+srcname: 
-#+begin_src tcl
+#+BEGIN_SRC tcl
   c:\> tclsh
   % puts "Hello world"
   Hello world
   % exit
   c:>
-#+end_src
+#+END_SRC
 
 ** How do I run a Tcl script from the command line?
    To run a console script, invoke the =tclsh.exe= program, passing
    it the path to the script file. Any additional arguments on the command
    line are passed as a list to the script in the =argv= global variable.
-#+srcname:
-#+begin_src tcl
+#+BEGIN_SRC tcl
   # File printargs.tcl
   foreach arg $::argv {puts $arg} 
-#+end_src
-We can invoke this script from the command line:
-#+srcname:
-#+begin_src tcl
+#+END_SRC
+  We can invoke this script from the command line:
+#+BEGIN_SRC tcl
   c:\> tclsh printargs.tcl first "second arg"
   first
   second arg
   c:\>
-#+end_src
+#+END_src
 
 ** How can I associate a Tcl script with the Tcl interpreter application?
-Windows can associate a file with an application so that typing the
-name of the file will result in the application being invoked.
-During its install, the
-[[#activestatedistro][ActiveState distribution]] gives the user the option to associate
-files ending in =.tcl= with the =wish= graphical Tcl shell. If you
-are not using this distribution, or you want to associate the =.tcl=
-extension with =tclsh= instead, you can change the association from
-the =File Types= tab in the =Folder Options= dialog in Explorer.
+   Windows can associate a file with an application so that typing the
+   name of the file will result in the application being invoked.
+   During its install, the
+   [[#activestatedistro][ActiveState distribution]] gives the user the option to associate
+   files ending in =.tcl= with the =wish= graphical Tcl shell. If you
+   are not using this distribution, or you want to associate the =.tcl=
+   extension with =tclsh= instead, you can change the association from
+   the =File Types= tab in the =Folder Options= dialog in Explorer.
 
-In addition, if you want to run the script from the command line simply
-by typing its name, add the extension to the =PATHEXT= environment
-variable.
+   In addition, if you want to run the script from the command line simply
+   by typing its name, add the extension to the =PATHEXT= environment
+   variable.
 
-You may wish to associate separate extensions, for example =.tcl= and
-=.tk=, depending on whether you want the script invoked with =tclsh=
-or =wish=.
+   You may wish to associate separate extensions, for example =.tcl= and
+   =.tk=, depending on whether you want the script invoked with =tclsh=
+   or =wish=.
 
 ** How can I invoke a Tcl script from Explorer?
-In order to run a Tcl script by double-clicking the script file, the file
-type must be associated with the Tcl shell. See the previous entry
-in this FAQ.
+   In order to run a Tcl script by double-clicking the script file, the file
+   type must be associated with the Tcl shell. See the previous entry
+   in this FAQ.
 
 ** How can I embed a Tcl script in a batch file?
+   As an alternative to making =.tcl= files directly executable, you may
+   prefer to make scripts executable by embedding them in batch files.
+   For example, assume printargs.bat is somewhere in your PATH and
+   contains the following:
 
+#+BEGIN_SRC tcl
+  ::if no {
+  @tclsh "%~f0" %*
+  @goto :eof 
+  }
+  # Tcl code start
+  
+  foreach arg $argv { puts $arg }
+  # Tcl code end \
+  :eof
+#+END_SRC
+
+  Invoking the file:
+
+#+BEGIN_SRC tcl
+  C:\>printargs first "second arg"
+  first
+  second arg
+#+END_SRC
+
+   See more sophisticated versions and alternatives in the 
+   [[http://wiki.tcl.tk/2455][Tcl wiki]].
 
 ** Where is the Tcl startup file located?
 
