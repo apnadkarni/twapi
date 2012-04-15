@@ -1,0 +1,127 @@
+* About Tcl
+** What is Tcl and why should I learn it?
+Tcl is a high-level dynamic language that runs on a wide variety of platforms,
+from mainstream operating systems like Unix/Linux, Windows and MacOS 
+to embedded systesm like Cisco routers. Code written on one platform
+will run practically unchanged on another. Tcl's simple but powerful
+and expressive nature make it suitable for applications ranging from
+customized systems administration utilities to standalone desktop applications
+to scalable, distributed servers.
+
+** Why should I use Tcl instead of VBScript or PowerShell?
+There are several reasons why you might want to use Tcl instead
+of PowerShell or VBScript for scripting tasks on Windows. First,
+Tcl deployment is simple, with the option of a
+single executable distribution that includes your scripts and with
+no external dependencies. This allows
+deployment even to systems such as Windows 2008 Server Core which did
+not support PowerShell due to its dependence on the .NET framework.
+Second, because of its use of native Windows interfaces, Tcl is
+lightweight and efficient in use of system resources including CPU,
+memory and disk. Third, generic scripts such as
+for XML processing, will run on non-Windows platforms without
+any modifications.
+
+** Why should I use Tcl instead of C#/C++/VB.Net
+   Simply put, the three P's:
+   - Productivity - Tcl's dynamic nature, expressiveness and
+		     high level constructs greatly increase programming
+		     productivity with shorter development cycles
+		     and greater robustness.
+   - Portability - large portions of your code base, and even entire
+		    applications are portable to other platforms with minimal
+		    effort.
+
+** When should I not use Tcl on Windows?
+
+** What is Tk ?
+This FAQ focuses only on Tcl and does NOT target Tk-related questions.
+** What Windows platforms does Tcl support ?
+** Where can I find reference manuals for Tcl ?
+twapicombined, web site, activestate documentation
+** Is there a Tcl tutorial ?
+
+** About this FAQ
+This FAQ is targeted towards using Tcl on Windows. Specifically,
+it addresses recent releases of Tcl (8.4, 8.5, 8.6) on 
+Windows 2000 or later.
+It does not address general Tcl platform-independent features. Nor does
+it address questions related to Tk.
+
+* Installing Tcl
+** What Tcl distributions are available for Windows?
+Activestate, kitcreator, tclkit
+** Which Tcl distribution should I use ?
+use tclkit for a single file, activestate for general purpose, ctcl
+** Does Tcl have a standard library?
+
+* General Usage
+** What is tclsh?
+** What is wish?
+** How do I run a Tcl script from the command line?
+** How can I invoke a Tcl script from Explorer?
+** How can I embed a Tcl script in a batch file?
+** Where is the Tcl startup file located?
+
+* General Windows programming
+** How can I access the Windows registry?
+** How do I get system information?
+** How can I start a new process?
+exec, shell_execute, create_process
+** How can I start a privileged process under UAC?
+** How can I print from a script?
+** How can I create desktop shortcuts?
+** How can I get a list of drives in the system?
+** How can I access files on remote shares?
+** How can I read and write the event log?
+** How can I write a Windows service using Tcl?
+** How can I read and write file resources?
+** How can I get notified when the media changes in my CD drive?
+** How can I get notified when a USB pen drive is inserted?
+** How can I register a hotkey to invoke a script?
+** How can I install an icon in the system tray?
+** How can I play audio files?
+
+* Working with other applications
+** How can Tcl communicate with other applications using DDE?
+** How can Tcl act as a COM client?
+** How can Tcl act as a COM server?
+** How can I automate Internet Explorer with Tcl?
+** How can I integrate with Microsoft Office?
+** How can Tcl be used to write IIS-based applications?
+** How can SQL Server be accessed from Tcl?
+
+
+* Using Tcl for Windows System Administration
+** How can I create and delete user accounts?
+** How can I access Active Directory with Tcl?
+** How can use WMI for system management?
+** How can I remotely administer a Windows system?
+** How can I check installed applications?
+
+* Building Tcl for Windows
+** General instructions and tools
+Do not use spaces in paths. Use subst command if necessary
+** Where can I get the Tcl source code?
+** How do I build Tcl Visual C++ 6.0?
+** How do I build Tcl using the free Windows 7 SDK compiler?
+** How do I build Tcl using MinGW?
+** How to I create a single executable Tcl distribution (tclkit)?
+
+* Writing a Tcl extension
+
+
+#+TITLE:     Tcl on Windows FAQ
+#+AUTHOR:    
+#+EMAIL:     
+#+DATE:      2012-04-14 Sat
+#+DESCRIPTION: 
+#+KEYWORDS: 
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
