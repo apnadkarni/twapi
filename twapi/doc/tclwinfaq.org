@@ -19,6 +19,17 @@
    together as Tcl/Tk.
    This FAQ focuses only on Tcl and does NOT target Tk-related questions.
 
+** What Windows platforms does Tcl support ?
+   The current official release of Tcl, version 8.5, supports newer Windows
+   platforms starting with Windows 2000. Version 8.6, currently in beta,
+   requires Windows XP or later. Earlier versions of Windows, Windows NT 4.0
+   and the Windows 98 series, require Tcl 8.4 and are
+   not covered by this FAQ. 
+
+** Does Tcl support 64-bit Windows?
+   Yes. There are separate 32- and 64-bit builds of Tcl. Of course, the
+   32-bit build will also work on 64-bit Windows as a WoW64 process.
+
 ** Why should I use Tcl instead of VBScript or PowerShell?
    There are several reasons why you might want to use Tcl instead of
    PowerShell or VBScript for scripting tasks on Windows. First, Tcl
@@ -55,23 +66,12 @@
    for scripting in the commercial CAD world even though the core applications
    are in C++.
 
-** What Windows platforms does Tcl support ?
-   The current official release of Tcl, version 8.5, supports newer Windows
-   platforms starting with Windows 2000. Version 8.6, currently in beta,
-   requires Windows XP or later. Earlier versions of Windows, Windows NT 4.0
-   and the Windows 98 series, require Tcl 8.4 and are
-   not covered by this FAQ. 
-
-** Does Tcl support 64-bit Windows?
-   Yes. There are separate 32- and 64-bit builds of Tcl. Of course, the
-   32-bit build will also work on 64-bit Windows as a WoW64 process.
-
 ** What license is Tcl under? Can I use it in commercial applications?
    Tcl is covered under the open source BSD license. This means Tcl and its
    associated libraries can be used in all applications, including
    commercial ones.
 
-** Where can I find documentation for Tcl ?
+** Where can I find documentation for Tcl?
    The reference documentation for all Tcl versions can be downloaded or
    browsed on-line at http://www.tcl.tk/man. The [[#activestatedistro][ActiveState distribution]] also
    contains a Windows Help CHM file that includes not only the core 
@@ -79,7 +79,9 @@
    A standalone CHM help file, with similar content, is available from
    the [[#twapi][TWAPI]] download area.
 
-   In addition, the [[http://wiki.tcl.tk][Tcler's Wiki]] provides tutorials, explanations
+** Is there a Tcl tutorial?
+   See the [[http://www.tcl.tk/man/tcl/tutorial/tcltutorial.html][online Tcl tutorial]]. In addition, the [[http://wiki.tcl.tk][Tcler's Wiki]] provides 
+   tutorials, explanations
    and sample code in all areas. It is also an excellent jump point
    to the various Tcl resources on the net.
 
@@ -116,23 +118,80 @@
 ** Does Tcl have a standard library?
 
 * General Usage
-** What are tclsh and wish?
-Windows distinguishes between console mode and graphical interface programs.
-Tcl distributions correspondingly come with two different programs,
-=tclsh.exe= and =wish.exe=. The former is used for scripts that run in
-console mode and the latter for applications with a graphical user interface,
-generally based on [[#tk][Tk]].
+** What are =tclsh= and =wish=?
+   Windows distinguishes between console mode and graphical interface programs.
+   Tcl distributions correspondingly come with two different programs,
+   =tclsh.exe= and =wish.exe=. The former is used for scripts that run in
+   console mode and the latter for applications with a graphical user interface,
+   generally based on [[#tk][Tk]].
+
+   Depending on the actual Tcl distribution being used, the executables
+   may be named differently, for example =tclsh86t.exe= and =wish86t.exe=.
+
+** How do I run Tcl in interactive mode?
+   To run the Tcl interpreter, so that you can interactively invoke Tcl
+   commands, simply type in the name of the appropriate executable.
+   This will display a Tcl shell prompt where you can type in commands.
+#+srcname: 
+#+begin_src tcl
+  c:\> tclsh
+  % puts "Hello world"
+  Hello world
+  % exit
+  c:>
+#+end_src
 
 ** How do I run a Tcl script from the command line?
+   To run a console script, invoke the =tclsh.exe= program, passing
+   it the path to the script file. Any additional arguments on the command
+   line are passed as a list to the script in the =argv= global variable.
+#+srcname:
+#+begin_src tcl
+  # File printargs.tcl
+  foreach arg $::argv {puts $arg} 
+#+end_src
+We can invoke this script from the command line:
+#+srcname:
+#+begin_src tcl
+  c:\> tclsh printargs.tcl first "second arg"
+  first
+  second arg
+  c:\>
+#+end_src
+
+** How can I associate a Tcl script with the Tcl interpreter application?
+Windows can associate a file with an application so that typing the
+name of the file will result in the application being invoked.
+During its install, the
+[[#activestatedistro][ActiveState distribution]] gives the user the option to associate
+files ending in =.tcl= with the =wish= graphical Tcl shell. If you
+are not using this distribution, or you want to associate the =.tcl=
+extension with =tclsh= instead, you can change the association from
+the =File Types= tab in the =Folder Options= dialog in Explorer.
+
+In addition, if you want to run the script from the command line simply
+by typing its name, add the extension to the =PATHEXT= environment
+variable.
+
+You may wish to associate separate extensions, for example =.tcl= and
+=.tk=, depending on whether you want the script invoked with =tclsh=
+or =wish=.
+
 ** How can I invoke a Tcl script from Explorer?
+In order to run a Tcl script by double-clicking the script file, the file
+type must be associated with the Tcl shell. See the previous entry
+in this FAQ.
+
 ** How can I embed a Tcl script in a batch file?
+
+
 ** Where is the Tcl startup file located?
 
 * General Windows programming
 ** How can I access the Windows registry?
 ** How do I get system information?
 ** How can I start a new process?
-exec, shell_execute, create_process
+exec, =shell_execute=, create_process
 ** How can I start a privileged process under UAC?
 ** How can I print from a script?
 ** How can I create desktop shortcuts?
@@ -161,15 +220,15 @@ see the [[http://wiki.tcl.tk/20993][network echo service sample]] on the Tcl wik
 
 * Using Tcl for Windows System Administration
 ** How can I create and delete user accounts?
+** How can I change the password for a user?
 ** How can I access Active Directory with Tcl?
-** How can use WMI for system management?
+** How can I use WMI for system management?
 ** How can I remotely administer a Windows system?
-** How can I check installed applications?
+** How can I check if an application or service pack is installed?
 
 * Tcl and .NET Interoperability
 ** How can I call .NET components from Tcl?
 ** Is there a .NET version of Tcl?
-
 
 * Building Tcl for Windows
 ** General instructions and tools
