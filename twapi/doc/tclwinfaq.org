@@ -209,14 +209,86 @@
    See more sophisticated versions and alternatives in the 
    [[http://wiki.tcl.tk/2455][Tcl wiki]].
 
-** Where is the Tcl startup file located?
+** How can I have Tcl always execute a certain set of commands on starting?
+   On startup, =tclsh.exe= reads and executes commands in the file
+   =tclshrc.tl= in the user's home directory. The user's home directory
+   is given by the environment variable =USERPROFILE= or can be displayed
+   with the Tcl command
+: % file normalize ~
 
 * General Windows programming
 ** How can I access the Windows registry?
-** How do I get system information?
+   Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/registry.htm][=registry=]] command for doing various operations on
+   the Windows registry. You will need to load the =registry= package
+   first:
+
+#+BEGIN_SRC tcl
+   % package require registry
+   % registry get HKEY_CURRENT_USER\\Environment PATH
+   c:\bin;c:\tcl\tcl86\bin;c:\msys\bin
+#+END_SRC
+
+** How can I get system information?
+   The Tcl global array =tcl_platform= provides basic information about
+   the system such as the operating system, version number etc. Additional
+   information is provided in the Windows environment variables which
+   can be accessed via the global =env= array. For more extensive
+   details, use the =osinfo= module in the [[#twapi][TWAPI]] extension.
+
 ** How can I start a new process?
-exec, =shell_execute=, create_process
+   Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/exec.htm][=exec=]] command for starting new processes. The command
+   supports pipes with multiple subprocesses, I/O redirection and background
+   processes. The command [[www.tcl.tk/man/tcl8.5/TclCmd/library.htm][=auto_execok=]] is useful in conjunction with
+   =exec=. It returns the full command line required for invocation filling
+   in the path, extension if missing as well as checking for =cmd.exe=
+   built-in commands.
+
+#+BEGIN_SRC dos
+   % auto_execok notepad
+   C:/WINDOWS/system32/notepad.EXE
+   % auto_execok dir
+   C:/WINDOWS/system32/cmd.exe /c dir
+#+END_SRC
+
+   For additional control over the child process, such as its display
+   properties, security attributes, priority etc., use the
+   =create_process= command from the [[#twapi][TWAPI]] extension.
+
+** How can I start the application associated with a document or URL?
+   To start up an application associated with a file or URL,
+   invoke the Windows =cmd.exe= internal
+   =start= command. For example,
+: % exec [auto_execok start] myfile.doc
+: % exec [auto_execok start] http://www.google.com
+
+   Alternatively, see the [[#shellexecute][next entry]].
+
+** How can I invoke an action, like print, on a document?
+   The Windows Explorer Shell associates certain actions that can
+   be carried out on a document based on its file type. These actions,
+   such as =Open=, =Edit=, =Print= can be invoked from the right-click
+   menu in Explorer. To invoke the action using Tcl, use the
+   =shell_execute= command from the [[#twapi][TWAPI]] extension.
+
+   The following will use the default action =Open= to start
+   editing the file with Microsoft Word.
+: twapi::shell_execute -path sample.doc
+
+   To print the file:
+: twapi::shell_execute -path sample.doc -verb print
+
+   To componse an email message:
+: twapi::shell_execute -path mailto:someone@somewhere.com
+
 ** How can I start a privileged process under UAC?
+   Windows Vista and later versions implement User Account Control (UAC)
+   under which even processes belonging to privileged accounts run with
+   reduced privileges unless explicitly elevated by the user.
+   
+
+
+** How can I terminate a process?
+
 ** How can I print from a script?
 ** How can I create desktop shortcuts?
 ** How can I get a list of drives in the system?
