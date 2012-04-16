@@ -67,11 +67,10 @@
    for scripting in the commercial CAD world even though the core applications
    are in C++.
 
-** What license is Tcl under? Can I use it in commercial applications?
-   Tcl is covered under the open source BSD license. This means Tcl and its
-   associated libraries can be used in all applications, including
-   commercial ones.
-
+** How is Tcl licensed? Can I use it in commercial applications?
+   Tcl is covered under the very liberal open source BSD license.
+   This means Tcl and its associated libraries can be used in all applications,
+   including commercial ones.
 ** Where can I find documentation for Tcl?
    The reference documentation for all Tcl versions can be downloaded or
    browsed on-line at http://www.tcl.tk/man. The [[#activestatedistro][ActiveState distribution]] also
@@ -216,6 +215,15 @@
    with the Tcl command
 : % file normalize ~
 
+** When should I use a Tcl extension versus an external program?
+Some tasks can be accomplished from Tcl by invoking external programs or
+through the use of a Tcl extension ([[#killprocess][example]]). If you are writing a one-off
+script with limited use or the command is rarely invoked, using an
+external program might be sufficient. In other cases, use of an extension
+is likely to be beneficial. It is generally much faster and also protects
+against the external program not being available or installed
+on the target system (this is true event for Windows components)
+and differences arising from localization.
 * General Windows programming
 ** How can I access the Windows registry?
    Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/registry.htm][=registry=]] command for doing various operations on
@@ -235,7 +243,12 @@
    can be accessed via the global =env= array. For more extensive
    details, use the =osinfo= module in the [[#twapi][TWAPI]] extension.
 
+** How can I print from a script?
+* Processes
 ** How can I start a new process?
+   :PROPERTIES:
+   :CUSTOM_ID: exec
+   :END:
    Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/exec.htm][=exec=]] command for starting new processes. The command
    supports pipes with multiple subprocesses, I/O redirection and background
    processes. The command [[www.tcl.tk/man/tcl8.5/TclCmd/library.htm][=auto_execok=]] is useful in conjunction with
@@ -254,6 +267,16 @@
    properties, security attributes, priority etc., use the
    =create_process= command from the [[#twapi][TWAPI]] extension.
 
+** How can I read from and write to a child process?
+   Use the Tcl =open= command to open a pipe by prefixing the child
+   process command line with a =|= character. Then read and write
+   using the standard Tcl I/O commands =puts=. =gets=, =read= etc.
+#+BEGIN_SRC tcl
+   % set fd [open "| cmd.exe /c dir"]
+   file94e0d8
+   % while {![eof $fd]} {puts [gets $fd]}
+   % close $fd
+#+END_SRC
 ** How can I start the application associated with a document or URL?
    To start up an application associated with a file or URL,
    invoke the Windows =cmd.exe= internal
@@ -284,29 +307,63 @@
    Windows Vista and later versions implement User Account Control (UAC)
    under which even processes belonging to privileged accounts run with
    reduced privileges unless explicitly elevated by the user.
-   
-
+   To start a process in elevated mode, use the 
+   =shell_execute= command from the [[#twapi][TWAPI]] extension with the =runas= action.
+: twapi::shell_execute -verb runas -path services.msc
 
 ** How can I terminate a process?
-
-** How can I print from a script?
-** How can I create desktop shortcuts?
+   :PROPERTIES:
+   :CUSTOM_ID: killprocess
+   :END:
+   You can invoke the Windows command line program =taskkill.exe= 
+   using Tcl's [[#exec][=exec=]] command to terminate a process by its PID or name.
+#+BEGIN_SRC tcl
+   exec [auto_execok taskkill] /PID 1234
+   exec [auto_execok taskkill] /IM notepad.exe
+#+END_SRC
+   The  [[#twapi][TWAPI]] extension provides another alternative to do the same.
+: twapi::end_process 1234
+: foreach pid [twapi::get_process_ids -name notepad.exe] {twapi::end_process $pid}
+* Files and Disks
 ** How can I get a list of drives in the system?
+   Use Tcl's =file volumes= command.
+: % file volumes
+: C:/ D:/
 ** How can I access files on remote shares?
+   Tcl understands UNC names of the form =\\SERVER\SHARE\some\file=
+   so the standard Tcl I/O commands can be used to open and access
+   files on remote shares.
+** How can I monitor changes to the file system?
+** How can I get notified when the media changes in my CD drive?
+** How can I get notified when a USB pen drive is inserted?
+** How can I create desktop shortcuts?
 ** How can I read and write the event log?
 ** How can I write a Windows service using Tcl?
 For an example of a service using [[#twapi][TWAPI]], 
 see the [[http://wiki.tcl.tk/20993][network echo service sample]] on the Tcl wiki.
 ** How can I read and write file resources?
-** How can I get notified when the media changes in my CD drive?
-** How can I get notified when a USB pen drive is inserted?
 ** How can I register a hotkey to invoke a script?
 ** How can I install an icon in the system tray?
 ** How can I play audio files?
+The [[#snack][Snack]] extension is a complete and powerful cross-platform package for
+audio generation, playback, recording and analysis.
+See the [[http://www.speech.kth.se/snack/tutorial.html][Snack tutorial]] for examples.
+
+   For very basic needs, [[#twapi][TWAPI]] has a module that can play =WAV= files
+   and system sounds.
+: % twapi::play_sound c:/windows/media/chimes.wav
 
 * Working with other applications
 ** How can Tcl communicate with other applications using DDE?
+Tcl's built-in [[http://www.tcl.tk/man/tcl8.5/TclCmd/dde.htm][=dde package=]] allows Tcl scripts to act
+as a DDE client or server. However, DDE is a legacy technology
+and you should use COM interfaces instead wherever possible.
 ** How can Tcl act as a COM client?
+   Several extensions support COM client access from Tcl.
+   - The [[#tcom][TCOM]] extension
+   - The 
+
+
 ** How can Tcl act as a COM server?
 ** How can I automate Internet Explorer with Tcl?
 ** How can I integrate with Microsoft Office?
@@ -322,10 +379,16 @@ see the [[http://wiki.tcl.tk/20993][network echo service sample]] on the Tcl wik
 ** How can I remotely administer a Windows system?
 ** How can I check if an application or service pack is installed?
 
-* Tcl and .NET Interoperability
+* Interoperability with .Net
 ** How can I call .NET components from Tcl?
 ** Is there a .NET version of Tcl?
 
+* Networking and Communications
+** How can I communicate over the network?
+** How can I communicate over named pipes?
+** How can I communicate over serial ports?
+** How can I retrieve a Web page?
+** How can I download a file?
 * Building Tcl for Windows
 ** General instructions and tools
 Do not use spaces in paths. Use subst command if necessary
@@ -342,7 +405,24 @@ Do not use spaces in paths. Use subst command if necessary
    :END:
    The TWAPI extension includes modules that cover a broad cross-section
    of the Windows API. It is available at http://twapi.sourceforge.net.
-** 
+** Snack Sound Toolkit
+   The [[http://www.speech.kth.se/snack/][Snack]] extension is a complete and powerful cross-platform package for
+   audio generation, playback, recording and analysis. It is available
+   at http://www.speech.kth.se/snack/.
+** TCOM
+   :PROPERTIES:
+   :CUSTOM_ID: tcom
+   :END:
+   The TCOM extension provides support for both COM client and server
+   access from Tcl. It is available from [[http://www.vex.net/~cthuang/tcom/]].
+   Although stable, it is not under active development and there is no
+   64-bit version available.
+** Optcl
+   The Optcl extension supports COM client and server access and also
+   support for hosting ActiveX controls. It is available at
+   http://www.patthoyts.tk/programming/optcl3010.zip. Like [[#tcom][TCOM]],
+   it is not under active development and no 64-bit version is available.
+
 ** Writing a Tcl extension
 
 #+TITLE:     Tcl on Windows FAQ
