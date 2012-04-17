@@ -1,4 +1,4 @@
-#+STYLE: <style type='text/css'>html { font-family: sans-serif;} </style>
+#+STYLE: <style type='text/css'>html { font-family: sans-serif; width:750px;} </style>
 * About Tcl
 ** What is Tcl and why should I learn it?
    Tcl is a high-level dynamic language that runs on a wide variety of platforms,
@@ -337,7 +337,6 @@ and differences arising from localization.
 ** How can I get notified when the media changes in my CD drive?
 ** How can I get notified when a USB pen drive is inserted?
 ** How can I create desktop shortcuts?
-** How can I read and write the event log?
 ** How can I write a Windows service using Tcl?
 For an example of a service using [[#twapi][TWAPI]], 
 see the [[http://wiki.tcl.tk/20993][network echo service sample]] on the Tcl wiki.
@@ -353,35 +352,112 @@ See the [[http://www.speech.kth.se/snack/tutorial.html][Snack tutorial]] for exa
    and system sounds.
 : % twapi::play_sound c:/windows/media/chimes.wav
 
-* Working with other applications
+* Interoperating with other applications
 ** How can Tcl communicate with other applications using DDE?
 Tcl's built-in [[http://www.tcl.tk/man/tcl8.5/TclCmd/dde.htm][=dde package=]] allows Tcl scripts to act
 as a DDE client or server. However, DDE is a legacy technology
 and you should use COM interfaces instead wherever possible.
 ** How can Tcl act as a COM client?
    Several extensions support COM client access from Tcl.
-   - The [[#tcom][TCOM]] extension
-   - The 
-
-
+   - The [[#tcom][TCOM]] extension (32-bit only)
+   - The [[#optcl][Optcl]] extension (32-bit only)
+   - The =COM= module of the [[#twapi][TWAPI]] extension (32- and 64-bit)
+   See entries below for example usage.
 ** How can Tcl act as a COM server?
+   Both the [[#tcom][TCOM]] extension and [[#optcl][Optcl]] extensions support implementation
+   of 32-bit COM servers in Tcl. There is currently no support for 64-bit
+   COM implementations but this is not strictly required as 64-bit
+   COM clients should still be able to invoke 32-bit COM servers.
 ** How can I automate Internet Explorer with Tcl?
+   Automation of IE using COM is done by creating a instance using
+   the PROGID =InternetExplorer.Application= and calling methods
+   on it. You can find [[http://msdn.microsoft.com/en-us/library/aa752084%28v%3Dvs.85%29.aspx][documentation]] on MSDN. Here is an example
+   using [[#twapi][TWAPI]].
+#+BEGIN_SRC
+   % set ie [twapi::comobj InternetExplorer.Application]
+   % $ie Visible true
+   % $ie Navigate http://www.tcl.tk
+   % $ie destroy
+#+END_SRC
+
+   For a [[#tcom][TCOM]] example, see the Wiki article at [[http://wiki.tcl.tk/29255]].
 ** How can I integrate with Microsoft Office?
-** How can Tcl be used to write IIS-based applications?
+   Automation or integration with Office can be accomplished using
+   any of the COM extensions mentioned above. For documentation
+   on the objects and methods exposed by Office, follow the links
+   on the [[http://msdn.microsoft.com/en-us/office/aa905496][Office developer page]].
+   
+   The [[#tcomoffice][TcomOffice]] package provides a high level API over the COM
+   interfaces to interact with Microsoft Office.
+
+   The following example from the Wiki illustrates the use of TCOM
+   to create a worksheet and add some data to it.
+#+BEGIN_SRC tcl
+   package require tcom
+   set excel [::tcom::ref createobject Excel.Application]
+   $excel Visible 1
+   set workbooks [$excel Workbooks]
+   set workbook [$workbooks Add]
+   set worksheets [$workbook Worksheets]
+   set worksheet [$worksheets Item [expr 1]]
+   set cells [$worksheet Cells]
+   for {set row 1} {$row<=10} {incr row} {
+     foreach column {A B C D E F G H I J K L} {
+       $cells Item $row $column $column$row
+     }
+   }
+   puts [[[$worksheet UsedRange] Columns] Count]
+   puts [[[$worksheet UsedRange] Rows] Count]
+#+END_SRC
 ** How can SQL Server be accessed from Tcl?
 
-
 * Using Tcl for Windows System Administration
-** How can I create and delete user accounts?
-** How can I change the password for a user?
+** How can I manage user accounts?
+The [[#twapi][TWAPI extension]] provides several commands related to user and group
+account management.
+#+BEGIN_SRC tcl
+: % twapi::new_user brad -password jennifer
+: % twapi::add_user_to_global_group angelina_fans brad
+: % twapi::set_user_password brad angelina 
+: % twapi::delete_user brad
+#+END_SRC
+
+You can also use the Active Directory interfaces for this purpose.
+
 ** How can I access Active Directory with Tcl?
+   You can work with Active Directory via the =LDAP= module in the [[#tcllib][tcllib]] 
+   package library, or via the Active Directory Service Interface (ADSI)
+   through one of the Tcl COM extensions.
+
+TBD
+
 ** How can I use WMI for system management?
+   Like ADSI, Windows Management Instrumentation (WMI) also provides a
+   scriptable interface via COM which is documented on the
+   [[http://msdn.microsoft.com/en-us/library/windows/desktop/aa393258%28v=vs.85%29.aspx][MSDN WMI Reference]] site.
+
+#+BEGIN_SRC tcl
+   % twapi::comobj_object "winmgmts://./root/cimv2"
+   % $wmi -with {
+       {ExecQuery "select * from Win32_NetworkAdapter"}
+     } -iterate net {
+       puts "[$net DeviceID]:[$net Description]"
+       $net destroy
+     }
+   1:Broadcom 440x 10/100 Integrated Controller
+   3:Intel(R) PRO/Wireless 2915ABG Network Connection
+   3:1394 Net Adapter
+   ...
+#+END_SRC
+
 ** How can I remotely administer a Windows system?
 ** How can I check if an application or service pack is installed?
 
+** How can I read and write the event log?
 * Interoperability with .Net
-** How can I call .NET components from Tcl?
 ** Is there a .NET version of Tcl?
+
+** How can I call .NET components from Tcl?
 
 * Networking and Communications
 ** How can I communicate over the network?
@@ -389,6 +465,7 @@ and you should use COM interfaces instead wherever possible.
 ** How can I communicate over serial ports?
 ** How can I retrieve a Web page?
 ** How can I download a file?
+** iocpsock extension
 * Building Tcl for Windows
 ** General instructions and tools
 Do not use spaces in paths. Use subst command if necessary
@@ -398,7 +475,13 @@ Do not use spaces in paths. Use subst command if necessary
 ** How do I build Tcl using MinGW?
 ** How to I create a single executable Tcl distribution (tclkit)?
 
-* Tcl extensions
+* Tcl packages and extensions
+** Tcllib
+   Tcllib is a collection of cross-platform Tcl
+   packages that cover a large number of areas from text processing,
+   mathematical algorithms, data structures, parsing, data structures, 
+   HTML and XML, networking, automata and more. It is available from
+   [[http://tcllib.sourceforge.net]].
 ** Tcl for Windows API (TWAPI)
    :PROPERTIES:
    :CUSTOM_ID: twapi
@@ -406,9 +489,9 @@ Do not use spaces in paths. Use subst command if necessary
    The TWAPI extension includes modules that cover a broad cross-section
    of the Windows API. It is available at http://twapi.sourceforge.net.
 ** Snack Sound Toolkit
-   The [[http://www.speech.kth.se/snack/][Snack]] extension is a complete and powerful cross-platform package for
+   The Snack extension is a complete and powerful cross-platform package for
    audio generation, playback, recording and analysis. It is available
-   at http://www.speech.kth.se/snack/.
+   at http://www.speech.kth.se/snack/. 
 ** TCOM
    :PROPERTIES:
    :CUSTOM_ID: tcom
@@ -418,10 +501,22 @@ Do not use spaces in paths. Use subst command if necessary
    Although stable, it is not under active development and there is no
    64-bit version available.
 ** Optcl
+   :PROPERTIES:
+   :CUSTOM_ID: optcl
+   :END:
    The Optcl extension supports COM client and server access and also
    support for hosting ActiveX controls. It is available at
    http://www.patthoyts.tk/programming/optcl3010.zip. Like [[#tcom][TCOM]],
    it is not under active development and no 64-bit version is available.
+** TcomOffice
+   :PROPERTIES:
+   :CUSTOM_ID: tcomoffice
+   :END:
+   The TcomOffice package provides high level interfaces to
+   Microsoft Office programs using Tcl's COM extensions. It is available
+   at [[http://www.posoft.de/html/extTcomExcel.html]].
+** iocpsock
+   The iocpsock extension 
 
 ** Writing a Tcl extension
 
