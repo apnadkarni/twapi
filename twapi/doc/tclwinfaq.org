@@ -1,4 +1,26 @@
-#+STYLE: <style type='text/css'>html { font-family: sans-serif; width:750px;} </style>
+#+STYLE: <style type='text/css'>html { font-family: sans-serif; width:750px; margin-left: 10px;} </style>
+#+STYLE: <style type='text/css'>div#text-table-of-contents ul {padding-left: 1em; list-style-type: none; line-height:1.3em}</style>
+#+STYLE: <style type='text/css'>div#text-table-of-contents > ul {padding-left: 0em;}</style>
+#+STYLE: <style type='text/css'>div#text-table-of-contents > ul > li {padding-top: 0.5em; line-height: 1.5em;}</style>
+#+TITLE:     Tcl on Windows FAQ (Draft)
+#+AUTHOR:    Tcl Community
+#+DATE:      2012-04-14 Sat
+#+DESCRIPTION: Frequently Asked Questions about Tcl on Windows
+#+KEYWORDS: 
+#+LANGUAGE:  en
+#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:{} -:t f:t *:t <:t author:nil
+#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
+
+#+LINK: twapiman http://twapi.magicsplat.com/
+#+LINK: wiki  http://wiki.tcl.tk/
+#+LINK: tclman http://www.tcl.tk/man/tcl8.5/TclCmd/
+
+
 * About Tcl
 ** What is Tcl and why should I learn it?
    Tcl is a high-level dynamic language that runs on a wide variety of platforms,
@@ -18,7 +40,7 @@
    it was originally built as a complement to Tcl and has the tightest
    binding to that language. Hence, the two are most commonly refered
    together as Tcl/Tk.
-   This FAQ focuses only on Tcl and does NOT target Tk-related questions.
+   This FAQ focuses only on Tcl and does NOT address Tk-related questions.
 
 ** What Windows platforms does Tcl support ?
    The current official release of Tcl, version 8.5, supports newer Windows
@@ -114,8 +136,7 @@
      These are single file executables.
 
 ** What are starpacks, starkits, tclkits?
-
-** Does Tcl have a standard library?
+   TBW
 
 * General Usage
 ** What are =tclsh= and =wish=?
@@ -132,7 +153,7 @@
    To run the Tcl interpreter, so that you can interactively invoke Tcl
    commands, simply type in the name of the appropriate executable.
    This will display a Tcl shell prompt where you can type in commands.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
   c:\> tclsh
   % puts "Hello world"
   Hello world
@@ -144,12 +165,12 @@
    To run a console script, invoke the =tclsh.exe= program, passing
    it the path to the script file. Any additional arguments on the command
    line are passed as a list to the script in the =argv= global variable.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
   # File printargs.tcl
   foreach arg $::argv {puts $arg} 
 #+END_SRC
   We can invoke this script from the command line:
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
   c:\> tclsh printargs.tcl first "second arg"
   first
   second arg
@@ -185,7 +206,7 @@
    For example, assume printargs.bat is somewhere in your PATH and
    contains the following:
 
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
   ::if no {
   @tclsh "%~f0" %*
   @goto :eof 
@@ -199,7 +220,7 @@
 
   Invoking the file:
 
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
   C:\>printargs first "second arg"
   first
   second arg
@@ -230,7 +251,7 @@ and differences arising from localization.
    the Windows registry. You will need to load the =registry= package
    first:
 
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
    % package require registry
    % registry get HKEY_CURRENT_USER\\Environment PATH
    c:\bin;c:\tcl\tcl86\bin;c:\msys\bin
@@ -260,14 +281,15 @@ and differences arising from localization.
    :PROPERTIES:
    :CUSTOM_ID: exec
    :END:
-   Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/exec.htm][=exec=]] command for starting new processes. The command
+   Tcl provides the [[tclman:exec.htm][=exec=]] command for starting new processes. The command
    supports pipes with multiple subprocesses, I/O redirection and background
-   processes. The command [[www.tcl.tk/man/tcl8.5/TclCmd/library.htm][=auto_execok=]] is useful in conjunction with
-   =exec=. It returns the full command line required for invocation filling
+   processes. The command
+   [[tclman:library.htm][=auto_execok=]] is useful in conjunction with
+   [[tclman:exec.htm][=exec=]]. It returns the full command line required for invocation filling
    in the path, extension if missing as well as checking for =cmd.exe=
    built-in commands.
 
-#+BEGIN_SRC dos
+#+BEGIN_SRC dos -n
    % auto_execok notepad
    C:/WINDOWS/system32/notepad.EXE
    % auto_execok dir
@@ -276,13 +298,13 @@ and differences arising from localization.
 
    For additional control over the child process, such as its display
    properties, security attributes, priority etc., use the
-   =create_process= command from the [[#twapi][TWAPI]] extension.
+   [[twapiman:process.html#create_process][=create_process=]] command from the [[#twapi][TWAPI]] extension.
 
 ** How can I read from and write to a child process?
    Use the Tcl =open= command to open a pipe by prefixing the child
    process command line with a =|= character. Then read and write
    using the standard Tcl I/O commands =puts=. =gets=, =read= etc.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
    % set fd [open "| cmd.exe /c dir"]
    file94e0d8
    % while {![eof $fd]} {puts [gets $fd]}
@@ -298,21 +320,25 @@ and differences arising from localization.
    Alternatively, see the [[#shellexecute][next entry]].
 
 ** How can I invoke an action, like print, on a document?
+   :PROPERTIES:
+   :CUSTOM_ID: shellexecute
+   :END:
    The Windows Explorer Shell associates certain actions that can
    be carried out on a document based on its file type. These actions,
    such as =Open=, =Edit=, =Print= can be invoked from the right-click
    menu in Explorer. To invoke the action using Tcl, use the
-   =shell_execute= command from the [[#twapi][TWAPI]] extension.
+   [[twapiman:shell.html#shell_execute][=shell_execute=]]
+   command from the [[#twapi][TWAPI]] extension.
 
    The following will use the default action =Open= to start
    editing the file with Microsoft Word.
-: twapi::shell_execute -path sample.doc
+   : twapi::shell_execute -path sample.doc
 
    To print the file:
-: twapi::shell_execute -path sample.doc -verb print
+   : twapi::shell_execute -path sample.doc -verb print
 
    To componse an email message:
-: twapi::shell_execute -path mailto:someone@somewhere.com
+   : twapi::shell_execute -path mailto:someone@somewhere.com
 
 ** How can I start a privileged process under UAC?
    Windows Vista and later versions implement User Account Control (UAC)
@@ -328,7 +354,7 @@ and differences arising from localization.
    :END:
    You can invoke the Windows command line program =taskkill.exe= 
    using Tcl's [[#exec][=exec=]] command to terminate a process by its PID or name.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
    exec [auto_execok taskkill] /PID 1234
    exec [auto_execok taskkill] /IM notepad.exe
 #+END_SRC
@@ -345,22 +371,95 @@ and differences arising from localization.
    so the standard Tcl I/O commands can be used to open and access
    files on remote shares.
 ** How can I monitor changes to the file system?
-** How can I get notified when the media changes in my CD drive?
-** How can I get notified when a USB pen drive is inserted?
+   You can either use the Tcl [[tclman:glob.htm][glob]] command to read a directory and poll
+   for changes or use the [[#twapi][TWAPI]] extension as shown in the session below.
+   Both methods have their advantages and disadvantages. Polling can be
+   expensive as the entire directory tree has to be read and compared.
+   The [[#twapi][TWAPI]] method uses Windows notification as and when changes
+   occur and has filtering options. On the other hand, notifications
+   are not guaranteed to be delivered under load. Reliability is
+   particularly an issue with remote file systems. You may wish to
+   use a combination of the two methods depending on the application.
+
+   The sample below illustrates use of [[#twapi][TWAPI]]'s
+   [[twapiman:disk.html#begin_filesystem_monitor][=begin_filesystem_monitor=]] command:
+#+BEGIN_SRC tcl -n
+   % proc pargs args {puts [join $args ,]}
+   % set notifier [twapi::begin_filesystem_monitor C:/windows pargs -subtree true -write true -patterns {*.exe *.dll}]
+   % puts stderr "Type Ctrl-C to exit"
+   % vwait forever
+#+END_SRC
+   This command will print a line whenever an executable (=.exe= or =.dll=)
+   is written to anywhere under the Windows directory. The
+   [[tclman:vwait][=vwait=]] command is required in this small example as notifications
+   require the Tcl event loop to be running.
+** How can I get device notifications such as CD or pen drive insertion?
+   Use the [[#twapi][TWAPI]] extension as shown in the session below:
+#+BEGIN_SRC tcl -n
+   % proc pargs args {puts "Device event: [join $args ,]"}
+   % set notifier [twapi::start_device_notifier pargs -deviceinterface volume]
+   devnotifier#2
+   Device event: devnotifier#2,devnodes_changed
+   Device event: devnotifier#2,devnodes_changed
+   Device event: devnotifier#2,devicearrival,volume,E:,
+   Device event: devnotifier#2,devnodes_changed
+   Device event: devnotifier#2,deviceremovecomplete,volume,E:,
+   Device event: devnotifier#2,devnodes_changed
+   Device event: devnotifier#2,deviceremovecomplete,volume,D:,mediachange
+   Device event: devnotifier#2,devicearrival,volume,D:,mediachange
+   % ::twapi::stop_device_notifier $notifier
+#+END_SRC
+The =twapi::start_device_notifier= command on Line 2 is
+used to receive notifications
+of new volumes including USB pen drives, CD insertion and network shares.
+It invokes the supplied callback whenever a device volume change event
+occurs. The callback can filter for the events of interest based on
+the parameter supplied to it. For example, the above console session
+shows the insertion and removal of a USB pen drive (Lines 6 and 8)
+followed by the removal and insertion of a new CD (Lines 10 and 11).
+The =mediachange= attribute
+indicates that the event is only a change of CD media as opposed
+to a new CD-ROM device.
+
+IMPORTANT: Note receiving notifications requires the Tcl event loop to be running.
+
 ** How can I read and write file resources?
 * Windows Shell and Desktop
 ** How can I create desktop shortcuts?
    Use the =write_shortcut= command of the [[#twapi][TWAPI]] extension to create shortcuts.
    The code below will create a shortcut on the desktop to =notepad.exe=.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
    % set path [file join [::twapi::get_shell_folder desktopdirectory]
    % twapi::write_shortcut $path -path c:/windows/system32/notepad.exe
 #+END_SRC
 
    For URL shortcuts, use the =write_url_shortcut= command from [[#twapi][TWAPI]].
 ** How can I register a hotkey to invoke a script?
+   Windows hotkeys are a means to invoke actions in an application
+   irrespective of which application has the keyboard focus. Run the
+   example below in a DOS window. =Ctrl-Alt-F11= will start a copy
+   of =notepad= no matter which application has the foreground.
+   =Ctrl-Alt-F12= will stop the script.
 
-** How can I install an icon in the system tray?
+#+BEGIN_SRC tcl -n
+   set notepad_hk "Ctrl-Alt-F11"
+   set exit_hk    "Ctrl-Alt-F12"
+   puts "$notepad_hk will bring up a new copy of notepad"
+   puts "$exit_hk will unregister the hotkey and exit"
+
+   proc remove_hotkeys_and_exit {} {
+     twapi::unregister_hotkey $::notepad_hk_id
+     twapi::unregister_hotkey $::exit_hk_id
+     exit
+   }
+
+   set notepad_hk_id [twapi::register_hotkey Ctrl-Alt-F11 "exec notepad.exe &"]
+   set exit_hk_id    [twapi::register_hotkey Ctrl-Alt-F12 "remove_hotkeys_and_exit"]
+
+   # If running in tclsh, need a vwait to get eventloop running.
+   vwait forever
+#+END_SRC
+
 ** How can I play audio files?
 The [[#snack][Snack]] extension is a complete and powerful cross-platform package for
 audio generation, playback, recording and analysis.
@@ -424,7 +523,7 @@ and you should use COM interfaces instead wherever possible.
    the PROGID =InternetExplorer.Application= and calling methods
    on it. You can find [[http://msdn.microsoft.com/en-us/library/aa752084%28v%3Dvs.85%29.aspx][documentation]] on MSDN. Here is an example
    using [[#twapi][TWAPI]].
-#+BEGIN_SRC
+#+BEGIN_SRC tcl -n
    % set ie [twapi::comobj InternetExplorer.Application]
    % $ie Visible true
    % $ie Navigate http://www.tcl.tk
@@ -465,7 +564,7 @@ and you should use COM interfaces instead wherever possible.
 ** How can I manage user accounts?
 The [[#twapi][TWAPI extension]] provides several commands related to user and group
 account management.
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
 : % twapi::new_user brad -password jennifer
 : % twapi::add_user_to_global_group angelina_fans brad
 : % twapi::set_user_password brad angelina 
@@ -486,7 +585,7 @@ TBD
    scriptable interface via COM which is documented on the
    [[http://msdn.microsoft.com/en-us/library/windows/desktop/aa393258%28v=vs.85%29.aspx][MSDN WMI Reference]] site.
 
-#+BEGIN_SRC tcl
+#+BEGIN_SRC tcl -n
    % twapi::comobj_object "winmgmts://./root/cimv2"
    % $wmi -with {
        {ExecQuery "select * from Win32_NetworkAdapter"}
@@ -499,10 +598,23 @@ TBD
    3:1394 Net Adapter
    ...
 #+END_SRC
-
+   Additional examples are on the [[wiki:16660][TWAPI and WMI]] wiki page.
 ** How can I remotely administer a Windows system?
-** How can I check if an application or service pack is installed?
-
+** How can I check if an application or hotfix is installed?
+   The Windows Installer database can be accessed using either WMI
+   or the Windows Installer COM object. Either method requires
+   one of the Tcl COM extensions. The example below checks for
+   a specific hotfix.
+#+BEGIN_SRC tcl -n
+   % set wmi [twapi::comobj_object "winmgmts://./root/cimv2"]
+   ::oo::Obj1233
+   % $wmi -with {
+       {ExecQuery "select * from Win32_QuickFixEngineering where HotFixID='KB2485663'"}
+     } -iterate app {
+       puts "[$app HotFixID]: [$app Description]"
+     }
+   KB2485663: Security Update for Windows XP (KB2485663)
+#+END_SRC
 ** How can I read and write the event log?
    Use the =Windows event log= module from the [[#twapi][TWAPI]] extension.
    Here is an example to dump the Application event log to the console:
@@ -537,30 +649,77 @@ TBD
    from Tcl.
 * Networking and Communications
 ** How can I communicate over the network?
-** How can I communicate over named pipes?
+   The Tcl =socket= command creates a TCP/IP socket that can be used
+   with the standard Tcl I/O commands such as =read= and =puts=.
+** How can I communicate over named pipes and why would I want to?
+   Use [[#twapi][TWAPI]]'s =namedpipe_server= or =namedpipe_client= commands. These
+   create a Tcl channel that can be used with the standard Tcl I/O
+   commands. Named pipes are not advised over wide area network connections
+   for performance reasons. In local environments, their primary
+   benefit is that they provide an easy means for access control
+   and authentication.
 ** How can I communicate over serial ports?
-** How can I retrieve a Web page?
-** How can I download a file?
-** iocpsock extension
+   Tcl's =open= command can be used to open a serial port. For example,
+   : set fd [open "COM1:" r+]
+   For ports with number greater than 9, the UNC syntax must be used
+   instead, for example =\\.\COM10=.
+   : set fd [open "\\\\.\\COM10" r+]
+   Note the =\= is doubled in the command as it is the escape character
+   in Tcl syntax.
+
+   Once open, the standard Tcl I/O commands can be used to read and write
+   to the port.
+
+** How can I download a file or a Web page?
+   Tcl comes with a standard package =http= 
+#+BEGIN_SRC tcl -n
+   % package require http
+   2.8.3
+   % set tok [http::geturl http://www.google.com]
+   ::http::1
+   % puts "Status: [http::status $tok]"
+   Status: ok
+   % if {[http::status $tok] eq "ok"} { puts [http::data $tok] }
+   <HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+   ...more lines...
+   </HTML>
+   % http::cleanup $tok
+#+END_SRC
+
+   Packages for other protocols, like FTP, are available in [[#tcllib][tcllib]].
+
+   The [[#tclcurl][TclCurl]] extension provides an interface to the =libcurl= library
+   for many more protocols and options.
+** How can I get better networking performance?
+   Tcl's built in =socket= cross-platform implementation is
+   sufficient for the majority
+   of applications. In some cases where maximum performance and capacity
+   is desired, the
+   [[#iocpsock][iocpsock]] extension provides an interface based on Windows I/O completion
+   ports. Except for the socket creation command, the extension is fully
+   compatible with Tcl's I/O commands so it is even possible to choose
+   between it and the Tcl =socket= command at run time.
 * Building Tcl for Windows
-** General instructions and tools
-Do not use spaces in paths. Use subst command if necessary
 ** Where can I get the Tcl source code?
-The source code for the public releases of Tcl can be obtained
-from the SourceForge Tcl download area at
-[[http://sourceforge.net/projects/tcl/files/Tcl/]]. Extract the
-zip file to wherever you want to do the build. Depending on the
-tool chain you will use to build Tcl, it is advisable to not
-have spaces in the path.
+   The source code for the public releases of Tcl can be obtained
+   from the SourceForge Tcl download area at
+   [[http://sourceforge.net/projects/tcl/files/Tcl/]]. Extract the
+   zip file to wherever you want to do the build. Depending on the
+   tool chain you will use to build Tcl, it is advisable to not
+   have spaces in the path.
 
-To get the current development snapshot of Tcl, you can check out sources
-from the Tcl source repository at http://core.tcl.tk with a mirror
-at http://mirror1.tcl.tk. It is maintained using a distributed revision control
-system called =fossil=, binaries for which can be downloaded from
-http://www.fossil-scm.org/download.html.
-Detailed instructions for working with the Tcl repository
-are at [[http://wiki.tcl.tk/28126]].
+   To get the current development snapshot of Tcl, you can check out sources
+   from the Tcl source repository at http://core.tcl.tk with a mirror
+   at http://mirror1.tcl.tk. It is maintained using a distributed revision control
+   system called =fossil=, binaries for which can be downloaded from
+   http://www.fossil-scm.org/download.html.
+   Detailed instructions for working with the Tcl repository
+   are at [[wiki:28126]].
 
+   *Note*: Do not place the sources in a path that has spaces in it.
+   Some of the compiler tools have problems with such paths.
+   If necessary, you can use the DOS =subst= command to assign a
+   drive letter to the path in order to hide the spaces.
 ** Which compiler should I use to build Tcl ?
 
    There are several tool chain options for building Tcl for Windows.
@@ -609,7 +768,7 @@ are at [[http://wiki.tcl.tk/28126]].
    Visual C++ ones. The following assumes the Tcl and Tk distributions
    are side-by-side in directories called =tcl= and =tk=.
 
-#+BEGIN_SRC dos
+#+BEGIN_SRC dos -n
    "%ProgramFiles%\Microsoft Visual Studio\VC98\Bin\vcvars32.bat"
    "c:\src\SDK-Feb-2003\setenv" /XP32 /RETAIL
    cd <TCL SOURCE ROOT DIRECTORY>\win
@@ -640,7 +799,7 @@ are at [[http://wiki.tcl.tk/28126]].
 : "%ProgramFiles%\Microsoft SDKs\Windows\v7.0\bin\setenv" /x64 /xp /Release
 
    Then to build Tcl and Tk,
-#+BEGIN_SRC dos
+#+BEGIN_SRC dos -n
    cd <TCL SOURCE ROOT DIRECTORY>\win
    nmake -f makefile.vc INSTALLDIR=c:\tcl release
    nmake -f makefile.vc INSTALLDIR=c:\tcl install
@@ -655,7 +814,10 @@ are at [[http://wiki.tcl.tk/28126]].
    a 32-bit system and vice versa.
 
 ** How do I build Tcl using MinGW?
-** How to I create a single executable Tcl distribution (tclkit)?
+   TBW
+** How do I create a single executable Tcl distribution (tclkit)?
+   TBW
+* Writing a Tcl extension
 
 * Tcl packages and extensions
 ** Tcllib
@@ -719,19 +881,8 @@ are at [[http://wiki.tcl.tk/28126]].
    Eagle is an implementation of Tcl for .Net. Garuda is a Tcl extension
    that supports calling .Net components from Tcl.
    Both are available from http://eagle.to.
-** Writing a Tcl extension
-
-#+TITLE:     Tcl on Windows FAQ
-#+AUTHOR:    
-#+EMAIL:     
-#+DATE:      2012-04-14 Sat
-#+DESCRIPTION: Frequently Asked Questions about Tcl on Windows
-#+KEYWORDS: 
-#+LANGUAGE:  en
-#+OPTIONS:   H:3 num:t toc:t \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
-#+OPTIONS:   TeX:t LaTeX:nil skip:nil d:nil todo:t pri:nil tags:not-in-toc
-#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
-#+EXPORT_SELECT_TAGS: export
-#+EXPORT_EXCLUDE_TAGS: noexport
-#+LINK_UP:   
-#+LINK_HOME: 
+** TclCurl
+The TclCurl extension provides a Tcl-callable interface to the =libcurl=
+library for retrieving URL's using many different protocols. It is
+available from http://personal.telefonica.terra.es/web/getleft/tclcurl/index.html.
+-----
