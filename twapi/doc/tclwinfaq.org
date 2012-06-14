@@ -20,6 +20,14 @@
 #+LINK: wiki  http://wiki.tcl.tk/
 #+LINK: tclman http://www.tcl.tk/man/tcl8.5/TclCmd/
 
+* About this FAQ
+   This FAQ is targeted towards using Tcl on Windows. Specifically,
+   it addresses recent releases of Tcl (8.5, 8.6) on 
+   Windows 2000 or later. Some examples will not work with older
+   versions of Tcl.
+
+   The FAQ does not address general Tcl platform-independent features.
+   Nor does it address questions related to the graphical toolkit [[#Tk][Tk]].
 
 * About Tcl
 ** What is Tcl and why should I learn it?
@@ -112,13 +120,6 @@
    #tcl channel on irc.freenode.net. Commercial support is available from
    [[http://www.activestate.com/activetcl][ActiveState]].
 
-** About this FAQ
-   This FAQ is targeted towards using Tcl on Windows. Specifically,
-   it addresses recent releases of Tcl (8.4, 8.5, 8.6) on 
-   Windows 2000 or later.
-   It does not address general Tcl platform-independent features. Nor does
-   it address questions related to Tk.
-
 * Installing Tcl
 ** What Tcl distributions are available for Windows?
    There are several freely downloadable binary distributions of Tcl available:
@@ -129,14 +130,21 @@
      the Tcl core.
    - The [[http://tcl.sourceforge.net][Tcl SourceForge download area]] contains Tcl distributions for
      multiple platforms but does not include extensions and libraries.
-   - Roy Keene's site [[http://kitcreator.rkeene.org][KitCreator]] site provides customisable
+   - The [[http://kitcreator.rkeene.org][KitCreator]] site provides customisable
      Tcl distributions for download which can optionally include
      other libraries and extensions.
    - Builds of daily snapshots are available from [[http://www.patthoyts.tk/tclkit/win32-ix86/daily/][Pat Thoyt's site]].
      These are single file executables.
 
-** What are starpacks, starkits, tclkits?
-   TBW
+** Are there any single-executable distributions of Tcl?
+   There are several distributions of Tcl that consist of a single
+   executable file. These distributions also support binding your
+   applications scripts within the executable so that your entire
+   application itself can be distributed as a single executable.
+   The most commonly used ones are [[#tclkit][=tclkit=]] and [[#freewrap][=freewrap=]]. You
+   can also create your own versions from the [[http://kitcreator.rkeene.org][KitCreator]] site.
+
+   Note these distributions are cross-platform and not limited to Windows.
 
 * General Usage
 ** What are =tclsh= and =wish=?
@@ -203,7 +211,7 @@
 ** How can I embed a Tcl script in a batch file?
    As an alternative to making =.tcl= files directly executable, you may
    prefer to make scripts executable by embedding them in batch files.
-   For example, assume printargs.bat is somewhere in your PATH and
+   For example, assume =printargs.bat= is somewhere in your =PATH= and
    contains the following:
 
 #+BEGIN_SRC tcl -n
@@ -226,8 +234,8 @@
   second arg
 #+END_SRC
 
-   See more sophisticated versions and alternatives in the 
-   [[http://wiki.tcl.tk/2455][Tcl wiki]].
+   See an explanation of the above and more sophisticated versions
+   in the [[http://wiki.tcl.tk/2455][Tcl wiki]].
 
 ** How can I have Tcl always execute a certain set of commands on starting?
    On startup, =tclsh.exe= reads and executes commands in the file
@@ -243,7 +251,7 @@ script with limited use or the command is rarely invoked, using an
 external program might be sufficient. In other cases, use of an extension
 is likely to be beneficial. It is generally much faster and also protects
 against the external program not being available or installed
-on the target system (this is true event for Windows components)
+on the target system (this is true even for Windows components)
 and differences arising from localization.
 * General Windows programming
 ** How can I access the Windows registry?
@@ -283,18 +291,26 @@ and differences arising from localization.
    :END:
    Tcl provides the [[tclman:exec.htm][=exec=]] command for starting new processes. The command
    supports pipes with multiple subprocesses, I/O redirection and background
-   processes. The command
-   [[tclman:library.htm][=auto_execok=]] is useful in conjunction with
-   [[tclman:exec.htm][=exec=]]. It returns the full command line required for invocation filling
+   processes. The following commands all start a copy of notepad:
+#+BEGIN_SRC dos -n
+   % exec notepad.exe &
+   % exec c:/windows/system32/notepad.exe &
+   % exec {*}[auto_execok notepad] &
+#+END_SRC
+   Line 1 assumes =notepad.exe= is in a directory in your =PATH= environment
+   variable. Line 2 explicitly specifies the path to the program. Line 3
+   makes use of the  [[tclman:library.htm][=auto_execok=]]  command which returns 
+   the full command line required for invocation filling
    in the path, extension if missing as well as checking for =cmd.exe=
    built-in commands.
-
 #+BEGIN_SRC dos -n
    % auto_execok notepad
    C:/WINDOWS/system32/notepad.EXE
    % auto_execok dir
    C:/WINDOWS/system32/cmd.exe /c dir
 #+END_SRC
+   Line 1 returns the path to =notepad.exe=. Line 3 returns the
+   command line to invoke an internal =cmd.exe= command.
 
    For additional control over the child process, such as its display
    properties, security attributes, priority etc., use the
@@ -310,12 +326,12 @@ and differences arising from localization.
    % while {![eof $fd]} {puts [gets $fd]}
    % close $fd
 #+END_SRC
-** How can I start the application associated with a document or URL?
+** How can I launch a document or URL?
    To start up an application associated with a file or URL,
    invoke the Windows =cmd.exe= internal
    =start= command. For example,
-: % exec [auto_execok start] myfile.doc
-: % exec [auto_execok start] http://www.google.com
+   : % exec {*}[auto_execok start] "" myfile.doc &
+   : % exec {*}[auto_execok start] "" http://www.google.com &
 
    Alternatively, see the [[#shellexecute][next entry]].
 
@@ -337,7 +353,7 @@ and differences arising from localization.
    To print the file:
    : twapi::shell_execute -path sample.doc -verb print
 
-   To componse an email message:
+   To compose an email message:
    : twapi::shell_execute -path mailto:someone@somewhere.com
 
 ** How can I start a privileged process under UAC?
@@ -352,16 +368,30 @@ and differences arising from localization.
    :PROPERTIES:
    :CUSTOM_ID: killprocess
    :END:
-   You can invoke the Windows command line program =taskkill.exe= 
-   using Tcl's [[#exec][=exec=]] command to terminate a process by its PID or name.
-#+BEGIN_SRC tcl -n
-   exec [auto_execok taskkill] /PID 1234
-   exec [auto_execok taskkill] /IM notepad.exe
-#+END_SRC
-   The  [[#twapi][TWAPI]] extension provides another alternative to do the same.
+   The  [[#twapi][TWAPI]] extension provides the =end_process= command for this purpose.
 : twapi::end_process 1234
 : foreach pid [twapi::get_process_ids -name notepad.exe] {twapi::end_process $pid}
+
+   As an alternative, you can invoke the Windows command line program =taskkill.exe= 
+   using Tcl's [[#exec][=exec=]] command to terminate a process by its PID or name.
+#+BEGIN_SRC tcl -n
+   exec {*}[auto_execok taskkill] /PID 1234
+   exec {*}[auto_execok taskkill] /IM notepad.exe
+#+END_SRC
+
 * Files and Disks
+** What file path separator should I in Tcl?
+   Like the Windows kernel (as opposed to the Windows DOS command prompt),
+   Tcl will accept either =/= or =\= as a directory separator in a file path.
+   However, like in other languages such as C, =\= is also used in Tcl syntax
+   to indicate an escape sequence. Hence when used in a literal it needs
+   to be doubled:
+   : % file exists c:\\windows\\system32
+   In some cases, such as executing an external program that expects
+   =\= as the directory separator, you can use the
+   [[tclman:file][=file nativename=]] command to convert a path:
+   : % file nativename c:/windows/system32
+   : c:\windows\system32
 ** How can I get a list of drives in the system?
    Use Tcl's =file volumes= command.
 : % file volumes
@@ -394,7 +424,10 @@ and differences arising from localization.
    [[tclman:vwait][=vwait=]] command is required in this small example as notifications
    require the Tcl event loop to be running.
 ** How can I get device notifications such as CD or pen drive insertion?
-   Use the [[#twapi][TWAPI]] extension as shown in the session below:
+   Use the [[#twapi][TWAPI]] extension as shown in the session below.
+   (IMPORTANT: The example assumes the Tcl event loop is running
+   which is required for receiving notifications.)
+
 #+BEGIN_SRC tcl -n
    % proc pargs args {puts "Device event: [join $args ,]"}
    % set notifier [twapi::start_device_notifier pargs -deviceinterface volume]
@@ -420,10 +453,6 @@ followed by the removal and insertion of a new CD (Lines 10 and 11).
 The =mediachange= attribute
 indicates that the event is only a change of CD media as opposed
 to a new CD-ROM device.
-
-IMPORTANT: Note receiving notifications requires the Tcl event loop to be running.
-
-** How can I read and write file resources?
 * Windows Shell and Desktop
 ** How can I create desktop shortcuts?
    Use the =write_shortcut= command of the [[#twapi][TWAPI]] extension to create shortcuts.
@@ -499,7 +528,7 @@ See the [[http://www.speech.kth.se/snack/tutorial.html][Snack tutorial]] for exa
 #+END_SRC
    
    Since HTML format is not a standard predefined clipboard format,
-   Line 2 the example first gets the format identifier associated with
+   Line 2 of the example first gets the format identifier associated with
    it. Note also the difference in results with the =read_clipboard=
    command on Line 4 and the =read_clipboard_text= command on Line 13.
 * Interoperating with other applications
@@ -560,7 +589,7 @@ and you should use COM interfaces instead wherever possible.
    puts [[[$worksheet UsedRange] Rows] Count]
 #+END_SRC
 ** How can SQL Server be accessed from Tcl?
-* Using Tcl for Windows System Administration
+* System Administration
 ** How can I manage user accounts?
 The [[#twapi][TWAPI extension]] provides several commands related to user and group
 account management.
@@ -640,13 +669,14 @@ TBD
 
 * Interoperability with .Net
 ** Is there a .NET version of Tcl?
-   [[#eagle][Eagle]] (Extensible Adaptable Generalized Logic Engine) is an 
+   [[#eagle][Eagle]] is an 
    implementation of the Tcl scripting language for the .Net
    Common Language Runtime (CLR). It is fully interoperable with 
    other .Net languages and components.
 ** How can I call .NET components from Tcl?
    The [[#eagle][Garuda]] extension provides support for calling .Net components
    from Tcl.
+
 * Networking and Communications
 ** How can I communicate over the network?
    The Tcl =socket= command creates a TCP/IP socket that can be used
@@ -781,7 +811,7 @@ TBD
 ** How do I build Tcl using the free Windows SDK compiler?
 
    The procedure for building using the Windows SDK compilers is similar
-   to that for Visual C++ 6.0. See that [[#vc6][that entry]] for an overview.
+   to that for Visual C++ 6.0. See that [[#vc6][entry]] for an overview.
    The procedure below is specified
    for Windows SDK 7.0 but will be similar for other SDK versions.
 
@@ -814,10 +844,10 @@ TBD
    a 32-bit system and vice versa.
 
 ** How do I build Tcl using MinGW?
-   TBW
+   To be written. Contributions welcome.
+
 ** How do I create a single executable Tcl distribution (tclkit)?
-   TBW
-* Writing a Tcl extension
+   To be written. Contributions welcome.
 
 * Tcl packages and extensions
 ** Tcllib
@@ -860,8 +890,9 @@ TBD
    Microsoft Office programs using Tcl's COM extensions. It is available
    at [[http://www.posoft.de/html/extTcomExcel.html]].
 ** iocpsock
-   The iocpsock extension 
-
+   The iocpsock extension provides a higher performance socket
+   interface using I/O completion ports. It is available from
+   http://sourceforge.net/projects/iocpsock.
 ** TkPrint
    :PROPERTIES:
    :CUSTOM_ID: tkprint
@@ -885,4 +916,12 @@ TBD
 The TclCurl extension provides a Tcl-callable interface to the =libcurl=
 library for retrieving URL's using many different protocols. It is
 available from http://personal.telefonica.terra.es/web/getleft/tclcurl/index.html.
+** tclkit
+   Tclkit is a single-file Tcl executable that also supports binding
+   of application scripts within the executable to allow single-file
+   distribution of applications that can be run directly without
+   installing or unpacking. See [[wiki:52]].
+** freewrap
+   Freewrap is another single-executable distribution option. It is
+   available from http://freewrap.sourceforge.net.
 -----
