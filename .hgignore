@@ -12,6 +12,11 @@ syntax: glob
 *.orig
 *.pdb
 *.sav
+*.plg
+*.ncb
+*.opt
+*.tlb
+*.aps
 temp
 build
 dist
@@ -24,6 +29,7 @@ TAGS
 *.vfs
 Thumbs.db
 SyncToy*
+Release*/*
 
 # TEA based intermediate files
 autom4te.cache/*
