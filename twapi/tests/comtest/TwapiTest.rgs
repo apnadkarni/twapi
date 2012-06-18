@@ -1,0 +1,26 @@
+HKCR
+{
+	Twapi.Test.1 = s 'TwapiTest Class'
+	{
+		CLSID = s '{310FEA61-BC62-4944-84BE-D9DB986701DC}'
+	}
+	Twapi.Test = s 'TwapiTest Class'
+	{
+		CLSID = s '{310FEA61-BC62-4944-84BE-D9DB986701DC}'
+		CurVer = s 'Twapi.Test.1'
+	}
+	NoRemove CLSID
+	{
+		ForceRemove {310FEA61-BC62-4944-84BE-D9DB986701DC} = s 'TwapiTest Class'
+		{
+			ProgID = s 'Twapi.Test.1'
+			VersionIndependentProgID = s 'Twapi.Test'
+			ForceRemove 'Programmable'
+			InprocServer32 = s '%MODULE%'
+			{
+				val ThreadingModel = s 'Apartment'
+			}
+			'TypeLib' = s '{CE5D782A-8F01-41EA-873A-7E255263F0BE}'
+		}
+	}
+}

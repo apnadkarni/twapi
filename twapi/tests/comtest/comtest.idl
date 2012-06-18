@@ -1,0 +1,64 @@
+// comtest.idl : IDL source for comtest.dll
+//
+
+// This file will be processed by the MIDL tool to
+// produce the type library (comtest.tlb) and marshalling code.
+
+import "oaidl.idl";
+import "ocidl.idl";
+	[
+		object,
+		uuid(3A10ADB0-DAF8-4D98-9DB5-35F609776CC6),
+		dual,
+		helpstring("ITwapiTest Interface"),
+		pointer_default(unique)
+	]
+	interface ITwapiTest : IDispatch
+	{
+		[propget, id(1), helpstring("property ShortProperty")] HRESULT ShortProperty([out, retval] short *pVal);
+		[propput, id(1), helpstring("property ShortProperty")] HRESULT ShortProperty([in] short newVal);
+		[propget, id(2), helpstring("property LongProperty")] HRESULT LongProperty([out, retval] long *pVal);
+		[propput, id(2), helpstring("property LongProperty")] HRESULT LongProperty([in] long newVal);
+		[propget, id(3), helpstring("property FloatProperty")] HRESULT FloatProperty([out, retval] float *pVal);
+		[propput, id(3), helpstring("property FloatProperty")] HRESULT FloatProperty([in] float newVal);
+		[propget, id(4), helpstring("property DoubleProperty")] HRESULT DoubleProperty([out, retval] double *pVal);
+		[propput, id(4), helpstring("property DoubleProperty")] HRESULT DoubleProperty([in] double newVal);
+		[propget, id(5), helpstring("property CurrencyProperty")] HRESULT CurrencyProperty([out, retval] CURRENCY *pVal);
+		[propput, id(5), helpstring("property CurrencyProperty")] HRESULT CurrencyProperty([in] CURRENCY newVal);
+		[propget, id(7), helpstring("property DateProperty")] HRESULT DateProperty([out, retval] DATE *pVal);
+		[propput, id(7), helpstring("property DateProperty")] HRESULT DateProperty([in] DATE newVal);
+		[propget, id(8), helpstring("property BstrProperty")] HRESULT BstrProperty([out, retval] BSTR *pVal);
+		[propput, id(8), helpstring("property BstrProperty")] HRESULT BstrProperty([in] BSTR newVal);
+		[propget, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([out, retval] BOOL *pVal);
+		[propput, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([in] BOOL newVal);
+		[propget, id(10), helpstring("property IDispatchProperty")] HRESULT IDispatchProperty([out, retval] IDispatch* *pVal);
+		[propput, id(10), helpstring("property IDispatchProperty")] HRESULT IDispatchProperty([in] IDispatch* newVal);
+		[propget, id(11), helpstring("property ScodeProperty")] HRESULT ScodeProperty([out, retval] SCODE *pVal);
+		[propput, id(11), helpstring("property ScodeProperty")] HRESULT ScodeProperty([in] SCODE newVal);
+		[propget, id(12), helpstring("property VariantProperty")] HRESULT VariantProperty([out, retval] VARIANT *pVal);
+		[propput, id(12), helpstring("property VariantProperty")] HRESULT VariantProperty([in] VARIANT newVal);
+		[propget, id(13), helpstring("property IUnknownProperty")] HRESULT IUnknownProperty([out, retval] IUnknown* *pVal);
+		[propput, id(13), helpstring("property IUnknownProperty")] HRESULT IUnknownProperty([in] IUnknown* newVal);
+		[id(14), helpstring("method ThrowException")] HRESULT ThrowException([in] BSTR desc);
+		[id(15), helpstring("method GetIntSA")] HRESULT GetIntSA([out, retval] VARIANT *varP);
+	};
+
+[
+	uuid(CE5D782A-8F01-41EA-873A-7E255263F0BE),
+	version(1.0),
+	helpstring("comtest 1.0 Type Library")
+]
+library COMTESTLib
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+	[
+		uuid(310FEA61-BC62-4944-84BE-D9DB986701DC),
+		helpstring("TwapiTest Class")
+	]
+	coclass TwapiTest
+	{
+		[default] interface ITwapiTest;
+	};
+};
