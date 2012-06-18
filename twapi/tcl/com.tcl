@@ -626,10 +626,8 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
     set vt [lindex $variant 0]
 
     if {$vt & 0x2000} {
-        # VT_ARRAY
-        # TBD - [lindex $variant 1] is dimensions.
-        # Use to format nested list appropriately
-        if {[llength $variant] < 3} {
+        # VT_ARRAY - second element is {dimensions value}
+        if {[llength $variant] < 2} {
             return [list ]
         }
         set vt [expr {$vt & ~ 0x2000}]
@@ -641,7 +639,7 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
             }
             return $result
         } else {
-            return [lindex $variant 2]
+            return [lindex $variant 1 1]
         }
     } else {
         if {$vt == 9} {

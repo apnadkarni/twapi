@@ -1163,13 +1163,11 @@ int TwapiMakeVariantParam(
         /* paramdefaultObj points to actual value (or NULL) at this point */
     }
 
-
-
     /* Note vt is what is allowed in a typedesc, not what is allowed in a
      * VARIANT
      */
     if (vt == VT_SAFEARRAY)
-        goto invalid_type;      /* Not yet supported */
+        goto invalid_type;      /* Not yet supported. Should it even appear in a automation-compatible typedescription ? */
     else if (vt == VT_PTR) {
         /* Next element of type list is referenced type */
         if (typec != 2)
@@ -1217,6 +1215,14 @@ int TwapiMakeVariantParam(
         targetP = varP;
         target_vt = vt;
     }
+
+    /*
+     * At this point,
+     *  targetP points to the VARIANT where the param value will be stored
+     *  target_vt is its associated type
+     *  vt is the type of the "primary" VARIANT
+     *     == target_vt or == (target_vt | VT_BYREF)
+     */
 
     /*
      * Parameters may be in, out, or inout
