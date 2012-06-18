@@ -324,7 +324,6 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
     Tcl_ThreadAlert(ticP->thread); /* Wake up the thread */
 }
 
-
 int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
 {
     Tcl_Obj *var;
@@ -337,9 +336,7 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
         return TCL_OK;          /* Logging not enabled */
 
 
-    if (ObjToInt(interp, var, &limit) != TCL_OK ||
-        limit == 0) {
-        Tcl_ResetResult(interp); /* GetInt might have stuck error message */
+    if (ObjToInt(NULL, var, &limit) != TCL_OK || limit == 0) {
         return TCL_OK;          /* Logging not enabled */
     }
 
