@@ -216,3 +216,32 @@ STDMETHODIMP CTwapiTest::GetIntSA(VARIANT *varP)
 
     return S_OK;
 }
+
+STDMETHODIMP CTwapiTest::GetUI1SA(VARIANT *varP)
+{
+    SAFEARRAYBOUND bounds[1];
+    SAFEARRAY *saP;
+    unsigned int i;
+    unsigned char *p;
+    HRESULT hr;
+
+    bounds[0].cElements = 10;
+    bounds[0].lLbound = 0;
+    saP = SafeArrayCreate(VT_UI1, 1, bounds);
+    if (saP == NULL)
+	return S_FALSE;
+
+    hr = SafeArrayAccessData(saP, (void **) &p);
+    if (FAILED(hr))
+	return hr;
+    for (i =0; i < 10; ++i)
+	*p++ = i;
+    hr = SafeArrayUnaccessData(saP);
+    if (FAILED(hr))
+	return hr;
+
+    varP->vt = VT_ARRAY | VT_UI1;
+    varP->parray = saP;
+
+    return S_OK;
+}

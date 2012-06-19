@@ -1860,218 +1860,6 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
 }
 
 /*
- * Return a Tcl object that is a list
- * {VT_xxx dimensionlist valuelist}.
- * dimensionlist is a flat list of lowbound, upperbound pairs, one
- * for each dimension.
- * If VT_xxx is not recognized, valuelist is missing
- * If there is no vartype information, VT_XXX is also missing
- * Never returns NULL.
- */
-static Tcl_Obj *OBSOLETEObjFromSAFEARRAY(SAFEARRAY *arrP)
-{
-    Tcl_Obj *objv[3];           /* "safearray|vt", dimensions,  value */
-    int      objc;
-    long     i;
-    VARTYPE  vt;
-    HRESULT  hr;
-    long     num_elems;
-    void     *valP;
-#define GETVAL(index_, type_) (((type_ *)valP)[index_])
-
-    /* We require the safearray to have a type associated */
-    objc = 1;
-    if (SafeArrayGetVartype(arrP, &vt) == S_OK) {
-        objv[0] = ObjFromInt(vt|VT_ARRAY);
-    } else {
-        objv[0] = ObjFromInt(VT_ARRAY);
-        goto alldone;
-    }
-
-    hr = SafeArrayAccessData(arrP, &valP);
-    if (FAILED(hr))
-        goto alldone;
-
-    objv[1] = ObjNewList(0, NULL);
-    num_elems = 1;
-    for (i = 0; i < arrP->cDims; ++i) {
-        ObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].lLbound));
-        ObjAppendElement(NULL, objv[1], ObjFromLong(arrP->rgsabound[i].cElements));
-        num_elems *= arrP->rgsabound[i].cElements;
-    }
-
-    /* TBD - it might be more efficient to allocate an array and then
-       use Tcl_NewListObj to create from there instead of calling
-       Tcl_ListObjAppend for each element
-    */
-
-    objv[2] = ObjNewList(0, NULL); /* Value object */
-    objc = 3;
-
-    switch (vt) {
-    case VT_EMPTY:
-    case VT_NULL:
-        break;
-
-    case VT_I2: {
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2], ObjFromInt(GETVAL(i,short)));
-        }
-        break;
-    }
-
-    case VT_INT: /* FALLTHROUGH */
-    case VT_I4:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2], ObjFromLong(GETVAL(i,long)));
-        }
-        break;
-
-    case VT_R4:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     Tcl_NewDoubleObj(GETVAL(i,float)));
-        }
-        break;
-
-    case VT_R8:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     Tcl_NewDoubleObj(GETVAL(i,double)));
-        }
-        break;
-
-    case VT_CY:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2], ObjFromCY(&(((CY *)valP)[i])) );
-        }
-        break;
-
-    case VT_DATE:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(
-                NULL, objv[2],
-                Tcl_NewDoubleObj(GETVAL(i,double)));
-        }
-        break;
-
-    case VT_BSTR:
-        for (i = 0; i < num_elems; ++i) {
-            BSTR bstr = GETVAL(i,BSTR);
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromUnicodeN(bstr, SysStringLen(bstr))
-                );
-        }
-        break;
-
-    case VT_DISPATCH:
-        /* TBD - don't these need to AddRef'ed ? */
-        for (i = 0; i < num_elems; ++i) {
-            IDispatch *idispP = GETVAL(i,IDispatch *);
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromIDispatch(idispP)
-                );
-        }
-        break;
-
-    case VT_ERROR:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     ObjFromInt(GETVAL(i,SCODE)));
-        }
-        break;
-
-    case VT_BOOL:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromBoolean(GETVAL(i,VARIANT_BOOL))
-                );
-        }
-        break;
-
-    case VT_VARIANT:
-        /* TBD - don't these need to AddRef'ed if variant type is DISPATCH or UNKNOWN? */
-        for (i = 0; i < num_elems; ++i) {
-            VARIANT *varP = &((( VARIANT *)valP)[i]);
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromVARIANT(varP, 0));
-        }
-        break;
-
-    case VT_DECIMAL:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromDECIMAL(&((( DECIMAL *)valP)[i]))
-                );
-        }
-        break;
-
-    case VT_UNKNOWN:
-        /* TBD - don't these need to AddRef'ed ? */
-        for (i = 0; i < num_elems; ++i) {
-            IUnknown *idispP = GETVAL(i, IUnknown *);
-            ObjAppendElement(
-                NULL, objv[2],
-                ObjFromIUnknown(idispP));
-        }
-        break;
-
-    case VT_I1:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     ObjFromInt(GETVAL(i,char)));
-        }
-        break;
-
-    case VT_UI1:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     ObjFromInt(GETVAL(i,unsigned char)));
-        }
-        break;
-
-    case VT_UI2:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     ObjFromInt(GETVAL(i,unsigned short)));
-        }
-        break;
-
-    case VT_UINT: /* FALLTHROUGH */
-    case VT_UI4:
-        for (i = 0; i < num_elems; ++i) {
-            unsigned long ulval = GETVAL(i, unsigned long);
-            /* store as wide integer if it does not fit in signed 32 bits */
-            ObjAppendElement(NULL, objv[2], ObjFromDWORD(ulval));
-        }
-        break;
-
-    case VT_I8: /* FALLTHRU */
-    case VT_UI8:
-        for (i = 0; i < num_elems; ++i) {
-            ObjAppendElement(NULL, objv[2],
-                                     ObjFromWideInt(GETVAL(i,__int64)));
-        }
-        break;
-
-        /* Dunno how to handle these */
-    default:
-        break;
-
-    }
-
-    SafeArrayUnaccessData(arrP);
-
- alldone:
-    return ObjNewList(objc, objv);
-}
-
-/*
  * Returns a Tcl_Obj that is a list representing the elements in the
  * dimension dim. indices[] is an array specifying the dimension to
  * retrieve. For example, consider a 4-dimensional safearray. When 
@@ -2093,6 +1881,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     Tcl_Obj *resultObj = NULL;
     VARIANT *variantP;
     long upper, lower;
+    VARTYPE vt;
     
     if (indices_size < saP-> cDims)
         return NULL;            /* Not supported as exceed max dimensions */
@@ -2104,6 +1893,15 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
         SafeArrayGetUBound(saP, dim+1, &upper) != S_OK)
         return NULL;
 
+    if (SafeArrayGetVartype(saP, &vt) != S_OK)
+        return NULL;
+
+    /* Special case - One-dim array of UI1 is treated as binary data */
+    if (vt == VT_UI1 && saP->cDims == 1 && saP->pvData) {
+        TWAPI_ASSERT(dim == 0);
+        return ObjFromByteArray(saP->pvData, saP->rgsabound[0].cElements);
+    }
+
     resultObj = Tcl_NewListObj(0, NULL);
 
     /* Loop through all elements in this dimension. */
@@ -2111,8 +1909,6 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
 
         /* This is an intermediate dimension. Recurse */
         for (i = lower; i <= upper; ++i) {
-            /* Note indices[] is in REVERSE order */
-//            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
             indices[dim] = i;
             objP = ObjFromSAFEARRAYDimension(saP, dim+1, indices, indices_size);
             if (objP == NULL)
@@ -2123,13 +1919,8 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     } else {
 
         /* This is the final dimension. Loop to collect elements */
-        VARTYPE vt;
-        if (SafeArrayGetVartype(saP, &vt) != S_OK)
-            goto error_handler;
         for (i = lower; i <= upper; ++i) {
             void *valP;
-            /* Note indices[] is in REVERSE order */
-//            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
             indices[dim] = i;
             if (SafeArrayPtrOfIndex(saP, indices, &valP) != S_OK)
                 goto error_handler;

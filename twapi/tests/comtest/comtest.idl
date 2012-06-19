@@ -41,6 +41,7 @@ import "ocidl.idl";
 		[propput, id(13), helpstring("property IUnknownProperty")] HRESULT IUnknownProperty([in] IUnknown* newVal);
 		[id(14), helpstring("method ThrowException")] HRESULT ThrowException([in] BSTR desc);
 		[id(15), helpstring("method GetIntSA")] HRESULT GetIntSA([out, retval] VARIANT *varP);
+		[id(16), helpstring("method GetUI1SA")] HRESULT GetUI1SA([out, retval] VARIANT *varP);
 	};
 
 [
