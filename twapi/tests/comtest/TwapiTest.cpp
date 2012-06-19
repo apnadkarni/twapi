@@ -180,29 +180,33 @@ STDMETHODIMP CTwapiTest::ThrowException(BSTR desc)
 
 STDMETHODIMP CTwapiTest::GetIntSA(VARIANT *varP)
 {
-    SAFEARRAYBOUND bounds[2];
+    SAFEARRAYBOUND bounds[3];
     SAFEARRAY *saP;
-    unsigned int j,k,val;
-    long indices[2];
+    unsigned int i,j,k,val;
+    long indices[3];
     HRESULT hr;
 
     bounds[0].cElements = 2;
     bounds[0].lLbound = 0;
     bounds[1].cElements = 3;
     bounds[1].lLbound = 100;
+    bounds[2].cElements = 4;
+    bounds[2].lLbound = 1;
 
     saP = SafeArrayCreate(VT_I4, sizeof(bounds)/sizeof(bounds[0]), bounds);
     if (saP == NULL)
 	return S_FALSE;
-
     for (j = 0; j < bounds[0].cElements; ++j) {
 	indices[0] = bounds[0].lLbound + j;
 	for (k = 0; k < bounds[1].cElements; ++k) {
 	    indices[1] = bounds[1].lLbound + k;
-	    val = 10*j + k;
-	    hr = SafeArrayPutElement(saP, indices, &val);
-	    if (hr != S_OK) {
-	        return hr;
+	    for (i = 0; i < bounds[2].cElements; ++i) {
+		indices[2] = bounds[2].lLbound + i;
+		val = 1000 + 100*i + 10*j + k;
+		hr = SafeArrayPutElement(saP, indices, &val);
+		if (hr != S_OK) {
+		    return hr;
+		}
 	    }
 	}
     }
