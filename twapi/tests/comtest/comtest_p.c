@@ -2,7 +2,7 @@
 
 
 /* File created by MIDL compiler version 5.01.0164 */
-/* at Tue Jun 19 13:24:09 2012
+/* at Tue Jun 19 15:57:29 2012
  */
 /* Compiler settings for C:\src\twapi\twapi\tests\comtest\comtest.idl:
     Oicf (OptLev=i2), W1, Zp8, env=Win32, ms_ext, c_ext
@@ -28,7 +28,7 @@
 #include "comtest.h"
 
 #define TYPE_FORMAT_STRING_SIZE   1045                              
-#define PROC_FORMAT_STRING_SIZE   729                               
+#define PROC_FORMAT_STRING_SIZE   757                               
 
 typedef struct _MIDL_TYPE_FORMAT_STRING
     {
@@ -99,6 +99,40 @@ CLIENT_CALL_RETURN _RetVal;
     
 }
 
+/* [helpstring][id] */ HRESULT STDMETHODCALLTYPE ITwapiTest_GetUI1SA_Proxy( 
+    ITwapiTest __RPC_FAR * This,
+    /* [retval][out] */ VARIANT __RPC_FAR *varP)
+{
+CLIENT_CALL_RETURN _RetVal;
+
+
+#if defined( _ALPHA_ )
+    va_list vlist;
+#endif
+    
+#if defined( _ALPHA_ )
+    va_start(vlist,varP);
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[728],
+                  vlist.a0);
+#elif defined( _PPC_ ) || defined( _MIPS_ )
+
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[728],
+                  ( unsigned char __RPC_FAR * )&This,
+                  ( unsigned char __RPC_FAR * )&varP);
+#else
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[728],
+                  ( unsigned char __RPC_FAR * )&This);
+#endif
+    return ( HRESULT  )_RetVal.Simple;
+    
+}
+
 extern const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[2];
 
 static const MIDL_STUB_DESC Object_StubDesc = 
@@ -156,7 +190,8 @@ static const unsigned short ITwapiTest_FormatStringOffsetTable[] =
     616,
     644,
     672,
-    700
+    700,
+    728
     };
 
 static const MIDL_SERVER_INFO ITwapiTest_ServerInfo = 
@@ -181,7 +216,7 @@ static const MIDL_STUBLESS_PROXY_INFO ITwapiTest_ProxyInfo =
     0
     };
 
-CINTERFACE_PROXY_VTABLE(33) _ITwapiTestProxyVtbl = 
+CINTERFACE_PROXY_VTABLE(34) _ITwapiTestProxyVtbl = 
 {
     &ITwapiTest_ProxyInfo,
     &IID_ITwapiTest,
@@ -217,7 +252,8 @@ CINTERFACE_PROXY_VTABLE(33) _ITwapiTestProxyVtbl =
     (void *)-1 /* ITwapiTest::get_IUnknownProperty */ ,
     (void *)-1 /* ITwapiTest::put_IUnknownProperty */ ,
     (void *)-1 /* ITwapiTest::ThrowException */ ,
-    ITwapiTest_GetIntSA_Proxy
+    ITwapiTest_GetIntSA_Proxy ,
+    ITwapiTest_GetUI1SA_Proxy
 };
 
 
@@ -252,6 +288,7 @@ static const PRPC_STUB_FUNCTION ITwapiTest_table[] =
     NdrStubCall2,
     NdrStubCall2,
     NdrStubCall2,
+    NdrStubCall2,
     NdrStubCall2
 };
 
@@ -259,7 +296,7 @@ CInterfaceStubVtbl _ITwapiTestStubVtbl =
 {
     &IID_ITwapiTest,
     &ITwapiTest_ServerInfo,
-    33,
+    34,
     &ITwapiTest_table[-3],
     CStdStubBuffer_DELEGATING_METHODS
 };
@@ -1324,6 +1361,43 @@ static const MIDL_PROC_FORMAT_STRING __MIDL_ProcFormatString =
 			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
 #endif
 /* 726 */	0x8,		/* FC_LONG */
+			0x0,		/* 0 */
+
+	/* Procedure GetUI1SA */
+
+/* 728 */	0x33,		/* FC_AUTO_HANDLE */
+			0x6c,		/* Old Flags:  object, Oi2 */
+/* 730 */	NdrFcLong( 0x0 ),	/* 0 */
+/* 734 */	NdrFcShort( 0x21 ),	/* 33 */
+#ifndef _ALPHA_
+/* 736 */	NdrFcShort( 0xc ),	/* x86, MIPS, PPC Stack size/offset = 12 */
+#else
+			NdrFcShort( 0x18 ),	/* Alpha Stack size/offset = 24 */
+#endif
+/* 738 */	NdrFcShort( 0x0 ),	/* 0 */
+/* 740 */	NdrFcShort( 0x8 ),	/* 8 */
+/* 742 */	0x5,		/* Oi2 Flags:  srv must size, has return, */
+			0x2,		/* 2 */
+
+	/* Parameter varP */
+
+/* 744 */	NdrFcShort( 0x4113 ),	/* Flags:  must size, must free, out, simple ref, srv alloc size=16 */
+#ifndef _ALPHA_
+/* 746 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
+#else
+			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
+#endif
+/* 748 */	NdrFcShort( 0x3f8 ),	/* Type Offset=1016 */
+
+	/* Return value */
+
+/* 750 */	NdrFcShort( 0x70 ),	/* Flags:  out, return, base type, */
+#ifndef _ALPHA_
+/* 752 */	NdrFcShort( 0x8 ),	/* x86, MIPS, PPC Stack size/offset = 8 */
+#else
+			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
+#endif
+/* 754 */	0x8,		/* FC_LONG */
 			0x0,		/* 0 */
 
 			0x0
