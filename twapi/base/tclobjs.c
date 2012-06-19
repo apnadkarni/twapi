@@ -2092,6 +2092,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     Tcl_Obj *objP;
     Tcl_Obj *resultObj = NULL;
     VARIANT *variantP;
+    long upper, lower;
     
     if (indices_size < saP-> cDims)
         return NULL;            /* Not supported as exceed max dimensions */
@@ -2099,15 +2100,20 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     if (indices_size <= dim)
         return NULL;            /* Should not happen really - internal error */
 
+    if (SafeArrayGetLBound(saP, dim+1, &lower) != S_OK ||
+        SafeArrayGetUBound(saP, dim+1, &upper) != S_OK)
+        return NULL;
+
     resultObj = Tcl_NewListObj(0, NULL);
 
     /* Loop through all elements in this dimension. */
     if (dim < (saP->cDims-1)) {
 
         /* This is an intermediate dimension. Recurse */
-        for (i = 0; i < saP->rgsabound[dim].cElements; ++i) {
+        for (i = lower; i <= upper; ++i) {
             /* Note indices[] is in REVERSE order */
-            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
+//            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
+            indices[dim] = i;
             objP = ObjFromSAFEARRAYDimension(saP, dim+1, indices, indices_size);
             if (objP == NULL)
                 goto error_handler;
@@ -2120,10 +2126,11 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
         VARTYPE vt;
         if (SafeArrayGetVartype(saP, &vt) != S_OK)
             goto error_handler;
-        for (i = 0; i < saP->rgsabound[dim].cElements; ++i) {
+        for (i = lower; i <= upper; ++i) {
             void *valP;
             /* Note indices[] is in REVERSE order */
-            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
+//            indices[saP->cDims-dim-1] = saP->rgsabound[dim].lLbound + i;
+            indices[dim] = i;
             if (SafeArrayPtrOfIndex(saP, indices, &valP) != S_OK)
                 goto error_handler;
             objP = NULL;
@@ -2274,12 +2281,12 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
         else
             objv[1] = ObjFromSAFEARRAY(varP->parray, value_only);
 
-        if (value_only)
-            return objv[1] ? objv[1] : ObjNewList(0, NULL);
-        else {
-            objv[0] = ObjFromInt(V_VT(varP) & ~ VT_BYREF);
-            return ObjNewList(2, objv);
-        }
+        if (objv[1] && value_only)
+            return objv[1];
+
+        objv[0] = ObjFromInt(V_VT(varP) & ~ VT_BYREF);
+        return ObjNewList(objv[1] ? 2 : 1, objv);
+
     }
 
     if ((V_VT(varP) == (VT_BYREF|VT_VARIANT)) && varP->pvarVal)

@@ -612,6 +612,21 @@ proc twapi::_resolve_params_for_prototype {ti paramdescs} {
     return $params
 }
 
+proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false}} {
+    set result {}
+    if {[incr ndims -1] > 0} {
+	foreach elem $sa {
+	    lappend result [_variant_values_from_safearray $elem $ndims $raw $addref]
+	}
+    } else {
+	foreach elem $sa {
+	    lappend result [twapi::variant_value $elem $raw $addref]
+	}
+    }
+    return $result
+}
+
+
 #
 # Returns a string value from a formatted variant value pair {VT_xxx value}
 # $addref controls whether we do an AddRef when the value is a pointer to
@@ -633,11 +648,10 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
         set vt [expr {$vt & ~ 0x2000}]
         if {$vt == 12} {
             # Array of variants. Recursively convert values
-            set result [list ]
-            foreach elem [lindex $variant 2] {
-                lappend result [variant_value $elem $raw $addref]
-            }
-            return $result
+            return [_variant_values_from_safearray \
+                        [lindex $variant 1 1] \
+                        [expr {[llength [lindex $variant 1 1]] / 2}] \
+                        $raw $addref]
         } else {
             return [lindex $variant 1 1]
         }
