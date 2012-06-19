@@ -645,15 +645,16 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
         if {[llength $variant] < 2} {
             return [list ]
         }
+        lassign [lindex $variant 1] dimensions values
         set vt [expr {$vt & ~ 0x2000}]
         if {$vt == 12} {
             # Array of variants. Recursively convert values
             return [_variant_values_from_safearray \
-                        [lindex $variant 1 1] \
-                        [expr {[llength [lindex $variant 1 1]] / 2}] \
+                        $values \
+                        [expr {[llength $dimensions] / 2}] \
                         $raw $addref]
         } else {
-            return [lindex $variant 1 1]
+            return $values
         }
     } else {
         if {$vt == 9} {

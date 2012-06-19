@@ -41,6 +41,7 @@ END_COM_MAP()
 
 // ITwapiTest
 public:
+	STDMETHOD(GetUI1SA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(GetIntSA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(ThrowException)(/*[in]*/ BSTR desc);
 	STDMETHOD(get_IUnknownProperty)(/*[out, retval]*/ IUnknown* *pVal);
