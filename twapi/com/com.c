@@ -727,46 +727,28 @@ int Twapi_IDispatch_InvokeObjCmd(
         /* Failure, fill in exception and return error */
         Tcl_ResetResult(interp); /* Clear out any left-over from arg checking */
         if (hr == DISP_E_EXCEPTION) {
-            Tcl_Obj *errorcode_extra; /* Extra argument for error code */
+            Tcl_Obj *errorcode_extra[12]; /* Extra argument for error code */
             Tcl_Obj *errorResultObj;
 
             if (einfo.pfnDeferredFillIn)
                 einfo.pfnDeferredFillIn(&einfo);
             
             /* Create an extra argument for the error code */
-            /* TBD - save code space by constructing list in array */
-            errorcode_extra = ObjNewList(0, NULL);
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("bstrSource"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromBSTR(einfo.bstrSource));
+            errorcode_extra[0] = STRING_LITERAL_OBJ("bstrSource");
+            errorcode_extra[1] = ObjFromBSTR(einfo.bstrSource);
+            errorcode_extra[2] = STRING_LITERAL_OBJ("bstrDescription");
+            errorcode_extra[3] = ObjFromBSTR(einfo.bstrDescription);
+            errorcode_extra[4] = STRING_LITERAL_OBJ("bstrHelpFile");
+            errorcode_extra[5] = ObjFromBSTR(einfo.bstrHelpFile);
+            errorcode_extra[6] = STRING_LITERAL_OBJ("dwHelpContext");
+            errorcode_extra[7] = ObjFromLong(einfo.dwHelpContext);
+            errorcode_extra[8] = STRING_LITERAL_OBJ("scode");
+            errorcode_extra[9] = ObjFromLong(einfo.scode);
+            errorcode_extra[10] = STRING_LITERAL_OBJ("wCode");
+            errorcode_extra[11] = ObjFromLong(einfo.wCode);
 
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("bstrDescription"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromBSTR(einfo.bstrDescription));
+            Twapi_AppendSystemErrorEx(interp, hr, ObjNewList(ARRAYSIZE(errorcode_extra), errorcode_extra));
 
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("bstrHelpFile"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromBSTR(einfo.bstrHelpFile));
-            
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("dwHelpContext"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromLong(einfo.dwHelpContext));
-
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("scode"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromLong(einfo.scode));
-
-            ObjAppendElement(NULL, errorcode_extra,
-                                     STRING_LITERAL_OBJ("wCode"));
-            ObjAppendElement(NULL, errorcode_extra,
-                                     ObjFromLong(einfo.wCode));
-
-            Twapi_AppendSystemErrorEx(interp, hr, errorcode_extra);
             if (einfo.bstrDescription) {
                 errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                 Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
