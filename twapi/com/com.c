@@ -13,6 +13,15 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+static int TwapiMakeVariantParam(
+    Tcl_Interp *interp,
+    Tcl_Obj *paramDescriptorP,
+    VARIANT *varP,
+    VARIANT *refvarP,
+    USHORT  *paramflagsP,
+    Tcl_Obj *valueObj
+    );
+
 /*
  * Event sink definitions
  */
@@ -569,7 +578,6 @@ int Twapi_IDispatch_InvokeObjCmd(
         return TCL_ERROR;
 
     /* Extract prototype information */
-#if 1
     if (TwapiGetArgs(interp, protoc, protov,
                      GETINT(dispid), GETINT(lcid),
                      GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
@@ -577,27 +585,6 @@ int Twapi_IDispatch_InvokeObjCmd(
         TwapiSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
         return TCL_ERROR;
     }
-#else
-    if (protoc < 5) {
-        TwapiSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
-        return TCL_ERROR;
-    }
-
-    if (ObjToLong(interp, protov[0], &dispid) != TCL_OK)
-        return TCL_ERROR;
-
-    /* Note We do not care about RIID in protov[1] */
-
-    if (ObjToLong(interp, protov[2], &lcid) != TCL_OK)
-        return TCL_ERROR;
-    
-    if (ObjToInt(interp, protov[3], &i) != TCL_OK)
-        return TCL_ERROR;
-    flags = (WORD) i;
-
-    if (ObjToVT(interp, protov[4], &retvar_vt) != TCL_OK)
-        return TCL_ERROR;
-#endif
 
     if (protoc >= 5) {
         /* Extract the parameter information */
@@ -747,6 +734,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                 einfo.pfnDeferredFillIn(&einfo);
             
             /* Create an extra argument for the error code */
+            /* TBD - save code space by constructing list in array */
             errorcode_extra = ObjNewList(0, NULL);
             ObjAppendElement(NULL, errorcode_extra,
                                      STRING_LITERAL_OBJ("bstrSource"));
@@ -827,20 +815,30 @@ int Twapi_IDispatch_InvokeObjCmd(
 
  vamoose:
     if (dispargP) {
-        /* Release any allocations for return value */
-        if (SUCCEEDED(hr)) {
-            /* TBD - do we need to clear this for anything else?
-             * In particular, make sure we DON"T for interface pointers
-             * (VT_DISPATCH, VT_UNKNOWN)
-             */
-            if (V_VT(&dispargP[0]) == VT_BSTR)
-                VariantClear(&dispargP[0]);     /* Will do a SysFreeString */
+        /*
+         * We have to release VARIANT resources.
+         * - if the VT_BYREF flag is set, do not do anything with
+         *   the variant. The referenced variant will also be released if
+         *   necessary in the loop and that is sufficient.
+         * - VT_DISPATCH and VT_UNKNOWN - do not call VariantClear because
+         *   that will decrement their ref count and potentially free
+         *   them which we do not want as we are actually passing the
+         *   objects up and are not actually done with them.
+         * - VT_ARRAY and VT_BSTR - need to be released. Note for VT_ARRAY
+         *   if it contains IDispatch or IUnknown, they would already
+         *   have been AddRef'ed in the safearray extraction code and
+         *   therefore releasing them is ok.
+         * - VT_RECORD - TBD
+         * - VT_* - need not clear, nothing to release
+         */
+        for (i = 0; i < nargalloc; ++i) {
+            VARTYPE vt = V_VT(&dispargP[i]);
+            if (vt == VT_BSTR ||
+                ((vt & VT_ARRAY) && ! (vt & VT_BYREF)))
+                VariantClear(&dispargP[i]);
         }
-
-        /* Release anything allocated for each param */
-        for (i = 1; i < nargalloc; ++i)
-            TwapiClearVariantParam(interp, &dispargP[i]);
     }
+
     if (dispargP || paramflagsP)
         MemLifoPopFrame(&ticP->memlifo);
 
@@ -1459,9 +1457,9 @@ int TwapiMakeVariantParam(
          * will call Release on it before overwriting the value and we
          * do not want our comobj target to be released.
          */
-        if ((targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN) &&
-            (*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT))
-            == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) {
+        if ((targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN)
+            &&
+            (*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT)) == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) {
             if (targetP->vt == VT_DISPATCH) {
                 if (targetP->pdispVal != NULL)
                     targetP->pdispVal->lpVtbl->AddRef(targetP->pdispVal);
@@ -1567,20 +1565,6 @@ vamoose:
 invalid_type:
     TwapiSetStaticResult(interp, "Unsupported or invalid type information format in parameter");
     goto vamoose;
-}
-
-/*
- * Clears resources for a VARIANT previously created
- * through TwapiMakeVariantParam
- */
-void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP)
-{
-    // TBD - need to revisit this. Currently only VT_BSTR's need deallocs
-    /* Note for VT_BYREF|VT_BSTR case, the BSTR is freed when the
-     * referenced variant is freed
-     */
-    if (varP && V_VT(varP) == VT_BSTR)
-        VariantClear(varP);     /* Will do a SysFreeString */
 }
 
 int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long hashval, unsigned short flags)

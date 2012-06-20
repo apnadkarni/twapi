@@ -1071,16 +1071,6 @@ int Twapi_DsGetDcName(Tcl_Interp *interp, LPCWSTR systemnameP,
 
 /* COM stuff */
 
-int TwapiMakeVariantParam(
-    Tcl_Interp *interp,
-    Tcl_Obj *paramDescriptorP,
-    VARIANT *varP,
-    VARIANT *refvarP,
-    USHORT  *paramflagsP,
-    Tcl_Obj *valueObj
-    );
-void TwapiClearVariantParam(Tcl_Interp *interp, VARIANT *varP);
-
 /* Note - because ifcp_ is typed, this has to be a macro */
 #define TWAPI_STORE_COM_ERROR(interp_, hr_, ifcp_, iidp_)  \
     do { \
