@@ -623,13 +623,6 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     /* Init param structures */
     if(flags & (DISPATCH_PROPERTYPUT|DISPATCH_PROPERTYPUTREF)) {
-#if 0
-        if (nparams != 1) {
-            /* TBD - not sure if this is the case. What about indexed props ? */
-            TwapiSetStaticResult(interp, "Property put methods must have exactly one parameter");
-            goto vamoose;
-        }
-#endif
         dispparams.cNamedArgs = 1;
         named_dispid  = DISPID_PROPERTYPUT;
         dispparams.rgdispidNamedArgs = &named_dispid;
