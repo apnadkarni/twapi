@@ -2,7 +2,7 @@
 
 
 /* File created by MIDL compiler version 5.01.0164 */
-/* at Tue Jun 19 15:57:29 2012
+/* at Wed Jun 20 10:37:00 2012
  */
 /* Compiler settings for C:\src\twapi\twapi\tests\comtest\comtest.idl:
     Oicf (OptLev=i2), W1, Zp8, env=Win32, ms_ext, c_ext
@@ -27,8 +27,8 @@
 
 #include "comtest.h"
 
-#define TYPE_FORMAT_STRING_SIZE   1045                              
-#define PROC_FORMAT_STRING_SIZE   757                               
+#define TYPE_FORMAT_STRING_SIZE   1077                              
+#define PROC_FORMAT_STRING_SIZE   813                               
 
 typedef struct _MIDL_TYPE_FORMAT_STRING
     {
@@ -133,7 +133,75 @@ CLIENT_CALL_RETURN _RetVal;
     
 }
 
-extern const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[2];
+/* [helpstring][id][propget] */ HRESULT STDMETHODCALLTYPE ITwapiTest_get_IntSAProperty_Proxy( 
+    ITwapiTest __RPC_FAR * This,
+    /* [retval][out] */ SAFEARRAY __RPC_FAR * __RPC_FAR *saP)
+{
+CLIENT_CALL_RETURN _RetVal;
+
+
+#if defined( _ALPHA_ )
+    va_list vlist;
+#endif
+    
+#if defined( _ALPHA_ )
+    va_start(vlist,saP);
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[756],
+                  vlist.a0);
+#elif defined( _PPC_ ) || defined( _MIPS_ )
+
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[756],
+                  ( unsigned char __RPC_FAR * )&This,
+                  ( unsigned char __RPC_FAR * )&saP);
+#else
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[756],
+                  ( unsigned char __RPC_FAR * )&This);
+#endif
+    return ( HRESULT  )_RetVal.Simple;
+    
+}
+
+/* [helpstring][id][propput] */ HRESULT STDMETHODCALLTYPE ITwapiTest_put_IntSAProperty_Proxy( 
+    ITwapiTest __RPC_FAR * This,
+    /* [in] */ SAFEARRAY __RPC_FAR * sa)
+{
+CLIENT_CALL_RETURN _RetVal;
+
+
+#if defined( _ALPHA_ )
+    va_list vlist;
+#endif
+    
+#if defined( _ALPHA_ )
+    va_start(vlist,sa);
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[784],
+                  vlist.a0);
+#elif defined( _PPC_ ) || defined( _MIPS_ )
+
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[784],
+                  ( unsigned char __RPC_FAR * )&This,
+                  ( unsigned char __RPC_FAR * )&sa);
+#else
+    _RetVal = NdrClientCall2(
+                  ( PMIDL_STUB_DESC  )&Object_StubDesc,
+                  (PFORMAT_STRING) &__MIDL_ProcFormatString.Format[784],
+                  ( unsigned char __RPC_FAR * )&This);
+#endif
+    return ( HRESULT  )_RetVal.Simple;
+    
+}
+
+extern const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[3];
 
 static const MIDL_STUB_DESC Object_StubDesc = 
     {
@@ -191,7 +259,9 @@ static const unsigned short ITwapiTest_FormatStringOffsetTable[] =
     644,
     672,
     700,
-    728
+    728,
+    756,
+    784
     };
 
 static const MIDL_SERVER_INFO ITwapiTest_ServerInfo = 
@@ -216,7 +286,7 @@ static const MIDL_STUBLESS_PROXY_INFO ITwapiTest_ProxyInfo =
     0
     };
 
-CINTERFACE_PROXY_VTABLE(34) _ITwapiTestProxyVtbl = 
+CINTERFACE_PROXY_VTABLE(36) _ITwapiTestProxyVtbl = 
 {
     &ITwapiTest_ProxyInfo,
     &IID_ITwapiTest,
@@ -253,7 +323,9 @@ CINTERFACE_PROXY_VTABLE(34) _ITwapiTestProxyVtbl =
     (void *)-1 /* ITwapiTest::put_IUnknownProperty */ ,
     (void *)-1 /* ITwapiTest::ThrowException */ ,
     ITwapiTest_GetIntSA_Proxy ,
-    ITwapiTest_GetUI1SA_Proxy
+    ITwapiTest_GetUI1SA_Proxy ,
+    ITwapiTest_get_IntSAProperty_Proxy ,
+    ITwapiTest_put_IntSAProperty_Proxy
 };
 
 
@@ -289,6 +361,8 @@ static const PRPC_STUB_FUNCTION ITwapiTest_table[] =
     NdrStubCall2,
     NdrStubCall2,
     NdrStubCall2,
+    NdrStubCall2,
+    NdrStubCall2,
     NdrStubCall2
 };
 
@@ -296,14 +370,14 @@ CInterfaceStubVtbl _ITwapiTestStubVtbl =
 {
     &IID_ITwapiTest,
     &ITwapiTest_ServerInfo,
-    34,
+    36,
     &ITwapiTest_table[-3],
     CStdStubBuffer_DELEGATING_METHODS
 };
 
 #pragma data_seg(".rdata")
 
-static const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[2] = 
+static const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[3] = 
         {
             
             {
@@ -317,6 +391,12 @@ static const USER_MARSHAL_ROUTINE_QUADRUPLE UserMarshalRoutines[2] =
             ,VARIANT_UserMarshal
             ,VARIANT_UserUnmarshal
             ,VARIANT_UserFree
+            },
+            {
+            LPSAFEARRAY_UserSize
+            ,LPSAFEARRAY_UserMarshal
+            ,LPSAFEARRAY_UserUnmarshal
+            ,LPSAFEARRAY_UserFree
             }
 
         };
@@ -1400,6 +1480,80 @@ static const MIDL_PROC_FORMAT_STRING __MIDL_ProcFormatString =
 /* 754 */	0x8,		/* FC_LONG */
 			0x0,		/* 0 */
 
+	/* Procedure get_IntSAProperty */
+
+/* 756 */	0x33,		/* FC_AUTO_HANDLE */
+			0x6c,		/* Old Flags:  object, Oi2 */
+/* 758 */	NdrFcLong( 0x0 ),	/* 0 */
+/* 762 */	NdrFcShort( 0x22 ),	/* 34 */
+#ifndef _ALPHA_
+/* 764 */	NdrFcShort( 0xc ),	/* x86, MIPS, PPC Stack size/offset = 12 */
+#else
+			NdrFcShort( 0x18 ),	/* Alpha Stack size/offset = 24 */
+#endif
+/* 766 */	NdrFcShort( 0x0 ),	/* 0 */
+/* 768 */	NdrFcShort( 0x8 ),	/* 8 */
+/* 770 */	0x5,		/* Oi2 Flags:  srv must size, has return, */
+			0x2,		/* 2 */
+
+	/* Parameter saP */
+
+/* 772 */	NdrFcShort( 0x113 ),	/* Flags:  must size, must free, out, simple ref, */
+#ifndef _ALPHA_
+/* 774 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
+#else
+			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
+#endif
+/* 776 */	NdrFcShort( 0x418 ),	/* Type Offset=1048 */
+
+	/* Return value */
+
+/* 778 */	NdrFcShort( 0x70 ),	/* Flags:  out, return, base type, */
+#ifndef _ALPHA_
+/* 780 */	NdrFcShort( 0x8 ),	/* x86, MIPS, PPC Stack size/offset = 8 */
+#else
+			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
+#endif
+/* 782 */	0x8,		/* FC_LONG */
+			0x0,		/* 0 */
+
+	/* Procedure put_IntSAProperty */
+
+/* 784 */	0x33,		/* FC_AUTO_HANDLE */
+			0x6c,		/* Old Flags:  object, Oi2 */
+/* 786 */	NdrFcLong( 0x0 ),	/* 0 */
+/* 790 */	NdrFcShort( 0x23 ),	/* 35 */
+#ifndef _ALPHA_
+/* 792 */	NdrFcShort( 0x8 ),	/* x86, MIPS, PPC Stack size/offset = 8 */
+#else
+			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
+#endif
+/* 794 */	NdrFcShort( 0x0 ),	/* 0 */
+/* 796 */	NdrFcShort( 0x8 ),	/* 8 */
+/* 798 */	0x6,		/* Oi2 Flags:  clt must size, has return, */
+			0x2,		/* 2 */
+
+	/* Parameter sa */
+
+/* 800 */	NdrFcShort( 0xb ),	/* Flags:  must size, must free, in, */
+#ifndef _ALPHA_
+/* 802 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
+#else
+			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
+#endif
+/* 804 */	NdrFcShort( 0x42a ),	/* Type Offset=1066 */
+
+	/* Return value */
+
+/* 806 */	NdrFcShort( 0x70 ),	/* Flags:  out, return, base type, */
+#ifndef _ALPHA_
+/* 808 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
+#else
+			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
+#endif
+/* 810 */	0x8,		/* FC_LONG */
+			0x0,		/* 0 */
+
 			0x0
         }
     };
@@ -2128,6 +2282,27 @@ static const MIDL_TYPE_FORMAT_STRING __MIDL_TypeFormatString =
 /* 1040 */	
 			0x11, 0x10,	/* FC_RP */
 /* 1042 */	NdrFcShort( 0xfffffd6c ),	/* Offset= -660 (382) */
+/* 1044 */	
+			0x11, 0x4,	/* FC_RP [alloced_on_stack] */
+/* 1046 */	NdrFcShort( 0x2 ),	/* Offset= 2 (1048) */
+/* 1048 */	0xb4,		/* FC_USER_MARSHAL */
+			0x83,		/* 131 */
+/* 1050 */	NdrFcShort( 0x2 ),	/* 2 */
+/* 1052 */	NdrFcShort( 0x4 ),	/* 4 */
+/* 1054 */	NdrFcShort( 0x0 ),	/* 0 */
+/* 1056 */	NdrFcShort( 0xffffffa8 ),	/* Offset= -88 (968) */
+/* 1058 */	
+			0x12, 0x10,	/* FC_UP */
+/* 1060 */	NdrFcShort( 0x2 ),	/* Offset= 2 (1062) */
+/* 1062 */	
+			0x12, 0x0,	/* FC_UP */
+/* 1064 */	NdrFcShort( 0xffffff66 ),	/* Offset= -154 (910) */
+/* 1066 */	0xb4,		/* FC_USER_MARSHAL */
+			0x83,		/* 131 */
+/* 1068 */	NdrFcShort( 0x2 ),	/* 2 */
+/* 1070 */	NdrFcShort( 0x4 ),	/* 4 */
+/* 1072 */	NdrFcShort( 0x0 ),	/* 0 */
+/* 1074 */	NdrFcShort( 0xfffffff0 ),	/* Offset= -16 (1058) */
 
 			0x0
         }

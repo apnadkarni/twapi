@@ -14,7 +14,7 @@ class ATL_NO_VTABLE CTwapiTest :
 	public IDispatchImpl<ITwapiTest, &IID_ITwapiTest, &LIBID_COMTESTLib>
 {
 public:
-    CTwapiTest() : ival(0), dval(0.0)
+    CTwapiTest() : ival(0), dval(0.0), saval(NULL)
     {
 	bstrval = SysAllocString(L"");
 	VariantInit(&variantval);
@@ -41,6 +41,8 @@ END_COM_MAP()
 
 // ITwapiTest
 public:
+	STDMETHOD(get_IntSAProperty)(/*[out, retval]*/ SAFEARRAY **ppVal);
+	STDMETHOD(put_IntSAProperty)(/*[in]*/ SAFEARRAY *pVal);
 	STDMETHOD(GetUI1SA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(GetIntSA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(ThrowException)(/*[in]*/ BSTR desc);
@@ -74,6 +76,7 @@ private:
     BSTR  bstrval;
     bool bval;
     VARIANT variantval;
+    SAFEARRAY *saval;
 };
 
 #endif //__TWAPITEST_H_
