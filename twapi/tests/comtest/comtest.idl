@@ -42,6 +42,8 @@ import "ocidl.idl";
 		[id(14), helpstring("method ThrowException")] HRESULT ThrowException([in] BSTR desc);
 		[id(15), helpstring("method GetIntSA")] HRESULT GetIntSA([out, retval] VARIANT *varP);
 		[id(16), helpstring("method GetUI1SA")] HRESULT GetUI1SA([out, retval] VARIANT *varP);
+		[propget, id(17), helpstring("property SAProperty")] HRESULT IntSAProperty([out, retval] SAFEARRAY(int) *saP);
+		[propput, id(17), helpstring("property SAProperty")] HRESULT IntSAProperty([in] SAFEARRAY(int) sa);
 	};
 
 [

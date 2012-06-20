@@ -245,3 +245,29 @@ STDMETHODIMP CTwapiTest::GetUI1SA(VARIANT *varP)
 
     return S_OK;
 }
+
+STDMETHODIMP CTwapiTest::get_IntSAProperty(SAFEARRAY **saPP)
+{
+    HRESULT hr;
+    if (saval == NULL) {
+	VARIANT var;
+	VariantInit(&var);
+	hr = GetIntSA(&var);
+	if (FAILED(hr))
+	    return hr;
+	saval = var.parray;
+    }
+
+    return SafeArrayCopy(saval, saPP);
+}
+
+STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY *saP)
+{
+    SAFEARRAY *sa2P;
+    HRESULT hr;
+    hr = SafeArrayCopy(saP, &sa2P);
+    if (FAILED(hr))
+	return hr;
+    saval = sa2P;
+    return S_OK;
+}
