@@ -70,6 +70,8 @@ static struct IDispatchVtbl Twapi_EventSink_Vtbl = {
 };
 
 
+
+
 /*
  *  TBD - does this (related methods) need to be made thread safe?
  */
@@ -1009,6 +1011,43 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
     }
 }
 
+static VARTYPE ObjTypeToVT(Tcl_Obj *objP)
+{
+    switch (TwapiGetTclType(objP)) {
+    case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
+    case TWAPI_TCLTYPE_BOOLEANSTRING:
+        return VT_BOOL;
+    case TWAPI_TCLTYPE_INT:
+        return VT_I4;
+    case TWAPI_TCLTYPE_WIDEINT:
+        return VT_I8;
+    case TWAPI_TCLTYPE_DOUBLE:
+        return VT_R8;
+    case TWAPI_TCLTYPE_BYTEARRAY:
+        return VT_UI1 | VT_ARRAY;
+    case TWAPI_TCLTYPE_LIST:
+        /* A list is a SAFEARRAY. We do not know the type of each element
+           so assume mixed type.
+         */
+        return VT_VARIANT | VT_ARRAY;
+    case TWAPI_TCLTYPE_DICT:
+        /* Something that is constructed like a dictionary cannot
+           really be a numeric or boolean. Since there is no
+           dictionary type in COM, pass as a string.
+        */
+        return VT_BSTR;
+    case TWAPI_TCLTYPE_STRING:
+        /* In Tcl everything is a string, inclusing numerics,
+           so we cannot really mark it as a BSTR.
+           FALLTHRU
+        */
+    case TWAPI_TCLTYPE_NONE: /* Completely untyped */
+    default:
+        /* Use value-based heuristics to determine type */
+        return VT_VARIANT;
+    }
+}
+
 
 /*
  * Converts a parameter definition in Tcl format into the corresponding
@@ -1139,52 +1178,53 @@ int TwapiMakeVariantParam(
     /* Note vt is what is allowed in a typedesc, not what is allowed in a
      * VARIANT
      */
-    if (vt == VT_SAFEARRAY)
-        goto invalid_type;      /* Not yet supported. Should it even appear in a automation-compatible typedescription ? */
-    else if (vt == VT_PTR) {
-        /* Next element of type list is referenced type */
-        if (typec != 2)
-            goto invalid_type;
+
+    /* Note we have already checked previously that typec == 1 or 2 */
+    if (typec == 2) {
+        /* Only VT_PTR and VT_SAFEARRAY can have typec == 2 */
 
         /* Get the referenced type information. Note that automation does
          * not allow more than one level of indirection so we don't need
-         * keep recursing
+         * keep recursing for VT_PTR
          */
         if (ObjGetElements(interp, typev[1], &reftypec, &reftypev) != TCL_OK)
-            goto vamoose;
-        /*
-         * Only support base types so there should be exactly one element
-         * describing the referenced type.
-         */
-        /* TBD - add support for referenced arrays */
-        if (reftypec != 1 ||
+            goto invalid_type;
+        if (reftypec == 0 || reftypec > 2 ||
             ObjToVT(interp, reftypev[0], &target_vt) != TCL_OK) {
             goto invalid_type;
         }
-        vt = target_vt | VT_BYREF;
-        targetP = refvarP;
-    } else if (vt == VT_VARIANT) {
-#if 0
-        //Based on Google groups discussions, we will treat
-        //VT_VARIANT the same as VT_VARIANT|VT_BYREF. See for example
-        // http://groups.google.co.in/group/borland.public.cppbuilder.activex/browse_thread/thread/ca1c49b278fe7f57/99729a102eedf216?lnk=st&q=VT_VARIANT+parameter&rnum=3#99729a102eedf216
-        target_vt = vt;
-        vt |= VT_BYREF;
-        targetP = refvarP;
-#else
-        target_vt = vt;
-        targetP = varP;
-#endif
-    } else {
-        /* Either it is a supported base type or we will catch it as
-         * unsupported in the switch below
-         */
-        /* Base types will have typec == 1. It might also be 0 if there
-         * was no parameter info provided at all
-         */
-        if (typec > 1)
-            goto invalid_type;
 
+        if (vt == VT_PTR) {
+            targetP = refvarP;
+            /* What it points to must be a base type or a safearray */
+            if (target_vt == VT_SAFEARRAY) {
+                if (reftypec != 2)
+                    goto invalid_type;
+                /* Resolve the referenced safearray type */
+                if (ObjGetElements(interp, reftypev[1], &reftypec, &reftypev) != TCL_OK)
+                    goto invalid_type;
+                /* This must be a base type */
+                if (reftypec != 1 ||
+                    ObjToVT(interp, reftypev[0], &target_vt) != TCL_OK) {
+                    goto invalid_type;
+                }
+                target_vt = target_vt | VT_ARRAY;
+            } else {
+                /* Pointer to something other than safearray. */
+                if (reftypec != 1)
+                    goto invalid_type;
+            }
+            vt = target_vt | VT_BYREF;
+        } else if (vt == VT_SAFEARRAY) {
+            if (reftypec != 1)
+                goto invalid_type; /* Safearrays only allow base types */
+            targetP = varP;
+            target_vt = vt | VT_ARRAY;
+        } else
+            goto invalid_type;  /* No other vt should have typec == 2 */
+    } else {
+        if (vt == VT_PTR || vt == VT_SAFEARRAY)
+            goto invalid_type;
         targetP = varP;
         target_vt = vt;
     }
@@ -1199,7 +1239,6 @@ int TwapiMakeVariantParam(
 
     /*
      * Parameters may be in, out, or inout
-
      * For in and inout parameters, we need to store the actual value
      * in *targetP. Note that in the case of a pointer type, targetP will
      * be the referenced variant. valueObj holds the value to be stored
@@ -1211,6 +1250,7 @@ int TwapiMakeVariantParam(
      */
     if (! (*paramflagsP & PARAMFLAG_FIN)) {
         /* PARAMFLAG_OUT only. Just init to zero and type convert below */
+        // TBD - Huh? What type conversion below ?
         V_VT(targetP) = VT_I4;
         V_I4(targetP) = 0;
     } else {
@@ -1253,178 +1293,16 @@ int TwapiMakeVariantParam(
          *
          * To store it as an appropriate concrete VT type, we check to see
          * if it is internally a specific Tcl type. If so, we set vt
-         * accordingly so it gets handled below. If not, vt stays as
+         * accordingly so it gets handled below. If not, vt will stay as
          * VT_VARIANT and we will make a best guess later.
          */
-        if (target_vt == VT_VARIANT) {
-            switch (TwapiGetTclType(valueObj)) {
-            case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
-            case TWAPI_TCLTYPE_BOOLEANSTRING:
-                target_vt = VT_BOOL;
-                break;
-            case TWAPI_TCLTYPE_INT:
-                target_vt = VT_I4;
-                break;
-            case TWAPI_TCLTYPE_WIDEINT:
-                target_vt = VT_I8;
-                break;
-            case TWAPI_TCLTYPE_DOUBLE:
-                target_vt = VT_R8;
-                break;
-            case TWAPI_TCLTYPE_BYTEARRAY: /* Binary - TBD */
-            case TWAPI_TCLTYPE_LIST:      /* List - TBD */
-            case TWAPI_TCLTYPE_DICT:      /* Dict - TBD */
-            case TWAPI_TCLTYPE_STRING:
-                /* In Tcl everything is a string so we cannot really
-                   mark it as a BSTR.
-                   FALLTHRU
-                */
-            case TWAPI_TCLTYPE_NONE: /* Completely untyped */
-            default:
-                /* No internal rep marker in the object. Keep as VT_VARIANT
-                   and handle in switch below
-                */
-                break;
-            }
-        }
-
+        if (target_vt == VT_VARIANT)
+            target_vt = ObjTypeToVT(valueObj);
         
-        switch (target_vt) {
-        case VT_I2:
-        case VT_I4:
-        case VT_I1:
-        case VT_UI2:
-        case VT_UI4:
-        case VT_UI1:
-        case VT_INT:
-        case VT_UINT:
-        case VT_HRESULT:
-            if (ObjToLong(interp, valueObj, &targetP->lVal) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_I4;
-            break;
+        TWAPI_ASSERT(valueObj != NULL || target_vt == VT_ERROR);
 
-        case VT_R4:
-        case VT_R8:
-            if (Tcl_GetDoubleFromObj(interp, valueObj, &targetP->dblVal) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_R8;
-            break;
-
-        case VT_CY:
-            if (ObjToCY(interp, valueObj, & V_CY(targetP)) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_CY;
-            break;
-
-        case VT_DATE:
-            if (Tcl_GetDoubleFromObj(interp, valueObj, & V_DATE(targetP)) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_DATE;
-            break;
-
-        case VT_VARIANT:
-            /* Value is VARIANT so we don't really know the type.
-             * Note VT_VARIANT is only valid in type descriptions and
-             * is not valid for VARIANTARG (ie. for
-             * the actual value). It has to be a concrete type.
-             * We have been unable to guess the type based on the Tcl
-             * internal type pointer so make a guess based on value.
-             * Note we pass NULL for interp
-             * when to GetLong and GetDouble as we don't want an
-             * error message left in the interp.
-             */
-            if (ObjToLong(NULL, valueObj, &targetP->lVal) == TCL_OK) {
-                targetP->vt = VT_I4;
-            } else if (Tcl_GetDoubleFromObj(NULL, valueObj, &targetP->dblVal) == TCL_OK) {
-                targetP->vt = VT_R8;
-            } else if (ObjToIDispatch(NULL, valueObj, &targetP->pdispVal) == TCL_OK) {
-                targetP->vt = VT_DISPATCH;
-            } else if (ObjToIUnknown(NULL, valueObj, &targetP->punkVal) == TCL_OK) {
-                targetP->vt = VT_UNKNOWN;
-            } else {
-                /* Cannot guess type, just pass as a BSTR */
-                wcharP = ObjToUnicodeN(valueObj,&len);
-                targetP->bstrVal = SysAllocStringLen(wcharP, len);
-                if (targetP->bstrVal == NULL) {
-                    TwapiSetStaticResult(interp, "Insufficient memory");
-                    goto vamoose;
-                }
-                targetP->vt = VT_BSTR;
-            }
-
-            break;
-
-        case VT_BSTR:
-            wcharP = ObjToUnicodeN(valueObj,&len);
-            targetP->bstrVal = SysAllocStringLen(wcharP, len);
-            if (targetP->bstrVal == NULL) {
-                TwapiSetStaticResult(interp, "Insufficient memory");
-                goto vamoose;
-            }
-            targetP->vt = VT_BSTR;
-            break;
-
-        case VT_DISPATCH:
-            if (ObjToIDispatch(interp, valueObj, (void **)&targetP->pdispVal)
-                != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_DISPATCH;
-            break;
-
-        case VT_VOID: /* FALLTHRU */
-        case VT_ERROR:
-            /* Treat as optional argument */
-            targetP->vt = VT_ERROR;
-            targetP->scode = DISP_E_PARAMNOTFOUND;
-            break;
-
-        case VT_BOOL:
-            if (Tcl_GetBooleanFromObj(interp, valueObj, &targetP->intVal) != TCL_OK)
-                goto vamoose;
-            targetP->boolVal = targetP->intVal ? VARIANT_TRUE : VARIANT_FALSE;
-            targetP->vt = VT_BOOL;
-            break;
-
-        case VT_UNKNOWN:
-            if (ObjToIUnknown(interp, valueObj, (void **) &targetP->punkVal)
-                != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_UNKNOWN;
-            break;
-
-        case VT_DECIMAL:
-            if (ObjToDECIMAL(interp, valueObj, & V_DECIMAL(targetP)) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_DECIMAL;
-            break;
-
-        case VT_I8:
-        case VT_UI8:
-            if (ObjToWideInt(interp, valueObj, &targetP->llVal) != TCL_OK)
-                goto vamoose;
-            targetP->vt = VT_I8;
-            break;
-
-        default:
-            TwapiSetObjResult(interp,
-                             Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
-                                           vt));
+        if (ObjToVARIANT(interp, valueObj, targetP, target_vt) != TCL_OK)
             goto vamoose;
-        }
-
-        /* Coerce type if necessary of the variant that contains the
-         * actual value since the above code only stores the closest
-         * related type. An exception is for a byref VT_VARIANT
-         */
-        if (target_vt != targetP->vt &&
-            (vt & ~VT_BYREF) != VT_VARIANT) {
-            hr = VariantChangeType(targetP, targetP, 0, target_vt);
-            if (FAILED(hr)) {
-                Twapi_AppendSystemError(interp, hr);
-                goto vamoose;
-            }
-        }
 
         /*
          * If it is a IN or OUT param, no need to muck with ref counts.
@@ -1435,16 +1313,11 @@ int TwapiMakeVariantParam(
         if ((targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN)
             &&
             (*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT)) == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) {
-            if (targetP->vt == VT_DISPATCH) {
-                if (targetP->pdispVal != NULL)
-                    targetP->pdispVal->lpVtbl->AddRef(targetP->pdispVal);
-            } else {
-                if (targetP->punkVal != NULL)
-                    targetP->punkVal->lpVtbl->AddRef(targetP->punkVal);
-            }
+            /* Both pdispVal and punkVal are really the same field and same
+               vtbl layout so no need to distinguish  */
+            if (targetP->punkVal != NULL)
+                targetP->punkVal->lpVtbl->AddRef(targetP->punkVal);
         }
-            
-
     } /* End Handling of IN and INOUT params */
 
 
