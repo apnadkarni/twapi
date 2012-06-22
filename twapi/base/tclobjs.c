@@ -49,6 +49,9 @@ static struct vt_token_pair vt_base_tokens[] = {
     {VT_USERDEFINED, "userdefined"}
 };
 
+/* Support up to these many dimensions in a SAFEARRAY */
+#define TWAPI_MAX_SAFEARRAY_DIMS 10
+
 /*
  * Used for deciphering  unknown types when passing to COM. Note
  * any or all of these may be NULL.
@@ -1859,6 +1862,298 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
         return TCL_ERROR;
 }
 
+static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRAY **saPP, VARTYPE vt)
+{
+    int i, ndim, cur_dim;
+    Tcl_Obj *objP;
+    void *valP;
+    SAFEARRAY *saP = NULL;
+    SAFEARRAYBOUND bounds[TWAPI_MAX_SAFEARRAY_DIMS];
+    long indices[TWAPI_MAX_SAFEARRAY_DIMS];
+    Tcl_Obj *objs[TWAPI_MAX_SAFEARRAY_DIMS];
+    HRESULT hr;
+    int tcltype;
+
+    TWAPI_ASSERT(vt & VT_ARRAY);
+    vt &= ~ VT_ARRAY;
+
+    tcltype = TwapiGetTclType(valueObj);
+
+    if ((vt == VT_UI1 || vt == VT_VARIANT) &&
+        tcltype == TWAPI_TCLTYPE_BYTEARRAY) {
+        /* Special case byte array */
+        valP = Tcl_GetByteArrayFromObj(valueObj, &i);
+        saP = SafeArrayCreateVector(VT_UI1, 0, i);
+        if (saP == NULL)
+            return TwapiReturnErrorMsg(interp, TWAPI_SYSTEM_ERROR,
+                                       "Allocation of UI1 SAFEARRAY failed.");
+        SafeArrayLock(saP);
+        CopyMemory(saP->pvData, valP, i);
+        SafeArrayUnlock(saP);
+        *saPP = saP;
+        return TCL_OK;
+    }
+
+    /*
+     * Except for the above case, a SAFEARRAY is a nested list in Tcl.
+     * First figure out the number of dimensions based on nesting level.
+     * valueObj is expected to be a list and we treat it as such even
+     * if its current Tcl type is not list. For nested levels, we do
+     * treat it as a list only if it is actually already typed as a list.
+     */
+    if (Tcl_ListObjIndex(interp, valueObj, 0, &objP) != TCL_OK ||
+        Tcl_ListObjLength(interp, valueObj, &i) != TCL_OK)
+        return TCL_ERROR;       /* Top level obj must be a list */
+
+    bounds[0].lLbound = 0;
+    bounds[0].cElements = i;
+    ndim = 1;
+
+    /* Note objP may be NULL */
+
+    while (objP) {
+        /* Note we check type before calling ListObjIndex else object
+           will shimmer into a list even if it is not. */
+        if (TwapiGetTclType(objP) != TWAPI_TCLTYPE_LIST)
+            break;
+
+        if (ndim >= ARRAYSIZE(bounds))
+            return TwapiReturnError(interp, TWAPI_INTERNAL_LIMIT);
+
+        if (Tcl_ListObjIndex(interp, objP, 0, &objP) != TCL_OK ||
+            Tcl_ListObjLength(interp, objP, &i) != TCL_OK)
+            return TCL_ERROR;   /* Huh? Type was list so why fail? */
+        bounds[ndim].lLbound = 0;
+        bounds[ndim].cElements = i;
+
+        ++ndim; /* Additional level of nesting implies one more dimension */
+
+        /* Note objP can be NULL (empty list) */
+    }
+
+    saP = SafeArrayCreate(vt, ndim, bounds);
+    if (saP == NULL)
+        return TwapiReturnErrorEx(interp, TWAPI_SYSTEM_ERROR,
+                                  Tcl_ObjPrintf("Allocation of %d-dimensional SAFEARRAY of type %d failed.", ndim, vt));
+    SafeArrayLock(saP);
+
+    /*
+     * We will start from index 0,0..0 and increment in turn carrying over
+     * to next dimension when a dimension's element count is reached.
+     * The objs[] array will keep track of the nested list corresponding
+     * to each dimension.
+     */
+    for (i = 1; i < ndim; ++i) {
+        indices[i] = 0;
+        if (Tcl_ListObjIndex(interp, objs[i-1], 0, &objs[i]) != TCL_OK)
+            goto error_handler;
+    }
+
+    /*
+     * So now indices[] is all 0 (ie each dimension index is 0) and
+     * the objs[] array contains the first Tcl_Obj at each nested level
+     * (which corresponds to a dimension). We will iterate through all
+     * elements incrementing indices[]. 
+     */
+
+    cur_dim = 0;
+    objs[0] = valueObj;
+    indices[0] = 0;
+    
+    while (1) {
+        int ival;
+        double dval;
+
+        /*
+         * At top of the loop, cur_dim is the innermost dimension that has
+         * valid entry objs[] and indices[] entries. objs[cur_dim] is
+         * is the element of that dimension being processed,
+         * indices[cur_dim] is the index into objs[cur_dim] that is
+         * the element to be processed in the next inner dimension.
+         * We have to reset all inner dimension indices to 0 (and so
+         * also the corresponding objs[]. As an example, on first entry
+         * to the loop, cur_dim will be 0, indices[0] is also 0 and
+         * the loop below initializes all elements to be the first element
+         * of the dimension. On the other hand, when the outer loop is
+         * iterating over the innermost dimension (dimension ndim-1),
+         * and have not exhausted
+         * the number of elements therein, we will not have to reset anything
+         * at all and the loop below is not entered at all.
+         */
+        while (++cur_dim < ndim) {
+            indices[cur_dim] = 0;
+            if (Tcl_ListObjIndex(interp, objs[cur_dim-1], 0, &objs[cur_dim]) != TCL_OK)
+                goto error_handler;
+        }
+
+
+        if ((hr = SafeArrayPtrOfIndex(saP, indices, &valP)) != S_OK)
+            goto system_error_handler;
+
+        if (Tcl_ListObjIndex(interp, objs[ndim-1], indices[ndim-1], &objP) != TCL_OK)
+            goto error_handler;
+
+        if (objP == NULL) {
+            TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
+                                    "Too few elements in SAFEARRAY.");
+            goto error_handler;
+        }
+
+        switch (vt) {
+        case VT_I1:
+        case VT_UI1:
+        case VT_I2:
+        case VT_UI2:
+        case VT_I4:
+        case VT_UI4:
+        case VT_INT:
+        case VT_UINT:
+            objP = ObjFromLong(*(long *)valP); break;
+            if (ObjToInt(interp, objP, &ival) != TCL_OK)
+                goto error_handler;
+            switch (vt) {
+            case VT_I1:
+            case VT_UI1:
+                *(char *)valP = ival;
+                break;
+            case VT_I2:
+            case VT_UI2:
+                *(short *)valP = ival;
+                break;
+            case VT_I4:
+            case VT_UI4:
+            case VT_INT:
+            case VT_UINT:
+                *(int *)valP = ival;
+                break;
+            }
+
+            break;
+
+        case VT_R4:
+        case VT_R8:
+        case VT_DATE:
+            if (Tcl_GetDoubleFromObj(interp, objP, &dval) != TCL_OK)
+                goto error_handler;
+            if (vt == VT_R4)
+                *(float *) valP = (float) dval;
+            else
+                *(double *) valP = dval;
+            break;
+
+        case VT_BSTR:
+            if (ObjToBSTR(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            break;
+
+        case VT_CY:
+            if (ObjToCY(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            break;
+
+        case VT_BOOL:
+            if (Tcl_GetBooleanFromObj(interp, objP, &ival) != TCL_OK)
+                goto error_handler;
+            *(VARIANT_BOOL *)valP = ival ? VARIANT_TRUE : VARIANT_FALSE;
+            break;
+
+        case VT_DISPATCH:
+            /* AddRef as it will be Release'd when safearray is freed */
+            if (ObjToIDispatch(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            if (*(IDispatch **)valP)
+                (*(IDispatch **)valP)->lpVtbl->AddRef(*(IDispatch **)valP);
+            break;
+
+        case VT_UNKNOWN:
+            /* AddRef as it will be Release'd when safearray is freed */
+            if (ObjToIUnknown(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            if (*(IUnknown **)valP)
+                (*(IUnknown **)valP)->lpVtbl->AddRef(*(IUnknown **)valP);
+            break;
+
+        case VT_VARIANT:
+            if (ObjToVARIANT(interp, objP, valP, VT_VARIANT) != TCL_OK)
+                goto error_handler;
+            else {
+                VARIANT *variantP = (VARIANT *) valP;
+                /* Again, IDispatch and IVariant will be released when
+                   safeaarray is destroyed so addref them since we are
+                   holding on to them
+                */
+                switch (V_VT(variantP)) {
+                case VT_DISPATCH:
+                case VT_UNKNOWN:
+                    if (V_UNKNOWN(variantP))
+                        (V_UNKNOWN(variantP))->lpVtbl->AddRef(V_UNKNOWN(variantP));
+                    break;
+                }
+            }
+            break;
+
+        case VT_DECIMAL:
+            if (ObjToDECIMAL(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            break;
+
+        case VT_I8:
+        case VT_UI8:
+            if (ObjToWideInt(interp, objP, valP) != TCL_OK)
+                goto error_handler;
+            break;
+
+        default:
+            /* Dunno how to handle these */
+            TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
+                               Tcl_ObjPrintf("Unsupported SAFEARRAY type %d", vt));
+            goto error_handler;
+        }
+
+        /*
+         * Now increment indices[] to point to next entry. We increment
+         * the index for each dimension and if it exceeds the number of
+         * elements in that dimension, we reset its index to 0 and 
+         * carry over and increment the previous dimension.
+         */
+        for (cur_dim = ndim-1; cur_dim >= 0; --cur_dim) {
+            if (++indices[cur_dim] < bounds[cur_dim].cElements)
+                break;          /* No overflow for this dimension */
+        }
+
+        /*
+         * The above loop terminates when
+         *  cur_dim < 0 - implies even the outermost dimension elements have
+         *          been iterated and no more elements need to be processed.
+         *  cur_dim >= 0 - implies that dimension is not done with. indices[i]
+         *          contains the index into elements in that dimension
+         *          that we next iterate over. We also have to reset
+         *          the innermost dimension indices accordingly. This 
+         *          is done at the top of the loop.
+         */
+
+        if (cur_dim < 0)
+            break;              /* All done, no more elements */
+
+    }
+
+    SafeArrayUnlock(saP);
+    *saPP = saP;
+    return TCL_OK;
+
+system_error_handler: /* hr - Win32 error */
+    Twapi_AppendSystemError(interp, hr);
+
+error_handler:
+    if (saP) {
+        SafeArrayUnlock(saP);
+        SafeArrayDestroy(saP);
+    }
+    return TCL_ERROR;
+}
+
+
+
 /*
  * Returns a Tcl_Obj that is a list representing the elements in the
  * dimension dim. indices[] is an array specifying the dimension to
@@ -2016,7 +2311,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
     VARTYPE  vt;
     HRESULT  hr;
     void     *valP;
-    long indices[10];             /* Support up to 10 dimensions */
+    long indices[TWAPI_MAX_SAFEARRAY_DIMS];
 
     /* We require the safearray to have a type associated */
     if (saP == NULL || SafeArrayGetVartype(saP, &vt) != S_OK) {
@@ -2042,6 +2337,162 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
     SafeArrayUnlock(saP);
     return ObjNewList(2, objv);
 }
+
+TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt)
+{
+    HRESULT hr;
+    long lval;
+
+    if (vt & VT_ARRAY) {
+        if (ObjToSAFEARRAY(interp, objP, &varP->parray, vt) != TCL_OK)
+            return TCL_ERROR;
+        V_VT(varP) = vt;
+        return TCL_OK;
+    }
+
+    switch (vt) {
+    case VT_I2:
+    case VT_I4:
+    case VT_I1:
+    case VT_UI2:
+    case VT_UI4:
+    case VT_UI1:
+    case VT_INT:
+    case VT_UINT:
+    case VT_HRESULT:
+        if (ObjToLong(interp, objP, &lval) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = vt;
+        switch (vt) {
+        case VT_I1:
+        case VT_UI1:
+            V_UI1(varP) = lval;
+            break;
+        case VT_I2:
+        case VT_UI2:
+            V_UI2(varP) = lval;
+            break;
+        case VT_I4:
+        case VT_UI4:
+        case VT_INT:
+        case VT_UINT:
+        case VT_HRESULT:
+            V_I4(varP) = lval;
+            break;
+        }
+
+        break;
+
+    case VT_R4:
+    case VT_R8:
+        if (Tcl_GetDoubleFromObj(interp, objP, &varP->dblVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_R8;
+        if (vt == VT_R4) {
+            hr = VariantChangeType(varP, varP, 0, VT_R4);
+            if (FAILED(hr)) {
+                Twapi_AppendSystemError(interp, hr);
+                return TCL_ERROR;
+            }
+        }
+        break;
+
+    case VT_CY:
+        if (ObjToCY(interp, objP, & V_CY(varP)) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_CY;
+        break;
+
+    case VT_DATE:
+        if (Tcl_GetDoubleFromObj(interp, objP, & V_DATE(varP)) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_DATE;
+        break;
+
+    case VT_VARIANT:
+        /* Value is VARIANT so we don't really know the type.
+         * Note VT_VARIANT is only valid in type descriptions and
+         * is not valid for VARIANTARG (ie. for
+         * the actual value). It has to be a concrete type.
+         * We have been unable to guess the type based on the Tcl
+         * internal type pointer so make a guess based on value.
+         * Note we pass NULL for interp
+         * when to GetLong and GetDouble as we don't want an
+         * error message left in the interp.
+         */
+        if (ObjToLong(NULL, objP, &varP->lVal) == TCL_OK) {
+            varP->vt = VT_I4;
+        } else if (Tcl_GetDoubleFromObj(NULL, objP, &varP->dblVal) == TCL_OK) {
+            varP->vt = VT_R8;
+        } else if (ObjToIDispatch(NULL, objP, &varP->pdispVal) == TCL_OK) {
+            varP->vt = VT_DISPATCH;
+        } else if (ObjToIUnknown(NULL, objP, &varP->punkVal) == TCL_OK) {
+            varP->vt = VT_UNKNOWN;
+        } else {
+            /* Cannot guess type, just pass as a BSTR */
+            if (ObjToBSTR(interp, objP, &varP->bstrVal) != TCL_OK)
+                return TCL_ERROR;
+            varP->vt = VT_BSTR;
+        }
+
+        break;
+
+    case VT_BSTR:
+        if (ObjToBSTR(interp, objP, &varP->bstrVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_BSTR;
+        break;
+
+    case VT_DISPATCH:
+        if (ObjToIDispatch(interp, objP, (void **)&varP->pdispVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_DISPATCH;
+        break;
+
+    case VT_VOID: /* FALLTHRU */
+    case VT_ERROR:
+        /* Treat as optional argument */
+        varP->vt = VT_ERROR;
+        varP->scode = DISP_E_PARAMNOTFOUND;
+        break;
+
+    case VT_BOOL:
+        if (Tcl_GetBooleanFromObj(interp, objP, &varP->intVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->boolVal = varP->intVal ? VARIANT_TRUE : VARIANT_FALSE;
+        varP->vt = VT_BOOL;
+        break;
+
+    case VT_UNKNOWN:
+        if (ObjToIUnknown(interp, objP, (void **) &varP->punkVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_UNKNOWN;
+        break;
+
+    case VT_DECIMAL:
+        if (ObjToDECIMAL(interp, objP, & V_DECIMAL(varP)) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_DECIMAL;
+        break;
+
+    case VT_I8:
+    case VT_UI8:
+        if (ObjToWideInt(interp, objP, &varP->llVal) != TCL_OK)
+            return TCL_ERROR;
+        varP->vt = VT_I8;
+        break;
+
+    default:
+        TwapiSetObjResult(interp,
+                          Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
+                                        vt));
+        return TCL_ERROR;
+    }
+
+    return TCL_OK;
+
+}
+
 
 /* 
  * If value_only is 0, returns a Tcl object that is a list {VT_xxx value}.
@@ -2277,6 +2728,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
         return ObjNewList(objv[1] ? 2 : 1, objv);
     }
 }
+
 
 /* Returned memory in *arrayPP has to be freed by caller */
 int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **arrayP, ULONG *countP)
