@@ -302,6 +302,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_REGISTER_WAIT_FAILED 11
 #define TWAPI_BUG_INVALID_STATE_FOR_OP 12
 #define TWAPI_OUT_OF_RANGE 13
+#define TWAPI_UNSUPPORTED_TYPE 14
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1287,6 +1288,7 @@ TWAPI_EXTERN int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDECIMAL(DECIMAL *cyP);
 TWAPI_EXTERN int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *cyP);
 TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
+TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt);
 
 /* Note: the returned multiszPP must be free()'ed */
 TWAPI_EXTERN int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
