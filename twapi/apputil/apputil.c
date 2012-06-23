@@ -135,7 +135,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     DWORD dw;
     TwapiResult result;
     LPVOID pv;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     result.type = TRT_BADFUNCTIONCODE;
     --objc;

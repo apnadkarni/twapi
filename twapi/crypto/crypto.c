@@ -670,7 +670,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     LUID luid, *luidP;
     LARGE_INTEGER largeint;
     Tcl_Obj *objs[2];
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

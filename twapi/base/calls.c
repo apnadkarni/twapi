@@ -261,7 +261,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
         WCHAR buf[MAX_PATH+1];
         SYSTEM_POWER_STATUS power_status;
     } u;
-    int func = (int) clientdata;
+   int func = PtrToInt(clientdata);
     
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -351,7 +351,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
 
 static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     DWORD dw;
     TwapiResult result;
     union {
@@ -420,7 +420,7 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
 static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
@@ -571,7 +571,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
 static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     union {
         WCHAR buf[MAX_PATH+1];
         LPCWSTR wargv[100];     /* FormatMessage accepts up to 99 params + 1 for NULL */
@@ -1079,7 +1079,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
     HANDLE h;
     DWORD dw, dw2;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETHANDLE(h),
@@ -1439,7 +1439,7 @@ void TwapiDefineFncodeCmds(Tcl_Interp *interp, int count,
     while (count--) {
         Tcl_DStringSetLength(&ds, ARRAYSIZE("twapi::")-1);
         Tcl_DStringAppend(&ds, tabP->command_name, -1);
-        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), cmdfn, (ClientData) tabP->fncode, NULL);
+        Tcl_CreateObjCommand(interp, Tcl_DStringValue(&ds), cmdfn, IntToPtr(tabP->fncode), NULL);
         ++tabP;
     }
 }

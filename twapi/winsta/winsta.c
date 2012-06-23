@@ -70,7 +70,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     TwapiResult result;
 
     --objc;

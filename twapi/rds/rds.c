@@ -133,7 +133,7 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     HANDLE h;
     int i, i2;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     /* At least one arg for every command */
     if (objc < 2)

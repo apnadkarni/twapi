@@ -297,7 +297,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
     WORD w;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     TwapiResult result;
 
     --objc;

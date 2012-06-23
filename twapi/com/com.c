@@ -1075,9 +1075,7 @@ int TwapiMakeVariantParam(
     Tcl_Obj   **paramv;
     int         paramc;
     VARTYPE     vt, target_vt;
-    HRESULT     hr;
     int         len;
-    WCHAR      *wcharP;
     Tcl_Obj   **typev;
     int         typec;
     Tcl_Obj   **reftypev;
@@ -1669,7 +1667,7 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     FUNCDESC *funcdesc;
     VARDESC  *vardesc;
     char *cP;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);

@@ -248,7 +248,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     Tcl_Obj *objs[2];
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

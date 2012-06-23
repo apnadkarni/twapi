@@ -829,7 +829,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     HMODULE hmod;
     LPVOID pv;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

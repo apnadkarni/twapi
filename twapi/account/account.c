@@ -617,7 +617,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     Tcl_Obj *(*objfn)(Tcl_Interp *, LPBYTE, DWORD);
     Tcl_Obj *objs[4];
     Tcl_Obj *enumObj = NULL;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETNULLIFEMPTY(s1), ARGTERM)
         != TCL_OK)
@@ -879,7 +879,7 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         SECURITY_DESCRIPTOR *secdP;
         SECURITY_ATTRIBUTES *secattrP;
     } u;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETNULLIFEMPTY(s1),

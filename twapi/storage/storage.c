@@ -186,7 +186,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     FILETIME *ftP[3];
     Tcl_Obj *objs[3];
     int i;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

@@ -875,7 +875,7 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     ULONG  lsa_count;
     LSA_UNICODE_STRING *lsa_strings;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     /* These will be freed at end of routine if not NULL! */
     daclP = saclP = NULL;

@@ -96,7 +96,7 @@ static int Twapi_WmiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 {
     --objc;
     ++objv;
-    switch ((int) clientdata) {
+    switch (PtrToInt(clientdata)) {
     case 1: // IMofCompiler_CompileBuffer
         return Twapi_IMofCompiler_CompileFileOrBuffer(interp, 0, objc, objv);
     case 2: // IMofCompiler_CompileFile

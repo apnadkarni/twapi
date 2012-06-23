@@ -819,7 +819,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     HANDLE h;
     TwapiResult result;
     LPITEMIDLIST idlP;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

@@ -1577,7 +1577,7 @@ error_handler:
 static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Obj *objP;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     objP = NULL;
     switch (func) {
