@@ -2325,11 +2325,8 @@ error_handler:
 static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
 {
     Tcl_Obj *objv[2];           /* dimensions,  value */
-    int      objc;
     long     i;
     VARTYPE  vt;
-    HRESULT  hr;
-    void     *valP;
     long indices[TWAPI_MAX_SAFEARRAY_DIMS];
 
     /* We require the safearray to have a type associated */
@@ -2382,10 +2379,10 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         if (ObjToLong(interp, objP, &lval) != TCL_OK)
             return TCL_ERROR;
         switch (vt) {
-        case VT_I1:  V_I1(varP) = lval; break;
-        case VT_UI1: V_UI1(varP) = lval; break;
-        case VT_I2:  V_I2(varP) = lval; break;
-        case VT_UI2: V_UI2(varP) = lval; break;
+        case VT_I1:  V_I1(varP) = (char) lval; break;
+        case VT_UI1: V_UI1(varP) = (unsigned char) lval; break;
+        case VT_I2:  V_I2(varP) = (short) lval; break;
+        case VT_UI2: V_UI2(varP) = (unsigned short) lval; break;
         case VT_I4:
         case VT_INT:
         case VT_HRESULT:

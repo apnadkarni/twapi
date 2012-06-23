@@ -750,7 +750,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
     Tcl_Obj *(*objfn)(Tcl_Interp *, LPBYTE, DWORD);
     Tcl_Obj *objs[4];
     Tcl_Obj *enumObj = NULL;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -934,7 +934,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     DWORD   dw, dw2;
     SECURITY_DESCRIPTOR *secdP;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETWSTR(s1), ARGTERM) != TCL_OK)

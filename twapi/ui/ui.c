@@ -995,7 +995,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     } u;
     RECT *rectP;
     LPVOID pv;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;
@@ -1234,7 +1234,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     HWND hwnd, hwnd2;
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4, dw5;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     union {
         WINDOWPLACEMENT winplace;
         WINDOWINFO wininfo;

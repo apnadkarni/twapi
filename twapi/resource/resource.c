@@ -456,7 +456,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     HANDLE h;
     TwapiResult result;
     void *pv;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     /* Every command has at least one argument */
     if (objc < 2)

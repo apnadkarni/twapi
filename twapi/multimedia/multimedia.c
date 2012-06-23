@@ -20,7 +20,7 @@ static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     DWORD dw, dw2;
     HMODULE hmod;
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;

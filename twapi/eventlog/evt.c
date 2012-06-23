@@ -934,7 +934,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     LPWSTR s, s2, s3;
     EVT_HANDLE hevt, hevt2;
     Tcl_WideInt wide;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     HANDLE h;
     WCHAR buf[MAX_PATH+1];
     EVT_VARIANT var;

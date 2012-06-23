@@ -1,6 +1,5 @@
-NOTE: Build instructions for TWAPI 3.0 have changed significantly from
-previous versions. The source code management system has also moved from CVS 
-to Mercurial.
+NOTE: Build instructions for TWAPI 4.0 have changed significantly from
+previous versions.
 
 What you need (or the official build environment):
 --------------------------------------------------
@@ -20,7 +19,7 @@ you include the AMD64 build environment if you want to do 64-bit
 builds. Also ensure you include the Web Workshop component as some
 Windows Shell headers are included there.
 
-- Some version of Mercurial to check code from the SourceForge repository.
+- Some version of Mercurial to check out code from the SourceForge repository.
 
 - Note a Tcl installation is no longer required. Appropriate headers and
 libraries are contained within the TWAPI directories.
@@ -47,11 +46,8 @@ http://sourceforge.net/apps/trac/sourceforge/wiki/Mercurial.
 Customize for your environment
 ------------------------------
 
-Edit the files twapi/common.inc and twapi/makefile to fix up paths
-specific to your environment. This is generally not required. If you
-are building full distributions, the zip and unzip commands are expected
-to be in your path. Otherwise, edit twapi/makefile to point them to
-the right place.
+Edit the files twapi/include/tooldefs.inc to fix up paths
+specific to your environment. This is generally not required.
 
 
 Set up 32-bit environment (only for 32-bit builds)
@@ -59,8 +55,8 @@ Set up 32-bit environment (only for 32-bit builds)
 
 In a DOS command window, set up the build environment by typing the commands
 
-     "c:\Program Files\Microsoft Visual Studio\vc98\vcvars32"
-     "c:\Program Files\Microsoft Platform SDK\setenv.cmd" /2000 /RETAIL
+     "%ProgramFiles%\Microsoft Visual Studio\vc98\bin\vcvars32"
+     "%ProgramFiles%\Microsoft Platform SDK\setenv.cmd" /XP32 /RETAIL
 
 Note the locations of the Visual Studio and SDK directories may be different
 on your system.
@@ -69,9 +65,10 @@ on your system.
 Set up 64-bit environment (only for 64-bit builds)
 -------------------------
 
+
 In a DOS command window, set up the build environment by typing the command
 
-     "c:\Program Files\Microsoft Platform SDK\setenv.cmd" /XP64 /RETAIL
+     "%ProgramFiles%\Microsoft Platform SDK\setenv.cmd" /XP64 /RETAIL
 
 NOTE: /XP64 and /RETAIL MUST BE IN UPPER CASE.
 
