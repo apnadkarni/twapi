@@ -1862,8 +1862,9 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
         return TCL_ERROR;
 }
 
-static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRAY **saPP, VARTYPE vt)
+static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRAY **saPP, VARTYPE *vtP)
 {
+    VARTYPE vt = *vtP;
     int i, ndim, cur_dim;
     Tcl_Obj *objP;
     void *valP;
@@ -1876,6 +1877,13 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
 
     TWAPI_ASSERT(vt & VT_ARRAY);
     vt &= ~ VT_ARRAY;
+
+    /* Change VARTYPE's that are not marshallable */
+    if (vt == VT_INT || vt == VT_HRESULT)
+        vt = VT_I4;
+    else if (vt == VT_UINT)
+        vt = VT_UI4;
+    *vtP = vt | VT_ARRAY;
 
     tcltype = TwapiGetTclType(valueObj);
 
@@ -2349,7 +2357,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     long lval;
 
     if (vt & VT_ARRAY) {
-        if (ObjToSAFEARRAY(interp, objP, &varP->parray, vt) != TCL_OK)
+        if (ObjToSAFEARRAY(interp, objP, &varP->parray, &vt) != TCL_OK)
             return TCL_ERROR;
         V_VT(varP) = vt;
         return TCL_OK;
@@ -2367,25 +2375,25 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     case VT_HRESULT:
         if (ObjToLong(interp, objP, &lval) != TCL_OK)
             return TCL_ERROR;
-        varP->vt = vt;
         switch (vt) {
-        case VT_I1:
-        case VT_UI1:
-            V_UI1(varP) = lval;
-            break;
-        case VT_I2:
-        case VT_UI2:
-            V_UI2(varP) = lval;
-            break;
+        case VT_I1:  V_I1(varP) = lval; break;
+        case VT_UI1: V_UI1(varP) = lval; break;
+        case VT_I2:  V_I2(varP) = lval; break;
+        case VT_UI2: V_UI2(varP) = lval; break;
         case VT_I4:
-        case VT_UI4:
         case VT_INT:
-        case VT_UINT:
         case VT_HRESULT:
+            vt = VT_I4;        /* VT_INT and VT_HRESULT cannot be marshalled */
             V_I4(varP) = lval;
+            break;
+        case VT_UI4:
+        case VT_UINT:
+            vt = VT_UI4;        /* VT_UINT cannot be marshalled */
+            V_UI4(varP) = lval;
             break;
         }
 
+        varP->vt = vt;
         break;
 
     case VT_R4:

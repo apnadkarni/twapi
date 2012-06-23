@@ -1304,6 +1304,7 @@ int TwapiMakeVariantParam(
 
         if (ObjToVARIANT(interp, valueObj, targetP, target_vt) != TCL_OK)
             goto vamoose;
+        target_vt = V_VT(targetP); /* Just to ensure consistency as it might have been changed */
 
         /*
          * If it is a IN or OUT param, no need to muck with ref counts.

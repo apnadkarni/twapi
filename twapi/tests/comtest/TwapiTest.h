@@ -42,7 +42,7 @@ END_COM_MAP()
 // ITwapiTest
 public:
 	STDMETHOD(get_IntSAProperty)(/*[out, retval]*/ SAFEARRAY **ppVal);
-	STDMETHOD(put_IntSAProperty)(/*[in, out]*/ SAFEARRAY **pVal);
+	STDMETHOD(put_IntSAProperty)(/*[in]*/ SAFEARRAY *pVal);
 	STDMETHOD(GetUI1SA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(GetIntSA)(/*[out, retval]*/ VARIANT *varP);
 	STDMETHOD(ThrowException)(/*[in]*/ BSTR desc);
