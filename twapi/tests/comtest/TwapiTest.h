@@ -41,6 +41,7 @@ END_COM_MAP()
 
 // ITwapiTest
 public:
+	STDMETHOD(GetVariantType)(/*[out, retval]*/ int *pVal);
 	STDMETHOD(get_IntSAProperty)(/*[out, retval]*/ SAFEARRAY **ppVal);
 	STDMETHOD(put_IntSAProperty)(/*[in]*/ SAFEARRAY *pVal);
 	STDMETHOD(GetUI1SA)(/*[out, retval]*/ VARIANT *varP);
