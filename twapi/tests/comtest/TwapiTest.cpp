@@ -261,11 +261,15 @@ STDMETHODIMP CTwapiTest::get_IntSAProperty(SAFEARRAY **saPP)
     return SafeArrayCopy(saval, saPP);
 }
 
-STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY **saPP)
+STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY *saP)
 {
+
+    /* IMPORTANT NOTE - the safearray IDL should be defined as SAFEARRAY(int)
+	to test that twapi correctly marshals VT_INT as VT_I4. If defined as
+	SAFEARRAY(long), this feature is not tested as long->VT_I4 directly. */
     SAFEARRAY *sa2P;
     HRESULT hr;
-    hr = SafeArrayCopy(*saPP, &sa2P);
+    hr = SafeArrayCopy(saP, &sa2P);
     if (FAILED(hr))
 	return hr;
     saval = sa2P;
