@@ -1920,13 +1920,16 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         if (ndim >= ARRAYSIZE(bounds))
             return TwapiReturnError(interp, TWAPI_INTERNAL_LIMIT);
 
-        if (Tcl_ListObjIndex(interp, objP, 0, &objP) != TCL_OK ||
-            Tcl_ListObjLength(interp, objP, &i) != TCL_OK)
+
+        if (Tcl_ListObjLength(interp, objP, &i) != TCL_OK)
             return TCL_ERROR;   /* Huh? Type was list so why fail? */
         bounds[ndim].lLbound = 0;
         bounds[ndim].cElements = i;
 
         ++ndim; /* Additional level of nesting implies one more dimension */
+
+        if (Tcl_ListObjIndex(interp, objP, 0, &objP) != TCL_OK)
+            return TCL_ERROR;   /* Huh? Type was list so why fail? */
 
         /* Note objP can be NULL (empty list) */
     }
@@ -1943,6 +1946,12 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
      * The objs[] array will keep track of the nested list corresponding
      * to each dimension.
      */
+    cur_dim = 0;
+    objs[0] = valueObj;
+    indices[0] = 0;
+
+    /* TBD - is this loop needed? Is it not just repeated at top of 
+       while loop below ?*/
     for (i = 1; i < ndim; ++i) {
         indices[i] = 0;
         if (Tcl_ListObjIndex(interp, objs[i-1], 0, &objs[i]) != TCL_OK)
@@ -1956,9 +1965,6 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
      * elements incrementing indices[]. 
      */
 
-    cur_dim = 0;
-    objs[0] = valueObj;
-    indices[0] = 0;
     
     while (1) {
         int ival;
@@ -2008,7 +2014,6 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         case VT_UI4:
         case VT_INT:
         case VT_UINT:
-            objP = ObjFromLong(*(long *)valP); break;
             if (ObjToInt(interp, objP, &ival) != TCL_OK)
                 goto error_handler;
             switch (vt) {
