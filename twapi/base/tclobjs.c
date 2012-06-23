@@ -1987,8 +1987,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
          * at all and the loop below is not entered at all.
          */
         while (++cur_dim < ndim) {
-            indices[cur_dim] = 0;
-            if (Tcl_ListObjIndex(interp, objs[cur_dim-1], 0, &objs[cur_dim]) != TCL_OK)
+            if (Tcl_ListObjIndex(interp, objs[cur_dim-1], indices[cur_dim-1], &objs[cur_dim]) != TCL_OK)
                 goto error_handler;
         }
 
@@ -2124,6 +2123,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         for (cur_dim = ndim-1; cur_dim >= 0; --cur_dim) {
             if (++indices[cur_dim] < bounds[cur_dim].cElements)
                 break;          /* No overflow for this dimension */
+            indices[cur_dim] = 0;
         }
 
         /*
