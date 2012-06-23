@@ -1333,6 +1333,9 @@ int TwapiMakeVariantParam(
              */
             V_VT(varP) = vt;
             V_VARIANTREF(varP) = targetP;
+        } else if (vt & VT_ARRAY) {
+            V_VT(varP) = V_VT(targetP) | VT_BYREF;
+            varP->pparray = &targetP->parray;
         } else {
             V_VT(varP) = V_VT(targetP) | VT_BYREF;
             switch (V_VT(targetP)) {

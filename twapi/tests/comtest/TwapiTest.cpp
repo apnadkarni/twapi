@@ -261,11 +261,11 @@ STDMETHODIMP CTwapiTest::get_IntSAProperty(SAFEARRAY **saPP)
     return SafeArrayCopy(saval, saPP);
 }
 
-STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY *saP)
+STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY **saPP)
 {
     SAFEARRAY *sa2P;
     HRESULT hr;
-    hr = SafeArrayCopy(saP, &sa2P);
+    hr = SafeArrayCopy(*saPP, &sa2P);
     if (FAILED(hr))
 	return hr;
     saval = sa2P;
