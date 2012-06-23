@@ -275,3 +275,9 @@ STDMETHODIMP CTwapiTest::put_IntSAProperty(SAFEARRAY *saP)
     saval = sa2P;
     return S_OK;
 }
+
+STDMETHODIMP CTwapiTest::GetVariantType(int *pVal)
+{
+    *pVal = variantval.vt;
+    return S_OK;
+}
