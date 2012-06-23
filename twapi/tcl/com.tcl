@@ -1318,18 +1318,24 @@ twapi::class create ::twapi::IDispatchProxy {
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
                             # We do not want change the internal type so
                             # save it since comobj? changes it to cmdProc
+                            # Moreover, if a list type, we do not even check
+                            # because it cannot be a comobj and even checking
+                            # will result in nested list types being
+                            # destroyed which affects safearray type detection
                             set orig_type [twapi::tcltype $arg]
-                            if {[twapi::comobj? $arg]} {
-                                # Note we do not addref when getting the interface
-                                # (last param 0) because not necessary for IN
-                                # params, AND it is the C code's responsibility
-                                # anyways
-                                set arg [$arg -interface 0]
-                            } else {
-                                # Restore the original type
-                                # The [set arg ""] is to optimize refcounts
-                                # so a new Tcl_Obj is not allocated internally
-                                set arg [twapi::tclcast $orig_type $arg[set arg ""]]
+                            if {$orig_type ne "list"} {
+                                if {[twapi::comobj? $arg]} {
+                                    # Note we do not addref when getting the interface
+                                    # (last param 0) because not necessary for IN
+                                    # params, AND it is the C code's responsibility
+                                    # anyways
+                                    set arg [$arg -interface 0]
+                                } else {
+                                    # Restore the original type
+                                    # The [set arg ""] is to optimize refcounts
+                                    # so a new Tcl_Obj is not allocated internally
+                                    set arg [twapi::tclcast $orig_type $arg[set arg ""]]
+                                }
                             }
                         }
                     }

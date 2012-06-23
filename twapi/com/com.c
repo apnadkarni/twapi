@@ -1219,7 +1219,8 @@ int TwapiMakeVariantParam(
             if (reftypec != 1)
                 goto invalid_type; /* Safearrays only allow base types */
             targetP = varP;
-            target_vt = vt | VT_ARRAY;
+            target_vt |= VT_ARRAY;
+            vt = target_vt;
         } else
             goto invalid_type;  /* No other vt should have typec == 2 */
     } else {
