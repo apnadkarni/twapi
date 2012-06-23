@@ -33,6 +33,12 @@ Added [uri com.html#generate_code_from_typelib [cmd generate_code_from_typelib]]
 to generate COM client code from type libraries.
 
 [bullet]
+Added COM support for passing SAFEARRAY types as input parameters and
+enhanced output SAFEARRAY values to support multidimensional arrays.
+[emph "POTENTIAL INCOMPATIBILITY"] as previously multidimensional arrays
+were returned as a single list.
+
+[bullet]
 Added [uri com.html [cmd comobj?]] and
 [uri com.html#comobj_instances [cmd comobj_instances]] to check for and
 return instances of [uri com.html#comobj [cmd comobj]] objects.

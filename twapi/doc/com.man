@@ -242,7 +242,7 @@ set workbook [lb]$workbooks Add[rb]
 set sheets [lb]$workbook Sheets[rb]
 set sheet [lb]$sheets Item 1[rb]
 set cells [lb]$sheet range a1 c3[rb]
-$cells Value 12345
+$cells Value2 12345
 $cells -destroy
 $sheet -destroy
 $sheets -destroy
@@ -271,7 +271,7 @@ $xl -with {
     Sheets
     {Item 1}
     {range a1 c3}
-} Value 12345
+} Value2 12345
 $xl -destroy
 [example_end]
 The [cmd -with] method takes a list of intermediate methods and
