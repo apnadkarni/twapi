@@ -155,7 +155,7 @@ vamoose:
 static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
     LPWSTR s, s2;
     HANDLE h, h2;
 

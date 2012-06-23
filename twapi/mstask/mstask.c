@@ -373,7 +373,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     Tcl_Obj *objs[4];
     SYSTEMTIME systime, systime2;
     TASK_TRIGGER tasktrigger;
-    int func = (int) clientdata;
+    int func = PtrToInt(clientdata);
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
