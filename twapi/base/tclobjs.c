@@ -1943,6 +1943,12 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
     }
 
     saP = SafeArrayCreate(vt, ndim, bounds);
+    if (bounds[0].cElements == 0) {
+        /* Empty array */
+        *saPP = saP;
+        return TCL_OK;
+    }
+        
     if (saP == NULL)
         return TwapiReturnErrorEx(interp, TWAPI_SYSTEM_ERROR,
                                   Tcl_ObjPrintf("Allocation of %d-dimensional SAFEARRAY of type %d failed.", ndim, vt));
