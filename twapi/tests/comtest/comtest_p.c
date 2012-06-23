@@ -2,7 +2,7 @@
 
 
 /* File created by MIDL compiler version 5.01.0164 */
-/* at Wed Jun 20 10:37:00 2012
+/* at Sat Jun 23 16:41:35 2012
  */
 /* Compiler settings for C:\src\twapi\twapi\tests\comtest\comtest.idl:
     Oicf (OptLev=i2), W1, Zp8, env=Win32, ms_ext, c_ext
@@ -27,7 +27,7 @@
 
 #include "comtest.h"
 
-#define TYPE_FORMAT_STRING_SIZE   1077                              
+#define TYPE_FORMAT_STRING_SIZE   1063                              
 #define PROC_FORMAT_STRING_SIZE   813                               
 
 typedef struct _MIDL_TYPE_FORMAT_STRING
@@ -169,7 +169,7 @@ CLIENT_CALL_RETURN _RetVal;
 
 /* [helpstring][id][propput] */ HRESULT STDMETHODCALLTYPE ITwapiTest_put_IntSAProperty_Proxy( 
     ITwapiTest __RPC_FAR * This,
-    /* [in] */ SAFEARRAY __RPC_FAR * sa)
+    /* [out][in] */ SAFEARRAY __RPC_FAR * __RPC_FAR *sa)
 {
 CLIENT_CALL_RETURN _RetVal;
 
@@ -1524,32 +1524,32 @@ static const MIDL_PROC_FORMAT_STRING __MIDL_ProcFormatString =
 /* 786 */	NdrFcLong( 0x0 ),	/* 0 */
 /* 790 */	NdrFcShort( 0x23 ),	/* 35 */
 #ifndef _ALPHA_
-/* 792 */	NdrFcShort( 0x8 ),	/* x86, MIPS, PPC Stack size/offset = 8 */
+/* 792 */	NdrFcShort( 0xc ),	/* x86, MIPS, PPC Stack size/offset = 12 */
 #else
-			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
+			NdrFcShort( 0x18 ),	/* Alpha Stack size/offset = 24 */
 #endif
 /* 794 */	NdrFcShort( 0x0 ),	/* 0 */
 /* 796 */	NdrFcShort( 0x8 ),	/* 8 */
-/* 798 */	0x6,		/* Oi2 Flags:  clt must size, has return, */
+/* 798 */	0x7,		/* Oi2 Flags:  srv must size, clt must size, has return, */
 			0x2,		/* 2 */
 
 	/* Parameter sa */
 
-/* 800 */	NdrFcShort( 0xb ),	/* Flags:  must size, must free, in, */
+/* 800 */	NdrFcShort( 0x11b ),	/* Flags:  must size, must free, in, out, simple ref, */
 #ifndef _ALPHA_
 /* 802 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
 #else
 			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
 #endif
-/* 804 */	NdrFcShort( 0x42a ),	/* Type Offset=1066 */
+/* 804 */	NdrFcShort( 0x418 ),	/* Type Offset=1048 */
 
 	/* Return value */
 
 /* 806 */	NdrFcShort( 0x70 ),	/* Flags:  out, return, base type, */
 #ifndef _ALPHA_
-/* 808 */	NdrFcShort( 0x4 ),	/* x86, MIPS, PPC Stack size/offset = 4 */
+/* 808 */	NdrFcShort( 0x8 ),	/* x86, MIPS, PPC Stack size/offset = 8 */
 #else
-			NdrFcShort( 0x8 ),	/* Alpha Stack size/offset = 8 */
+			NdrFcShort( 0x10 ),	/* Alpha Stack size/offset = 16 */
 #endif
 /* 810 */	0x8,		/* FC_LONG */
 			0x0,		/* 0 */
@@ -2292,17 +2292,8 @@ static const MIDL_TYPE_FORMAT_STRING __MIDL_TypeFormatString =
 /* 1054 */	NdrFcShort( 0x0 ),	/* 0 */
 /* 1056 */	NdrFcShort( 0xffffffa8 ),	/* Offset= -88 (968) */
 /* 1058 */	
-			0x12, 0x10,	/* FC_UP */
-/* 1060 */	NdrFcShort( 0x2 ),	/* Offset= 2 (1062) */
-/* 1062 */	
-			0x12, 0x0,	/* FC_UP */
-/* 1064 */	NdrFcShort( 0xffffff66 ),	/* Offset= -154 (910) */
-/* 1066 */	0xb4,		/* FC_USER_MARSHAL */
-			0x83,		/* 131 */
-/* 1068 */	NdrFcShort( 0x2 ),	/* 2 */
-/* 1070 */	NdrFcShort( 0x4 ),	/* 4 */
-/* 1072 */	NdrFcShort( 0x0 ),	/* 0 */
-/* 1074 */	NdrFcShort( 0xfffffff0 ),	/* Offset= -16 (1058) */
+			0x11, 0x0,	/* FC_RP */
+/* 1060 */	NdrFcShort( 0xfffffff4 ),	/* Offset= -12 (1048) */
 
 			0x0
         }
