@@ -82,79 +82,34 @@ build environments.
 Building the extension
 ----------------------
 
-There are several different variations of the extensions. These are
-described in the documentation in detail. Briefly, in the first
-variation, the Tcl script components in TWAPI are stored as separate
-files. The script files then load the DLL. This is "traditional" way
-mixed binary/script Tcl packages are distributed. In the second case,
-the scripts are embedded in the DLL itself as a resource so a single
-DLL is all the application needs. The third case is similar except
-that the scripts are stored in compressed form in the resource resulting
-in a smaller footprint.
+There are several different variations of the extensions These are
+described in the documentation in detail. To build a specific variation,
+first cd to the twapi directory and set up the appropriate
+build environment as described above. Then run one of the following
+commands:
 
-To build each of these, in either the 32- or 64-bit command windows above,
-cd to the twapi directory and type
+	nmake twapi
 
-    nmake
+This will build the standard distribution with a single DLL and external
+Tcl scripts.
 
-to build the first variation. Type
+    nmake twapi-bin
 
-   nmake EMBED_SCRIPT=plain
+This will build a single DLL with all scripts embedded as resources in it.
 
-to build the second, and type
+     nmake twapi-modular
 
-   nmake EMBED_SCRIPT=lzma
+This will build separate DLL's for each component, each with the associated
+script embedded.
 
-to build the third. Note any other value of EMBED_SCRIPT will have the
-same effect as not defining it at all.
+By default, the builds will be the twapi/build directory and the
+distributions in the twapi/dist directory.
 
-The DLL will be built in the base\X86\release, base\x86\release_embed
-and base\x86\release_embed_lzma respectively. The 64-bit builds will
-use the AMD64 subdirectories instead of x86.
 
-In all cases, the documentation will be built under the doc subdirectory.
+Building a full distribution
+----------------------------
 
-Packaging the distribution
---------------------------
-
-Several distribution mechanisms are supported - zipped Tcl package,
-single-file dll, Tcl module etc. In combination with the various build
-types described above, this means there are a large number of
-distribution variations possible.
-
-See the file "buildall.cmd" for the "official" variations.
-
-For example,
-
-    nmake distribution
-
-will build a zipped Tcl package containing the source scripts, stripped
-DLL and documentation. It includes a pkgIndex.tcl file so after unzipping,
-it can be loaded with the Tcl "package require twapi" command in any
-supported Tcl version.
-
-    nmake distribution EMBED_SCRIPT=lzma
-
-will also build a zipped Tcl package except that the Tcl scripts will
-be embedded in the DLL and documentation is not included.
-
-Both the above will try to include the 64-bit DLL in the 32-bit version
-to produce a single zip file runnable in either environment.
-
-    nmake tmdistribution EMBED_SCRIPT=lzma
-
-will build a single file Tcl 8.5 module with scripts embedded in the DLL.
-It can be loaded using "package require twapi" in Tcl 8.5 or later.
-These are platform specific.
-
-    nmake dlldistribution EMBED_SCRIPT=lzma
-
-will build a single file DLL distribution. This has to be loaded using
-the Tcl "load" command in any supported Tcl version.
-These are platform specific.
-
-In all cases, the corresponding nmake command to build the binaries
-as described in the previous section must have been called first.
-
-Note that starkits are no longer supported as they are superceded by
-the single-file DLL distributions.
+The above steps are combined into the buildall.cmd batch file.
+Run this file from a DOS prompt WITHOUT setting up the environment as
+described above. It will then build all the above distributions
+for both 32- and 64-bit versions.
