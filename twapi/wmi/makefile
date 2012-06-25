@@ -1,4 +1,5 @@
 MODULENAME=twapi_wmi
+PREREQUISITES=twapi_com
 
 !include ..\include\common.inc
 
