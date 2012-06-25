@@ -54,6 +54,11 @@ PACKAGE=$(MODULENAME)
 !endif
 !endif
 
+# If the module has dependencies on any other TWAPI modules,
+# define this in the module makefile. No need to include twapi_base
+# as it is implied
+# e.g. PREREQUISITES=twapi_com
+
 # Some modules that only run on later versions of Windows may
 # define this appropriately. By default, you get XP (5.1)
 !ifndef TWAPI_WIN_HEADER_VERSION

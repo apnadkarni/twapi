@@ -97,14 +97,14 @@ distribution: build "$(PACKAGEDIR)"
 !endif
 !if defined(OBJS)
 ! if "$(MACHINE)" != "AMD64"
-	echo $(MODULENAME) load >> "$(PACKAGEDIR)\pkgindex.modules"
+	echo $(MODULENAME) load $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
 ! endif
 ! if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
         $(COPY) "$(OBJDIR)\$(MODULE)" "$(PACKAGEDIR)"
 ! endif
 !else
 ! if "$(MACHINE)" != "AMD64"
-	echo $(MODULENAME) source >> "$(PACKAGEDIR)\pkgindex.modules"
+	echo $(MODULENAME) source $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
 ! endif
 !endif
 
