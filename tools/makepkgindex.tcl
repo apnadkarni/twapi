@@ -20,12 +20,55 @@ proc get_twapi_commands {} {
     return [concat [get_ns_commands ::twapi] [get_ns_commands ::metoo]]
 }
 
+proc dependents {mods modpath} {
+    set deps {}
+    foreach dep [dict get $mods [lindex $modpath end] dependencies] {
+        if {$dep in $modpath} {
+            error "Circular dependency: [join $modpath ->]->$dep"
+        }
+        if {$dep in $deps} {
+            continue;           # Already dealt with this
+        }
+        lappend modpath $dep
+        foreach dep2 [dependents $mods $modpath] {
+            if {$dep2 ni $deps} {
+                lappend deps $dep2
+            }
+        }
+        lappend deps $dep
+    }
+    return $deps
+}
+
 proc makeindex {pkgdir lazy ver} {
 
     # Read the list of modules and types
     set fd [open [file join $pkgdir pkgindex.modules]]
-    set mods [read $fd]
+    set lines [split [read $fd] \n]
     close $fd
+
+    # Arrange the modules such that dependencies are loaded
+    # before dependents
+    set mods [dict create]
+    foreach line $lines {
+        set line [string trim $line]
+        if {$line eq ""} continue
+        set dependencies [lassign $line mod type]
+        if {$mod eq "" || $type eq ""} {
+            error "Empty module name or type in pkgindex.modules file"
+        }
+        dict set mods $mod type $type
+        dict set mods $mod dependencies $dependencies
+    }
+
+    # $order contains order in which to load so that dependencies are
+    # loaded first.
+    set order {}
+    foreach mod [dict keys $mods] {
+        # Don't bother removing duplicates, we will just ignore them
+        # in loop below
+        lappend order {*}[dependents $mods $mod] $mod
+    }
 
     # We need to figure out the commands in this module. See what we
     # have so far and then make a diff
@@ -37,9 +80,11 @@ proc makeindex {pkgdir lazy ver} {
         }
     }
 
-    foreach {mod type} $mods {
+    foreach mod $order {
+        set type [dict get $mods $mod type]
         if {[dict exists $modinfo $mod]} {
-            error "Duplicate entry for module $mod"
+            # Modules may already be loaded due to dependencies
+            continue
         }
         if {$mod eq "twapi_base"} continue
         set dll {}

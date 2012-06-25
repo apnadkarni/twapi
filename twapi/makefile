@@ -8,13 +8,14 @@ LAZYPACKAGELOAD=1
 !include "$(SRCROOT)\include\tooldefs.inc"
 
 # base must be built before everything else as the rest depend on its exports
-# Remaining are in order of package dependencies since the build process
-# loads them in order when generating the pkgIndex.tcl file.
+# Dependencies at load time are handled via the PREREQUISITES macro (see 
+# common.inc)
 PURETCLMODULES = metoo msi power printer synch
-MODULES = security account apputil clipboard metoo com console crypto device \
-	etw eventlog msi mstask multimedia namedpipe network nls \
-	os pdh power printer process rds resource service share shell \
-	storage synch ui input winsta wmi
+BINMODULES = account apputil clipboard com console crypto device \
+	etw eventlog mstask multimedia namedpipe network nls \
+	os pdh process rds resource security service share shell \
+	storage ui input winsta wmi
+MODULES= $(PURETCLMODULES) $(BINMODULES)
 
 # Note this can be overridden on the command line
 TARGETS = base $(MODULES)
