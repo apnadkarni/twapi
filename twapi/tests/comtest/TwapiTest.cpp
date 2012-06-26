@@ -281,3 +281,26 @@ STDMETHODIMP CTwapiTest::GetVariantType(int *pVal)
     *pVal = variantval.vt;
     return S_OK;
 }
+
+STDMETHODIMP CTwapiTest::GetApplicationNames(VARIANT *varP)
+{
+    // Clones interface method reported by Till Immanuel
+    if ((V_VT(varP) & VT_ARRAY) == 0)
+	return Error("Passed VARIANT is not a SAFEARRAY");
+
+    VariantClear(varP);
+
+    varP->parray = SafeArrayCreateVector(VT_BSTR, 0, 3);
+    if (varP->parray == NULL)
+	return S_FALSE;
+    BSTR *bstrs;
+    HRESULT hr = SafeArrayAccessData(varP->parray, (void **)&bstrs);
+    if (FAILED(hr))
+	return hr;
+    bstrs[0] = SysAllocString(L"abc");
+    bstrs[1] = SysAllocString(L"def");
+    bstrs[2] = SysAllocString(L"ghi");
+    SafeArrayUnaccessData(varP->parray);
+    varP->vt = VT_ARRAY | VT_BSTR;
+    return S_OK;
+}
