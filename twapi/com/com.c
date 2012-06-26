@@ -1013,6 +1013,9 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
 
 static VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 {
+    int i;
+    void *pv;
+
     switch (TwapiGetTclType(objP)) {
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
     case TWAPI_TCLTYPE_BOOLEANSTRING:
@@ -1026,7 +1029,20 @@ static VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     case TWAPI_TCLTYPE_BYTEARRAY:
         return VT_UI1 | VT_ARRAY;
     case TWAPI_TCLTYPE_LIST:
-        /* A list is a SAFEARRAY. We do not know the type of each element
+        /*
+         * A list is usually a SAFEARRAY. However, it could be
+         * an IDispatch or IUnknown in certain special cases.
+         */
+        if (Tcl_ListObjLength(NULL, objP, &i) == TCL_OK && i == 2) {
+            /* Possibly IUnknown or IDispatch */
+            if (ObjToIDispatch(NULL, objP, &pv) == TCL_OK)
+                return VT_DISPATCH;
+            else if (ObjToIUnknown(NULL, objP, &pv) == TCL_OK)
+                return VT_UNKNOWN;
+        }
+        
+        /*
+         * A list is a SAFEARRAY. We do not know the type of each element
            so assume mixed type.
          */
         return VT_VARIANT | VT_ARRAY;

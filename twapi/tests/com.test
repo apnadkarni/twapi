@@ -794,8 +794,6 @@ namespace eval twapi::com::test {
     } -setup {
         set sh [twapi::comobj Shell.Application]
     } -body {
-        # The param is a variant that may be a integer
-        # corresponding to a special folder or a string path
         set fo [$sh NameSpace [file nativename [pwd]]]
         $fo Title
     } -cleanup {
