@@ -45,6 +45,7 @@ import "ocidl.idl";
 		[propget, id(17), helpstring("property SAProperty")] HRESULT IntSAProperty([out, retval] SAFEARRAY(int) *saP);
 		[propput, id(17), helpstring("property SAProperty")] HRESULT IntSAProperty([in] SAFEARRAY(int) sa);
 		[id(18), helpstring("method GetVariantType")] HRESULT GetVariantType([out, retval] int *pVal);
+		[id(19), helpstring("method GetApplicationNames")] HRESULT GetApplicationNames([in, out] VARIANT *varPP);
 	};
 
 [
