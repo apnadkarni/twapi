@@ -14,7 +14,8 @@ on Windows platforms.
 
 Windows are identified using window [emph handles]. A window handle consisting
 of an empty string represents an invalid or non-existent window when returned
-from a command.
+from a command. The command [uri #tkpath_to_hwnd [cmd tkpath_to_hwnd]]
+returns the window handle corresponding to a Tk window.
 [para]
 The commands [uri \#get_toplevel_windows [cmd get_toplevel_windows]],
 [uri \#get_descendent_windows [cmd get_descendent_windows]]
@@ -966,6 +967,10 @@ it to its original position.
 If both [cmd -normal] and [cmd -startup] are specified, [cmd -startup] takes
 precedence. If neither is specified, the window is shown in its current form,
 which may be minimized, maximized or normal.
+
+[call [cmd tkpath_to_hwnd] [arg TKPATH]]
+Returns the window handle corresponding to a Tk window in a form
+that can be passed to other TWAPI commands.
 
 [call [cmd window_exists] [arg HWIN]]
 Returns 1 if the specified window exists, else 0.
