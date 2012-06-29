@@ -233,13 +233,19 @@ VCVER=6
 
 # Compiler flags 
 
+# Link aborts with Internal error on twapi-modular builds. Google indicates
+# this might be because compiler and linker try to access same PDB file
+# so explicitly name the PDB file for compiler
+
+COMPILER_PDB = _$(MODULENAME).pdb
+
 !ifdef DEBUG
-CDEBUG = -Zi -Od -D_DEBUG  -Fd"$(OBJDIR)"
+CDEBUG = -Zi -Od -D_DEBUG  -Fd"$(OBJDIR)\$(COMPILER_PDB)"
 !else
 !ifdef NOOPTIMIZE
-CDEBUG = -Zi -Od -Fd"$(OBJDIR)"
+CDEBUG = -Zi -Od -Fd"$(OBJDIR)\$(COMPILER_PDB)"
 !else
-CDEBUG = -O1 -Zi -DNDEBUG -W3 -Fd"$(OBJDIR)"
+CDEBUG = -O1 -Zi -DNDEBUG -W3 -Fd"$(OBJDIR)\$(COMPILER_PDB)"
 !endif
 !endif
 
