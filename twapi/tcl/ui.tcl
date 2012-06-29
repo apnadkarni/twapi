@@ -1098,7 +1098,6 @@ proc twapi::get_multiple_display_monitor_info {} {
 }
 
 
-# TBD - document
 proc twapi::tkpath_to_hwnd {tkpath} {
     return [cast_handle [winfo id $tkpath] HWND]
 }
