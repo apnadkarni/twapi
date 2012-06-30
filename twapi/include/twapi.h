@@ -1099,7 +1099,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 /* Built-in commands */
 
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
-TwapiTclObjCmd Twapi_TryObjCmd;
+TwapiTclObjCmd Twapi_TrapObjCmd;
 TwapiTclObjCmd Twapi_KlGetObjCmd;
 TwapiTclObjCmd Twapi_TwineObjCmd;
 TwapiTclObjCmd Twapi_RecordArrayObjCmd;

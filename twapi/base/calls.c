@@ -1618,8 +1618,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     struct tcl_dispatch_s TclDispatch[] = {
         DEFINE_TCL_CMD(Call, Twapi_CallObjCmd),
         DEFINE_TCL_CMD(parseargs, Twapi_ParseargsObjCmd),
-        DEFINE_TCL_CMD(trap, Twapi_TryObjCmd),
-        DEFINE_TCL_CMD(try, Twapi_TryObjCmd),
+        DEFINE_TCL_CMD(trap, Twapi_TrapObjCmd),
         DEFINE_TCL_CMD(kl_get, Twapi_KlGetObjCmd),
         DEFINE_TCL_CMD(twine, Twapi_TwineObjCmd),
         DEFINE_TCL_CMD(recordarray, Twapi_RecordArrayObjCmd),

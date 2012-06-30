@@ -62,6 +62,10 @@ Added commands
 and [cmd "-type sid"] option to [uri users.html#add_member_to_local_group [cmd add_member_to_local_group]],
 [uri users.html#remove_member_from_local_group [cmd remove_member_from_local_group]].
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The [cmd try] command, deprecated in previous versions, has been removed
+to prevent conflicts with the [cmd try] command in Tcl 8.6.
+Use [uri base.man#trap [cmd trap]] instead.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]
