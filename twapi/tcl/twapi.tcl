@@ -677,7 +677,7 @@ proc twapi::_net_enum_helper {function args} {
 # The apply is just to use vars without polluting global namespace
 apply {{filelist} {
     if {[file tail [info script]] eq "twapi.tcl"} {
-        # We are being sourced so source the remaining files
+        # We are being sourced so source the remaining twapi_base files
 
         set dir [file dirname [info script]]
         foreach f $filelist {
@@ -688,7 +688,7 @@ apply {{filelist} {
 
 # Returns a list of twapi procs that are currently defined and should
 # be exported. SHould be called after completely loading twapi
-proc twapi::_get_public_procs {} {
+proc twapi::OBSOLETE_get_public_procs {} {
 
     set public_procs [info procs]
 
@@ -728,15 +728,20 @@ proc twapi::true {args} {
 namespace eval twapi {
     # Get a handle to ourselves. This handle never need be closed
     variable my_process_handle [GetCurrentProcess]
-
-    # TBD - To improve start-up times, we should really enumerate exports
-    # at build time,
-
-    # eval namespace export [::twapi::_get_public_procs]
 }
 
 proc twapi::export_public_commands {} {
-    uplevel #0 [list namespace eval twapi [list eval namespace export [::twapi::_get_public_procs]]]
+    variable exports;           # Populated via pkgIndex.tcl
+    if {![info exists exports]} {
+        error "Export table does not exist."
+    }
+    # Only export commands under twapi (e.g. not metoo)
+    dict for {ns cmds} $exports {
+        if {[regexp {^::twapi($|::)} $ns]} {
+            uplevel #0 [list namespace eval $ns [list namespace export {*}$cmds]
+] 
+        }
+    }
 }
 
 proc twapi::import_commands {} {

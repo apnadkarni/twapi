@@ -39,8 +39,11 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
     } else {
         # Set up the load for when commands are actually accessed
         # TBD - add a line to export commands here ?
-        foreach command $commands {
-            set auto_index($command) $loadcmd
+        foreach {ns cmds} $commands {
+            dict lappend ::twapi::exports $ns {*}$cmds
+            foreach cmd $cmds {
+                set auto_index(${ns}::$cmd) $loadcmd
+            }
         }
     }
 

@@ -98,18 +98,25 @@ proc makeindex {pkgdir lazy ver} {
             # Pure script
             twapi::Twapi_SourceResource $mod
         }
-        set mod_cmds {}
+        set mod_cmds [dict create]
         if {$lazy} {
             foreach cmd [get_twapi_commands] {
-                if {![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
+                set ns [namespace qualifiers $cmd]
+                set tail [namespace tail $cmd]
+                
+                # Only include twapi extension commands (inc. metoo) and
+                # also skip internal twapi commands (beginning with _)
+                if {[string index $tail 0] eq "_" ||
+                    ![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
                     continue
                 }
+                
                 if {![info exists commands($cmd)]} {
                     set commands($cmd) $mod
-                    lappend mod_cmds $cmd
+                    dict lappend mod_cmds $ns $tail
                 }
             }
-            if {[llength $mod_cmds] == 0} {
+            if {[dict size $mod_cmds] == 0} {
                 error "No public commands found in twapi module $mod"
             }
         }
