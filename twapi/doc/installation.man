@@ -74,15 +74,6 @@ unzip it into a directory that is included in the path contained
 in your Tcl [cmd auto_path] variable. The ZIP distributions can
 be used by both 32-bit and 64-bit Tcl from the same location.
 
-[section Commands]
-
-All commands installed by this extension fall under the [cmd twapi::]
-namespace.
-The commands are not exported from the namespace by default. To
-import the commands, they must first be exported by calling
-[cmd ::twapi::export_public_commands]. Alternatively, you can call
-[cmd ::twapi::import_commands] to import all TWAPI commands.
-
-[keywords "installation" "system requirements" "package dependencies" starkit "Tcl module"]
+[keywords "installation" "system requirements" "package dependencies"]
 
 [manpage_end]
