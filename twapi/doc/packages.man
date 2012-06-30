@@ -1,11 +1,42 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Packages" n ""]
-[copyright "2011 Ashok P. Nadkarni"]
+[manpage_begin "Packages and Loading" n ""]
+[copyright "2011-2012 Ashok P. Nadkarni"]
 [moddesc "TWAPI packages"]
 [titledesc "Tcl Windows API package description"]
 [description]
 
-The entire TWAPI functionality is available through a single package: [cmd twapi]. The [cmd twapi_desktop] and [cmd twapi_server] packages in earlier versions
-are no longer available.
+The entire TWAPI functionality is available through a
+single package: [cmd twapi]. Alternatively, if you need only a small 
+subset of the TWAPI commands, you can [cmd "package require"] only
+that package.
+[para]
+For example,
+[example_begin]
+package require twapi
+[example_end]
+
+will make commands from all modules available. On the other hand,
+
+[example_begin]
+package require twapi_com
+[example_end]
+
+will only load the commands in the [cmd twapi_com] package and
+the [cmd twapi_base] package (which is always loaded).
+
+[para]
+In conjunction with the modular version of the TWAPI distribution,
+selectively loading modules allows you to only distribute the specific
+modules used by the application.
+
+[section Commands]
+
+All commands installed by this extension fall under the [cmd twapi::]
+namespace.
+The commands are not exported from the namespace by default. To
+import the commands, they must first be exported by calling
+[cmd ::twapi::export_public_commands]. Alternatively, you can call
+[cmd ::twapi::import_commands] to import all TWAPI commands.
+
 
 [manpage_end]
