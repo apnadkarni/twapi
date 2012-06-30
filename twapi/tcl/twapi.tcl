@@ -686,38 +686,6 @@ apply {{filelist} {
     }
 }} {base.tcl handle.tcl win.tcl adsi.tcl}
 
-# Returns a list of twapi procs that are currently defined and should
-# be exported. SHould be called after completely loading twapi
-proc twapi::OBSOLETE_get_public_procs {} {
-
-    set public_procs [info procs]
-
-    # Init with C built-ins - there does not seem an easy auto way
-    # of getting these. Also, ensembles although probably there is
-    # a way of doing this.
-    lappend public_procs {*}{
-        canonicalize_guid
-        is_valid_sid_syntax
-        kl_get
-        parseargs
-        recordarray
-        systemtray
-        trap
-        twine
-    }
-
-    # Also export aliases but not "try" as it conflicts
-    # with 8.6 try
-    foreach p [interp aliases] {
-        if {[regexp {twapi::([a-z][^:]*)$} $p _ tail]} {
-            if {$tail ne "try"} {
-                lappend public_procs $tail
-            }
-        }
-    }
-
-    return $public_procs
-}
 
 # Used in various matcher callbacks to signify always include etc.
 # TBD - document

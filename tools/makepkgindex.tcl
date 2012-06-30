@@ -40,7 +40,7 @@ proc dependents {mods modpath} {
     return $deps
 }
 
-proc makeindex {pkgdir lazy ver} {
+proc makeindex {pkgdir lazy} {
 
     # Read the list of modules and types
     set fd [open [file join $pkgdir pkgindex.modules]]
@@ -62,8 +62,9 @@ proc makeindex {pkgdir lazy ver} {
     }
 
     # $order contains order in which to load so that dependencies are
-    # loaded first.
-    set order {}
+    # loaded first. Even though twapi_base is explicitly loaded,
+    # include it here because we want to enumerate its exports
+    set order [list twapi_base]
     foreach mod [dict keys $mods] {
         # Don't bother removing duplicates, we will just ignore them
         # in loop below
@@ -86,7 +87,6 @@ proc makeindex {pkgdir lazy ver} {
             # Modules may already be loaded due to dependencies
             continue
         }
-        if {$mod eq "twapi_base"} continue
         set dll {}
         if {$type eq "load"} {
             # Binary module. See if statically bound or not
@@ -94,6 +94,9 @@ proc makeindex {pkgdir lazy ver} {
                 set dll [file join $pkgdir ${mod}.dll]
             }
             uplevel #0 [list load $dll $mod]
+            if {$mod eq "twapi_base"} {
+                set ver [twapi::get_version -patchlevel]
+            }
         } else {
             # Pure script
             twapi::Twapi_SourceResource $mod
@@ -134,13 +137,12 @@ proc makeindex {pkgdir lazy ver} {
 
 if {[info script] eq $::argv0} {
     set ::argv [lassign $::argv dir lazy]
-    load [file join $dir twapi_base.dll] twapi
-    set ver [twapi::get_version -patchlevel]
-    puts "package ifneeded twapi_base $ver \[list apply {{d} {load \[file join \$d twapi_base.dll\] ; package provide twapi_base $ver}} \$dir\]"
-    dict for {mod info} [makeindex $dir $lazy $ver] {
+#    puts "package ifneeded twapi_base $ver \[list apply {{d} {load \[file join \$d twapi_base.dll\] ; package provide twapi_base $ver}} \$dir\]"
+    dict for {mod info} [makeindex $dir $lazy] {
         puts [dict get $info load_command]
         lappend mods $mod
     }
+    set ver [twapi::get_version -patchlevel]
     puts "package ifneeded twapi $ver {"
     puts "  package require twapi_base $ver"
     foreach mod $mods {

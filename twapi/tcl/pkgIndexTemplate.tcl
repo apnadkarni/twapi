@@ -6,31 +6,32 @@ if {$::tcl_platform(os) ne "Windows NT" ||
 
 namespace eval twapi {}
 proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
-    # Need the twapi base of the same version
-    package require twapi_base $version
-
     global auto_index
 
     if {$file eq ""} {
         set file $pkg
     }
-    if {$type eq "load"} {
-        # Package could be statically linked or to be loaded
-        if {[twapi::get_build_config single_module]} {
-            # Modules are statically bound
-            set fn {}
-        } else {
-            # Modules are external DLL's
-            if {$::tcl_platform(pointerSize) == 8} {
-                set fn [file join $dir "${file}64.dll"]
-            } else {
-                set fn [file join $dir "${file}.dll"]
-            }
-        }
+    if {$::tcl_platform(pointerSize) == 8} {
+        set fn [file join $dir "${file}64.dll"]
+    } else {
+        set fn [file join $dir "${file}.dll"]
+    }
+    if {$pkg eq "twapi_base"} {
+        # Need the twapi base of the same version
         set loadcmd [list load $fn $pkg]
     } else {
-        # A pure Tcl script package
-        set loadcmd [list twapi::Twapi_SourceResource $file 1]
+        package require twapi_base $version
+        if {$type eq "load"} {
+            # Package could be statically linked or to be loaded
+            if {[twapi::get_build_config single_module]} {
+                # Modules are statically bound. Reset fn
+                set fn {}
+            }
+            set loadcmd [list load $fn $pkg]
+        } else {
+            # A pure Tcl script package
+            set loadcmd [list twapi::Twapi_SourceResource $file 1]
+        }
     }
 
     if {[llength $commands] == 0} {

@@ -9,7 +9,7 @@
 
 static int GlobalImport (Tcl_Interp *interp);
 
-int Twapi_TryObjCmd(
+TCL_RESULT Twapi_TrapObjCmd(
     TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int objc,
