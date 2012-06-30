@@ -39,11 +39,6 @@ independent and simultaneously supports both 32- and 64-bit Tcl.
 A ZIP archive, [file twapi-modular-[arg VERSION].zip], containing
 separate DLL's for each TWAPI module. This distribution is also
 platform independent and simultaneously supports both 32- and 64-bit Tcl.
-[bullet]
-A single file Tcl module, [file twapi-[arg PLATFORM]-[arg VERSION].tm],
-for Tcl 8.5 and above. This is platform-specific. Note the file must
-be renamed to [file twapi-[arg VERSION].tm] else the packaging system will
-not find it.
 [list_end]
 
 [para]
