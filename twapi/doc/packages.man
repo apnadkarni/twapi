@@ -38,5 +38,6 @@ import the commands, they must first be exported by calling
 [cmd ::twapi::export_public_commands]. Alternatively, you can call
 [cmd ::twapi::import_commands] to import all TWAPI commands.
 
+[keywords "packages" "modules" "importing commands"]
 
 [manpage_end]
