@@ -72,7 +72,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #endif
 
 /* Why is this decl needed ? TBD */
-const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
+//const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
 
 int TwapiLoadStaticModules(Tcl_Interp *interp)
 {

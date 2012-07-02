@@ -16,7 +16,7 @@
 #     when the module is built. Each module's resource definition file
 #     is compiled and linked into the DLL (more on this below).
 #     The initialization functions for each module are automatically
-#     called y Tcl when the module is loaded.
+#     called by Tcl when the module is loaded.
 #
 # [3] If building a single DLL, TWAPI_SINGLE_MODULE is defined. In
 #     this case,
@@ -45,11 +45,12 @@
 #
 # Embedding of scripts:
 #
-#  [4] If EMBED_SCRIPT is not defined on the command line or is "none",
-#      scripts are not to be embedded in the DLL. In this case the resource
+#  [4] If scripts are not to be embedded in the DLL, the resource
 #      TWAPI_SCRIPT_RESOURCE_PATH is not defined and the DLL resource
 #      definition file is compiled as is as described above in the building
-#      of the DLL.
+#      of the DLL. THIS CASE IS NOT CURRENTLY USED - EVEN IF THE TCL
+#      SCRIPT ITSELF IS NOT EMBEDDED, A STUB IS EMBEDDED THAT SOURCES THE
+#      TCL script.
 #  [5] If the module Tcl script is to be embedded in the DLL,
 #      TWAPI_SCRIPT_RESOURCE_PATH is defined and all Tcl files for a
 #      module are combined into a single (optionally compressed) file
@@ -86,9 +87,11 @@ all: build distribution
 !ifdef OBJS
 # Binary module
 build: $(OBJDIR)\$(MODULE)
+# Static library
+lib: $(OBJDIR)\$(MODULELIB)
 !else
 # Tcl only module
-build: $(RCFRAG) $(TWAPI_SCRIPT_RESOURCE_PATH)
+build lib: $(RCFRAG) $(TWAPI_SCRIPT_RESOURCE_PATH)
 !endif
 
 distribution: build "$(PACKAGEDIR)"
@@ -107,9 +110,6 @@ distribution: build "$(PACKAGEDIR)"
 	echo $(MODULENAME) source $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
 ! endif
 !endif
-
-# Static library
-lib: $(OBJDIR)\$(MODULELIB)
 
 "$(OBJDIR)" "$(PACKAGEDIR)":
 	@if not exist $@ mkdir $@
@@ -132,13 +132,18 @@ lib: $(OBJDIR)\$(MODULELIB)
 
 #    See [3e] - write module initialization fragments
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
+	-@if not exist $(@D) mkdir $(@D)
 	echo puts "Tcl_PackageInitProc [string totitle $(MODULENAME)]_Init;" | $(TCLSH) > $@.proto
 	echo puts "TWAPI_INIT_STATIC_PACKAGE([string totitle $(MODULENAME)], [string totitle $(MODULENAME)]_Init, NULL);" | $(TCLSH) > $@
 
 #    See [3b] - create link inputs for modules other than twapi_base
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
 	-@if not exist $(@D) mkdir $(@D)
+!    if defined(TWAPI_STATIC_BUILD)
+	echo $(OBJS) > $@
+!    else
 	echo $(EXTRALIBS) $(OBJS) > $@
+!    endif
 !  endif MODULENAME == twapi_base
 
 !else
@@ -197,7 +202,15 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 !endif defined(EMBED_SCRIPT)
 
 $(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH)
-	$(LIBTOOL) /OUT:$@ $(OBJS)
+!if "$(MODULENAME)" == "twapi_base"
+	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
+        $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
+!else
+$(OBJDIR)\$(MODULELIB): "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
+!endif
+
+
+
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
