@@ -75,3 +75,5 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
 
 !endif
 
+twapi-static-lib:
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="lib" TARGETS="$(TARGETS)" TWAPI_STATIC_BUILD=1 EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1
