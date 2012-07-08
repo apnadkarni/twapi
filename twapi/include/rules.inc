@@ -65,12 +65,45 @@
 #          module or twapi_base resource file so scripts are bound to the DLL.
 #
 
-!ifndef TWAPI_SCRIPT_RESOURCE_PATH
-!error TWAPI_SCRIPT_RESOURCE_PATH not defined
+# If building a lib, default to lzma 
+!if defined(TWAPI_STATIC_BUILD) && ! defined(EMBED_SCRIPT)
+EMBED_SCRIPT=lzma
 !endif
-!ifndef TWAPI_SCRIPT_RESOURCE
-!error TWAPI_SCRIPT_RESOURCE not defined
+
+!if defined(TWAPI_SINGLE_MODULE) || "$(OBJS)" == ""
+TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\..\twapi_base\script_resources
+!else
+TWAPI_SCRIPT_RESOURCE_DIR=$(OBJDIR)\script_resources
 !endif
+!if "$(EMBED_SCRIPT)" == "" || "$(EMBED_SCRIPT)" == "none"
+
+# Not embedding the scripts themselves. Embed a stub that will source the files
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscript
+TWAPI_SCRIPT_RESOURCE=$(MODULENAME)_source_stub
+
+# Undefine to indicate actual scripts are not embedded
+!  undef EMBED_SCRIPT
+
+!elseif "$(EMBED_SCRIPT)" == "lzma"
+
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscriptlzma
+TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script.lzma
+
+!  elseif "$(EMBED_SCRIPT)" == "plain"
+
+TWAPI_SCRIPT_RESOURCE_TYPE=tclscript
+TWAPI_SCRIPT_RESOURCE=combined_$(MODULENAME)_script
+
+!  else
+
+!    error EMBED_SCRIPT must be undefined, "none", "lzma" or "plain"
+
+!  endif
+
+# Note: Do NOT enclose TWAPI_SCRIPT_RESOURCE_PATH in quotes even though
+# it is a file name, not a path because when passed to the rc compiler
+# as an include, it should not have quotes
+TWAPI_SCRIPT_RESOURCE_PATH=$(TWAPI_SCRIPT_RESOURCE_DIR)\$(TWAPI_SCRIPT_RESOURCE)
 
 # See [3d], [5] - building resource files
 !if defined(TWAPI_SINGLE_MODULE) || "$(OBJS)" == ""
@@ -126,9 +159,9 @@ distribution: build "$(PACKAGEDIR)"
 !    endif $(VCVER) > 8
 !  else
 #    See [3b] - building a module other than twapi_base in single DLL mode
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH)
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG)
 #      See [5b] - write a resource def fragment to include Tcl script
-	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
+# OBSOLETE	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
 
 #    See [3e] - write module initialization fragments
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
@@ -161,19 +194,21 @@ $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
 
 !endif defined(TWAPI_SINGLE_MODULE)
 
+#      See [5b] - write a resource def fragment to include Tcl script
 $(RCFRAG):
 	-@if not exist "$(RCFRAGDIR)" mkdir "$(RCFRAGDIR)"
-	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > $(RCFRAG)
+	echo set fn [file tail {$(TWAPI_SCRIPT_RESOURCE_PATH)}] ; puts "$(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) [set fn]" | $(TCLSH) > $(RCFRAG)
+#	echo set fpath [file nativename [file normalize {$(TWAPI_SCRIPT_RESOURCE_PATH)}]] ; puts "$(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) [set fpath]" | $(TCLSH) > $(RCFRAG)
 
 $(OBJDIR)\$(MODULENAME).res: $(OBJDIR) $(RCFRAG) $(RC_FILE_PATH) makefile $(TWAPI_SCRIPT_RESOURCE_PATH)
 #      See [5a,b] - write a resource def fragment to include Tcl script
 !if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
 #       See [5c] - append script resource def to rc file
 	$(COPY) $(RC_FILE_PATH)+"$(RCFRAGDIR)\*.rcfrag" "$(OBJDIR)\$(MODULENAME).rc"
-        rc $(INCFLAGS) $(RCFLAGS) -fo $@ "$(OBJDIR)\$(MODULENAME).rc"
+        rc $(INCFLAGS) $(RCFLAGS) -i "$(TWAPI_SCRIPT_RESOURCE_DIR)" -fo $@ "$(OBJDIR)\$(MODULENAME).rc"
 !else
 #       See [4]
-        rc $(INCFLAGS) $(RCFLAGS) -fo $@ $(RC_FILE_PATH)
+        rc $(INCFLAGS) $(RCFLAGS)  -i "$(TWAPI_SCRIPT_RESOURCE_DIR)" -fo $@ $(RC_FILE_PATH)
 !endif
 
 !ifdef OBJS
@@ -184,11 +219,12 @@ $(OBJS): $(CINCLUDES) makefile
 
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 	-@if not exist "$(OBJDIR)\tcl" mkdir "$(OBJDIR)\tcl"
+	-@if not exist "$(TWAPI_SCRIPT_RESOURCE_DIR)" mkdir "$(TWAPI_SCRIPT_RESOURCE_DIR)"
 	for %f in ($(TCLFILES)) do @xcopy /q/y/i %f "$(OBJDIR)\tcl" >NUL
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
-	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE)" -compact $(PACKAGE) $(MODULEVERSION) $**
+	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH)" -compact $(PACKAGE) $(MODULEVERSION) $**
 ! else
-	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
+	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
 ! endif
 
@@ -197,11 +233,12 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 # Not embedding the script. Embed a command to source the first file instead
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 	-@if not exist "$(OBJDIR)\tcl" mkdir "$(OBJDIR)\tcl"
+	-@if not exist "$(TWAPI_SCRIPT_RESOURCE_DIR)" mkdir "$(TWAPI_SCRIPT_RESOURCE_DIR)"
 	echo set fn [file join [lindex [split {$(TCLFILES)}] 0]] ; puts "source \[file join \[twapi::Twapi_GetInstallDir] [file tail $$fn]\]" | $(TCLSH) > $(TWAPI_SCRIPT_RESOURCE_PATH)
 
 !endif defined(EMBED_SCRIPT)
 
-$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH)
+$(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG)
 !if "$(MODULENAME)" == "twapi_base"
 	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
