@@ -539,7 +539,7 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
     
 #define INIT_EVT_STUB(fn) \
     do { \
-        if (((* (FARPROC*) gEvtStubs._ ## fn) = GetProcAddress(gEvtDllHandle, #fn)) == NULL) \
+      if (((gEvtStubs._ ## fn) = (void *)GetProcAddress(gEvtDllHandle, #fn)) == NULL) \
             return;                                                     \
     } while (0)
 
