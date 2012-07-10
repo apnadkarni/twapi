@@ -226,6 +226,7 @@ $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 ! else
 	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)"
+	del "$(TWAPI_SCRIPT_RESOURCE_PATH).raw"
 ! endif
 
 !else
