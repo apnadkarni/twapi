@@ -79,7 +79,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         Tcl_Obj *event_obj;
         Tcl_Obj *field_obj[5];
         LONG     value[5];
-        char *options[] = {"key", "mouse", NULL};
+        static const char *options[] = {"key", "mouse", NULL};
         int   option;
 
 
