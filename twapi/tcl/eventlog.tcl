@@ -186,6 +186,7 @@ proc twapi::eventlog_format_message {rec args} {
             if {![info exists paramfiles]} {
                 # Construct list of parameter string files
 
+                # TBD - cache registry key results?
                 # Find the registry key if we do not have it already
                 if {![info exists regkey]} {
                     if {[dict exists $_eventlog_message_cache $source regkey]} {
