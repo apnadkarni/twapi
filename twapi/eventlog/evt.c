@@ -228,7 +228,7 @@ EVT_HANDLE gEvtDllHandle;
 #define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
 
 #define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), "EVT_HANDLE")
-#define GETEVTH(h_) GETHANDLET((h_), "EVT_HANDLE")
+#define GETEVTH(h_) GETHANDLET((h_), EVT_HANDLE)
 
 /* Always returns TCL_ERROR after storing extended error info */
 static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
