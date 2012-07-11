@@ -905,6 +905,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         return TCL_ERROR;
     
     if (login_class != 1) {
+        /* Only EvtRpcLogin (1) supported */
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid login class");
     }
     if (ObjGetElements(interp, objv[2], &nobjs, &loginObjs) != TCL_OK)
