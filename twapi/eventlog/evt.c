@@ -749,6 +749,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
     if (count == 0) {
         xpathsP = NULL;
     } else {
+        /* TBD - is this optimization really necessary? */
         if (count <= ARRAYSIZE(xpaths)) {
             xpathsP = xpaths;
         } else {
