@@ -301,7 +301,9 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
     int i;
     Tcl_Obj *objP;
     Tcl_Obj **objPP;
+#ifdef USE_TAGGED_EVT_VARIANT
     Tcl_Obj *retObjs[2];
+#endif
     int count;
 
     objP = NULL;
@@ -505,9 +507,13 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
     if (objP == NULL) 
         objP = ObjFromEmptyString();
 
+#ifdef USE_TAGGED_EVT_VARIANT
     retObjs[0] = ObjFromInt(varP->Type);
     retObjs[1] = objP;
     return ObjNewList(2, retObjs);
+#else
+    return objP;
+#endif
 }
 
 /* Should be called only once at init time */
