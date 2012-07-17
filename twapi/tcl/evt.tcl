@@ -236,6 +236,21 @@ proc twapi::evt_event_array_size {hevt} {
 }
 
 
+proc twapi::evt_publishers {{hevtsess NULL}} {
+    set pubs {}
+    set hevt [EvtOpenPublisherEnum $hevtsess 0]
+    trap {
+        while {[set pub [EvtNextPublisherId $hevt]] ne ""} {
+            lappend pubs $pub
+        }
+    } finally {
+        EvtClose $hevt
+    }
+
+    return $pubs
+}
+
+
 
 
 # TBD - EvtFormatMessage
