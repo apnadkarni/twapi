@@ -180,8 +180,8 @@ proc twapi::evt_event_metadata_property {hevt args} {
         lappend result $opt \
             [EvtGetEventMetadataProperty $hevt \
                  [dict get {
-                     -id 0 version 1 channel 2 level 3
-                     -opcode 4 task 5 keyword 6 -messageid 7 template 8
+                     -id 0 -version 1 -channel 2 -level 3
+                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
                  } $opt]]
     }
     return $result
@@ -205,7 +205,7 @@ proc twapi::evt_publisher_metadata_property {hevt args} {
     set result {}
     foreach opt $args {
         lappend result $opt \
-            [EvtGetPublisherMetadataProperty [dict get {
+            [EvtGetPublisherMetadataProperty $hevt [dict get {
                 -publisherguid 0   -resourcefilepath 1 -parameterfilepath 2
                 -messagefilepath 3 -helplink 4 -publishermessageid 5
                 -channelreferences 6 -channelreferencepath 7
@@ -216,7 +216,7 @@ proc twapi::evt_publisher_metadata_property {hevt args} {
                 -taskmessageid 20 -opcodes 21 -opcodename 22
                 -opcodevalue 23 -opcodemessageid 24 -keywords 25
                 -keywordname 26 -keywordvalue 27 -keywordmessageid 28
-            } $opt]]
+            } $opt] 0]
     }
     return $result
 }
@@ -250,8 +250,33 @@ proc twapi::evt_publishers {{hevtsess NULL}} {
     return $pubs
 }
 
+proc twapi::evt_open_publisher_metadata {pub args} {
+    array set opts [parseargs args {
+        {session.arg NULL}
+        logfile.arg
+        lcid.int
+    } -nulldefault -maxleftover 0]
+
+    return [EvtOpenPublisherMetadata $opts(session) $pub $opts(logfile) $opts(lcid) 0]
+}
 
 
+proc twapi::evt_publisher_events_metadata {hpub args} {
+    set henum [EvtOpenEventMetadataEnum $hpub]
+
+    # It is faster to build a list and then have Tcl shimmer to a dict when
+    # required
+    set meta {}
+    trap {
+        while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
+            lappend meta [evt_event_metadata_property $hmeta {*}$args]
+            EvtClose $hmeta
+        }
+    } finally {
+        EvtClose $henum
+    }
+    
+}
 
 # TBD - EvtFormatMessage
 # TBD - EvtGetObjectArrayProperty

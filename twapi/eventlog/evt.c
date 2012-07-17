@@ -1116,8 +1116,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             /* Note channel/publisher is max 255 chars so no need to check
                for ERROR_INSUFFICIENT_BUFFER */
             if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(buf), buf, &dw) != FALSE) {
-                /* TBD - dw or dw-1 ? */
-                TwapiSetObjResult(interp, ObjFromUnicodeN(buf, dw));
+                TwapiSetObjResult(interp, ObjFromUnicodeN(buf, dw-1));
                 return TCL_OK;
             }
             result.type = TRT_EXCEPTION_ON_ERROR;
@@ -1143,6 +1142,9 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_NONNULL;
             result.value.nonnull.name = "EVT_HANDLE";
             result.value.nonnull.p = EvtNextEventMetadata(hevt, dw);
+            if (result.value.nonnull.p == NULL &&
+                GetLastError() == ERROR_NO_MORE_ITEMS)
+                return TCL_OK;
             break;
         case 110:
             result.type =
