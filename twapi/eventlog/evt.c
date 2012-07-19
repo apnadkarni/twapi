@@ -272,8 +272,6 @@ static int ObjToEVT_VARIANT_ARRAY(
         used = 0;
         count = 0;
     } else {
-        /* If not empty, must be a list of two elements - size and
-           ptr (which may be 0 and NULL) */
         if (nobjs != 4)
             return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
 
@@ -311,6 +309,7 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
     case EvtVarTypeNull:
         break;
     case EvtVarTypeString:
+    case EvtVarTypeEvtXml:
         if (varP->StringVal)
             objP = ObjFromUnicode(varP->StringVal);
         break;
@@ -369,6 +368,9 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
     case EvtVarTypeSid:
         objP = ObjFromSIDNoFail(varP->SidVal);
         break;
+    case EvtVarTypeEvtHandle:
+        objP = ObjFromEVT_HANDLE(varP->EvtHandleVal);
+        break;
     case EvtVarTypeHexInt32:      /* TBD - do not know how to interpret this  */
         break;
     case EvtVarTypeHexInt64:      /* TBD - do not know how to interpret this  */
@@ -388,6 +390,7 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
 
         switch (varP->Type & EVT_VARIANT_TYPE_MASK) {
         case EvtVarTypeString:
+        case EvtVarTypeEvtXml:
             for (i = 0; i < count; ++i) {
                 objPP[i] = varP->StringArr[i] ?
                     ObjFromUnicode(varP->StringArr[i])
@@ -504,8 +507,10 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
         break;
     }
 
-    if (objP == NULL) 
+    if (objP == NULL) {
+        // TBD - debug output
         objP = ObjFromEmptyString();
+    }
 
 #ifdef USE_TAGGED_EVT_VARIANT
     retObjs[0] = ObjFromInt(varP->Type);
@@ -721,7 +726,7 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
         if (dw2) {
             objPP = MemLifoAlloc(&ticP->memlifo, dw2*sizeof(*objPP), NULL);
             for (dw = 0; dw < dw2; ++dw) {
-                objPP[dw] = ObjFromHANDLE(hevtP[dw]);
+                objPP[dw] = ObjFromEVT_HANDLE(hevtP[dw]);
             }
             TwapiSetObjResult(interp, ObjNewList(dw2, objPP));
         }
