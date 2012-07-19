@@ -204,19 +204,38 @@ proc twapi::evt_log_info {hevt args} {
 proc twapi::evt_publisher_metadata_property {hevt args} {
     set result {}
     foreach opt $args {
-        lappend result $opt \
-            [EvtGetPublisherMetadataProperty $hevt [dict get {
-                -publisherguid 0   -resourcefilepath 1 -parameterfilepath 2
-                -messagefilepath 3 -helplink 4 -publishermessageid 5
-                -channelreferences 6 -channelreferencepath 7
-                -channelreferenceindex 8 -channelreferenceid 9
-                -channelreferenceflags 10 -channelreferencemessageid 11
-                -levels 12 -levelname 13 -levelvalue 14 -levelmessageid 15
-                -tasks 16 -taskname 17 -taskeventguid 18 -taskvalue 19
-                -taskmessageid 20 -opcodes 21 -opcodename 22
-                -opcodevalue 23 -opcodemessageid 24 -keywords 25
-                -keywordname 26 -keywordvalue 27 -keywordmessageid 28
-            } $opt] 0]
+        set val [EvtGetPublisherMetadataProperty $hevt [dict get {
+            -publisherguid 0  -resourcefilepath 1 -parameterfilepath 2
+            -messagefilepath 3 -helplink 4 -publishermessageid 5
+            -channelreferences 6 -levels 12 -tasks 16
+            -opcodes 21 -keywords 25
+        } $opt] 0]
+        if {$opt ni {-channelreferences -levels -tasks -opcodes -keywords}} {
+            lappend result $opt $val
+            continue
+        }
+        set n [EvtGetObjectArraySize $val]
+        set val2 {}
+        for {set i 0} {$i < $n} {incr i} {
+            set rec {}
+            foreach {opt2 iopt} [dict get {
+                -channelreferences { -channelreferencepath 7
+                    -channelreferenceindex 8 -channelreferenceid 9
+                    -channelreferenceflags 10 -channelreferencemessageid 11}
+                -levels { -levelname 13 -levelvalue 14 -levelmessageid 15 }
+                -tasks { -taskname 17 -taskeventguid 18 -taskvalue 19
+                    -taskmessageid 20}
+                -opcodes {-opcodename 22 -opcodevalue 23 -opcodemessageid 24}
+                -keywords {-keywordname 26 -keywordvalue 27
+                    -keywordmessageid 28}
+            } $opt] {
+                lappend rec $opt2 [EvtGetObjectArrayProperty $val $iopt $i]
+            }
+            lappend val2 $rec
+        }
+
+        EvtClose $val
+        lappend result $opt $val2
     }
     return $result
 }
@@ -231,10 +250,28 @@ proc twapi::evt_query_info {hevt args} {
     return $result
 }
 
-proc twapi::evt_event_array_size {hevt} {
+proc twapi::evt_object_array_size {hevt} {
     return [EvtGetObjectArraySize $hevt]
 }
 
+proc twapi::evt_object_array_property {hevt index args} {
+    set result {}
+
+    foreach opt $args {
+        lappend result $opt \
+            [EvtGetObjectArrayProperty $hevt [dict get {
+                -channelreferencepath 7
+                -channelreferenceindex 8 -channelreferenceid 9
+                -channelreferenceflags 10 -channelreferencemessageid 11
+                -levelname 13 -levelvalue 14 -levelmessageid 15
+                -taskname 17 -taskeventguid 18 -taskvalue 19
+                -taskmessageid 20 -opcodename 22
+                -opcodevalue 23 -opcodemessageid 24
+                -keywordname 26 -keywordvalue 27 -keywordmessageid 28
+            }] $index]
+    }
+    return $result
+}
 
 proc twapi::evt_publishers {{hevtsess NULL}} {
     set pubs {}
@@ -276,8 +313,74 @@ proc twapi::evt_publisher_events_metadata {hpub args} {
         EvtClose $henum
     }
     
+    return $meta
 }
 
-# TBD - EvtFormatMessage
-# TBD - EvtGetObjectArrayProperty
-# TBD - EvtNext
+proc twapi::evt_query {args} {
+    array set opts [parseargs args {
+        {session.arg NULL}
+        file.arg
+        channel.arg
+        {query.arg *}
+        {ignorequeryerrors 0 0x1000}
+        {direction.arg forward}
+    } -maxleftover 0]
+
+    if {([info exists opts(file)] && [info exists opts(channel)]) ||
+        ! ([info exists opts(file)] || [info exists opts(channel)])} {
+        error "Exactly one of -file or -channel must be specified."
+    }
+    
+    set flags $opts(ignorequeryerrors)
+    incr flags [dict get {forward 0x100 reverse 0x200 backward 0x200} $opts(direction)]
+
+    if {[info exists opts(file)]} {
+        set path $opts(file)
+        incr flags 0x2
+    } else {
+        set path $opts(channel)
+        incr flags 0x1
+    }
+
+    return [EvtQuery $opts(session) $path $opts(query) $flags]
+}
+
+proc twapi::evt_next {hresultset args} {
+    array set opts [parseargs args {
+        {timeout.int -1}
+        {count.int 1}
+    } -maxleftover 0]
+
+    return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
+}
+
+proc twapi::evt_format_event {hevt args} {
+    array set opts [parseargs args {
+        hpublisher.arg
+        {values.arg ""}
+        {field.arg event}
+    } -maxleftover 0]
+
+    if {[info exists opts(hpublisher)]} {
+        set hpub $opts(hpublisher)
+    } else {
+        # TBD - add -publisher option or get publisher from hevt
+        set hpub NULL
+    }
+
+    set type [dict get {
+        event 1
+        level 2
+        task 3
+        opcode 4
+        keyword 5
+        channel 6
+        provider 7
+        xml 9
+    } $opts(field)]
+
+    return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
+}
+
+
+# TBD - EvtFormatMessage for publisher messages
