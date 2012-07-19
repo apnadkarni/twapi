@@ -250,7 +250,19 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
     return TCL_ERROR;           /* Always returns TCL_ERROR */
 }
 
-static int ObjToEVT_VARIANT_ARRAY(
+/* Convert EVT_VARIANT array returned from EvtRender to an opaque structure*/
+static Tcl_Obj *ObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int sz, int used, int count)
+{
+    Tcl_Obj *objs[4];
+    objs[0] = ObjFromOpaque(varP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
+    objs[1] = ObjFromInt(sz);
+    objs[2] = ObjFromInt(used);
+    objs[3] = ObjFromInt(count);
+
+    return ObjNewList(4, objs);
+}
+
+static int ObjToEVT_RENDER_VALUES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,
     void **bufPP,   /* Where to store pointer to array */
@@ -294,7 +306,7 @@ static int ObjToEVT_VARIANT_ARRAY(
     return TCL_OK;
 }
 
-Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
+static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
 {
     int i;
     Tcl_Obj *objP;
@@ -521,6 +533,25 @@ Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
 #endif
 }
 
+static Tcl_Obj *ObjFromEVT_VARIANT_ARRAY(TwapiInterpContext *ticP, EVT_VARIANT *varP, int count)
+{
+    int i;
+    Tcl_Obj **objPP;
+    Tcl_Obj *objP;
+
+    objPP = MemLifoPushFrame(&ticP->memlifo, count * sizeof (objPP[0]), NULL);
+
+    for (i = 0; i < count; ++i) {
+        objPP[i] = ObjFromEVT_VARIANT(ticP, &varP[i]);
+    }
+
+    objP = ObjNewList(count, objPP);
+    MemLifoPopFrame(&ticP->memlifo);
+
+    return objP;
+}
+
+
 /* Should be called only once at init time */
 void TwapiInitEvtStubs(Tcl_Interp *interp)
 {
@@ -603,20 +634,19 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
 static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE hevt, hevt2;
-    DWORD flags, sz, count, used, status;
+    DWORD sz, count, used, status;
     void *bufP;
-    Tcl_Obj *objs[4];
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE),
-                     GETINT(flags), ARGSKIP, ARGEND) != TCL_OK)
+                     ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     bufP = NULL;
     /* 4th arg is supposed to describe a previously returned buffer
        that we can reuse. It may also be NULL
     */
-    if (ObjToEVT_VARIANT_ARRAY(interp, objv[4], &bufP, &sz, NULL, NULL) != TCL_OK)
+    if (ObjToEVT_RENDER_VALUES(interp, objv[3], &bufP, &sz, NULL, NULL) != TCL_OK)
         return TCL_ERROR;
 
     /* Allocate buffer if we were not passed one */
@@ -654,11 +684,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
         return Twapi_AppendSystemError(interp, status);
     }
 
-    objs[0] = ObjFromOpaque(bufP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
-    objs[1] = ObjFromInt(sz);
-    objs[2] = ObjFromInt(used);
-    objs[3] = ObjFromInt(count);
-    TwapiSetObjResult(interp, ObjNewList(4, objs));
+    TwapiSetObjResult(interp, ObjFromEVT_RENDER_VALUES(bufP, sz, used, count));
     return TCL_OK;
 }
 
@@ -708,6 +734,19 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return TCL_OK;
 }
 
+static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    EVT_VARIANT *varP;
+    int dw;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(varP), GETINT(dw),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+        
+    Tcl_SetObjResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, varP, dw));
+    return TCL_OK;
+}
+
 static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVT_HANDLE hevt;
@@ -753,7 +792,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
     int flags;
     DWORD ret = TCL_ERROR;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, ARGSKIP, GETINT(flags)) != TCL_OK ||
+    if (TwapiGetArgs(interp, objc-1, objv+1, ARGSKIP, GETINT(flags), ARGEND) != TCL_OK ||
         Tcl_ListObjLength(interp, objv[1], &count) != TCL_OK)
         return TCL_ERROR;
 
@@ -802,7 +841,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                      GETINT(msgid), ARGSKIP, GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (ObjToEVT_VARIANT_ARRAY(interp, objv[4], &valuesP, NULL, NULL, &nvalues) != TCL_OK)
+    if (ObjToEVT_RENDER_VALUES(interp, objv[4], &valuesP, NULL, NULL, &nvalues) != TCL_OK)
         return TCL_ERROR;
 
     /* TBD - instrument buffer size */
@@ -1102,7 +1141,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = EvtUpdateBookmark(hevt, hevt2);
         break;
-
+    
     default:
         /* Params - HANDLE followed by optional DWORD */
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1182,6 +1221,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtCreateRenderContext, Twapi_EvtCreateRenderContextObjCmd),
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
+        DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
     };
 
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
