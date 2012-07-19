@@ -382,5 +382,8 @@ proc twapi::evt_format_event {hevt args} {
     return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
 }
 
+proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
+    free $p
+}
 
 # TBD - EvtFormatMessage for publisher messages
