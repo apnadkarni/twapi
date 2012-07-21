@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -7,25 +7,221 @@
 
 #include <twapi.h>
 
+// TBD - regenerate string rep so that Tcl_Obj *bytes can be freed up
+
 struct OptionDescriptor {
-    const char *name;
-    int         name_len;
+    Tcl_Obj    *name; // TBD - should this store name without the .type suffix?
     Tcl_Obj    *def_value;
-    Tcl_Obj    *value;
     Tcl_Obj    *valid_values;
-    int         type;
+    unsigned short name_len;    /* Length of option name excluding
+                                   any .type suffix */
+    char        type;
 #define OPT_ANY    0
 #define OPT_BOOL   1
 #define OPT_INT    2
 #define OPT_SWITCH 3
+    char        first;          /* First char of name[] */
 };
 
+
+static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP);
+static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeParseargsOpt(Tcl_Obj *objP);
+static void UpdateStringParseargsOpt(Tcl_Obj *objP);
+
+static struct Tcl_ObjType gParseargsOptionType = {
+    "TwapiParseargsOpt",
+    FreeParseargsOpt,
+    DupParseargsOpt,
+    UpdateStringParseargsOpt, /* Should never be called. Will panic */
+    SetParseargsOptFromAny    /* jenglish says keep this NULL - TBD */
+};
+
+static void CleanupOptionDescriptor(struct OptionDescriptor *optP)
+{
+    if (optP->name) {
+        Tcl_DecrRefCount(optP->name);
+        optP->name = NULL;
+    }
+    if (optP->def_value) {
+        Tcl_DecrRefCount(optP->def_value);
+        optP->def_value = NULL;
+    }
+    if (optP->valid_values) {
+        Tcl_DecrRefCount(optP->valid_values);
+        optP->valid_values = NULL;
+    }
+}
+
+static void UpdateStringParseargsOpt(Tcl_Obj *objP)
+{
+    Tcl_Panic("UpdateStringParseargsOpt called");
+}
+
+
+static void FreeParseargsOpt(Tcl_Obj *objP)
+{
+    unsigned long i;
+    struct OptionDescriptor *optsP;
+
+    if ((optsP = (struct OptionDescriptor *)objP->internalRep.ptrAndLongRep.ptr) != NULL) {
+        for (i = 0; i < objP->internalRep.ptrAndLongRep.value; ++i) {
+            CleanupOptionDescriptor(&optsP[i]);
+        }
+        ckfree((char *) optsP);
+    }
+
+    objP->internalRep.ptrAndLongRep.ptr = NULL;
+    objP->internalRep.ptrAndLongRep.value = 0;
+    objP->typePtr = NULL;
+}
+
+static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP)
+{
+    int i;
+    struct OptionDescriptor *doptsP;
+    struct OptionDescriptor *soptsP;
+    
+    dstP->typePtr = &gParseargsOptionType;
+    soptsP = srcP->internalRep.ptrAndLongRep.ptr;
+    if (soptsP == NULL) {
+        dstP->internalRep.ptrAndLongRep.ptr = NULL;
+        dstP->internalRep.ptrAndLongRep.value = 0;
+        return;
+    }
+
+    doptsP = (struct OptionDescriptor *) ckalloc(srcP->internalRep.ptrAndLongRep.value * sizeof(*doptsP));
+    dstP->internalRep.ptrAndLongRep.ptr = doptsP;
+    i = srcP->internalRep.ptrAndLongRep.value;
+    dstP->internalRep.ptrAndLongRep.value = i;
+    while (i--) {
+        if ((doptsP->name = soptsP->name) != NULL)
+            Tcl_IncrRefCount(doptsP->name);
+        if ((doptsP->def_value = soptsP->def_value) != NULL)
+            Tcl_IncrRefCount(doptsP->def_value);
+        if ((doptsP->valid_values = soptsP->valid_values) != NULL)
+            Tcl_IncrRefCount(doptsP->valid_values);
+        doptsP->name_len = soptsP->name_len;
+        doptsP->type = soptsP->type;
+        doptsP->first = soptsP->first;
+        ++doptsP;
+        ++soptsP;
+    }
+
+}
+
+
+static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    int k, nopts;
+    Tcl_Obj **optObjs;
+    struct OptionDescriptor *optsP;
+    struct OptionDescriptor *curP;
+    int len;
+
+    if (objP->typePtr == &gParseargsOptionType)
+        return TCL_OK;          /* Already in correct format */
+
+    if (ObjGetElements(interp, objP, &nopts, &optObjs) != TCL_OK)
+        return TCL_ERROR;
+    
+    
+    optsP = nopts ? (struct OptionDescriptor *) ckalloc(nopts * sizeof(*optsP)) : NULL;
+
+    for (k = 0; k < nopts ; ++k) {
+        Tcl_Obj **elems;
+        int       nelems;
+        const char     *type;
+        const char *p;
+
+        curP = &optsP[k];
+
+        /* Init to NULL first so error handling frees correctly */
+        curP->name = NULL;
+        curP->def_value = NULL;
+        curP->valid_values = NULL;
+
+        if (ObjGetElements(interp, optObjs[k], &nelems, &elems) != TCL_OK ||
+            nelems == 0) {
+            goto error_handler;
+        }
+
+        curP->type = OPT_SWITCH; /* Assumed option type */
+        curP->name = elems[0];
+        Tcl_IncrRefCount(elems[0]);
+        p = Tcl_GetStringFromObj(elems[0], &len);
+        curP->first = *p;
+        type = Tcl_UtfFindFirst(p, '.');
+        if (type == NULL)
+            curP->name_len = (unsigned short) len;
+        else {
+            if (type == p)
+                goto error_handler;
+
+            curP->name_len = (unsigned short) (type - p);
+            ++type;          /* Point to type descriptor */
+            if (STREQ(type, "int"))
+                curP->type = OPT_INT;
+            else if (STREQ(type, "arg"))
+                curP->type = OPT_ANY;
+            else if (STREQ(type, "bool"))
+                curP->type = OPT_BOOL;
+            else if (STREQ(type, "switch"))
+                curP->type = OPT_SWITCH;
+            else
+                goto error_handler;
+        }
+        if (nelems > 1) {
+            /* Squirrel away specified default */
+            curP->def_value = elems[1];
+            Tcl_IncrRefCount(elems[1]);
+
+            if (nelems > 2) {
+                /* Value must be in the specified list or for BOOL and SWITCH
+                   value to use for 'true' */
+                curP->valid_values = elems[2];
+                Tcl_IncrRefCount(elems[2]);
+            }
+        }
+    }
+    
+    /* OK, options are in order. Convert the passed object's internal rep */
+    
+    /* Make sure there is a string rep since we do not have a proc to
+       create one */
+    Tcl_GetString(objP);
+
+    if (objP->typePtr && objP->typePtr->freeIntRepProc)
+        objP->typePtr->freeIntRepProc(objP);
+    objP->internalRep.ptrAndLongRep.ptr = optsP;
+    objP->internalRep.ptrAndLongRep.value = nopts;
+    objP->typePtr = &gParseargsOptionType;
+
+    return TCL_OK;
+
+error_handler: /* Tcl error result must have been set */
+    /* k holds highest index that has been processed and is the error */
+    Tcl_AppendResult(interp, "Badly formed option descriptor: '",
+                     ObjToString(optObjs[k]), "'", NULL);
+    Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
+    if (optsP) {
+        while (k >= 0) {
+            CleanupOptionDescriptor(&optsP[k]);
+            --k;
+        }
+        ckfree((char *)optsP);
+    }
+    return TCL_ERROR;
+}
+
+
 static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
-                                    Tcl_Obj *value,
-                                    const char *opt_name, int opt_name_len)
+                                        Tcl_Obj *value,
+                                        Tcl_Obj *opt_name, int opt_name_len)
 {
     return Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'",
-                         error_type, ObjToString(value), opt_name_len, opt_name);
+                         error_type, ObjToString(value),
+                         opt_name_len, Tcl_GetString(opt_name));
 }
 
 static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct OptionDescriptor *opts, int nopts)
@@ -37,7 +233,7 @@ static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct
     objP = Tcl_ObjPrintf("Invalid option '%s'. Must be one of ", badopt);
 
     for (j = 0; j < nopts; ++j) {
-        Tcl_AppendPrintfToObj(objP, "%s%.*s", sep, opts[j].name_len, opts[j].name);
+        Tcl_AppendPrintfToObj(objP, "%s%.*s", sep, opts[j].name_len, Tcl_GetString(opts[j].name));
         sep = ", -";
     }
 
@@ -50,7 +246,7 @@ static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct
  * Argument parsing command
  */
 int Twapi_ParseargsObjCmd(
-    ClientData dummy,
+    TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
@@ -59,24 +255,40 @@ int Twapi_ParseargsObjCmd(
     int         argc, iarg;
     Tcl_Obj   **argv;
     int         nopts;
-    Tcl_Obj   **optObjs;
     int         j, k;
     Tcl_WideInt wide;
-    struct OptionDescriptor opts[128]; /* TBD - Max number of options - get_locale_info needs more than 100! */
+    struct OptionDescriptor *opts;
     int         ignoreunknown = 0;
     int         nulldefault = 0;
     int         hyphenated = 0;
     Tcl_Obj    *newargvObj = NULL;
     int         maxleftover = INT_MAX;
     Tcl_Obj    *namevalList = NULL;
-
-    /* TBD - also set errorCode in case of errors */
+    Tcl_Obj    *values[20];
+    Tcl_Obj    **valuesP = NULL;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "argvVar optlist ?-ignoreunknown? ?-nulldefault? ?-hyphenated? ?-maxleftover COUNT? ?--?");
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_BAD_ARG_COUNT));
         return TCL_ERROR;
     }
+
+    /* Now construct the option descriptors */
+    if (objv[2]->typePtr != &gParseargsOptionType) {
+        if (SetParseargsOptFromAny(interp, objv[2]) != TCL_OK)
+            return TCL_ERROR;
+    }
+        
+    opts =  objv[2]->internalRep.ptrAndLongRep.ptr;
+    nopts = objv[2]->internalRep.ptrAndLongRep.value;
+
+    if (nopts > ARRAYSIZE(values)) {
+        valuesP = MemLifoAlloc(&ticP->memlifo, nopts * sizeof(*valuesP), NULL);
+    } else
+        valuesP = values;
+
+    for (k = 0; k < nopts; ++k)
+        valuesP[k] = NULL;      /* Values corresponding to each option */
 
     for (j = 3 ; j < objc ; ++j) {
         char *s = ObjToString(objv[j]);
@@ -110,68 +322,10 @@ int Twapi_ParseargsObjCmd(
     /* Collect the arguments into an array */
     argvObj = Tcl_ObjGetVar2(interp, objv[1], NULL, TCL_LEAVE_ERR_MSG);
     if (argvObj == NULL)
-        return TCL_ERROR;
+        goto error_return;
 
     if (ObjGetElements(interp, argvObj, &argc, &argv) != TCL_OK)
-        return TCL_ERROR;
-
-    /* Now construct the option descriptors */
-    if (ObjGetElements(interp, objv[2], &nopts, &optObjs) != TCL_OK)
-        return TCL_ERROR;
-
-    if (nopts > (sizeof(opts)/sizeof(opts[0]))) {
-        return TwapiReturnErrorMsg(interp, TWAPI_INTERNAL_LIMIT,
-                                   "Too many options specified.");
-    }
-
-    for (k = 0; k < nopts ; ++k) {
-        Tcl_Obj **elems;
-        int       nelems;
-        const char     *type;
-
-        if (ObjGetElements(interp, optObjs[k],
-                                    &nelems, &elems) != TCL_OK) {
-            Tcl_AppendResult(interp, "Badly formed option descriptor: '",
-                             ObjToString(optObjs[k]), "'", NULL);
-            Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
-            return TCL_ERROR;
-        }
-
-        opts[k].name = ObjToStringN(elems[0], &opts[k].name_len);
-        opts[k].type = OPT_SWITCH;
-        opts[k].def_value = NULL;
-        opts[k].value = NULL;
-        opts[k].valid_values = NULL;
-        type = Tcl_UtfFindFirst(opts[k].name, '.');
-        if (type) {
-            opts[k].name_len = (int) (type - opts[k].name);
-            ++type;          /* Point to type descriptor */
-            if (STREQ(type, "int"))
-                opts[k].type = OPT_INT;
-            else if (STREQ(type, "arg"))
-                opts[k].type = OPT_ANY;
-            else if (STREQ(type, "bool"))
-                opts[k].type = OPT_BOOL;
-            else if (STREQ(type, "switch"))
-                opts[k].type = OPT_SWITCH;
-            else {
-                Tcl_AppendResult(interp, "Invalid option type '",
-                                 type, "'", NULL);
-                Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
-                return TCL_ERROR;
-            }
-        }
-        if (nelems > 1) {
-            /* Squirrel away specified default */
-            opts[k].def_value = elems[1];
-
-            if (nelems > 2) {
-                /* Value must be in the specified list or for BOOL and SWITCH
-                   value to use for 'true' */
-                opts[k].valid_values = elems[2];
-            }
-        }
-    }
+        goto error_return;
 
     newargvObj = ObjNewList(0, NULL);
     namevalList = ObjNewList(0, NULL);
@@ -190,7 +344,8 @@ int Twapi_ParseargsObjCmd(
         /* Check against each option in turn */
         for (j = 0; j < nopts; ++j) {
             if (opts[j].name_len == (argp_len-1) &&
-                ! Tcl_UtfNcmp(opts[j].name, argp+1, (argp_len-1))) {
+                opts[j].first == argp[1] &&
+                ! Tcl_UtfNcmp(Tcl_GetString(opts[j].name), argp+1, (argp_len-1))) {
                 break;          /* Match ! */
             }
         }
@@ -200,7 +355,7 @@ int Twapi_ParseargsObjCmd(
              *  Matches option j. Remember the option value.
              */
             if (opts[j].type == OPT_SWITCH) {
-                opts[j].value = ObjFromBoolean(1);
+                valuesP[j] = ObjFromBoolean(1);
             }
             else {
                 if (iarg >= (argc-1)) {
@@ -209,7 +364,7 @@ int Twapi_ParseargsObjCmd(
                     Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
                     goto error_return;
                 }
-                opts[j].value = argv[iarg+1];
+                valuesP[j] = argv[iarg+1];
                 ++iarg;            /* Move on to next arg in array */
             }
         }
@@ -266,11 +421,11 @@ int Twapi_ParseargsObjCmd(
             }
             /* FALLTHRU to check for defaults */
         case OPT_BOOL:
-            if (opts[k].value == NULL) {
+            if (valuesP[k] == NULL) {
                 /* Option not specified. Check for a default and use it */
                 if (opts[k].def_value == NULL && !nulldefault)
                     continue;       /* No default, so skip */
-                opts[k].value = opts[k].def_value;
+                valuesP[k] = opts[k].def_value;
             }
             break;
         }
@@ -281,14 +436,15 @@ int Twapi_ParseargsObjCmd(
             /* If no explicit default, but have a -nulldefault switch,
              * (else we would have continued above), return 0
              */
-            if (opts[k].value == NULL) {
-                opts[k].value = ObjFromInt(0);
+            if (valuesP[k] == NULL) {
+                valuesP[k] = ObjFromInt(0);
             }
-            else if (Tcl_GetWideIntFromObj(interp, opts[k].value, &wide) == TCL_ERROR) {
+            else if (Tcl_GetWideIntFromObj(interp, valuesP[k], &wide) == TCL_ERROR) {
                 (void) TwapiSetObjResult(interp,
                                          TwapiParseargsBadValue("Non-integer",
-                                                                opts[k].value,
-                                                                opts[k].name, opts[k].name_len));
+                                                                valuesP[k],
+                                                                opts[k].name,
+                                                                opts[k].name_len));
                 goto error_return;
             }
 
@@ -299,7 +455,7 @@ int Twapi_ParseargsObjCmd(
                     if (Tcl_GetWideIntFromObj(interp, validObjs[ivalid], &valid_wide) == TCL_ERROR) {
                         (void) TwapiSetObjResult(interp, TwapiParseargsBadValue(
                                              "Non-integer enumeration",
-                                             opts[k].value,
+                                             valuesP[k],
                                              opts[k].name, opts[k].name_len));
                         goto error_return;
                     }
@@ -313,15 +469,15 @@ int Twapi_ParseargsObjCmd(
             /* If no explicit default, but have a -nulldefault switch,
              * (else we would have continued above), return ""
              */
-            if (opts[k].value == NULL) {
-                opts[k].value = ObjFromEmptyString();
+            if (valuesP[k] == NULL) {
+                valuesP[k] = ObjFromEmptyString();
             }
 
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
                     if (!lstrcmpA(ObjToString(validObjs[ivalid]),
-                                  ObjToString(opts[k].value)))
+                                  ObjToString(valuesP[k])))
                         break;
                 }
             }
@@ -330,25 +486,28 @@ int Twapi_ParseargsObjCmd(
         case OPT_SWITCH:
             /* Fallthru */
         case OPT_BOOL:
-            if (opts[k].value == NULL)
-                opts[k].value = ObjFromBoolean(0);
+            if (valuesP[k] == NULL)
+                valuesP[k] = ObjFromBoolean(0);
             else {
-                if (Tcl_GetBooleanFromObj(interp, opts[k].value, &j) == TCL_ERROR) {
-                    (void) TwapiSetObjResult(interp, TwapiParseargsBadValue("Non-boolean",
-                                                            opts[k].value,
-                                                            opts[k].name, opts[k].name_len));
+                if (Tcl_GetBooleanFromObj(interp, valuesP[k], &j) == TCL_ERROR) {
+                    (void) TwapiSetObjResult(
+                        interp, TwapiParseargsBadValue("Non-boolean",
+                                                       valuesP[k],
+                                                       opts[k].name,
+                                                       opts[k].name_len)
+                        );
                     goto error_return;
                 }
                 if (j && opts[k].valid_values) {
                     /* Note the AppendElement below will incr its ref count */
-                    opts[k].value = opts[k].valid_values;
+                    valuesP[k] = opts[k].valid_values;
                 } else {
                     /*
                      * Note: Can't just do a SetBoolean as object is shared
                      * Need to allocate a new obj
                      * BAD  - Tcl_SetBooleanObj(opts[k].value, j); 
                      */
-                    opts[k].value = ObjFromBoolean(j);
+                    valuesP[k] = ObjFromBoolean(j);
                 }
             }
             break;
@@ -361,8 +520,9 @@ int Twapi_ParseargsObjCmd(
         if (validObjs) {
             if (ivalid == nvalid) {
                 Tcl_Obj *invalidObj = TwapiParseargsBadValue("Invalid",
-                                                             opts[k].value,
-                                                             opts[k].name, opts[k].name_len);
+                                                             valuesP[k],
+                                                             opts[k].name,
+                                                             opts[k].name_len);
                 Tcl_AppendStringsToObj(invalidObj, ". Must be one of ", NULL);
                 TwapiAppendObjArray(invalidObj, nvalid, validObjs, ", ");
                 (void) TwapiSetObjResult(interp, invalidObj);
@@ -373,12 +533,12 @@ int Twapi_ParseargsObjCmd(
         /* Tack it on to result */
         if (hyphenated) {
             objP = STRING_LITERAL_OBJ("-");
-            Tcl_AppendToObj(objP, opts[k].name, opts[k].name_len);
+            Tcl_AppendToObj(objP, Tcl_GetString(opts[k].name), opts[k].name_len);
         } else {
-            objP = ObjFromStringN(opts[k].name, opts[k].name_len);
+            objP = ObjFromStringN(Tcl_GetString(opts[k].name), opts[k].name_len);
         }
         ObjAppendElement(interp, namevalList, objP);
-        ObjAppendElement(interp, namevalList, opts[k].value);
+        ObjAppendElement(interp, namevalList, valuesP[k]);
     }
 
 
@@ -403,6 +563,9 @@ int Twapi_ParseargsObjCmd(
         goto error_return;
     }
 
+    if (valuesP && valuesP != values)
+        MemLifoPopFrame(&ticP->memlifo);
+
     return TwapiSetObjResult(interp, namevalList);
 
 invalid_args_error:
@@ -413,6 +576,9 @@ error_return:
         Tcl_DecrRefCount(newargvObj);
     if (namevalList)
         Tcl_DecrRefCount(namevalList);
+    if (valuesP && valuesP != values)
+        MemLifoPopFrame(&ticP->memlifo);
+
     return TCL_ERROR;
 }
 
