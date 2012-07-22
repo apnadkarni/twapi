@@ -1,3 +1,12 @@
+if {0} {
+set hq [evt_query -channel Application]
+set hrc [evt_render_context_xpaths [list "Event/System/Provider/@Name" "Event/System/EventID"]]
+set hevt [lindex [evt_next $hq] 0]
+twapi::Twapi_EvtRenderValues $hrc $hevt {}
+::twapi::Twapi_ExtractEVT_VARIANT_ARRAY {3321248 {EVT_RENDER_VALUES *}} 2
+::twapi::evt_free_EVT_VARIANT_ARRAY {3321248 {EVT_RENDER_VALUES *}}
+}
+
 #
 # Copyright (c) 2012, Ashok P. Nadkarni
 # All rights reserved.
