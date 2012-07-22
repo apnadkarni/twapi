@@ -251,13 +251,13 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
 }
 
 /* Convert EVT_VARIANT array returned from EvtRender to an opaque structure*/
-static Tcl_Obj *ObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int sz, int used, int count)
+static Tcl_Obj *ObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int count, int sz, int used)
 {
     Tcl_Obj *objs[4];
     objs[0] = ObjFromOpaque(varP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
-    objs[1] = ObjFromInt(sz);
-    objs[2] = ObjFromInt(used);
-    objs[3] = ObjFromInt(count);
+    objs[1] = ObjFromInt(count);
+    objs[2] = ObjFromInt(sz);
+    objs[3] = ObjFromInt(used);
 
     return ObjNewList(4, objs);
 }
@@ -266,9 +266,9 @@ static int ObjToEVT_RENDER_VALUES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,
     void **bufPP,   /* Where to store pointer to array */
-    int *szP,                   /* Where to store the size in bytes of buffer containing array */
-    int *usedP,                 /* Where to store # bytes used */
-    int *countP                 /* Where to store number of elements of array */
+    int *countP,    /* Where to store number of elements of array */
+    int *szP,       /* Where to store the size in bytes of buffer array */
+    int *usedP      /* Where to store # bytes used */
     )
 {
     Tcl_Obj **objs;
@@ -287,9 +287,9 @@ static int ObjToEVT_RENDER_VALUES(
         if (nobjs != 4)
             return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
 
-        if (ObjToInt(interp, objs[3], &count) != TCL_OK ||
-            ObjToInt(interp, objs[2], &used) != TCL_OK ||
-            ObjToInt(interp, objs[1], &sz) != TCL_OK ||
+        if (ObjToInt(interp, objs[3], &used) != TCL_OK ||
+            ObjToInt(interp, objs[2], &sz) != TCL_OK ||
+            ObjToInt(interp, objs[1], &count) != TCL_OK ||
             ObjToOpaque(interp, objs[0], &evaP, TWAPI_EVT_RENDER_VALUES_TYPESTR) != TCL_OK)
             return TCL_ERROR;
     }
@@ -646,7 +646,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     /* 4th arg is supposed to describe a previously returned buffer
        that we can reuse. It may also be NULL
     */
-    if (ObjToEVT_RENDER_VALUES(interp, objv[3], &bufP, &sz, NULL, NULL) != TCL_OK)
+    if (ObjToEVT_RENDER_VALUES(interp, objv[3], &bufP, NULL, &sz, NULL) != TCL_OK)
         return TCL_ERROR;
 
     /* Allocate buffer if we were not passed one */
@@ -684,7 +684,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
         return Twapi_AppendSystemError(interp, status);
     }
 
-    TwapiSetObjResult(interp, ObjFromEVT_RENDER_VALUES(bufP, sz, used, count));
+    TwapiSetObjResult(interp, ObjFromEVT_RENDER_VALUES(bufP, count, sz, used));
     return TCL_OK;
 }
 
@@ -835,7 +835,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                      GETINT(msgid), ARGSKIP, GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (ObjToEVT_RENDER_VALUES(interp, objv[4], &valuesP, NULL, NULL, &nvalues) != TCL_OK)
+    if (ObjToEVT_RENDER_VALUES(interp, objv[4], &valuesP, &nvalues, NULL, NULL) != TCL_OK)
         return TCL_ERROR;
 
     /* TBD - instrument buffer size */
