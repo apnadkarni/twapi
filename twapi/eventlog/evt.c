@@ -755,7 +755,7 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     Tcl_Obj **objPP;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt), GETINT(dw),
-                     GETINT(dw2), GETINT(dw3)) != TCL_OK)
+                     GETINT(dw2), GETINT(dw3), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     if (dw > 1024)
@@ -787,8 +787,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
 {
     EVT_HANDLE hevt;
     int count;
-    LPCWSTR xpaths[10];
-    LPCWSTR *xpathsP;
+    LPCWSTR *xpathsP = NULL;
     int flags;
     DWORD ret = TCL_ERROR;
 
@@ -799,14 +798,9 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
     if (count == 0) {
         xpathsP = NULL;
     } else {
-        /* TBD - is this optimization really necessary? */
-        if (count <= ARRAYSIZE(xpaths)) {
-            xpathsP = xpaths;
-        } else {
-            xpathsP = MemLifoPushFrame(&ticP->memlifo, count * sizeof(xpathsP[0]), NULL);
-        }
-        
-        if (ObjToArgvW(interp, objv[1], xpathsP, count, &count) != TCL_OK)
+        /* Note ObjToArgvW needs an extra entry for terminating NULL */
+        xpathsP = MemLifoPushFrame(&ticP->memlifo, (count+1) * sizeof(xpathsP[0]), NULL);
+        if (ObjToArgvW(interp, objv[1], xpathsP, count+1, &count) != TCL_OK)
             goto vamoose;
     }
     
@@ -820,7 +814,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
     ret = TCL_OK;
 
 vamoose:
-    if (xpathsP && xpathsP != xpaths)
+    if (xpathsP)
         MemLifoPopFrame(&ticP->memlifo);
     return ret;
 }
@@ -1002,7 +996,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     switch (func) {
     case 1:
     case 2:
-        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw)) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1024,7 +1018,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     case 4: // EvtOpenLog
     case 5: // EvtOpenChannelConfig
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETWSTR(s), GETINT(dw)) != TCL_OK)
+                         GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_NONNULL;
         result.value.nonnull.name = "EVT_HANDLE";
@@ -1041,7 +1035,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     case 7: // EvtSubscribe
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          GETHANDLE(h), GETWSTR(s), GETNULLIFEMPTY(s2),
-                         GETEVTH(hevt2), GETINT(dw)) != TCL_OK)
+                         GETEVTH(hevt2), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_NONNULL;
         result.value.nonnull.name = "EVT_HANDLE";
