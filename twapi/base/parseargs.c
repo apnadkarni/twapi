@@ -7,8 +7,6 @@
 
 #include <twapi.h>
 
-// TBD - regenerate string rep so that Tcl_Obj *bytes can be freed up
-
 struct OptionDescriptor {
     Tcl_Obj    *name; // TBD - should this store name without the .type suffix?
     Tcl_Obj    *def_value;
@@ -34,7 +32,7 @@ static struct Tcl_ObjType gParseargsOptionType = {
     FreeParseargsOpt,
     DupParseargsOpt,
     UpdateStringParseargsOpt, /* Should never be called. Will panic */
-    SetParseargsOptFromAny    /* jenglish says keep this NULL - TBD */
+    NULL, // SetParseargsOptFromAny    /* jenglish says keep this NULL */
 };
 
 static void CleanupOptionDescriptor(struct OptionDescriptor *optP)
@@ -55,7 +53,40 @@ static void CleanupOptionDescriptor(struct OptionDescriptor *optP)
 
 static void UpdateStringParseargsOpt(Tcl_Obj *objP)
 {
-    Tcl_Panic("UpdateStringParseargsOpt called");
+    /* Not the most efficient but not likely to be called often */
+    unsigned long i;
+    Tcl_Obj *listObj = ObjEmptyList();
+    struct OptionDescriptor *optP;
+
+    if (objP->typePtr != &gParseargsOptionType)
+        Tcl_Panic("UpdateStringParseargsOpt called for different Tcl_Obj type");
+
+    for (i = 0, optP = (struct OptionDescriptor *) objP->internalRep.ptrAndLongRep.ptr;
+         i < objP->internalRep.ptrAndLongRep.value;
+         ++i, ++optP) {
+        Tcl_Obj *elems[3];
+        int nelems;
+        elems[0] = optP->name;
+        nelems = 1;
+        if (optP->def_value) {
+            ++nelems;
+            elems[1] = optP->def_value;
+            if (optP->valid_values) {
+                ++nelems;
+                elems[2] = optP->valid_values;
+            }
+        }
+        ObjAppendElement(NULL, listObj, ObjNewList(nelems, elems));
+    }
+
+    Tcl_GetString(listObj);     /* Ensure string rep */
+
+    /* We could just shift the bytes field from listObj to objP resetting
+       the former to NULL. But I'm nervous about doing that behind Tcl's back */
+    objP->length = listObj->length; /* Note does not include terminating \0 */
+    objP->bytes = ckalloc(listObj->length + 1);
+    CopyMemory(objP->bytes, listObj->bytes, listObj->length+1);
+    Tcl_DecrRefCount(listObj);
 }
 
 
@@ -186,13 +217,36 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
     }
     
     /* OK, options are in order. Convert the passed object's internal rep */
-    
-    /* Make sure there is a string rep since we do not have a proc to
-       create one */
-    Tcl_GetString(objP);
-
-    if (objP->typePtr && objP->typePtr->freeIntRepProc)
+    if (objP->typePtr && objP->typePtr->freeIntRepProc) {
         objP->typePtr->freeIntRepProc(objP);
+        objP->typePtr = NULL;
+    }
+
+#if 0
+    /* 
+     * Commented out - as per msofer:
+     * First reaction, from memory, is:
+     * a literal should ALWAYS have a string rep - the exact string rep it
+     * had when stored as a literal. As that string rep is not guaranteed to
+     * be regenerated exactly, it should never be cleared.
+     * 
+     * Second reaction: Tcl_InvalidateStringRep must not be called on
+     * a shared object, ever. This is because ... because ... why was
+     * it?
+     * 
+     * Note that you can shimmer a shared Tcl_Obj, ie, change its
+     * internal rep. You can also generate a string rep if there was
+     * none to begin with. But a Tcl_Obj that has a string rep must
+     * retain it forever, until its last ref is gone and the obj is
+     * returned to free mem.
+     * END QUOTE
+     *
+     * Since original intent was to just save memory, do not need this.
+     */
+    
+    Tcl_InvalidateStringRep(objP);
+#endif
+
     objP->internalRep.ptrAndLongRep.ptr = optsP;
     objP->internalRep.ptrAndLongRep.value = nopts;
     objP->typePtr = &gParseargsOptionType;
@@ -278,7 +332,7 @@ int Twapi_ParseargsObjCmd(
         if (SetParseargsOptFromAny(interp, objv[2]) != TCL_OK)
             return TCL_ERROR;
     }
-        
+
     opts =  objv[2]->internalRep.ptrAndLongRep.ptr;
     nopts = objv[2]->internalRep.ptrAndLongRep.value;
 
