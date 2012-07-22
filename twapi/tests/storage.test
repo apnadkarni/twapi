@@ -173,7 +173,7 @@ namespace eval twapi::disk::test {
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
             eval set [twapi::get_volume_info $drive $option]
-            twapi::try {
+            twapi::trap {
                 set optval [set $option]
                 set checkval [$check_proc $drive]
                 if {[string compare $optval $checkval]} {
@@ -199,7 +199,7 @@ namespace eval twapi::disk::test {
         set result ""
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
-            twapi::try {
+            twapi::trap {
                 set freespace [get_volume_freespace $drive]
                 if {$retval != [twapi::user_drive_space_available $drive [incr freespace $incr]]} {
                     lappend result "Free space check failed for drive $drive"
@@ -278,7 +278,7 @@ namespace eval twapi::disk::test {
         set result ""
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
-            twapi::try {
+            twapi::trap {
                 array set drvinfo [twapi::get_volume_info [lindex $drive 0] -all]
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
@@ -299,7 +299,7 @@ namespace eval twapi::disk::test {
         set result ""
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
-            twapi::try {
+            twapi::trap {
                 array set drvinfo [twapi::get_volume_info $drive -all]
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
@@ -320,7 +320,7 @@ namespace eval twapi::disk::test {
         set result ""
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
-            twapi::try {
+            twapi::trap {
                 array set drvinfo [twapi::get_volume_info ${drive}/ -all]
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
@@ -339,7 +339,7 @@ namespace eval twapi::disk::test {
         set result ""
         foreach drive [twapi::find_logical_drives] {
             if {! [drive_ready $drive]} { continue }
-            twapi::try {
+            twapi::trap {
                 array set drvinfo [twapi::get_volume_info ${drive}\\ -all]
                 lappend result [verify_drvinfo $drive drvinfo]
             } onerror {TWAPI_WIN32 5} {
