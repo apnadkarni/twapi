@@ -1405,7 +1405,7 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
     if ((objc+1) > argc) {
         return TwapiReturnErrorEx(interp,
                                   TWAPI_INTERNAL_LIMIT,
-                                  Tcl_ObjPrintf("Number of strings (%d) in list exceeds size of argument array.", objc));
+                                  Tcl_ObjPrintf("Number of strings (%d) in list exceeds size of argument array (%d).", objc, argc-1));
     }
 
     for (i = 0; i < objc; ++i)
