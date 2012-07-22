@@ -77,7 +77,7 @@ namespace eval twapi::parseargs::test {
         unset -nocomplain opts
         set vargs {-a}
         set opts [twapi::parseargs vargs {a.foo}]
-    } -returnCodes {error} -result "Invalid option type 'foo'"
+    } -returnCodes {error} -result "Badly formed option descriptor: 'a.foo'"
 
     test parseargs-2.0 {
         Verify parsing of arguments of type any
