@@ -93,9 +93,6 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 }
 #endif
 
-/* Why is this decl needed ? TBD */
-//const char * __cdecl Tcl_InitStubs(Tcl_Interp *interp, const char *,int);
-
 int TwapiLoadStaticModules(Tcl_Interp *interp)
 {
 #if defined(TWAPI_SINGLE_MODULE)
@@ -120,7 +117,6 @@ __declspec(dllexport)
 #endif
 int Twapi_base_Init(Tcl_Interp *interp)
 {
-    static LONG twapi_initialized; /* TBD - where used ? */
     TwapiInterpContext *ticP;
 
     /* IMPORTANT */
@@ -400,18 +396,8 @@ static TwapiInterpContext *TwapiInterpContextNew(
     ZLIST_INIT(&ticP->pending);
     ZLIST_INIT(&ticP->threadpool_registrations);
 
-#ifdef OBSOLETE
-    /* Register a async callback with Tcl. */
-    /* TBD - do we really need a separate Tcl_AsyncCreate call per interp?
-     * or should it be per process ? Or per thread ? Do we need this at all?
-     */
-    ticP->async_handler = Tcl_AsyncCreate(Twapi_TclAsyncProc, ticP);
-#endif
-
     ticP->notification_win = NULL; /* Created only on demand */
-#ifdef OBSOLETE
-    ticP->device_notification_tid = 0;
-#endif
+
     return ticP;
 }
 
@@ -461,13 +447,6 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
 
     TWAPI_ASSERT(ticP->interp == NULL);
-
-#ifdef OBSOLETE
-    /* TBD - does this need to be done only from the Tcl thread ? */
-    if (ticP->async_handler)
-        Tcl_AsyncDelete(ticP->async_handler);
-    ticP->async_handler = 0;    /* Just in case */
-#endif
 
     DeleteCriticalSection(&ticP->lock);
 
