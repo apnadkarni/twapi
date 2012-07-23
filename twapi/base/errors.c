@@ -30,6 +30,9 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_BUG_INVALID_STATE_FOR_OP, "Internal error: requested operation is not valid for current state."},
     {TWAPI_OUT_OF_RANGE, "Value is out of range."},
     {TWAPI_UNSUPPORTED_TYPE, "Unsupported type."},
+    {TWAPI_POINTER_ALREADY_REGISTERED, "Attempt to register duplicate pointer."},
+    {TWAPI_POINTER_TYPE_MISMATCH, "Type of pointer does not match registered type."},
+    {TWAPI_POINTER_UNREGISTERED, "Pointer is not registered. Probably invalid or already freed."}
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 

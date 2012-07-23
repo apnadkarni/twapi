@@ -557,11 +557,18 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             TwapiFree(bufP);
         break;
     case 1021: // free
-        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
+        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK ||
+            TwapiUnregisterPointer(interp, pv, NULL) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EMPTY;
         if (pv)
             TwapiFree(pv);
+        break;
+    case 1022: // registered_pointer
+        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_BOOL;
+        result.value.bval = TwapiVerifyPointer(interp, pv, NULL);
         break;
     }
 
@@ -902,6 +909,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.nonnull.p = TwapiAlloc(dw);
+        if (! TwapiRegisterPointer(interp, result.value.nonnull.p, NULL)) {
+            Tcl_Panic("Failed to register pointer");
+        }
         result.value.nonnull.name = cP[0] ? cP : "void*";
         result.type = TRT_NONNULL;
         break;
@@ -1561,6 +1571,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_IsValidGUID, 1019),
         DEFINE_FNCODE_CMD(ExpandEnvironmentStrings, 1020),
         DEFINE_FNCODE_CMD(free, 1021),
+        DEFINE_FNCODE_CMD(registered_pointer, 1022),
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
