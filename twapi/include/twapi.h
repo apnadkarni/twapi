@@ -1007,10 +1007,6 @@ TWAPI_EXTERN int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char 
 
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
 
-#ifdef OBSOLETE
-int Twapi_TclAsyncProc(TwapiInterpContext *ticP, Tcl_Interp *interp, int code);
-#endif
-
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
 TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[]);
@@ -1018,9 +1014,6 @@ TWAPI_EXTERN Tcl_Obj *ObjEmptyList(void);
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 
-#if 0
-void Twapi_FreeNewTclObj(Tcl_Obj *objPtr) 
-#endif
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { Tcl_DecrRefCount(o_); } } while (0)
 
 int Twapi_GetVersionEx(Tcl_Interp *interp);
