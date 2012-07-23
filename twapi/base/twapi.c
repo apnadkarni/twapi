@@ -113,6 +113,7 @@ int TwapiLoadStaticModules(Tcl_Interp *interp)
     return TCL_OK;
 }
 
+
 /* Main entry point */
 #ifndef TWAPI_STATIC_BUILD
 __declspec(dllexport) 
@@ -437,7 +438,16 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
      */
     TwapiInterpContextRef(ticP, 1+1);
     EnterCriticalSection(&gTwapiInterpContextsCS);
-    ZLIST_PREPEND(&gTwapiInterpContexts, ticP);
+    /*
+     * We have to search for base module more often than others so 
+     * prepend that and append others. Note with multiple interps there
+     * can be more than on base module entry in the list.
+     */
+    if (hmodule == gTwapiModuleHandle) {
+        ZLIST_PREPEND(&gTwapiInterpContexts, ticP);
+    } else {
+        ZLIST_APPEND(&gTwapiInterpContexts, ticP);
+    }
     LeaveCriticalSection(&gTwapiInterpContextsCS);
 
     Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, ticP);

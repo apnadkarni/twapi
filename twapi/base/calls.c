@@ -558,7 +558,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 1021: // free
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK ||
-            TwapiUnregisterPointer(interp, pv, NULL) != TCL_OK)
+            TwapiUnregisterPointer(interp, pv, TwapiAlloc) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EMPTY;
         if (pv)
@@ -903,13 +903,13 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         }
         TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
         break;
-    case 10030:
+    case 10030: // malloc
         if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.nonnull.p = TwapiAlloc(dw);
-        if (! TwapiRegisterPointer(interp, result.value.nonnull.p, NULL)) {
+        if (! TwapiRegisterPointer(interp, result.value.nonnull.p, TwapiAlloc)) {
             Tcl_Panic("Failed to register pointer");
         }
         result.value.nonnull.name = cP[0] ? cP : "void*";
@@ -1738,6 +1738,7 @@ int Twapi_LookupAccountSid (
     objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
+    // TBD - What about freeing nameP, domainP ?
     return TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
@@ -1843,6 +1844,7 @@ int Twapi_LookupAccountName (
         goto done;
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
+    // TBD - what about freeing up sidP and domainP
     return TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
