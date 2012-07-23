@@ -64,45 +64,8 @@ int TwapiEnqueueCallback(
     }
     
     if (enqueue_method == TWAPI_ENQUEUE_ASYNC) {
-#ifdef OBSOLETE
-        /* Queue via the older Tcl_Async mechanism. */
-        EnterCriticalSection(&ticP->lock);
-
-        if (ticP->pending_suspended) {
-            LeaveCriticalSection(&ticP->lock);
-            if (cbP->completion_event)
-                CloseHandle(cbP->completion_event);
-            TwapiCallbackDelete(cbP);
-            return ERROR_RESOURCE_NOT_PRESENT; /* For lack of anything better */
-        }
-
-        /* Place on the pending queue. The Ref ensures it does not get
-         * deallocated while on the queue. The corresponding Unref will 
-         * be done by the receiver. ALWAYS. Do NOT add a Unref here 
-         *
-         * In addition, if we are not done with the cbP after queueing
-         * as we need to await for a response, we have to add another Ref
-         * to make sure it does not go away. In that case we Ref by 2.
-         * The corresponding Unref will happen below after we get the response
-         * or time out.
-         */
-        TwapiCallbackRef(cbP, (timeout ? 2 : 1));
-        ZLIST_APPEND(&ticP->pending, cbP); /* Enqueue */
-
-        /* Also make sure the ticP itself does not go away */
-        cbP->ticP = ticP;
-        TwapiInterpContextRef(ticP, 1);
-
-        /* To avoid races, the AsyncMark should also happen in the crit sec */
-        Tcl_AsyncMark(ticP->async_handler);
-    
-        LeaveCriticalSection(&ticP->lock);
-#else
         /* No longer support this method - deprecated in Tcl */
         return ERROR_NOT_SUPPORTED;
-
-#endif
-
     } else {
         /* Queue directly to the Tcl event loop for the thread */
         /* Note the CallbackEvent gets freed by the Tcl code and hence
@@ -149,68 +112,6 @@ int TwapiEnqueueCallback(
 
     return winerr;
 }
-
-#ifdef OBSOLETE    
-/*
- * Called from Tcl loop to check for events. The function checks if
- * any events are pending and queues on the Tcl event queue
- */
-int Twapi_TclAsyncProc(TwapiInterpContext *ticP,
-                       Tcl_Interp *arbitrary_interp, /* May be NULL or other
-                                                        than ticP->interp */
-                       int code)
-{
-    /*
-     * When called by Tcl, passed interp is not necessarily the interp we
-     * want to target It may even be NULL. Also so as to not interfere
-     * with any evals in progress, we always return 'code'. See
-     * Tcl_AsyncMark manpage for details.
-     */
-    
-    EnterCriticalSection(&ticP->lock);
-
-    /*
-     * Loop and queue up all pending events. Note we do this even if
-     * pending of events is suspended. Twapi_TclEventProc will deal
-     * with that case when unqueueing the Tcl event.
-     */
-    while (ZLIST_COUNT(&ticP->pending)) {
-        TwapiCallback *cbP;
-        TwapiTclEvent *tteP;
-
-        cbP = ZLIST_HEAD(&ticP->pending);
-        ZLIST_REMOVE(&ticP->pending, cbP);
-
-        /* Unlock before entering Tcl code */
-        LeaveCriticalSection(&ticP->lock);
-
-        /*
-         * The following two Ref/Unref cancel each other so
-         * we do not do them.
-         TwapiCallbackUnref(cbP,1) - we have removed from pending list
-         TwapiCallbackRef(cbP,1) -  we are putting on Tcl event queue
-         *
-         * Also, ticP is still pointed to by cbP so we do not Unref that
-         */
-
-        /* Note the CallbackEvent gets freed by the Tcl code and hence
-           must be allocated using ckalloc only */
-        tteP = (TwapiTclEvent *) ckalloc(sizeof(*tteP));
-        tteP->event.proc = Twapi_TclEventProc;
-        tteP->pending_callback = cbP;
-
-        /* We do not use TwapiEnqueueTclEvent since queueing to same thread */
-        Tcl_QueueEvent((Tcl_Event *) tteP, TCL_QUEUE_TAIL);
-        /* Tcl_ThreadAlert(ticP->thread) - Needed? TBD */
-
-        /* Lock again before checking if empty */
-        EnterCriticalSection(&ticP->lock);
-    }
-
-    LeaveCriticalSection(&ticP->lock);
-    return code;
-}
-#endif
 
 /*
  * Invoked from the Tcl event loop to execute a registered callback script
