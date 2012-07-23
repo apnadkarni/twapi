@@ -13,20 +13,6 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     Tcl_Obj *CONST objv[]
     );
 
-/* TBD - remove this call */
-void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code)
-{
-   /*
-    * Why a single line function ?
-    * Making this a function instead of directly calling Tcl_CreateAlias from
-    * Twapi_InitCalls saves about 4K in code space. (Yes, every K is important,
-    * users are already complaining wrt the DLL size
-    */
-
-    Tcl_CreateAlias(interp, fn, interp, callcmd, 1, &code);
-}
-
-
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -1698,37 +1684,41 @@ int Twapi_LookupAccountSid (
     LPWSTR       nameP;
     DWORD        name_buf_size;
     int          i;
+    WCHAR        name_buf[256];
+    WCHAR        domain_buf[256];
+
+    domainP         = domain_buf;
+    domain_buf_size = ARRAYSIZE(domain_buf);
+    nameP           = name_buf;
+    name_buf_size   = ARRAYSIZE(name_buf);
 
     for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
         objs[i] = NULL;
 
     result = TCL_ERROR;
-
-    domainP         = NULL;
-    domain_buf_size = 0;
-    nameP           = NULL;
-    name_buf_size   = 0;
-    error           = 0;
-    if (LookupAccountSidW(lpSystemName, sidP, NULL, &name_buf_size,
-                          NULL, &domain_buf_size, &account_type) == 0) {
+    error = 0;
+    if (LookupAccountSidW(lpSystemName, sidP, name_buf, &name_buf_size,
+                          domain_buf, &domain_buf_size, &account_type) == 0) {
         error = GetLastError();
     }
 
-    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        TwapiSetStaticResult(interp, "Error looking up account SID: ");
-        Twapi_AppendSystemError(interp, error);
-        goto done;
-    }
+    if (error) {
+        if (error != ERROR_INSUFFICIENT_BUFFER) {
+            TwapiSetStaticResult(interp, "Error looking up account SID: ");
+            Twapi_AppendSystemError(interp, error);
+            goto done;
+        }
 
-    /* Allocate required space */
-    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-    nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
+        /* Allocate required space. Perhaps only one was too small but what the heck...allocate both buffers */
+        domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+        nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
 
-    if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
-                          domainP, &domain_buf_size, &account_type) == 0) {
-        TwapiSetStaticResult(interp, "Error looking up account SID: ");
-        Twapi_AppendSystemError(interp, GetLastError());
-        goto done;
+        if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
+                              domainP, &domain_buf_size, &account_type) == 0) {
+            TwapiSetStaticResult(interp, "Error looking up account SID: ");
+            Twapi_AppendSystemError(interp, GetLastError());
+            goto done;
+        }
     }
 
     /*
@@ -1738,13 +1728,12 @@ int Twapi_LookupAccountSid (
     objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
-    // TBD - What about freeing nameP, domainP ?
-    return TwapiSetObjResult(interp, ObjNewList(3, objs));
+    result = TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
-    if (domainP)
+    if (domainP != domain_buf)
         TwapiFree(domainP);
-    if (nameP)
+    if (nameP != name_buf)
         TwapiFree(nameP);
 
     return result;
@@ -1757,6 +1746,8 @@ int Twapi_LookupAccountName (
     LPCWSTR     lpAccountName
 )
 {
+    WCHAR        sid_buf[256];
+    WCHAR        domain_buf[256];
     PSID         sidP;
     DWORD        sid_buf_size;
     WCHAR       *domainP;
@@ -1766,6 +1757,11 @@ int Twapi_LookupAccountName (
     int          result;
     Tcl_Obj     *objs[3];
     int          i;
+
+    domainP         = domain_buf;
+    domain_buf_size = ARRAYSIZE(domain_buf);
+    sidP           = sid_buf;
+    sid_buf_size   = ARRAYSIZE(sid_buf);
 
     /*
      * Special case check for empty string - else LookupAccountName
@@ -1777,32 +1773,31 @@ int Twapi_LookupAccountName (
 
     for (i=0; i < (sizeof(objs)/sizeof(objs[0])); ++i)
         objs[i] = NULL;
+
     result = TCL_ERROR;
-
-
-    domain_buf_size = 0;
-    sid_buf_size    = 0;
-    error           = 0;
-    if (LookupAccountNameW(lpSystemName, lpAccountName, NULL, &sid_buf_size,
-                          NULL, &domain_buf_size, &account_type) == 0) {
+    error = 0;
+    if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
+                          domainP, &domain_buf_size, &account_type) == 0) {
         error = GetLastError();
     }
 
-    if (error && (error != ERROR_INSUFFICIENT_BUFFER)) {
-        TwapiSetStaticResult(interp, "Error looking up account name: ");
-        Twapi_AppendSystemError(interp, error);
-        return TCL_ERROR;
-    }
+    if (error) {
+        if (error != ERROR_INSUFFICIENT_BUFFER) {
+            TwapiSetStaticResult(interp, "Error looking up account name: ");
+            Twapi_AppendSystemError(interp, error);
+            return TCL_ERROR;
+        }
 
-    /* Allocate required space */
-    domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-    sidP = TwapiAlloc(sid_buf_size);
+        /* Allocate required space. */
+        domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
+        sidP = TwapiAlloc(sid_buf_size);
 
-    if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
-                          domainP, &domain_buf_size, &account_type) == 0) {
-        TwapiSetStaticResult(interp, "Error looking up account name: ");
-        Twapi_AppendSystemError(interp, GetLastError());
-        goto done;
+        if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
+                               domainP, &domain_buf_size, &account_type) == 0) {
+            TwapiSetStaticResult(interp, "Error looking up account name: ");
+            Twapi_AppendSystemError(interp, GetLastError());
+            goto done;
+        }
     }
 
     /*
@@ -1844,13 +1839,13 @@ int Twapi_LookupAccountName (
         goto done;
     objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
-    // TBD - what about freeing up sidP and domainP
-    return TwapiSetObjResult(interp, ObjNewList(3, objs));
+
+    result = TwapiSetObjResult(interp, ObjNewList(3, objs));
 
  done:
-    if (domainP)
+    if (domainP != domain_buf)
         TwapiFree(domainP);
-    if (sidP)
+    if (sidP != sid_buf)
         TwapiFree(sidP);
 
     return result;
