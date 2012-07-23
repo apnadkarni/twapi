@@ -303,6 +303,9 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_BUG_INVALID_STATE_FOR_OP 12
 #define TWAPI_OUT_OF_RANGE 13
 #define TWAPI_UNSUPPORTED_TYPE 14
+#define TWAPI_POINTER_ALREADY_REGISTERED 15
+#define TWAPI_POINTER_TYPE_MISMATCH 16
+#define TWAPI_POINTER_UNREGISTERED 17
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -864,12 +867,19 @@ typedef struct _TwapiModuleDef {
  * passed around as ClientData to most commands. It is reference counted
  * for deletion purposes and also placed on a global list for cleanup
  * purposes when a thread exits.
+ *
+ * Each twapi module can optionally allocate a TwapiInterpContext.
+ * It can also get access to the base TwapiInterpContext via the
+ * TwapiGetBaseContext function.
+ *
+ * The global list of contexts therefore contains multiple contexts for
+ * various combinations of interpreters and modules.
  */
 typedef struct _TwapiInterpContext {
     ZLINK_DECL(TwapiInterpContext); /* Links all the contexts, primarily
                                        to track cleanup requirements */
 
-    LONG volatile         nrefs;   /* Reference count for alloc/free */
+    LONG volatile         nrefs;   /* Reference count for alloc/free. */
 
     /* List of pending callbacks. Accessed controlled by the lock field */
     int              pending_suspended;       /* If true, do not pend events */
@@ -903,31 +913,12 @@ typedef struct _TwapiInterpContext {
     MemLifo memlifo;            /* Must ONLY be used in interp thread */
 
     /*
-     * We keep a stash of commonly used Tcl_Objs so as to not recreate
-     * them every time. Example of intended use is as keys in a keyed list or
-     * dictionary when large numbers of objects are involved.
-     *
-     * Should be accessed only from the Tcl interp thread.
-     */
-    Tcl_HashTable atoms;
-
-    /*
      * A single lock that is shared among multiple lists attached to this
      * structure as contention is expected to be low.
      */
     CRITICAL_SECTION lock;
 
-#ifdef OBSOLETE
-    /* Tcl Async callback token. This is created on initialization
-     * Note this CANNOT be left to be done when the event actually occurs.
-     */
-    Tcl_AsyncHandler async_handler; /* TBD - still needed ? */
-#endif
-
     HWND          notification_win; /* Window used for various notifications */
-#ifdef OBSOLETE
-    DWORD         device_notification_tid; /* device notification thread id */
-#endif    
 } TwapiInterpContext;
 
 /*
@@ -1388,6 +1379,10 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
 #define DEFAULT_TIC 0
 #define NEW_TIC     1
     );
+
+TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag);
+TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, void *p, void *typetag);
+TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag);
 
 TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH);
 

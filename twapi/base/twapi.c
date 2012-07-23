@@ -17,6 +17,30 @@
 #define TWAPI_TCL_MAJOR 8
 #define TWAPI_MIN_TCL_MINOR 5
 
+/* Contains per-interp context specific to the base module. Hangs off
+ * the module.pval field in a TwapiInterpContext.
+ */
+typedef struct _TwapiBaseSpecificContext {
+    /*
+     * We keep a stash of commonly used Tcl_Objs so as to not recreate
+     * them every time. Example of intended use is as keys in a keyed list or
+     * dictionary when large numbers of objects are involved.
+     *
+     * Should be accessed only from the Tcl interp thread.
+     */
+    Tcl_HashTable atoms;
+
+    /*
+     * We keep track of pointers returned to scripts to prevent double frees,
+     * invalid pointers etc.
+     *
+     * Should be accessed only from the Tcl interp thread.
+     */
+    Tcl_HashTable pointers;
+} TwapiBaseSpecificContext;
+#define BASE_CONTEXT(ticP_) ((TwapiBaseSpecificContext *)((ticP_)->module.data.pval))
+
+
 /*
  * Globals
  */
@@ -43,6 +67,7 @@ TwapiId volatile gIdGenerator;
  */
 static TwapiOneTimeInitState gTwapiInitialized;
 
+void TwapiBaseModuleCleanup(TwapiInterpContext *ticP);
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiModuleDef * );
@@ -54,10 +79,7 @@ HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 static TwapiModuleDef gBaseModule = {
     MODULENAME,
     Twapi_InitCalls,
-    NULL    /* TBD -  should not be NULL - add a cleanup instead of
-               hardcoding in Twapi_InterpCleanup unless we need to control
-               to be after all other module cleanups ?
-            */
+    TwapiBaseModuleCleanup,
 };
 
 
@@ -128,9 +150,15 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
 
     /* Allocate a context that will be passed around in all interpreters */
-    ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, 1);
+    ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, NEW_TIC);
     if (ticP == NULL)
         return TCL_ERROR;
+
+    ticP->module.data.pval = TwapiAlloc(sizeof(TwapiBaseSpecificContext));
+    /* Cache of commonly used objects */
+    Tcl_InitHashTable(&BASE_CONTEXT(ticP)->atoms, TCL_STRING_KEYS);
+    /* Pointer registration table */
+    Tcl_InitHashTable(&BASE_CONTEXT(ticP)->pointers, TCL_ONE_WORD_KEYS);
 
     return TwapiLoadStaticModules(interp);
 }
@@ -359,9 +387,6 @@ static TwapiInterpContext *TwapiInterpContextNew(
     ticP->module.modP = modP;
     ticP->module.data.pval = NULL;
 
-    /* Cache of commonly used objects */
-    Tcl_InitHashTable(&ticP->atoms, TCL_STRING_KEYS);
-
     /* Initialize the critical section used for controlling
      * various attached lists
      *
@@ -424,8 +449,6 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
 
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
-    Tcl_HashSearch hs;
-    Tcl_HashEntry *he;
 
     TWAPI_ASSERT(ticP->interp == NULL);
 
@@ -444,16 +467,6 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
         ticP->notification_win = 0;
     }
 
-    /* Free up the atoms */
-    for (he = Tcl_FirstHashEntry(&ticP->atoms, &hs) ;
-         he != NULL;
-         he = Tcl_NextHashEntry(&hs)) {
-        /* It is safe to delete this element and only this element */
-        Tcl_Obj *objP = Tcl_GetHashValue(he);
-        Tcl_DeleteHashEntry(he);
-        Tcl_DecrRefCount(objP);
-    }
-    Tcl_DeleteHashTable(&ticP->atoms);
 
     // TBD - what about pipes ?
 
@@ -787,7 +800,10 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
     Tcl_HashEntry *he;
     int new_entry;
     
-    he = Tcl_CreateHashEntry(&ticP->atoms, key, &new_entry);
+    if (ticP->module.hmod != gTwapiModuleHandle)
+        ticP = TwapiGetBaseContext(ticP->interp);
+
+    he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->atoms, key, &new_entry);
     if (new_entry) {
         Tcl_Obj *objP = ObjFromString(key);
         Tcl_IncrRefCount(objP);
@@ -800,8 +816,101 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
 
 Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) 
 {
-    char *stats = Tcl_HashStats(&ticP->atoms);
-    Tcl_Obj *objP = ObjFromString(stats);
+    char *stats;
+    Tcl_Obj *objP;
+
+    if (ticP->module.hmod != gTwapiModuleHandle)
+        ticP = TwapiGetBaseContext(ticP->interp);
+
+    stats = Tcl_HashStats(&BASE_CONTEXT(ticP)->atoms);
+    objP = ObjFromString(stats);
     ckfree(stats);
     return objP;
 }
+
+static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
+{
+    Tcl_HashSearch hs;
+    Tcl_HashEntry *he;
+
+    if (BASE_CONTEXT(ticP)) {
+        for (he = Tcl_FirstHashEntry(&(BASE_CONTEXT(ticP)->atoms), &hs) ;
+             he != NULL;
+             he = Tcl_NextHashEntry(&hs)) {
+            /* It is safe to delete this element and only this element */
+            Tcl_Obj *objP = Tcl_GetHashValue(he);
+            Tcl_DeleteHashEntry(he);
+            Tcl_DecrRefCount(objP);
+        }
+        Tcl_DeleteHashTable(&(BASE_CONTEXT(ticP)->atoms));
+
+        /* Pointer table has no need for individual entry clean up. Just
+           Blow the whole thing away */
+        Tcl_DeleteHashTable(&(BASE_CONTEXT(ticP)->pointers));
+    }
+}
+
+int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag)
+{
+    Tcl_HashEntry *he;
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    void *stored_type;
+
+    TWAPI_ASSERT(ticP);
+    TWAPI_ASSERT(BASE_CONTEXT(ticP));
+
+    he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
+    if (he) {
+        if (typetag == NULL || 
+            (stored_type = Tcl_GetHashValue(he)) == NULL ||
+            typetag == stored_type) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag)
+{
+    Tcl_HashEntry *he;
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    int new_entry;
+
+    TWAPI_ASSERT(ticP);
+    TWAPI_ASSERT(BASE_CONTEXT(ticP));
+
+    he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->pointers, p, &new_entry);
+    if (he && ! new_entry) {
+        Tcl_SetHashValue(he, typetag);
+        return TCL_OK;
+    } else {
+        return TwapiReturnError(interp, TWAPI_POINTER_ALREADY_REGISTERED);
+    }
+}
+
+TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, void *p, void *typetag)
+{
+    Tcl_HashEntry *he;
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    void *stored_type;
+    int code;
+
+    TWAPI_ASSERT(ticP);
+    TWAPI_ASSERT(BASE_CONTEXT(ticP));
+
+    he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
+
+    code = TWAPI_POINTER_UNREGISTERED;
+    if (he) {
+        if (typetag == NULL || 
+            (stored_type = Tcl_GetHashValue(he)) == NULL ||
+            typetag == stored_type) {
+            Tcl_DeleteHashEntry(he);
+            return TCL_OK;
+        }
+        code = TWAPI_POINTER_TYPE_MISMATCH;
+    }
+
+    return TwapiReturnError(interp, code);
+}
+
