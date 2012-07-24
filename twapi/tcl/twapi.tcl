@@ -577,7 +577,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
     return [list $type $val]
 }
 
-proc twapi::Twapi_PtrToAddress {p} {
+proc twapi::OBSOLETETwapi_PtrToAddress {p} {
     if {[Twapi_IsPtr $p]} {
         set addr [lindex $p 0]
         if {$addr eq "NULL"} {
@@ -590,7 +590,7 @@ proc twapi::Twapi_PtrToAddress {p} {
     }
 }
 
-proc twapi::Twapi_PtrType {p} {
+proc twapi::OBSOLETETwapi_PtrType {p} {
     if {[Twapi_IsPtr $p]} {
         set type [lindex $p 1]
         if {$type eq ""} {
@@ -602,7 +602,7 @@ proc twapi::Twapi_PtrType {p} {
     return $type
 }
 
-proc twapi::Twapi_AddressToPtr {addr type} {
+proc twapi::OBSOLETETwapi_AddressToPtr {addr type} {
     return [list $addr $type]
 }
 
