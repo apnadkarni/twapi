@@ -255,9 +255,11 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
 error_handler: /* Tcl error result must have been set */
     /* k holds highest index that has been processed and is the error */
-    Tcl_AppendResult(interp, "Badly formed option descriptor: '",
-                     ObjToString(optObjs[k]), "'", NULL);
-    Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
+    if (interp) {
+        Tcl_AppendResult(interp, "Badly formed option descriptor: '",
+                         ObjToString(optObjs[k]), "'", NULL);
+        Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
+    }
     if (optsP) {
         while (k >= 0) {
             CleanupOptionDescriptor(&optsP[k]);
