@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -61,6 +61,123 @@ static struct TwapiTclTypeMap {
     Tcl_ObjType *typeptr;
 } gTclTypes[TWAPI_TCLTYPE_BOUND];
 
+/*
+ * TwapiOpaque is a Tcl "type" whose internal representation is stored
+ * as the pointer value and an associated C pointer/handle type.
+ * The Tcl_Obj.internalRep.twoPtrValue.ptr1 holds the C pointer value
+ * andTcl_Obj.internalRep.twoPtrValue.ptr2 holds a Tcl_Obj describing
+ * the type. This may be NULL if no type info needs to be associated
+ * with the value
+ */
+static void DupOpaqueType(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeOpaqueType(Tcl_Obj *objP);
+static void UpdateOpaqueTypeString(Tcl_Obj *objP);
+static struct Tcl_ObjType gOpaqueType = {
+    "TwapiOpaque",
+    FreeOpaqueType,
+    DupOpaqueType,
+    UpdateOpaqueTypeString,
+    NULL,     /* jenglish says keep this NULL */
+};
+
+static void UpdateOpaqueTypeString(Tcl_Obj *objP)
+{
+    Tcl_Obj *objs[2];
+    Tcl_Obj *listObj;
+
+    TWAPI_ASSERT(objP->bytes == NULL);
+    TWAPI_ASSERT(objP->typePtr == &gOpaqueType);
+
+    objs[0] = ObjFromDWORD_PTR(OPAQUE_REP_VALUE(objP));
+    if (OPAQUE_REP_CTYPE(objP) == NULL)
+        objs[1] = Tcl_NewObj();
+    else
+        objs[1] = OPAQUE_REP_CTYPE(objP);
+
+    listObj = ObjNewList(2, objs);
+    Tcl_GetString(listObj);     /* Ensure string rep */
+
+    /* We could just shift the bytes field from listObj to objP resetting
+       the former to NULL. But I'm nervous about doing that behind Tcl's back */
+    objP->length = listObj->length; /* Note does not include terminating \0 */
+    objP->bytes = ckalloc(listObj->length + 1);
+    CopyMemory(objP->bytes, listObj->bytes, listObj->length+1);
+    Tcl_DecrRefCount(listObj);
+}
+
+static void FreeOpaqueType(Tcl_Obj *objP)
+{
+    if (OPAQUE_REP_CTYPE(objP))
+        Tcl_DecrRefCount(OPAQUE_REP_CTYPE(objP));
+    OPAQUE_REP_VALUE(objP) = NULL;
+    OPAQUE_REP_CTYPE(objP) = NULL;
+    objP->typePtr = NULL;
+}
+
+static void DupOpaqueType(Tcl_Obj *srcP, Tcl_Obj *dstP)
+{
+    dstP->typePtr = &gOpaqueType;
+    OPAQUE_REP_VALUE(dstP) = OPAQUE_REP_VALUE(srcP);
+    OPAQUE_REP_CTYPE(dstP) = OPAQUE_REP_CTYPE(srcP);
+    if (OPAQUE_REP_CTYPE(dstP))
+        Tcl_IncrRefCount(OPAQUE_REP_CTYPE(dstP));
+}
+
+TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    Tcl_Obj **objs;
+    int       nobjs, val;
+    void *pv;
+    Tcl_Obj *ctype;
+    char *s;
+
+    if (objP->typePtr == &gOpaqueType)
+        return TCL_OK;
+
+    /* For backward compat with SWIG based script, we accept NULL
+       as a valid pointer of any type and for convenience 0 as well */
+    s = ObjToString(objP);
+    if (STREQ(s, "NULL") ||
+        (ObjToInt(NULL, objP, &val) == TCL_OK && val == 0)) {
+        pv = NULL;
+        ctype = NULL;
+    } else {        
+        DWORD_PTR dwp;
+
+        /* Should be a two element list */
+        if (ObjGetElements(NULL, objP, &nobjs, &objs) != TCL_OK ||
+            nobjs != 2) {
+            if (interp) {
+                Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
+                                 s, "'.", NULL);
+            }
+            return TCL_ERROR;
+        }
+        if (ObjToDWORD_PTR(NULL, objs[0], &dwp) != TCL_OK) {
+            if (interp)
+                Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
+                                 ObjToString(objs[0]), "'.", NULL);
+            return TCL_ERROR;
+        }
+        pv = (void*) dwp;
+        s = ObjToString(objs[1]);
+        if (s[0] == 0 || STREQ(s, "void*"))
+            ctype = NULL;   /* "" and "void*" */
+        else {
+            ctype = objs[1];
+            Tcl_IncrRefCount(ctype);
+        }
+    }
+
+    /* OK, valid opaque rep. Convert the passed object's internal rep */
+    if (objP->typePtr && objP->typePtr->freeIntRepProc) {
+        objP->typePtr->freeIntRepProc(objP);
+    }
+    objP->typePtr = &gOpaqueType;
+    OPAQUE_REP_VALUE(objP) = pv;
+    OPAQUE_REP_CTYPE(objP) = ctype;
+    return TCL_OK;
+}
 
 int TwapiInitTclTypes(void)
 {
@@ -1417,42 +1534,43 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
 
 Tcl_Obj *ObjFromOpaque(void *pv, char *name)
 {
-    Tcl_Obj *objs[2];
-    objs[0] = ObjFromDWORD_PTR(pv);
-    objs[1] = ObjFromString(name ? name : "void*");
-    return ObjNewList(2, objs);
+    Tcl_Obj *objP;
+
+    objP = Tcl_NewObj();
+    Tcl_InvalidateStringRep(objP);
+    OPAQUE_REP_VALUE(objP) = pv;
+    if (name) {
+        OPAQUE_REP_CTYPE(objP) = ObjFromString(name);
+        Tcl_IncrRefCount(OPAQUE_REP_CTYPE(objP));
+    }
+    objP->typePtr = &gOpaqueType;
+    return objP;
 }
 
-int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
+TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, char *name)
 {
-    Tcl_Obj **objsP;
-    int       nobj, val;
-    DWORD_PTR dwp;
+    void *pv;
+    Tcl_Obj *ctype;
+    char *s;
 
-    if (ObjGetElements(interp, obj, &nobj, &objsP) != TCL_OK)
-        return TCL_ERROR;
-    if (nobj != 2) {
-        /* For backward compat with SWIG based script, we accept NULL
-           as a valid pointer of any type and for convenience 0 as well */
-        if (nobj == 1 &&
-            (lstrcmpA(ObjToString(obj), "NULL") == 0 ||
-             (ObjToInt(interp, obj, &val) == TCL_OK && val == 0))) {
-            *pvP = 0;
-            return TCL_OK;
-        }
-
-        if (interp) {
-            Tcl_ResetResult(interp);
-            Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
-                             ObjToString(obj), "'.", NULL);
-        }
-        return TCL_ERROR;
+    /* Fast common case */
+    if (objP->typePtr == &gOpaqueType && name == NULL) {
+        *pvP = OPAQUE_REP_VALUE(objP);
+        return TCL_OK;
     }
 
-    /* If a type name is specified, see that it matches. Else any type ok */
-    if (name) {
-        char *s = ObjToString(objsP[1]);
-        if (! STREQ(s, name)) {
+    if (objP->typePtr != &gOpaqueType) {
+        if (SetOpaqueFromAny(interp, objP) != TCL_OK)
+            return TCL_ERROR;
+    }
+
+    /* We need to check types only if both object type and caller specified
+       type are not void */
+    if (name && name[0] == 0)
+        name = NULL;            /* Note we are not checking for "void*". Should we ? */
+    if (name && OPAQUE_REP_CTYPE(objP)) {
+        s = ObjToString(OPAQUE_REP_CTYPE(objP));
+        if (!STREQ(name, s)) {
             if (interp) {
                 Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
                                  name, "'.", NULL);
@@ -1460,14 +1578,8 @@ int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name)
             }
         }
     }
-    
-    if (ObjToDWORD_PTR(NULL, objsP[0], &dwp) != TCL_OK) {
-        if (interp)
-            Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
-                             ObjToString(objsP[0]), "'.", NULL);
-        return TCL_ERROR;
-    }
-    *pvP = (void*) dwp;
+
+    *pvP = OPAQUE_REP_VALUE(objP);
     return TCL_OK;
 }
 
