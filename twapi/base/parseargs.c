@@ -31,7 +31,7 @@ static struct Tcl_ObjType gParseargsOptionType = {
     "TwapiParseargsOpt",
     FreeParseargsOpt,
     DupParseargsOpt,
-    UpdateStringParseargsOpt, /* Should never be called. Will panic */
+    UpdateStringParseargsOpt,
     NULL, // SetParseargsOptFromAny    /* jenglish says keep this NULL */
 };
 
@@ -58,8 +58,8 @@ static void UpdateStringParseargsOpt(Tcl_Obj *objP)
     Tcl_Obj *listObj = ObjEmptyList();
     struct OptionDescriptor *optP;
 
-    if (objP->typePtr != &gParseargsOptionType)
-        Tcl_Panic("UpdateStringParseargsOpt called for different Tcl_Obj type");
+    TWAPI_ASSERT(objP->bytes == NULL);
+    TWAPI_ASSERT(objP->typePtr == &gParseargsOptionType);
 
     for (i = 0, optP = (struct OptionDescriptor *) objP->internalRep.ptrAndLongRep.ptr;
          i < objP->internalRep.ptrAndLongRep.value;
@@ -88,7 +88,6 @@ static void UpdateStringParseargsOpt(Tcl_Obj *objP)
     CopyMemory(objP->bytes, listObj->bytes, listObj->length+1);
     Tcl_DecrRefCount(listObj);
 }
-
 
 static void FreeParseargsOpt(Tcl_Obj *objP)
 {

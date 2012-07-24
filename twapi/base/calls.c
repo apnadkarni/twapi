@@ -556,6 +556,22 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_BOOL;
         result.value.bval = TwapiVerifyPointer(interp, pv, NULL);
         break;
+    case 1023: // Twapi_PtrToAddress
+        if (ObjToOpaque(interp, objv[0], &pv, NULL) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD_PTR;
+        result.value.dwp = (DWORD_PTR) pv;
+        break;
+    case 1024: // Twapi_PtrType
+        if (SetOpaqueFromAny(interp, objv[0]) != TCL_OK)
+            return TCL_ERROR;
+        if (OPAQUE_REP_CTYPE(objv[0])) {
+            result.type = TRT_OBJ;
+            result.value.obj = OPAQUE_REP_CTYPE(objv[0]);
+        } else {
+            result.type = TRT_EMPTY;
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -912,29 +928,23 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.value.bval = (pv == pv2);
         break;
     case 10032: // IsNullPtr
-        if (objc == 0 || objc > 2)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        cP = NULL;
-        if (objc == 2) {
-            cP = ObjToString(objv[1]);
-            NULLIFY_EMPTY(cP);
-        }
-        if (ObjToOpaque(interp, objv[0], &pv, cP) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_BOOL;
-        result.value.bval = (pv == NULL);
-        break;
     case 10033: // IsPtr
-        if (objc == 0 || objc > 2)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        cP = NULL;
-        if (objc == 2) {
+        if (objc == 1)
+            cP = NULL;
+        else if (objc == 2)
             cP = ObjToString(objv[1]);
-            NULLIFY_EMPTY(cP);
-        }
+        else
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         result.type = TRT_BOOL;
         result.value.bval = (ObjToOpaque(interp, objv[0], &pv, cP) == TCL_OK);
+        if (func == 10033)
+            break;              /* IsPtr result */
+        /* IsNullPtr */
+        if (! result.value.bval)
+            return TCL_ERROR;   /* Not a ptr, interp result already holds error */
+        result.value.bval = (pv == NULL);
         break;
+
     case 10034:
         secattrP = NULL;        /* Even on error, it might be filled */
         if (TwapiGetArgs(interp, objc, objv,
@@ -973,6 +983,14 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_HANDLE;
         result.value.hval = (func == 10036 ?
                              OpenEventLogW : RegisterEventSourceW)(s, s2);
+        break;
+    case 10038: // Twapi_AddressToPtr
+        if (objc != 2)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);        
+        if (ObjToDWORD_PTR(interp, objv[0], &dwp) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromOpaque((void *) dwp, ObjToString(objv[1]));
         break;
     }
 
@@ -1558,6 +1576,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ExpandEnvironmentStrings, 1020),
         DEFINE_FNCODE_CMD(free, 1021),
         DEFINE_FNCODE_CMD(registered_pointer, 1022),
+        DEFINE_FNCODE_CMD(Twapi_PtrToAddress, 1023),
+        DEFINE_FNCODE_CMD(Twapi_PtrType, 1024),
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
@@ -1598,6 +1618,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IsEqualGUID, 10035), // Tcl
         DEFINE_FNCODE_CMD(OpenEventLog, 10036),
         DEFINE_FNCODE_CMD(RegisterEventSource, 10037),
+        DEFINE_FNCODE_CMD(Twapi_AddressToPtr, 10038),
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
