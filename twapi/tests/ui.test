@@ -99,7 +99,7 @@ namespace eval twapi::ui::test {
     test find_windows-2.0 {
         Find first matching window (-single)
     } -body {
-        twapi::Twapi_IsPtr [twapi::find_windows -single]
+        twapi::pointer? [twapi::find_windows -single]
     } -result 1
 
     test find_windows-3.0 {

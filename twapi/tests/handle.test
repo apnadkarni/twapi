@@ -75,7 +75,7 @@ namespace eval twapi::handle::test {
         twapi::SetEvent $evh
         vwait ::wait_completed
         expr {
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "signalled"
           }
     } -cleanup {
@@ -95,7 +95,7 @@ namespace eval twapi::handle::test {
         twapi::SetEvent $evh
         vwait ::wait_completed
         expr {
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "signalled"
           }
     } -cleanup {
@@ -112,7 +112,7 @@ namespace eval twapi::handle::test {
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
         vwait ::wait_completed
         expr {
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "timeout"
           }
     } -cleanup {
@@ -131,9 +131,9 @@ namespace eval twapi::handle::test {
         update idletasks
         expr {
               [llength $::wait_completed] == 4 &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "timeout" &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 2]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 2]] &&
               [lindex $::wait_completed 3] eq "timeout"
           }
     } -cleanup {
@@ -153,7 +153,7 @@ namespace eval twapi::handle::test {
         update idletasks
         expr {
               [llength $::wait_completed] == 2 &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "signalled"
           }
     } -cleanup {
@@ -185,7 +185,7 @@ namespace eval twapi::handle::test {
         # Should receive only one event
         expr {
               [llength $::wait_completed] == 2 &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "signalled"
           }
     } -cleanup {
@@ -206,7 +206,7 @@ namespace eval twapi::handle::test {
         # Should receive only one event
         expr {
               [llength $::wait_completed] == 2 &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completed 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "timeout"
           }
     } -cleanup {
@@ -224,7 +224,7 @@ namespace eval twapi::handle::test {
         update idletasks
         expr {
               [llength $::wait_completedx] == 2 &&
-              [twapi::Twapi_IsEqualPtr $evh [lindex $::wait_completedx 0]] &&
+              [twapi::pointer_equal? $evh [lindex $::wait_completedx 0]] &&
               [lindex $::wait_completedx 1] eq "timeout"
           }
     } -cleanup {
@@ -252,7 +252,7 @@ namespace eval twapi::handle::test {
         set ::wait_completed
         expr {
               [llength $::wait_completed] == 3 &&
-              [twapi::Twapi_IsPtr [lindex $::wait_completed 0]] &&
+              [twapi::pointer? [lindex $::wait_completed 0]] &&
               [lindex $::wait_completed 1] eq "signalled" &&
               [lindex $::wait_completed 2] eq "timeout"
           }
