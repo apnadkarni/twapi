@@ -107,10 +107,8 @@ proc makeindex {pkgdir lazy} {
                 set ns [namespace qualifiers $cmd]
                 set tail [namespace tail $cmd]
                 
-                # Only include twapi extension commands (inc. metoo) and
-                # also skip internal twapi commands (beginning with _)
-                if {[string index $tail 0] eq "_" ||
-                    ![regexp {^::(twapi|metoo)::[a-z].*} $cmd]} {
+                # Only include twapi extension commands (inc. metoo)
+                if {![regexp {^::(twapi|metoo)::[_a-z].*} $cmd]} {
                     continue
                 }
                 
