@@ -169,13 +169,13 @@ proc twapi::com_create_instance {clsid args} {
 # If caller wants to use ifc for its own purpose, it must do an additional
 # AddRef itself to ensure the interface is not released.
 proc twapi::comobj_idispatch {ifc} {
-    if {[Twapi_IsNullPtr $ifc]} {
+    if {[pointer_null? $ifc]} {
         return ::twapi::comobj_null
     }
 
-    if {[Twapi_IsPtr $ifc IDispatch]} {
+    if {[pointer? $ifc IDispatch]} {
         set proxyobj [IDispatchProxy new $ifc]
-    } elseif {[Twapi_IsPtr $ifc IDispatchEx]} {
+    } elseif {[pointer? $ifc IDispatchEx]} {
         set proxyobj [IDispatchExProxy new $ifc]
     } else {
         error "'$ifc' does not reference an IDispatch interface"
@@ -659,7 +659,7 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
     } else {
         if {$vt == 9} {
             set idisp [lindex $variant 1]; # May be NULL!
-            if {$addref && ! [Twapi_IsNullPtr $idisp]} {
+            if {$addref && ! [pointer_null? $idisp]} {
                 IUnknown_AddRef $idisp
             }
             if {$raw} {
@@ -670,7 +670,7 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
             }
         } elseif {$vt == 13} {
             set iunk [lindex $variant 1]; # May be NULL!
-            if {$addref && ! [Twapi_IsNullPtr $iunk]} {
+            if {$addref && ! [pointer_null? $iunk]} {
                 IUnknown_AddRef $iunk
             }
             if {$raw} {
@@ -1048,16 +1048,16 @@ proc twapi::make_interface_proxy {ifc} {
     if {[info exists _interface_proxies($ifc)]} {
         set proxy $_interface_proxies($ifc)
         $proxy AddRef
-        if {! [Twapi_IsNullPtr $ifc]} {
+        if {! [pointer_null? $ifc]} {
             # Release the caller's ref to the interface since we are holding
             # one in the proxy object
             ::twapi::IUnknown_Release $ifc
         }
     } else {
-        if {[Twapi_IsNullPtr $ifc]} {
+        if {[pointer_null? $ifc]} {
             set proxy [INullProxy new $ifc]
         } else {
-            set ifcname [Twapi_PtrType $ifc]
+            set ifcname [pointer_type $ifc]
             set proxy [${ifcname}Proxy new $ifc]
         }
         set _interface_proxies($ifc) $proxy
@@ -1073,7 +1073,7 @@ twapi::class create ::twapi::INullProxy {
     constructor {ifc} {
         my variable _ifc
         # We keep the interface pointer because it encodes type information
-        if {! [::twapi::Twapi_IsNullPtr $ifc]} {
+        if {! [::twapi::pointer_null? $ifc]} {
             error "Attempt to create a INullProxy with non-NULL interface"
         }
 
@@ -1086,11 +1086,11 @@ twapi::class create ::twapi::INullProxy {
     method @Null? {} { return 1 }
     method @Type {} {
         my variable _ifc
-        return [::twapi::Twapi_PtrType $_ifc]
+        return [::twapi::pointer_type $_ifc]
     }
     method @Type? {type} {
         my variable _ifc
-        return [::twapi::Twapi_IsPtr $_ifc $type]
+        return [::twapi::pointer? $_ifc $type]
     }
     method AddRef {} {
         my variable _nrefs
@@ -1137,7 +1137,7 @@ twapi::class create ::twapi::IUnknownProxy {
     # unless it does an AddRef on it.
     constructor {ifc} {
 
-        if {[::twapi::Twapi_IsNullPtr $ifc]} {
+        if {[::twapi::pointer_null? $ifc]} {
             error "Attempt to register a NULL interface"
         }
 
@@ -1206,17 +1206,17 @@ twapi::class create ::twapi::IUnknownProxy {
 
     method @Type {} {
         my variable _ifc
-        return [::twapi::Twapi_PtrType $_ifc]
+        return [::twapi::pointer_type $_ifc]
     }
 
     method @Type? {type} {
         my variable _ifc
-        return [::twapi::Twapi_IsPtr $_ifc $type]
+        return [::twapi::pointer? $_ifc $type]
     }
 
     method @Null? {} {
         my variable _ifc
-        return [::twapi::Twapi_IsNullPtr $_ifc]
+        return [::twapi::pointer_null? $_ifc]
     }
 
     # Returns raw interface. Caller must call IUnknown_Release on it
