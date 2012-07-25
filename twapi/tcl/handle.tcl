@@ -35,7 +35,7 @@ proc twapi::close_handles {args} {
     # of handles or a single handle.
 
     foreach arg $args {
-        if {[Twapi_IsPtr $arg]} {
+        if {[pointer? $arg]} {
             # Looks like a single handle
             if {[catch {close_handle $arg} msg]} {
                 set erinfo $::errorInfo
@@ -97,7 +97,7 @@ proc twapi::wait_on_handle {hwait args} {
 
     # Do not wait on manual reset events as cpu will spin continuously
     # queueing events
-    if {[Twapi_IsPtr $hwait HANDLE_MANUALRESETEVENT] &&
+    if {[pointer? $hwait HANDLE_MANUALRESETEVENT] &&
         ! $opts(executeonce)
     } {
         error "A handle to a manual reset event cannot be waited on asynchronously unless -executeonce is specified."

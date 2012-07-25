@@ -207,7 +207,7 @@ proc twapi::find_windows {args} {
             # -toplevel TRuE not specified.
             # If ancestor is not specified, we start from the desktop window
             # Note ancestor, if specified, is never included in the search
-            if {[info exists opts(ancestor)] && ![Twapi_IsNullPtr $opts(ancestor)]} {
+            if {[info exists opts(ancestor)] && ![pointer_null? $opts(ancestor)]} {
                 set ordinary_candidates [get_descendent_windows $opts(ancestor)]
             } else {
                 set desktop [get_desktop_window]
@@ -540,16 +540,16 @@ proc twapi::resize_window {hwin w h args} {
 proc twapi::set_window_zorder {hwin pos} {
     switch -exact -- $pos {
         top       {
-            set pos [Twapi_AddressToPtr 0 HWND];          #HWND_TOP
+            set pos [pointer_from_address 0 HWND];          #HWND_TOP
         }
         bottom    {
-            set pos [Twapi_AddressToPtr 1 HWND];          #HWND_BOTTOM
+            set pos [pointer_from_address 1 HWND];          #HWND_BOTTOM
         }   
         toplayer   {
-            set pos [Twapi_AddressToPtr -1 HWND];         #HWND_TOPMOST
+            set pos [pointer_from_address -1 HWND];         #HWND_TOPMOST
         }
         bottomlayer {
-            set pos [Twapi_AddressToPtr -2 HWND];         #HWND_NOTOPMOST
+            set pos [pointer_from_address -2 HWND];         #HWND_NOTOPMOST
         }
     }
 
@@ -1021,7 +1021,7 @@ proc twapi::get_display_monitor_from_window {hwin args} {
     # hwin may be a window id or a Tk window. On error we assume it is
     # a window id
     catch {
-        set hwin [Twapi_AddressToPtr [winfo id $hwin] HWND]
+        set hwin [pointer_from_address [winfo id $hwin] HWND]
     }
 
     set flags 0
@@ -1135,7 +1135,7 @@ proc twapi::_get_gui_thread_info {tid args} {
 
 # if $hwin corresponds to a null window handle, returns an empty string
 proc twapi::_return_window {hwin} {
-    if {[Twapi_IsNullPtr $hwin HWND]} {
+    if {[pointer_null? $hwin HWND]} {
         return $twapi::null_hwin
     }
     return $hwin
@@ -1147,12 +1147,12 @@ proc twapi::_same_window {hwin1 hwin2} {
     if {[string length $hwin1] == 0 || [string length $hwin2] == 0} {
         return 0
     }
-    if {[Twapi_IsNullPtr $hwin1] || [Twapi_IsNullPtr $hwin2]} {
+    if {[pointer_null? $hwin1] || [pointer_null? $hwin2]} {
         return 0
     }
 
     # Need integer compare
-    return [Twapi_IsEqualPtr $hwin1 $hwin2]
+    return [pointer_equal? $hwin1 $hwin2]
 }
 
 # Helper function for showing/hiding windows
@@ -1394,7 +1394,7 @@ proc twapi::_get_message_only_windows {} {
 
     while true {
         set win [FindWindowEx [list -3 HWND] $prev "" ""]
-        if {[Twapi_IsNullPtr $win]} break
+        if {[pointer_null? $win]} break
         lappend wins $win
         set prev $win
     }

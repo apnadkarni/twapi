@@ -361,7 +361,7 @@ proc twapi::get_file_times {fd args} {
         set close_handle true
     } elseif {[catch {fconfigure $fd}]} {
         # Not a Tcl channel, See if handle
-        if {[Twapi_IsPtr $fd]} {
+        if {[pointer? $fd]} {
             set h $fd
         } else {
             error "$fd is not an existing file, handle or Tcl channel."

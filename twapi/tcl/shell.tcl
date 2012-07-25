@@ -544,8 +544,8 @@ namespace eval twapi::systemtray {
             set alignment x0
         }
 
-        set hwnd  [Twapi_PtrToAddress [Twapi_GetNotificationWindow]]
-        set opts(hicon) [Twapi_PtrToAddress $opts(hicon)]
+        set hwnd  [pointer_to_address [Twapi_GetNotificationWindow]]
+        set opts(hicon) [pointer_to_address $opts(hicon)]
 
         set bin [binary format "${alignment}${addrfmt}nnn" $hwnd $id $flags [_get_script_wm NOTIFY_ICON_CALLBACK]]
         append bin \

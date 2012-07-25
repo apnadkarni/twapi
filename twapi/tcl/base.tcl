@@ -223,7 +223,7 @@ proc twapi::_unsafe_format_message {args} {
         }
 
         # Check if $opts(module) is a file or module handle (pointer)
-        if {[Twapi_IsPtr $opts(module)]} {
+        if {[pointer? $opts(module)]} {
             return  [FormatMessageFromModule $flags $opts(module) \
                          $opts(messageid) $opts(langid) $opts(params)]
         } else {
