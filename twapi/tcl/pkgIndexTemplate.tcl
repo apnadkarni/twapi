@@ -36,13 +36,16 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
 
     if {[llength $commands] == 0} {
         # No commands specified, load the package right away
+        # TBD - what about the exports table?
         uplevel #0 $loadcmd
     } else {
         # Set up the load for when commands are actually accessed
         # TBD - add a line to export commands here ?
         foreach {ns cmds} $commands {
-            dict lappend ::twapi::exports $ns {*}$cmds
             foreach cmd $cmds {
+                if {[string index $cmd 0] ne "_"} {
+                    dict lappend ::twapi::exports $ns $cmd
+                }
                 set auto_index(${ns}::$cmd) $loadcmd
             }
         }
