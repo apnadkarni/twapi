@@ -514,7 +514,7 @@ proc twapi::end_process {pid args} {
         }]} {
             break
         }
-        if {[Twapi_IsNullPtr $toplevel]} break
+        if {[pointer_null? $toplevel]} break
         lappend toplevels $toplevel
         set prev $toplevel
     }
@@ -1394,7 +1394,7 @@ proc twapi::get_process_commandline {pid args} {
             set pointer_size 4
         }
         ReadProcessMemory $hpid [expr {$peb_addr+(4*$pointer_size)}] $pgbl $pointer_size
-        set proc_param_addr [Twapi_PtrToAddress [Twapi_ReadMemory 4 $pgbl 0]]
+        set proc_param_addr [pointer_to_address [Twapi_ReadMemory 4 $pgbl 0]]
 
         # Now proc_param_addr contains the address of the Process parameter
         # structure which looks like:

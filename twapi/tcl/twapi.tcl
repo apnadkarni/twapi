@@ -578,7 +578,7 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
 }
 
 proc twapi::OBSOLETETwapi_PtrToAddress {p} {
-    if {[Twapi_IsPtr $p]} {
+    if {[pointer? $p]} {
         set addr [lindex $p 0]
         if {$addr eq "NULL"} {
             return 0
@@ -591,7 +591,7 @@ proc twapi::OBSOLETETwapi_PtrToAddress {p} {
 }
 
 proc twapi::OBSOLETETwapi_PtrType {p} {
-    if {[Twapi_IsPtr $p]} {
+    if {[pointer? $p]} {
         set type [lindex $p 1]
         if {$type eq ""} {
             set type void*
