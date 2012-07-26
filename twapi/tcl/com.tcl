@@ -1317,13 +1317,15 @@ twapi::class create ::twapi::IDispatchProxy {
                         }
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
                             # We do not want change the internal type so
-                            # save it since comobj? changes it to cmdProc
-                            # Moreover, if a list type, we do not even check
+                            # save it since comobj? changes it to cmdProc.
+                            # Moreover, do not check for some types that
+                            # could not be a comobj. In particular,
+                            # if a list type, we do not even check
                             # because it cannot be a comobj and even checking
                             # will result in nested list types being
                             # destroyed which affects safearray type detection
                             set orig_type [twapi::tcltype $arg]
-                            if {$orig_type ne "list"} {
+                            if {$orig_type ni {TwapiOpaque list int double bytearray dict wideInt booleanString}} {
                                 if {[twapi::comobj? $arg]} {
                                     # Note we do not addref when getting the interface
                                     # (last param 0) because not necessary for IN
@@ -1422,16 +1424,18 @@ twapi::class create ::twapi::IDispatchProxy {
                             # We do not want change the internal type so
                             # save it since comobj? changes it to cmdProc
                             set orig_type [twapi::tcltype $paramval]
-                            if {[::twapi::comobj? $paramval]} {
-                                # Note no AddRef when getting the interface
-                                # (last param 0) because it is the C code's
-                                # responsibility based on in/out direction
-                                set paramval [$paramval -interface 0]
-                            } else {
-                                # Restore the original type
-                                # [set paramval ""] is to optimize refcounts
-                                # so a new Tcl_Obj is not allocated internally
-                                set paramval [twapi::tclcast $orig_type $paramval[set paramval ""]]
+                            if {$orig_type ni {TwapiOpaque list int double bytearray dict wideInt booleanString}} {
+                                if {[::twapi::comobj? $paramval]} {
+                                    # Note no AddRef when getting the interface
+                                    # (last param 0) because it is the C code's
+                                    # responsibility based on in/out direction
+                                    set paramval [$paramval -interface 0]
+                                } else {
+                                    # Restore the original type
+                                    # [set paramval ""] is to optimize refcounts
+                                    # so a new Tcl_Obj is not allocated internally
+                                    set paramval [twapi::tclcast $orig_type $paramval[set paramval ""]]
+                                }
                             }
                         }
 
