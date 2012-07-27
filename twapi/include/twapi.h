@@ -1172,7 +1172,7 @@ TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
 #define ObjFromHWND(h) ObjFromOpaque((h), "HWND")
-#define ObjFromLPVOID(p) ObjFromOpaque((p), "void*")
+#define ObjFromLPVOID(p) ObjFromOpaque((p), NULL)
 
 /* The following macros assume objP_ typePtr points to Twapi's gOpaqueType */
 #define OPAQUE_REP_VALUE(objP_) ((objP_)->internalRep.twoPtrValue.ptr1)
