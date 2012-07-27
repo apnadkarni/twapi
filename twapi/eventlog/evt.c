@@ -649,11 +649,18 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     if (ObjToEVT_RENDER_VALUES(interp, objv[3], &bufP, NULL, &sz, NULL) != TCL_OK)
         return TCL_ERROR;
 
-    /* Allocate buffer if we were not passed one */
     if (bufP == NULL) {
+        /* Allocate buffer if we were not passed one */
+
         /* TBD - instrument reallocation needs */
         sz = 4000;
-        bufP = TwapiAlloc(sz);
+        // TBD - use specific tag, not NULL
+        bufP = TwapiAllocRegisteredPointer(interp, sz, NULL);
+    } else {
+        /* Buffer passed in. Check validity */
+        if (! TwapiVerifyPointer(interp, bufP, NULL)) {
+            return TwapiReturnError(interp, TWAPI_POINTER_UNREGISTERED);
+        }
     }
 
     /* We used to convert using ObjFromEVT_VARIANT but that does
@@ -666,12 +673,12 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     /* EvtRenderEventValues -> 0 */
     status = ERROR_SUCCESS;
     if (EvtRender(hevt, hevt2, 0, sz, bufP, &used, &count) == FALSE) {
-        TwapiFree(bufP);
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
+            TwapiFreeRegisteredPointer(interp, bufP, NULL);
             status = ERROR_SUCCESS;
             sz = used;
-            bufP = TwapiAlloc(sz);
+            bufP = TwapiAllocRegisteredPointer(interp, sz, NULL);
             if (EvtRender(hevt, hevt2, 0, sz,
                           bufP, &used, &count) == FALSE) {
                 status = GetLastError();
@@ -680,7 +687,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     }
 
     if (status != ERROR_SUCCESS) {
-        TwapiFree(bufP);
+        TwapiFreeRegisteredPointer(interp, bufP, NULL);
         return Twapi_AppendSystemError(interp, status);
     }
 
@@ -1135,6 +1142,14 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = EvtUpdateBookmark(hevt, hevt2);
         break;
+
+    case 13: // evt_free
+        if (TwapiGetArgs(interp, objc, objv, GETVOIDP(h), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (TwapiVerifyPointer(interp, h, NULL) != TCL_OK)
+            return TCL_ERROR;
+        TwapiFree(h);
+        break;
     
     default:
         /* Params - HANDLE followed by optional DWORD */
@@ -1241,6 +1256,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
         DEFINE_FNCODE_CMD(EvtCreateBookmark, 11),
         DEFINE_FNCODE_CMD(EvtUpdateBookmark, 12),
+        DEFINE_FNCODE_CMD(evt_free, 13),
         DEFINE_FNCODE_CMD(EvtClose, 101),
         DEFINE_FNCODE_CMD(evt_close, 101),
         DEFINE_FNCODE_CMD(EvtCancel, 102),

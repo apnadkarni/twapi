@@ -392,7 +392,7 @@ proc twapi::evt_format_event {hevt args} {
 }
 
 proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
-    free $p
+    evt_free $p
 }
 
 # TBD - EvtFormatMessage for publisher messages

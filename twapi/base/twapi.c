@@ -850,13 +850,14 @@ int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag)
 
     he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
     if (he) {
-        if (typetag == NULL || 
-            (stored_type = Tcl_GetHashValue(he)) == NULL ||
-            typetag == stored_type) {
-            return 1;
+        if (typetag) {
+            stored_type = Tcl_GetHashValue(he);
+            if (stored_type && stored_type != typetag)
+                return TWAPI_POINTER_TYPE_MISMATCH;
         }
+        return TWAPI_NO_ERROR;
     }
-    return 0;
+    return TWAPI_POINTER_UNREGISTERED;
 }
 
 TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag)

@@ -151,6 +151,28 @@ void *TwapiAllocZero(size_t sz)
     return p;
 }
 
+void *TwapiAllocRegisteredPointer(Tcl_Interp *interp, size_t sz, void *typetag)
+{
+    void *p = TwapiAlloc(sz);
+
+    TWAPI_ASSERT(interp);
+
+    if (TwapiRegisterPointer(interp, p, typetag) != TCL_OK) {
+        Tcl_Panic("Error (%s) registering pointer to newly allocated memory.", ObjToString(Tcl_GetObjResult(interp)));
+    }
+}
+
+void TwapiFreeRegisteredPointer(Tcl_Interp *interp, void *p, void *typetag)
+{
+    TWAPI_ASSERT(interp);
+
+    if (TwapiUnregisterPointer(interp, p, typetag) != TCL_OK) {
+        Tcl_Panic("Error (%s) unregistering pointer when freeing memory.", ObjToString(Tcl_GetObjResult(interp)));
+    }
+
+    TwapiFree(p);
+}
+
 
 int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *fn, ClientData clientdata)
 {

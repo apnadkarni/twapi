@@ -1120,6 +1120,8 @@ TWAPI_EXTERN WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
 TWAPI_EXTERN char *TwapiAllocAString(char *, int len);
 TWAPI_EXTERN char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
 TWAPI_EXTERN void *TwapiReallocTry(void *p, size_t sz);
+TWAPI_EXTERN void *TwapiAllocRegisteredPointer(Tcl_Interp *, size_t, void *tag);
+TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 
 
 /* C - Tcl result and parameter conversion  */
