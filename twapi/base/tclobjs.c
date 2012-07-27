@@ -161,8 +161,12 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         }
         pv = (void*) dwp;
         s = ObjToString(objs[1]);
-        if (s[0] == 0 || STREQ(s, "void*"))
-            ctype = NULL;   /* "" and "void*" */
+        if (s[0] == 0
+#ifdef OBSOLETE
+            || STREQ(s, "void*")
+#endif
+            )
+            ctype = NULL;
         else {
             ctype = objs[1];
             Tcl_IncrRefCount(ctype);

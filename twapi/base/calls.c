@@ -984,13 +984,17 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.value.hval = (func == 10036 ?
                              OpenEventLogW : RegisterEventSourceW)(s, s2);
         break;
-    case 10038: // address_to_pointer
-        if (objc != 2)
+    case 10038: // pointer_from_address
+        if (objc == 1)
+            cP = NULL;
+        else if (objc == 2)
+            cP = ObjToString(objv[1]);
+        else
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);        
         if (ObjToDWORD_PTR(interp, objv[0], &dwp) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_OBJ;
-        result.value.obj = ObjFromOpaque((void *) dwp, ObjToString(objv[1]));
+        result.value.obj = ObjFromOpaque((void *) dwp, cP);
         break;
     }
 

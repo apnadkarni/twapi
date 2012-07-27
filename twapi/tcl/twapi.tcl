@@ -577,35 +577,6 @@ proc twapi::_decode_mem_registry_value {type mem len {off 0}} {
     return [list $type $val]
 }
 
-proc twapi::OBSOLETETwapi_PtrToAddress {p} {
-    if {[pointer? $p]} {
-        set addr [lindex $p 0]
-        if {$addr eq "NULL"} {
-            return 0
-        } else {
-            return $addr
-        }
-    } else {
-        error "'$p' is not a valid pointer value."
-    }
-}
-
-proc twapi::OBSOLETETwapi_PtrType {p} {
-    if {[pointer? $p]} {
-        set type [lindex $p 1]
-        if {$type eq ""} {
-            set type void*
-        }
-    } else {
-        error "'$p' is not a valid pointer value."
-    }
-    return $type
-}
-
-proc twapi::OBSOLETETwapi_AddressToPtr {addr type} {
-    return [list $addr $type]
-}
-
 
 proc twapi::_log_timestamp {} {
     return [clock format [clock seconds] -format "%a %T"]

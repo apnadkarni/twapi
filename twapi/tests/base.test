@@ -1955,6 +1955,198 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test pointer_null-1.0 {
+        Verify NULL is treated as null pointer
+    } -body {
+        twapi::pointer_null? NULL
+    } -result 1
+
+    test pointer_null-1.1 {
+        Verify NULL is treated as null pointer when type is specified
+    } -body {
+        twapi::pointer_null? NULL SOMETYPE
+    } -result 1
+
+    test pointer_null-2.0 {
+        Verify 0 is treated as null pointer
+    } -body {
+        twapi::pointer_null? 0
+    } -result 1
+
+    test pointer_null-2.1 {
+        Verify 0 is treated as null pointer when a type is specified
+    } -body {
+        twapi::pointer_null? 0 SOMETYPE
+    } -result 1
+
+    test pointer_null-3.0 {
+        Verify a typed NULL pointer specified as a list
+    } -body {
+        twapi::pointer_null? [list 0 SOMETYPE] SOMETYPE
+    } -result 1
+
+    test pointer_null-3.1 {
+        Verify a typed non-NULL pointer specified as a list
+    } -body {
+        twapi::pointer_null? [list 1 SOMETYPE] SOMETYPE
+    } -result 0
+
+    test pointer_null-3.2 {
+        Verify a typed non-NULL pointer specified as a list
+    } -body {
+        catch {twapi::pointer_null? [list 0 SOMETYPE] SOMEOTHERTYPE}
+    } -result 1
+
+    test pointer_null-3.3 {
+        Verify typed NULL pointer passed as an opaque type
+    } -body {
+        set ptr [twapi::pointer_from_address 0 SOMETYPE]
+        list [twapi::tcltype $ptr] [twapi::pointer_null? $ptr SOMETYPE]
+    } -result {TwapiOpaque 1}
+
+    test pointer_null-4.0 {
+        Verify a bogus non-pointer generates an error
+    } -body {
+        catch {twapi::pointer_null? [list abc SOMETYPE] SOMEOTHERTYPE}
+    } -result 1
+
+    test pointer_null-4.1 {
+        Verify a bogus non-pointer generates an error
+    } -body {
+        catch {twapi::pointer_null? abc}
+    } -result 1
+
+    ################################################################
+
+    test pointer-1.0 {
+        Verify NULL pointer returns 1
+    } -body {
+        twapi::pointer? NULL
+    } -result 1
+
+    test pointer-1.1 {
+        Verify 0 pointer returns 1
+    } -body {
+        twapi::pointer? 0
+    } -result 1
+
+    test pointer-2.0 {
+        Verify non-pointer returns 0
+    } -body {
+        twapi::pointer? abc
+    } -result 0
+
+    test pointer-2.1 {
+        Verify integer non-pointer returns 0
+    } -body {
+        twapi::pointer? 1
+    } -result 0
+
+    test pointer-2.2 {
+        Verify typed non-pointer returns 0
+    } -body {
+        twapi::pointer? [list abc FOO]
+    } -result 0
+
+    test pointer-3.0 {
+        Verify typed pointer passed as an opaque type
+    } -body {
+        set ptr [twapi::pointer_from_address 1 SOMETYPE]
+        list [twapi::tcltype $ptr] [twapi::pointer? $ptr SOMETYPE]
+    } -result {TwapiOpaque 1}
+
+    test pointer-3.1 {
+        Verify a pointer of the wrong type
+    } -body {
+        set ptr [twapi::pointer_from_address 1 SOMETYPE]
+        list [twapi::tcltype $ptr] [twapi::pointer? $ptr SOMEOTHERTYPE]
+    } -result {TwapiOpaque 0}
+
+    test pointer-3.2 {
+        Verify typed pointer passed as a list (1)
+    } -body {
+        twapi::pointer? [list 0x80000000 SomeType] SomeType
+    } -result 1
+
+    test pointer-3.2 {
+        Verify typed pointer passed as a list (0)
+    } -body {
+        twapi::pointer? [list 0x80000000 SomeType] SomeOtherType
+    } -result 0
+
+    ################################################################
+
+    test pointer_equal-1.0 {
+        Verify two pointers are equal
+    } -body {
+        twapi::pointer_equal? [twapi::pointer_from_address 1000] [twapi::pointer_from_address 1000]
+    } -result 1
+
+    test pointer_equal-1.1 {
+        Verify two typed pointers are equal
+    } -body {
+        twapi::pointer_equal? [twapi::pointer_from_address 1000 SOMETYPE] [twapi::pointer_from_address 1000 SOMETYPE]
+    } -result 1
+
+    test pointer_equal-1.2 {
+        Verify NULL pointers are equal
+    } -body {
+        twapi::pointer_equal? NULL [twapi::pointer_from_address 0 SOMETYPE]
+    } -result 1
+
+    test pointer_equal-1.3 {
+        Verify 0 pointers are equal
+    } -body {
+        twapi::pointer_equal? NULL 0
+    } -result 1
+
+    test pointer_equal-1.4 {
+        Verify two untyped pointers are equal
+    } -body {
+        twapi::pointer_equal? [twapi::pointer_from_address 1000 SOMETYPE] [twapi::pointer_from_address 1000 SOMEOTHERTYPE]
+    } -result 1
+
+    test pointer_equal-1.5 {
+        Verify pointer and constructed pointer are equal
+    } -body {
+        twapi::pointer_equal? [twapi::pointer_from_address 1000 SOMETYPE] [list  1000 SOMEOTHERTYPE]
+    } -result 1
+
+    ################################################################
+
+    test pointer_type-1.0 {
+        Get the type of untyped pointer
+    } -body {
+        twapi::pointer_type [twapi::pointer_from_address 1000]
+    } -result ""
+
+    test pointer_type-1.1 {
+        Get the type of typed pointer
+    } -body {
+        twapi::pointer_type [twapi::pointer_from_address 1000 SOMETYPE]
+    } -result SOMETYPE
+
+    test pointer_type-1.2 {
+        Get the type of pointer list literal
+    } -body {
+        twapi::pointer_type [list 2000 SOMETYPE]
+    } -result SOMETYPE
+
+    test pointer_type-2.0 {
+        Get the type of pointer of non-pointer
+    } -body {
+        catch {twapi::pointer_type 500}
+    } -result 1
+
+# TBD - registered pointers, pointer_from_address, pointer_to_address
+
+    ################################################################
+
+    
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests
