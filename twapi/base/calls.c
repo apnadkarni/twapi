@@ -554,7 +554,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
-        result.value.bval = TwapiVerifyPointer(interp, pv, NULL);
+        result.value.bval = (TwapiVerifyPointer(interp, pv, NULL) == TWAPI_NO_ERROR);
         break;
     case 1023: // pointer_to_address
         if (ObjToOpaque(interp, objv[0], &pv, NULL) != TCL_OK)
