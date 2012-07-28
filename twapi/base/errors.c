@@ -184,6 +184,7 @@ int TwapiReturnError(Tcl_Interp *interp, int code)
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(code));
         (void) TwapiSetObjResult(interp, TwapiGetErrorMsg(code));
     }
+    /* TBD - what if code is TWAPI_NO_ERROR ? */
     return TCL_ERROR;           /* Always, so caller can just return */
 }
 
@@ -214,6 +215,7 @@ int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
             TwapiReturnError(interp, code);
         }
     }
+    /* TBD - what if code is TWAPI_NO_ERROR ? */
     return TCL_ERROR; /* Always, so caller can just return */
 }
 

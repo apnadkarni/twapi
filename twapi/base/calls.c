@@ -112,8 +112,11 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             ptrval = NULL;
             if (objP && ObjToOpaque(interp, objP, &ptrval, typeP) != TCL_OK)
                 goto argerror;
-            if (TwapiVerifyPointer(interp, ptrval, pv) != TCL_OK)
-                return TCL_ERROR;
+            ival = TwapiVerifyPointer(interp, ptrval, pv);
+            if (ival != TWAPI_NO_ERROR) {
+                TwapiReturnError(interp, ival);
+                goto argerror;
+            }
             if (p)
                 *(void **)p = ptrval;
             break;

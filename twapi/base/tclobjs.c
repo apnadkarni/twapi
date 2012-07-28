@@ -337,6 +337,8 @@ TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP)
  *   having to clean up the variant before returning.
  * - Similarly, TRT_UNICODE_DYNAMIC, TRT_CHARS_DYNAMIC, TRT_OLESTR and TRT_PIDL
  *   have their memory freed
+ *  The return value reflects whether the result was set from an error or not,
+ *  NOT whether the result was successfully set (which it always is).
  **/
 TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
@@ -589,7 +591,9 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
 
     case TRT_TWAPI_ERROR:
-        return TwapiReturnError(interp, resultP->value.ival);
+        if (resultP->value.ival != TWAPI_NO_ERROR)
+            return TwapiReturnError(interp, resultP->value.ival);
+        break;
 
     default:
         TwapiSetStaticResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult");
