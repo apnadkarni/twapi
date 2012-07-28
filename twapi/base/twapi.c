@@ -869,6 +869,9 @@ TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag)
     TWAPI_ASSERT(ticP);
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
+    if (p == NULL)
+        return TwapiReturnError(interp, TWAPI_NULL_POINTER);
+
     he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->pointers, p, &new_entry);
     if (he && ! new_entry) {
         Tcl_SetHashValue(he, typetag);
@@ -888,8 +891,10 @@ TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, void *p, void *typetag)
     TWAPI_ASSERT(ticP);
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
-    he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
+    if (p == NULL)
+        return TwapiReturnError(interp, TWAPI_NULL_POINTER);
 
+    he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
     code = TWAPI_POINTER_UNREGISTERED;
     if (he) {
         if (typetag == NULL || 

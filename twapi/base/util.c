@@ -160,6 +160,8 @@ void *TwapiAllocRegisteredPointer(Tcl_Interp *interp, size_t sz, void *typetag)
     if (TwapiRegisterPointer(interp, p, typetag) != TCL_OK) {
         Tcl_Panic("Error (%s) registering pointer to newly allocated memory.", ObjToString(Tcl_GetObjResult(interp)));
     }
+
+    return p;
 }
 
 void TwapiFreeRegisteredPointer(Tcl_Interp *interp, void *p, void *typetag)

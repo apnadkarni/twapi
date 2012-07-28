@@ -2142,8 +2142,23 @@ namespace eval twapi::base::test {
 
     ################################################################
 
-    
+    test pointer_registered-1.0 {
+        Verify a registered pointer
+    } -setup {
+        set p [twapi::malloc 10]
+    } -body {
+        twapi::pointer_registered? $p
+    } -cleanup {
+        twapi::free $p
+    } -result 1
 
+    test pointer_registered-1.1 {
+        Verify a unregistered pointer
+    } -setup {
+        set p [twapi::pointer_from_address 1000 SOMETYPE]
+    } -body {
+        twapi::pointer_registered? $p
+    } -result 0
 
     ################################################################
 

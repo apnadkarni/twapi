@@ -306,6 +306,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_POINTER_ALREADY_REGISTERED 15
 #define TWAPI_POINTER_TYPE_MISMATCH 16
 #define TWAPI_POINTER_UNREGISTERED 17
+#define TWAPI_NULL_POINTER 18
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -674,6 +675,7 @@ typedef struct {
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
+#define ARGVERIFIEDPTR 'z'
 #define ARGSKIP     'x'
 #define ARGUSEDEFAULT '?'
 
@@ -693,6 +695,8 @@ typedef struct {
 #define GETWORD(v)     ARGWORD, &(v)
 #define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
+#define GETVERIFIEDPTR(v, typesym, verifier)    ARGPTR, &(v), #typesym, (verifier)
+#define GETVERIFIEDVOIDP(v, verifier)    ARGPTR, &(v), (verifier)
 #define GETHANDLE(v)   GETVOIDP(v)
 #define GETHANDLET(v, typesym) GETPTR(v, typesym)
 #define GETHWND(v) GETHANDLET(v, HWND)
