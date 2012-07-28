@@ -33,6 +33,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     int        len;
     int        use_default = 0;
     int        *iP;
+    void       *pv;
 
     va_start(ap,fmtch);
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, char)) {
@@ -105,6 +106,18 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (p)
                 *(Tcl_Obj **)p = objP; // May be NULL (when use_default is 1)
             break;
+        case ARGVERIFIEDPTR:
+            typeP = va_arg(ap, char *);
+            pv = va_arg(ap, void *);
+            ptrval = NULL;
+            if (objP && ObjToOpaque(interp, objP, &ptrval, typeP) != TCL_OK)
+                goto argerror;
+            if (TwapiVerifyPointer(interp, ptrval, pv) != TCL_OK)
+                return TCL_ERROR;
+            if (p)
+                *(void **)p = ptrval;
+            break;
+            
         case ARGPTR:
             typeP = va_arg(ap, char *);
             ptrval = NULL;
@@ -550,7 +563,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (pv)
             TwapiFree(pv);
         break;
-    case 1022: // registered_pointer
+    case 1022: // pointer_registered?
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
@@ -1579,7 +1592,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_IsValidGUID, 1019),
         DEFINE_FNCODE_CMD(ExpandEnvironmentStrings, 1020),
         DEFINE_FNCODE_CMD(free, 1021),
-        DEFINE_FNCODE_CMD(registered_pointer, 1022),
+        DEFINE_FNCODE_CMD(pointer_registered?, 1022),
         DEFINE_FNCODE_CMD(pointer_to_address, 1023),
         DEFINE_FNCODE_CMD(pointer_type, 1024),
     };
