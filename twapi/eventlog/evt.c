@@ -230,6 +230,20 @@ EVT_HANDLE gEvtDllHandle;
 #define ObjFromEVT_HANDLE(h_) ObjFromOpaque((h_), "EVT_HANDLE")
 #define GETEVTH(h_) GETHANDLET((h_), EVT_HANDLE)
 
+/*
+ * Used to hold renderered values to be passed to script level
+ * Actual buffer follows the header.
+ */
+typedef union _TwapiEVT_RENDER_VALUES_HEADER {
+    void *align;            /* Align following buffer to quadword */
+    struct {
+        DWORD sz;           /* Size of following buffer */
+        DWORD used;         /* Bytes used in following buffer */
+        DWORD count;        /* Count of EVT_VARIANT values in buffer */
+    } header;
+} TwapiEVT_RENDER_VALUES_HEADER;
+#define ERVHP_BUFFER(ervhp_) ((EVT_VARIANT *)(sizeof(*ervhp_) + (char *) (ervhp_)))
+
 /* Always returns TCL_ERROR after storing extended error info */
 static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
 {
@@ -251,7 +265,7 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
 }
 
 /* Convert EVT_VARIANT array returned from EvtRender to an opaque structure*/
-static Tcl_Obj *ObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int count, int sz, int used)
+static Tcl_Obj *OBSOLETEObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int count, int sz, int used)
 {
     Tcl_Obj *objs[4];
     objs[0] = ObjFromOpaque(varP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
@@ -262,7 +276,7 @@ static Tcl_Obj *ObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int count, int sz, i
     return ObjNewList(4, objs);
 }
 
-static int ObjToEVT_RENDER_VALUES(
+static int OBSOLETEObjToEVT_RENDER_VALUES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,
     void **bufPP,   /* Where to store pointer to array */
@@ -634,34 +648,32 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
 static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE hevt, hevt2;
-    DWORD sz, count, used, status;
+    DWORD status;
     void *bufP;
+    TwapiEVT_RENDER_VALUES_HEADER *ervhP;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE),
-                     ARGSKIP, ARGEND) != TCL_OK)
+                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    bufP = NULL;
     /* 4th arg is supposed to describe a previously returned buffer
        that we can reuse. It may also be NULL
     */
-    if (ObjToEVT_RENDER_VALUES(interp, objv[3], &bufP, NULL, &sz, NULL) != TCL_OK)
-        return TCL_ERROR;
-
-    if (bufP == NULL) {
-        /* Allocate buffer if we were not passed one */
+    if (ervhP) {
+        status = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
+        if (status != TWAPI_NO_ERROR)
+            return TwapiReturnError(interp, status);
+    } else {
+        /* Need to allocate buffer */
 
         /* TBD - instrument reallocation needs */
-        sz = 4000;
-        // TBD - use specific tag, not NULL
-        bufP = TwapiAllocRegisteredPointer(interp, sz, NULL);
-    } else {
-        /* Buffer passed in. Check validity */
-        if (! TwapiVerifyPointer(interp, bufP, NULL)) {
-            return TwapiReturnError(interp, TWAPI_POINTER_UNREGISTERED);
-        }
+        ervhP = TwapiAllocRegisteredPointer(interp, sizeof(*ervhP) + 4000, Twapi_EvtRenderValuesObjCmd);
+        ervhP->header.sz = 4000;
     }
+
+    bufP = ERVHP_BUFFER(ervhP);
 
     /* We used to convert using ObjFromEVT_VARIANT but that does
        not work well with opaque values so we preserve as a
@@ -672,26 +684,30 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
 
     /* EvtRenderEventValues -> 0 */
     status = ERROR_SUCCESS;
-    if (EvtRender(hevt, hevt2, 0, sz, bufP, &used, &count) == FALSE) {
+    if (EvtRender(hevt, hevt2, 0, ervhP->header.sz, bufP,
+                  &ervhP->header.used, &ervhP->header.count) == FALSE) {
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
-            TwapiFreeRegisteredPointer(interp, bufP, NULL);
+            DWORD new_sz = ervhP->header.used;
+            TwapiFreeRegisteredPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
+            ervhP = TwapiAllocRegisteredPointer(interp, sizeof(*ervhP) + new_sz, Twapi_EvtRenderValuesObjCmd);
+            ervhP->header.sz = new_sz;
+            bufP = ERVHP_BUFFER(ervhP);
             status = ERROR_SUCCESS;
-            sz = used;
-            bufP = TwapiAllocRegisteredPointer(interp, sz, NULL);
-            if (EvtRender(hevt, hevt2, 0, sz,
-                          bufP, &used, &count) == FALSE) {
+            if (EvtRender(hevt, hevt2, 0, ervhP->header.sz,
+                          bufP, &ervhP->header.used, &ervhP->header.count) == FALSE) {
                 status = GetLastError();
             }
         }
     }
 
     if (status != ERROR_SUCCESS) {
-        TwapiFreeRegisteredPointer(interp, bufP, NULL);
+        TwapiFreeRegisteredPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
         return Twapi_AppendSystemError(interp, status);
     }
 
-    TwapiSetObjResult(interp, ObjFromEVT_RENDER_VALUES(bufP, count, sz, used));
+
+    TwapiSetObjResult(interp, ObjFromOpaque(ervhP, "TwapiEVT_RENDER_VALUES_HEADER*"));
     return TCL_OK;
 }
 
@@ -836,14 +852,25 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     int used;
     WCHAR *bufP;
     DWORD winerr;
+    TwapiEVT_RENDER_VALUES_HEADER *ervhP;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETHANDLET(hpub, EVT_HANDLE), GETHANDLET(hev, EVT_HANDLE),
-                     GETINT(msgid), ARGSKIP, GETINT(flags), ARGEND) != TCL_OK)
+                     GETINT(msgid),
+                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (ObjToEVT_RENDER_VALUES(interp, objv[4], &valuesP, &nvalues, NULL, NULL) != TCL_OK)
-        return TCL_ERROR;
+    if (ervhP) {
+        winerr = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
+        if (winerr != TWAPI_NO_ERROR)
+            return TwapiReturnError(interp, winerr);
+        nvalues = ervhP->header.count;
+        valuesP = ERVHP_BUFFER(ervhP);
+    } else {
+        nvalues = 0;
+        valuesP = NULL;
+    }
 
     /* TBD - instrument buffer size */
     bufP = buf;
@@ -1144,13 +1171,13 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         break;
 
     case 13: // evt_free
-        if (TwapiGetArgs(interp, objc, objv, GETVOIDP(h), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETVERIFIEDVOIDP(h, NULL), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (TwapiVerifyPointer(interp, h, NULL) != TCL_OK)
-            return TCL_ERROR;
-        TwapiFree(h);
+        TWAPI_ASSERT(h);
+        TwapiFreeRegisteredPointer(interp, h, NULL);
+        result.type = TRT_EMPTY;
         break;
-    
+
     default:
         /* Params - HANDLE followed by optional DWORD */
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
