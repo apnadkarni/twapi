@@ -44,8 +44,6 @@ proc twapi::evt_open_session {server args} {
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
 }
 
-# proc twapi::evt_close - defined in C
-
 proc twapi::evt_channels {{hevtsess NULL}} {
     set chnames {}
     set hevt [EvtOpenChannelEnum $hevtsess 0]
@@ -54,7 +52,7 @@ proc twapi::evt_channels {{hevtsess NULL}} {
             lappend chnames $chname
         }
     } finally {
-        EvtClose $hevt
+        evt_close $hevt
     }
 
     return $chnames
@@ -243,7 +241,7 @@ proc twapi::evt_publisher_metadata_property {hevt args} {
             lappend val2 $rec
         }
 
-        EvtClose $val
+        evt_close $val
         lappend result $opt $val2
     }
     return $result
@@ -290,7 +288,7 @@ proc twapi::evt_publishers {{hevtsess NULL}} {
             lappend pubs $pub
         }
     } finally {
-        EvtClose $hevt
+        evt_close $hevt
     }
 
     return $pubs
@@ -316,10 +314,10 @@ proc twapi::evt_publisher_events_metadata {hpub args} {
     trap {
         while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
             lappend meta [evt_event_metadata_property $hmeta {*}$args]
-            EvtClose $hmeta
+            evt_close $hmeta
         }
     } finally {
-        EvtClose $henum
+        evt_close $henum
     }
     
     return $meta
@@ -394,5 +392,27 @@ proc twapi::evt_format_event {hevt args} {
 proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
     evt_free $p
 }
+
+proc twapi::evt_seek {hresults pos args} {
+    array set opts [parseargs args {
+        {origin.arg first {first last current}}
+        bookmark.arg
+        {strict 0 0x10000}
+    } -maxleftover 0]
+
+    if {[info exists opts(bookmark)]} {
+        set flags 4
+    } else {
+        set flags [lsearch -exact {first last current} $opts(origin)]
+        incr flags;             # 1 -> first, 2 -> last, 3 -> current
+        set opts(bookmark) NULL
+    }
+        
+    incr flags $opts(strict)
+
+    EvtSeek $hresults $pos $opts(bookmark) 0 $flags
+}
+
+
 
 # TBD - EvtFormatMessage for publisher messages
