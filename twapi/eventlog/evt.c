@@ -770,6 +770,20 @@ static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(TwapiInterpContext *ticP,
     return TCL_OK;
 }
 
+static TCL_RESULT Twapi_ExtractEVT_RENDER_VALUESObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiEVT_RENDER_VALUES_HEADER *ervhP;
+
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*, Twapi_EvtRenderValuesObjCmd),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    Tcl_SetObjResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, ERVHP_BUFFER(ervhP), ervhP->header.count));
+    return TCL_OK;
+}
+
 static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVT_HANDLE hevt;
@@ -1259,6 +1273,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
+        DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
     };
 
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
