@@ -695,8 +695,8 @@ typedef struct {
 #define GETWORD(v)     ARGWORD, &(v)
 #define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
-#define GETVERIFIEDPTR(v, typesym, verifier)    ARGPTR, &(v), #typesym, (verifier)
-#define GETVERIFIEDVOIDP(v, verifier)    ARGPTR, &(v), (verifier)
+#define GETVERIFIEDPTR(v, typesym, verifier)    ARGVERIFIEDPTR, &(v), #typesym, (verifier)
+#define GETVERIFIEDVOIDP(v, verifier)    ARGVERIFIEDPTR, &(v), (verifier)
 #define GETHANDLE(v)   GETVOIDP(v)
 #define GETHANDLET(v, typesym) GETPTR(v, typesym)
 #define GETHWND(v) GETHANDLET(v, HWND)
