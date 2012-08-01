@@ -468,5 +468,26 @@ proc twapi::evt_seek {hresults pos args} {
 }
 
 
+proc twapi::_evt_dump {args} {
+    array set opts [parseargs args {
+        {outfd.arg stdout}
+    } -ignoreunknown]
 
-# TBD - EvtFormatMessage for publisher messages
+    set i 0
+    set hq [evt_query {*}$args]
+    trap {
+        while {[llength [set hevts [evt_next $hq]]]} {
+            foreach hevt $hevts {
+                trap {
+                    puts $opts(outfd) "[incr i]: [evt_format_event $hevt]"
+                } onerror {TWAPI_WIN32 15027} {
+                    puts $opts(outfd) "$i: Could not get event message"
+                } finally {
+                    evt_close $hevt
+                }                
+            }
+        }
+    } finally {
+        evt_close $hq
+    }
+}
