@@ -2,9 +2,9 @@ if {0} {
 set hq [evt_query -channel Application]
 set hrc [evt_render_context_xpaths [list "Event/System/Provider/@Name" "Event/System/EventID"]]
 set hevt [lindex [evt_next $hq] 0]
-twapi::Twapi_EvtRenderValues $hrc $hevt {}
-::twapi::Twapi_ExtractEVT_VARIANT_ARRAY {3321248 {EVT_RENDER_VALUES *}} 2
-::twapi::evt_free_EVT_VARIANT_ARRAY {3321248 {EVT_RENDER_VALUES *}}
+set hvals [twapi::Twapi_EvtRenderValues $hrc $hevt NULL]
+::twapi::Twapi_ExtractEVT_RENDER_VALUES $hvals
+::twapi::evt_free_EVT_RENDER_VALUES $hvals
 }
 
 #
@@ -15,7 +15,28 @@ twapi::Twapi_EvtRenderValues $hrc $hevt {}
 
 # Event log handling for Vista and later
 
-namespace eval twapi {}
+namespace eval twapi {
+    # We cache the render context used for getting publisher name from event
+    # as this is required for every event.
+    variable _evt_event_render_context
+
+    # Cache mapping publisher names to their meta information handles
+    # TBD - need a mechanism to clear ?
+    variable _evt_publisher_handles
+
+
+    proc _evt_init {} {
+        variable _evt_event_render_context
+        variable _evt_publisher_handles
+
+        set _evt_event_render_context(handle) [evt_render_context_xpaths [list "Event/System/Provider/@Name"]]
+        set _evt_event_render_context(buffer) NULL
+
+        array set _evt_publisher_handles {}
+    }
+
+
+}
 
 proc twapi::evt_local_session {} {
     return NULL
@@ -361,35 +382,57 @@ proc twapi::evt_next {hresultset args} {
     return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
 }
 
-proc twapi::evt_format_event {hevt args} {
-    array set opts [parseargs args {
-        hpublisher.arg
-        {values.arg ""}
-        {field.arg event}
-    } -maxleftover 0]
 
-    if {[info exists opts(hpublisher)]} {
-        set hpub $opts(hpublisher)
-    } else {
-        # TBD - add -publisher option or get publisher from hevt
-        set hpub NULL
+proc twapi::evt_format_event {args} {
+    _evt_init
+
+    proc evt_format_event {hevt args} {
+
+        array set opts [parseargs args {
+            hpublisher.arg
+            {values.arg NULL}
+            {field.arg event}
+            {session.arg NULL}
+            {logfile.arg ""}
+            {lcid.int 0}
+        } -maxleftover 0]
+        
+        if {[info exists opts(hpublisher)]} {
+            set hpub $opts(hpublisher)
+        } else {
+            # Get publisher from hevt
+            variable _evt_event_render_context
+            variable _evt_publisher_handles
+            set _evt_event_render_context(buffer) [Twapi_EvtRenderValues $_evt_event_render_context(handle) $hevt $_evt_event_render_context(buffer)]
+            set publisher [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_event_render_context(buffer)] 0]
+            if {! [info exists _evt_publisher_handles($publisher)]} {
+                set _evt_publisher_handles($publisher) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
+            }
+            set hpub $_evt_publisher_handles($publisher)
+        }
+
+        set type [dict get {
+            event 1
+            level 2
+            task 3
+            opcode 4
+            keyword 5
+            channel 6
+            provider 7
+            xml 9
+        } $opts(field)]
+
+        return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
     }
 
-    set type [dict get {
-        event 1
-        level 2
-        task 3
-        opcode 4
-        keyword 5
-        channel 6
-        provider 7
-        xml 9
-    } $opts(field)]
-
-    return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
+    return [evt_format_event {*}$args]
 }
 
 proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
+    evt_free $p
+}
+
+proc twapi::evt_free_EVT_RENDER_VALUES {p} {
     evt_free $p
 }
 
