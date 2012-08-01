@@ -428,6 +428,17 @@ proc twapi::evt_format_event {args} {
     return [evt_format_event {*}$args]
 }
 
+
+proc twapi::evt_format_publisher_message {hpub msgid args} {
+
+    array set opts [parseargs args {
+        {values.arg NULL}
+    } -maxleftover 0]
+        
+    return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
+}
+
+
 proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
     evt_free $p
 }
