@@ -903,13 +903,19 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
         }
     }        
 
+
     if (winerr == ERROR_SUCCESS) {
-        /* TBD - see comments in GetMessageString function at
+        /* See comments in GetMessageString function at
            http://msdn.microsoft.com/en-us/windows/dd996923%28v=vs.85%29
-           - the buffer may contain multiple concatenated null terminated
-           strings. For now pass the whole chunk as is. Later may
-           split up either in here or in the script */
-        TwapiSetObjResult(interp, ObjFromUnicodeN(bufP, used));
+           If flags == EvtFormatMessageKeyword,  the buffer may contain
+           multiple concatenated null terminated keywords. */
+        if (flags == 5 /* EvtFormatMessageKeyword */ ) {
+            TwapiSetObjResult(interp, ObjFromMultiSz(bufP, used));
+        } else {
+            /* For other cases, like xml, used may be more than last char
+               so depend on null termination */
+            TwapiSetObjResult(interp, ObjFromUnicode(bufP));
+        }
     } else {
         Twapi_AppendSystemError(interp, winerr);
     }

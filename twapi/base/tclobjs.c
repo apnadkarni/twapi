@@ -1249,7 +1249,8 @@ int ObjToMultiSz (
  *
  * maxlen is provided because registry data can be badly formatted
  * by applications. So we optionally ensure we do not read beyond
- * maxlen characters.
+ * maxlen characters. This also lets it be used from EvtFormatMessage
+ * code where termination is determined by length, not a second \0.
  */
 Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
 {
