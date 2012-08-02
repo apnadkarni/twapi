@@ -869,10 +869,12 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     TwapiEVT_RENDER_VALUES_HEADER *ervhP;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETHANDLET(hpub, EVT_HANDLE), GETHANDLET(hev, EVT_HANDLE),
+                     GETHANDLET(hpub, EVT_HANDLE),
+                     GETHANDLET(hev, EVT_HANDLE),
                      GETINT(msgid),
                      GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
-                     GETINT(flags), ARGEND) != TCL_OK)
+                     GETINT(flags),
+                     ARGUSEDEFAULT, ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;
     
     if (ervhP) {
@@ -917,7 +919,14 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
             TwapiSetObjResult(interp, ObjFromUnicode(bufP));
         }
     } else {
-        Twapi_AppendSystemError(interp, winerr);
+        if (objc == 7 &&
+            (winerr == 15027 /* ERROR_EVT_MESSAGE_NOT_FOUND */ ||
+             winerr == 15028 /* ERROR_EVT_MESSAGE_ID_NOT_FOUND */ )) {
+            /* Caller has specified these errors should be ignored and
+               the specified string returned instead */
+            TwapiSetObjResult(interp, objv[6]);
+        } else
+            Twapi_AppendSystemError(interp, winerr);
     }
     if (bufP != buf)
         MemLifoPopFrame(&ticP->memlifo);
