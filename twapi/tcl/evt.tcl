@@ -16,23 +16,27 @@ set hvals [twapi::Twapi_EvtRenderValues $hrc $hevt NULL]
 # Event log handling for Vista and later
 
 namespace eval twapi {
-    # We cache the render context used for getting publisher name from event
-    # as this is required for every event.
-    variable _evt_event_render_context
+    # We cache the render context used for getting system fields from event
+    # as this is required for every event. It is an array with two elements
+    #  handle - is the handle to the maintaned context
+    #  buffer - is NULL or holds a pointer to the buffer used to retrieve
+    #    values so does not have to be reallocated every time.
+    variable _evt_system_render_context
+
 
     # Cache mapping publisher names to their meta information handles
+    # Dictionary indexed with nested keys - publisher, session, lcid
     # TBD - need a mechanism to clear ?
     variable _evt_publisher_handles
 
-
     proc _evt_init {} {
-        variable _evt_event_render_context
+        variable _evt_system_render_context
         variable _evt_publisher_handles
 
-        set _evt_event_render_context(handle) [evt_render_context_xpaths [list "Event/System/Provider/@Name"]]
-        set _evt_event_render_context(buffer) NULL
+        set _evt_system_render_context(handle) [evt_render_context_system]
+        set _evt_system_render_context(buffer) NULL
 
-        array set _evt_publisher_handles {}
+        set _evt_publisher_handles [dict create]
 
         # No-op the proc once init is done
         proc _evt_init {} {}
@@ -388,9 +392,9 @@ proc twapi::evt_get_event_publisher {hevt} {
     _evt_init
 
     proc evt_get_event_publisher {hevt} {
-        variable _evt_event_render_context
-        set _evt_event_render_context(buffer) [Twapi_EvtRenderValues $_evt_event_render_context(handle) $hevt $_evt_event_render_context(buffer)]
-        return [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_event_render_context(buffer)] 0]
+        variable _evt_system_render_context
+        set _evt_system_render_context(buffer) [Twapi_EvtRenderValues $_evt_system_render_context(handle) $hevt $_evt_system_render_context(buffer)]
+        return [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_system_render_context(buffer)] 0]
     }
 
     return [evt_get_event_publisher $hevt]
@@ -415,11 +419,12 @@ proc twapi::evt_format_event {args} {
         } else {
             # Get publisher from hevt
             variable _evt_publisher_handles
+
             set publisher [evt_get_event_publisher $hevt]
-            if {! [info exists _evt_publisher_handles($publisher)]} {
-                set _evt_publisher_handles($publisher) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
+            if {! [dict exists $_evt_publisher_handles $publisher $opts(session) $opts(lcid)]} {
+                dict set _evt_publisher_handles $publisher $opts(session) $opts(lcid) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
             }
-            set hpub $_evt_publisher_handles($publisher)
+            set hpub [dict get $_evt_publisher_handles $publisher $opts(session) $opts(lcid)]
         }
 
         set type [dict get {
