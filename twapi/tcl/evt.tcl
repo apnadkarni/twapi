@@ -412,6 +412,7 @@ proc twapi::evt_format_event {args} {
             {session.arg NULL}
             {logfile.arg ""}
             {lcid.int 0}
+            ignorestring.arg
         } -maxleftover 0]
         
         if {[info exists opts(hpublisher)]} {
@@ -438,7 +439,11 @@ proc twapi::evt_format_event {args} {
             xml 9
         } $opts(field)]
 
-        return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
+        if {[info exists opts(ignorestring)]} {
+            return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type $opts(ignorestring)]
+        } else {
+            return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
+        }
     }
 
     return [evt_format_event {*}$args]
