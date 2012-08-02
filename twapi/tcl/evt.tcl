@@ -33,9 +33,10 @@ namespace eval twapi {
         set _evt_event_render_context(buffer) NULL
 
         array set _evt_publisher_handles {}
+
+        # No-op the proc once init is done
+        proc _evt_init {} {}
     }
-
-
 }
 
 proc twapi::evt_local_session {} {
@@ -383,6 +384,18 @@ proc twapi::evt_next {hresultset args} {
 }
 
 
+proc twapi::evt_get_event_publisher {hevt} {
+    _evt_init
+
+    proc evt_get_event_publisher {hevt} {
+        variable _evt_event_render_context
+        set _evt_event_render_context(buffer) [Twapi_EvtRenderValues $_evt_event_render_context(handle) $hevt $_evt_event_render_context(buffer)]
+        return [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_event_render_context(buffer)] 0]
+    }
+
+    return [evt_get_event_publisher $hevt]
+}
+
 proc twapi::evt_format_event {args} {
     _evt_init
 
@@ -401,10 +414,8 @@ proc twapi::evt_format_event {args} {
             set hpub $opts(hpublisher)
         } else {
             # Get publisher from hevt
-            variable _evt_event_render_context
             variable _evt_publisher_handles
-            set _evt_event_render_context(buffer) [Twapi_EvtRenderValues $_evt_event_render_context(handle) $hevt $_evt_event_render_context(buffer)]
-            set publisher [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_event_render_context(buffer)] 0]
+            set publisher [evt_get_event_publisher $hevt]
             if {! [info exists _evt_publisher_handles($publisher)]} {
                 set _evt_publisher_handles($publisher) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
             }
