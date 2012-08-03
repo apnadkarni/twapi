@@ -488,6 +488,28 @@ proc twapi::evt_seek {hresults pos args} {
     EvtSeek $hresults $pos $opts(bookmark) 0 $flags
 }
 
+proc evt_subscribe {path hevent args} {
+    array set opts [parseargs args {
+        {session.arg NULL}
+        {query.arg ""}
+        {origin.arg oldest}
+        {ignorequeryerrors 0 0x1000}
+        {strict 0 0x10000}
+    } -maxleftover 0]
+
+    set flags [expr {$opts(ignorequeryerrors) | $opts(strict)}]
+    set bookmark NULL
+    switch -exact -- $opts(origin) {
+        "oldest" { set flags [expr {$flags | 1}] }
+        "current" { set flags [expr {$flags | 2}] }
+        default {
+            set flags [expr {$flags | 3}]
+            set bookmark $opts(origin)
+        }
+    }
+
+    return [EvtSubscribe $opts(session) $hevent $path $opts(query) $bookmark $flags]
+}
 
 proc twapi::_evt_dump {args} {
     array set opts [parseargs args {
