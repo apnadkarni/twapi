@@ -2,7 +2,7 @@
 
 
 /* File created by MIDL compiler version 5.01.0164 */
-/* at Tue Jun 26 15:11:56 2012
+/* at Fri Aug 03 19:36:30 2012
  */
 /* Compiler settings for C:\src\twapi\twapi\tests\comtest\comtest.idl:
     Oicf (OptLev=i2), W1, Zp8, env=Win32, ms_ext, c_ext

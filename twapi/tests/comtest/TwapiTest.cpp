@@ -284,6 +284,13 @@ STDMETHODIMP CTwapiTest::GetVariantType(int *pVal)
 
 STDMETHODIMP CTwapiTest::GetApplicationNames(VARIANT *varP)
 {
+#if 0
+    int vt = V_VT(varP);
+    VariantClear(varP);
+    V_VT(varP) = VT_I4;
+    V_I4(varP) = vt;
+    return S_OK;
+#endif
     // Clones interface method reported by Till Immanuel
     if ((V_VT(varP) & VT_ARRAY) == 0)
 	return Error("Passed VARIANT is not a SAFEARRAY");
