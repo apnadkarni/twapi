@@ -80,6 +80,24 @@ static struct Tcl_ObjType gOpaqueType = {
     NULL,     /* jenglish says keep this NULL */
 };
 
+
+/*
+ * TwapiVariant is a Tcl "type" whose internal representation preserves
+ * the COM VARIANT type as far as possible.
+ * The Tcl_Obj.internalRep.ptrAndLongRep.value holds the VT_* type tag.
+ * and Tcl_Obj.internalRep.ptrAndLongRep.ptr holds a tag dependent value.
+ */
+static void DupVariantType(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeVariantType(Tcl_Obj *objP);
+static void UpdateVariantTypeString(Tcl_Obj *objP);
+static struct Tcl_ObjType gVariantType = {
+    "TwapiVariant",
+    FreeVariantType,
+    DupVariantType,
+    UpdateVariantTypeString,
+    NULL,     /* jenglish says keep this NULL */
+};
+
 static void UpdateOpaqueTypeString(Tcl_Obj *objP)
 {
     Tcl_Obj *objs[2];
@@ -183,6 +201,31 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
     return TCL_OK;
 }
 
+static void UpdateVariantTypeString(Tcl_Obj *objP)
+{
+    Tcl_Obj *objs[2];
+    Tcl_Obj *listObj;
+
+    TWAPI_ASSERT(objP->bytes == NULL);
+    TWAPI_ASSERT(objP->typePtr == &gVariantType);
+
+    objP->length = 0; /* Note does not include terminating \0 */
+    objP->bytes = ckalloc(1);
+    objP->bytes[0] = 0;
+}
+
+static void FreeVariantType(Tcl_Obj *objP)
+{
+    /* Nothing to do since we never allocate any resources currently */
+}
+
+static void DupVariantType(Tcl_Obj *srcP, Tcl_Obj *dstP)
+{
+    dstP->typePtr = &gVariantType;
+    dstP->internalRep = srcP->internalRep;
+}
+
+
 int TwapiInitTclTypes(void)
 {
     int i;
@@ -199,7 +242,7 @@ int TwapiInitTclTypes(void)
     gTclTypes[TWAPI_TCLTYPE_WIDEINT].typename = "wideInt";
     gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typename = "booleanString";
 
-    for (i = 1; i < ARRAYSIZE(gTclTypes); ++i) {
+    for (i = 1; i < TWAPI_TCLTYPE_NATIVE_END; ++i) {
         gTclTypes[i].typeptr =
             Tcl_GetObjType(gTclTypes[i].typename); /* May be NULL */
     }
@@ -213,6 +256,12 @@ int TwapiInitTclTypes(void)
         /* This may still be NULL, but what can we do ? */
         gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
     }    
+
+    /* Add our TWAPI types */
+    gTclTypes[TWAPI_TCLTYPE_OPAQUE].typename = gOpaqueType.name;
+    gTclTypes[TWAPI_TCLTYPE_OPAQUE].typeptr = &gOpaqueType;
+    gTclTypes[TWAPI_TCLTYPE_VARIANT].typename = gOpaqueType.name;
+    gTclTypes[TWAPI_TCLTYPE_VARIANT].typeptr = &gVariantType;
 
     return TCL_OK;
 }
@@ -299,12 +348,19 @@ int Twapi_InternalCastObjCmd(
          * new object
          */
 
+        if (typeP->setFromAnyProc == NULL) {
+            TwapiSetObjResult(interp,
+                              Tcl_ObjPrintf("No conversion available for type %s", typename));
+            return TCL_ERROR;
+        }
+
         if (Tcl_IsShared(objv[2])) {
             objP = Tcl_DuplicateObj(objv[2]);
         } else {
             objP = objv[2];
         }
         
+
         if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
             if (objP != objv[2]) {
                 Tcl_DecrRefCount(objP);
@@ -1961,6 +2017,7 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
 
     /*
      * See if it's a list. Note interp contains an error msg at this point
+     * that we preserve.
      */
 
     if (ObjGetElements(NULL, obj, &objc, &objv) != TCL_OK ||
@@ -1973,6 +2030,7 @@ int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
         return TCL_ERROR;
     }
 
+    /* TBD - do we not need to look at the objv[1] at all ? */
     /* vt must be either pointer, array or UDT in the list case */
     if (vt == VT_PTR || vt == VT_SAFEARRAY || vt == VT_USERDEFINED) {
         *vtP = vt;
@@ -2475,6 +2533,77 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
     return ObjNewList(2, objv);
 }
 
+VARTYPE ObjTypeToVT(Tcl_Obj *objP)
+{
+    int i;
+    void *pv;
+    char *s;
+
+    switch (TwapiGetTclType(objP)) {
+    case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
+    case TWAPI_TCLTYPE_BOOLEANSTRING:
+        return VT_BOOL;
+    case TWAPI_TCLTYPE_INT:
+        return VT_I4;
+    case TWAPI_TCLTYPE_WIDEINT:
+        return VT_I8;
+    case TWAPI_TCLTYPE_DOUBLE:
+        return VT_R8;
+    case TWAPI_TCLTYPE_BYTEARRAY:
+        return VT_UI1 | VT_ARRAY;
+    case TWAPI_TCLTYPE_LIST:
+        /*
+         * A list is usually a SAFEARRAY. However, it could be
+         * an IDispatch or IUnknown in certain special cases.
+         */
+        if (Tcl_ListObjLength(NULL, objP, &i) == TCL_OK && i == 2) {
+            /* Possibly IUnknown or IDispatch */
+            if (ObjToIDispatch(NULL, objP, &pv) == TCL_OK)
+                return VT_DISPATCH;
+            else if (ObjToIUnknown(NULL, objP, &pv) == TCL_OK)
+                return VT_UNKNOWN;
+        }
+        
+        /*
+         * A list is a SAFEARRAY. We do not know the type of each element
+           so assume mixed type.
+         */
+        return VT_VARIANT | VT_ARRAY;
+    case TWAPI_TCLTYPE_DICT:
+        /* Something that is constructed like a dictionary cannot
+           really be a numeric or boolean. Since there is no
+           dictionary type in COM, pass as a string.
+        */
+        return VT_BSTR;
+
+    case TWAPI_TCLTYPE_OPAQUE:
+        TWAPI_ASSERT(objP->typePtr == &gOpaqueType);
+        if (OPAQUE_REP_CTYPE(objP)) {
+            s = Tcl_GetString(OPAQUE_REP_CTYPE(objP));
+            if (STREQ(s, "IDispatch"))
+                return VT_DISPATCH;
+            if (STREQ(s, "IUnknown"))
+                return VT_UNKNOWN;
+        }
+        return VT_VARIANT;
+    case TWAPI_TCLTYPE_VARIANT:
+        TWAPI_ASSERT(objP->typePtr == &gVariantType);
+        return objP->internalRep.ptrAndLongRep.value;
+    case TWAPI_TCLTYPE_STRING:
+        /* In Tcl everything is a string, including numerics. However
+           a command such as [set x 123] will result in x being set
+           as a "pure" string, ie. TWAPI_TCLTYPE_NONE. So we mark
+           it as a BSTR if it is an explicit string type. - TBD ?
+        */
+        return VT_BSTR;
+    case TWAPI_TCLTYPE_NONE: /* Completely untyped */
+    default:
+        /* Caller has to use value-based heuristics to determine type */
+        return VT_VARIANT;
+    }
+}
+
+
 TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt)
 {
     HRESULT hr;
@@ -2556,6 +2685,9 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
          * Note we pass NULL for interp
          * when to GetLong and GetDouble as we don't want an
          * error message left in the interp.
+         *
+         * We only base our logic here on values. Any type information
+         * from Tcl_Obj.typePtr should have been considered by the caller.
          */
         if (ObjToLong(NULL, objP, &varP->lVal) == TCL_OK) {
             varP->vt = VT_I4;
