@@ -1011,59 +1011,6 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
     }
 }
 
-static VARTYPE ObjTypeToVT(Tcl_Obj *objP)
-{
-    int i;
-    void *pv;
-
-    switch (TwapiGetTclType(objP)) {
-    case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
-    case TWAPI_TCLTYPE_BOOLEANSTRING:
-        return VT_BOOL;
-    case TWAPI_TCLTYPE_INT:
-        return VT_I4;
-    case TWAPI_TCLTYPE_WIDEINT:
-        return VT_I8;
-    case TWAPI_TCLTYPE_DOUBLE:
-        return VT_R8;
-    case TWAPI_TCLTYPE_BYTEARRAY:
-        return VT_UI1 | VT_ARRAY;
-    case TWAPI_TCLTYPE_LIST:
-        /*
-         * A list is usually a SAFEARRAY. However, it could be
-         * an IDispatch or IUnknown in certain special cases.
-         */
-        if (Tcl_ListObjLength(NULL, objP, &i) == TCL_OK && i == 2) {
-            /* Possibly IUnknown or IDispatch */
-            if (ObjToIDispatch(NULL, objP, &pv) == TCL_OK)
-                return VT_DISPATCH;
-            else if (ObjToIUnknown(NULL, objP, &pv) == TCL_OK)
-                return VT_UNKNOWN;
-        }
-        
-        /*
-         * A list is a SAFEARRAY. We do not know the type of each element
-           so assume mixed type.
-         */
-        return VT_VARIANT | VT_ARRAY;
-    case TWAPI_TCLTYPE_DICT:
-        /* Something that is constructed like a dictionary cannot
-           really be a numeric or boolean. Since there is no
-           dictionary type in COM, pass as a string.
-        */
-        return VT_BSTR;
-    case TWAPI_TCLTYPE_STRING:
-        /* In Tcl everything is a string, inclusing numerics,
-           so we cannot really mark it as a BSTR.
-           FALLTHRU
-        */
-    case TWAPI_TCLTYPE_NONE: /* Completely untyped */
-    default:
-        /* Use value-based heuristics to determine type */
-        return VT_VARIANT;
-    }
-}
-
 
 /*
  * Converts a parameter definition in Tcl format into the corresponding
@@ -1135,7 +1082,7 @@ int TwapiMakeVariantParam(
 
     if (paramc == 0) {
         /* We did not have parameter info. Assume BSTR */
-        vt = VT_BSTR;
+        vt = VT_BSTR; // TBD - maybe make this VT_VARIANT and guess
     }
     else if (paramc > 1) {
         /* If no value supplied as positional parameter, see if it is 

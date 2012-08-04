@@ -354,6 +354,9 @@ enum {
     TWAPI_TCLTYPE_DICT,
     TWAPI_TCLTYPE_WIDEINT,
     TWAPI_TCLTYPE_BOOLEANSTRING,
+    TWAPI_TCLTYPE_NATIVE_END,
+    TWAPI_TCLTYPE_OPAQUE = TWAPI_TCLTYPE_NATIVE_END, /* Added by Twapi */
+    TWAPI_TCLTYPE_VARIANT,      /* Added by Twapi */
     TWAPI_TCLTYPE_BOUND
 } TwapiTclType;
     
@@ -1282,6 +1285,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromCY(const CY *cyP);
 TWAPI_EXTERN int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDECIMAL(DECIMAL *cyP);
 TWAPI_EXTERN int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *cyP);
+TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP);
 TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
 TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt);
 
