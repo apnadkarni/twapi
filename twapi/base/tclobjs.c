@@ -19,19 +19,19 @@ struct vt_token_pair {
     char   *tok;
 };
 static struct vt_token_pair vt_base_tokens[] = {
-    {VT_BOOL, "bool"},
-    {VT_I2, "i2"},
+    {VT_BSTR, "bstr"},
     {VT_I4, "i4"},
+    {VT_DISPATCH, "idispatch"},
+    {VT_UNKNOWN, "iunknown"},
+    {VT_BOOL, "bool"},
+    {VT_VARIANT, "variant"},
+    {VT_I2, "i2"},
     {VT_PTR, "ptr"},
     {VT_R4, "r4"},
     {VT_R8, "r8"},
     {VT_CY, "cy"},
     {VT_DATE, "date"},
-    {VT_BSTR, "bstr"},
-    {VT_DISPATCH, "idispatch"},
     {VT_ERROR, "error"},
-    {VT_VARIANT, "variant"},
-    {VT_UNKNOWN, "iunknown"},
     {VT_UI1, "ui1"},
     {VT_DECIMAL, "decimal"},
     {VT_I1, "i1"},
@@ -46,7 +46,9 @@ static struct vt_token_pair vt_base_tokens[] = {
     {VT_LPSTR, "lpstr"},
     {VT_LPWSTR, "lpwstr"},
     {VT_RECORD, "record"},
-    {VT_USERDEFINED, "userdefined"}
+    {VT_USERDEFINED, "userdefined"},
+    {VT_EMPTY, "empty"},
+    {VT_NULL, "null"},
 };
 
 /* Support up to these many dimensions in a SAFEARRAY */
@@ -97,6 +99,52 @@ static struct Tcl_ObjType gVariantType = {
     UpdateVariantTypeString,
     NULL,     /* jenglish says keep this NULL */
 };
+
+static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
+{
+    if (interp) {
+        (void) TwapiSetObjResult(interp,
+                         Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
+                                       vt));
+    }
+}
+
+static int LookupBaseVT(Tcl_Interp *interp, VARTYPE vt, const char **tokP)
+{
+    int i;
+    for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
+        if (vt_base_tokens[i].vt == vt) {
+            if (tokP)
+                *tokP = vt_base_tokens[i].tok;
+            return TCL_OK;
+        }
+    }
+
+    TwapiInvalidVariantTypeMessage(interp, vt);
+    return TCL_ERROR;
+}
+
+static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
+{
+    int i;
+    if (tok != NULL) {
+        for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
+            if (STREQ(vt_base_tokens[i].tok, tok)) {
+                if (vtP)
+                    *vtP = vt_base_tokens[i].vt;
+                return TCL_OK;
+            }
+        }
+    }
+    if (interp) {
+        Tcl_Obj *objP; 
+        objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
+        Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
+        (void)TwapiSetObjResult(interp, objP);
+    }
+
+    return TCL_ERROR;
+}
 
 static void UpdateOpaqueTypeString(Tcl_Obj *objP)
 {
@@ -209,9 +257,16 @@ static void UpdateVariantTypeString(Tcl_Obj *objP)
     TWAPI_ASSERT(objP->bytes == NULL);
     TWAPI_ASSERT(objP->typePtr == &gVariantType);
 
-    objP->length = 0; /* Note does not include terminating \0 */
-    objP->bytes = ckalloc(1);
-    objP->bytes[0] = 0;
+    switch (VARIANT_REP_VT(objP)) {
+    case VT_EMPTY:
+    case VT_NULL:
+        objP->length = 0; /* Note does not include terminating \0 */
+        objP->bytes = ckalloc(1);
+        objP->bytes[0] = 0;
+        break;
+    default:
+        Tcl_Panic("Unexpected VT type (%d) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
+    }
 }
 
 static void FreeVariantType(Tcl_Obj *objP)
@@ -288,7 +343,14 @@ int Twapi_GetTclTypeObjCmd(
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (objv[1]->typePtr != NULL) {
+    if (objv[1]->typePtr) {
+        if (objv[1]->typePtr == &gVariantType) {
+            const char *typename;
+            if (LookupBaseVT(NULL, (VARTYPE) VARIANT_REP_VT(objv[1]), &typename) == TCL_OK &&
+                typename) {
+                return TwapiSetObjResult(interp, ObjFromString(typename));
+            }
+        }
         TwapiSetObjResult(interp, ObjFromString(objv[1]->typePtr->name));
     } else {
         /* Leave result as empty string */
@@ -307,6 +369,7 @@ int Twapi_InternalCastObjCmd(
     Tcl_ObjType *typeP;
     const char *typename;
     int i;
+    VARTYPE vt;
 
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -334,42 +397,55 @@ int Twapi_InternalCastObjCmd(
     }
 
     typeP = Tcl_GetObjType(typename);
-    if (typeP == NULL) {
-        Tcl_AppendResult(interp, "Invalid or unknown Tcl type '", typename, "'", NULL);
-        return TCL_ERROR;
-    }
-        
-    if (objv[2]->typePtr == typeP) {
-        /* If type is already correct, no need to do anything */
-        objP = objv[2];
-    } else {
-        /*
-         * Need to convert it. If not shared, do in place else allocate
-         * new object
-         */
-
-        if (typeP->setFromAnyProc == NULL) {
-            TwapiSetObjResult(interp,
-                              Tcl_ObjPrintf("No conversion available for type %s", typename));
-            return TCL_ERROR;
-        }
-
-        if (Tcl_IsShared(objv[2])) {
-            objP = Tcl_DuplicateObj(objv[2]);
-        } else {
+    if (typeP) {
+        if (objv[2]->typePtr == typeP) {
+            /* If type is already correct, no need to do anything */
             objP = objv[2];
-        }
+        } else {
+            /*
+             * Need to convert it. If not shared, do in place else allocate
+             * new object
+             */
+
+            if (typeP->setFromAnyProc == NULL)
+                goto error_handler;
+
+            if (Tcl_IsShared(objv[2])) {
+                objP = Tcl_DuplicateObj(objv[2]);
+            } else {
+                objP = objv[2];
+            }
         
 
-        if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
-            if (objP != objv[2]) {
-                Tcl_DecrRefCount(objP);
+            if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
+                if (objP != objv[2]) {
+                    Tcl_DecrRefCount(objP);
+                }
+                return TCL_ERROR;
             }
-            return TCL_ERROR;
+        }
+
+        return TwapiSetObjResult(interp, objP);
+    }
+
+    /* Not a registered Tcl type. See if one of ours */
+    if (LookupBaseVTToken(NULL, typename, &vt) == TCL_OK) {
+        switch (vt) {
+        case VT_EMPTY:
+        case VT_NULL:
+            if (Tcl_GetCharLength(objv[2]) != 0)
+                goto error_handler;
+            objP = ObjFromEmptyString();
+            Tcl_InvalidateStringRep(objP);
+            objP->typePtr = &gVariantType;
+            VARIANT_REP_VT(objP) = vt;
+            return TwapiSetObjResult(interp, objP);
         }
     }
 
-    return TwapiSetObjResult(interp, objP);
+error_handler:
+    Tcl_AppendResult(interp, "Cannot convert '", ObjToString(objv[2]), "' to type '", typename, "'", NULL);
+    return TCL_ERROR;
 }
 
 /* Call to set static result */
@@ -1948,51 +2024,6 @@ Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
     return ObjFromSOCKADDR_address((SOCKADDR *)&si);
 }
 
-static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
-{
-    if (interp) {
-        (void) TwapiSetObjResult(interp,
-                         Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
-                                       vt));
-    }
-}
-
-static int LookupBaseVT(Tcl_Interp *interp, VARTYPE vt, const char **tokP)
-{
-    int i;
-    for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
-        if (vt_base_tokens[i].vt == vt) {
-            if (tokP)
-                *tokP = vt_base_tokens[i].tok;
-            return TCL_OK;
-        }
-    }
-
-    TwapiInvalidVariantTypeMessage(interp, vt);
-    return TCL_ERROR;
-}
-
-static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
-{
-    int i;
-    if (tok != NULL) {
-        for (i=0; i < ARRAYSIZE(vt_base_tokens); ++i) {
-            if (STREQ(vt_base_tokens[i].tok, tok)) {
-                if (vtP)
-                    *vtP = vt_base_tokens[i].vt;
-                return TCL_OK;
-            }
-        }
-    }
-    if (interp) {
-        Tcl_Obj *objP; 
-        objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
-        Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
-        (void)TwapiSetObjResult(interp, objP);
-    }
-
-    return TCL_ERROR;
-}
 
 /* Convert a VT string rep to corresponding integer */
 int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP)
@@ -2588,7 +2619,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
         return VT_VARIANT;
     case TWAPI_TCLTYPE_VARIANT:
         TWAPI_ASSERT(objP->typePtr == &gVariantType);
-        return objP->internalRep.ptrAndLongRep.value;
+        return VARIANT_REP_VT(objP);
     case TWAPI_TCLTYPE_STRING:
         /* In Tcl everything is a string, including numerics. However
            a command such as [set x 123] will result in x being set
