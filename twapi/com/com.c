@@ -778,13 +778,13 @@ int Twapi_IDispatch_InvokeObjCmd(
         } else {
             if ((hr == DISP_E_PARAMNOTFOUND  || hr == DISP_E_TYPEMISMATCH) &&
                 badarg_index != -1) {
-                /* TBD - are the parameter indices backward (ie. from
-                 * the Tcl perspective, numbered from the end. In that
-                 * case, we should probably map badarg_index appropriately
+                /* Note parameter indices are backward (ie. from
+                 * the Tcl perspective, numbered from the end) and 0-based,
+                 * our error message parameter position is 1-based.
                  */
                 TwapiSetObjResult(interp,
                                  Tcl_ObjPrintf(
-                                     "Parameter error. Offending parameter index %d.", badarg_index));
+                                     "Parameter error. Offending parameter position %d.", nparams-badarg_index));
             }
             Twapi_AppendSystemError(interp, hr);
         }
