@@ -732,16 +732,19 @@ proc twapi::_convert_to_clsid {comid} {
 
 #
 # Format a prototype definition for human consumption
-# Proto is in the form {DISPID "" LCID INVOKEFLAGS RETTYPE PARAMTYPES}
+# Proto is in the form {DISPID LCID INVOKEFLAGS RETTYPE PARAMTYPES PARAMNAMES}
 proc twapi::_format_prototype {name proto} {
-    set dispid_lcid [lindex $proto 0]/[lindex $proto 2]
-    set ret_type [_vttype_to_string [lindex $proto 4]]
-    set invkind [_invkind_to_string [lindex $proto 3]]
+    set dispid_lcid [lindex $proto 0]/[lindex $proto 1]
+    set ret_type [_vttype_to_string [lindex $proto 3]]
+    set invkind [_invkind_to_string [lindex $proto 2]]
     # Distinguish between no parameters and parameters not known
     set paramstr ""
-    if {[llength $proto] > 5} {
+    if {[llength $proto] > 4} {
         set params {}
-        foreach param [lindex $proto 5] {
+        foreach param [lindex $proto 4] paramname [lindex $proto 5] {
+            if {[string length $paramname]} {
+                set paramname " $paramname"
+            }
             lassign $param type paramdesc
             set type [_vttype_to_string $type]
             set parammods [_paramflags_to_tokens [lindex $paramdesc 0]]
@@ -749,7 +752,7 @@ proc twapi::_format_prototype {name proto} {
                 # Default specified
                 lappend parammods "default:[lindex [lindex $paramdesc 1] 1]"
             }
-            lappend params "\[$parammods\] $type"
+            lappend params "\[$parammods\] $type$paramname"
         }
         set paramstr " ([join $params {, }])"
     }
@@ -879,13 +882,42 @@ proc twapi::_vtcode_to_string {vt} {
     } $vt $vt]
 }
 
+proc twapi::_string_to_base_vt {tok} {
+    # Only maps base VT tokens to numeric value
+    # TBD - record and userdefined?
+    return [dict get {
+        i2 2
+        i4 3
+        r4 4
+        r8 5
+        cy 6
+        date 7
+        bstr 8
+        idispatch 9
+        error 10
+        bool 11
+        iunknown 13
+        decimal 14
+        i1 16
+        ui1 17
+        ui2 18
+        ui4 19
+        i8 20
+        ui8 21
+        int 22
+        uint 23
+        hresult 25
+        userdefined 29
+        record 36
+    } [string tolower $tok]]
+
+}
 
 #
 # Get ADSI provider service
 proc twapi::_adsi {{prov WinNT} {path {//.}}} {
     return [comobj_object "${prov}:$path"]
 }
-
 
 # Get cached IDispatch and IUNknown IID's
 proc twapi::_iid_iunknown {} {
@@ -1021,6 +1053,88 @@ proc twapi::_dispatch_prototype_load {guid protolist} {
     foreach {name proto} $protolist {
         _dispatch_prototype_set $guid $name [lindex $proto 1] [lindex $proto 2] $proto
     }
+}
+
+proc twapi::_parse_dispatch_paramdef {paramdef} {
+    set paramregex {^(\[[^\]]*\])?\s*(\w+)\s*(\[\s*\])?\s*([*]?)\s*(\w+)?\s*$}
+    if {![regexp $paramregex $paramdef def attrs paramtype safearray ptr paramname]} {
+        error "Invalid parameter or return type declaration '$paramdef'"
+    }
+
+    if {[string length $paramname]} {
+        lappend paramnames $paramname
+    }
+    # attrs can be in, out, opt separated by spaces
+    set paramflags 0
+    foreach attr [string range $attrs 1 end-1] {
+        switch -exact -- $attr {
+            in {set paramflags [expr {$paramflags | 1}]}
+            out {set paramflags [expr {$paramflags | 2}]}
+            inout {set paramflags [expr {$paramflags | 3}]}
+            opt -
+            optional {set paramflags [expr {$paramflags | 16}]}
+            default {error "Unknown parameter attribute $attr"}
+        }
+    }
+    if {($paramflags & 3) == 0} {
+        set paramflags [expr {$paramflags | 1}]; # in param if unspecified
+    }
+    # Resolve parameter type. It can be 
+    #  - a safearray of base types or "variant"s (not pointers)
+    #  - a pointer to a base type
+    #  - a pointer to a safearray
+    #  - a base type or "variant"
+    if {$paramtype eq "variant"} {
+        set paramtype 12
+    } else {
+        set paramtype [_string_to_base_vt $paramtype]
+    }
+    if {[string length $safearray]} {
+        set paramtype [list 27 $paramtype]
+    }
+    if {[string length $ptr]} {
+        set paramtype [list 26 $paramtype]
+    }
+
+    return [list $paramflags $paramtype $paramname]
+}
+
+# TBD - document
+# define_dispatch_prototype GUID int open 
+proc twapi::define_dispatch_prototype {guid protos args} {
+    array set opts [parseargs args {
+        {lcid.int 0}
+    } -maxleftover 0]
+
+    set defregx {^\s*(\w+)\s+(\d+)\s+(\w[^\(]*)\(([^\)]*)\)(.*)$}
+    set parsed_protos {}
+    while {[regexp $defregx $protos _ membertype memid rettype paramstring protos]} {
+        set params {}
+        set paramnames {}
+        foreach paramdef [split $paramstring ,] {
+            lassign [_parse_dispatch_paramdef $paramdef] paramflags paramtype paramname
+            if {[string length $paramname]} {
+                lappend paramnames $paramname
+            }
+            lappend params [list $paramtype [list $paramflags]]
+        }
+        if {[llength $paramnames] &&
+            [llength $params] != [llength $paramnames]} {
+            error "Missing parameter name in '$def'. All parameter names must be specified or none at all."
+        }
+
+        lassign [_parse_dispatch_paramdef $rettype] _ rettype name 
+        set invkind [_string_to_invkind $membertype]
+        set proto [list $memid $opts(lcid) $invkind $rettype $params $paramnames]
+        lappend parsed_protos $name $proto
+    }
+
+    set protos [string trim $protos]
+    if {[string length $protos]} {
+        error "Invalid dispatch prototype: '$protos'"
+    }
+    
+    _dispatch_prototype_load $guid $parsed_protos
 }
 
 # Used to track when interface proxies are renamed/deleted
