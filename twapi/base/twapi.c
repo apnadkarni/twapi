@@ -700,9 +700,9 @@ TwapiInterpContext *TwapiRegisterModule(
          * Variable already exists, copy its value to trace flags.
          * Errors are ignored as flags will remain 0
          */
-        ObjToLong(NULL, objP, &modP->trace_flags);
+        ObjToLong(NULL, objP, &modP->log_flags);
     }
-    Tcl_LinkVar(interp, buf, (char *) &modP->trace_flags, TCL_LINK_ULONG);
+    Tcl_LinkVar(interp, buf, (char *) &modP->log_flags, TCL_LINK_ULONG);
     return ticP;
 }
 

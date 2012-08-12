@@ -2643,6 +2643,10 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     }
 
     switch (vt) {
+    case VT_EMPTY:
+    case VT_NULL:
+        varP->vt = vt;
+        break;
     case VT_I2:
     case VT_I4:
     case VT_I1:

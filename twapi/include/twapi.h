@@ -2,7 +2,7 @@
 #define TWAPI_H
 
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -164,6 +164,20 @@ typedef int TCL_RESULT;
 #  endif
 #else
 #define TWAPI_ASSERT(bool_) ((void) 0)
+#endif
+
+#if TWAPI_ENABLE_LOG
+#define TWAPI_OBJ_LOG_IF(cond_, interp_, objp_) if (cond_) TWAPI_OBJ_LOG(interp_, objp_)
+#define TWAPI_OBJ_LOG(interp_, objp_) Twapi_AppendObjLog(interp, objp_)
+#define TWAPI_LOG(interp_, s_) Twapi_AppendLog(interp, L ## s_)
+#define TWAPI_LOG_IF(cond_, interp_, s_) if (cond_) TWAPI_LOG(interp_, s_)
+#define TWAPI_LOG_BLOCK(cond_) if (cond_)
+#else
+#define TWAPI_OBJ_LOG_IF(cond_, interp_, objp_) ((void 0)
+#define TWAPI_OBJ_LOG(interp_, objp_) ((void 0)
+#define TWAPI_LOG(interp_, s_) ((void 0)
+#define TWAPI_LOG_IF(cond_, interp_, s_) ((void 0)
+#define TWAPI_LOG_BLOCK(cond_) if (0)
 #endif
 
 /*
@@ -868,7 +882,7 @@ typedef struct _TwapiModuleDef {
     void (*finalizer)(TwapiInterpContext *); // NULL ok
     
     /* Debug / trace flags for the module */
-    unsigned long trace_flags;
+    unsigned long log_flags;
 } TwapiModuleDef;
 
 /*

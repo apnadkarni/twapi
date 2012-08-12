@@ -253,6 +253,10 @@ CDEBUG = -O1 -Zi -DNDEBUG -W3 -Fd"$(OBJDIR)\$(COMPILER_PDB)"
 CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_ASSERT=$(ENABLE_ASSERTS)
 !endif
 
+!ifdef ENABLE_LOG
+CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_LOG=$(ENABLE_LOG)
+!endif
+
 INCFLAGS       =  -I"$(OBJDIR)" -I. -I..\include -I$(TCLDIR)\include
 
 CINCLUDES     = $(SRCROOT)\include\twapi.h \
