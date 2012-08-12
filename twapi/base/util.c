@@ -348,23 +348,26 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
     Tcl_ThreadAlert(ticP->thread); /* Wake up the thread */
 }
 
-int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
+int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
 {
     Tcl_Obj *var;
     int limit, len;
-    Tcl_Obj *msgObj;
+
+    /* Note we always incr/decr ref counts in this function. That
+       way the cases where we enter with msgObj.ref == 0, > 0 both
+       work correctly in error and non-error cases */
+    Tcl_IncrRefCount(msgObj);
 
     /* Check if the log variable exists. If not logging is disabled */
     var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log_limit", 0);
     if (var == NULL)
-        return TCL_OK;          /* Logging not enabled */
+        goto vamoose;          /* Logging not enabled */
 
 
     if (ObjToInt(NULL, var, &limit) != TCL_OK || limit == 0) {
-        return TCL_OK;          /* Logging not enabled */
+        goto vamoose;          /* Logging not enabled */
     }
 
-    msgObj = ObjFromUnicode(msg);
     var = Tcl_GetVar2Ex(interp, TWAPI_LOG_VAR, NULL, 0);
     if (var) {
         if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {
@@ -388,7 +391,15 @@ int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
         /* log variable is currently not set */
         Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, ObjNewList(1, &msgObj), 0);
     }
+
+vamoose:
+    Tcl_DecrRefCount(msgObj);
     return TCL_OK;
+}
+
+int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
+{
+    return Twapi_AppendObjLog(interp, ObjFromUnicode(msg));
 }
 
 /* Sets interp result as handle if not null else GetLastError value */
