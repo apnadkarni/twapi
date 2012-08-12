@@ -1367,6 +1367,7 @@ TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
 typedef int TwapiOneTimeInitFn(void *);
 TWAPI_EXTERN int TwapiDoOneTimeInit(TwapiOneTimeInitState *stateP, TwapiOneTimeInitFn *, ClientData);
+TWAPI_EXTERN int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj);
 TWAPI_EXTERN int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg);
 TWAPI_EXTERN TwapiId Twapi_NewId();
 TWAPI_EXTERN void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
