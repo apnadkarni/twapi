@@ -133,6 +133,7 @@ typedef int TCL_RESULT;
 #define TWAPI_SCRIPT_RESOURCE_TYPE_LZMA "tclscriptlzma"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
+#define TWAPI_LOG_CONFIG_VAR TWAPI_TCL_NAMESPACE "::log_config"
 
 #ifdef TWAPI_SINGLE_MODULE
 /* Note:
@@ -866,6 +867,8 @@ typedef struct _TwapiModuleDef {
     /* Function to call to clean up the module. */
     void (*finalizer)(TwapiInterpContext *); // NULL ok
     
+    /* Debug / trace flags for the module */
+    unsigned long trace_flags;
 } TwapiModuleDef;
 
 /*
