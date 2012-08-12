@@ -655,6 +655,8 @@ TwapiInterpContext *TwapiRegisterModule(
     )
 {
     TwapiInterpContext *ticP;
+    char buf[100];
+    Tcl_Obj *objP;
 
     if (modP->finalizer && ! context_type) {
         /* Non-private context cannot be requested if finalizer is specified */
@@ -690,6 +692,17 @@ TwapiInterpContext *TwapiRegisterModule(
         return NULL;
     }
 
+    /* Link the trace flags. Note these are shared amongs interps */
+    _snprintf(buf, ARRAYSIZE(buf), "%s(%s)", TWAPI_LOG_CONFIG_VAR, modP->name);
+    objP = Tcl_GetVar2Ex(interp, buf, NULL, TCL_GLOBAL_ONLY);
+    if (objP) {
+        /*
+         * Variable already exists, copy its value to trace flags.
+         * Errors are ignored as flags will remain 0
+         */
+        ObjToLong(NULL, objP, &modP->trace_flags);
+    }
+    Tcl_LinkVar(interp, buf, (char *) &modP->trace_flags, TCL_LINK_ULONG);
     return ticP;
 }
 
