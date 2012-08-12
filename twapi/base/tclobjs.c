@@ -251,9 +251,6 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
 static void UpdateVariantTypeString(Tcl_Obj *objP)
 {
-    Tcl_Obj *objs[2];
-    Tcl_Obj *listObj;
-
     TWAPI_ASSERT(objP->bytes == NULL);
     TWAPI_ASSERT(objP->typePtr == &gVariantType);
 
@@ -1690,8 +1687,6 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name)
 
 TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, char *name)
 {
-    void *pv;
-    Tcl_Obj *ctype;
     char *s;
 
     /* Fast common case */
@@ -2080,7 +2075,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
     void *valP;
     SAFEARRAY *saP = NULL;
     SAFEARRAYBOUND bounds[TWAPI_MAX_SAFEARRAY_DIMS];
-    long indices[TWAPI_MAX_SAFEARRAY_DIMS];
+    unsigned long indices[TWAPI_MAX_SAFEARRAY_DIMS];
     Tcl_Obj *objs[TWAPI_MAX_SAFEARRAY_DIMS];
     HRESULT hr;
     int tcltype;
@@ -2404,7 +2399,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     Tcl_Obj *objP;
     Tcl_Obj *resultObj = NULL;
     VARIANT *variantP;
-    long upper, lower;
+    unsigned long upper, lower;
     VARTYPE vt;
     
     if (indices_size < saP-> cDims)
@@ -2619,7 +2614,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
         return VT_VARIANT;
     case TWAPI_TCLTYPE_VARIANT:
         TWAPI_ASSERT(objP->typePtr == &gVariantType);
-        return VARIANT_REP_VT(objP);
+        return (VARTYPE) VARIANT_REP_VT(objP);
     case TWAPI_TCLTYPE_STRING:
         /* In Tcl everything is a string, including numerics. However
            a command such as [set x 123] will result in x being set
