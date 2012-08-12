@@ -21,11 +21,22 @@ MODULES= $(PURETCLMODULES) $(BINMODULES)
 TARGETS = base $(MODULES)
 ACTIONS = build
 
+!ifdef NOOPTIMIZE
+BUILD_OPTIONS= $(BUILD_OPTIONS) NOOPTIMIZE=$(NOOPTIMIZE) 
+!endif
+!ifdef ENABLE_LOG
+BUILD_OPTIONS= $(BUILD_OPTIONS) ENABLE_LOG=$(ENABLE_LOG)
+!endif
+!ifdef ENABLE_ASSERTS
+BUILD_OPTIONS= $(BUILD_OPTIONS) ENABLE_ASSERTS=$(ENABLE_ASSERTS)
+!endif
+
+
 default: $(TARGETS)
 
 base $(MODULES): force
 	echo Making $@
-	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS) TWAPI_STATIC_BUILD=$(TWAPI_STATIC_BUILD) TWAPI_SINGLE_MODULE=$(TWAPI_SINGLE_MODULE) EMBED_SCRIPT=$(EMBED_SCRIPT) PACKAGEDIR="$(PACKAGEDIR)"
+	cd $@ && $(MAKE) /$(MAKEFLAGS) $(ACTIONS) TWAPI_STATIC_BUILD=$(TWAPI_STATIC_BUILD) TWAPI_SINGLE_MODULE=$(TWAPI_SINGLE_MODULE) EMBED_SCRIPT=$(EMBED_SCRIPT) PACKAGEDIR="$(PACKAGEDIR)" $(BUILD_OPTIONS)
 
 force:
 
@@ -44,19 +55,19 @@ twapi-build:
 !if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi\pkgindex.modules"
 !endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi" $(BUILD_OPTIONS)
 
 twapi-bin-build: 
 !if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi-bin\pkgindex.modules"
 !endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi-bin"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi-bin" $(BUILD_OPTIONS)
 
 twapi-modular-build: 
 !if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi-modular\pkgindex.modules"
 !endif
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular"
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular" $(BUILD_OPTIONS)
 
 
 "$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\twapi-bin\pkgIndex.tcl" "$(DISTDIR)\twapi-modular\pkgIndex.tcl": force
@@ -76,4 +87,4 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
 !endif
 
 twapi-static-lib:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="lib" TARGETS="$(TARGETS)" TWAPI_STATIC_BUILD=1 EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="lib" TARGETS="$(TARGETS)" TWAPI_STATIC_BUILD=1 EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 $(BUILD_OPTIONS)

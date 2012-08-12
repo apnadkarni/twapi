@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2006-2009, Ashok P. Nadkarni
+ * Copyright (c) 2006-2012, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -13,6 +13,7 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 static int TwapiMakeVariantParam(
     Tcl_Interp *interp,
     Tcl_Obj *paramDescriptorP,
@@ -21,6 +22,13 @@ static int TwapiMakeVariantParam(
     USHORT  *paramflagsP,
     Tcl_Obj *valueObj
     );
+
+static TwapiModuleDef gModuleDef = {
+    MODULENAME,
+    TwapiComInitCalls,
+    NULL,
+    0
+};
 
 /*
  * Event sink definitions
@@ -547,6 +555,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     Tcl_Obj  **protov;          // Prototype list
     int        protoc;          // Prototype element count
 
+    TWAPI_OBJ_LOG_IF(gModuleDef.log_flags, interp, ObjNewList(objc, objv));
 
     /* objv[] contains
      *   0 - command name
@@ -660,6 +669,19 @@ int Twapi_IDispatch_InvokeObjCmd(
     /* Init exception structure for error handling */
     TwapiZeroMemory(&einfo, sizeof(einfo));
     badarg_index = (UINT) -1;
+
+    TWAPI_LOG_BLOCK(gModuleDef.log_flags) {
+        Tcl_Obj *logObj = ObjEmptyList();
+        ObjAppendElement(NULL, logObj, ObjFromString("Invoke parameters"));
+        /* Note parameters start at index 1 */
+        for (i=1; i <= nparams; ++i) {
+            Tcl_Obj *pair[2];
+            pair[0] = ObjFromInt(dispargP[i].vt);
+            pair[1] = ObjFromVARIANT(&dispargP[i], 0);
+            ObjAppendElement(NULL, logObj, ObjNewList(2, pair));
+        }
+        TWAPI_OBJ_LOG(interp, logObj);
+    }
 
     /*
      * Now, we're ready to invoke. The Invoke might call us back (futures?)
@@ -1049,6 +1071,7 @@ int TwapiMakeVariantParam(
     Tcl_Obj **paramfields;
     int       paramfieldsc;
     int       status = TCL_ERROR;
+
     /*
      * paramDescriptorP is a list where the first element is the param type,
      * second element is one/two element list {flags, optional default value}
@@ -2751,12 +2774,6 @@ __declspec(dllexport)
 #endif
 int Twapi_com_Init(Tcl_Interp *interp)
 {
-    static TwapiModuleDef gModuleDef = {
-        MODULENAME,
-        TwapiComInitCalls,
-        NULL
-    };
-
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs */
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
