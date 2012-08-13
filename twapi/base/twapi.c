@@ -310,14 +310,14 @@ int Twapi_GetTwapiBuildInfo(
 
     ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
     elemP = ObjNewList(0, NULL);
-#ifdef TWAPI_NODESKTOP
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nodesktop"));
+#ifdef NOOPTIMIZE
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nooptimize"));
 #endif
-#ifdef TWAPI_NOSERVER
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("noserver"));
+#ifdef TWAPI_ENABLE_LOG
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("enable_log"));
 #endif
-#ifdef TWAPI_LEAN
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("lean"));
+#ifdef TWAPI_ENABLE_ASSERT
+    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("enable_assert"));
 #endif
     ObjAppendElement(interp, objP, elemP);
 

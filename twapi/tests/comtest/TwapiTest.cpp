@@ -311,3 +311,14 @@ STDMETHODIMP CTwapiTest::GetApplicationNames(VARIANT *varP)
     varP->vt = VT_ARRAY | VT_BSTR;
     return S_OK;
 }
+
+
+STDMETHODIMP CTwapiTest::OpenDoc6(BSTR FileName,long Type,long Options, 
+    BSTR Configuration, long* Errors, long* Warnings, IDispatch** Retval)
+{
+    *Errors = 1;
+    *Warnings = 2;
+    *Retval = NULL;
+    
+    return S_OK;
+}
