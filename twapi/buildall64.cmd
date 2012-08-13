@@ -17,6 +17,6 @@ goto dobuild
 call "%ProgramFiles%\Microsoft Platform SDK\SetEnv.cmd" /XP64 /RETAIL
 
 :dobuild
-call buildall.cmd
+call buildall.cmd %1
 
 
