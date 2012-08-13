@@ -25,7 +25,7 @@ static char *ServiceStateString(DWORD state)
     case 5: return "continue_pending";
     case 6: return "pause_pending";
     case 7: return "paused";
-    default: return NULL;
+    default: return "unknown";
     }
 }
 
@@ -39,7 +39,7 @@ static char *ServiceTypeString(DWORD service_type)
     case 0x8: return "recognizer_driver";
     case 0x10: return "win32_own_process";
     case 0x20: return "win32_share_process";
-    default: return NULL;
+    default: return "unknown";
     }
 }
 
@@ -434,7 +434,6 @@ int Twapi_EnumDependentServices(
     service_types[5] = TwapiGetAtom(ticP, ServiceTypeString(0x20));
 
     /* And the state symbols ... */
-    TWAPI_ASSERT(ARRAYSIZE(states) == ARRAYSIZE(gServiceStateSymbols));
     for (i=0; i < ARRAYSIZE(states); ++i) {
         states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
     }
