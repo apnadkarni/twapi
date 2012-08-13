@@ -173,10 +173,10 @@ typedef int TCL_RESULT;
 #define TWAPI_LOG_IF(cond_, interp_, s_) if (cond_) TWAPI_LOG(interp_, s_)
 #define TWAPI_LOG_BLOCK(cond_) if (cond_)
 #else
-#define TWAPI_OBJ_LOG_IF(cond_, interp_, objp_) ((void 0)
-#define TWAPI_OBJ_LOG(interp_, objp_) ((void 0)
-#define TWAPI_LOG(interp_, s_) ((void 0)
-#define TWAPI_LOG_IF(cond_, interp_, s_) ((void 0)
+#define TWAPI_OBJ_LOG_IF(cond_, interp_, objp_) ((void) 0)
+#define TWAPI_OBJ_LOG(interp_, objp_) ((void) 0)
+#define TWAPI_LOG(interp_, s_) ((void) 0)
+#define TWAPI_LOG_IF(cond_, interp_, s_) ((void) 0)
 #define TWAPI_LOG_BLOCK(cond_) if (0)
 #endif
 
