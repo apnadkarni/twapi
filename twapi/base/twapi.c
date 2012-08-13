@@ -272,67 +272,64 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_Obj *CONST objv[]
 )
 {
-    Tcl_Obj *objP;
-    Tcl_Obj *elemP;
+    Tcl_Obj *objs[14];
 
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     /* Return a keyed list */
     
-    objP = ObjNewList(0, NULL);
-
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler"));
+    objs[0] = STRING_LITERAL_OBJ("compiler");
 #if defined(_MSC_VER)
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("vc++"));
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    ObjAppendElement(interp, objP, ObjFromLong(_MSC_VER));
+    objs[1] = STRING_LITERAL_OBJ("vc++");
+    objs[2] = STRING_LITERAL_OBJ("compiler_version");
+    objs[3] = ObjFromLong(_MSC_VER);
 #elif defined(__GNUC__)
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("gcc"));
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    ObjAppendElement(interp, objP, ObjFromString(__VERSION__));
+    objs[1] = STRING_LITERAL_OBJ("gcc");
+    objs[2] = STRING_LITERAL_OBJ("compiler_version");
+    objs[3] = ObjFromString(__VERSION__);
 #else
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("compiler_version"));
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("unknown"));
+    objs[1] = STRING_LITERAL_OBJ("unknown");
+    objs[2] = STRING_LITERAL_OBJ("compiler_version");
+    objs[3] = STRING_LITERAL_OBJ("unknown");
 #endif
 
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("sdk_version"));
-    ObjAppendElement(interp, objP, ObjFromLong(VER_PRODUCTBUILD));
+    objs[4] = STRING_LITERAL_OBJ("sdk_version");
+    objs[5] = ObjFromLong(VER_PRODUCTBUILD);
 
     /* Are we building with TEA ? */
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tea"));
+    objs[6] = STRING_LITERAL_OBJ("tea");
 #if defined(HAVE_SYS_TYPES_H)
-    ObjAppendElement(interp, objP, ObjFromLong(1));
+    objs[7] = ObjFromLong(1);
 #else
-    ObjAppendElement(interp, objP, ObjFromLong(0));
+    objs[7] = ObjFromLong(0);
 #endif
 
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("opts"));
-    elemP = ObjNewList(0, NULL);
+    objs[8] = STRING_LITERAL_OBJ("opts");
+
+    objs[9] = ObjEmptyList();
 #ifdef NOOPTIMIZE
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("nooptimize"));
+    ObjAppendElement(NULL, objs[9], STRING_LITERAL_OBJ("nooptimize"));
 #endif
 #ifdef TWAPI_ENABLE_LOG
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("enable_log"));
+    ObjAppendElement(NULL, objs[9], STRING_LITERAL_OBJ("enable_log"));
 #endif
 #ifdef TWAPI_ENABLE_ASSERT
-    ObjAppendElement(interp, elemP, STRING_LITERAL_OBJ("enable_assert"));
+    ObjAppendElement(NULL, objs[9], STRING_LITERAL_OBJ("enable_assert"));
 #endif
-    ObjAppendElement(interp, objP, elemP);
 
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("single_module"));
+    objs[10] = STRING_LITERAL_OBJ("single_module");
 #if defined(TWAPI_SINGLE_MODULE)
-    ObjAppendElement(interp, objP, ObjFromLong(1));
+    objs[11] = ObjFromLong(1);
 #else
-    ObjAppendElement(interp, objP, ObjFromLong(0));
+    objs[11] = ObjFromLong(0);
 #endif
 
     /* Which Tcl did we build against ? (As opposed to run time) */
-    ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("tcl_header_version"));
-    ObjAppendElement(interp, objP, ObjFromString(TCL_PATCH_LEVEL));
+    objs[12] = STRING_LITERAL_OBJ("tcl_header_version");
+    objs[13] = ObjFromString(TCL_PATCH_LEVEL);
 
-    return TwapiSetObjResult(interp, objP);
+    return TwapiSetObjResult(interp, ObjNewList(14, objs));
 }
 
 

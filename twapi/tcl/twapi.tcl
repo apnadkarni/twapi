@@ -75,6 +75,27 @@ proc twapi::get_build_config {{key ""}} {
     }
 }
 
+# TBD - document
+proc twapi::support_report {} {
+    set report "Operating system: [get_os_description]\n"
+    append report "Processors: [get_processor_count]\n"
+    append report "WOW64: [wow64_process]\n"
+    append report "Virtualized: [virtualized_process]\n"
+    append report "Tcl version: [info patchlevel]\n"
+    append report "tcl_platform:\n"
+    foreach k [lsort -dictionary [array names ::tcl_platform]] {
+        append report "  $k = $::tcl_platform($k)\n"
+    }
+    append report "TWAPI version: [get_version -patchlevel]\n"
+    array set a [get_build_config]
+    append report "TWAPI config:\n"
+    foreach k [lsort -dictionary [array names a]] {
+        append report "  $k = $a($k)\n"
+    }
+    append report "\nDebug log:\n[join [debuglog] \n]\n"
+}
+
+
 # Returns a list of raw Windows API functions supported
 proc twapi::list_raw_api {} {
     set rawapi [list ]
