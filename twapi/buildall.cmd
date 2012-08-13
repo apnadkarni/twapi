@@ -29,14 +29,32 @@ goto call64build
 
 :call64build
 rem Do 64-bit build first so dll can be included in full distro
-cmd /c buildall64.cmd
+cmd /c buildall64.cmd %1
 
 :dobuild
 rem Doing actual build
+IF "x%1" == "x" goto build_twapi
+IF NOT "x%1" == "xtwapi" goto check_twapi_bin
+:build_twapi
+echo BUILDING twapi
 nmake /nologo /a /s twapi
+
+:check_twapi_bin
+IF "x%1" == "x" goto build_twapi_bin
+IF NOT "x%1" == "xtwapi_bin" goto check_twapi_mod
+:build_twapi_bin
+echo BUILDING twapi-bin
 nmake /nologo /a /s twapi-bin
+
+
+:check_twapi_mod
+IF "x%1" == "x" goto build_twapi_mod
+IF NOT "x%1" == "xtwapi_bin" goto build_lib
+:build_twapi_mod
+echo BUILDING twapi-modular
 nmake /nologo /a /s twapi-modular
 
+:build_lib
 rem Libraries
 rem cd base && nmake /s /nologo /a EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1 clean lib 
 rem cd ..
