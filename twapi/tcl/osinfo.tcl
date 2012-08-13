@@ -74,6 +74,8 @@ proc twapi::get_os_description {} {
     # Version
     set osversion "$osinfo(os_major_version).$osinfo(os_minor_version)"
 
+    set systype ""
+
     # Base OS name
     switch -exact -- $osversion {
         "5.0" {
