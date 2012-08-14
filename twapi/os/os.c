@@ -20,6 +20,7 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
+static MAKE_DYNLOAD_FUNC(GetProductInfo, kernel32, FARPROC)
 
 int Twapi_GetSystemInfo(Tcl_Interp *interp)
 {
@@ -249,6 +250,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
     int func = PtrToInt(clientdata);
+    FARPROC fn;
 
     --objc;
     ++objv;
@@ -367,6 +369,15 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             else
                 result.type = TRT_GETLASTERROR;
             break;
+        case 1007: // GetProductInfo
+            fn = Twapi_GetProc_GetProductInfo();
+            if (fn == NULL) {
+                return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+            }
+            result.value.ival = 0;
+            result.type = TRT_DWORD;
+            (*fn)(6,0,0,0, &result.value.ival);
+            break;
         }
     }
 
@@ -391,8 +402,9 @@ static int TwapiOsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(AbortSystemShutdown, 1002),
         DEFINE_FNCODE_CMD(InitiateSystemShutdown, 1003),
         DEFINE_FNCODE_CMD(SetSuspendState, 1004),
-        DEFINE_FNCODE_CMD(TzSpecificLocalTimeToSystemTime, 1005), // Tcl
-        DEFINE_FNCODE_CMD(SystemTimeToTzSpecificLocalTime, 1006), // Tcl
+        DEFINE_FNCODE_CMD(TzSpecificLocalTimeToSystemTime, 1005), // Tcl TBD
+        DEFINE_FNCODE_CMD(SystemTimeToTzSpecificLocalTime, 1006), // Tcl TBD
+        DEFINE_FNCODE_CMD(GetProductInfo, 1007),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(OsDispatch), OsDispatch, Twapi_OsCallObjCmd);
