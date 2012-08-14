@@ -81,6 +81,8 @@ proc twapi::support_report {} {
     append report "Processors: [get_processor_count]\n"
     append report "WOW64: [wow64_process]\n"
     append report "Virtualized: [virtualized_process]\n"
+    append report "System locale: [get_system_default_lcid], [get_system_default_langid]\n"
+    append report "User locale: [get_user_default_lcid], [get_user_default_langid]\n"
     append report "Tcl version: [info patchlevel]\n"
     append report "tcl_platform:\n"
     foreach k [lsort -dictionary [array names ::tcl_platform]] {
