@@ -252,6 +252,8 @@ $(OBJDIR)\$(MODULELIB): "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" "$(OBJDIR
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
 
+$(SRCROOT)\include\common.inc: $(SRCROOT)\include\version.inc
+
 clean:
         -$(RMDIR) "$(OBJDIR)"
 
