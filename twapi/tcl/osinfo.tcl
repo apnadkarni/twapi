@@ -116,7 +116,7 @@ proc twapi::get_os_description {} {
             }
         }
         "6.0" {
-            # TBD - use GetProductInfo to distinguish home/business etc.
+            set prodtype [GetProductInfo]
             if {$osinfo(system_type) eq "workstation"} {
                 set osname "Windows Vista"
             } else {
@@ -124,7 +124,7 @@ proc twapi::get_os_description {} {
             }
         }
         "6.1" {
-            # TBD - use GetProductInfo to distinguish home/business etc.
+            set prodtype [GetProductInfo]
             if {$osinfo(system_type) eq "workstation"} {
                 set osname "Windows 7"
             } else {
@@ -133,14 +133,56 @@ proc twapi::get_os_description {} {
         }
         default {
             # Future release - can't really name, just make something up
+            catch {set prodtype [GetProductInfo]}
             set osname "Windows"
-            if {[string equal $osinfo(system_type) "workstation"]} {
-                set systype "Professional"
-            } else {
-                set systype "Server"
-            }
         }
     }
+
+    if {[info exists prodtype] && $prodtype} {
+        catch {
+            set systype [dict get {
+                6 Business
+                10 "Business N"
+                12 "HPC Edition"
+                8 "Server Datacenter"
+                c "Server Datacenter Core"
+                27 "Server Datacenter Core without Hyper-V"
+                25 "Server Datacenter without Hyper-V"
+                4 Enterprise
+                1b "Enterprise N"
+                a "Server Enterprise"
+                e "Server Enterprise Core"
+                29 "Server Enterprise Core without Hyper-V"
+                26 "Server Enterprise without Hyper-V"
+                2  "Home Basic"
+                5 "Home Basic N"
+                3 "Home Premium"
+                1a "Home Premium N"
+                2a "Hyper-V Server"
+                1e "Essential Business Server Management Server"
+                20 "Essential Business Server Messaging Server"
+                1f "Essential Business Server Security Server"
+                18 "Essential Server Solutions"
+                23 "Essential Server Solutions without Hyper-V"
+                21 "Server Foundation"
+                9 "Small Business Server"
+                7 "Standard"
+                d "Standard Core"
+                28 "Standard Core without Hyper-V"
+                24 "Standard without Hyper-V"
+                b "Starter"
+                17 "Storage Server Enterprise"
+                14 "Storage Server Express"
+                15 "Storage Server Standard"
+                16 "Storage Server Workgroup"
+                1 Ultimate
+                1c "Ultimate N"
+                11 "Web Server"
+                1d "Web Server Core"
+            } [format %x $prodtype]]
+        }
+    }
+
     if {"terminal" in  $osinfo(suites)} {
         set tserver " with Terminal Services"
     }
