@@ -638,6 +638,16 @@ namespace eval twapi::com::test {
     } -result TBD
 
     ################################################################
+    
+    test comobj_idispatch-1.0 {
+        Create a COM object from its interface
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -return TBD
+
+    ################################################################
 
     test comobj_object-1.0 {
         Create a COM object based on a moniker display name
