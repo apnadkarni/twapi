@@ -661,6 +661,15 @@ See [sectref "Navigating Objects"] for an example.
 [call [cmd comobj?] [arg COMOBJ]]
 Returns 1 if the [arg COMOBJ] refers to a [cmd COMOBJ] object and 0 otherwise.
 
+[call [cmd comobj_idispatch] [arg IDISPATCHINTERFACE]]
+Creates a COM wrapper object for the specified IDispatch or IDispatchEx
+interface. Caller must hold a reference (count) to [arg IDISPATCHINTERFACE]
+that will be released by the COM wrapper object when it is destroyed.
+If caller wants to use [arg IDISPATCHINTERFACE] for its own purpose,
+it must do an additional
+[cmd IUnknown_AddRef] itself to ensure the interface is not released
+when the returned COM wrapper instance is destroyed.
+
 [call [cmd comobj_instances]]
 Returns the list of existing COM proxy objects created through the
 [uri #comobj [cmd comobj]] command.
