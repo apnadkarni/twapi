@@ -2660,6 +2660,26 @@ twapi::class create ::twapi::ITypeLibProxy {
         if {[dict exists $data coclass]} {
             dict for {guid def} [dict get $data coclass] {
                 append code "\n    # Coclass [dict get $def -name]"
+                # Look for the default interface so we can remember its GUID.
+                # This is necessary for the cases where the Dispatch interface
+                # GUID is not available via a TypeInfo interface (e.g.
+                # a 64-bit COM component not registered with the 32-bit
+                # COM registry)
+                set default_dispatch_guid ""
+                if {[dict exists $def -interfaces]} {
+                    dict for {ifc_guid ifc_def} [dict get $def -interfaces] {
+                        if {[dict exists $data dispatch $ifc_guid]} {
+                            # Yes it is a dispatch interface
+                            # Make sure it is marked as default interface
+                            if {[dict exists $ifc_def -flags] &&
+                                [dict get $ifc_def -flags] == 1} {
+                                set default_dispatch_guid $ifc_guid
+                                break
+                            }
+                        }
+                    }
+                }
+                
                 # We assume here that coclass has a default interface
                 # which is dispatchable. Else an error will be generated
                 # at runtime.
@@ -2669,8 +2689,12 @@ twapi::class create ::twapi::ITypeLibProxy {
         constructor {args} {
             set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
             next [twapi::IDispatchProxy new $ifc]
+            set ifc_guid "%s"
+            if {[string length $ifc_guid]} {
+                my -interfaceguid $ifc_guid
+            }
         }
-    }} [dict get $def -name] $guid]
+    }} [dict get $def -name] $guid $default_dispatch_guid]
                 append code \n
             }
         }
