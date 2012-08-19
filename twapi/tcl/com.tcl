@@ -49,9 +49,6 @@ namespace eval twapi {
         itaskscheduler {{148BD527-A2AB-11CE-B11F-00AA00530503}}
         imofcompiler {{6daf974e-2e37-11d2-aec9-00c04fb68820}}
     }
-
-    # Controls debug checks
-    variable com_debug 0
 }
 
 proc twapi::IUnknown_QueryInterface {ifc iid} {
@@ -235,7 +232,8 @@ proc twapi::comobj {comid args} {
 }
 
 
-# Return an interface to a typelib<
+# Return an interface to a typelib
+# TBD - document
 proc twapi::ITypeLibProxy_from_path {path args} {
     array set opts [parseargs args {
         {registration.arg none {none register default}}
@@ -246,6 +244,7 @@ proc twapi::ITypeLibProxy_from_path {path args} {
 
 #
 # Return an interface to a typelib from the registry
+# TBD - document
 proc twapi::ITypeLibProxy_from_guid {uuid major minor args} {
     array set opts [parseargs args {
         lcid.int
@@ -693,7 +692,7 @@ proc twapi::variant_type {variant} {
 proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags params} {
     # Check if the comobj is still active
     if {[llength [info commands $comobj]] == 0} {
-        if {$::twapi::com_debug} {
+        if {$::twapi::log_config(twapi_com)} {
             debuglog "COM event received for inactive object"
         }
         return;                         # Object has gone away, ignore
@@ -711,7 +710,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
         set result [uplevel \#0 $script [list $dispid] $converted_params]
     } result]
 
-    if {$::twapi::com_debug && $retcode} {
+    if {$::twapi::log_config(twapi_com) && $retcode} {
         debuglog "Event sink callback error ($retcode): $result\n$::errorInfo"
     }
 
