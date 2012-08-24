@@ -388,16 +388,21 @@ proc twapi::evt_next {hresultset args} {
 }
 
 
-proc twapi::evt_get_event_publisher {hevt} {
+proc twapi::evt_get_event_system_fields {hevt} {
     _evt_init
 
-    proc evt_get_event_publisher {hevt} {
+    proc evt_get_event_system_fields {hevt} {
         variable _evt_system_render_context
         set _evt_system_render_context(buffer) [Twapi_EvtRenderValues $_evt_system_render_context(handle) $hevt $_evt_system_render_context(buffer)]
-        return [lindex [Twapi_ExtractEVT_RENDER_VALUES $_evt_system_render_context(buffer)] 0]
+        return [twine {
+            -providername -providerguid -eventid -qualifiers -level -task
+            -opcode -keywords -timecreated -eventrecordid -activityid
+            -relatedactivityid -processid -threadid -channel
+            -computer -userid -version
+        } [Twapi_ExtractEVT_RENDER_VALUES $_evt_system_render_context(buffer)]]
     }
 
-    return [evt_get_event_publisher $hevt]
+    return [evt_get_event_system_fields $hevt]
 }
 
 proc twapi::evt_format_event {args} {
@@ -421,7 +426,7 @@ proc twapi::evt_format_event {args} {
             # Get publisher from hevt
             variable _evt_publisher_handles
 
-            set publisher [evt_get_event_publisher $hevt]
+            set publisher [dict get [evt_get_event_system_fields $hevt] -providername]
             if {! [dict exists $_evt_publisher_handles $publisher $opts(session) $opts(lcid)]} {
                 dict set _evt_publisher_handles $publisher $opts(session) $opts(lcid) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
             }
@@ -516,15 +521,15 @@ proc twapi::_evt_dump {args} {
         {outfd.arg stdout}
     } -ignoreunknown]
 
-    set i 0
     set hq [evt_query {*}$args]
     trap {
         while {[llength [set hevts [evt_next $hq]]]} {
             foreach hevt $hevts {
                 trap {
-                    puts $opts(outfd) "[incr i]: [evt_format_event $hevt]"
+                    set sysfields [evt_get_event_system_fields $hevt]
+                    puts $opts(outfd) "[dict get $sysfields -timecreated]: [evt_format_event $hevt]"
                 } onerror {TWAPI_WIN32 15027} {
-                    puts $opts(outfd) "$i: Could not get event message"
+                    puts $opts(outfd) "[dict get $sysfields -timecreated]: Could not get event message"
                 } finally {
                     evt_close $hevt
                 }                
