@@ -234,10 +234,10 @@ proc twapi::evt_log_info {hevt args} {
     return $result
 }
 
-proc twapi::evt_publisher_metadata_property {hevt args} {
+proc twapi::evt_publisher_metadata_property {hpub args} {
     set result {}
     foreach opt $args {
-        set val [EvtGetPublisherMetadataProperty $hevt [dict get {
+        set val [EvtGetPublisherMetadataProperty $hpub [dict get {
             -publisherguid 0  -resourcefilepath 1 -parameterfilepath 2
             -messagefilepath 3 -helplink 4 -publishermessageid 5
             -channelreferences 6 -levels 12 -tasks 16
@@ -273,10 +273,10 @@ proc twapi::evt_publisher_metadata_property {hevt args} {
     return $result
 }
 
-proc twapi::evt_query_info {hevt args} {
+proc twapi::evt_query_info {hq args} {
     set result {}
     foreach opt $args {
-        lappend result $opt  [EvtGetQueryInfo $hevt [dict get {
+        lappend result $opt  [EvtGetQueryInfo $hq [dict get {
             -names 1 statuses 2
         } $opt]]
     }
@@ -306,9 +306,9 @@ proc twapi::evt_object_array_property {hevt index args} {
     return $result
 }
 
-proc twapi::evt_publishers {{hevtsess NULL}} {
+proc twapi::evt_publishers {{hsess NULL}} {
     set pubs {}
-    set hevt [EvtOpenPublisherEnum $hevtsess 0]
+    set hevt [EvtOpenPublisherEnum $hsess 0]
     trap {
         while {[set pub [EvtNextPublisherId $hevt]] ne ""} {
             lappend pubs $pub
