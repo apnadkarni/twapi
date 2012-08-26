@@ -264,61 +264,6 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
     return TCL_ERROR;           /* Always returns TCL_ERROR */
 }
 
-/* Convert EVT_VARIANT array returned from EvtRender to an opaque structure*/
-static Tcl_Obj *OBSOLETEObjFromEVT_RENDER_VALUES(EVT_VARIANT *varP, int count, int sz, int used)
-{
-    Tcl_Obj *objs[4];
-    objs[0] = ObjFromOpaque(varP, TWAPI_EVT_RENDER_VALUES_TYPESTR);
-    objs[1] = ObjFromInt(count);
-    objs[2] = ObjFromInt(sz);
-    objs[3] = ObjFromInt(used);
-
-    return ObjNewList(4, objs);
-}
-
-static int OBSOLETEObjToEVT_RENDER_VALUES(
-    Tcl_Interp *interp,
-    Tcl_Obj *objP,
-    void **bufPP,   /* Where to store pointer to array */
-    int *countP,    /* Where to store number of elements of array */
-    int *szP,       /* Where to store the size in bytes of buffer array */
-    int *usedP      /* Where to store # bytes used */
-    )
-{
-    Tcl_Obj **objs;
-    int nobjs;
-    int sz, used, count;
-    EVT_VARIANT *evaP;    
-
-    if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK)
-        return TCL_ERROR;
-    if (nobjs == 0) {
-        evaP = NULL;
-        sz = 0;
-        used = 0;
-        count = 0;
-    } else {
-        if (nobjs != 4)
-            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-
-        if (ObjToInt(interp, objs[3], &used) != TCL_OK ||
-            ObjToInt(interp, objs[2], &sz) != TCL_OK ||
-            ObjToInt(interp, objs[1], &count) != TCL_OK ||
-            ObjToOpaque(interp, objs[0], &evaP, TWAPI_EVT_RENDER_VALUES_TYPESTR) != TCL_OK)
-            return TCL_ERROR;
-    }
-
-    if (bufPP)
-        *bufPP = evaP;
-    if (szP)
-        *szP = sz;
-    if (usedP)
-        *usedP = used;
-    if (countP)
-        *countP = count;
-
-    return TCL_OK;
-}
 
 static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
 {
@@ -682,9 +627,10 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
        be invalid when the byte array is copied around.
     */
 
-    /* EvtRenderEventValues -> 0 */
     status = ERROR_SUCCESS;
-    if (EvtRender(hevt, hevt2, 0, ervhP->header.sz, bufP,
+    if (EvtRender(hevt, hevt2,
+                  0,    /* EvtRenderEventValues -> 0 */
+                  ervhP->header.sz, bufP,
                   &ervhP->header.used, &ervhP->header.count) == FALSE) {
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
