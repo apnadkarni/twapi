@@ -79,13 +79,42 @@ proc twapi::winlog_close {hq} {
 }
 
 if {[twapi::min_os_version 6]} {
+
     proc twapi::winlog_read {hq} {
         # TBD - is 10 an appropriate number of events to read?
         return [evt_next $hq -timeout 0 -count 10]
     }
+
 } else {
     proc twapi::winlog_read {hq} {
         variable _winlog_handles
         return [eventlog_read $hq -direction [dict get $_winlog_handles $hq direction]]
     }
+
+
+}
+
+proc twapi::winlog_format_events {ev args} {
+    array set opts [parseargs args {
+        message
+        category
+        timestamp
+        eventid
+        sid
+        source
+        system
+        type
+    } -maxleftover 0 -hyphenated]
+
+    set result {}
+    if {[min_os_version 6]} {
+        foreach opt {-eventid -sid -source -system -type} {
+            if {$opts($opt)} {
+                lappend result $opt [dict get $ev $opt]
+            }
+        }
+    } else {
+        TBD
+    }
+
 }
