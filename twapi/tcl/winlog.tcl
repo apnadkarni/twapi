@@ -38,7 +38,7 @@ proc twapi::winlog_open {args} {
         # Use new Vista APIs
         if {[info exists opts(file)]} {
             set hsess NULL
-            set hq [evt_query -file $opts(file) -ingorequeryerrors]
+            set hq [evt_query -file $opts(file) -ignorequeryerrors]
         } else {
             if {$opts(system) eq ""} {
                 set hsess [twapi::evt_local_session]
@@ -53,7 +53,7 @@ proc twapi::winlog_open {args} {
         if {[info exists opts(file)]} {
             set hq [eventlog_open -file $opts(file)]
         } else {
-            set hq [eventlog_open -system $opts(system) -source $opts(source)]
+            set hq [eventlog_open -system $opts(system) -source $opts(channel)]
         }
         dict set _winlog_handles $hq direction $opts(direction)
     }
@@ -94,27 +94,17 @@ if {[twapi::min_os_version 6]} {
 
 }
 
-proc twapi::winlog_format_events {ev args} {
-    array set opts [parseargs args {
-        message
-        category
-        timestamp
-        eventid
-        sid
-        source
-        system
-        type
-    } -maxleftover 0 -hyphenated]
-
+proc twapi::winlog_decode_events {events {langid 0}} {
     set result {}
     if {[min_os_version 6]} {
-        foreach opt {-eventid -sid -source -system -type} {
-            if {$opts($opt)} {
-                lappend result $opt [dict get $ev $opt]
-            }
-        }
-    } else {
         TBD
+    } else {
+        foreach ev $events {
+            dict set ev -task [eventlog_format_category $ev -langid $langid]
+            dict set ev -message [eventlog_format_message $ev -langid $langid]
+            lappend result $ev
+        }
     }
 
+    return $result
 }
