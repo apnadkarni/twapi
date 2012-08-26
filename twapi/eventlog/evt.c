@@ -265,14 +265,13 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
 }
 
 
-static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
+static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
+                                   int flags) /* flags & 1 => returned tagged value */
 {
     int i;
     Tcl_Obj *objP;
     Tcl_Obj **objPP;
-#ifdef USE_TAGGED_EVT_VARIANT
     Tcl_Obj *retObjs[2];
-#endif
     int count;
 
     objP = NULL;
@@ -483,13 +482,13 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP)
         objP = ObjFromEmptyString();
     }
 
-#ifdef USE_TAGGED_EVT_VARIANT
-    retObjs[0] = ObjFromInt(varP->Type);
-    retObjs[1] = objP;
-    return ObjNewList(2, retObjs);
-#else
-    return objP;
-#endif
+    if (flags) {
+        retObjs[0] = ObjFromInt(varP->Type);
+        retObjs[1] = objP;
+        return ObjNewList(2, retObjs);
+    } else {
+        return objP;
+    }
 }
 
 static Tcl_Obj *ObjFromEVT_VARIANT_ARRAY(TwapiInterpContext *ticP, EVT_VARIANT *varP, int count)
@@ -501,7 +500,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT_ARRAY(TwapiInterpContext *ticP, EVT_VARIANT *
     objPP = MemLifoPushFrame(&ticP->memlifo, count * sizeof (objPP[0]), NULL);
 
     for (i = 0; i < count; ++i) {
-        objPP[i] = ObjFromEVT_VARIANT(ticP, &varP[i]);
+        objPP[i] = ObjFromEVT_VARIANT(ticP, &varP[i], 0);
     }
 
     objP = ObjNewList(count, objPP);
@@ -938,7 +937,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
         TwapiReturnSystemError(interp);
         Twapi_AppendEvtExtendedStatus(interp);
     } else {
-        TwapiSetObjResult(interp, ObjFromEVT_VARIANT(ticP, varP));
+        TwapiSetObjResult(interp, ObjFromEVT_VARIANT(ticP, varP, 0));
     }
     MemLifoPopFrame(&ticP->memlifo);
 

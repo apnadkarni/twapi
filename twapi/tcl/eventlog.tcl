@@ -375,5 +375,5 @@ proc twapi::_eventlog_dump {source chan} {
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "eventlog.tcl"} {
     source [file join [file dirname [info script]] evt.tcl]
-    source [file join [file dirname [info script]] winevent.tcl]
+    source [file join [file dirname [info script]] winlog.tcl]
 }
