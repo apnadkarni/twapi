@@ -5,6 +5,79 @@ set hevt [lindex [evt_next $hq] 0]
 set hvals [twapi::Twapi_EvtRenderValues $hrc $hevt NULL]
 ::twapi::Twapi_ExtractEVT_RENDER_VALUES $hvals
 ::twapi::evt_free_EVT_RENDER_VALUES $hvals
+
+
+    31  set hq [evt_query -channel Application]
+    32  set hevt [lindex [evt_next $hq] 0]
+    33  set hrcs [evt_render_context_system]
+    34  set hrcu [evt_render_context_user]
+    35  set sbuf [twapi::Twapi_EvtRenderValues $hrcs $hevt NULL]
+    36  set ubuf [twapi::Twapi_EvtRenderValues $hrcu $hevt NULL]
+    37  proc extract {b} {::twapi::Twapi_ExtractEVT_RENDER_VALUES $b}
+    38  extract $sbuf
+    39  extract $ubuf
+    40  set hpub [evt_open_publisher_metadata Microsoft-Windows-CertificateServicesClient]
+    41  evt_publisher_metadata_property $hpub
+    42  evt_publisher_metadata_property $hpub -levels
+    43  evt_publisher_metadata_property $hpub -resourcefilepath -parameterfilepath -messagefilepath
+    44  evt_publisher_events_metadata $hpub
+    45  evt_publisher_events_metadata $hpub -id -messageid -template
+    46  evt_publisher_events_metadata $hpub -id -messageid
+    47  evt_format_event $hevt
+    48  extract $sbuf
+    49  evt_format_publisher_message $hpub 2952790018
+    50  set hevt [lindex [evt_next $hq] 0]
+    51  evt_format_event $hevt
+    52  set hevt [lindex [evt_next $hq] 0]
+    53  evt_format_event $hevt
+
+(twapi) 55 % evt_format_event [set hevt [lindex [evt_next $hq] 0]]
+The EventSystem sub system is suppressing duplicate event log entries for a duration of 86400 seconds.  The suppression timeout can be controlled by a REG_DWORD value named SuppressDuplicateDuration under the following registry key: HKLM\Software\Microsoft\EventSystem\EventLog.
+(twapi) 56 % set sbuf [twapi::Twapi_EvtRenderValues $hrcs $hevt NULL]
+2770112 TwapiEVT_RENDER_VALUES_HEADER*
+(twapi) 57 % set ubuf [twapi::Twapi_EvtRenderValues $hrcu $hevt NULL]
+2774136 TwapiEVT_RENDER_VALUES_HEADER*
+(twapi) 58 % extract $ubuf
+86400 SuppressDuplicateDuration {Software\Microsoft\EventSystem\EventLog}
+(twapi) 59 % evt_close $hpub
+(twapi) 60 % extract $sbuf
+Microsoft-Windows-EventSystem {{899DAACE-4868-4295-AFCD-9EB8FB497561}} 4625 16384 4 0 0 {} 129146191710000000 4 {} {} 0 0 Application 37L4247E20-12 {} 0
+(twapi) 61 % set hpub [evt_open_publisher_metadata Microsoft-Windows-EventSystem]
+5 EVT_HANDLE
+(twapi) 62 % evt_publisher_events_metadata $hpub -id -messageid
+{-id 512 -messageid 512} {-id 2147488002 -messageid 2147488002} {-id 2147488003 -messageid 2147488003} {-id 2147488004 -messageid 2147488004} {-id 2147488005 -messageid 2147488005} {-id 2147488006 -messageid 2147488006} {-id 2147488007 -messageid 2147488007} {-id 2147488009 -messageid 2147488009} {-id 2147488010 -messageid 2147488010} {-id 3221230081 -messageid 3221230081} {-id 3221230082 -messageid 3221230082} {-id 3221230083 -messageid 3221230083} {-id 3221230084 -messageid 3221230084} {-id 3221230085 -messageid 3221230085} {-id 3221230086 -messageid 3221230086} {-id 3221230087 -messageid 3221230087} {-id 3221230088 -messageid 3221230088} {-id 3221230089 -messageid 3221230089} {-id 3221230090 -messageid 3221230090} {-id 3221230091 -messageid 3221230091} {-id 3221230092 -messageid 3221230092} {-id 3221230093 -messageid 3221230093} {-id 3221230094 -messageid 3221230094} {-id 3221230095 -messageid 3221230095} {-id 3221230096 -messageid 3221230096} {-id 1073746449 -messageid 1073746449}
+(twapi) 63 % evt_format_publisher_message $hpub 512
+The substitution string for insert index (%1) could not be found.
+(twapi) 64 % evt_format_publisher_message $hpub 512 -values $ubuf
+86400
+(twapi) 65 % evt_format_publisher_message $hpub 2147488004
+The substitution string for insert index (%1) could not be found.
+(twapi) 66 % evt_format_publisher_message $hpub 512 -values $ubuf
+86400
+(twapi) 67 % evt_format_publisher_message $hpub 2147488004 -values $ubuf
+The COM+ Event System failed to create an instance of the subscriber SuppressDuplicateDuration.  Software\Microsoft\EventSystem\EventLog returned HRESULT 86400.
+(twapi) 68 % evt_get_event_system_fields $hevt
+-providername Microsoft-Windows-EventSystem -providerguid {{899DAACE-4868-4295-AFCD-9EB8FB497561}} -eventid 4625 -qualifiers 16384 -level 4 -task 0 -opcode 0 -keywords {} -timecreated 129146191710000000 -eventrecordid 4 -activityid {} -relatedactivityid {} -processid 0 -threadid 0 -channel Application -computer 37L4247E20-12 -userid {} -version 0
+(twapi) 69 % format %x 4625
+1211
+(twapi) 70 % format %x 2147488004
+80001104
+(twapi) 71 % format %x 1073746449
+40001211
+(twapi) 72 % evt_format_publisher_message $hpub 4625 -values $ubuf
+the message resource is present but the message is not found in the string/message table
+(twapi) 73 % evt_format_publisher_message $hpub 0x40001211 -values $ubuf
+The EventSystem sub system is suppressing duplicate event log entries for a duration of 86400 seconds.  The suppression timeout can be controlled by a REG_DWORD value named SuppressDuplicateDuration under the following registry key: HKLM\Software\Microsoft\EventSystem\EventLog.
+(twapi) 74 % evt_format_publisher_message $hpub 0x40001211 -values $ubuf
+The EventSystem sub system is suppressing duplicate event log entries for a duration of 86400 seconds.  The suppression timeout can be controlled by a REG_DWORD value named SuppressDuplicateDuration under the following registry key: HKLM\Software\Microsoft\EventSystem\EventLog.
+(twapi) 74 % format %x 16384
+4000
+
+
+Above implies that the message lookup is done by using -qualifiers (16384)
+field from event system fields as the top 16 bits of event id ? Or perhaps
+the 4 comes from the level ?
+
 }
 
 #

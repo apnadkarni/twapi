@@ -325,6 +325,7 @@ proc twapi::_eventlog_notification_handler {hevent event} {
     }
 }
 
+
 # Utility procs
 
 # Find the registry key corresponding the given event log source
@@ -368,7 +369,11 @@ proc twapi::_eventlog_dump {source chan} {
     eventlog_close $hevl
 }
 
+
+
+
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "eventlog.tcl"} {
     source [file join [file dirname [info script]] evt.tcl]
+    source [file join [file dirname [info script]] winevent.tcl]
 }

@@ -734,36 +734,37 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
 {
     EVT_HANDLE hevt;
     EVT_HANDLE *hevtP;
-    DWORD dw, dw2, dw3;
+    DWORD i, count, timeout, dw;
     Tcl_Obj **objPP;
+    int result;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt), GETINT(dw),
-                     GETINT(dw2), GETINT(dw3), ARGEND) != TCL_OK)
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt), GETINT(count),
+                     GETINT(timeout), GETINT(dw), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (dw > 1024)
+    if (count > 1024) // TBD
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-    hevtP = MemLifoPushFrame(&ticP->memlifo, dw*sizeof(*hevtP), NULL);
-    if (EvtNext(hevt, dw, hevtP, dw2, dw3, &dw2) != FALSE) {
-        if (dw2) {
-            objPP = MemLifoAlloc(&ticP->memlifo, dw2*sizeof(*objPP), NULL);
-            for (dw = 0; dw < dw2; ++dw) {
-                objPP[dw] = ObjFromEVT_HANDLE(hevtP[dw]);
+    hevtP = MemLifoPushFrame(&ticP->memlifo, count*sizeof(*hevtP), NULL);
+    if (EvtNext(hevt, count, hevtP, timeout, dw, &count) != FALSE) {
+        if (count) {
+            objPP = MemLifoAlloc(&ticP->memlifo, count*sizeof(*objPP), NULL);
+            for (i = 0; i < count; ++count) {
+                objPP[i] = ObjFromEVT_HANDLE(hevtP[i]);
             }
-            TwapiSetObjResult(interp, ObjNewList(dw2, objPP));
+            TwapiSetObjResult(interp, ObjNewList(count, objPP));
         }
-        dw = TCL_OK;
+        result = TCL_OK;
     } else {
         dw = GetLastError();
-        if (dw == ERROR_NO_MORE_ITEMS)
-            dw = TCL_OK;
+        if (dw == ERROR_NO_MORE_ITEMS || dw == ERROR_TIMEOUT)
+            result = TCL_OK;
         else {
             Twapi_AppendSystemError(interp, dw);
-            dw = TCL_ERROR;
+            result = TCL_ERROR;
         }
     }
     MemLifoPopFrame(&ticP->memlifo);
-    return dw;
+    return result;
 }
 
 static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -965,14 +966,12 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     if (ObjGetElements(interp, objv[2], &nobjs, &loginObjs) != TCL_OK)
         return TCL_ERROR;
 
-    if (nobjs != 5 || ObjToInt(interp, loginObjs[4], &erl.Flags) != TCL_OK) {
+    if (TwapiGetArgs(interp, nobjs, loginObjs, GETWSTR(erl.Server),
+                     GETNULLIFEMPTY(erl.User), GETNULLIFEMPTY(erl.Domain),
+                     GETNULLIFEMPTY(erl.Password), GETINT(erl.Flags),
+                     ARGEND) != TCL_OK) {
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid EVT_RPC_LOGIN structure");
     }
-
-    erl.Server = ObjToUnicode(loginObjs[0]);
-    erl.User = ObjToUnicode(loginObjs[1]);
-    erl.Domain = ObjToUnicode(loginObjs[2]);
-    erl.Password = ObjToUnicode(loginObjs[3]);
 
     return TwapiReturnNonnullHandle(interp,
                                     EvtOpenSession(login_class, &erl,
