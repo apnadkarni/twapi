@@ -25,7 +25,7 @@ proc twapi::winlog_open {args} {
     } -maxleftover 0]
 
     if {[info exists opts(file)] &&
-        $opts(system) ne "" || [info exists opts(channel)]} {
+        ($opts(system) ne "" || [info exists opts(channel)])} {
         error "Option '-file' cannot be used with '-channel' or '-system'"
     } else {
         if {![info exists opts(channel)]} {
@@ -69,46 +69,60 @@ proc twapi::winlog_close {hq} {
     }
 
     if {[min_os_version 6]} {
-        # Note this closes $hq as well
-        evt_close [dict get $_winlog_handles $hq]
+        set hsess [dict get $_winlog_handles $hq session]
+        if {![pointer_null? $hsess]} {
+            # Note this closes $hq as well
+            evt_close $hsess
+        }
     } else {
         eventlog_close $hq
     }
 
     dict unset _winlog_handles $hq
+    return
 }
 
 if {[twapi::min_os_version 6]} {
 
-    proc twapi::winlog_read {hq} {
+    proc twapi::winlog_read {hq {lcid 0}} {
+        set result {}
         # TBD - is 10 an appropriate number of events to read?
-        return [evt_next $hq -timeout 0 -count 10]
+        foreach hevt [evt_next $hq -timeout 0 -count 10] {
+            lappend result [evt_decode_event $hevt -lcid $lcid -ignorestring "" -message -levelname -taskname]
+            evt_close $hevt
+        }
+        return $result
     }
 
 } else {
-    proc twapi::winlog_read {hq} {
+
+    proc twapi::winlog_read {hq {langid 0}} {
         variable _winlog_handles
-        return [eventlog_read $hq -direction [dict get $_winlog_handles $hq direction]]
+        set result {}
+        foreach evl [eventlog_read $hq -direction [dict get $_winlog_handles $hq direction]] {
+            lappend result \
+                [list \
+                     -taskname [eventlog_format_category $evl -langid $langid] \
+                     -message [eventlog_format_message $evl -langid $langid] \
+                     -providername [dict get $evl -source] \
+                     -eventid [dict get $evl -eventid] \
+                     -level [dict get $evl -level] \
+                     -levelname [dict get $evl -type] \
+                     -eventrecordid [dict get $evl -recnum] \
+                     -computer [dict get $evl -system] \
+                     -timecreated [secs_since_1970_to_large_system_time [dict get $evl -timewritten]]]
+        }
+        return $result
     }
-
-
 }
 
-proc twapi::winlog_decode_events {events {langid 0}} {
-    set result {}
-    if {[min_os_version 6]} {
-        foreach evh $events {
-            set ev {}
-            lappend ev -message [evt_format_message $evh -lcid $langid]
-
-        }
-    } else {
+proc twapi::_winlog_dump {{channel Application} {fd stdout}} {
+    set hevl [winlog_open -channel $channel]
+    while {[llength [set events [winlog_read $hevl]]]} {
+        # print out each record
         foreach ev $events {
-            dict set ev -task [eventlog_format_category $ev -langid $langid]
-            dict set ev -message [eventlog_format_message $ev -langid $langid]
-            lappend result $ev
+            puts $fd "[dict get $ev -timecreated] [dict get $ev -providername]: [dict get $ev -message]"
         }
     }
-
-    return $result
+    winlog_close $hevl
 }
