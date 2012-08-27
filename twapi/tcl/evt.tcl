@@ -469,7 +469,7 @@ proc twapi::evt_get_event_system_fields {hevt} {
         set _evt_system_render_context(buffer) [Twapi_EvtRenderValues $_evt_system_render_context(handle) $hevt $_evt_system_render_context(buffer)]
         return [twine {
             -providername -providerguid -eventid -qualifiers -level -task
-            -opcode -keywords -timecreated -eventrecordid -activityid
+            -opcode -keywordmask -timecreated -eventrecordid -activityid
             -relatedactivityid -processid -threadid -channel
             -computer -userid -version
         } [Twapi_ExtractEVT_RENDER_VALUES $_evt_system_render_context(buffer)]]
@@ -478,53 +478,70 @@ proc twapi::evt_get_event_system_fields {hevt} {
     return [evt_get_event_system_fields $hevt]
 }
 
-proc twapi::evt_format_event {args} {
+proc twapi::evt_decode_event {args} {
     _evt_init
 
-    proc evt_format_event {hevt args} {
+    proc evt_decode_event {hevt args} {
 
         array set opts [parseargs args {
             hpublisher.arg
             {values.arg NULL}
-            {field.arg event}
             {session.arg NULL}
             {logfile.arg ""}
             {lcid.int 0}
             ignorestring.arg
-        } -maxleftover 0]
+            message
+            levelname
+            taskname
+            opcodename
+            keywords
+            channel
+            xml
+        } -ignoreunknown -hyphenated]
         
-        if {[info exists opts(hpublisher)]} {
-            set hpub $opts(hpublisher)
+        set decoded [evt_get_event_system_fields $hevt]
+
+        if {[info exists opts(-hpublisher)]} {
+            set hpub $opts(-hpublisher)
         } else {
             # Get publisher from hevt
             variable _evt_publisher_handles
 
-            set publisher [dict get [evt_get_event_system_fields $hevt] -providername]
-            if {! [dict exists $_evt_publisher_handles $publisher $opts(session) $opts(lcid)]} {
-                dict set _evt_publisher_handles $publisher $opts(session) $opts(lcid) [EvtOpenPublisherMetadata $opts(session) $publisher $opts(logfile) $opts(lcid) 0]
+            set publisher [dict get $decoded -providername]
+            if {! [dict exists $_evt_publisher_handles $publisher $opts(-session) $opts(-lcid)]} {
+                dict set _evt_publisher_handles $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
             }
-            set hpub [dict get $_evt_publisher_handles $publisher $opts(session) $opts(lcid)]
+            set hpub [dict get $_evt_publisher_handles $publisher $opts(-session) $opts(-lcid)]
         }
 
-        set type [dict get {
-            event 1
-            level 2
-            task 3
-            opcode 4
-            keyword 5
-            channel 6
-            provider 7
-            xml 9
-        } $opts(field)]
-
-        if {[info exists opts(ignorestring)]} {
-            return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type $opts(ignorestring)]
-        } else {
-            return [EvtFormatMessage $hpub $hevt 0 $opts(values) $type]
+        foreach {opt optind} {
+            -message 1
+            -levelname 2
+            -taskname 3
+            -opcodename 4
+            -keywords 5
+            -channel 6
+            -xml 9
+        } {
+            if {$opts($opt)} {
+                if {$opt in {-level -task -opcode} &&
+                    [dict get $decoded $opt] == 0 &&
+                    [info exists opts(-ignorestring)]} {
+                    # Don't bother making the call.
+                    lappend decoded $opt $opts(-ignorestring)
+                } else {
+                    if {[info exists opts(-ignorestring)]} {
+                        lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind $opts(-ignorestring)]
+                    } else {
+                        lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
+                    }
+                }
+            }
         }
+        return $decoded
     }
 
-    return [evt_format_event {*}$args]
+    return [evt_decode_event {*}$args]
 }
 
 
@@ -599,10 +616,8 @@ proc twapi::_evt_dump {args} {
         while {[llength [set hevts [evt_next $hq]]]} {
             foreach hevt $hevts {
                 trap {
-                    set sysfields [evt_get_event_system_fields $hevt]
-                    puts $opts(outfd) "[dict get $sysfields -timecreated]: [evt_format_event $hevt]"
-                } onerror {TWAPI_WIN32 15027} {
-                    puts $opts(outfd) "[dict get $sysfields -timecreated]: Could not get event message"
+                    set ev [evt_decode_event $hevt -message -ignorestring None.]
+                    puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -providername]: [dict get $ev -message]"
                 } finally {
                     evt_close $hevt
                 }                
