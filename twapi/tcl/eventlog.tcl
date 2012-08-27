@@ -53,7 +53,7 @@ proc twapi::eventlog_read {hevl args} {
         set recs [list ]
     }
     foreach event $recs {
-        dict set event -type [string map {0 success 1 error 2 warning 4 information 8 auditsuccess 16 auditfailure} [dict get $event -type]]
+        dict set event -type [string map {0 success 1 error 2 warning 4 information 8 auditsuccess 16 auditfailure} [dict get $event -level]]
         lappend results $event
     }
 

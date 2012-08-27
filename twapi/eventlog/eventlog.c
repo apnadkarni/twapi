@@ -42,7 +42,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     DWORD winerr = ERROR_SUCCESS;
     static const char *fieldnames[] = {
         "-source", "-system", "-reserved", "-recordnum", "-timegenerated",
-        "-timewritten", "-eventid", "-type", "-category", "-reservedflags",
+        "-timewritten", "-eventid", "-level", "-category", "-reservedflags",
         "-recnum", "-params", "-sid", "-data" };
 
     Tcl_Obj *fields[ARRAYSIZE(fieldnames)];
