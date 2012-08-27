@@ -870,6 +870,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
              winerr == 15028 /* ERROR_EVT_MESSAGE_ID_NOT_FOUND */ )) {
             /* Caller has specified these errors should be ignored and
                the specified string returned instead */
+            winerr = ERROR_SUCCESS;
             TwapiSetObjResult(interp, objv[6]);
         } else
             Twapi_AppendSystemError(interp, winerr);
