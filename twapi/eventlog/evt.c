@@ -747,7 +747,7 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     if (EvtNext(hevt, count, hevtP, timeout, dw, &count) != FALSE) {
         if (count) {
             objPP = MemLifoAlloc(&ticP->memlifo, count*sizeof(*objPP), NULL);
-            for (i = 0; i < count; ++count) {
+            for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromEVT_HANDLE(hevtP[i]);
             }
             TwapiSetObjResult(interp, ObjNewList(count, objPP));
