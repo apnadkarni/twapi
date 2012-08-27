@@ -97,7 +97,11 @@ if {[twapi::min_os_version 6]} {
 proc twapi::winlog_decode_events {events {langid 0}} {
     set result {}
     if {[min_os_version 6]} {
-        TBD
+        foreach evh $events {
+            set ev {}
+            lappend ev -message [evt_format_message $evh -lcid $langid]
+
+        }
     } else {
         foreach ev $events {
             dict set ev -task [eventlog_format_category $ev -langid $langid]
