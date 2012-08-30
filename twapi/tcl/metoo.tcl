@@ -59,6 +59,8 @@
 #   self
 #   self object
 #    - returns the object name (usable as a command)
+#   self class
+#    - returns class of this object
 #   self namespace
 #    - returns namespace of this object
 #
@@ -184,6 +186,7 @@ namespace eval metoo::object {
     proc self {{what object}} {
         upvar 1 _this this
         switch -exact -- $what {
+            class { return [namespace parent $this] }
             namespace { return $this }
             object { return [set ${this}::_(name)] }
             default {
