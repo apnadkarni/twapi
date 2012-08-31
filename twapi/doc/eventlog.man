@@ -18,7 +18,54 @@ to write to the event log without this module being loaded.
 
 [section Overview]
 
-Most access to the event log requires a handle returned by
+The Windows event log provides a common application-independent 
+mechanism for applications to log messages for diagnostic and informational
+purposes. The infrastructure and API's supporting this mechanism changed
+starting with Windows Vista. Although the older Windows API's 
+will also work on Vista and later versions, they are limited in
+their support for events logged by applications using the newer API's.
+
+[para]
+TWAPI follows the Windows model by providing two sets of commands
+corresponding to the two Windows API sets and in addition also
+provides a set of unified commands:
+[list_begin bullet]
+[bullet]
+Commands prefixed with [cmd eventlog] are layered on top of the older
+pre-Vista API's. These will work on all Windows systems but reflect
+the inability of the underlying Windows API to fully format messages
+for events logged by applications using the new APIs.
+[bullet]
+Commands prefixed with [cmd evt] are layered on top of the newer API's.
+These can deal with events logged by applications using either API version
+but can only be used on Windows Vista and later. They will raise
+an error on earlier versions of Windows.
+[bullet]
+Commands prefixed with [cmd winlog] present a unified interface and
+direct calls to the appropriate Windows API depending on operating
+system version. They also present a single interface to the application
+irrespective of the operating system. However, they do not cover
+features that are unique to a specific Windows API and have a slight
+performance penalty.
+[list_end]
+
+[para]
+For reading the event log, use of the
+[uri #usingwinlogcommands [cmd winlog]] set of commands is recommended
+as those will use the underlying API
+that is most appropriate for that OS version. Alternatively, if
+platform-specific features not available through those commands
+are required, applications can call the 
+[uri #usingeventlogcommands [cmd eventlog]] or
+[uri #usingevtcommands [cmd evt]] 
+commands as appropriate after checking the operating
+system version.
+
+[section "Using eventlog Commands"]
+
+This section describes the use of the older pre-Vista
+event log commands. Most access to the event log using
+this API requires a handle returned by
 the [uri \#eventlog_open [cmd eventlog_open]]
 command. A handle allows either read or write
 access, but never both. Returned handles must be closed when no
@@ -52,7 +99,6 @@ notifications through
 when new events are logged. These notifications can be turned off
 using [uri #eventlog_monitor_stop [cmd eventlog_monitor_stop]].
 
-
 [para]
 Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
 or as
@@ -62,7 +108,32 @@ backup file can be read using the standard
 [uri \#eventlog_open [cmd eventlog_open]] and
 [uri \#eventlog_read [cmd eventlog_read]] commands.
 
-[section Commands]
+[section "Using evt Commands"]
+
+This section describes the use of the newer 
+event log commands available in Windows Vista and later Windows version.
+The corresponding Windows API functions are prefixed with [cmd Evt]
+in the Windows SDK.
+
+[para]
+The new event logging subsystem in Windows Vista is considerably more
+flexible (and complex) than what was available in earlier Windows
+versions. The description below assumes the reader 
+is familiar with the terms and concepts described in the Windows
+SDK.
+
+[para]
+
+
+
+[section "Using winlog Commands"]
+This section describes the use of the TWAPI's common interface
+to the old and new versions of Windows event log interface.
+
+TBD
+
+[section "Commands"]
+
 [list_begin definitions]
 
 [call [cmd eventlog_backup] [arg "EVENTLOGHANDLE"] [arg FILENAME]]
