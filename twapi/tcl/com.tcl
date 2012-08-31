@@ -1100,8 +1100,8 @@ proc twapi::_parse_dispatch_paramdef {paramdef} {
 }
 
 # TBD - document
-# define_dispatch_prototype GUID int open 
-proc twapi::define_dispatch_prototype {guid protos args} {
+# define_dispatch_prototypes GUID int open 
+proc twapi::define_dispatch_prototypes {guid protos args} {
     array set opts [parseargs args {
         {lcid.int 0}
     } -maxleftover 0]
@@ -1109,7 +1109,7 @@ proc twapi::define_dispatch_prototype {guid protos args} {
     set defregx {^\s*(\w+)\s+(\d+)\s+(\w[^\(]*)\(([^\)]*)\)(.*)$}
     set parsed_protos {}
     # Loop picking out one prototype in each interation
-    while {[regexp $defregx $protos _ membertype memid rettype paramstring protos]} {
+    while {[regexp $defregx $protos -> membertype memid rettype paramstring protos]} {
         set params {}
         set paramnames {}
         foreach paramdef [split $paramstring ,] {
@@ -1121,7 +1121,7 @@ proc twapi::define_dispatch_prototype {guid protos args} {
         }
         if {[llength $paramnames] &&
             [llength $params] != [llength $paramnames]} {
-            error "Missing parameter name in '$def'. All parameter names must be specified or none at all."
+            error "Missing parameter name in '$paramstring'. All parameter names must be specified or none at all."
         }
 
         lassign [_parse_dispatch_paramdef $rettype] _ rettype name 
