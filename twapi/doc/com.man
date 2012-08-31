@@ -475,6 +475,24 @@ passed parameter to be treated as a boolean, and not an integer,
 the application could call a method as follows:
 [example "\$obj Visible [lb]tclcast boolean 1[rb]"]
 
+[para]
+Sometimes the COM component may  not provide type information
+or mark a parameter as a generic [cmd VARIANT] and yet expect a
+specific type. In such cases, even casting may not be sufficient 
+to correctly pass parameters in the expected format. As a last resort
+to deal with such cases, TWAPI allows definition of prototypes
+for methods and properties for a COM component through the
+[uri #define_dispatch_prototypes [cmd define_dispatch_prototypes]]
+command. 
+[para]
+In the above example, instead of using a cast, a prototype for
+the method could be defined instead:
+[example "define_dispatch_prototypes \guid {func 19 int Visible(\[in\] bool bval)}"]
+where [arg guid] is the GUID for the COM component and [const 19] is its
+DISPID (roughly, the index into the dispatch table). Note this requires
+some detailed knowledge of the COM component, like the GUID and the
+DISPID values for the member methods and properties.
+
 [section Commands]
 
 [list_begin definitions]
@@ -683,6 +701,54 @@ By default, the command will bind to the object's [cmd IDispatch] interface.
 If the object is known to support the [cmd IDispatchEx] interface as well,
 the [cmd -interface] option may be used to specify that should be used
 instead.
+
+[call [cmd define_dispatch_prototypes] [arg IID] [arg PROTOLIST]]
+Explicitly defines the prototype (call signature) for one or more methods
+or properties of a COM component. [arg IID] is the interface identifier
+for the dispatch
+interface of the COM component. [arg PROTOLIST] is a list of zero
+or more prototype definitions, each of which has the following form
+[example [arg "MEMBERTYPE DISPID RETTYPE NAME (PARAMS)"]]
+
+[arg NAME] is the name of the method or property.
+[arg MEMBERTYPE] is one of [cmd func], [cmd propget], or [cmd propput]
+depending on whether the prototype is for a function (method),
+a property get operation or a property put operation. Note all three
+may be defined for a single name. [arg DISPID] is the dispatch index
+for the method or property in the component's dispatch table. This can
+generally be obtained from either the type library or the component's IDL
+definition. [arg RETTYPE] is the type of the return value (see below).
+[arg PARAMS] is a comma separated sequence of parameter definitions.
+A parameter definition has the form
+[example [arg "?PARAMATTR? PARAMTYPE ?PARAMNAME?"]]
+The parameter name [arg PARAMNAME] is optional but all parameters
+must be named or none must be named.
+The parameter attributes
+[arg PARAMATTR] are also optional. If specified, it is enclosed in
+[const [lb][rb]] and is
+a list of zero or more of [const in], [const out], [const inout] and
+[const optional] which indicate whether the parameter is a input
+parameter, an output parameter, or both, and whether it is optional.
+If no attributes are specified, they default to [const in].
+[nl]
+[arg PARAMTYPE], like [arg RETTYPE], 
+specifies the type of the parameter. It consists
+of a base type optionally followed by [const [lb][rb]] indicating an array of
+the base type, followed optionally by [const *] indicating a pointer.
+The base type may be one of 
+[const bool], [const bstr], [const cy], [const date], [const decimal],
+[const i1], [const i2], [const i4], [const r4], [const r8],
+[const idispatch], [const iunknown], [const ui1], [const ui2], [const ui4]
+or [const variant].
+[example_begin]
+define_dispatch_prototypes [lb]name_to_iid ITwapiTest[rb] {
+    func 1 bstr GetBstr(int index, bstr[lb][rb] strings, [lb]out optional[rb] int *lengthPtr)
+    propget 2 int IntegerProp()
+    propput 3 void IntegerProp(int)
+}
+[example_end]
+
+
 
 [call [cmd generate_code_from_typelib] [arg PATH] [opt [arg options]]]
 Generates Tcl code to access enums, interfaces and COM classes defined

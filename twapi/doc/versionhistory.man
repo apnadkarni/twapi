@@ -12,9 +12,13 @@ Summarizes the list of changes for each version of TWAPI.
 [para]
 Major changes in this release are support for Windows event tracing,
 enhancements to the COM module and architectural changes for modularity
-and improved load times.
+and run-time performance.
 
 [list_begin bullet]
+
+[bullet]
+Added support for the [uri eventlog.html "new event logging infrastructure"]
+in Windows Vista.
 
 [bullet]
 New [uri etw.html "Event Tracing for Windows"] module.
@@ -46,6 +50,9 @@ return instances of [uri com.html#comobj [cmd comobj]] objects.
 [bullet]
 Significantly improved COM method call performance through the use of
 TclOO in newer Tcl versions (8.6b2 and later)
+
+[bullet]
+Added [uri com.html#define_dispatch_prototypes [cmd define_dispatch_prototypes]].
 
 [bullet]
 Added [uri base.html#get_build_config [cmd get_build_config]] to
