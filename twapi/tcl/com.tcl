@@ -384,6 +384,7 @@ proc twapi::generate_code_from_typelib {path args} {
         set tl [ITypeLibProxy_from_path $path -registration none]
         set code [$tl @GenerateCode {*}$args]
         if {[info exists outfd]} {
+            puts $outfd "package require twapi_com"
             puts $outfd $code
             return
         } else {
@@ -1107,6 +1108,7 @@ proc twapi::define_dispatch_prototype {guid protos args} {
 
     set defregx {^\s*(\w+)\s+(\d+)\s+(\w[^\(]*)\(([^\)]*)\)(.*)$}
     set parsed_protos {}
+    # Loop picking out one prototype in each interation
     while {[regexp $defregx $protos _ membertype memid rettype paramstring protos]} {
         set params {}
         set paramnames {}
