@@ -738,8 +738,8 @@ the base type, followed optionally by [const *] indicating a pointer.
 The base type may be one of 
 [const bool], [const bstr], [const cy], [const date], [const decimal],
 [const i1], [const i2], [const i4], [const r4], [const r8],
-[const idispatch], [const iunknown], [const ui1], [const ui2], [const ui4]
-or [const variant].
+[const idispatch], [const iunknown], [const ui1], [const ui2], [const ui4],
+[const variant] or [const void].
 [example_begin]
 define_dispatch_prototypes [lb]name_to_iid ITwapiTest[rb] {
     func 1 bstr GetBstr(int index, bstr[lb][rb] strings, [lb]out optional[rb] int *lengthPtr)
