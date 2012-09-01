@@ -1056,9 +1056,11 @@ proc twapi::_dispatch_prototype_load {guid protolist} {
 }
 
 proc twapi::_parse_dispatch_paramdef {paramdef} {
+    set errormsg "Invalid parameter or return type declaration '$paramdef'"
+
     set paramregex {^(\[[^\]]*\])?\s*(\w+)\s*(\[\s*\])?\s*([*]?)\s*(\w+)?\s*$}
     if {![regexp $paramregex $paramdef def attrs paramtype safearray ptr paramname]} {
-        error "Invalid parameter or return type declaration '$paramdef'"
+        error $errormsg
     }
 
     if {[string length $paramname]} {
@@ -1084,15 +1086,23 @@ proc twapi::_parse_dispatch_paramdef {paramdef} {
     #  - a pointer to a base type
     #  - a pointer to a safearray
     #  - a base type or "variant"
-    if {$paramtype eq "variant"} {
-        set paramtype 12
-    } else {
-        set paramtype [_string_to_base_vt $paramtype]
+    switch -exact -- $paramtype {
+        variant { set paramtype 12 }
+        void    { set paramtype 24 }
+        default { set paramtype [_string_to_base_vt $paramtype] }
     }
     if {[string length $safearray]} {
+        if {$paramtype == 24} {
+            # Safearray of type void is an invalid type decl
+            error $errormsg
+        }
         set paramtype [list 27 $paramtype]
     }
     if {[string length $ptr]} {
+        if {$paramtype == 24} {
+            # Pointer to type void is an invalid type
+            error $errormsg
+        }
         set paramtype [list 26 $paramtype]
     }
 
