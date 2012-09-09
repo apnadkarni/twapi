@@ -946,6 +946,14 @@ namespace eval twapi::com::test {
     } -result 1
 
     ################################################################
+    
+    test define_dispatch_prototype-1.0 {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
 
     ::tcltest::cleanupTests
 }
