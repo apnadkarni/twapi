@@ -13,6 +13,8 @@ namespace eval twapi {
 }
 
 proc twapi::cast_handle {h type} {
+    # TBD - should this use pointer_from_address:
+    #    return [pointer_from_address [address_from_pointer $h] $type]
     return [list [lindex $h 0] $type]
 }
 
