@@ -1680,7 +1680,9 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name)
     if (name) {
         OPAQUE_REP_CTYPE(objP) = ObjFromString(name);
         Tcl_IncrRefCount(OPAQUE_REP_CTYPE(objP));
-    }
+    } else {
+        OPAQUE_REP_CTYPE(objP) = NULL;
+    }        
     objP->typePtr = &gOpaqueType;
     return objP;
 }
