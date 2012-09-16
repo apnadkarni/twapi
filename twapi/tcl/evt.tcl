@@ -116,10 +116,12 @@ namespace eval twapi {
     }
 }
 
+# TBD - document
 proc twapi::evt_local_session {} {
     return NULL
 }
 
+# TBD - document
 proc twapi::evt_open_session {server args} {
     array set opts [parseargs args {
         user.arg
@@ -143,6 +145,7 @@ proc twapi::evt_open_session {server args} {
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
 }
 
+# TBD - document
 proc twapi::evt_channels {{hevtsess NULL}} {
     set chnames {}
     set hevt [EvtOpenChannelEnum $hevtsess 0]
@@ -157,6 +160,7 @@ proc twapi::evt_channels {{hevtsess NULL}} {
     return $chnames
 }
 
+# TBD - document
 proc twapi::evt_clear_log {chanpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -166,6 +170,7 @@ proc twapi::evt_clear_log {chanpath args} {
     return [EvtClearLog $opts(session) $chanpath $opts(backup) 0]
 }
 
+# TBD - document
 proc twapi::evt_archive_exported_log {logpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -175,6 +180,7 @@ proc twapi::evt_archive_exported_log {logpath args} {
     return [EvtArchiveExportedLog $opts(session) $logpath $opts(lcid) 0]
 }
 
+# TBD - document
 proc twapi::evt_export_log {outfile args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -200,22 +206,27 @@ proc twapi::evt_export_log {outfile args} {
     return [EvtExportLog $opts(session) $path $opts(query) $outfile $opts(ignorequeryerrors)]
 }
 
+# TBD - document
 proc twapi::evt_create_bookmark {{mark ""}} {
     return [EvtCreateBookmark $mark]
 }
 
+# TBD - document
 proc twapi::evt_render_context_xpaths {xpaths} {
     return [EvtCreateRenderContext $xpaths 0]
 }
 
+# TBD - document
 proc twapi::evt_render_context_system {} {
     return [EvtCreateRenderContext {} 1]
 }
 
+# TBD - document
 proc twapi::evt_render_context_user {} {
     return [EvtCreateRenderContext {} 2]
 }
 
+# TBD - document
 proc twapi::evt_open_channel_config {chanpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -224,6 +235,7 @@ proc twapi::evt_open_channel_config {chanpath args} {
     return [EvtOpenChannelConfig $opts(session) $chanpath 0]
 }
 
+# TBD - document
 proc twapi::evt_get_channel_config {hevt args} {
     set result {}
     foreach opt $args {
@@ -234,11 +246,13 @@ proc twapi::evt_get_channel_config {hevt args} {
     return $result
 }
 
+# TBD - document
 proc twapi::evt_set_channel_config {hevt propid val} {
     return [EvtSetChannelConfigProperty $hevt [_evt_map_channel_config_property $propid 0 $val]]
 }
 
 
+# TBD - document
 proc twapi::_evt_map_channel_config_property {propid} {
     if {[string is integer -strict $propid]} {
         return $propid
@@ -270,6 +284,7 @@ proc twapi::_evt_map_channel_config_property {propid} {
     } $propid]
 }
 
+# TBD - document
 proc twapi::evt_event_info {hevt args} {
     set result {}
     foreach opt $args {
@@ -280,6 +295,7 @@ proc twapi::evt_event_info {hevt args} {
 }
 
 
+# TBD - document
 proc twapi::evt_event_metadata_property {hevt args} {
     set result {}
     foreach opt $args {
@@ -294,7 +310,7 @@ proc twapi::evt_event_metadata_property {hevt args} {
 }
 
 
-
+# TBD - document
 proc twapi::evt_log_info {hevt args} {
     set result {}
     foreach opt $args {
@@ -307,6 +323,7 @@ proc twapi::evt_log_info {hevt args} {
     return $result
 }
 
+# TBD - document
 proc twapi::evt_publisher_metadata_property {hpub args} {
     set result {}
     foreach opt $args {
@@ -346,6 +363,7 @@ proc twapi::evt_publisher_metadata_property {hpub args} {
     return $result
 }
 
+# TBD - document
 proc twapi::evt_query_info {hq args} {
     set result {}
     foreach opt $args {
@@ -356,10 +374,12 @@ proc twapi::evt_query_info {hq args} {
     return $result
 }
 
+# TBD - document
 proc twapi::evt_object_array_size {hevt} {
     return [EvtGetObjectArraySize $hevt]
 }
 
+# TBD - document
 proc twapi::evt_object_array_property {hevt index args} {
     set result {}
 
@@ -379,6 +399,7 @@ proc twapi::evt_object_array_property {hevt index args} {
     return $result
 }
 
+# TBD - document
 proc twapi::evt_publishers {{hsess NULL}} {
     set pubs {}
     set hevt [EvtOpenPublisherEnum $hsess 0]
@@ -393,6 +414,7 @@ proc twapi::evt_publishers {{hsess NULL}} {
     return $pubs
 }
 
+# TBD - document
 proc twapi::evt_open_publisher_metadata {pub args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -403,7 +425,7 @@ proc twapi::evt_open_publisher_metadata {pub args} {
     return [EvtOpenPublisherMetadata $opts(session) $pub $opts(logfile) $opts(lcid) 0]
 }
 
-
+# TBD - document
 proc twapi::evt_publisher_events_metadata {hpub args} {
     set henum [EvtOpenEventMetadataEnum $hpub]
 
@@ -427,7 +449,7 @@ proc twapi::evt_query {args} {
         {session.arg NULL}
         file.arg
         channel.arg
-        {query.arg *}
+        {query.arg ""}
         {ignorequeryerrors 0 0x1000}
         {direction.arg forward}
     } -maxleftover 0]
@@ -460,11 +482,11 @@ proc twapi::evt_next {hresultset args} {
     return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
 }
 
-
-proc twapi::evt_get_event_system_fields {hevt} {
+# TBD - document
+proc twapi::evt_decode_event_system_fields {hevt} {
     _evt_init
 
-    proc evt_get_event_system_fields {hevt} {
+    proc evt_decode_event_system_fields {hevt} {
         variable _evt_system_render_context
         set _evt_system_render_context(buffer) [Twapi_EvtRenderValues $_evt_system_render_context(handle) $hevt $_evt_system_render_context(buffer)]
         return [twine {
@@ -544,7 +566,7 @@ proc twapi::evt_decode_event {args} {
     return [evt_decode_event {*}$args]
 }
 
-
+# TBD - document
 proc twapi::evt_format_publisher_message {hpub msgid args} {
 
     array set opts [parseargs args {
@@ -554,15 +576,19 @@ proc twapi::evt_format_publisher_message {hpub msgid args} {
     return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
 }
 
-
+# TBD - document
+# Where is this used?
 proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
     evt_free $p
 }
 
+# TBD - document
+# Where is this used?
 proc twapi::evt_free_EVT_RENDER_VALUES {p} {
     evt_free $p
 }
 
+# TBD - document
 proc twapi::evt_seek {hresults pos args} {
     array set opts [parseargs args {
         {origin.arg first {first last current}}
@@ -583,6 +609,7 @@ proc twapi::evt_seek {hresults pos args} {
     EvtSeek $hresults $pos $opts(bookmark) 0 $flags
 }
 
+# TBD - document
 proc evt_subscribe {path hevent args} {
     array set opts [parseargs args {
         {session.arg NULL}
