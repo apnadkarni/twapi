@@ -113,7 +113,8 @@ backup file can be read using the standard
 This section describes the use of the newer 
 event log commands available in Windows Vista and later Windows version.
 The corresponding Windows API functions are prefixed with [cmd Evt]
-in the Windows SDK.
+in the Windows SDK. TWAPI does not support writing events using the
+new API. Only reading of events is supported.
 
 [para]
 The new event logging subsystem in Windows Vista is considerably more
@@ -123,6 +124,17 @@ is familiar with the terms and concepts described in the Windows
 SDK.
 
 [para]
+The Vista event logging system uses the concept of [emph channels] which
+implement a event stream to which event publishers can write events.
+Event consumers can consume events from channels in real time or
+from a saved event file using the 
+the [uri #evt_open [cmd evt_query]] command. This command returns
+a handle to a result set referencing matching events. These can
+then be retrieved and formatted using the
+[uri #evt_next [cmd evt_next]] and 
+[uri #evt_decode_event [cmd evt_decode_event]].
+
+
 
 
 
@@ -345,6 +357,84 @@ display this as a list of strings.
 [opt_def [cmd -data] [arg DATA]]Raw binary data that should be stored as part
 of the event record.
 [list_end]
+
+[call [cmd evt_close] [arg EVTHANDLE]]
+Closes the handle returned by various EVT commands such as
+[uri #evt_query [cmd evt_query]].
+
+[call [cmd evt_decode_event] [arg HEVENT] [opt [arg options]]]
+Returns information about an event. [arg HEVENT] is a handle
+to an event such as an element of the list returned
+from [uri #evt_next [cmd evt_next]].
+The returned information is in the form of a dictionary. The keys
+in the dictionary always include those documented in
+[uri #evt_decode_event_system_fields [cmd evt_decode_event_system_fields]].
+In addition, the returned dictionary will include the following keys
+if they are specified as options to the command:
+[list_begin opt]
+
+[list_end]
+
+
+
+[call [cmd evt_next] [arg HEVTRESULTSET] [opt [arg options]]]
+Returns a list containing events from a event query result set.
+[arg HEVTRESULTSET] is a handle to a result set as returned by
+[uri #evt_query [cmd evt_query]]. The returned list elements
+are event handles which can be passed to
+[uri #evt_decode_event [cmd evt_decode_event]]. These event handles
+must be closed via [uri #evt_close [cmd evt_close]].
+[nl]
+The command returns an empty list if no more events are available.
+[nl]
+The cursor in the event result set is moved past the returned events
+so each [cmd evt_next] returns events from the result set in sequence.
+[nl]
+The following options can be specified:
+[list_begin opt]
+[opt_def [cmd -count] [arg COUNT]]
+Returns [arg COUNT] events from the result set. The actual number of
+events returned may be less if the end of the result set is reached.
+If unspecified, the number of returned events depends on various
+internal tuning factors and applications must not rely on a specific
+number being returned.
+[opt_def -timeout [arg MILLISECONDS]]
+Specifies the number of milliseconds to wait for events. A value of 
+[const -1] (default) indicates call should not time out.
+[list_end]
+
+[call [cmd evt_query] [opt [arg options]]]
+Returns a handle to a result set containing events matching the
+specified criteria. Events from the result set are read using
+the [uri #evt_next [cmd evt_next]] command.
+After processing events, the handle must be closed
+using the [uri #evt_close [cmd evt_close]] command.
+[nl]
+The following options may be specified to select which events are
+included in the result set.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNELNAME]]
+Specifies the event channel from which events are to be read. Cannot
+be used with the [cmd -file] option.
+[opt_def [cmd -direction] [arg DIRECTION]]
+If [arg DIRECTION] is [const forward] events are returned oldest
+first. If [arg DIRECTION] is [const backward], events are returned
+newest first.
+[opt_def [cmd -file] [arg PATH]]
+Specifies the event file from which events are to be read. Cannot
+be used with the [cmd -channel] option.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If [cmd -ignorequeryerrors] is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -query] [arg QUERYSTRING]]
+Specifies the selection criteria for events that should be included in the
+returned result set. By default, all events in the channel or file
+are returned. [arg QUERYSTRING] should be an XPATH expression. See
+the Windows SDK for details.
+[list_end]
+
 
 [list_end]
 
