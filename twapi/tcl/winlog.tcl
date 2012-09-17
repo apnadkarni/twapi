@@ -6,6 +6,8 @@
 
 # Routines to unify old and new Windows event log APIs
 
+# TBD - winlog test suite
+
 namespace eval twapi {
     # Dictionary to map eventlog consumer handles to various related info
     # The primary key is the read handle to the event channel/source.
@@ -93,6 +95,10 @@ if {[twapi::min_os_version 6]} {
         return $result
     }
 
+    proc twapi::winlog_subscribe {channelpath} {
+        return [evt_subscribe $channelpath -ignorequeryerrors]
+    }
+
 } else {
 
     proc twapi::winlog_read {hq {langid 0}} {
@@ -113,7 +119,13 @@ if {[twapi::min_os_version 6]} {
         }
         return $result
     }
+
+    proc twapi::winlog_subscribe {source} {
+        return [eventlog_subscribe $source]
+    }
 }
+
+
 
 proc twapi::_winlog_dump {{channel Application} {fd stdout}} {
     set hevl [winlog_open -channel $channel]

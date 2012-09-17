@@ -285,12 +285,9 @@ proc twapi::eventlog_format_category {rec args} {
 }
 
 proc twapi::eventlog_monitor_start {hevl script} {
-
-    package require twapi_synch
-
     variable _eventlog_notification_scripts
 
-    set hevent [create_event]
+    set hevent [lindex [CreateEvent [_make_secattr {} 0] 0 0 ""] 0]
     if {[catch {NotifyChangeEventLog $hevl $hevent} msg]} {
         CloseHandle $hevent
         error $msg $::errorInfo $::errorCode
@@ -325,6 +322,19 @@ proc twapi::_eventlog_notification_handler {hevent event} {
     }
 }
 
+# TBD - document
+proc twapi::eventlog_subscribe {source} {
+    set hevl [eventlog_open -source $source]
+    set hevent [lindex [CreateEvent [_make_secattr {} 0] 0 0 ""] 0]
+    if {[catch {NotifyChangeEventLog $hevl $hevent} msg]} {
+        set erinfo $::errorInfo
+        set ercode $::errorCode
+        CloseHandle $hevent
+        error $hsubscribe $erinfo $ercode
+    }
+
+    return [list $hevl $hevent]
+}
 
 # Utility procs
 

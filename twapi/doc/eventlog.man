@@ -93,11 +93,9 @@ indicates whether the event log is full.
 
 [para]
 To monitor the event log in real time, an application can poll at
-regular intervals. However, a more efficient way is to receive asynchronous
-notifications through
-[uri #eventlog_monitor_start [cmd eventlog_monitor_start]]
-when new events are logged. These notifications can be turned off
-using [uri #eventlog_monitor_stop [cmd eventlog_monitor_stop]].
+regular intervals. However, a more efficient way is to set up
+notifications through the
+[uri #eventlog_subscribe [cmd eventlog_subscribe]] command.
 
 [para]
 Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
@@ -140,6 +138,10 @@ All handles returned by the [cmd evt_*] commands, such as those returned from
 [uri #evt_next [cmd evt_next]] and [uri #evt_query [cmd evt_query]]
 must be closed by passing them to [uri #evt_close [cmd evt_close]].
 
+[para]
+To monitor the event log in real time, use the
+[uri #evt_subscribe [cmd evt_subscribe]] command.
+
 [section "Using winlog Commands"]
 
 This section describes the use of the TWAPI's common interface
@@ -160,6 +162,10 @@ Events can be read from an event log
 through the [uri \#winlog_read [cmd winlog_read]]
 command which returns a list of dictionaries containing
 the fields of each event.
+
+[para]
+To monitor the event log in real time, use the
+[uri #winlog_subscribe [cmd winlog_subscribe]] command.
 
 [section "Commands"]
 
@@ -245,6 +251,7 @@ defaults to 1.
 [list_end]
 
 [call [cmd eventlog_monitor_start] [arg EVENTLOGHANDLE] [arg SCRIPT]]
+[emph Deprecated]
 Registers [arg SCRIPT] to be invoked whenever the event log specified 
 by [arg EVENTLOGHANDLE] receives a new event. [arg EVENTLOGHANDLE] must
 be a read handle. Windows will invoke [arg SCRIPT] only when new events
@@ -259,6 +266,7 @@ release the associated resources by passing the id to
 even if [arg EVENTLOGHANDLE] is closed.
 
 [call [cmd eventlog_monitor_stop] [arg EVENTNOTIFICATIONID]]
+[emph Deprecated]
 Stops notifications from the event log. [arg EVENTNOTIFICATIONID] is
 the id returned from a previous call to
 [uri #eventlog_monitor_start [cmd eventlog_monitor_start]].
@@ -348,6 +356,24 @@ the event. The value is one of [const success], [const error],
 [const auditsuccess] or [const auditfailure].
 [list_end]
 
+[call [cmd eventlog_subscribe] [arg EVENTSOURCE]]
+Registers for notifications when events are logged to the specified
+event log. Returns a pair of two handles, the first
+is a handle that can be passed to [uri #eventlog_read [cmd eventlog_read]]
+to retrieve logged events. The second is a handle that is signalled
+when events are available to be read on the channel. It can be
+used in either synchronous or asynchronous mode with
+[uri base.html#wait_on_handle [cmd wait_on_handle]].
+[nl]
+When notifications are no longer desired, the two handles in the
+returned pair must be released via [uri #eventlog_close [cmd eventlog_close]]
+and [uri handles.html#close_handle [cmd close_handle]] respectively.
+[nl]
+This command is internally identical to 
+[uri #winlog_subscribe [cmd winlog_subscribe]] on Windows version before Vista.
+On Vista and later, this command translates to the older Windows event log
+API while [cmd winlog_subscribe] will invoke the new Vista APIs.
+
 [call [cmd eventlog_write] [arg EVENTLOGHANDLE] [arg EVENTID] [opt [arg options]]]
 Writes a record into the specified event log. [arg EVENTLOGHANDLE] must be
 a write handle for an event log. [arg EVENTID] is a integer that identifies
@@ -414,7 +440,7 @@ The following additional options may also be specified with the command:
 [opt_def [cmd -hpublisher] [arg HPUBLISHER]]
 A handle to the event publisher metadata. If not specified, the publisher
 metadata for the event is extracted from the event itself.
-[opt_def [cmd -ignorestring [arg STRING]]]
+[opt_def [cmd -ignorestring] [arg STRING]]]
 If specified, [arg STRING] is returned for any field that cannot be obtained.
 Without this option, errors retrieving fields will generate a Tcl exception.
 [opt_def [cmd -lcid] [arg LCID]]
@@ -535,8 +561,40 @@ If [cmd -ignorequeryerrors] is specified, such events are simply skipped
 and any further events are returned.
 [opt_def [cmd -query] [arg QUERYSTRING]]
 Specifies the selection criteria for events that should be included in the
-returned result set. By default, all events in the channel or file
-are returned. [arg QUERYSTRING] should be an XPATH expression. See
+returned result set.
+[arg QUERYSTRING] should be [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+the Windows SDK for details.
+[list_end]
+
+[call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
+Registers for notifications when events are logged to the event
+channel [arg CHANNELPATH]. Returns a pair of two handles, the first
+is a handle that can be passed to [uri #evt_next [cmd evt_next]]
+to retrieve logged events. The second is a handle that is signalled
+when events are available to be read on the channel. It can be
+used in either synchronous or asynchronous mode with
+[uri base.html#wait_on_handle [cmd wait_on_handle]].
+[nl]
+When notifications are no longer desired, the two handles in the
+returned pair must be released via [uri #evt_close [cmd evt_close]]
+and [uri handles.html#close_handle [cmd close_handle]] respectively.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If this option is specified, such events are simply skipped
+and any further events are returned.
+[option [cmd -includeexisting]]
+By default the command will only subscribe to new events. If this option
+is specified, notification is sent for existing events as well.
+[opt_def [cmd -query] [arg QUERYSTRING]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERYSTRING] should be [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
@@ -587,6 +645,18 @@ Each element of the returned list is a dictionary describing the event.
 See [uri #evt_decode_event [cmd evt_decode_event]]. The dictionary may contain
 additional keys which should be ignored.
 
+[call [cmd winlog_subscribe] [arg CHANNEL_OR_SOURCE]]
+Registers for notifications when events are logged to the specified
+event source or channel. Returns a pair of two handles, the first
+is a handle that can be passed to [uri #winlog_read [cmd winlog_read]]
+to retrieve logged events. The second is a handle that is signalled
+when events are available to be read on the channel. It can be
+used in either synchronous or asynchronous mode with
+[uri base.html#wait_on_handle [cmd wait_on_handle]].
+[nl]
+When notifications are no longer desired, the two handles in the
+returned pair must be released via [uri #winlog_close [cmd winlog_close]]
+and [uri handles.html#close_handle [cmd close_handle]] respectively.
 [list_end]
 
 [keywords "event log"]
