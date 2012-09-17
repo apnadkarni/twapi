@@ -16,6 +16,7 @@ namespace eval twapi {
 proc twapi::winlog_open {args} {
     variable _winlog_handles
 
+    # TBD - document -authtype
     array set opts [parseargs args {
         {system.arg ""}
         channel.arg
@@ -32,7 +33,6 @@ proc twapi::winlog_open {args} {
             set opts(channel) "Application"
         }
     }
-        
     
     if {[min_os_version 6]} {
         # Use new Vista APIs
@@ -59,7 +59,6 @@ proc twapi::winlog_open {args} {
     }
     return $hq
 }
-
 
 proc twapi::winlog_close {hq} {
     variable _winlog_handles

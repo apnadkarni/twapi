@@ -126,20 +126,12 @@ proc twapi::evt_open_session {server args} {
     array set opts [parseargs args {
         user.arg
         domain.arg
-        {password.arg ""}
+        password.arg
         {authtype.arg 0}
-    } -maxleftover 0]
+    } -nulldefault -maxleftover 0]
 
     if {![string is integer -strict $opts(authtype)]} {
         set opts(authtype) [dict get {default 0 negotiate 1 kerberos 2 ntlm 3} [string tolower $opts(authtype)]]
-    }
-
-    if {![info exists opts(user)]} {
-        set opts(user) $::env(USERNAME)
-    }
-
-    if {![info exists opts(domain)]} {
-        set opts(domain) $::env(USERDOMAIN)
     }
 
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
@@ -482,7 +474,6 @@ proc twapi::evt_next {hresultset args} {
     return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
 }
 
-# TBD - document
 proc twapi::evt_decode_event_system_fields {hevt} {
     _evt_init
 
@@ -549,7 +540,7 @@ proc twapi::evt_decode_event {args} {
                 if {$opt in {-level -task -opcode} &&
                     [dict get $decoded $opt] == 0 &&
                     [info exists opts(-ignorestring)]} {
-                    # Don't bother making the call.
+                    # Don't bother making the call. 0 -> null
                     lappend decoded $opt $opts(-ignorestring)
                 } else {
                     if {[info exists opts(-ignorestring)]} {
