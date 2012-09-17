@@ -124,21 +124,20 @@ is familiar with the terms and concepts described in the Windows
 SDK.
 
 [para]
-The Vista event logging system uses the concept of [emph channels] which
+In the Vista event logging system, [emph channels]
 implement a event stream to which event publishers can write events.
 Event consumers can consume events from channels in real time or
 from a saved event file using the 
-the [uri #evt_open [cmd evt_query]] command. This command returns
-a handle to a result set referencing matching events. These can
-then be retrieved and formatted using the
+the [uri #evt_query [cmd evt_query]] command. This command returns
+a handle to a result set containing matching events. These can
+then be retrieved and processed using the
 [uri #evt_next [cmd evt_next]] and 
-[uri #evt_decode_event [cmd evt_decode_event]].
-
-
-
+[uri #evt_decode_event [cmd evt_decode_event]] or
+[uri #evt_decode_event_system_fields [cmd evt_decode_event_system_fields]].
 
 
 [section "Using winlog Commands"]
+
 This section describes the use of the TWAPI's common interface
 to the old and new versions of Windows event log interface.
 
@@ -374,18 +373,18 @@ in the dictionary always include those documented in
 In addition, the returned dictionary will include the following keys
 if they are specified as options to the command:
 [list_begin opt]
-[opt_def [cmd -message]]
-Contains the formatted message corresponding to the event.
-[opt_def [cmd -levelname]]
-Contains the string associated by the publisher with the numeric level.
-[opt_def [cmd -taskname]]
-Contains the string associated by the publisher with the numeric task field.
-[opt_def [cmd -opcodename]]
-Contains the string associated by the publisher with the numeric opcode field.
-[opt_def [cmd -keywords]]
-Contains a list of keywords with which the event is tagged.
 [opt_def [cmd -channel]]
 Contains the channel into which the event was recorded.
+[opt_def [cmd -keywords]]
+Contains a list of keywords with which the event is tagged.
+[opt_def [cmd -levelname]]
+Contains the string associated by the publisher with the numeric level.
+[opt_def [cmd -message]]
+Contains the formatted message corresponding to the event.
+[opt_def [cmd -opcodename]]
+Contains the string associated by the publisher with the numeric opcode field.
+[opt_def [cmd -taskname]]
+Contains the string associated by the publisher with the numeric task field.
 [opt_def [cmd -xml]]
 Contains an XML fragment describing the event.
 [list_end]
@@ -414,6 +413,52 @@ the values will instead be picked from [arg HVALUES] which must
 be a handle to a render values block.
 [list_end]
 
+[call [cmd evt_decode_event_system_fields] [arg HEVENT]]
+Returns a dictionary containing the standard system fields present in
+all events. [arg HEVENT] is a handle
+to an event such as an element of the list returned
+from [uri #evt_next [cmd evt_next]].
+
+[nl]
+The returned dictionary includes the following keys:
+[list_begin opt]
+
+[opt_def [cmd -activityid]]
+GUID containing the activity id associated with the event.
+[opt_def [cmd -channel]]
+The channel to which the event was logged.
+[opt_def [cmd -computer]]
+The name of the system on which the event was logged.
+[opt_def [cmd -eventid]]
+The event id for the event's definition.
+[opt_def [cmd -eventrecordid]]
+The id of this event record.
+[opt_def [cmd -keywordmask]]
+An integer mask with bits corresponding to the event's keywords.
+[opt_def [cmd -level]]
+The numeric level for the event.
+[opt_def [cmd -opcode]]
+The numeric opcode for the event.
+[opt_def [cmd -processid]]
+The process id of the process that logged the event.
+[opt_def [cmd -providerguid]]
+The GUID of the logging event provider.
+[opt_def [cmd -providername]]
+The name of the logging event provider.
+[opt_def [cmd -qualifiers]]
+[opt_def [cmd -relatedactivityid]]
+GUID containing the relative activity id associated with the event.
+[opt_def [cmd -task]]
+The numeric task for the event.
+[opt_def [cmd -threadid]]
+The thread id of the logging thread.
+[opt_def [cmd -timecreated]]
+The time the event was logged in 100ns units since January 1, 1601 UTC.
+[opt_def [cmd -userid]]
+The SID of the account under which the logging thread was running.
+[opt_def [cmd -version]]
+The version of the event definition.
+[list_end]
 
 [call [cmd evt_next] [arg HEVTRESULTSET] [opt [arg options]]]
 Returns a list containing events from a event query result set.
