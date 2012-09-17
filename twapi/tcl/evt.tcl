@@ -600,28 +600,41 @@ proc twapi::evt_seek {hresults pos args} {
     EvtSeek $hresults $pos $opts(bookmark) 0 $flags
 }
 
-# TBD - document
-proc evt_subscribe {path hevent args} {
+proc twapi::evt_subscribe {path args} {
+    # TBD - document -session and -bookmark and -strict
     array set opts [parseargs args {
         {session.arg NULL}
         {query.arg ""}
-        {origin.arg oldest}
+        bookmark.arg
+        includeexisting
         {ignorequeryerrors 0 0x1000}
         {strict 0 0x10000}
     } -maxleftover 0]
 
     set flags [expr {$opts(ignorequeryerrors) | $opts(strict)}]
-    set bookmark NULL
-    switch -exact -- $opts(origin) {
-        "oldest" { set flags [expr {$flags | 1}] }
-        "current" { set flags [expr {$flags | 2}] }
-        default {
-            set flags [expr {$flags | 3}]
-            set bookmark $opts(origin)
+    if {[info exists opts(bookmark)]} {
+        set flags [expr {$flags | 3}]
+        set bookmark $opts(origin)
+    } else {
+        set bookmark NULL
+        if {$opts(includeexisting)} {
+            set flags [expr {$flags | 2}]
+        } else {
+            set flags [expr {$flags | 1}]
         }
     }
 
-    return [EvtSubscribe $opts(session) $hevent $path $opts(query) $bookmark $flags]
+    set hevent [lindex [CreateEvent [_make_secattr {} 0] 0 0 ""] 0]
+    if {[catch {
+        EvtSubscribe $opts(session) $hevent $path $opts(query) $bookmark $flags
+    } hsubscribe]} {
+        set erinfo $::errorInfo
+        set ercode $::errorCode
+        CloseHandle $hevent
+        error $hsubscribe $erinfo $ercode
+    }
+
+    return [list $hsubscribe $hevent]
 }
 
 proc twapi::_evt_dump {args} {
