@@ -135,13 +135,31 @@ then be retrieved and processed using the
 [uri #evt_decode_event [cmd evt_decode_event]] or
 [uri #evt_decode_event_system_fields [cmd evt_decode_event_system_fields]].
 
+[para]
+All handles returned by the [cmd evt_*] commands, such as those returned from
+[uri #evt_next [cmd evt_next]] and [uri #evt_query [cmd evt_query]]
+must be closed by passing them to [uri #evt_close [cmd evt_close]].
 
 [section "Using winlog Commands"]
 
 This section describes the use of the TWAPI's common interface
-to the old and new versions of Windows event log interface.
+to the old and new versions of Windows event log APIs. This is the
+recommended interface for consuming events but does not provide
+a command to write events.
 
-TBD
+[para]
+The common access commands require a handle to the event log which
+can be obtained via the [uri \#winlog_open [cmd winlog_open]]
+command. 
+access, but never both. The returned handle must be closed when no
+longer required by calling
+[uri \#winlog_close [cmd winlog_close]].
+
+[para]
+Events can be read from an event log
+through the [uri \#winlog_read [cmd winlog_read]]
+command which returns a list of dictionaries containing
+the fields of each event.
 
 [section "Commands"]
 
@@ -257,16 +275,17 @@ should be closed by passing it to
 specify the event log to be opened and the read-write mode.
 
 [list_begin opt]
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
-the event log resides. By default, this is the local system.
+[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
+Specifies the name of a backed up event log file.
+This option may not be used with the [cmd -source] or [cmd -system] options.
 [opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
 returned handle will refer to the event log to which events from
 [arg SOURCENAME] are logged. This defaults to the filename portion (without
 the path or extension) of the executable file.
 This option may not be used with the [cmd -file] option.
-[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
-Specifies the name of a backed up event log file.
-This option may not be used with the [cmd -source] or [cmd -file] options.
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+This option cannot be used with the [cmd -file] option.
 [opt_def [cmd -write]] Returns a handle used for writing to the event log.
 By default, a read handle is returned. Note that event log handles
 are never read-write. Applications wishing to do both need to open two
@@ -395,6 +414,9 @@ The following additional options may also be specified with the command:
 [opt_def [cmd -hpublisher] [arg HPUBLISHER]]
 A handle to the event publisher metadata. If not specified, the publisher
 metadata for the event is extracted from the event itself.
+[opt_def [cmd -ignorestring [arg STRING]]]
+If specified, [arg STRING] is returned for any field that cannot be obtained.
+Without this option, errors retrieving fields will generate a Tcl exception.
 [opt_def [cmd -lcid] [arg LCID]]
 Specifies the language in which the message is to be formatted. Defaults
 to the locale of the calling thread. This option is ignored if the
@@ -518,6 +540,52 @@ are returned. [arg QUERYSTRING] should be an XPATH expression. See
 the Windows SDK for details.
 [list_end]
 
+[call [cmd winlog_close] [arg "WINLOGHANDLE"]]
+Closes the handle [arg WINLOGHANDLE] which must have been
+previously returned by [uri \#winlog_open [cmd winlog_open]]
+and frees any associated resources.
+
+[call [cmd winlog_open] [opt [arg options]]]
+
+Returns a handle to the specified event log using the API
+appropriate for the Windows version.
+When no longer required, it
+should be closed by passing it to
+[uri \#winlog_close [cmd winlog_close]]. The following options may
+be specified with the command.
+
+[list_begin opt]
+[opt_def [cmd -channel] [arg NAME]] Specifies a event log source (pre-Vista)
+or channel (Vista and later) from which events are to be read.
+This option may not be used with the [cmd -file] option.
+[opt_def [cmd -direction] [arg DIRECTION]]
+If [arg DIRECTION] is [const forward] events are returned oldest
+first. If [arg DIRECTION] is [const backward], events are returned
+newest first.
+[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
+Specifies the name of a backed up event log file.
+This option may not be used with the [cmd -channel] or [cmd -system] options.
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+This option cannot be used with the [cmd -file] option.
+[list_end]
+
+[call [cmd winlog_read] [arg "WINLOGHANDLE"] [opt [arg LCID]]]
+Returns a list of events read from the specified event log.
+The handle [arg WINLOGHANDLE] must have been
+previously returned by [uri \#winlog_open [cmd winlog_open]].
+[arg LCID] is the identifies the language in which messages are
+to be formatted.
+[nl]
+The number of events
+returned may vary. Returns an empty list
+when no more records can be read. Each
+[uri \#winlog_read [cmd winlog_read]] command
+moves the event log read pointer.
+[nl]
+Each element of the returned list is a dictionary describing the event.
+See [uri #evt_decode_event [cmd evt_decode_event]]. The dictionary may contain
+additional keys which should be ignored.
 
 [list_end]
 
