@@ -360,6 +360,7 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         RPC_STATUS rpc_status;
         MemLifo *lifoP;
         WCHAR buf[MAX_PATH+1];
+        HKEY hkey;
     } u;
 
     if (objc != 2)
@@ -415,6 +416,17 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.ival = GetLastError();
         result.type = TRT_EXCEPTION_ON_ERROR;
         break;
+#ifdef NOTYET
+    case NOTYET:
+        result.value.ival = RegOpenCurrentUser(dw, &u.hkey);
+        if (result.value.ival != ERROR_SUCCESS)
+            result.type = TRT_EXCEPTION_ON_ERROR;
+        else {
+            result.type = TRT_HKEY;
+            result.value.hval = u.hkey;
+        }
+        break;
+#endif
     }
 
     return TwapiSetResult(interp, &result);
@@ -605,6 +617,10 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         struct {
             HWND hwnd;
             HWND hwnd2;
+        };
+        struct {
+            HKEY hkey;
+            HKEY hkey2;
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
     } u;
@@ -1012,6 +1028,46 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_OBJ;
         result.value.obj = ObjFromOpaque((void *) dwp, cP);
         break;
+#ifdef NOTYET
+    case NOTYET: // RegOpenKeyEx
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(u.hkey, HKEY), GETWSTR(s),
+                         GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegOpenKeyExW(u.hkey, s, dw, dw2, &u.hkey2);
+        if (result.value.ival != ERROR_SUCCESS)
+            result.type = TRT_EXCEPTION_ON_ERROR;
+        else {
+            result.type = TRT_HKEY;
+            result.value.hval = u.hkey2;
+        }
+        break;
+    case NOTYET: // RegCreateKeyEx
+        secattrP = NULL;
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(u.hkey, HKEY),
+                         GETWSTR(s), GETINT(dw), ARGSKIP, GETINT(dw2),
+                         GETINT(dw3),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         ARGEND) == TCL_OK) {
+            result.value.ival = RegCreateKeyExW(u.hkey, s, dw, NULL, dw2, dw3, secattrP, &u.hkey2, &dw4);
+            if (result.value.ival != ERROR_SUCCESS)
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            else {
+                objs[0] = ObjFromOpaque(u.hkey2, "HKEY");
+                objs[1] = ObjFromDWORD(dw4);
+                result.value.objv.nobj = 2;
+                result.value.objv.objPP = objs;
+                result.type = TRT_OBJV;
+            }
+        } else {
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TCL_ERROR;
+        }
+        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        break;
+#endif // NOTYET
     }
 
     return TwapiSetResult(interp, &result);
@@ -1223,7 +1279,12 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteObject(h);
             break;
-
+#ifdef NOTYET
+        case NOTYET:              /* RegCloseKey */
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = RegCloseKey(h);
+            break;
+#endif
         }
     } else if (func < 2000) {
 
@@ -1538,7 +1599,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CloseEventLog, 21),
         DEFINE_FNCODE_CMD(DeregisterEventSource, 22),
         DEFINE_FNCODE_CMD(DeleteObject, 23),
-
+#ifdef NOTYET
+        DEFINE_FNCODE_CMD(RegCloseKey, NOTYET), // TBD Tcl
+#endif
         DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
         DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),
         DEFINE_FNCODE_CMD(Twapi_MemLifoAlloc, 1003),
@@ -1578,6 +1641,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MapWindowsErrorToString, 4),
         DEFINE_FNCODE_CMD(Twapi_MemLifoInit, 5),
         DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
+#ifdef NOTYET
+        DEFINE_FNCODE_CMD(RegOpenCurrentUser, NOTYET), // TBD - tcl interface
+#endif
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
@@ -1635,10 +1701,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(pointer_null?, 10032),
         DEFINE_FNCODE_CMD(pointer?, 10033),
         DEFINE_FNCODE_CMD(CreateEvent, 10034),
-        DEFINE_FNCODE_CMD(IsEqualGUID, 10035), // Tcl
+        DEFINE_FNCODE_CMD(IsEqualGUID, 10035), // TBD Tcl
         DEFINE_FNCODE_CMD(OpenEventLog, 10036),
         DEFINE_FNCODE_CMD(RegisterEventSource, 10037),
         DEFINE_FNCODE_CMD(pointer_from_address, 10038),
+#ifdef NOTYET
+        DEFINE_FNCODE_CMD(RegOpenKeyEx, NOTYET), // TBD Tcl
+        DEFINE_FNCODE_CMD(RegCreateKeyEx, NOTYET), // TBD Tcl
+#endif
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
