@@ -608,6 +608,7 @@ typedef enum {
     TRT_HRGN = 50,
     TRT_HMODULE = 51,
     TRT_LONG = 52,              /* Signed long */
+    TRT_HKEY = 53,
 } TwapiResultType;
 
 typedef struct {
@@ -623,6 +624,7 @@ typedef struct {
         HANDLE hval;
         HMODULE hmodule;
         HWND hwin;
+        HKEY hkey;
         struct {
             WCHAR *str;
             int    len;         /* len == -1 if str is null terminated */

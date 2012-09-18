@@ -581,6 +581,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_HDEVINFO:
     case TRT_HRGN:
     case TRT_NONNULL_LPVOID:
+    case TRT_HKEY:
         if (resultP->value.hval == NULL) {
             return TwapiReturnSystemError(interp);
         }
@@ -621,6 +622,8 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         case TRT_HRGN:
             typenameP = "HRGN";
             break;
+        case TRT_HKEY:
+            typenameP = "HKEY";
         default:
             TwapiSetStaticResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements");
             return TCL_ERROR;
