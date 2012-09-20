@@ -137,8 +137,8 @@ proc twapi::evt_open_session {server args} {
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
 }
 
-# TBD - document
 proc twapi::evt_channels {{hevtsess NULL}} {
+    # TBD - document hevtsess
     set chnames {}
     set hevt [EvtOpenChannelEnum $hevtsess 0]
     trap {
@@ -152,8 +152,8 @@ proc twapi::evt_channels {{hevtsess NULL}} {
     return $chnames
 }
 
-# TBD - document
 proc twapi::evt_clear_log {chanpath args} {
+    # TBD - document -session
     array set opts [parseargs args {
         {session.arg NULL}
         {backup.arg ""}
@@ -172,8 +172,8 @@ proc twapi::evt_archive_exported_log {logpath args} {
     return [EvtArchiveExportedLog $opts(session) $logpath $opts(lcid) 0]
 }
 
-# TBD - document
 proc twapi::evt_export_log {outfile args} {
+    # TBD - document -session
     array set opts [parseargs args {
         {session.arg NULL}
         file.arg
@@ -188,7 +188,7 @@ proc twapi::evt_export_log {outfile args} {
     }
 
     if {[info exists opts(file)]} {
-        set path $opts(file)
+        set path [file normalize $opts(file)]
         incr opts(ignorequeryerrors) 2
     } else {
         set path $opts(channel)
