@@ -630,6 +630,28 @@ namespace eval twapi::shell::test {
         file delete $shortcut
     } -result {1 1}
 
+    test read_shortcut-3.5 {
+        Verify -runas 0 option
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        set np_path [auto_execok notepad.exe]
+        twapi::write_shortcut $path -path $np_path -runas 0
+        dict get [twapi::read_shortcut $path] -runas
+    } -cleanup {
+        file delete $path
+    } -result 0
+
+    test read_shortcut-3.6 {
+        Verify -runas 1 option
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        set np_path [auto_execok notepad.exe]
+        twapi::write_shortcut $path -path $np_path -runas 1
+        dict get [twapi::read_shortcut $path] -runas
+    } -cleanup {
+        file delete $path
+    } -result 1
+
     ###
 
     test read_shortcut-4.0 {
@@ -659,6 +681,38 @@ namespace eval twapi::shell::test {
     } -result 1
 
     test write_shortcut-2.0 {
+        Write a shortcut with -runas 0
+    } -constraints {
+        userInteraction
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        set np_path [auto_execok notepad.exe]
+        set fn "twapi test file.txt"
+        twapi::write_shortcut $path -args $fn -desc "Invokes notepad" -iconpath $np_path -path $np_path -workdir [pwd] -showcmd normal -runas 0
+        twapi::shell_execute -path $path
+        yesno "Did you see a RunAs dialog before notepad was run?"
+    } -cleanup {
+        kill notepad.exe -force
+        file delete $path
+    } -result 0
+
+    test write_shortcut-2.1 {
+        Write a shortcut with -runas 1
+    } -constraints {
+        userInteraction
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        set np_path [auto_execok notepad.exe]
+        set fn "twapi test file.txt"
+        twapi::write_shortcut $path -args $fn -desc "Invokes notepad" -iconpath $np_path -path $np_path -workdir [pwd] -showcmd normal -runas 1
+        twapi::shell_execute -path $path
+        yesno "Did you see a RunAs dialog before notepad was run?"
+    } -cleanup {
+        catch {kill notepad.exe -force}
+        file delete $path
+    } -result 1
+
+    test write_shortcut-10.0 {
         Write a shortcut using a PIDL
     } -constraints {
         TBD

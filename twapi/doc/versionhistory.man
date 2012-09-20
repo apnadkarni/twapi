@@ -69,6 +69,11 @@ Added commands
 and [cmd "-type sid"] option to [uri users.html#add_member_to_local_group [cmd add_member_to_local_group]],
 [uri users.html#remove_member_from_local_group [cmd remove_member_from_local_group]].
 
+[bullet]
+Added [cmd -runas] to
+[uri shell.html#write_shortcut [cmd write_shortcut]] and
+[uri shell.html#read_shortcut [cmd read_shortcut]].
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
