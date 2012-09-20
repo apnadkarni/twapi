@@ -124,6 +124,9 @@ SDK.
 [para]
 In the Vista event logging system, [emph channels]
 implement a event stream to which event publishers can write events.
+The [uri #evt_channels [cmd evt_channels]] returns the names
+of the channels on a system.
+[para]
 Event consumers can consume events from channels in real time or
 from a saved event file using the 
 the [uri #evt_query [cmd evt_query]] command. This command returns
@@ -402,6 +405,14 @@ display this as a list of strings.
 of the event record.
 [list_end]
 
+[call [cmd evt_channels]]
+Returns a list of names of the channels on the system.
+
+[call [cmd evt_clear_log] [arg CHANNELNAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
+Clears the specified event channel of all events. If [cmd -backup] is specified,
+the events are written to the specified backup file before the channel
+is cleared.
+
 [call [cmd evt_close] [arg EVTHANDLE]]
 Closes the handle returned by various EVT commands such as
 [uri #evt_query [cmd evt_query]].
@@ -508,6 +519,32 @@ The SID of the account under which the logging thread was running.
 The version of the event definition.
 [list_end]
 
+[call [cmd evt_export_log] [arg OUTFILE] [opt [arg options]]]
+Exports events, optionally matching a query,
+from a channel or a previously exported log file to a target log file.
+[nl]
+The following options may be specified to select which events are
+included in the result set.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNELNAME]]
+Specifies the event channel from which events are to be read. Cannot
+be used with the [cmd -file] option.
+[opt_def [cmd -file] [arg PATH]]
+Specifies the event file from which events are to be read. Cannot
+be used with the [cmd -channel] option.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If [cmd -ignorequeryerrors] is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -query] [arg QUERYSTRING]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERYSTRING] should be [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+the Windows SDK for details.
+[list_end]
+
 [call [cmd evt_next] [arg HEVTRESULTSET] [opt [arg options]]]
 Returns a list containing events from a event query result set.
 [arg HEVTRESULTSET] is a handle to a result set as returned by
@@ -597,6 +634,20 @@ returned result set.
 an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
+
+[call [cmd winlog_backup] [arg NAME] [arg BACKUPFILE]]
+Writes events from the specified event channel or source to a backup file.
+[arg NAME] is the name of an event log source (pre-Vista)
+or channel (Vista and later).
+
+[call [cmd winlog_clear] [arg NAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
+Clears the specified event channel or source of all events. 
+[arg NAME] is the name of an event log source (pre-Vista)
+or channel (Vista and later).
+[nl]
+If [cmd -backup] is specified,
+the events are written to the specified backup file before the channel
+is cleared.
 
 [call [cmd winlog_close] [arg "WINLOGHANDLE"]]
 Closes the handle [arg WINLOGHANDLE] which must have been
