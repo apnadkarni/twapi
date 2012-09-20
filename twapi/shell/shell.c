@@ -8,6 +8,8 @@
 /* TBD - move theme functions to UI module ? */
 
 #include "twapi.h"
+#include <initguid.h> /* GUIDs in all included files below this will be instantiated */
+DEFINE_GUID(IID_IShellLinkDataList,     0x45e2b4ae, 0xb1c3, 0x11d0, 0xb9, 0x2f, 0x0, 0xa0, 0xc9, 0x3, 0x12, 0xe1);
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -130,10 +132,12 @@ int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     LPCWSTR relativePath;
     int     showCommand;
     LPCWSTR workingDirectory;
+    DWORD runas;
 
     HRESULT hres; 
     IShellLinkW* psl = NULL; 
     IPersistFile* ppf = NULL;
+    IShellLinkDataList* psldl = NULL;
  
     if (TwapiGetArgs(interp, objc, objv,
                      GETWSTR(linkPath), GETNULLIFEMPTY(objPath),
@@ -146,17 +150,21 @@ int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                      GETNULLIFEMPTY(relativePath),
                      GETINT(showCommand),
                      GETNULLIFEMPTY(workingDirectory),
+                     ARGUSEDEFAULT,
+                     GETINT(runas),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (objPath == NULL && itemIds == NULL)
-        return ERROR_INVALID_PARAMETER;
+    if (objPath == NULL && itemIds == NULL) {
+        hres = ERROR_INVALID_PARAMETER;
+        goto vamoose;
+    }
 
     // Get a pointer to the IShellLink interface. 
     hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
                             &IID_IShellLinkW, (LPVOID*)&psl); 
     if (FAILED(hres)) 
-        return hres;
+        goto vamoose;
 
     if (objPath)
         hres = psl->lpVtbl->SetPath(psl,objPath); 
@@ -195,6 +203,21 @@ int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (FAILED(hres))
         goto vamoose;
 
+    if (runas) {
+        hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
+                                           (LPVOID*)&psldl); 
+        if (FAILED(hres))
+            goto vamoose;
+
+        hres = psldl->lpVtbl->GetFlags(psldl, &runas);
+        if (FAILED(hres))
+            goto vamoose;
+        
+        hres = psldl->lpVtbl->SetFlags(psldl, runas | SLDF_RUNAS_USER);
+        if (FAILED(hres))
+            goto vamoose;
+    }
+
     hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
     if (FAILED(hres))
         goto vamoose;
@@ -206,6 +229,8 @@ int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
  vamoose:
     if (psl)
         psl->lpVtbl->Release(psl); 
+    if (psldl)
+        psldl->lpVtbl->Release(psldl); 
     TwapiFreePIDL(itemIds);     /* OK if NULL */
 
     if (hres != S_OK) {
@@ -236,6 +261,8 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int   intval;
     LPITEMIDLIST pidl;
     int   retval = TCL_ERROR;
+    IShellLinkDataList* psldl = NULL;
+    DWORD runas;
  
     if (TwapiGetArgs(interp, objc, objv,
                      GETWSTR(linkPath), GETINT(pathFlags),
@@ -337,12 +364,25 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
     }
     
+    hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
+                                       (LPVOID*)&psldl); 
+    if (SUCCEEDED(hres)) {
+        hres = psldl->lpVtbl->GetFlags(psldl, &runas);
+        if (SUCCEEDED(hres)) {
+            ObjAppendElement(interp, resultObj,
+                             STRING_LITERAL_OBJ("-runas"));
+            ObjAppendElement(interp, resultObj, ObjFromInt(runas & SLDF_RUNAS_USER ? 1 : 0));
+        }
+    }
+
     TwapiSetObjResult(interp, resultObj);
     retval = TCL_OK;
 
  vamoose:
     if (psl)
         psl->lpVtbl->Release(psl); 
+    if (psldl)
+        psldl->lpVtbl->Release(psldl); 
     if (ppf)
         ppf->lpVtbl->Release(ppf); 
 
