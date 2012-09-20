@@ -208,6 +208,9 @@ The [uri \#itemidentifiers "item identifier list"] for the object pointed
 to by the shortcut.
 [opt_def [cmd -path]]
 The file system path in the case that the shortcut points to a file.
+[opt_def [cmd -runas]]
+A boolean value that indicates whether the target program is invoked
+as a different user or not.
 [opt_def [cmd -showcmd]]
 The initial state of the window.
 [opt_def [cmd -workdir]]
@@ -540,6 +543,9 @@ useful in cases where the target of the short cut is not a file.
 Specifies [arg TARGETPATH] as the file system path to
 which the shortcut points. This must be a full absolute path else
 Windows will return an error.
+[opt_def [cmd -runas] [arg BOOLEAN]]
+If [arg BOOLEAN] as true, the command will be invoked as a different user
+(effect depends on version of Windows).
 [opt_def [cmd -showcmd] [arg WINDOWSTATE]]
 Specifies the initial state of the window. [arg WINDOWSTATE] should be
 one of [const minimized], [const maximized] or [const normal].

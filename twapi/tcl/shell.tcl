@@ -160,6 +160,7 @@ proc twapi::write_shortcut {link args} {
         {showcmd.arg normal}
         workdir.arg
         relativepath.arg
+        runas.bool
     } -nulldefault -maxleftover 0]
 
     # Map hot key to integer if needed
@@ -197,7 +198,7 @@ proc twapi::write_shortcut {link args} {
 
     Twapi_WriteShortcut $link $opts(path) $opts(idl) $opts(args) \
         $opts(desc) $opts(hotkey) $opts(iconpath) $opts(iconindex) \
-        $opts(relativepath) $opts(showcmd) $opts(workdir)
+        $opts(relativepath) $opts(showcmd) $opts(workdir) $opts(runas)
 }
 
 
