@@ -185,8 +185,6 @@ proc twapi::_clipboard_handler {} {
 proc twapi::start_clipboard_monitor {script} {
     variable _clipboard_monitors
 
-    set script [lrange $script 0 end]; # Verify syntactically a list
-
     set id "clip#[TwapiId]"
     if {![info exists _clipboard_monitors] ||
         [llength $_clipboard_monitors] == 0} {
