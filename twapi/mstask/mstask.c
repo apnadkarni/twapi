@@ -10,8 +10,10 @@
  */
 
 #include "twapi.h"
-#include <initguid.h> /* GUIDs in all included files below this will be instantiated */
 #include <mstask.h>
+#include <initguid.h> /* GUIDs in all included files below this will be instantiated */
+DEFINE_GUID(IID_IEnumWorkItems, 0x148BD528L, 0xA2AB, 0x11CE, 0xB1, 0x1F, 0x00, 0xAA, 0x00, 0x53, 0x05, 0x03);
+DEFINE_GUID(IID_IScheduledWorkItem, 0xa6b952f0L, 0xa4b1, 0x11d0, 0x99, 0x7d, 0x00, 0xaa, 0x00, 0x68, 0x87, 0xec);
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
