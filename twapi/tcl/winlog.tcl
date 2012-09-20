@@ -99,6 +99,13 @@ if {[twapi::min_os_version 6]} {
         return [evt_subscribe $channelpath -ignorequeryerrors]
     }
 
+    interp alias {} twapi::winlog_clear {} twapi::evt_clear_log
+
+    proc twapi::winlog_backup {channel outpath} {
+        evt_export_log $outpath -channel $channel
+        return
+    }
+
 } else {
 
     proc twapi::winlog_read {hq {langid 0}} {
@@ -123,7 +130,29 @@ if {[twapi::min_os_version 6]} {
     proc twapi::winlog_subscribe {source} {
         return [eventlog_subscribe $source]
     }
+
+    proc twapi::winlog_clear {source args} {
+        set hevl [eventlog_open -source $source]
+        trap {
+            eventlog_clear $hevl {*}$args
+        } finally {
+            eventlog_close $hevl
+        }
+        return
+    }
+
+    proc twapi::winlog_backup {source outpath} {
+        set hevl [eventlog_open -source $source]
+        trap {
+            eventlog_backup $hevl $outpath
+        } finally {
+            eventlog_close $hevl
+        }
+        return
+    }
+
 }
+
 
 
 
