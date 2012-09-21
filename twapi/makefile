@@ -69,14 +69,16 @@ twapi-modular-build:
 !endif
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular" $(BUILD_OPTIONS)
 
+twapi-lib-build:
+	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_STATIC_BUILD=1 EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-lib" TWAPI_SINGLE_MODULE=1 $(BUILD_OPTIONS)
 
-"$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\twapi-bin\pkgIndex.tcl" "$(DISTDIR)\twapi-modular\pkgIndex.tcl": force
+"$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\twapi-bin\pkgIndex.tcl" "$(DISTDIR)\twapi-modular\pkgIndex.tcl" "$(DISTDIR)\twapi-lib\pkgIndex.tcl": force
 	$(COPY) tcl\pkgIndexTemplate.tcl $@
 	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" $(@D) $(LAZYPACKAGELOAD) >> $@
 	-$(DEL) $(@D)\pkgindex.modules
 
 !if "$(MACHINE)" == "AMD64"
-twapi twapi-bin twapi-modular: $(@)-build
+twapi twapi-bin twapi-modular twapi-lib: $(@)-build
 !else
 twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
@@ -84,7 +86,6 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 	if exist "$(USERPROFILE)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\My Documents\Downloads\twapi"
 
-!endif
+twapi-lib: twapi-lib-build
 
-twapi-static-lib:
-	$(MAKE) /$(MAKEFLAGS) ACTIONS="lib" TARGETS="$(TARGETS)" TWAPI_STATIC_BUILD=1 EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 $(BUILD_OPTIONS)
+!endif

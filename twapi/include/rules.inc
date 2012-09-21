@@ -143,25 +143,34 @@ distribution: build "$(PACKAGEDIR)"
 	echo $(MODULENAME) source $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
 ! endif
 !endif
+!  if defined(TWAPI_STATIC_BUILD) && "$(MODULENAME)" == "twapi_base" && "$(MACHINE)" != "AMD64"
+	$(COPY) "$(TWAPI_SCRIPT_RESOURCE_DIR)\*.*" "$(PACKAGEDIR)"
+	$(COPY) "$(OBJDIR)\*.rcfrag" "$(PACKAGEDIR)\$(MODULENAME).rcfrag"
+!  endif
 
 "$(OBJDIR)" "$(PACKAGEDIR)":
 	@if not exist $@ mkdir $@
 
 !if defined(TWAPI_SINGLE_MODULE)
-#  See [3] - Single combined DLL build
+#  See [3] - Single combined DLL or static lib build
 !  if  "$(MODULENAME)" == "twapi_base"
 #    See [3a,c,e] - build twapi_base DLL with included other modules
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
+!    if !defined(TWAPI_STATIC_BUILD)
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res"
+!    endif
+"$(OBJDIR)\$(MODULE)": $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
 	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
+!    if defined(TWAPI_STATIC_BUILD)
+        $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
+!    else
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
-!    if $(VCVER) > 8
+!      if $(VCVER) > 8
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
-!    endif $(VCVER) > 8
+!      endif $(VCVER) > 8
+!    endif  TWAPI_STATIC_BUILD
 !  else
 #    See [3b] - building a module other than twapi_base in single DLL mode
 "$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG)
-#      See [5b] - write a resource def fragment to include Tcl script
-# OBSOLETE	echo $(MODULENAME) $(TWAPI_SCRIPT_RESOURCE_TYPE) $(TWAPI_SCRIPT_RESOURCE_PATH) > "$(OBJDIR)\..\twapi_base\$(MODULENAME).rcfrag"
 
 #    See [3e] - write module initialization fragments
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)

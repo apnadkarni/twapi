@@ -89,9 +89,13 @@ DISTDIR = $(SRCROOT)\dist
 
 # Define TWAPI_STATIC_BUILD=1 if building static twapi libraries
 !ifdef TWAPI_STATIC_BUILD
-!if ! ("$(TWAPI_STATIC_BUILD)" == "1")
-!undef TWAPI_STATIC_BUILD
-!endif
+!  if ! ("$(TWAPI_STATIC_BUILD)" == "1")
+!    undef TWAPI_STATIC_BUILD
+!  else
+!    if !defined(TWAPI_SINGLE_MODULE)
+!      error TWAPI_SINGLE_MODULE must be defined if TWAPI_STATIC_BUILD is defined.
+!    endif
+!  endif
 !endif
 
 # Define EMBED_SCRIPT as "plain" or "lzma" to embed Tcl scripts
@@ -180,13 +184,18 @@ PACKAGEDIR = $(PACKAGEDIR)_single
 
 # 
 !if "$(MACHINE)" == "AMD64"
-MODULE        = $(PACKAGE)64.dll
-MODULELIB     = $(PACKAGE)64.lib
+MODULE        = $(PACKAGE)64
+#MODULELIB     = $(PACKAGE)64.lib
 !else
-MODULE        = $(PACKAGE).dll
-MODULELIB     = $(PACKAGE).lib
+MODULE        = $(PACKAGE)
+#MODULELIB     = $(PACKAGE).lib
 !endif
 
+!ifdef TWAPI_STATIC_BUILD
+MODULE = $(MODULE).lib
+!else
+MODULE = $(MODULE).dll
+!endif
 
 # TBD - why required ?
 !ifndef HOME
