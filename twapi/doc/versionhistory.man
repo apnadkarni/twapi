@@ -74,6 +74,9 @@ Added [cmd -runas] to
 [uri shell.html#write_shortcut [cmd write_shortcut]] and
 [uri shell.html#read_shortcut [cmd read_shortcut]].
 
+[bullet]
+Added [uri base.html#random_bytes [cmd random_bytes]].
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.

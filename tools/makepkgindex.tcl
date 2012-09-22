@@ -64,6 +64,8 @@ proc makeindex {pkgdir lazy} {
     # $order contains order in which to load so that dependencies are
     # loaded first. Even though twapi_base is explicitly loaded,
     # include it here because we want to enumerate its exports
+    # TBD - is this why it shows up twice in the pkgIndex.tcl entry
+    # for package twapi
     set order [list twapi_base]
     foreach mod [dict keys $mods] {
         # Don't bother removing duplicates, we will just ignore them

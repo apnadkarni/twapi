@@ -542,6 +542,10 @@ in [arg OPTLIST]). If the [cmd -ignoreunknown] option is specified to
 the command, unknown options in [arg ARGLISTVAR] are ignored instead
 of an error being generated and are not removed from [arg ARGLISTVAR].
 
+[call [cmd random_bytes] [arg NUMBER]]
+Returns the specified number of random bytes. This is a call into
+the RtlGenRandom Win32 API.
+
 [call [cmd secs_since_1970_to_large_system_time] [arg SECONDS]]
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
