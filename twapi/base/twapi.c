@@ -123,12 +123,18 @@ int Twapi_base_Init(Tcl_Interp *interp)
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
        done for EVERY interp creation or move into one-time above ? TBD
      */
+    /* TBD dgp says this #ifdef USE_TCL_STUBS is not needed and indeed
+       that seems to be the case for Tcl_InitStubs. But Tcl_TomMath_InitStubs
+       crashes on a static build not using stubs
+    */
+#ifdef USE_TCL_STUBS
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
     if (Tcl_TomMath_InitStubs(interp, 0) == NULL) {
         return TCL_ERROR;
     }
+#endif
 
     /* Init unless already done. */
     if (! TwapiDoOneTimeInit(&gTwapiInitialized, TwapiOneTimeInit, interp))
@@ -222,6 +228,11 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
         }
         return Twapi_AppendSystemError(interp, GetLastError());
     }
+
+    if (!try_file) {
+        Tcl_AppendResult(interp, "Resource ", name,  " not found.", NULL);
+        return TCL_ERROR;
+    }    
 
     /* No resource found. Try loading external file from the DLL directory */
     pathObj = TwapiGetInstallDir(interp, dllH);
@@ -680,6 +691,7 @@ TwapiInterpContext *TwapiRegisterModule(
 
     TWAPI_ASSERT(ticP);
 
+    /* TBD - may be the last param to SourceResource should be 0? */
     if (modP->initializer && modP->initializer(interp, ticP) != TCL_OK ||
         Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK ||
         Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK

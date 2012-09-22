@@ -155,10 +155,7 @@ distribution: build "$(PACKAGEDIR)"
 #  See [3] - Single combined DLL or static lib build
 !  if  "$(MODULENAME)" == "twapi_base"
 #    See [3a,c,e] - build twapi_base DLL with included other modules
-!    if !defined(TWAPI_STATIC_BUILD)
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res"
-!    endif
-"$(OBJDIR)\$(MODULE)": $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
 	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
 !    if defined(TWAPI_STATIC_BUILD)
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
