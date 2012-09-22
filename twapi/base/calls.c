@@ -1159,6 +1159,26 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
             return TCL_ERROR;
         return TwapiThreadPoolRegister(
             ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
+    case 8: // RtlGenRandom
+        if (objc != 1)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        if (ObjToInt(interp, objv[0], &dw) != TCL_OK)
+            return TCL_ERROR;
+        if (dw <= sizeof(buf))   /* sizeof, not ARRAYSIZE */
+            bufP = buf;
+        else
+            bufP = MemLifoPushFrame(&ticP->memlifo, dw, NULL);
+        /* Need to cast RtlGenRandom because of missing NTAPI qualifier in prototype */
+        if (RtlGenRandom(bufP, dw)) {
+            TwapiSetObjResult(interp, ObjFromByteArray((char *) bufP, dw));
+            dw = TCL_OK;
+        } else {
+            TwapiSetStaticResult(interp, "RtlGenRandom failed");
+            dw = TCL_ERROR;
+        }
+        if (bufP != buf)
+            MemLifoPopFrame(&ticP->memlifo);
+        return dw;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1721,6 +1741,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
         DEFINE_ALIAS_CMD(TranslateName, 6),
         DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
+        DEFINE_ALIAS_CMD(random_bytes, 8),
     };
 
     struct tcl_dispatch_s TclDispatch[] = {

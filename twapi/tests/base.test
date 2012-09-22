@@ -2162,6 +2162,27 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test random_bytes-1.0 {
+        Get 1 random byte
+    } -body {
+        string length [twapi::random_bytes 1]
+    } -result 1
+
+    test random_bytes-1.1 {
+        Get 4 random bytes
+    } -body {
+        string length [twapi::random_bytes 4]
+    } -result 4
+
+    test random_bytes-2.0 {
+        Check randomness
+    } -body {
+        # Need a better way to check randomness
+        string compare [twapi::random_bytes 8] [twapi::random_bytes 8]
+    } -result 1
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

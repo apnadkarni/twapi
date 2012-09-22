@@ -88,7 +88,12 @@
 #include <objidl.h>
 #include <shlobj.h>  /* Need for ITEMIDLIST */
 #include <shlwapi.h> /* Need for DLLVERSIONINFO */
+
+/* Following needed to fix a prototype error in ntsecapi.h (missing NTAPI) */
+#define SystemFunction036 NTAPI SystemFunction036
 #include <ntsecapi.h>
+#undef SystemFunction036
+
 #include <wtsapi32.h>
 #include <uxtheme.h>
 #include <tmschema.h>
