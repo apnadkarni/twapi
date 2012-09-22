@@ -1591,6 +1591,7 @@ void TwapiDefineAliasCmds(Tcl_Interp *interp, int count, struct alias_dispatch_s
         Tcl_CreateAlias(interp, Tcl_DStringValue(&ds), interp, aliascmd, 1, &tabP->fncode);
         ++tabP;
     }
+    Tcl_ResetResult(interp);
 }
 
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)

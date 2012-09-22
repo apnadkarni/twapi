@@ -16,6 +16,13 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
     } else {
         set fn [file join $dir "${file}.dll"]
     }
+
+    if {$fn ne ""} {
+        if {![file exists $fn]} {
+            set fn "";          # Assume twapi statically linked in
+        }
+    }
+
     if {$pkg eq "twapi_base"} {
         # Need the twapi base of the same version
         set loadcmd [list load $fn $pkg]

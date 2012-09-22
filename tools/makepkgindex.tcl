@@ -144,7 +144,6 @@ if {[info script] eq $::argv0} {
     }
     set ver [twapi::get_version -patchlevel]
     puts "package ifneeded twapi $ver {"
-    puts "  package require twapi_base $ver"
     foreach mod $mods {
         puts "  package require $mod $ver"
     }
