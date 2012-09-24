@@ -1474,7 +1474,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1008:
             result.type = TRT_HANDLE;
-            result.value.hval = OpenThemeData(hwnd, ObjToUnicode(objv[3]));
+            result.value.hval = OpenThemeData(hwnd, ObjToUnicode(objv[0]));
             break;
         case 1009: // SetWindowRgn
             if (TwapiGetArgs(interp, objc, objv,
