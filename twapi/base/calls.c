@@ -943,8 +943,8 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.nonnull.p = TwapiAlloc(dw);
-        if (! TwapiRegisterPointer(interp, result.value.nonnull.p, TwapiAlloc)) {
-            Tcl_Panic("Failed to register pointer");
+        if (TwapiRegisterPointer(interp, result.value.nonnull.p, TwapiAlloc) != TCL_OK) {
+            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
         }
         result.value.nonnull.name = cP[0] ? cP : "void*";
         result.type = TRT_NONNULL;
