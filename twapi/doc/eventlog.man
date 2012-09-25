@@ -451,7 +451,7 @@ The following additional options may also be specified with the command:
 [opt_def [cmd -hpublisher] [arg HPUBLISHER]]
 A handle to the event publisher metadata. If not specified, the publisher
 metadata for the event is extracted from the event itself.
-[opt_def [cmd -ignorestring] [arg STRING]]]
+[opt_def [cmd -ignorestring] [arg STRING]]
 If specified, [arg STRING] is returned for any field that cannot be obtained.
 Without this option, errors retrieving fields will generate a Tcl exception.
 [opt_def [cmd -lcid] [arg LCID]]
