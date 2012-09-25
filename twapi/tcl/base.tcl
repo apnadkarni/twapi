@@ -89,35 +89,18 @@ proc twapi::min_os_version {major {minor 0} {spmajor 0} {spminor 0}} {
 interp alias {} twapi::large_system_time_to_secs {} twapi::large_system_time_to_secs_since_1970
 proc twapi::large_system_time_to_secs_since_1970 {ns100 {fraction false}} {
     # No. 100ns units between 1601 to 1970 = 116444736000000000
-    set ns100_since_1970 [expr {wide($ns100)-wide(116444736000000000)}]
+    set ns100_since_1970 [expr {$ns100-116444736000000000}]
 
-    if {0} {
-        set secs_since_1970 [expr {wide($ns100_since_1970)/wide(10000000)}]
-        if {$fraction} {
-            append secs_since_1970 .[expr {wide($ns100_since_1970)%wide(10000000)}]
-        }
-    } else {
-        # Equivalent to above but faster
-        if {[string length $ns100_since_1970] > 7} {
-            set secs_since_1970 [string range $ns100_since_1970 0 end-7]
-            if {$fraction} {
-                set frac [string range $ns100_since_1970 end-6 end]
-                append secs_since_1970 .$frac
-            }
-        } else {
-            set secs_since_1970 0
-            if {$fraction} {
-                set frac [string range "0000000${ns100_since_1970}" end-6 end]
-                append secs_since_1970 .$frac
-            }
-        }
+    set secs_since_1970 [expr {$ns100_since_1970/10000000}]
+    if {$fraction} {
+        append secs_since_1970 .[expr {$ns100_since_1970%10000000}]
     }
     return $secs_since_1970
 }
 
 proc twapi::secs_since_1970_to_large_system_time {secs} {
     # No. 100ns units between 1601 to 1970 = 116444736000000000
-    return [expr {($secs * 10000000) + wide(116444736000000000)}]
+    return [expr {($secs * 10000000) + 116444736000000000}]
 }
 
 interp alias {} ::twapi::get_system_time {} ::twapi::GetSystemTimeAsFileTime
