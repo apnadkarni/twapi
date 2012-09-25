@@ -127,7 +127,7 @@ proc twapi::get_file_version_resource {path args} {
         }
 
         if {$opts(all) || $opts(datetime)} {
-            lappend result -datetime [expr {(wide($verinfo(dwFileDateMS)) << 32) + $verinfo(dwFileDateLS)}]
+            lappend result -datetime [expr {($verinfo(dwFileDateMS) << 32) + $verinfo(dwFileDateLS)}]
         }
 
         # Any remaining arguments are treated as string names

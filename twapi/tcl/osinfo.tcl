@@ -265,12 +265,7 @@ proc twapi::get_processor_info {processor args} {
         # Need information across all processors
         foreach instancedata $processordata {
             foreach {opt field} [array get ::twapi::get_processor_info_base_opts] {
-                if {[info exists times($field)]} {
-                    # We use expr, and not incr here so as to deal with wides
-                    set times($field) [expr {wide($times($field)) + [kl_get $instancedata $field]}]
-                } else {
-                    set times($field) [kl_get $instancedata $field]
-                }
+                incr times($field) [kl_get $instancedata $field]
             }
             foreach {opt field} [array get ::twapi::get_processor_info_base_opts] {
                 if {$opts(all) || $opts($opt)} {
