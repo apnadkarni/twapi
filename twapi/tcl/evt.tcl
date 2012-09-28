@@ -122,6 +122,11 @@ proc twapi::evt_local_session {} {
 }
 
 # TBD - document
+proc twapi::evt_local_session? {hsess} {
+    return [pointer_null? $hsess]
+}
+
+# TBD - document
 proc twapi::evt_open_session {server args} {
     array set opts [parseargs args {
         user.arg
@@ -135,6 +140,13 @@ proc twapi::evt_open_session {server args} {
     }
 
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
+}
+
+# TBD - document
+proc twapi::evt_close_session {hsess} {
+    if {![evt_local_session? $hsess]} {
+        evt_close $hsess
+    }
 }
 
 proc twapi::evt_channels {{hevtsess NULL}} {
@@ -159,7 +171,7 @@ proc twapi::evt_clear_log {chanpath args} {
         {backup.arg ""}
     } -maxleftover 0]
 
-    return [EvtClearLog $opts(session) $chanpath $opts(backup) 0]
+    return [EvtClearLog $opts(session) $chanpath [_evt_normalize_path $opts(backup)] 0]
 }
 
 # TBD - document
@@ -169,7 +181,7 @@ proc twapi::evt_archive_exported_log {logpath args} {
         {lcid.int 0}
     } -maxleftover 0]
 
-    return [EvtArchiveExportedLog $opts(session) $logpath $opts(lcid) 0]
+    return [EvtArchiveExportedLog $opts(session) [_evt_normalize_path $logpath] $opts(lcid) 0]
 }
 
 proc twapi::evt_export_log {outfile args} {
@@ -188,14 +200,14 @@ proc twapi::evt_export_log {outfile args} {
     }
 
     if {[info exists opts(file)]} {
-        set path [file normalize $opts(file)]
+        set path [_evt_normalize_path $opts(file)]
         incr opts(ignorequeryerrors) 2
     } else {
         set path $opts(channel)
         incr opts(ignorequeryerrors) 1
     }
 
-    return [EvtExportLog $opts(session) $path $opts(query) $outfile $opts(ignorequeryerrors)]
+    return [EvtExportLog $opts(session) $path $opts(query) [_evt_normalize_path $outfile] $opts(ignorequeryerrors)]
 }
 
 # TBD - document
@@ -301,6 +313,30 @@ proc twapi::evt_event_metadata_property {hevt args} {
     return $result
 }
 
+
+# TBD - document
+proc twapi::evt_open_log_info {args} {
+    array set opts [parseargs args {
+        {session.arg NULL}
+        file.arg
+        channel.arg
+    } -maxleftover 0]
+
+    if {([info exists opts(file)] && [info exists opts(channel)]) ||
+        ! ([info exists opts(file)] || [info exists opts(channel)])} {
+        error "Exactly one of -file or -channel must be specified."
+    }
+    
+    if {[info exists opts(file)]} {
+        set path [_evt_normalize_path $opts(file)]
+        set flags 0x2
+    } else {
+        set path $opts(channel)
+        set flags 0x1
+    }
+
+    return [EvtOpenLog $opts(session) $path $flags]
+}
 
 # TBD - document
 proc twapi::evt_log_info {hevt args} {
@@ -455,7 +491,7 @@ proc twapi::evt_query {args} {
     incr flags [dict get {forward 0x100 reverse 0x200 backward 0x200} $opts(direction)]
 
     if {[info exists opts(file)]} {
-        set path $opts(file)
+        set path [_evt_normalize_path $opts(file)]
         incr flags 0x2
     } else {
         set path $opts(channel)
@@ -635,6 +671,15 @@ proc twapi::evt_subscribe {path args} {
     }
 
     return [list $hsubscribe $hevent]
+}
+
+proc twapi::_evt_normalize_path {path} {
+    # Do not want to rely on [file normalize] returning "" for ""
+    if {$path eq ""} {
+        return ""
+    } else {
+        return [file nativename [_evt_normalize_path $path]]
+    }
 }
 
 proc twapi::_evt_dump {args} {
