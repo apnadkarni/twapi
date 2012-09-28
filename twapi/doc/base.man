@@ -281,7 +281,8 @@ sequences in the format string. If the number of parameters does not match
 the number of escape sequences, a Tcl exception may be generated.
 [opt_def [cmd -ignoreinserts]]If specified, the [arg %N] format insert
 sequences are not replaced in the returned string.
-[opt_def [cmd -width] [arg MAXLINEWIDTH]]By default, the returned string
+[opt_def [cmd -width] [arg MAXLINEWIDTH]]
+If [arg MAXLINEWIDTH] is [const 0] (default), the returned string
 contains the same line breaks as in the original format string. The
 [cmd -width] option may be used to control the maximum line width in the
 created message. If [arg MAXLINEWIDTH] is between 1 and 254, the command
@@ -291,9 +292,8 @@ line end characters in the original message are ignored. However, hard coded
 line end characters, specified as [const %n] in the format string are kept.
 A [arg MAXLINEWIDTH] value of -1 also ignores line end characters
 while keeping the hard coded [const %n] line end specifiers, but does
-not insert and line end characters to limit the line length and to terminate
-the message. A
-value of 0 for [arg MAXLINEWIDTH] is identical to the default behaviour.
+not insert any line end characters to limit the line length and to terminate
+the message.
 [list_end]
 
 [emph {Warning: This command requires all insert placeholders to be
