@@ -524,7 +524,7 @@ proc twapi::evt_decode_event_system_fields {hevt} {
         } [Twapi_ExtractEVT_RENDER_VALUES $_evt_system_render_context(buffer)]]
     }
 
-    return [evt_get_event_system_fields $hevt]
+    return [evt_decode_event_system_fields $hevt]
 }
 
 proc twapi::evt_decode_event {args} {
@@ -548,7 +548,7 @@ proc twapi::evt_decode_event {args} {
             xml
         } -ignoreunknown -hyphenated]
         
-        set decoded [evt_get_event_system_fields $hevt]
+        set decoded [evt_decode_event_system_fields $hevt]
 
         if {[info exists opts(-hpublisher)]} {
             set hpub $opts(-hpublisher)
@@ -685,6 +685,7 @@ proc twapi::_evt_normalize_path {path} {
 proc twapi::_evt_dump {args} {
     array set opts [parseargs args {
         {outfd.arg stdout}
+        count.int
     } -ignoreunknown]
 
     set hq [evt_query {*}$args]
@@ -692,6 +693,10 @@ proc twapi::_evt_dump {args} {
         while {[llength [set hevts [evt_next $hq]]]} {
             foreach hevt $hevts {
                 trap {
+                    if {[info exists opts(count)] &&
+                        [incr opts(count) -1] <= 0} {
+                        return
+                    }
                     set ev [evt_decode_event $hevt -message -ignorestring None.]
                     puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -providername]: [dict get $ev -message]"
                 } finally {
