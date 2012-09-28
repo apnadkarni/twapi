@@ -54,8 +54,10 @@ proc twapi::winlog_open {args} {
     } else {
         if {[info exists opts(file)]} {
             set hq [eventlog_open -file $opts(file)]
+            dict set _winlog_handles $hq channel $opts(file)
         } else {
             set hq [eventlog_open -system $opts(system) -source $opts(channel)]
+            dict set _winlog_handles $hq channel $opts(channel)
         }
         dict set _winlog_handles $hq direction $opts(direction)
     }
@@ -165,17 +167,20 @@ if {[twapi::min_os_version 6]} {
     proc twapi::winlog_read {hq {langid 0}} {
         variable _winlog_handles
         set result {}
+        set channel [dict get $_winlog_handles $hq channel]
         foreach evl [eventlog_read $hq -direction [dict get $_winlog_handles $hq direction]] {
             lappend result \
                 [list \
+                     -channel $channel \
                      -taskname [eventlog_format_category $evl -langid $langid] \
                      -message [eventlog_format_message $evl -langid $langid] \
                      -providername [dict get $evl -source] \
                      -eventid [dict get $evl -eventid] \
                      -level [dict get $evl -level] \
                      -levelname [dict get $evl -type] \
-                     -eventrecordid [dict get $evl -recnum] \
+                     -eventrecordid [dict get $evl -recordnum] \
                      -computer [dict get $evl -system] \
+                     -userid [dict get $evl -sid] \
                      -timecreated [secs_since_1970_to_large_system_time [dict get $evl -timewritten]]]
         }
         return $result
