@@ -939,8 +939,10 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
  */
 Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP)
 {
-    Tcl_Obj *objv[7];
+    Tcl_Obj *objv[8];
 
+    /* Fields are not in order they occur in SYSTEMTIME struct
+       This is intentional for ease of formatting at script level */
     objv[0] = ObjFromInt(timeP->wYear);
     objv[1] = ObjFromInt(timeP->wMonth);
     objv[2] = ObjFromInt(timeP->wDay);
@@ -948,8 +950,9 @@ Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP)
     objv[4] = ObjFromInt(timeP->wMinute);
     objv[5] = ObjFromInt(timeP->wSecond);
     objv[6] = ObjFromInt(timeP->wMilliseconds);
+    objv[7] = ObjFromInt(timeP->wDayOfWeek);
 
-    return ObjNewList(7, objv);
+    return ObjNewList(ARRAYSIZE(objv), objv);
 }
 
 
