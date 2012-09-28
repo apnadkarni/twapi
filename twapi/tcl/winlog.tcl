@@ -173,7 +173,7 @@ if {[twapi::min_os_version 6]} {
                 [list \
                      -channel $channel \
                      -taskname [eventlog_format_category $evl -langid $langid] \
-                     -message [eventlog_format_message $evl -langid $langid] \
+                     -message [eventlog_format_message $evl -langid $langid -width -1] \
                      -providername [dict get $evl -source] \
                      -eventid [dict get $evl -eventid] \
                      -level [dict get $evl -level] \
