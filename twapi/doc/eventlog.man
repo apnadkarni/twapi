@@ -165,10 +165,20 @@ Events can be read from an event log
 through the [uri \#winlog_read [cmd winlog_read]]
 command which returns a list of dictionaries containing
 the fields of each event.
+[uri #winlog_event_count [cmd winlog_event_count]] returns the number
+of events in an event log.
+
+[para]
+Events can be written to a backup file using 
+[uri #winlog_backup [cmd winlog_backup]] and cleared
+with [uri #winlog_clear [cmd winlog_clear]].
+
 
 [para]
 To monitor the event log in real time, use the
 [uri #winlog_subscribe [cmd winlog_subscribe]] command.
+
+
 
 [section "Commands"]
 
@@ -653,6 +663,24 @@ is cleared.
 Closes the handle [arg WINLOGHANDLE] which must have been
 previously returned by [uri \#winlog_open [cmd winlog_open]]
 and frees any associated resources.
+
+[call [cmd winlog_event_count] [opt [arg options]]]
+
+Returns the number of events in the specified event log using the API
+appropriate for the Windows version. The following options may
+be specified with the command.
+
+[list_begin opt]
+[opt_def [cmd -channel] [arg NAME]] Specifies a event log source (pre-Vista)
+or channel (Vista and later) from which events are to be read.
+This option may not be used with the [cmd -file] option.
+[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
+Specifies the name of a backed up event log file.
+This option may not be used with the [cmd -channel] or [cmd -system] options.
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+This option cannot be used with the [cmd -file] option.
+[list_end]
 
 [call [cmd winlog_open] [opt [arg options]]]
 

@@ -71,16 +71,70 @@ proc twapi::winlog_close {hq} {
 
     if {[min_os_version 6]} {
         set hsess [dict get $_winlog_handles $hq session]
-        if {![pointer_null? $hsess]} {
-            # Note this closes $hq as well
-            evt_close $hsess
-        }
+        evt_close $hq
+        evt_close_session $hsess
     } else {
         eventlog_close $hq
     }
 
     dict unset _winlog_handles $hq
     return
+}
+
+proc twapi::winlog_event_count {args} {
+    # TBD - document and -authtype
+    array set opts [parseargs args {
+        {system.arg ""}
+        channel.arg
+        file.arg
+        {authtype.arg 0}
+    } -maxleftover 0]
+
+    if {[info exists opts(file)] &&
+        ($opts(system) ne "" || [info exists opts(channel)])} {
+        error "Option '-file' cannot be used with '-channel' or '-system'"
+    } else {
+        if {![info exists opts(channel)]} {
+            set opts(channel) "Application"
+        }
+    }
+
+    if {[min_os_version 6]} {
+        # Use new Vista APIs
+        trap {
+            if {[info exists opts(file)]} {
+                set hsess NULL
+                set hevl [evt_open_log_info -file $opts(file)]
+            } else {
+                if {$opts(system) eq ""} {
+                    set hsess [twapi::evt_local_session]
+                } else {
+                    set hsess [evt_open_session $opts(system) -authtype $opts(authtype)]
+                }
+                set hevl [evt_open_log_info -session $hsess -channel $opts(channel)]
+            }
+            return [lindex [evt_log_info $hevl -numberoflogrecords] 1]
+        } finally {
+            if {[info exists hsess]} {
+                evt_close_session $hsess
+            }
+            if {[info exists hevl]} {
+                evt_close $hevl
+            }
+        }
+    } else {
+        if {[info exists opts(file)]} {
+            set hevl [eventlog_open -file $opts(file)]
+        } else {
+            set hevl [eventlog_open -system $opts(system) -source $opts(channel)]
+        }
+
+        trap {
+            return [eventlog_count $hevl]
+        } finally {
+            eventlog_close $hevl
+        }
+    }
 }
 
 if {[twapi::min_os_version 6]} {
