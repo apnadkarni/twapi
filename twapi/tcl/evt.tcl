@@ -698,7 +698,7 @@ proc twapi::_evt_dump {args} {
                         return
                     }
                     set ev [evt_decode_event $hevt -message -ignorestring None.]
-                    puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -providername]: [dict get $ev -message]"
+                    puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -eventrecordid] [dict get $ev -providername]: [dict get $ev -message]"
                 } finally {
                     evt_close $hevt
                 }                

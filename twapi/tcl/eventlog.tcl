@@ -373,7 +373,7 @@ proc twapi::_eventlog_dump {source chan} {
             set source   $event(-source)
             set category [twapi::eventlog_format_category $eventrec -width -1]
             set message  [twapi::eventlog_format_message $eventrec -width -1]
-            puts -nonewline $chan "Time: $timestamp\r\nSource: $source\r\nCategory: $category\r\n$message\r\n\r\n"
+            puts $chan "$timestamp  $source  $category  $message"
         }
     }
     eventlog_close $hevl
