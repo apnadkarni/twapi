@@ -841,8 +841,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, ARRAYSIZE(buf), bufP, &used) == FALSE) {
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-            used *= sizeof(WCHAR);
-            bufP = MemLifoPushFrame(&ticP->memlifo, used, NULL);
+            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*used, NULL);
             if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, used, bufP, &used) == FALSE) {
                 winerr = GetLastError();
             } else {
