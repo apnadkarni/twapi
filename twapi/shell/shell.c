@@ -639,6 +639,9 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         sei.hkeyClass = hkeyClass;
     if (sei.fMask & SEE_MASK_HOTKEY)
         sei.dwHotKey = dwHotKey;
+#ifndef SEE_MASK_ICON
+# define SEE_MASK_ICON 0x00000010
+#endif
     if (sei.fMask & SEE_MASK_ICON)
         sei.hIcon = hIconOrMonitor;
     if (sei.fMask & SEE_MASK_HMONITOR)
