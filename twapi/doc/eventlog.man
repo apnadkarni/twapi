@@ -634,7 +634,7 @@ Normally, if retrieving a specific event results in an error, Windows
 will fail the query and a Tcl exception will be raised.
 If this option is specified, such events are simply skipped
 and any further events are returned.
-[option [cmd -includeexisting]]
+[opt_def [cmd -includeexisting]]
 By default the command will only subscribe to new events. If this option
 is specified, notification is sent for existing events as well.
 [opt_def [cmd -query] [arg QUERYSTRING]]
