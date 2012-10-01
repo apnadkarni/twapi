@@ -74,6 +74,10 @@ USE_UNICODE_OBJ = 1
 !endif
 
 
+# Any additional libraries for the module
+# EXTRALIBS =
+
+
 ################ Command line Defines ################
 # Optionally define these on the command line
 
@@ -358,7 +362,13 @@ WINLIB        = \
 WINLIB = $(WINLIB) bufferoverflowU.lib
 !endif
 
+!if $(VCVER) >= 9
+# TBD - figure out how to put this in the eventlog makefile.
+EXTRALIBS = $(EXTRALIBS) $(SDKLIB)wevtapi.lib
+!endif
+
 LIBS          = $(TCLLIB) $(WINLIB) $(EXTRALIBS)
+
 
 # Modules have to link with the twapi_base dll
 !if "$(MODULENAME)" != "twapi_base" && !defined(TWAPI_SINGLE_MODULE)
@@ -381,6 +391,12 @@ RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUIL
 # Linking
 # -------
 LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
+
+!if $(VCVER) >= 9
+# TBD - figure out how to put this in the eventlog makefile.
+# Needed to build using new compiler and sdk on xp targeting vista+
+LOPT = $(LOPT) /DELAYLOAD:wevtapi.dll
+!endif
 
 !ifdef ENABLE_DELAYLOAD
 LIBS = $(LIBS) delayimp.lib

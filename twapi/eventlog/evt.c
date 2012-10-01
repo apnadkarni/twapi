@@ -13,13 +13,27 @@
 #include "twapi.h"
 #include "twapi_eventlog.h"
 
+#include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
+
+#if VER_PRODUCTBUILD < 7600
+# define RUNTIME_EVT_LOAD 1
+#else
+# include <winevt.h>
+#pragma comment(lib, "delayimp.lib") /* Prevents winevt from loading unless necessary */
+#pragma comment(lib, "wevtapi.lib")	 /* New Windows Events logging library for Vista and beyond */
+#endif
+
+#ifdef RUNTIME_EVT_LOAD
+
+/* When building with pre-Vista compilers and SDKs we need to dynamically
+   load winevt. 
+*/
 
 typedef DWORD (WINAPI *EVT_SUBSCRIBE_CALLBACK)(
     int Action,
     PVOID UserContext,
     HANDLE Event );
 
-/* TBD - use VER_PRODUCTVERSION to selectively include SDK defs */
 typedef enum _EVT_VARIANT_TYPE
 {
     EvtVarTypeNull        = 0,
@@ -219,8 +233,10 @@ static struct {
 #define EvtUpdateBookmark gEvtStubs._EvtUpdateBookmark
 #define EvtGetEventInfo gEvtStubs._EvtGetEventInfo
 
-typedef HANDLE EVT_HANDLE;
 
+#endif /* RUNTIME_EVT_LOAD */
+
+typedef HANDLE EVT_HANDLE;
 int gEvtStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
 EVT_HANDLE gEvtDllHandle;
 
@@ -513,6 +529,8 @@ static Tcl_Obj *ObjFromEVT_VARIANT_ARRAY(TwapiInterpContext *ticP, EVT_VARIANT *
 /* Should be called only once at init time */
 void TwapiInitEvtStubs(Tcl_Interp *interp)
 {
+#ifdef RUNTIME_EVT_LOAD
+
     UINT len;
     WCHAR path[MAX_PATH+1];
 
@@ -579,6 +597,8 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
     INIT_EVT_STUB(EvtUpdateBookmark);
     INIT_EVT_STUB(EvtGetEventInfo);
 #undef INIT_EVT_STUB
+
+#endif // RUNTIME_EVT_LOAD
 
     /* Success */
     gEvtStatus = 1;
@@ -808,7 +828,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     DWORD msgid, flags;
     EVT_VARIANT *valuesP;
     int nvalues;
-    WCHAR buf[500];
+    WCHAR buf[500];             /* TBD - instrument */
     int used;
     WCHAR *bufP;
     DWORD winerr;
@@ -1270,6 +1290,24 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtNextPublisherId, 109),
         DEFINE_FNCODE_CMD(EvtGetObjectArraySize, 110),
     };
+
+#if !defined(RUNTIME_EVT_LOAD)
+    /* We are delay loading a dynamically linked winevt.dll. On XP/2k3
+       this does not exist and must not be invoked, else crash will
+       result
+    */
+    {
+        OSVERSIONINFO osver;
+        osver.dwOSVersionInfoSize = sizeof(osver);
+        if (! GetVersionEx(&osver))
+            return TwapiReturnSystemError(interp);
+        if (osver.dwMajorVersion < 6) {
+            /* Do not initialize evt_* commands */
+            /* Not TCL_ERROR since other eventlog commands will still work */
+            return TCL_OK;
+        }
+    }
+#endif
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvtFnDispatch), EvtFnDispatch, Twapi_EvtCallObjCmd);
