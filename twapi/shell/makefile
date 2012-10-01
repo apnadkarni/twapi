@@ -4,6 +4,5 @@ MODULENAME=twapi_shell
 
 OBJS  = $(OBJDIR)\shell.obj
 TCLFILES=..\tcl\shell.tcl
-EXTRALIBS = shell32.lib 
 
 !include ..\include\rules.inc
