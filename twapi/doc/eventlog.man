@@ -623,6 +623,10 @@ when events are available to be read on the channel. It can be
 used in either synchronous or asynchronous mode with
 [uri base.html#wait_on_handle [cmd wait_on_handle]].
 [nl]
+Note that Windows will not signal the handle unless a call to
+[uri #evt_next [cmd evt_next]] fails [emph and] a new event arrives.
+The mere presence of unread events is not sufficient.
+[nl]
 When notifications are no longer desired, the two handles in the
 returned pair must be released via [uri #evt_close [cmd evt_close]]
 and [uri handles.html#close_handle [cmd close_handle]] respectively.
@@ -732,6 +736,10 @@ to retrieve logged events. The second is a handle that is signalled
 when events are available to be read on the channel. It can be
 used in either synchronous or asynchronous mode with
 [uri base.html#wait_on_handle [cmd wait_on_handle]].
+[nl]
+Note that Windows will not signal the handle unless a call to
+[uri #winlog_read [cmd winlog_read]] fails [emph and] a new event arrives.
+The mere presence of unread events is not sufficient.
 [nl]
 When notifications are no longer desired, the two handles in the
 returned pair must be released via [uri #winlog_close [cmd winlog_close]]
