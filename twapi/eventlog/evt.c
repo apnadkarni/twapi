@@ -900,11 +900,11 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
             TwapiSetObjResult(interp, ObjFromUnicode(bufP));
         }
     } else {
-        if (objc == 7 &&
-            (winerr == 15027 /* ERROR_EVT_MESSAGE_NOT_FOUND */ ||
-             winerr == 15028 /* ERROR_EVT_MESSAGE_ID_NOT_FOUND */ )) {
-            /* Caller has specified these errors should be ignored and
-               the specified string returned instead */
+        if (objc == 7) {
+            /* Caller has specified errors should be ignored and
+               the specified string returned instead
+               TBD - log ?
+            */
             winerr = ERROR_SUCCESS;
             TwapiSetObjResult(interp, objv[6]);
         } else
