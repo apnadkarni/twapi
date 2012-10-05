@@ -829,7 +829,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     EVT_VARIANT *valuesP;
     int nvalues;
     WCHAR buf[500];             /* TBD - instrument */
-    int used;
+    int buf_sz, used;
     WCHAR *bufP;
     DWORD winerr;
     TwapiEVT_RENDER_VALUES_HEADER *ervhP;
@@ -856,13 +856,15 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
 
     /* TBD - instrument buffer size */
     bufP = buf;
+    buf_sz = ARRAYSIZE(buf);
     winerr = ERROR_SUCCESS;
     /* Note buffer sizes are in WCHARs, not bytes */
-    if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, ARRAYSIZE(buf), bufP, &used) == FALSE) {
+    if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*used, NULL);
-            if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, used, bufP, &used) == FALSE) {
+            buf_sz = used;
+            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*buf_sz, NULL);
+            if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
                 winerr = GetLastError();
             } else {
                 winerr = ERROR_SUCCESS;
@@ -870,6 +872,20 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
         }
     }        
 
+    /* For some error codes, the buffer is actually filled with 
+       as much of the message as can be resolved.
+    */
+    switch (winerr) {
+    case 15029: // ERROR_EVT_UNRESOLVED_VALUE_INSERT
+    case 15030: // ERROR_EVT_UNRESOLVED_PARAMTER_INSERT
+    case 15031: // ERROR_EVT_MAX_INSERTS_REACHED
+        /* Sanity check */
+        if (used && used <= buf_sz) {
+            /* TBD - debug log */
+            bufP[used-1] = 0; /* Ensure null termination */
+            winerr = ERROR_SUCCESS; /* Treat as success case */
+        }
+    }
 
     if (winerr == ERROR_SUCCESS) {
         /* See comments in GetMessageString function at
