@@ -220,18 +220,48 @@ namespace eval twapi::clipboard::test {
     test write_clipboard_text-1.0 {
         Write text to the clipboard
     } -body {
-        set data "TWAPI test data"
+        set data "write_clipboard_text-1.0\nSecond line"
         twapi::open_clipboard
         twapi::empty_clipboard
         twapi::write_clipboard_text $data
         twapi::close_clipboard
         # Now read it back
         twapi::open_clipboard
-        set clip_data [twapi::read_clipboard_text]
+        set clip_data [twapi::read_clipboard_text -raw 1]
         twapi::close_clipboard
+        set clip_data;          # Note expect additional \r in result
+    } -result "write_clipboard_text-1.0\r\nSecond line"
 
-        string equal $data $clip_data
-    } -result 1
+    test write_clipboard_text-2.0 {
+        Write text to the clipboard -raw 0
+    } -body {
+        set data "write_clipboard_text-1.0\nSecond line"
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        twapi::write_clipboard_text $data -raw 0
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard_text -raw 1]
+        twapi::close_clipboard
+        set clip_data;          # Note expect additional \r in result
+    } -result "write_clipboard_text-1.0\r\nSecond line"
+
+    test write_clipboard_text-2.1 {
+        Write text to the clipboard -raw 1
+    } -body {
+        set data "write_clipboard_text-1.0\nSecond line"
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        twapi::write_clipboard_text $data -raw 1
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard_text -raw 1]
+        twapi::close_clipboard
+        set clip_data;          # Note no additional \r in result
+    } -result "write_clipboard_text-1.0\nSecond line"
+
 
     ################################################################
 

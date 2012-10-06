@@ -77,6 +77,10 @@ Added [cmd -runas] to
 [bullet]
 Added [uri base.html#random_bytes [cmd random_bytes]].
 
+[bullet]
+Added [cmd -raw] option to 
+[uri clipboard.html#write_clipboard_text [cmd write_clipboard_text]].
+
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
