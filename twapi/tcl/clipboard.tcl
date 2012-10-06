@@ -108,16 +108,26 @@ proc twapi::write_clipboard {fmt data} {
 }
 
 # Write text to the clipboard
-proc twapi::write_clipboard_text {data} {
+proc twapi::write_clipboard_text {data args} {
+    array set opts [parseargs args {
+        {raw.bool 0}
+    }]
+
     # Always catch errors and close
     # clipboard before passing exception on
     trap {
+        # Convert \n to \r\n leaving existing \r\n alone
+        if {! $opts(raw)} {
+            set data [regsub -all {(^|[^\r])\n} $data[set data ""] \\1\r\n]
+        }
+                  
         set mem_size [expr {2*(1+[string length $data])}]
 
         # Allocate global memory
         set mem_h [GlobalAlloc 2 $mem_size]
         set mem_p [GlobalLock $mem_h]
 
+        # 3 -> write memory as Unicode
         Twapi_WriteMemory 3 $mem_p 0 $mem_size $data
 
         # The rest of this code just to ensure we do not free
