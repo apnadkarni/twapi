@@ -25,6 +25,13 @@ proc twapi::package_setup {dir pkg version type {file {}} {commands {}}} {
 
     if {$pkg eq "twapi_base"} {
         # Need the twapi base of the same version
+        # In tclkit builds, twapi_base is statically linked in
+        foreach pair [info loaded] {
+            if {$pkg eq [lindex $pair 1]} {
+                set fn [lindex $pair 0]; # Possibly statically loaded
+                break
+            }
+        }
         set loadcmd [list load $fn $pkg]
     } else {
         package require twapi_base $version
