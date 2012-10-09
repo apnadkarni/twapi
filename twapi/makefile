@@ -87,5 +87,6 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
 	if exist "$(USERPROFILE)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\My Documents\Downloads\twapi"
 
 twapi-lib: twapi-lib-build
+	$(COPY) "$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\$@"
 
 !endif
