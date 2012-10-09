@@ -558,7 +558,12 @@ proc twapi::evt_decode_event {args} {
 
             set publisher [dict get $decoded -providername]
             if {! [dict exists $_evt_publisher_handles $publisher $opts(-session) $opts(-lcid)]} {
-                dict set _evt_publisher_handles $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
+                if {[catch {
+                    dict set _evt_publisher_handles $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
+                }]} {
+                    # TBD - debug log
+                    dict set _evt_publisher_handles $publisher $opts(-session) $opts(-lcid) NULL
+                }
             }
             set hpub [dict get $_evt_publisher_handles $publisher $opts(-session) $opts(-lcid)]
         }
