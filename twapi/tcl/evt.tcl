@@ -539,6 +539,7 @@ proc twapi::evt_decode_event_userdata {hevt} {
     return [evt_decode_event_userdata $hevt]
 }
 
+
 proc twapi::evt_decode_event {args} {
     _evt_init
 
@@ -596,7 +597,11 @@ proc twapi::evt_decode_event {args} {
                     lappend decoded $opt $opts(-ignorestring)
                 } else {
                     if {[info exists opts(-ignorestring)]} {
-                        lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind $opts(-ignorestring)]
+                        if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind message]} {
+                            lappend decoded $opt $message
+                        } else {
+                            lappend decoded $opt $opts(-ignorestring)
+                        }
                     } else {
                         lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
                     }
@@ -608,14 +613,14 @@ proc twapi::evt_decode_event {args} {
         # to extract the user data. -ignorestring is not used for this
         # unless user data extraction also fails
         if {$opts(-message)} {
-            if {[catch {
-                lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
-            } message]} {
+            if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) 1 message]} {
+                lappend decoded -message $message
+            } else {
                 # TBD - make sure we have a test for this case.
                 # TBD - log
                 if {[catch {
-                    lappend decoded -message "Message for event could not be found (Error: $message). Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
-                }]} {
+                    lappend decoded -message "Message for event could not be found. Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
+                } message]} {
                     if {[info exists opts(-ignorestring)]} {
                         lappend decoded -message $opts(-ignorestring)
                     } else {
@@ -629,102 +634,6 @@ proc twapi::evt_decode_event {args} {
     }
 
     return [evt_decode_event {*}$args]
-}
-
-proc twapi::evt_decode_event2 {args} {
-    _evt_init
-
-    proc evt_decode_event2 {hevt args} {
-
-        array set opts [parseargs args {
-            hpublisher.arg
-            {values.arg NULL}
-            {session.arg NULL}
-            {logfile.arg ""}
-            {lcid.int 0}
-            ignorestring.arg
-            message
-            levelname
-            taskname
-            opcodename
-            keywords
-            channel
-            xml
-        } -ignoreunknown -hyphenated]
-        
-        set decoded [evt_decode_event_system_fields $hevt]
-
-        if {[info exists opts(-hpublisher)]} {
-            set hpub $opts(-hpublisher)
-        } else {
-            # Get publisher from hevt
-            variable _evt
-
-            set publisher [dict get $decoded -providername]
-            if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
-                if {[catch {
-                    dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
-                }]} {
-                    # TBD - debug log
-                    dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) NULL
-                }
-            }
-            set hpub [dict get $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]
-        }
-
-        foreach {opt optind} {
-            -levelname 2
-            -taskname 3
-            -opcodename 4
-            -keywords 5
-            -channel 6
-            -xml 9
-        } {
-            if {$opts($opt)} {
-                if {$opt in {-level -task -opcode} &&
-                    [dict get $decoded $opt] == 0 &&
-                    [info exists opts(-ignorestring)]} {
-                    # Don't bother making the call. 0 -> null
-                    lappend decoded $opt $opts(-ignorestring)
-                } else {
-                    if {[info exists opts(-ignorestring)]} {
-                        if {[EvtFormatMessage2 $hpub $hevt 0 $opts(-values) $optind message]} {
-                            lappend decoded $opt $message
-                        } else {
-                            lappend decoded $opt $opts(-ignorestring)
-                        }
-                    } else {
-                        lappend decoded $opt [EvtFormatMessage2 $hpub $hevt 0 $opts(-values) $optind]
-                    }
-                }
-            }
-        }
-
-        # We treat -message differently because on failure we want
-        # to extract the user data. -ignorestring is not used for this
-        # unless user data extraction also fails
-        if {$opts(-message)} {
-            if {[EvtFormatMessage2 $hpub $hevt 0 $opts(-values) $optind message]} {
-                lappend decoded $opt $message
-            } else {
-                # TBD - make sure we have a test for this case.
-                # TBD - log
-                if {[catch {
-                    lappend decoded -message "Message for event could not be found (Error: $message). Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
-                }]} {
-                    if {[info exists opts(-ignorestring)]} {
-                        lappend decoded -message $opts(-ignorestring)
-                    } else {
-                        error $message
-                    }
-                }
-            }
-        }
-
-        return $decoded
-    }
-
-    return [evt_decode_event2 {*}$args]
 }
 
 

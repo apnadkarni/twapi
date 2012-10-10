@@ -822,101 +822,8 @@ vamoose:
     return ret;
 }
 
+
 static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    EVT_HANDLE hpub, hev;
-    DWORD msgid, flags;
-    EVT_VARIANT *valuesP;
-    int nvalues;
-    WCHAR buf[500];             /* TBD - instrument */
-    int buf_sz, used;
-    WCHAR *bufP;
-    DWORD winerr;
-    TwapiEVT_RENDER_VALUES_HEADER *ervhP;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETHANDLET(hpub, EVT_HANDLE),
-                     GETHANDLET(hev, EVT_HANDLE),
-                     GETINT(msgid),
-                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
-                     GETINT(flags),
-                     ARGUSEDEFAULT, ARGSKIP, ARGEND) != TCL_OK)
-        return TCL_ERROR;
-    
-    if (ervhP) {
-        winerr = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
-        if (winerr != TWAPI_NO_ERROR)
-            return TwapiReturnError(interp, winerr);
-        nvalues = ervhP->header.count;
-        valuesP = ERVHP_BUFFER(ervhP);
-    } else {
-        nvalues = 0;
-        valuesP = NULL;
-    }
-
-    /* TBD - instrument buffer size */
-    bufP = buf;
-    buf_sz = ARRAYSIZE(buf);
-    winerr = ERROR_SUCCESS;
-    /* Note buffer sizes are in WCHARs, not bytes */
-    if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
-        winerr = GetLastError();
-        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-            buf_sz = used;
-            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*buf_sz, NULL);
-            if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
-                winerr = GetLastError();
-            } else {
-                winerr = ERROR_SUCCESS;
-            }
-        }
-    }        
-
-    /* For some error codes, the buffer is actually filled with 
-       as much of the message as can be resolved.
-    */
-    switch (winerr) {
-    case 15029: // ERROR_EVT_UNRESOLVED_VALUE_INSERT
-    case 15030: // ERROR_EVT_UNRESOLVED_PARAMTER_INSERT
-    case 15031: // ERROR_EVT_MAX_INSERTS_REACHED
-        /* Sanity check */
-        if (used && used <= buf_sz) {
-            /* TBD - debug log */
-            bufP[used-1] = 0; /* Ensure null termination */
-            winerr = ERROR_SUCCESS; /* Treat as success case */
-        }
-    }
-
-    if (winerr == ERROR_SUCCESS) {
-        /* See comments in GetMessageString function at
-           http://msdn.microsoft.com/en-us/windows/dd996923%28v=vs.85%29
-           If flags == EvtFormatMessageKeyword,  the buffer may contain
-           multiple concatenated null terminated keywords. */
-        if (flags == 5 /* EvtFormatMessageKeyword */ ) {
-            TwapiSetObjResult(interp, ObjFromMultiSz(bufP, used));
-        } else {
-            /* For other cases, like xml, used may be more than last char
-               so depend on null termination */
-            TwapiSetObjResult(interp, ObjFromUnicode(bufP));
-        }
-    } else {
-        if (objc == 7) {
-            /* Caller has specified errors should be ignored and
-               the specified string returned instead
-               TBD - log ?
-            */
-            winerr = ERROR_SUCCESS;
-            TwapiSetObjResult(interp, objv[6]);
-        } else
-            Twapi_AppendSystemError(interp, winerr);
-    }
-    if (bufP != buf)
-        MemLifoPopFrame(&ticP->memlifo);
-
-    return winerr == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
-}
-
-static TCL_RESULT Twapi_EvtFormatMessage2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVT_HANDLE hpub, hev;
     DWORD msgid, flags;
@@ -1386,7 +1293,6 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
-        DEFINE_TCL_CMD(EvtFormatMessage2, Twapi_EvtFormatMessage2ObjCmd),
     };
 
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
