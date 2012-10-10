@@ -124,8 +124,9 @@ SDK.
 [para]
 In the Vista event logging system, [emph channels]
 implement a event stream to which event publishers can write events.
-The [uri #evt_channels [cmd evt_channels]] returns the names
-of the channels on a system.
+The commands [uri #evt_channels [cmd evt_channels]] and
+[uri #evt_publishers [cmd evt_publishers]]
+return the names of the channels and publishers on a system respectively.
 [para]
 Event consumers can consume events from channels in real time or
 from a saved event file using the 
@@ -580,6 +581,9 @@ number being returned.
 Specifies the number of milliseconds to wait for events. A value of 
 [const -1] (default) indicates call should not time out.
 [list_end]
+
+[call [cmd evt_publishers]]
+Returns a list of names of the publishers registered on the system.
 
 [call [cmd evt_query] [opt [arg options]]]
 Returns a handle to a result set containing events matching the

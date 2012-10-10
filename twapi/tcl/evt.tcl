@@ -1,47 +1,5 @@
+# TBD
 if {0} {
-set hq [evt_query -channel Application]
-set hrc [evt_render_context_xpaths [list "Event/System/Provider/@Name" "Event/System/EventID"]]
-set hevt [lindex [evt_next $hq] 0]
-set hvals [twapi::Twapi_EvtRenderValues $hrc $hevt NULL]
-::twapi::Twapi_ExtractEVT_RENDER_VALUES $hvals
-::twapi::evt_free_EVT_RENDER_VALUES $hvals
-
-
-    31  set hq [evt_query -channel Application]
-    32  set hevt [lindex [evt_next $hq] 0]
-    33  set hrcs [evt_render_context_system]
-    34  set hrcu [evt_render_context_user]
-    35  set sbuf [twapi::Twapi_EvtRenderValues $hrcs $hevt NULL]
-    36  set ubuf [twapi::Twapi_EvtRenderValues $hrcu $hevt NULL]
-    37  proc extract {b} {::twapi::Twapi_ExtractEVT_RENDER_VALUES $b}
-    38  extract $sbuf
-    39  extract $ubuf
-    40  set hpub [evt_open_publisher_metadata Microsoft-Windows-CertificateServicesClient]
-    41  evt_publisher_metadata_property $hpub
-    42  evt_publisher_metadata_property $hpub -levels
-    43  evt_publisher_metadata_property $hpub -resourcefilepath -parameterfilepath -messagefilepath
-    44  evt_publisher_events_metadata $hpub
-    45  evt_publisher_events_metadata $hpub -id -messageid -template
-    46  evt_publisher_events_metadata $hpub -id -messageid
-    47  evt_format_event $hevt
-    48  extract $sbuf
-    49  evt_format_publisher_message $hpub 2952790018
-    50  set hevt [lindex [evt_next $hq] 0]
-    51  evt_format_event $hevt
-    52  set hevt [lindex [evt_next $hq] 0]
-    53  evt_format_event $hevt
-
-(twapi) 55 % evt_format_event [set hevt [lindex [evt_next $hq] 0]]
-The EventSystem sub system is suppressing duplicate event log entries for a duration of 86400 seconds.  The suppression timeout can be controlled by a REG_DWORD value named SuppressDuplicateDuration under the following registry key: HKLM\Software\Microsoft\EventSystem\EventLog.
-(twapi) 56 % set sbuf [twapi::Twapi_EvtRenderValues $hrcs $hevt NULL]
-2770112 TwapiEVT_RENDER_VALUES_HEADER*
-(twapi) 57 % set ubuf [twapi::Twapi_EvtRenderValues $hrcu $hevt NULL]
-2774136 TwapiEVT_RENDER_VALUES_HEADER*
-(twapi) 58 % extract $ubuf
-86400 SuppressDuplicateDuration {Software\Microsoft\EventSystem\EventLog}
-(twapi) 59 % evt_close $hpub
-(twapi) 60 % extract $sbuf
-Microsoft-Windows-EventSystem {{899DAACE-4868-4295-AFCD-9EB8FB497561}} 4625 16384 4 0 0 {} 129146191710000000 4 {} {} 0 0 Application 37L4247E20-12 {} 0
 (twapi) 61 % set hpub [evt_open_publisher_metadata Microsoft-Windows-EventSystem]
 5 EVT_HANDLE
 (twapi) 62 % evt_publisher_events_metadata $hpub -id -messageid
@@ -426,7 +384,6 @@ proc twapi::evt_object_array_property {hevt index args} {
     return $result
 }
 
-# TBD - document
 proc twapi::evt_publishers {{hsess NULL}} {
     set pubs {}
     set hevt [EvtOpenPublisherEnum $hsess 0]
