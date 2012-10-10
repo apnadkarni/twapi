@@ -17,6 +17,7 @@ load_twapi_package twapi_eventlog
 namespace eval twapi::eventlog::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    ::tcltest::testConstraint vista [twapi::min_os_version 6]
 
     # Read the last entry from the specified event log
     proc get_last_event {source} {
@@ -439,6 +440,185 @@ namespace eval twapi::eventlog::test {
     }
 
     ################################################################
+
+    test evt_channels-1.0 {
+        Evt channels
+    } -constraints {
+        vista
+    } -body {
+        set chans [twapi::evt_channels]
+        list [expr {"Application" in $chans}] \
+            [expr {"System" in $chans}] \
+            [expr {"DFS Replication" in $chans}]
+    } -result {1 1 1}
+
+
+    ################################################################
+
+    test evt_clear_log-1.0 {
+        Clear the event log
+    } -constraints {
+        vista systemmodificationok
+    } -body {
+        twapi::evt_clear_log Application
+        set hevl [twapi::evt_open_log_info -channel Application]
+        dict get [twapi::evt_log_info $hevl -numberoflogrecords] -numberoflogrecords
+    } -cleanup {
+        twapi::evt_close $hevl
+    } -result 0
+
+    test evt_log_clear-1.1 {
+        Backup and clear the event log
+    } -constraints {
+        vista systemmodificationok
+    } -setup {
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $backup]} {file delete $backup}
+    } -body {
+        twapi::evt_clear_log Application -backup $backup
+        set hevl [twapi::evt_open_log_info -channel Application]
+        list [dict get [twapi::evt_log_info $hevl -numberoflogrecords] -numberoflogrecords] [file exists $backup]
+    } -cleanup {
+        twapi::evt_close $hevl
+        file delete $backup
+    } -result {1 1}
+
+    test evt_log_clear-2.0 {
+        Backup and clear the event log -session
+    } -constraints {
+        TBD vista systemmodificationok
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result {1 1}
+
+    ################################################################
+
+    test evt_export_log-1.0 {
+        Export the eventlog
+    } -constraints {
+        vista
+    } -setup {
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $backup]} {file delete $backup}
+    } -body {
+        set count [twapi::winlog_event_count -channel System]
+        twapi::evt_export_log $backup -channel System
+        expr {[twapi::winlog_event_count -file $backup] == $count}
+    } -cleanup {
+        file delete $backup
+    } -result 1
+
+    test evt_export_log-10.0 {
+        Export the eventlog -session -file -query -ignorequeryerrors
+    } -constraints {
+        TBD vista
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
+    test evt_publishers-1.0 {
+        Evt publishers
+    } -constraints {
+        vista
+    } -body {
+        set pubs [twapi::evt_publishers]
+        list [expr {"Microsoft-Windows-WMI" in $pubs}] \
+            [expr {"Application" in $pubs}] \
+            [expr {".NET Runtime" in $pubs}]
+    } -result {1 1 1}
+
+    ################################################################
+
+    test evt_query-1.0 {
+        Event query -channel
+    } -constraints {
+        vista
+    } -body {
+        set hq [twapi::evt_query -channel Application]
+        lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
+        array set first [twapi::evt_decode_event_system_fields $hevt1]
+        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        # Verify default forward direction
+        expr {
+              $first(-timecreated) <= $second(-timecreated)
+              &&
+              $first(-eventrecordid) <= $second(-eventrecordid)
+          }
+    } -cleanup {
+        twapi::evt_close $hq
+        twapi::evt_close $hevt1
+        twapi::evt_close $hevt2
+    } -result 1
+
+    test evt_query-2.0 {
+        Event query -direction forward
+    } -constraints {
+        vista
+    } -body {
+        set hq [twapi::evt_query -channel Application -direction forward]
+        lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
+        array set first [twapi::evt_decode_event_system_fields $hevt1]
+        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        # Verify default forward direction
+        expr {
+              $first(-timecreated) <= $second(-timecreated)
+              &&
+              $first(-eventrecordid) <= $second(-eventrecordid)
+          }
+    } -cleanup {
+        twapi::evt_close $hq
+        twapi::evt_close $hevt1
+        twapi::evt_close $hevt2
+    } -result 1
+
+    test evt_query-2.1 {
+        Event query -direction backward
+    } -constraints {
+        vista
+    } -body {
+        set hq [twapi::evt_query -channel Application -direction backward]
+        lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
+        array set first [twapi::evt_decode_event_system_fields $hevt1]
+        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        # Verify default forward direction
+        expr {
+              $first(-timecreated) >= $second(-timecreated)
+              &&
+              $first(-eventrecordid) >= $second(-eventrecordid)
+          }
+    } -cleanup {
+        twapi::evt_close $hq
+        twapi::evt_close $hevt1
+        twapi::evt_close $hevt2
+    } -result 1
+        
+    
+    test evt_query-10.0 {
+        Event query -session -file -query -ignorequeryerrors
+    } -constraints {
+        TBD vista
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result TBD
+
+
+    ################################################################
+
 
     #
     # Clean up
