@@ -692,6 +692,17 @@ namespace eval twapi {
     variable my_process_handle [GetCurrentProcess]
 }
 
+# Only used internally for test validation.
+# NOT the same as export_public_commands
+proc twapi::_get_public_commands {} {
+    variable exports;           # Populated via pkgIndex.tcl
+    if {![info exists exports]} {
+        error "Export table does not exist."
+    }
+
+    return [concat {*}[dict values $exports]]
+}
+
 proc twapi::export_public_commands {} {
     variable exports;           # Populated via pkgIndex.tcl
     if {![info exists exports]} {

@@ -59,7 +59,7 @@ array set do_not_test {
     update_service_status    run_as_service
 }
 set missing {}
-foreach cmd [twapi::_get_public_procs] {
+foreach cmd [twapi::_get_public_commands] {
     # Skip internal commands
     if {[regexp {^(_|[A-Z]).*} $cmd]} continue
 
