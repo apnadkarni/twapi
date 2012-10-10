@@ -916,6 +916,123 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return winerr == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
+static TCL_RESULT Twapi_EvtFormatMessage2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    EVT_HANDLE hpub, hev;
+    DWORD msgid, flags;
+    EVT_VARIANT *valuesP;
+    int nvalues;
+    WCHAR buf[500];             /* TBD - instrument */
+    int buf_sz, used;
+    WCHAR *bufP;
+    DWORD winerr;
+    TwapiEVT_RENDER_VALUES_HEADER *ervhP;
+    Tcl_Obj *objP;
+    TCL_RESULT status;
+
+    /* objv[6], if specified, is the name of the variable to store
+       message. If unspecified, message is returned in interp result. */
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETHANDLET(hpub, EVT_HANDLE),
+                     GETHANDLET(hev, EVT_HANDLE),
+                     GETINT(msgid),
+                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETINT(flags),
+                     ARGUSEDEFAULT, ARGSKIP, ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (ervhP) {
+        winerr = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
+        if (winerr != TWAPI_NO_ERROR)
+            return TwapiReturnError(interp, winerr);
+        nvalues = ervhP->header.count;
+        valuesP = ERVHP_BUFFER(ervhP);
+    } else {
+        nvalues = 0;
+        valuesP = NULL;
+    }
+
+    /* TBD - instrument buffer size */
+    bufP = buf;
+    buf_sz = ARRAYSIZE(buf);
+    winerr = ERROR_SUCCESS;
+    /* Note buffer sizes are in WCHARs, not bytes */
+    if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
+        winerr = GetLastError();
+        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+            buf_sz = used;
+            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*buf_sz, NULL);
+            if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
+                winerr = GetLastError();
+            } else {
+                winerr = ERROR_SUCCESS;
+            }
+        }
+    }        
+
+    /* For some error codes, the buffer is actually filled with 
+       as much of the message as can be resolved.
+    */
+    switch (winerr) {
+    case 15029: // ERROR_EVT_UNRESOLVED_VALUE_INSERT
+    case 15030: // ERROR_EVT_UNRESOLVED_PARAMTER_INSERT
+    case 15031: // ERROR_EVT_MAX_INSERTS_REACHED
+        /* Sanity check */
+        if (used && used <= buf_sz) {
+            /* TBD - debug log */
+            bufP[used-1] = 0; /* Ensure null termination */
+            winerr = ERROR_SUCCESS; /* Treat as success case */
+        }
+    }
+    objP = NULL;
+    if (winerr == ERROR_SUCCESS) {
+        /* See comments in GetMessageString function at
+           http://msdn.microsoft.com/en-us/windows/dd996923%28v=vs.85%29
+           If flags == EvtFormatMessageKeyword,  the buffer may contain
+           multiple concatenated null terminated keywords. */
+        status = TCL_OK;
+        if (flags == 5 /* EvtFormatMessageKeyword */ ) {
+            objP = ObjFromMultiSz(bufP, used);
+        } else {
+            /* For other cases, like xml, used may be more than last char
+               so depend on null termination, not used count.
+               TBD - for performance reasons, verify this and may be
+               make exception for xml only
+            */
+            objP = ObjFromUnicode(bufP);
+        }
+    } else {
+        if (objc == 7) {
+            objP = Twapi_MapWindowsErrorToString(winerr);
+            status = TCL_OK;
+        } else {
+            Twapi_AppendSystemError(interp, winerr);
+            status = TCL_ERROR;
+        }
+    }
+
+    if (status == TCL_OK) {
+        if (objc == 7) {
+            TWAPI_ASSERT(objP != NULL);
+            /* Set the value of the variable to the message or the error string */
+            if (Tcl_ObjSetVar2(interp, objv[6], NULL, objP, TCL_LEAVE_ERR_MSG) == NULL) {
+                Twapi_FreeNewTclObj(objP);
+                status = TCL_ERROR; /* Invalid variable */
+            }
+            else {
+                TwapiSetObjResult(interp, ObjFromInt(winerr == ERROR_SUCCESS));
+            }
+        } else
+            TwapiSetObjResult(interp, objP);
+    }
+
+    if (bufP != buf)
+        MemLifoPopFrame(&ticP->memlifo);
+
+    return status;
+}
+
+
 static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     EVT_HANDLE hevt;
@@ -1269,6 +1386,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
+        DEFINE_TCL_CMD(EvtFormatMessage2, Twapi_EvtFormatMessage2ObjCmd),
     };
 
     static struct alias_dispatch_s EvtVariantGetDispatch[] = {
