@@ -50,7 +50,7 @@ proc twapi::winlog_open {args} {
             # evt_query will not read new events from a channel once
             # eof is reached. So if reading in forward direction, we use
             # evt_subscribe. Backward it does not matter.
-            if ($opts(direction) eq "forward"} {
+            if {$opts(direction) eq "forward"} {
                 lassign [evt_subscribe $opts(channel) -session $hsess -ignorequeryerrors -includeexisting] hq signal
                 dict set _winlog_handles $hq signal $signal
             } else {
@@ -156,7 +156,7 @@ if {[twapi::min_os_version 6]} {
         # TBD - is 10 an appropriate number of events to read?
         set events [evt_next $hq -timeout 0 -count 10 -status status]
         if {[llength $events]} {
-            foreach hevt [evt_next $hq -timeout 0 -count 10] {
+            foreach hevt $events {
                 lappend result [evt_decode_event $hevt -lcid $lcid -ignorestring "" -message -levelname -taskname]
                 evt_close $hevt
             }
