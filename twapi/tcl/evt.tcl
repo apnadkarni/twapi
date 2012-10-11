@@ -461,9 +461,15 @@ proc twapi::evt_next {hresultset args} {
     array set opts [parseargs args {
         {timeout.int -1}
         {count.int 1}
+        {status.arg}
     } -maxleftover 0]
 
-    return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
+    if {[info exists opts(status)]} {
+        upvar 1 $opts(status) status
+        return [EvtNext $hresultset $opts(count) $opts(timeout) 0 status]
+    } else {
+        return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
+    }
 }
 
 proc twapi::evt_decode_event_system_fields {hevt} {

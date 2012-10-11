@@ -565,6 +565,12 @@ are event handles which can be passed to
 must be closed via [uri #evt_close [cmd evt_close]].
 [nl]
 The command returns an empty list if no more events are available.
+The behaviour of further calls depends on whether [arg HEVTRESULTSET]
+was returned from [uri #evt_query [cmd evt_query]] or
+[uri #evt_subscribe [cmd evt_subscribe]]. In the former case, an
+empty list will continue to be returned even if additional events
+are logged to a channel. In the latter case, the command will return
+those events.
 [nl]
 The cursor in the event result set is moved past the returned events
 so each [cmd evt_next] returns events from the result set in sequence.
@@ -577,6 +583,11 @@ events returned may be less if the end of the result set is reached.
 If unspecified, the number of returned events depends on various
 internal tuning factors and applications must not rely on a specific
 number being returned.
+[opt_def -status [arg VARNAME]]
+The name of a variable in which to return status. If there is an
+error when reading the next event, the command will normally generate
+an Tcl exception. If this option is specified, the command will instead
+return an empty list and store the error code in the specified variable.
 [opt_def -timeout [arg MILLISECONDS]]
 Specifies the number of milliseconds to wait for events. A value of 
 [const -1] (default) indicates call should not time out.
@@ -588,7 +599,10 @@ Returns a list of names of the publishers registered on the system.
 [call [cmd evt_query] [opt [arg options]]]
 Returns a handle to a result set containing events matching the
 specified criteria. Events from the result set are read using
-the [uri #evt_next [cmd evt_next]] command.
+the [uri #evt_next [cmd evt_next]] command. Note that once
+the end of the result set returned by [cmd evt_query] is reached,
+further events that are logged will not be returned.
+[nl]
 After processing events, the handle must be closed
 using the [uri #evt_close [cmd evt_close]] command.
 [nl]
