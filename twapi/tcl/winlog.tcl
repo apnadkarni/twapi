@@ -47,7 +47,15 @@ proc twapi::winlog_open {args} {
             } else {
                 set hsess [evt_open_session $opts(system) -authtype $opts(authtype)]
             }
-            set hq [evt_query -session $hsess -channel $opts(channel) -ignorequeryerrors -direction $opts(direction)]
+            # evt_query will not read new events from a channel once
+            # eof is reached. So if reading in forward direction, we use
+            # evt_subscribe. Backward it does not matter.
+            if ($opts(direction) eq "forward"} {
+                lassign [evt_subscribe $opts(channel) -session $hsess -ignorequeryerrors -includeexisting] hq signal
+                dict set _winlog_handles $hq signal $signal
+            } else {
+                set hq [evt_query -session $hsess -channel $opts(channel) -ignorequeryerrors -direction $opts(direction)]
+            }
         }
         
         dict set _winlog_handles $hq session $hsess
@@ -72,6 +80,9 @@ proc twapi::winlog_close {hq} {
     }
 
     if {[min_os_version 6]} {
+        if {[dict exists $_winlog_handles $hq signal]} {
+            close_handle [dict get $_winlog_handles $hq signal]
+        }
         set hsess [dict get $_winlog_handles $hq session]
         evt_close $hq
         evt_close_session $hsess
@@ -142,13 +153,25 @@ proc twapi::winlog_event_count {args} {
 if {[twapi::min_os_version 6]} {
 
     proc twapi::winlog_read {hq {lcid 0}} {
-        set result {}
         # TBD - is 10 an appropriate number of events to read?
-        foreach hevt [evt_next $hq -timeout 0 -count 10] {
-            lappend result [evt_decode_event $hevt -lcid $lcid -ignorestring "" -message -levelname -taskname]
-            evt_close $hevt
+        set events [evt_next $hq -timeout 0 -count 10 -status status]
+        if {[llength $events]} {
+            foreach hevt [evt_next $hq -timeout 0 -count 10] {
+                lappend result [evt_decode_event $hevt -lcid $lcid -ignorestring "" -message -levelname -taskname]
+                evt_close $hevt
+            }
+            return $result
         }
-        return $result
+
+        # No events were returned. Check status whether it is fatal error
+        # or not. SUCCESS, NO_MORE_ITEMS, TIMEOUT, INVALID_OPERATION
+        # are acceptable. This last happens when another EvtNext is done
+        # after an NO_MORE_ITEMS is already returned.
+        if {$status == 0 || $status == 259 || $status == 1460 || $status == 4317} {
+            return {}
+        } else {
+            win32_error $status
+        }
     }
 
     proc twapi::winlog_subscribe {channelpath} {
