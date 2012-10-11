@@ -754,11 +754,14 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     EVT_HANDLE hevt;
     EVT_HANDLE *hevtP;
     DWORD i, count, timeout, dw;
+    Tcl_Obj *objP;
     Tcl_Obj **objPP;
     int result;
 
+    /* ARGSKIP is status. Only filled on error */
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt), GETINT(count),
-                     GETINT(timeout), GETINT(dw), ARGEND) != TCL_OK)
+                     GETINT(timeout), GETINT(dw), ARGUSEDEFAULT, ARGSKIP,
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     if (count > 1024) // TBD
@@ -773,15 +776,38 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
             TwapiSetObjResult(interp, ObjNewList(count, objPP));
         }
         result = TCL_OK;
+        dw = 0;
     } else {
+        count = 0;
+        result = TCL_ERROR;
         dw = GetLastError();
-        if (dw == ERROR_NO_MORE_ITEMS || dw == ERROR_TIMEOUT)
-            result = TCL_OK;
-        else {
-            Twapi_AppendSystemError(interp, dw);
-            result = TCL_ERROR;
+    }
+
+
+    if (count == 0) {
+        /* If empty list being returned, indicate status */
+        if (objc == 6) {
+            /*
+             * Caller has supplied a variable to hold status. In this case
+             * we do not generate an error even if there is one. Set
+             * the variable to the status. The command return will stay empty.
+             */
+            objP = ObjFromDWORD(dw);
+            if (Tcl_ObjSetVar2(interp, objv[5], NULL, objP, TCL_LEAVE_ERR_MSG) == NULL) {
+                Twapi_FreeNewTclObj(objP);
+                result = TCL_ERROR; /* Invalid variable */
+            } else
+                result = TCL_OK;
+        } else {
+            /* No status var supplied. In this case, eof is not an error */
+            if (dw == 0 || dw == ERROR_NO_MORE_ITEMS || dw == ERROR_TIMEOUT)
+                result = TCL_OK;
+            else
+                result = TCL_ERROR;
         }
     }
+
+
     MemLifoPopFrame(&ticP->memlifo);
     return result;
 }
