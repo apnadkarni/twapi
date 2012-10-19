@@ -649,10 +649,11 @@ int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (ShellExecuteExW(&sei) == 0) {
         DWORD winerr = GetLastError();
-        /* Note: double cast (int)(ULONG_PTR) is to prevent 64-bit warnings */
-        Tcl_Obj *objP = Tcl_ObjPrintf("ShellExecute specific error: %d.", (int) (ULONG_PTR) sei.hInstApp);
+        /* Note: error code in se.hInstApp is ignored as per
+           http://blogs.msdn.com/b/oldnewthing/archive/2012/10/18/10360604.aspx
+        */
         TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
-        return Twapi_AppendSystemErrorEx(interp, winerr, objP);
+        return Twapi_AppendSystemError(interp, winerr);
     }
 
     TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
