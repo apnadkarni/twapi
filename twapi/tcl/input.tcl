@@ -234,7 +234,7 @@ proc twapi::register_hotkey {hotkey script args} {
         RegisterHotKey $atom $modifiers $vk
     } onerror {} {
         GlobalDeleteAtom $atom; # Undo above AddAtom
-        error "Error registering hotkey." $errorInfo $errorCode
+        error $errorResult $errorInfo $errorCode
     }
     set _hotkeys($atom) [list $script]; # Replace previous script
     return $atom
