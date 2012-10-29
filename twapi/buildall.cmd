@@ -54,7 +54,9 @@ IF NOT "x%1" == "xtwapi_bin" goto build_lib
 echo BUILDING twapi-modular
 nmake /nologo /a /s twapi-modular
 
+IF "x%1" == "x" goto build_lib
+IF NOT "x%1" == "xtwapi_lib" goto vamoose
 :build_lib
-rem Libraries
-rem cd base && nmake /s /nologo /a EMBED_SCRIPT=lzma TWAPI_STATIC_BUILD=1 clean lib 
-rem cd ..
+nmake /nologo /a /s twapi-lib
+
+:vamoose

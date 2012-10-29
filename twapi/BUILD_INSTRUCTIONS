@@ -102,9 +102,12 @@ This will build a single DLL with all scripts embedded as resources in it.
 This will build separate DLL's for each component, each with the associated
 script embedded.
 
+     nmake twapi-lib
+
+This will build the static library version of TWAPI.
+
 By default, the builds will be the twapi/build directory and the
 distributions in the twapi/dist directory.
-
 
 Building a full distribution
 ----------------------------
@@ -113,3 +116,11 @@ The above steps are combined into the buildall.cmd batch file.
 Run this file from a DOS prompt WITHOUT setting up the environment as
 described above. It will then build all the above distributions
 for both 32- and 64-bit versions.
+
+
+Building for debugging
+----------------------
+
+For debugging, build a version with the NOOPTIMIZE option as follows:
+
+    nmake twapi NOOPTIMIZE=1
