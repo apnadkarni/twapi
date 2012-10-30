@@ -15,7 +15,7 @@
 
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 
-#if VER_PRODUCTBUILD < 7600
+#if (VER_PRODUCTBUILD < 7600) || (_WIN32_WINNT <= 0x600)
 # define RUNTIME_EVT_LOAD 1
 #else
 # include <winevt.h>
