@@ -10,17 +10,21 @@ static char *gTArrayTypes[] = {
     "boolean",
 #define TARRAY_BOOLEAN 0
     "int",
-#define TARRAY_INT 1
+#define TARRAY_UINT 1
+    "uint",
+#define TARRAY_INT 2
     "wide",
-#define TARRAY_WIDE 2
+#define TARRAY_WIDE 3
     "double",
-#define TARRAY_DOUBLE 3
+#define TARRAY_DOUBLE 4
     "byte",
-#define TARRAY_BYTE 4
+#define TARRAY_BYTE 5
+    "tclobj",
+#define TARRAY_OBJ 6
 };    
 
 #define TARRAY_MAX_ELEM_SIZE \
-    (sizeof(double) > sizeof(long) ? (sizeof(double) > sizeof(void*) ? sizeof(double) : sizeof(void*)) : sizeof(long))
+    (sizeof(double) > sizeof(int) ? (sizeof(double) > sizeof(void*) ? sizeof(double) : sizeof(void*)) : sizeof(int))
 #define TARRAY_MAX_COUNT \
     (1 + (int)(((size_t)UINT_MAX - sizeof(TArrayHdr))/TARRAY_MAX_ELEM_SIZE))
 
@@ -62,14 +66,14 @@ static struct Tcl_ObjType gTArrayType = {
 
 static void FreeTArray(Tcl_Obj *objP)
 {
-    void *thdrP = TARRAYHDR(objP);
+    void *thdrP;
 
     TARRAY_ASSERT(srcP->typePtr == &gTArrayType);
 
     thdrP = TARRAYHDR(objP); 
     TARRAY_ASSERT(thdrP);
 
-    if (--thdrP->nrefs)
+    if (--thdrP->nrefs == 0)
         TARRAY_FREE(thdrP);
     TARRAYHDR(objP) = NULL;
     objP->typePtr = NULL;
@@ -155,13 +159,18 @@ static void UpdateObjArrayString(
 static void UpdateTArrayString(Tcl_Obj *objP)
 {
     int i, n, count;
+    int allocated, unused;
     char *cP;
+    unsigned char uc;
+    unsigned char *ucP;
+    int max_elem_space;  /* Max space to print one element including
+                            either terminating null or space */
     
-    TARRAY_ASSERT(objP->bytes == NULL);
     TARRAY_ASSERT(objP->typePtr == &gTArrayType);
 
-    count = TARRAYELEMCOUNT(objP);
+    objP->bytes = NULL;
 
+    count = TARRAYELEMCOUNT(objP);
     if (count == 0) {
 	objP->bytes = ckalloc(sizeof(objP->bytes[0]));
         objP->bytes[0] = 0;
@@ -172,45 +181,107 @@ static void UpdateTArrayString(Tcl_Obj *objP)
     /* Code below based on count > 0 else terminating \0 will blow memory */
 
     /*
+     * Special case Boolean since we know exactly how many chars will
+     * be required 
+     */
+
+    /*
      * When output size cannot be calculated exactly, we allocate using
-     * some estimage 
+     * some estimate based on the type.
+     */
     
     switch (TARRAYTYPE(objP)) {
     case TARRAY_BOOLEAN:
-        {
-            unsigned char *boolP;
-            unsigned char uc;
-            /* For BOOLEANS, we know how long a buffer needs to be */
-            cP = ckalloc(2*count);
-            objP->bytes = cP;
-            boolP = TARRAYELEMPTR(objP, unsigned char, 0);
-            n = count / 8;
-            for (i = 0; i < n; ++i, ++boolP) {
-                for (uc = 1; uc ; uc <<= 1) {
-                    *cP++ = (*boolP & uc) ? '1' : '0';
-                    *cP++ = ' ';
-                }
+        /* For BOOLEANS, we know how long a buffer needs to be */
+        cP = ckalloc(2*count);
+        objP->bytes = cP;
+        ucP = TARRAYELEMPTR(objP, unsigned char, 0);
+        n = count / 8;
+        for (i = 0; i < n; ++i, ++ucP) {
+            for (uc = 1; uc ; uc <<= 1) {
+                *cP++ = (*ucP & uc) ? '1' : '0';
+                *cP++ = ' ';
             }
-            n = count - n*8;    /* Left over bits in last byte */
-            if (n) {
-                for (i = 0, uc = 1; i < n; ++i, uc <<= 1) {
-                    *cP++ = (uc & j) ? '1' : '0';
-                    *cP++ = ' ';
-                }
-            }
-            cP[-1] = 0;         /* Overwrite last space with terminating \0 */
-            objP->length = 2*count - 1;
         }
-        break;
-    case TARRAY_INT:
+        n = count - n*8;    /* Left over bits in last byte */
+        if (n) {
+            for (i = 0, uc = 1; i < n; ++i, uc <<= 1) {
+                *cP++ = (uc & j) ? '1' : '0';
+                *cP++ = ' ';
+            }
+        }
+        cP[-1] = 0;         /* Overwrite last space with terminating \0 */
+        objP->length = 2*count - 1;
+        return;
 
-    case TARRAY_WIDE: sz = sizeof(Tcl_WideInt); break; TBD;
-    case TARRAY_DOUBLE: sz = sizeof(double); break; TBD;
-    case TARRAY_BYTE: sz = sizeof(unsigned char); break; TBD;
-    default:
+    TARRAY_OBJ:
         UpdateObjArrayString(objP, TARRAYELEMPTR(objP, Tcl_Obj *, 0), count);
+        return;
+        
+    TARRAY_UINT:
+    TARRAY_INT:
+        TARRAY_ASSERT(sizeof(int) == 4); /* So max string space needed is 11 */
+        max_elem_space = 11+1;
         break;
+    TARRAY_WIDE:
+        max_elem_space = TCL_INTEGER_SPACE+1;
+        break;
+    TARRAY_DOUBLE:
+        max_elem_space = TCL_DOUBLE_SPACE+1;
+        break;
+    TARRAY_BYTE:
+        max_elem_space = 3+1;
+        break;
+    default:
+        Tcl_Panic("Unknown TypedArray type %d", TARRAYTYPE(objP));
     }
+
+    allocated = 0;
+    unused = 0;
+    objP->bytes= NULL;
+    /* Nested loop for efficiency reasons to avoid switch on every iter */
+    for (i = 0; i < count; ++i) {
+        if (unused < max_elem_space) {
+            n = allocated - unused; /* Used space */
+            /* Increase assuming remaining take half max space on average */
+            allocated += ((max_elem_size + 1)/2)*(count - i);
+            objP->bytes = ckrealloc(objP->bytes, allocated);
+            cP = n + (char *) objP->bytes;
+            unused = allocated - n;
+        }
+        switch (TARRAYTYPE(objP)) {
+        TARRAY_UINT:
+            _snprintf(cP, unused, "%u", *TARRAYELEMPTR(objP, unsigned int, i));
+            break;
+        TARRAY_INT:
+            _snprintf(cP, unused, "%d", *TARRAYELEMPTR(objP, int, i));
+            break;
+        TARRAY_WIDE:
+            _snprintf(cP, unused, "%" TCL_LL_MODIFIER "d", *TARRAYELEMPTR(objP, Tcl_WideInt, i));
+            break;
+        TARRAY_DOUBLE:
+            /* Do not use _snprintf because of slight difference
+               it does not include decimal point for whole ints. For
+               consistency with Tcl, use Tcl_PrintDouble instead */
+            Tcl_PrintDouble(NULL, *TARRAYELEMPTR(objP, Tcl_WideInt, i), cP);
+            break;
+        TARRAY_BYTE:
+            _snprintf(cP, unused, "%u", *TARRAYELEMPTR(objP, unsigned char, i));
+            break;
+        }
+        n = strlen(cP);
+        cP += n;
+        *cP++ = ' ';
+        unused -= n+1;
+    }
+
+    cP[-1] = 0;         /* Overwrite last space with terminating \0 */
+    objP->length = allocated - unused - 1; /* Terminating null not included in length */
+
+    /* Only shrink array if unused space is comparatively too large */
+    if (unused > (allocated / 8))
+        objP->bytes = ckrealloc(objP->bytes, allocated - unused);
+    return;
 }
 
 static void XXXDupTArray(Tcl_Obj *srcP, Tcl_Obj *dstP)
