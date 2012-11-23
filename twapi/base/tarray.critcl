@@ -333,7 +333,7 @@ TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
                            int init_size)
 {
     TArrayHdr *thdrP;
-    int i, space;
+    int i, j, space;
 
     if (elems) {
         /*
@@ -382,15 +382,35 @@ TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
     thdrP->allocated = init_size;
     thdrP->used = nelems;
 
-    if (elems == NULL)
+    if (elems == NULL || nelems == 0)
         return thdrP;       /* All done */
 
     switch (tatype) {
-#ifdef TBD
     case TARRAY_BOOLEAN:
-        TBD;
+        {
+            unsigned char *ucP = TAHDRELEMPTR(thdrP, unsigned char, 0);
+            unsigned char uc, uc_mask;
+            int val;
+            for (i = 0, uc = 0, uc_mask = 1; i < nelems; ++i) {
+                if (Tcl_GetBooleanFromObj(interp, elems[i], &val) != TCL_OK)
+                    goto convert_error;
+                if (val)
+                    uc |= uc_mask;
+                if (uc_mask == 0x80) {
+                    /* One byte full */
+                    *ucP++ = uc;
+                    uc = 0;
+                    uc_mask = 1;
+                } else
+                    uc_mask <<= 1;
+            }
+            if (uc_mask != 1) {
+                /* We have some leftover bits in uc that need to be stored. */
+                *ucP = uc;
+            }
+        }
         break;
-#endif
+
     case TARRAY_UINT:
     {
         Tcl_WideInt wide;
