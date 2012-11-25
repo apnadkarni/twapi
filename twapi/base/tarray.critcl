@@ -1,3 +1,4 @@
+# TBD - change booleans to use 32-bit words instead of unsigned chars
 package require critcl
 critcl::clean_cache
 critcl::tcl 8.5
@@ -5,6 +6,8 @@ critcl::tcl 8.5
 critcl::ccode {
 #include "tcl.h"
 #include <limits.h>
+
+typedef int TCL_RESULT;
 
 /* If building out of twapi pool, use its settings */
 #if defined(TWAPI_ENABLE_ASSERT) && !defined(TARRAY_ENABLE_ASSERT)
@@ -25,6 +28,8 @@ critcl::ccode {
 #else
 #define TARRAY_ASSERT(bool_) ((void) 0)
 #endif
+
+typedef Tcl_Obj *TArrayObjPtr;
 
 /*
  * TArray is a Tcl "type" used for densely storing arrays of elements
@@ -50,6 +55,7 @@ static char *gTArrayTypeTokens[] = {
     "tclobj",
 #define TARRAY_OBJ 6
 };    
+#define TARRAY_TYPE_END (sizeof(gTArrayTypeTokens)/sizeof(gTArrayTypeTokens[0]))
 
 /* How many slots to allocate by default */
 #define TARRAY_DEFAULT_NSLOTS 1000
@@ -109,6 +115,17 @@ static struct Tcl_ObjType gTArrayType = {
 /* ALLOCATE_ARRAY call should panic on failure to allocate */
 #define TARRAY_ALLOCMEM ckalloc
 #define TARRAY_FREEMEM(p_) if (p_) ckfree((char *)p_)
+
+static TCL_RESULT TArrayVerifyType(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    if (objP->typePtr == &gTArrayType)
+        return TCL_OK;
+    else {
+        if (interp)
+            Tcl_SetResult(interp, "Value is not a tarray", TCL_STATIC);
+        return TCL_ERROR;
+    }
+}
 
 static void FreeTArray(Tcl_Obj *objP)
 {
@@ -328,12 +345,232 @@ static void UpdateTArrayString(Tcl_Obj *objP)
     return;
 }
 
-TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
+/* thdrP must NOT be shared and must have enough slots */
+static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
+                                 int first, int nelems,
+                                 Tcl_Obj * const elems[])
+{
+    int old_used;
+    int i, ival;
+    Tcl_WideInt wide;
+    double dval;
+
+    if (thdrP->nrefs > 1) {
+        Tcl_Panic("TArraySetElems called on shared array");
+    }
+
+    if ((first + nelems) > thdrP->allocated) {
+        /* Should really panic but not a fatal error (ie. no memory
+         * corruption etc.). Most likely some code path did not check
+         * size and allocate space accordingly.
+         */
+        Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    /*
+     * In case of conversion errors, we have to keep the old values
+     * so we loop through first to verify there are no errors and then
+     * a second time to actually store the values. The arrays can be
+     * very large so we do not want to allocate a temporary
+     * holding area for saving old values to be restored in case of errors.
+     *
+     * As a special optimization, when appending to the end, we do
+     * not need to first check. We directly store the values and in case
+     * of errors, simply restore the old size.
+     *
+     * Also for TARRAY_OBJ there is no question of conversion and hence
+     * no question of conversion errors.
+     */
+
+    old_used = thdrP->used;
+    if (first < old_used && thdrP->type != TARRAY_OBJ) {
+        /* Not appending, need to verify conversion */
+        switch (thdrP->type) {
+        case TARRAY_BOOLEAN:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetBooleanFromObj(interp, elems[i], &ival) != TCL_OK)
+                    goto convert_error;
+            }
+            break;
+
+        case TARRAY_UINT:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
+                    goto convert_error;
+                if (wide < 0 || wide > 0xFFFFFFFF) {
+                    Tcl_SetObjResult(interp,
+                                     Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
+                    goto convert_error;
+                }
+            }
+            break;
+
+        case TARRAY_INT:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
+                    goto convert_error;
+            }
+            break;
+
+        case TARRAY_WIDE:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
+                    goto convert_error;
+            }
+            break;
+
+        case TARRAY_DOUBLE:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetDoubleFromObj(interp, elems[i], &dval) != TCL_OK)
+                    goto convert_error;
+            }
+            break;
+
+        case TARRAY_BYTE:
+            for (i = 0; i < nelems; ++i) {
+                if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
+                    goto convert_error;
+                if (ival > 255 || ival < 255) {
+                    Tcl_SetObjResult(interp,
+                                     Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
+                    goto convert_error;
+                }
+            }
+            break;
+        default:
+            Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
+        }
+    }
+
+    /*
+     * Now actually store the values. Note we still have to check
+     * status on conversion since we did not do checks when we are appending
+     * to the end.
+     */
+
+    switch (thdrP->type) {
+    case TARRAY_BOOLEAN:
+        {
+            register unsigned char *ucP = TAHDRELEMPTR(thdrP, unsigned char, 0);
+            unsigned char uc, uc_mask;
+            for (i = 0, uc = 0, uc_mask = 1; i < nelems; ++i) {
+                if (Tcl_GetBooleanFromObj(interp, elems[i], &ival) != TCL_OK)
+                    goto convert_error;
+                if (ival)
+                    uc |= uc_mask;
+                if (uc_mask == 0x80) {
+                    /* One byte full */
+                    *ucP++ = uc;
+                    uc = 0;
+                    uc_mask = 1;
+                } else
+                    uc_mask <<= 1;
+            }
+            if (uc_mask != 1) {
+                /* We have some leftover bits in uc that need to be stored. */
+                *ucP = uc;
+            }
+        }
+        break;
+
+    case TARRAY_UINT:
+        {
+            register unsigned int *uintP;
+            uintP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            for (i = 0; i < nelems; ++i, ++uintP) {
+                if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
+                    goto convert_error;
+                if (wide < 0 || wide > 0xFFFFFFFF) {
+                    Tcl_SetObjResult(interp,
+                                     Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
+                    goto convert_error;
+                }
+                *uintP = (unsigned int) wide;
+            }
+        }
+        break;
+    case TARRAY_INT:
+        {
+            register int *intP;
+            intP = TAHDRELEMPTR(thdrP, int, 0);
+            for (i = 0; i < nelems; ++i, ++intP) {
+                if (Tcl_GetIntFromObj(interp, elems[i], intP) != TCL_OK)
+                    goto convert_error;
+            }
+        }
+        break;
+
+    case TARRAY_WIDE:
+        {
+            register Tcl_WideInt *wideP;
+            wideP = TAHDRELEMPTR(thdrP, Tcl_WideInt, 0);
+            for (i = 0; i < nelems; ++i, ++wideP) {
+                if (Tcl_GetWideIntFromObj(interp, elems[i], wideP) != TCL_OK)
+                    goto convert_error;
+            }
+        }
+        break;
+
+    case TARRAY_DOUBLE:
+        {
+            register double *dblP;
+            dblP = TAHDRELEMPTR(thdrP, double, 0);
+            for (i = 0; i < nelems; ++i, ++dblP) {
+                if (Tcl_GetDoubleFromObj(interp, elems[i], dblP) != TCL_OK)
+                    goto convert_error;
+            }
+        }
+        break;
+
+    case TARRAY_OBJ:
+        {
+            register Tcl_Obj **objPP;
+            objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, 0);
+            for (i = 0; i < nelems; ++i, ++objPP) {
+                *objPP = elems[i];
+                Tcl_IncrRefCount(*objPP);
+            }
+        }
+        break;
+
+    case TARRAY_BYTE:
+        {
+            register unsigned char *byteP;
+            byteP = TAHDRELEMPTR(thdrP, unsigned char, 0);
+            for (i = 0; i < nelems; ++i, ++byteP) {
+                if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
+                    goto convert_error;
+                if (ival > 255 || ival < 255) {
+                    Tcl_SetObjResult(interp,
+                                     Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
+                    goto convert_error;
+                }
+                *byteP = (unsigned char) ival;
+            }
+        }
+        break;
+
+    default:
+        Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
+    }
+
+    return TCL_OK;
+
+convert_error:                  /* Interp should already contain errors */
+    TARRAY_ASSERT(thdrP->type != TARRAY_OBJ); /* Else we may need to deal with ref counts */
+    thdrP->used = old_used;
+
+    return TCL_ERROR;
+
+}
+
+static TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
                            int nelems, Tcl_Obj * const elems[],
                            int init_size)
 {
     TArrayHdr *thdrP;
-    int i, j, space;
+    int space;
 
     if (elems) {
         /*
@@ -382,132 +619,60 @@ TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
     thdrP->allocated = init_size;
     thdrP->used = nelems;
 
-    if (elems == NULL || nelems == 0)
-        return thdrP;       /* All done */
-
-    switch (tatype) {
-    case TARRAY_BOOLEAN:
-        {
-            unsigned char *ucP = TAHDRELEMPTR(thdrP, unsigned char, 0);
-            unsigned char uc, uc_mask;
-            int val;
-            for (i = 0, uc = 0, uc_mask = 1; i < nelems; ++i) {
-                if (Tcl_GetBooleanFromObj(interp, elems[i], &val) != TCL_OK)
-                    goto convert_error;
-                if (val)
-                    uc |= uc_mask;
-                if (uc_mask == 0x80) {
-                    /* One byte full */
-                    *ucP++ = uc;
-                    uc = 0;
-                    uc_mask = 1;
-                } else
-                    uc_mask <<= 1;
-            }
-            if (uc_mask != 1) {
-                /* We have some leftover bits in uc that need to be stored. */
-                *ucP = uc;
-            }
+    if (elems != NULL && nelems != 0) {
+        if (TArraySetElems(interp, thdrP, 0, nelems, elems) != TCL_OK) {
+            TARRAY_FREEMEM(thdrP);
+            return NULL;
         }
-        break;
-
-    case TARRAY_UINT:
-    {
-        Tcl_WideInt wide;
-        register unsigned int *uintP;
-        uintP = TAHDRELEMPTR(thdrP, unsigned int, 0);
-        for (i = 0; i < nelems; ++i, ++uintP) {
-            if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
-                goto convert_error;
-            if (wide < 0 || wide > 0xFFFFFFFF) {
-                Tcl_SetObjResult(interp,
-                                 Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
-                goto convert_error;
-            }
-            *uintP = (unsigned int) wide;
-        }
-    }
-    break;
-    case TARRAY_INT:
-    {
-        register int *intP;
-        intP = TAHDRELEMPTR(thdrP, int, 0);
-        for (i = 0; i < nelems; ++i, ++intP) {
-            if (Tcl_GetIntFromObj(interp, elems[i], intP) != TCL_OK)
-                goto convert_error;
-        }
-    }
-    break;
-
-    case TARRAY_WIDE:
-    {
-        register Tcl_WideInt *wideP;
-        wideP = TAHDRELEMPTR(thdrP, Tcl_WideInt, 0);
-        for (i = 0; i < nelems; ++i, ++wideP) {
-            if (Tcl_GetWideIntFromObj(interp, elems[i], wideP) != TCL_OK)
-                goto convert_error;
-        }
-    }
-    break;
-
-    case TARRAY_DOUBLE:
-    {
-        register double *dblP;
-        dblP = TAHDRELEMPTR(thdrP, double, 0);
-        for (i = 0; i < nelems; ++i, ++dblP) {
-            if (Tcl_GetDoubleFromObj(interp, elems[i], dblP) != TCL_OK)
-                goto convert_error;
-        }
-    }
-    break;
-
-    case TARRAY_OBJ:
-    {
-        register Tcl_Obj **objPP;
-        objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, 0);
-        for (i = 0; i < nelems; ++i, ++objPP) {
-            *objPP = elems[i];
-            Tcl_IncrRefCount(*objPP);
-        }
-    }
-    break;
-
-    case TARRAY_BYTE:
-    {
-        register unsigned char *byteP;
-        int ival;
-        byteP = TAHDRELEMPTR(thdrP, unsigned char, 0);
-        for (i = 0; i < nelems; ++i, ++byteP) {
-            if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
-                goto convert_error;
-            if (ival > 255 || ival < 255) {
-                Tcl_SetObjResult(interp,
-                                 Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
-                goto convert_error;
-            }
-            *byteP = (unsigned char) ival;
-        }
-    }
-    break;
-    default:
-        Tcl_Panic("Unknown TypedArray type %d", tatype);
     }
 
     return thdrP;
 
-convert_error:
-    TARRAY_ASSERT(tatype != TARRAY_OBJ);
-    TARRAY_FREEMEM(thdrP);
-    return NULL;
 }
 
+/* Returns a Tcl_Obj for a TArray slot. NOTE: WITHOUT its ref count incremented */
+static Tcl_Obj * TArrayIndex(Tcl_Interp *interp, TArrayHdr *thdrP, int index)
+{
+    Tcl_Obj *objP;
+    int offset;
+
+    if (index >= thdrP->used) {
+        if (interp)
+            Tcl_SetResult(interp, "tarray index out of bounds", TCL_STATIC);
+        return NULL;
+    }
+
+    switch (thdrP->type) {
+    case TARRAY_BOOLEAN:
+        offset = index / 8;
+        index -= 8*offset;
+        return Tcl_NewIntObj(0 != ((1 << index) & *TAHDRELEMPTR(thdrP, unsigned char, offset)));
+    case TARRAY_UINT:
+        return Tcl_NewWideIntObj(*TAHDRELEMPTR(thdrP, unsigned int, index));
+    case TARRAY_INT:
+        return Tcl_NewIntObj(*TAHDRELEMPTR(thdrP, int, index));
+    case TARRAY_WIDE:
+        return Tcl_NewWideIntObj(*TAHDRELEMPTR(thdrP, Tcl_WideInt, index));
+    case TARRAY_DOUBLE:
+        return Tcl_NewDoubleObj(*TAHDRELEMPTR(thdrP, double, index));
+    case TARRAY_BYTE:
+        return Tcl_NewIntObj(*TAHDRELEMPTR(thdrP, unsigned char, index));
+    case TARRAY_OBJ:
+        return *TAHDRELEMPTR(thdrP, Tcl_Obj *, index);
+    }
 }
 
 
-#critcl::csources typedarray.c
+}
+
+critcl::argtype TArrayObjPtr {
+    if (TArrayVerifyType(interp, @@) != TCL_OK)
+        return TCL_ERROR;
+    @A = @@;
+}
 
 critcl::ccommand tarray::create {} {
-    int i, opt;
+    int i;
     int init_size;
     int tatype;
     Tcl_Obj *objP;
@@ -545,9 +710,36 @@ critcl::ccommand tarray::create {} {
     Tcl_InvalidateStringRep(objP);
     TARRAY_OBJ_SETREP(objP, thdrP);
 
-
-    
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
 }
 
+critcl::cproc tarray::size {Tcl_Interp* interp Tcl_Obj* taP} ok {
+    if (TArrayVerifyType(interp, taP) != TCL_OK)
+        return TCL_ERROR;
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(TARRAYELEMCOUNT(taP)));
+    return TCL_OK;
+}
+
+critcl::cproc tarray::type {Tcl_Interp* interp TArrayObjPtr taP} ok {
+    int tatype = TARRAYTYPE(taP);
+    if (tatype >= TARRAY_TYPE_END)
+        Tcl_Panic("Unexpected tarray type %d in Tcl_Obj", tatype);
+
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(gTArrayTypeTokens[tatype], -1));
+    return TCL_OK;
+}
+
+critcl::cproc tarray::index {Tcl_Interp* interp TArrayObjPtr taP int index} ok {
+    Tcl_Obj *objP = TArrayIndex(interp, TARRAYHDR(taP), index);
+    if (objP) {
+        Tcl_SetObjResult(interp, objP);
+        return TCL_OK;
+    } else
+        return TCL_ERROR;
+}
+
+critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj* {high 0}} ok {
+    Tcl_SetObjResult(interp, high);
+    return TCL_OK;
+}
