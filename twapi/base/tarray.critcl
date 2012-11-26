@@ -1,4 +1,3 @@
-# TBD - change booleans to use 32-bit words instead of unsigned chars
 package require critcl
 critcl::clean_cache
 critcl::tcl 8.5
@@ -220,10 +219,9 @@ static void UpdateTArrayString(Tcl_Obj *objP)
     int i, n, count;
     int allocated, unused;
     char *cP;
-    unsigned char uc, uc_mask;
-    unsigned char *ucP;
     int max_elem_space;  /* Max space to print one element including
                             either terminating null or space */
+    TArrayHdr *thdrP;
         
     TARRAY_ASSERT(objP->typePtr == &gTArrayType);
 
@@ -236,6 +234,8 @@ static void UpdateTArrayString(Tcl_Obj *objP)
         objP->length = 0;
         return;
     }
+
+    thdrP = TARRAYHDR(objP);
 
     /* Code below based on count > 0 else terminating \0 will blow memory */
 
@@ -251,32 +251,36 @@ static void UpdateTArrayString(Tcl_Obj *objP)
         
     switch (TARRAYTYPE(objP)) {
     case TARRAY_BOOLEAN:
-        /* For BOOLEANS, we know how long a buffer needs to be */
-        cP = ckalloc(2*count);
-        objP->bytes = cP;
-        ucP = TARRAYELEMPTR(objP, unsigned char, 0);
-        n = count / 8;
-        for (i = 0; i < n; ++i, ++ucP) {
-            uc = *ucP;
-            for (uc_mask = 1; uc_mask ; uc_mask <<= 1) {
-                *cP++ = (uc & uc_mask) ? '1' : '0';
-                *cP++ = ' ';
+        {
+            unsigned int *uiP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            register unsigned int ui = *uiP;
+            register unsigned int ui_mask;
+
+            /* For BOOLEANS, we know how long a buffer needs to be */
+            cP = ckalloc(2*count);
+            objP->bytes = cP;
+            n = count / 32;
+            for (i = 0; i < n; ++i, ++uiP) {
+                for (ui_mask = 1; ui_mask ; ui_mask <<= 1) {
+                    *cP++ = (ui & ui_mask) ? '1' : '0';
+                    *cP++ = ' ';
+                }
             }
-        }
-        n = count - n*8;    /* Left over bits in last byte */
-        if (n) {
-            uc = *ucP;
-            for (i = 0, uc_mask = 1; i < n; ++i, uc_mask <<= 1) {
-                *cP++ = (uc & uc_mask) ? '1' : '0';
-                *cP++ = ' ';
+            n = count - n*32;    /* Left over bits in last byte */
+            if (n) {
+                ui = *uiP;
+                for (i = 0, ui_mask = 1; i < n; ++i, ui_mask <<= 1) {
+                    *cP++ = (ui & ui_mask) ? '1' : '0';
+                    *cP++ = ' ';
+                }
             }
+            cP[-1] = 0;         /* Overwrite last space with terminating \0 */
+            objP->length = 2*count - 1;
         }
-        cP[-1] = 0;         /* Overwrite last space with terminating \0 */
-        objP->length = 2*count - 1;
         return;
                 
     case TARRAY_OBJ:
-        UpdateObjArrayString(objP, TARRAYELEMPTR(objP, Tcl_Obj *, 0), count);
+        UpdateObjArrayString(objP, TAHDRELEMPTR(thdrP, Tcl_Obj *, 0), count);
         return;
                 
     case TARRAY_UINT:
@@ -294,7 +298,7 @@ static void UpdateTArrayString(Tcl_Obj *objP)
         max_elem_space = 3+1;
         break;
     default:
-        Tcl_Panic("Unknown TypedArray type %d", TARRAYTYPE(objP));
+        Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
     }
             
     allocated = 0;
@@ -310,24 +314,24 @@ static void UpdateTArrayString(Tcl_Obj *objP)
             cP = n + (char *) objP->bytes;
             unused = allocated - n;
         }
-        switch (TARRAYTYPE(objP)) {
+        switch (thdrP->type) {
         case TARRAY_UINT:
-            _snprintf(cP, unused, "%u", *TARRAYELEMPTR(objP, unsigned int, i));
+            _snprintf(cP, unused, "%u", *TAHDRELEMPTR(thdrP, unsigned int, i));
             break;
         case TARRAY_INT:
-            _snprintf(cP, unused, "%d", *TARRAYELEMPTR(objP, int, i));
+            _snprintf(cP, unused, "%d", *TAHDRELEMPTR(thdrP, int, i));
             break;
         case TARRAY_WIDE:
-            _snprintf(cP, unused, "%" TCL_LL_MODIFIER "d", *TARRAYELEMPTR(objP, Tcl_WideInt, i));
+            _snprintf(cP, unused, "%" TCL_LL_MODIFIER "d", *TAHDRELEMPTR(thdrP, Tcl_WideInt, i));
             break;
         case TARRAY_DOUBLE:
             /* Do not use _snprintf because of slight difference
                it does not include decimal point for whole ints. For
                consistency with Tcl, use Tcl_PrintDouble instead */
-            Tcl_PrintDouble(NULL, *TARRAYELEMPTR(objP, double, i), cP);
+            Tcl_PrintDouble(NULL, *TAHDRELEMPTR(thdrP, double, i), cP);
             break;
         case TARRAY_BYTE:
-            _snprintf(cP, unused, "%u", *TARRAYELEMPTR(objP, unsigned char, i));
+            _snprintf(cP, unused, "%u", *TAHDRELEMPTR(thdrP, unsigned char, i));
             break;
         }
         n = strlen(cP);
@@ -452,24 +456,24 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     switch (thdrP->type) {
     case TARRAY_BOOLEAN:
         {
-            register unsigned char *ucP = TAHDRELEMPTR(thdrP, unsigned char, 0);
-            unsigned char uc, uc_mask;
-            for (i = 0, uc = 0, uc_mask = 1; i < nelems; ++i) {
+            register unsigned int *uiP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            unsigned int ui, ui_mask;
+            for (i = 0, ui = 0, ui_mask = 1; i < nelems; ++i) {
                 if (Tcl_GetBooleanFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
                 if (ival)
-                    uc |= uc_mask;
-                if (uc_mask == 0x80) {
+                    ui |= ui_mask;
+                ui_mask <<= 1;
+                if (ui_mask == 0) {
                     /* One byte full */
-                    *ucP++ = uc;
-                    uc = 0;
-                    uc_mask = 1;
-                } else
-                    uc_mask <<= 1;
+                    *uiP++ = ui;
+                    ui = 0;
+                    ui_mask = 1;
+                }
             }
-            if (uc_mask != 1) {
-                /* We have some leftover bits in uc that need to be stored. */
-                *ucP = uc;
+            if (ui_mask != 1) {
+                /* We have some leftover bits in ui that need to be stored. */
+                *uiP = ui;
             }
         }
         break;
@@ -591,7 +595,7 @@ static TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
 
     switch (tatype) {
     case TARRAY_BOOLEAN:
-        space = (init_size+7)/8;
+        space = (init_size+31)/32;
         break;
     case TARRAY_UINT:
     case TARRAY_INT:
@@ -644,9 +648,9 @@ static Tcl_Obj * TArrayIndex(Tcl_Interp *interp, TArrayHdr *thdrP, int index)
 
     switch (thdrP->type) {
     case TARRAY_BOOLEAN:
-        offset = index / 8;
-        index -= 8*offset;
-        return Tcl_NewIntObj(0 != ((1 << index) & *TAHDRELEMPTR(thdrP, unsigned char, offset)));
+        offset = index / 32;
+        index -= 32*offset;
+        return Tcl_NewIntObj(0 != ((1 << index) & *TAHDRELEMPTR(thdrP, unsigned int, offset)));
     case TARRAY_UINT:
         return Tcl_NewWideIntObj(*TAHDRELEMPTR(thdrP, unsigned int, index));
     case TARRAY_INT:
