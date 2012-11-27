@@ -685,6 +685,9 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
     TARRAY_ASSERT(dstP->type == srcP->type);
     TARRAY_ASSERT(dstP->nrefs < 2); /* Must not be shared */
 
+    if (src_first < 0)
+        src_first = 0;
+
     if (src_first >= srcP->used || dstP == srcP)
         return TCL_OK;          /* Nothing to be copied */
 

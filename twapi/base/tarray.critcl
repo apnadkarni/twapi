@@ -100,6 +100,8 @@ critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj
         high = TARRAYELEMCOUNT(taP) - 1;
     }
 
+    if (low < 0)
+        low = 0;
     count = high-low+1;
     if (count < 0)
         count = 0;
