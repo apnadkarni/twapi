@@ -59,10 +59,8 @@ static char *gTArrayTypeTokens[] = {
 /* How many slots to allocate by default */
 #define TARRAY_DEFAULT_NSLOTS 1000
 
-#define TARRAY_MAX_ELEM_SIZE                                            \
-    (sizeof(double) > sizeof(int) ? (sizeof(double) > sizeof(void*) ? sizeof(double) : sizeof(void*)) : sizeof(int))
-#define TARRAY_MAX_COUNT                                                \
-    (1 + (int)(((size_t)UINT_MAX - sizeof(TArrayHdr))/TARRAY_MAX_ELEM_SIZE))
+#define TARRAY_MAX_ELEM_SIZE (sizeof(double) > sizeof(int) ? (sizeof(double) > sizeof(void*) ? sizeof(double) : sizeof(void*)) : sizeof(int))
+#define TARRAY_MAX_COUNT (1 + (int)(((size_t)UINT_MAX - sizeof(TArrayHdr))/TARRAY_MAX_ELEM_SIZE))
 
 typedef union TArrayHdr_s {
     void *pointer_aligner;
@@ -74,16 +72,14 @@ typedef union TArrayHdr_s {
         int used;
     };
 } TArrayHdr;
-#define TAHDRELEMPTR(thdr_, type_, index_)                              \
-    ((index_) + (type_ *)(sizeof(TArrayHdr) + (char *) (thdr_)))
+#define TAHDRELEMPTR(thdr_, type_, index_) ((index_) + (type_ *)(sizeof(TArrayHdr) + (char *) (thdr_)))
 
 #define TARRAYDATA(optr_)  ((optr_)->internalRep.ptrAndLongRep.ptr)
 #define TARRAYHDR(optr_) ((TArrayHdr *)TARRAYDATA(optr_))
 #define TARRAYTYPE(optr_) (TARRAYHDR(optr_)->type)
 #define TARRAYELEMSLOTS(optr_) ((TARRAYHDR(optr_))->allocated)
 #define TARRAYELEMCOUNT(optr_) ((TARRAYHDR(optr_))->used)
-#define TARRAYELEMPTR(optr_, type_, index_)             \
-    TAHDRELEMPTR(TARRAYHDR(optr_), type_, index_)
+#define TARRAYELEMPTR(optr_, type_, index_) TAHDRELEMPTR(TARRAYHDR(optr_), type_, index_)
 
 /* How much extra slots to allocate when allocating memory. n_ should
  * be number of elements currently.
@@ -91,7 +87,7 @@ typedef union TArrayHdr_s {
 #define TARRAY_EXTRA(n_)  \
     ((n_) < 10 ? 10 : ((n_) < 100 ? (n_) : ((n_) < 800 ? 100 : ((n_)/8))))
 
-#define TARRAY_OBJ_SETREP(optr_, thdr_)         \
+#define TARRAY_OBJ_SETREP(optr_, thdr_) \
     do {                                        \
         (thdr_)->nrefs++;                       \
         TARRAYHDR(optr_) = thdr_;               \
@@ -114,6 +110,60 @@ static struct Tcl_ObjType gTArrayType = {
 /* ALLOCATE_ARRAY call should panic on failure to allocate */
 #define TARRAY_ALLOCMEM ckalloc
 #define TARRAY_FREEMEM(p_) if (p_) ckfree((char *)p_)
+#define TARRAY_REALLOCMEM ckrealloc
+
+static void BadTypePanic(int tatype)
+{
+    Tcl_Panic("Unknown tarray type %d", tatype);
+}
+
+/* Increments the ref counts of Tcl_Objs in a tarray making sure not
+   to run past end of array */
+static void TArrayIncrObjRefs(TArrayHdr *thdrP, int first, int count)
+{
+    register int i;
+    register Tcl_Obj **objPP;
+
+    if (thdrP->type == TARRAY_OBJ) {
+        if ((first + count) > thdrP->used)
+            count = thdrP->used - first;
+        if (count <= 0)
+            return;
+        objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, first);
+        for (i = 0; i < count; ++i, ++objPP) {
+            Tcl_IncrRefCount(*objPP);
+        }
+    }
+}
+
+/* Decrements the ref counts of Tcl_Objs in a tarray.
+   Does NOT CLEAR ANY OTHER HEADER FIELDS. CALLER MUST DO THAT 
+*/
+static void TArrayDecrObjRefs(TArrayHdr *thdrP, int first, int count)
+{
+    register int i;
+    register Tcl_Obj **objPP;
+
+    if (thdrP->type == TARRAY_OBJ) {
+        if ((first + count) > thdrP->used)
+            count = thdrP->used - first;
+        if (count <= 0)
+            return;
+        objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, first);
+        for (i = 0; i < count; ++i, ++objPP) {
+            Tcl_DecrRefCount(*objPP);
+        }
+    }
+}
+
+static void TArrayFreeHdr(TArrayHdr *thdrP)
+{
+    if (thdrP->type == TARRAY_OBJ) {
+        TArrayDecrObjRefs(thdrP);
+    }
+    if (--thdrP->nrefs <= 0)
+        TARRAY_FREEMEM(thdrP);
+}
 
 static TCL_RESULT TArrayVerifyType(Tcl_Interp *interp, Tcl_Obj *objP)
 {
@@ -135,8 +185,7 @@ static void FreeTArray(Tcl_Obj *objP)
     thdrP = TARRAYHDR(objP); 
     TARRAY_ASSERT(thdrP);
 
-    if (--thdrP->nrefs == 0)
-        TARRAY_FREEMEM(thdrP);
+    TArrayFreeHdr(thdrP);
     TARRAYHDR(objP) = NULL;
     objP->typePtr = NULL;
 }
@@ -298,7 +347,7 @@ static void UpdateTArrayString(Tcl_Obj *objP)
         max_elem_space = 3+1;
         break;
     default:
-        Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
+        BadTypePanic(thdrP->type);
     }
             
     allocated = 0;
@@ -350,18 +399,15 @@ static void UpdateTArrayString(Tcl_Obj *objP)
 }
 
 /* thdrP must NOT be shared and must have enough slots */
-static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
+static TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                                  int first, int nelems,
                                  Tcl_Obj * const elems[])
 {
-    int old_used;
     int i, ival;
     Tcl_WideInt wide;
     double dval;
 
-    if (thdrP->nrefs > 1) {
-        Tcl_Panic("TArraySetElems called on shared array");
-    }
+    TARRAY_ASSERT(thdrP->nrefs < 2);
 
     if ((first + nelems) > thdrP->allocated) {
         /* Should really panic but not a fatal error (ie. no memory
@@ -387,8 +433,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
      * no question of conversion errors.
      */
 
-    old_used = thdrP->used;
-    if (first < old_used && thdrP->type != TARRAY_OBJ) {
+    if (first < thdrP->used && thdrP->type != TARRAY_OBJ) {
         /* Not appending, need to verify conversion */
         switch (thdrP->type) {
         case TARRAY_BOOLEAN:
@@ -443,7 +488,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
             }
             break;
         default:
-            Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
+            BadTypePanic(thdrP->type);
         }
     }
 
@@ -456,24 +501,32 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     switch (thdrP->type) {
     case TARRAY_BOOLEAN:
         {
-            register unsigned int *uiP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            register unsigned int *uiP;
             unsigned int ui, ui_mask;
-            for (i = 0, ui = 0, ui_mask = 1; i < nelems; ++i) {
+
+            /* Take care of the initial condition where the first bit
+               may not be aligned on a word boundary */
+            uiP = TAHDRELEMPTR(thdrP, unsigned int, first / 32);
+            ui_mask = (1 << (first & 31));
+            ui = *uiP & ( ui_mask - 1);
+            for (i = 0; i < nelems; ++i) {
                 if (Tcl_GetBooleanFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
                 if (ival)
                     ui |= ui_mask;
                 ui_mask <<= 1;
                 if (ui_mask == 0) {
-                    /* One byte full */
                     *uiP++ = ui;
                     ui = 0;
                     ui_mask = 1;
                 }
             }
             if (ui_mask != 1) {
-                /* We have some leftover bits in ui that need to be stored. */
-                *uiP = ui;
+                /* We have some leftover bits in ui that need to be stored.
+                 * We need to *merge* these into the corresponding word
+                 * keeping the existing high bits and setting the new low bits
+                 */
+                *uiP = (*uiP & -ui_mask) | ui; /* Assuming 2'complement math */
             }
         }
         break;
@@ -481,7 +534,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_UINT:
         {
             register unsigned int *uintP;
-            uintP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            uintP = TAHDRELEMPTR(thdrP, unsigned int, first);
             for (i = 0; i < nelems; ++i, ++uintP) {
                 if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
                     goto convert_error;
@@ -497,7 +550,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_INT:
         {
             register int *intP;
-            intP = TAHDRELEMPTR(thdrP, int, 0);
+            intP = TAHDRELEMPTR(thdrP, int, first);
             for (i = 0; i < nelems; ++i, ++intP) {
                 if (Tcl_GetIntFromObj(interp, elems[i], intP) != TCL_OK)
                     goto convert_error;
@@ -508,7 +561,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_WIDE:
         {
             register Tcl_WideInt *wideP;
-            wideP = TAHDRELEMPTR(thdrP, Tcl_WideInt, 0);
+            wideP = TAHDRELEMPTR(thdrP, Tcl_WideInt, first);
             for (i = 0; i < nelems; ++i, ++wideP) {
                 if (Tcl_GetWideIntFromObj(interp, elems[i], wideP) != TCL_OK)
                     goto convert_error;
@@ -519,7 +572,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_DOUBLE:
         {
             register double *dblP;
-            dblP = TAHDRELEMPTR(thdrP, double, 0);
+            dblP = TAHDRELEMPTR(thdrP, double, first);
             for (i = 0; i < nelems; ++i, ++dblP) {
                 if (Tcl_GetDoubleFromObj(interp, elems[i], dblP) != TCL_OK)
                     goto convert_error;
@@ -530,10 +583,15 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_OBJ:
         {
             register Tcl_Obj **objPP;
-            objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, 0);
+            objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, first);
             for (i = 0; i < nelems; ++i, ++objPP) {
+                /* Careful about the order here! */
+                Tcl_IncrRefCount(elems[i]);
+                if ((first + i) < thdrP->used) {
+                    /* Deref what was originally in that slot */
+                    Tcl_DecrRefCount(*objPP);
+                }
                 *objPP = elems[i];
-                Tcl_IncrRefCount(*objPP);
             }
         }
         break;
@@ -541,7 +599,7 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
     case TARRAY_BYTE:
         {
             register unsigned char *byteP;
-            byteP = TAHDRELEMPTR(thdrP, unsigned char, 0);
+            byteP = TAHDRELEMPTR(thdrP, unsigned char, first);
             for (i = 0; i < nelems; ++i, ++byteP) {
                 if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
@@ -556,20 +614,66 @@ static TCL_RESULT TArraySetElems(Tcl_Interp *interp, TArrayHdr *thdrP,
         break;
 
     default:
-        Tcl_Panic("Unknown TypedArray type %d", thdrP->type);
+        BadTypePanic(thdrP->type);
     }
+
+    if ((first + nelems) > thdrP->used)
+        thdrP->used = first + nelems;
 
     return TCL_OK;
 
 convert_error:                  /* Interp should already contain errors */
     TARRAY_ASSERT(thdrP->type != TARRAY_OBJ); /* Else we may need to deal with ref counts */
-    thdrP->used = old_used;
 
     return TCL_ERROR;
 
 }
 
-static TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
+static int TArrayCalcSize(int tatype, int count)
+{
+    int space;
+
+    switch (tatype) {
+    case TARRAY_BOOLEAN:
+        space = 4*((count+31)/32);
+        break;
+    case TARRAY_UINT:
+    case TARRAY_INT:
+        space = count * sizeof(int);
+        break;
+    case TARRAY_WIDE:
+        space = count * sizeof(Tcl_WideInt);
+        break;
+    case TARRAY_DOUBLE:
+        space = count * sizeof(double);
+        break;
+    case TARRAY_OBJ:
+        space = count * sizeof(Tcl_Obj *);
+        break;
+    case TARRAY_BYTE:
+        space = count * sizeof(unsigned char);
+        break;
+    default:
+        BadTypePanic(tatype);
+    }
+
+    return sizeof(TArrayHdr) + space;
+}
+
+static TArrayHdr *TArrayRealloc(Tcl_Interp *interp, TArrayHdr *oldP, int new_count)
+{
+    TArrayHdr *thdrP;
+
+    TARRAY_ASSERT(oldP->nrefs < 2);
+    TARRAY_ASSERT(oldP->used <= new_count);
+
+    thdrP = TARRAY_REALLOCMEM(oldP, TArrayCalcSize(oldP->type, new_count));
+    thdrP->allocated = new_count;
+    return thdrP;
+}
+
+
+static TArrayHdr * TArrayAlloc(Tcl_Interp *interp, int tatype,
                            int nelems, Tcl_Obj * const elems[],
                            int init_size)
 {
@@ -593,38 +697,14 @@ static TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
             init_size = TARRAY_DEFAULT_NSLOTS;
     }
 
-    switch (tatype) {
-    case TARRAY_BOOLEAN:
-        space = 4*((init_size+31)/32);
-        break;
-    case TARRAY_UINT:
-    case TARRAY_INT:
-        space = init_size * sizeof(int);
-        break;
-    case TARRAY_WIDE:
-        space = init_size * sizeof(Tcl_WideInt);
-        break;
-    case TARRAY_DOUBLE:
-        space = init_size * sizeof(double);
-        break;
-    case TARRAY_OBJ:
-        space = init_size * sizeof(Tcl_Obj *);
-        break;
-    case TARRAY_BYTE:
-        space = init_size * sizeof(unsigned char);
-        break;
-    default:
-        Tcl_Panic("Unknown TypedArray type %d", tatype);
-    }
-
-    thdrP = (TArrayHdr *) TARRAY_ALLOCMEM(sizeof(TArrayHdr) + space);
+    thdrP = (TArrayHdr *) TARRAY_ALLOCMEM(TArrayCalcSize(tatype, init_size));
     thdrP->nrefs = 0;
     thdrP->type = tatype;
     thdrP->allocated = init_size;
     thdrP->used = nelems;
 
     if (elems != NULL && nelems != 0) {
-        if (TArraySetElems(interp, thdrP, 0, nelems, elems) != TCL_OK) {
+        if (TArraySetFromObjs(interp, thdrP, 0, nelems, elems) != TCL_OK) {
             TARRAY_FREEMEM(thdrP);
             return NULL;
         }
@@ -632,6 +712,113 @@ static TArrayHdr * TArrayAllocate(Tcl_Interp *interp, int tatype,
 
     return thdrP;
 
+}
+
+/* dstP must not be shared and must be large enough */
+static TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
+                             TArrayHdr *srcP, int src_first, int count)
+{
+    int i, nbytes;
+    void *s, *d;
+    Tcl_Obj *objPP;
+
+    TARRAY_ASSERT(dstP->type == srcP->type);
+    TARRAY_ASSERT(dstP->nrefs < 2); /* Must not be shared */
+
+    if (src_first >= srcP->used || dstP == srcP)
+        return TCL_OK;          /* Nothing to be copied */
+
+    if ((src_first + count) > srcP->used)
+        count = srcP->used - src_first;
+
+    if (count <= 0)
+        return TCL_OK;
+
+    if (dst_first < 0)
+        dst_first = 0;
+    else if (dst_first > dstP->used)
+        dst_first = dst_used;
+
+    if ((dst_first + count) > dstP->allocated) {
+        Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    /*
+     * For all types other than BOOLEAN and OBJ, we can just memcpy
+     * Those two types have complication in that BOOLEANs are compacted
+     * into int size words and the copy may not be aligned on a byte boundary.
+     * For OBJ types, we have to deal with reference counts.
+     */
+    switch (srcP->type) {
+    case TARRAY_BOOLEAN:
+        /*
+         * A bit bothersome because the source and destination starting bit
+         * may not be aligned on word boundaries and the count may also
+         * not be aligned.
+         */
+
+        if ((src_first & 31) == 0 && (dst_first & 31 == 0) && (count/32) == 0) {
+            /* Both aligned, wonderful. Just do a memcpy of words like for other types */
+            nbytes = (count/32) * sizeof(unsigned int);
+            s = TAHDRELEMPTR(srcP, unsigned int, src_first);
+            d = TAHDRELEMPTR(dstP, unsigned int, dst_first);
+            break;
+        }
+
+        HERE
+        nbytes = 4*((count+31)/32);
+        break;
+    case TARRAY_OBJ:
+        /*
+         * We have to deal with reference counts here. For the objects
+         * we are copying (source) we need to increment the reference counts.
+         * For objects in destination that we are overwriting, we need
+         * to decrement reference counts.
+         */
+
+        TArrayIncrObjRefs(srcP, src_first, count); /* Do this first */
+        /* Note this call take care of the case where count exceeds
+         * actual number in dstP
+         */
+        TArrayDecrObjRefs(dstP, dst_first, count);
+         
+        /* Now we can just memcpy like the other types */
+        nbytes = count * sizeof(Tcl_Obj *);
+        s = TAHDRELEMPTR(srcP, Tcl_Obj *, src_first);
+        d = TAHDRELEMPTR(dstP, Tcl_Obj *, dst_first);
+        break;
+    case TARRAY_UINT:
+    case TARRAY_INT:
+        nbytes = count * sizeof(int);
+        s = TAHDRELEMPTR(srcP, int, src_first);
+        d = TAHDRELEMPTR(dstP, int, dst_first);
+        break;
+    case TARRAY_WIDE:
+        nbytes = count * sizeof(Tcl_WideInt);
+        s = TAHDRELEMPTR(srcP, Tcl_WideInt, src_first);
+        d = TAHDRELEMPTR(dstP, Tcl_WideInt, dst_first);
+        break;
+    case TARRAY_DOUBLE:
+        nbytes = count * sizeof(double);
+        s = TAHDRELEMPTR(srcP, double, src_first);
+        d = TAHDRELEMPTR(dstP, double, dst_first);
+        break;
+    case TARRAY_BYTE:
+        nbytes = count * sizeof(unsigned char);
+        s = TAHDRELEMPTR(srcP, unsigned char, src_first);
+        d = TAHDRELEMPTR(dstP, unsigned char, dst_first);
+        break;
+    default:
+        BadTypePanic(srcP->type);
+    }
+
+    memcpy(d, s, nbytes);
+
+    if ((dst_first + count) > dstP->used)
+        dstP->used = dst_first + count;
+
+    return TCL_OK;
 }
 
 static TArrayHdr * TArrayCopy(Tcl_Interp *interp,
@@ -661,6 +848,10 @@ static TArrayHdr * TArrayCopy(Tcl_Interp *interp,
 
     switch (srcP->type) {
     case TARRAY_BOOLEAN:
+        /* Simple memcpy this does not work for booleans unless aligned
+           properly 
+        */
+        HERE
         nbytes = 4*((count+31)/32);
         break;
     case TARRAY_UINT:
@@ -680,19 +871,14 @@ static TArrayHdr * TArrayCopy(Tcl_Interp *interp,
         nbytes = count * sizeof(unsigned char);
         break;
     default:
-        Tcl_Panic("Unknown TypedArray type %d", srcP->type);
+        BadTypePanic(srcP->type);
     }
 
     if (count) {
         memcpy(TAHDRELEMPTR(thdrP, char, 0), TAHDRELEMPTR(srcP, char, low), nbytes);
         thdrP->used = count;
         if (thdrP->type == TARRAY_OBJ) {
-            register int i;
-            register Tcl_Obj **objPP;
-            objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, 0);
-            for (i = 0; i < count; ++i, ++objPP) {
-                Tcl_IncrRefCount(*objPP);
-            }
+            TArrayIncrObjRefs(thdrP);
         }
     }
 
@@ -730,6 +916,123 @@ static Tcl_Obj * TArrayIndex(Tcl_Interp *interp, TArrayHdr *thdrP, int index)
     case TARRAY_OBJ:
         return *TAHDRELEMPTR(thdrP, Tcl_Obj *, index);
     }
+}
+
+/* Returns a TArrayHdr of type int. The header's ref count is incremented
+ * so caller should call TArrayFreeHdr as appropriate
+ */
+static TArrayHdr *TArrayConvertToIndices(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    TArrayHdr *thdrP;
+    Tcl_Obj **elems;
+    int       nelems;
+
+    /* Indices should be a tarray of ints. If not, treat as a list
+     * and convert it that way. Though that is slower, it should be rare
+     * as all tarray indices are returned already in the proper format.
+     */
+    if (objP->typePtr == &gTArrayType && TARRAYTYPE(objP) == TARRAY_INT) {
+        thdrP = TARRAYHDR(objP);
+        thdrP->nrefs++;
+        return thdrP;
+    }
+
+    if (Tcl_ListObjGetElements(interp, objP, &nelems, &elems) != TCL_OK)
+        return NULL;
+
+    thdrP = TArrayAllocate(interp, TARRAY_INT, nelems, elems, 0);
+    if (thdrP)
+        thdrP->nrefs++;
+    return thdrP;
+}
+
+/* Returns a newly allocated TArrayHdr (with ref count 0) containing the
+   values from the specified indices */
+static TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indicesP)
+{
+    TArrayHdr *thdrP;
+    int i, count;
+    int *indexP;
+
+    if (indicesP->type != TARRAY_INT) {
+        Tcl_SetResult(interp, "Invalid type for tarray indices", TCL_STATIC);
+        return NULL;
+    }
+
+    count = indicesP->used;
+    thdrP = TArrayAllocate(interp, srcP->type, 0, 0, count);
+    if (thdrP == 0 || count == 0)
+        return thdrP;
+
+    indexP = TAHDRELEMPTR(indicesP, int, 0);
+
+    switch (srcP->type) {
+    case TARRAY_BOOLEAN:
+        {
+            unsigned int *uiP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            unsigned int ui, src_ui, ui_mask;
+            for (i = 0, ui = 0, ui_mask = 1; i < count; ++i, ++indexP) {
+                off = *indexP / 32;   /* Offset to word containing the bit */
+                src_ui = *TAHDRELEMPTR(srcP, unsigned int, off); /* The word */
+                if (src_ui & (1 << (*indexP - (off*32))))
+                    ui |= ui_mask;
+                ui_mask <<= 1;
+                if (ui_mask == 0) {
+                    *uiP++ = ui;
+                    ui = 0;
+                    ui_mask = 1;
+                }
+            }
+            if (ui_mask != 1) {
+                /* We have some leftover bits in ui that need to be stored. */
+                *uiP = ui;
+            }
+        }
+        break;
+    case TARRAY_UINT:
+    case TARRAY_INT:
+        {
+            unsigned int *uiP = TAHDRELEMPTR(thdrP, unsigned int, 0);
+            for (i = 0; i < count; ++i, ++indexP, ++uiP)
+                *uiP = *TAHDRELEMPTR(srcP, unsigned int, *indexP);
+        }
+        break;
+    case TARRAY_WIDE:
+        {
+            Tcl_Wide *wideP = TAHDRELEMPTR(thdrP, Tcl_WideInt, 0);
+            for (i = 0; i < count; ++i, ++indexP, ++wideP)
+                *wideP = *TAHDRELEMPTR(srcP, Tcl_WideInt, *indexP);
+        }
+        break;
+    case TARRAY_DOUBLE:
+        {
+            double *dblP = TAHDRELEMPTR(thdrP, double, 0);
+            for (i = 0; i < count; ++i, ++indexP, ++dblP)
+                *dblP = *TAHDRELEMPTR(srcP, double, *indexP);
+        }
+        break;
+    case TARRAY_BYTE:
+        {
+            unsigned char *ucP = TAHDRELEMPTR(thdrP, unsigned char, 0);
+            for (i = 0; i < count; ++i, ++indexP, ++ucP)
+                *ucP = *TAHDRELEMPTR(srcP, unsigned char, *indexP);
+        }
+        break;
+    case TARRAY_OBJ:
+        {
+            Tcl_Obj *objPP = TAHDRELEMPTR(thdrP, Tcl_Obj *, 0);
+            for (i = 0; i < count; ++i, ++indexP, ++objPP) {
+                *objPP = *TAHDRELEMPTR(srcP, Tcl_Obj *, *indexP);
+                Tcl_IncrRefCount(*objPP);
+            }
+        }
+        break;
+    default:
+        BadTypePanic(srcP->type);
+    }
+
+    thdrP->used = count;
+    return thdrP;
 }
 
 
@@ -794,7 +1097,7 @@ critcl::cproc tarray::size {Tcl_Interp* interp Tcl_Obj* taP} ok {
 critcl::cproc tarray::type {Tcl_Interp* interp TArrayObjPtr taP} ok {
     int tatype = TARRAYTYPE(taP);
     if (tatype >= TARRAY_TYPE_END)
-        Tcl_Panic("Unexpected tarray type %d in Tcl_Obj", tatype);
+        BadTypePanic(tatype);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(gTArrayTypeTokens[tatype], -1));
     return TCL_OK;
@@ -837,5 +1140,16 @@ critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj
     TARRAY_OBJ_SETREP(objP, thdrP);
 
     Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+
+critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taP Tcl_Obj* indicesP} {
+    TArrayHdr *thdrP = TArrayConvertToIndices(interp, indicesP);
+    if (thdrP == NULL)
+        return TCL_ERROR;
+
+    
+
+    TArrayFreeHdr(thdrP);
     return TCL_OK;
 }
