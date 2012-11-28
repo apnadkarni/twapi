@@ -80,6 +80,7 @@ extern void __cdecl TArrayIncrObjRefs(union TArrayHdr_s *thdrP,int first,int cou
 extern void __cdecl TArrayDecrObjRefs(union TArrayHdr_s *thdrP,int first,int count);
 extern void __cdecl TArrayFreeHdr(union TArrayHdr_s *thdrP);
 extern int __cdecl TArrayVerifyType(struct Tcl_Interp *interp,struct Tcl_Obj *objP);
+extern Tcl_Obj * __cdecl TArrayNewObj(TArrayHdr *thdrP);
 extern int __cdecl TArraySetFromObjs(struct Tcl_Interp *interp,union TArrayHdr_s *thdrP,int first,int nelems,struct Tcl_Obj *const *elems );
 extern int __cdecl TArrayCalcSize(int tatype,int count);
 extern union TArrayHdr_s *__cdecl TArrayRealloc(struct Tcl_Interp *interp,union TArrayHdr_s *oldP,int new_count);
