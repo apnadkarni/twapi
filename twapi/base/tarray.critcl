@@ -49,11 +49,7 @@ critcl::ccommand tarray::create {} {
     if (thdrP == NULL)
         return TCL_ERROR;
 
-    objP = Tcl_NewObj();
-    Tcl_InvalidateStringRep(objP);
-    TARRAY_OBJ_SETREP(objP, thdrP);
-
-    Tcl_SetObjResult(interp, objP);
+    Tcl_SetObjResult(interp, TArrayNewObj(thdrP));
     return TCL_OK;
 }
 
@@ -81,7 +77,6 @@ critcl::cproc tarray::index {Tcl_Interp* interp TArrayObjPtr taP int index} ok {
 }
 
 critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj* highP} ok {
-    Tcl_Obj *objP;
     TArrayHdr *thdrP;
     int high;
     int count;
@@ -113,21 +108,23 @@ critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj
     if (TArraySet(interp, thdrP, 0, TARRAYHDR(taP), low, count) != TCL_OK)
         return TCL_ERROR;
 
-    objP = Tcl_NewObj();
-    Tcl_InvalidateStringRep(objP);
-    TARRAY_OBJ_SETREP(objP, thdrP);
-
-    Tcl_SetObjResult(interp, objP);
+    Tcl_SetObjResult(interp, TArrayNewObj(thdrP));
     return TCL_OK;
 }
 
 critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taP Tcl_Obj* indicesP} ok {
+    TArrayHdr *valuesP;
     TArrayHdr *thdrP = TArrayConvertToIndices(interp, indicesP);
+    
     if (thdrP == NULL)
         return TCL_ERROR;
 
-    
+    valuesP = TArrayGetValues(interp, TARRAYHDR(taP), thdrP);
+    if (valuesP) {
+        Tcl_SetObjResult(interp, TArrayNewObj(valuesP));
+    }
 
     TArrayFreeHdr(thdrP);
-    return TCL_OK;
+    return valuesP ? TCL_OK : TCL_ERROR;
 }
+
