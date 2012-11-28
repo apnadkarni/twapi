@@ -349,6 +349,14 @@ static void TArrayUpdateStringRep(Tcl_Obj *objP)
     return;
 }
 
+Tcl_Obj *TArrayNewObj(TArrayHdr *thdrP)
+{
+    Tcl_Obj *objP = Tcl_NewObj();
+    Tcl_InvalidateStringRep(objP);
+    TARRAY_OBJ_SETREP(objP, thdrP);
+    return objP;
+}
+    
 /* thdrP must NOT be shared and must have enough slots */
 TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                                  int first, int nelems,
