@@ -2,6 +2,7 @@
 #include "tcl.h"
 #include "tarray.h"
 
+
 /*
  * Various operations on bit arrays use the following definitions. 
  * Since we are using the bitarray code from stackoverflow, bit arrays
@@ -46,24 +47,19 @@ struct Tcl_ObjType gTArrayType = {
 };
 
 
-char *gTArrayTypeTokens[] = {
+/* Must match definitions in tarray.h ! */
+const char *gTArrayTypeTokens[] = {
     "boolean",
-#define TARRAY_BOOLEAN 0
     "int",
-#define TARRAY_UINT 1
     "uint",
-#define TARRAY_INT 2
     "wide",
-#define TARRAY_WIDE 3
     "double",
-#define TARRAY_DOUBLE 4
     "byte",
-#define TARRAY_BYTE 5
     "tclobj",
-#define TARRAY_OBJ 6
+    NULL
 };    
 
-void TArrayTypePanic(int tatype)
+void TArrayTypePanic(unsigned char tatype)
 {
     Tcl_Panic("Unknown tarray type %d", tatype);
 }
@@ -358,6 +354,7 @@ Tcl_Obj *TArrayNewObj(TArrayHdr *thdrP)
 }
     
 /* thdrP must NOT be shared and must have enough slots */
+/* interp may be NULL (only used for errors) */
 TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                                  int first, int nelems,
                                  Tcl_Obj * const elems[])
@@ -373,7 +370,8 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
          * corruption etc.). Most likely some code path did not check
          * size and allocate space accordingly.
          */
-        Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
+        if (interp)
+            Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
         return TCL_ERROR;
     }
 
@@ -407,8 +405,9 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                 if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
                     goto convert_error;
                 if (wide < 0 || wide > 0xFFFFFFFF) {
-                    Tcl_SetObjResult(interp,
-                                     Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
+                    if (interp)
+                        Tcl_SetObjResult(interp,
+                                         Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
                     goto convert_error;
                 }
             }
@@ -440,8 +439,9 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                 if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
                 if (ival > 255 || ival < 255) {
-                    Tcl_SetObjResult(interp,
-                                     Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
+                    if (interp)
+                        Tcl_SetObjResult(interp,
+                                         Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
                     goto convert_error;
                 }
             }
@@ -509,8 +509,9 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                 if (Tcl_GetWideIntFromObj(interp, elems[i], &wide) != TCL_OK)
                     goto convert_error;
                 if (wide < 0 || wide > 0xFFFFFFFF) {
-                    Tcl_SetObjResult(interp,
-                                     Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
+                    if (interp)
+                        Tcl_SetObjResult(interp,
+                                         Tcl_ObjPrintf("Integer \"%s\" too large for type \"uint\" typearray.", Tcl_GetString(elems[i])));
                     goto convert_error;
                 }
                 *uintP = (unsigned int) wide;
@@ -574,8 +575,9 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
                 if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
                 if (ival > 255 || ival < 255) {
-                    Tcl_SetObjResult(interp,
-                                     Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
+                    if (interp)
+                        Tcl_SetObjResult(interp,
+                                         Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
                     goto convert_error;
                 }
                 *byteP = (unsigned char) ival;
@@ -599,7 +601,7 @@ convert_error:                  /* Interp should already contain errors */
 
 }
 
-int TArrayCalcSize(int tatype, int count)
+int TArrayCalcSize(unsigned char tatype, int count)
 {
     int space;
 
@@ -642,8 +644,33 @@ TArrayHdr *TArrayRealloc(Tcl_Interp *interp, TArrayHdr *oldP, int new_count)
     return thdrP;
 }
 
+TArrayHdr * TArrayAlloc(unsigned char tatype, int count)
+{
+    unsigned char nbits;
+    TArrayHdr *thdrP;
 
-TArrayHdr * TArrayAlloc(Tcl_Interp *interp, int tatype,
+    thdrP = (TArrayHdr *) TARRAY_ALLOCMEM(TArrayCalcSize(tatype, count));
+    thdrP->nrefs = 0;
+    thdrP->allocated = count;
+    thdrP->used = 0;
+    thdrP->type = tatype;
+    switch (tatype) {
+    case TARRAY_BOOLEAN: nbits = 1; break;
+    case TARRAY_UINT: nbits = sizeof(unsigned int) * CHAR_BIT; break;
+    case TARRAY_INT: nbits = sizeof(int) * CHAR_BIT; break;
+    case TARRAY_WIDE: nbits = sizeof(Tcl_WideInt) * CHAR_BIT; break;
+    case TARRAY_DOUBLE: nbits = sizeof(double) * CHAR_BIT; break;
+    case TARRAY_OBJ: nbits = sizeof(Tcl_Obj *) * CHAR_BIT; break;
+    case TARRAY_BYTE: nbits = sizeof(unsigned char) * CHAR_BIT; break;
+    default:
+        TArrayTypePanic(tatype);
+    }
+    thdrP->elem_bits = nbits;
+    
+    return thdrP;
+}
+
+TArrayHdr * TArrayAllocAndInit(Tcl_Interp *interp, unsigned char tatype,
                            int nelems, Tcl_Obj * const elems[],
                            int init_size)
 {
@@ -666,11 +693,7 @@ TArrayHdr * TArrayAlloc(Tcl_Interp *interp, int tatype,
             init_size = TARRAY_DEFAULT_NSLOTS;
     }
 
-    thdrP = (TArrayHdr *) TARRAY_ALLOCMEM(TArrayCalcSize(tatype, init_size));
-    thdrP->nrefs = 0;
-    thdrP->type = tatype;
-    thdrP->allocated = init_size;
-    thdrP->used = nelems;
+    thdrP = TArrayAlloc(tatype, init_size);
 
     if (elems != NULL && nelems != 0) {
         if (TArraySetFromObjs(interp, thdrP, 0, nelems, elems) != TCL_OK) {
@@ -711,7 +734,8 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
         dst_first = dstP->used;
 
     if ((dst_first + count) > dstP->allocated) {
-        Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
+        if (interp)
+            Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
         return TCL_ERROR;
     }
 
@@ -784,6 +808,19 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
     return TCL_OK;
 }
 
+TArrayHdr *TArrayClone(TArrayHdr *srcP, int only_used)
+{
+    TArrayHdr *thdrP;
+
+    /* TBD - optimize these two calls */
+    thdrP = TArrayAlloc(srcP->type, only_used ? srcP->used : srcP->allocated);
+    if (TArraySet(NULL, thdrP, 0, srcP, 0, srcP->used) != TCL_OK) {
+        TArrayFreeHdr(thdrP);
+        return NULL;
+    }
+    return thdrP;
+}
+
 /* Returns a Tcl_Obj for a TArray slot. NOTE: WITHOUT its ref count incremented */
 Tcl_Obj * TArrayIndex(Tcl_Interp *interp, TArrayHdr *thdrP, int index)
 {
@@ -837,7 +874,7 @@ TArrayHdr *TArrayConvertToIndices(Tcl_Interp *interp, Tcl_Obj *objP)
     if (Tcl_ListObjGetElements(interp, objP, &nelems, &elems) != TCL_OK)
         return NULL;
 
-    thdrP = TArrayAlloc(interp, TARRAY_INT, nelems, elems, 0);
+    thdrP = TArrayAllocAndInit(interp, TARRAY_INT, nelems, elems, 0);
     if (thdrP)
         thdrP->nrefs++;
     return thdrP;
@@ -852,12 +889,13 @@ TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indic
     int *indexP;
 
     if (indicesP->type != TARRAY_INT) {
-        Tcl_SetResult(interp, "Invalid type for tarray indices", TCL_STATIC);
+        if (interp)
+            Tcl_SetResult(interp, "Invalid type for tarray indices", TCL_STATIC);
         return NULL;
     }
 
     count = indicesP->used;
-    thdrP = TArrayAlloc(interp, srcP->type, 0, 0, count);
+    thdrP = TArrayAlloc(srcP->type, count);
     if (thdrP == 0 || count == 0)
         return thdrP;
 
@@ -931,6 +969,48 @@ TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indic
 
     thdrP->used = count;
     return thdrP;
+}
+
+/* Find number bits set in a bit array */
+int TArrayBitsSet(TArrayHdr *thdrP)
+{
+    int v, count;
+    int i, n;
+    int *iP;
+
+
+    TARRAY_ASSERT(thdrP->type == TARRAY_BOOLEAN);
+    
+    n = thdrP->used / (sizeof(int)*CHAR_BIT); /* Number of ints */
+    for (count = 0, i = 0, iP = TAHDRELEMPTR(thdrP, int, 0); i < n; ++i, ++iP) {
+        // See http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetNaive
+        v = *iP;
+        v = v - ((v >> 1) & 0x55555555);                    // reuse input as temporary
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);     // temp
+        count += ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24; // count
+    }
+
+//    TBD - in alloc code make sure allocations are aligned on longest elem size;
+    /* Remaining bits */
+    n = thdrP->used % (sizeof(int)*CHAR_BIT); /* Number of left over bits */
+    if (n) {
+        /* *iP points to next int, however, not all bytes in that int are
+           valid so we do a byte at a time. Also we do not want to rely
+           on byte order so just brute force it.
+           However, note that we do ensure unused bits in a partially
+           used byte are set to 0 so we don't need to special case that. TBD
+        */
+        unsigned char *ucP = (unsigned char *) iP;
+        v = 0;
+        for (i = 0; i < (n+CHAR_BIT-1)/CHAR_BIT; ++i) {
+            v = (v << 8) | *ucP;
+        }
+        v = v - ((v >> 1) & 0x55555555);
+        v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
+        count += ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
+    }
+
+    return count;
 }
 
 /*
@@ -1051,3 +1131,4 @@ bitarray_copy(const unsigned char *src_org, int src_offset, int src_len,
         }
     }
 }
+
