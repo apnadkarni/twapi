@@ -15,10 +15,8 @@ critcl::argtype TArrayObjPtr {
 }
 
 critcl::ccommand tarray::create {} {
-    int i;
     int init_size;
     int tatype;
-    Tcl_Obj *objP;
     Tcl_Obj **elems;
     int nelems;
     TArrayHdr *thdrP;
@@ -45,7 +43,7 @@ critcl::ccommand tarray::create {} {
         }
     }
 
-    thdrP = TArrayAlloc(interp, tatype, nelems, elems, init_size);
+    thdrP = TArrayAllocAndInit(interp, tatype, nelems, elems, init_size);
     if (thdrP == NULL)
         return TCL_ERROR;
 
@@ -53,22 +51,22 @@ critcl::ccommand tarray::create {} {
     return TCL_OK;
 }
 
-critcl::cproc tarray::size {Tcl_Interp* interp Tcl_Obj* taP} ok {
-    if (TArrayVerifyType(interp, taP) != TCL_OK)
+critcl::cproc tarray::size {Tcl_Interp* interp Tcl_Obj* taobjP} ok {
+    if (TArrayVerifyType(interp, taobjP) != TCL_OK)
         return TCL_ERROR;
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(TARRAYELEMCOUNT(taP)));
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(TARRAYELEMCOUNT(taobjP)));
     return TCL_OK;
 }
 
-critcl::cproc tarray::type {Tcl_Interp* interp TArrayObjPtr taP} ok {
-    int tatype = TARRAYTYPE(taP);
+critcl::cproc tarray::type {Tcl_Interp* interp TArrayObjPtr taobjP} ok {
+    int tatype = TARRAYTYPE(taobjP);
 
     Tcl_SetObjResult(interp, Tcl_NewStringObj(gTArrayTypeTokens[tatype], -1));
     return TCL_OK;
 }
 
-critcl::cproc tarray::index {Tcl_Interp* interp TArrayObjPtr taP int index} ok {
-    Tcl_Obj *objP = TArrayIndex(interp, TARRAYHDR(taP), index);
+critcl::cproc tarray::index {Tcl_Interp* interp TArrayObjPtr taobjP int index} ok {
+    Tcl_Obj *objP = TArrayIndex(interp, TARRAYHDR(taobjP), index);
     if (objP) {
         Tcl_SetObjResult(interp, objP);
         return TCL_OK;
@@ -76,7 +74,7 @@ critcl::cproc tarray::index {Tcl_Interp* interp TArrayObjPtr taP int index} ok {
         return TCL_ERROR;
 }
 
-critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj* highP} ok {
+critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taobjP int low Tcl_Obj* highP} ok {
     TArrayHdr *thdrP;
     int high;
     int count;
@@ -92,7 +90,7 @@ critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj
             }
             return TCL_ERROR;
         }
-        high = TARRAYELEMCOUNT(taP) - 1;
+        high = TARRAYELEMCOUNT(taobjP) - 1;
     }
 
     if (low < 0)
@@ -101,25 +99,25 @@ critcl::cproc tarray::range {Tcl_Interp* interp TArrayObjPtr taP int low Tcl_Obj
     if (count < 0)
         count = 0;
 
-    thdrP = TArrayAlloc(interp, TARRAYTYPE(taP), 0, NULL, count);
+    thdrP = TArrayAlloc(TARRAYTYPE(taobjP), count);
     if (thdrP == NULL)
         return TCL_ERROR;
 
-    if (TArraySet(interp, thdrP, 0, TARRAYHDR(taP), low, count) != TCL_OK)
+    if (TArraySet(interp, thdrP, 0, TARRAYHDR(taobjP), low, count) != TCL_OK)
         return TCL_ERROR;
 
     Tcl_SetObjResult(interp, TArrayNewObj(thdrP));
     return TCL_OK;
 }
 
-critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taP Tcl_Obj* indicesP} ok {
+critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taobjP Tcl_Obj* indicesP} ok {
     TArrayHdr *valuesP;
     TArrayHdr *thdrP = TArrayConvertToIndices(interp, indicesP);
     
     if (thdrP == NULL)
         return TCL_ERROR;
 
-    valuesP = TArrayGetValues(interp, TARRAYHDR(taP), thdrP);
+    valuesP = TArrayGetValues(interp, TARRAYHDR(taobjP), thdrP);
     if (valuesP) {
         Tcl_SetObjResult(interp, TArrayNewObj(valuesP));
     }
@@ -128,3 +126,71 @@ critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taP Tcl_Obj* indicesP
     return valuesP ? TCL_OK : TCL_ERROR;
 }
 
+critcl::ccommand tarray::sort {} {
+    static const char *const switches[] = {
+        "-decreasing", "-increasing", "-indices", NULL
+    };
+    enum TArraySortSwitches {
+        TARRAY_SORT_DECREASING, TARRAY_SORT_INCREASING, TARRAY_SORT_INDICES
+    };
+    int decreasing = 0;
+    int return_indices = 0;
+    Tcl_Obj *srcObj;
+    int i, index;
+    TArrayHdr *srcP;
+    TArrayHdr *sortedP;
+    Tcl_Obj *resultObj;
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?options? tarray");
+	return TCL_ERROR;
+    }
+
+    if (TArrayVerifyType(interp, objv[objc-1]) != TCL_OK)
+        return TCL_ERROR;
+
+    for (i = 1; i < objc-1; ++i) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &i)
+            != TCL_OK) {
+            return TCL_ERROR;
+	}
+        switch ((enum TArraySortSwitches) i) {
+        case TARRAY_SORT_DECREASING: decreasing = 1; break;
+        case TARRAY_SORT_INCREASING: decreasing = 0; break;
+        case TARRAY_SORT_INDICES: return_indices = 1; break;
+        }
+    }
+
+    srcObj = objv[objc-1];
+    srcP = TARRAYHDR(srcObj);
+    
+    if (! return_indices) {
+        /*
+         * Return sorted contents. Boolean type we treat separately
+         * since we just need to count how many 1's and 0's.
+         */
+        if (Tcl_IsShared(srcObj) || srcP->nrefs > 1) {
+            /* Cannot modify in place. Need to dup it */
+            sortedP = TArrayClone(srcP, 0);
+            resultObj = TArrayNewObj(sortedP);
+        } else {
+            sortedP = srcP;
+            resultObj = srcObj;
+        }
+        /* Find number of 1's */
+        
+    }
+    
+
+}
+
+critcl::cproc tarray::bitsset {Tcl_Interp* interp TArrayObjPtr taobjP} ok {
+    if (TARRAYHDR(taobjP)->type != TARRAY_BOOLEAN) {
+        Tcl_SetResult(interp, "tarray type is not boolean", TCL_STATIC);
+        return TCL_ERROR;
+    }
+        
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(TArrayBitsSet(taobjP)));
+    return TCL_OK;
+
+}
