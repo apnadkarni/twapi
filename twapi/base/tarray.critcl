@@ -238,6 +238,7 @@ critcl::cproc tarray::setrange {Tcl_Interp* interp TArrayObjPtr taobjP int low T
         resultObj = TArrayNewObj(thdrP);
     } else {
         resultObj = taobjP;
+        Tcl_InvalidateStringRep(resultObj);
     }
 
     if (TArraySetRange(interp, thdrP, low, count, valobjP) != TCL_OK)
