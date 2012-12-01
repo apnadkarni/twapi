@@ -105,11 +105,12 @@ void TArrayDecrObjRefs(TArrayHdr *thdrP, int first, int count)
 
 void TArrayFreeHdr(TArrayHdr *thdrP)
 {
-    if (thdrP->type == TARRAY_OBJ) {
-        TArrayDecrObjRefs(thdrP, 0, thdrP->used);
-    }
-    if (--thdrP->nrefs <= 0)
+    if (--thdrP->nrefs <= 0) {
+        if (thdrP->type == TARRAY_OBJ) {
+            TArrayDecrObjRefs(thdrP, 0, thdrP->used);
+        }
         TARRAY_FREEMEM(thdrP);
+    }
 }
 
 TCL_RESULT TArrayVerifyType(Tcl_Interp *interp, Tcl_Obj *objP)
@@ -438,7 +439,7 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
             for (i = 0; i < nelems; ++i) {
                 if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
-                if (ival > 255 || ival < 255) {
+                if (ival > 255 || ival < 0) {
                     if (interp)
                         Tcl_SetObjResult(interp,
                                          Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
@@ -742,7 +743,7 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
     /*
      * For all types other than BOOLEAN and OBJ, we can just memcpy
      * Those two types have complication in that BOOLEANs are compacted
-     * into int size words and the copy may not be aligned on a byte boundary.
+     * into bytes and the copy may not be aligned on a byte boundary.
      * For OBJ types, we have to deal with reference counts.
      */
     switch (srcP->type) {
@@ -808,17 +809,181 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
     return TCL_OK;
 }
 
-TArrayHdr *TArrayClone(TArrayHdr *srcP, int only_used)
+/* Note: nrefs of cloned array is 0 */
+TArrayHdr *TArrayClone(TArrayHdr *srcP, int init_size)
 {
     TArrayHdr *thdrP;
 
+    if (init_size == 0)
+        init_size = srcP->allocated;
+    else if (init_size < srcP->used)
+        init_size = srcP->used;
+
     /* TBD - optimize these two calls */
-    thdrP = TArrayAlloc(srcP->type, only_used ? srcP->used : srcP->allocated);
+    thdrP = TArrayAlloc(srcP->type, init_size);
     if (TArraySet(NULL, thdrP, 0, srcP, 0, srcP->used) != TCL_OK) {
         TArrayFreeHdr(thdrP);
         return NULL;
     }
     return thdrP;
+}
+
+/* dstP must not be shared and must be large enough */
+TCL_RESULT TArraySetRange(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
+                          int count, Tcl_Obj *objP)
+{
+    int i, n, ival;
+    unsigned char *ucP;
+
+    TARRAY_ASSERT(dstP->nrefs < 2); /* Must not be shared */
+
+    if (count <= 0)
+        return TCL_OK;
+
+    if (dst_first < 0)
+        dst_first = 0;
+    else if (dst_first > dstP->used)
+        dst_first = dstP->used;
+
+    if ((dst_first + count) > dstP->allocated) {
+        if (interp)
+            Tcl_SetResult(interp, "Internal error: TArray too small.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    switch (dstP->type) {
+    case TARRAY_BOOLEAN:
+        if (Tcl_GetBooleanFromObj(interp, objP, &ival) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            unsigned uc;
+            unsigned char uc_mask; /* The bit position corresponding to 'first' */
+
+            /* First set the bits to get to a char boundary */
+            ucP = TAHDRELEMPTR(dstP, unsigned char, dst_first / CHAR_BIT);
+            uc = dst_first % CHAR_BIT; /* Offset of bit within a char */
+            i = 0;                     /* Will track num partial bits copied */
+            if (uc != 0) {
+                /* Offset is uc within a char. Get the byte at that location */
+                uc_mask = BITMASK(uc);
+                uc = *ucP;
+                for (; i < count && uc_mask; ++i, uc_mask >>= 1) {
+                    if (ival)
+                        uc |= uc_mask;
+                    else
+                        uc &= ~ uc_mask;
+                }
+                *ucP++ = uc;
+            }
+            /* Copied the first i bits. Now copy full bytes with memset */
+            memset(ucP, ival ? 0xff : 0, (count-i)/CHAR_BIT);
+            ucP += (count-i)/CHAR_BIT;
+            i = i + 8*(count-i); /* Number of bits left to be copied */
+            TARRAY_ASSERT(i < 8);
+            /* Now leftover bits */
+            if (i) {
+                uc = *ucP;
+                for (uc_mask = BITMASK(0); i; --i, uc_mask >>= 1) {
+                    if (ival)
+                        uc |= uc_mask;
+                    else
+                        uc &= ~ uc_mask;
+                }
+                *ucP = uc;
+            }
+        }
+        break;
+
+    case TARRAY_OBJ:
+        {
+            Tcl_Obj **objPP;
+
+            /*
+             * We have to deal with reference counts here. For the object
+             * we are copying we need to increment the reference counts
+             * that many times. For objects being overwritten,
+             * we need to decrement reference counts. Note we c
+             */
+            /* First loop overwriting existing elements */
+            n = dst_first + count;
+            if (n > dstP->used)
+                n = dstP->used;
+            objPP = TAHDRELEMPTR(dstP, Tcl_Obj *, dst_first);
+            for (i = dst_first; i < n; ++i) {
+                /* Be careful of the order */
+                Tcl_IncrRefCount(objP);
+                Tcl_DecrRefCount(*objPP);
+                *objPP = objP;
+            }
+
+            /* Now loop over new elements being appended */
+            for (; i < dst_first+count; ++i) {
+                Tcl_IncrRefCount(objP);
+                *objPP = objP;
+            }
+        }
+        break;
+
+    case TARRAY_UINT:           /* TBD - test specifically for UINT_MAX etc. */
+    case TARRAY_INT:
+        if (Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            int *iP;
+            iP = TAHDRELEMPTR(dstP, int, dst_first);
+            for (i = 0; i < count; ++i, ++iP)
+                *iP = ival;
+        }
+        break;
+    case TARRAY_WIDE:
+        {
+            Tcl_WideInt wide, *wideP;
+
+            if (Tcl_GetWideIntFromObj(interp, objP, &wide) != TCL_OK)
+                return TCL_ERROR;
+
+            wideP = TAHDRELEMPTR(dstP, Tcl_WideInt, dst_first);
+            for (i = 0; i < count; ++i, ++wideP)
+                *wideP = wide;
+        }
+        break;
+
+    case TARRAY_DOUBLE:
+        {
+            double dval, *dvalP;
+            if (Tcl_GetDoubleFromObj(interp, objP, &dval) != TCL_OK)
+                return TCL_ERROR;
+
+            dvalP = TAHDRELEMPTR(dstP, double, dst_first);
+            for (i = 0; i < count; ++i, ++dvalP)
+                *dvalP = dval;
+        }
+        break;
+
+    case TARRAY_BYTE:
+        if (Tcl_GetIntFromObj(interp, objP, &ival) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            if (ival > 255 || ival < 0) {
+                if (interp)
+                    Tcl_SetObjResult(interp,
+                                     Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
+                return TCL_ERROR;
+            }
+            ucP = TAHDRELEMPTR(dstP, unsigned char, dst_first);
+            for (i = 0; i < count; ++i, ++ucP)
+                *ucP = (unsigned char) ival;
+        }
+        break;
+
+    default:
+        TArrayTypePanic(dstP->type);
+    }
+
+    if ((dst_first + count) > dstP->used)
+        dstP->used = dst_first + count;
+
+    return TCL_OK;
 }
 
 /* Returns a Tcl_Obj for a TArray slot. NOTE: WITHOUT its ref count incremented */
@@ -972,12 +1137,11 @@ TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indic
 }
 
 /* Find number bits set in a bit array */
-int TArrayBitsSet(TArrayHdr *thdrP)
+int TArrayNumSetBits(TArrayHdr *thdrP)
 {
     int v, count;
     int i, n;
     int *iP;
-
 
     TARRAY_ASSERT(thdrP->type == TARRAY_BOOLEAN);
     
@@ -985,26 +1149,26 @@ int TArrayBitsSet(TArrayHdr *thdrP)
     for (count = 0, i = 0, iP = TAHDRELEMPTR(thdrP, int, 0); i < n; ++i, ++iP) {
         // See http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetNaive
         v = *iP;
-        v = v - ((v >> 1) & 0x55555555);                    // reuse input as temporary
+        v = v - ((v >> 1) & 0x55555555); // reuse input as temporary
         v = (v & 0x33333333) + ((v >> 2) & 0x33333333);     // temp
         count += ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24; // count
     }
-
 //    TBD - in alloc code make sure allocations are aligned on longest elem size;
     /* Remaining bits */
     n = thdrP->used % (sizeof(int)*CHAR_BIT); /* Number of left over bits */
     if (n) {
         /* *iP points to next int, however, not all bytes in that int are
-           valid so we do a byte at a time. Also we do not want to rely
-           on byte order so just brute force it.
-           However, note that we do ensure unused bits in a partially
-           used byte are set to 0 so we don't need to special case that. TBD
-        */
+           valid. Mask off invalid bits */
         unsigned char *ucP = (unsigned char *) iP;
-        v = 0;
-        for (i = 0; i < (n+CHAR_BIT-1)/CHAR_BIT; ++i) {
-            v = (v << 8) | *ucP;
+        /* Note value of v will change depending on endianness but no matter
+           as we only care about number of 1's */
+        for (i = 0, v = 0; n >= CHAR_BIT; ++i, n -= CHAR_BIT) {
+            v = (v << 8) | ucP[i];
         }
+        if (n) {
+            v = (v << 8) | (ucP[i] & (-BITMASK(n-1))  );
+        }
+
         v = v - ((v >> 1) & 0x55555555);
         v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
         count += ((v + (v >> 4) & 0xF0F0F0F) * 0x1010101) >> 24;
