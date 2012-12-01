@@ -69,6 +69,10 @@ typedef union TArrayHdr_s {
 #define TARRAY_EXTRA(n_)  \
     ((n_) < 10 ? 10 : ((n_) < 100 ? (n_) : ((n_) < 800 ? 100 : ((n_)/8))))
 
+/* Can a TArrayHdr block be modified ? Must be unshared and large enough */
+#define TARRAYHDR_SHARED(th_) ((th_)->nrefs > 1)
+#define TARRAYHDR_WRITABLE(th_, size_) (TARRAYHDR_SHARED(th_) && (th_)->allocated >= (size_))
+
 extern struct Tcl_ObjType gTArrayType;
 #define TARRAY_OBJ_SETREP(optr_, thdr_) \
     do {                                        \
@@ -76,8 +80,6 @@ extern struct Tcl_ObjType gTArrayType;
         TARRAYHDR(optr_) = thdr_;               \
         (optr_)->typePtr = &gTArrayType;         \
     } while (0)
-
-
 
 
 /* ALLOCATE_ARRAY call should panic on failure to allocate */
@@ -98,10 +100,11 @@ extern TArrayHdr *__cdecl TArrayRealloc(struct Tcl_Interp *interp,TArrayHdr *old
 extern TArrayHdr *__cdecl TArrayAlloc(unsigned char tatype, int count);
 extern TArrayHdr *__cdecl TArrayAllocAndInit(struct Tcl_Interp *interp,unsigned char tatype,int nelems,struct Tcl_Obj *const *elems ,int init_size);
 extern int __cdecl TArraySet(struct Tcl_Interp *interp,TArrayHdr *dstP,int dst_first,TArrayHdr *srcP,int src_first,int count);
-extern TArrayHdr *__cdecl TArrayClone(TArrayHdr *srcP, int only_used);
+extern TArrayHdr *__cdecl TArrayClone(TArrayHdr *srcP, int init_size);
 extern struct Tcl_Obj *__cdecl TArrayIndex(struct Tcl_Interp *interp,TArrayHdr *thdrP,int index);
 extern TArrayHdr *__cdecl TArrayConvertToIndices(struct Tcl_Interp *interp,struct Tcl_Obj *objP);
 extern TArrayHdr *__cdecl TArrayGetValues(struct Tcl_Interp *interp,TArrayHdr *srcP,TArrayHdr *indicesP);
-
+extern int __cdecl TArrayNumSetBits(TArrayHdr *thdrP);
+extern TCL_RESULT __cdecl TArraySetRange(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first, int count, Tcl_Obj *objP);
 
 #endif
