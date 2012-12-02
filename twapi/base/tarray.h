@@ -1,6 +1,9 @@
 #ifndef TARRAY_H
 #define TARRAY_H
 
+#include <limits.h>
+#include <stdlib.h>
+
 typedef int TCL_RESULT;
 
 /* Must match gTArrayTypeTokens definition in tarray.c ! */
@@ -124,5 +127,18 @@ extern int __cdecl bytecmp(const void *a, const void *b);
 extern int __cdecl bytecmprev(const void *a, const void *b);
 extern int __cdecl tclobjcmp(const void *a, const void *b);
 extern int __cdecl tclobjcmprev(const void *a, const void *b);
+
+extern int __cdecl intcmpindexed(void *, const void *a, const void *b);
+extern int __cdecl intcmpindexedrev(void *, const void *a, const void *b);
+extern int __cdecl uintcmpindexed(void *, const void *a, const void *b);
+extern int __cdecl uintcmpindexedrev(void *, const void *a, const void *b);
+extern int __cdecl widecmpindexed(void *, const void *a, const void *b);
+extern int __cdecl widecmpindexedrev(void *, const void *a, const void *b);
+extern int __cdecl doublecmpindexed(void *, const void *a, const void *b);
+extern int __cdecl doublecmpindexedrev(void *, const void *a, const void *b);
+extern int __cdecl bytecmpindexed(void *, const void *a, const void *b);
+extern int __cdecl bytecmpindexedrev(void *, const void *a, const void *b);
+extern int __cdecl tclobjcmpindexed(void *, const void *a, const void *b);
+extern int __cdecl tclobjcmpindexedrev(void *, const void *a, const void *b);
 
 #endif

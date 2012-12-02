@@ -1,4 +1,3 @@
-#include <limits.h>
 #include "tcl.h"
 #include "tarray.h"
 
@@ -1310,37 +1309,40 @@ bitarray_copy(const unsigned char *src_org, int src_offset, int src_len,
  * because we cannot just return result of a subtraction when the type
  * is wider than an int.
  */
-#define RETCMP(a_, b_, t_)                                \
+#define RETCMP(a_, b_, t_)                              \
     do {                                                \
-        if (*(t_*)(a_) == *(t_*)(b_)) {                 \
+        if (*(t_*)(a_) > *(t_*)(b_))                    \
+            return 1;                                   \
+        else if (*(t_*)(a_) < *(t_*)(b_))               \
+            return -1;                                  \
+        else {                                          \
             if ((char *)(a_) == (char *)(b_))           \
                 return 0;                               \
             else if ((char *)(a_) > (char *)(b_))       \
                 return 1;                               \
             else                                        \
                 return -1;                              \
-        } else if (*(t_*)(a_) > *(t_*)(b_))             \
-            return 1;                                   \
-        else                                            \
-            return -1;                                  \
+        }                                               \
     } while (0)
+
 /* Compare in reverse (for decreasing order). Note we cannot just
    reverse arguments to RETCMP since we are also comparing actual
    addresses and the sense for those should be fixed.
 */
-#define RETCMPREV(a_, b_, t_)                                \
+#define RETCMPREV(a_, b_, t_)                           \
     do {                                                \
-        if (*(t_*)(a_) == *(t_*)(b_)) {                 \
+        if (*(t_*)(a_) > *(t_*)(b_))                    \
+            return -1;                                  \
+        else if (*(t_*)(a_) < *(t_*)(b_))               \
+            return 1;                                   \
+        else {                                          \
             if ((char *)(a_) == (char *)(b_))           \
                 return 0;                               \
             else if ((char *)(a_) > (char *)(b_))       \
                 return 1;                               \
             else                                        \
                 return -1;                              \
-        } else if (*(t_*)(a_) > *(t_*)(b_))             \
-            return -1;                                   \
-        else                                            \
-            return 1;                                  \
+        }                                               \
     } while (0)
 
 int intcmp(const void *a, const void *b) { RETCMP(a,b,int); }
@@ -1371,6 +1373,112 @@ int tclobjcmprev(const void *a, const void *b)
     else
         return a > b ? 1 : (a < b ? -1 : 0);
 }
+
+/*
+ * Comparison functions for tarray_qsort_r. 
+ * The passed values are integer indexes into a TArrayHdr
+ * For a stable sort, if two items are
+ * equal, we compare the indexes.
+ * ai_ and bi_ are pointers to int indexes into the TArrayHdr
+ * pointed to by v_ which is of type t_
+ */
+#define RETCMPINDEXED(ai_, bi_, t_, v_)                 \
+    do {                                                \
+        t_ a_ = *(*(int*)(ai_) + (t_ *)v_); \
+        t_ b_ = *(*(int*)(bi_) + (t_ *)v_);             \
+        if (a_ < b_)                                    \
+            return -1;                                  \
+        else if (a_ > b_)                               \
+            return 1;                                   \
+        else                                            \
+            return *(int *)(ai_) - *(int *)(bi_);       \
+    } while (0)
+
+
+/* Compare in reverse (for decreasing order). Note we cannot just
+   reverse arguments to RETCMPINDEXED since we are also comparing actual
+   addresses and the sense for those should be fixed.
+*/
+#define RETCMPINDEXEDREV(ai_, bi_, t_, v_)              \
+    do {                                                \
+        t_ a_ = *(*(int*)(ai_) + (t_ *)v_); \
+        t_ b_ = *(*(int*)(bi_) + (t_ *)v_);             \
+        if (a_ < b_)                                    \
+            return 1;                                   \
+        else if (a_ > b_)                               \
+            return -1;                                  \
+        else                                            \
+            return *(int *)(ai_) - *(int *)(bi_);       \
+    } while (0)
+
+int intcmpindexed(void *ctx, const void *a, const void *b) { RETCMPINDEXED(a,b,int, ctx); }
+int intcmpindexedrev(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,int, ctx); }
+int uintcmpindexed(void *ctx, const void *a, const void *b) { RETCMPINDEXED(a,b,unsigned int, ctx); }
+int uintcmpindexedrev(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,unsigned int, ctx); }
+int widecmpindexed(void *ctx, const void *a, const void *b) { RETCMPINDEXED(a,b,Tcl_WideInt, ctx); }
+int widecmpindexedrev(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,Tcl_WideInt, ctx); }
+int doublecmpindexed(void *ctx, const void *a, const void *b) { RETCMPINDEXED(a,b,double, ctx); }
+int doublecmpindexedrev(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,double, ctx); }
+int bytecmpindexed(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,unsigned char, ctx); }
+int bytecmpindexedrev(void *ctx, const void *a, const void *b) { RETCMPINDEXEDREV(a,b,unsigned char, ctx); }
+int tclobjcmpindexed(void *ctx, const void *ai, const void *bi)
+{
+    int n;
+    Tcl_Obj *a = *(*(int *)ai + (Tcl_Obj **)ctx);
+    Tcl_Obj *b = *(*(int *)bi + (Tcl_Obj **)ctx);
+    n = strcmp(Tcl_GetString(a), Tcl_GetString(b));
+    if (n)
+        return n;
+    else
+        return *(int *)ai - *(int *)bi;
+}
+int tclobjcmpindexedrev(void *ctx, const void *ai, const void *bi)
+{
+    int n;
+    Tcl_Obj *a = *(*(int *)ai + (Tcl_Obj **)ctx);
+    Tcl_Obj *b = *(*(int *)bi + (Tcl_Obj **)ctx);
+    n = strcmp(Tcl_GetString(b), Tcl_GetString(a));
+    if (n)
+        return n;
+    else
+        return *(int *)ai - *(int *)bi;
+}
+int booleancmpindexed(void *ctx, const void *ai, const void *bi)
+{
+    int n;
+    unsigned char *ucP = (unsigned char *)ctx;
+    unsigned char uca, ucb;
+
+    uca = ucP[(*(int*) ai)/CHAR_BIT] & BITMASK((*(int*)ai) % CHAR_BIT);
+    ucb = ucP[(*(int*) bi)/CHAR_BIT] & BITMASK((*(int*)bi) % CHAR_BIT);
+
+    if (!uca == !ucb) {
+        /* Both bits set or unset, use index position to differentiate */
+        return *(int *)ai - *(int *)bi;
+    } else if (uca)
+        return 1;
+    else
+        return -1;
+}
+
+int booleancmpindexedrev(void *ctx, const void *ai, const void *bi)
+{
+    int n;
+    unsigned char *ucP = (unsigned char *)ctx;
+    unsigned char uca, ucb;
+
+    uca = ucP[(*(int*) ai)/CHAR_BIT] & BITMASK((*(int*)ai) % CHAR_BIT);
+    ucb = ucP[(*(int*) bi)/CHAR_BIT] & BITMASK((*(int*)bi) % CHAR_BIT);
+
+    if (!uca == !ucb) {
+        /* Both bits set or unset, use index position to differentiate */
+        return *(int *)ai - *(int *)bi;
+    } else if (uca)
+        return -1;
+    else
+        return 1;
+}
+
 
 
 /*
