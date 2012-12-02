@@ -150,7 +150,7 @@ critcl::cproc tarray::get {Tcl_Interp* interp TArrayObjPtr taobjP Tcl_Obj* indic
 }
 
 critcl::ccommand tarray::sort {} {
-    static const char *const switches[] = {
+    static const char *switches[] = {
         "-decreasing", "-increasing", "-indices", NULL
     };
     enum TArraySortSwitches {
@@ -164,6 +164,7 @@ critcl::ccommand tarray::sort {} {
     TArrayHdr *sortedP;
     Tcl_Obj *resultObj;
     int (__cdecl *cmpfn)(const void*, const void*);
+    int (__cdecl *cmpindexedfn)(void *, const void*, const void*);
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?options? tarray");
@@ -188,7 +189,40 @@ critcl::ccommand tarray::sort {} {
     srcObj = objv[objc-1];
     srcP = TARRAYHDR(srcObj);
     
-    if (! return_indices) {
+    if (return_indices) {
+        int *indexP;
+        sortedP = TArrayAlloc(TARRAY_INT, srcP->used);
+        resultObj = TArrayNewObj(sortedP);
+        /* Initialize the indexes */
+        sortedP->used = srcP->used;
+        indexP = TAHDRELEMPTR(sortedP, int, 0);
+        for (i = 0; i < srcP->used; ++i, ++indexP)
+            *indexP = i;
+
+        switch (sortedP->type) {
+        case TARRAY_BOOLEAN:
+            cmpindexedfn = decreasing ? uintcmpindexedrev : uintcmpindexed;
+            break;
+        case TARRAY_UINT:
+            cmpindexedfn = decreasing ? uintcmpindexedrev : uintcmpindexed;
+            break;
+        case TARRAY_INT:
+            cmpindexedfn = decreasing ? intcmpindexedrev : intcmpindexed;
+            break;
+        case TARRAY_WIDE:
+            cmpindexedfn = decreasing ? widecmpindexedrev : widecmpindexed;
+            break;
+        case TARRAY_DOUBLE:
+            cmpindexedfn = decreasing ? doublecmpindexedrev : doublecmpindexed;
+            break;
+        case TARRAY_OBJ:
+            cmpindexedfn = decreasing ? tclobjcmpindexedrev : tclobjcmpindexed;
+            break;
+        default:
+            TArrayTypePanic(sortedP->type);
+        }
+        tarray_qsort_r(TAHDRELEMPTR(sortedP, int, 0), sortedP->used, sizeof(int), TAHDRELEMPTR(srcP, unsigned char, 0), cmpindexedfn);
+    } else {
         /* We want sorted contents. If object is not shared, we can
            sort in place, else need to modify */
         if (Tcl_IsShared(srcObj) || TARRAYHDR_SHARED(srcP)) {
@@ -221,33 +255,25 @@ critcl::ccommand tarray::sort {} {
             switch (sortedP->type) {
             case TARRAY_UINT:
                 cmpfn = decreasing ? uintcmprev : uintcmp;
-                n = sizeof(unsigned int);
                 break;
             case TARRAY_INT:
                 cmpfn = decreasing ? intcmprev : intcmp;
-                n = sizeof(int);
                 break;
             case TARRAY_WIDE:
                 cmpfn = decreasing ? widecmprev : widecmp;
-                n = sizeof(Tcl_WideInt);
                 break;
             case TARRAY_DOUBLE:
                 cmpfn = decreasing ? doublecmprev : doublecmp;
-                n = sizeof(double);
                 break;
             case TARRAY_OBJ:
                 cmpfn = decreasing ? tclobjcmprev : tclobjcmp;
-                n = sizeof(Tcl_Obj *);
                 break;
             default:
                 TArrayTypePanic(sortedP->type);
             }
-            qsort(TAHDRELEMPTR(sortedP, unsigned char, 0), sortedP->used, n, cmpfn);
+            qsort(TAHDRELEMPTR(sortedP, unsigned char, 0), sortedP->used,
+                  sortedP->elem_bits / CHAR_BIT, cmpfn);
         }
-    }
-    else {
-            Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
-            return TCL_ERROR;
     }
 
     Tcl_SetObjResult(interp, resultObj);
