@@ -107,4 +107,22 @@ extern TArrayHdr *__cdecl TArrayGetValues(struct Tcl_Interp *interp,TArrayHdr *s
 extern int __cdecl TArrayNumSetBits(TArrayHdr *thdrP);
 extern TCL_RESULT __cdecl TArraySetRange(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first, int count, Tcl_Obj *objP);
 
+extern void __cdecl bitarray_set(unsigned char *ucP, int offset, int count, int ival);
+extern void __cdecl bitarray_copy(const unsigned char *src_org, int src_offset, int src_len,
+              unsigned char *dst_org, int dst_offset);
+
+extern void __cdecl tarray_qsort_r(void *a, size_t n, size_t es, void *thunk, int (__cdecl *cmp)(void *, const void *, const void *));
+extern int __cdecl intcmp(const void *a, const void *b);
+extern int __cdecl intcmprev(const void *a, const void *b);
+extern int __cdecl uintcmp(const void *a, const void *b);
+extern int __cdecl uintcmprev(const void *a, const void *b);
+extern int __cdecl widecmp(const void *a, const void *b);
+extern int __cdecl widecmprev(const void *a, const void *b);
+extern int __cdecl doublecmp(const void *a, const void *b);
+extern int __cdecl doublecmprev(const void *a, const void *b);
+extern int __cdecl bytecmp(const void *a, const void *b);
+extern int __cdecl bytecmprev(const void *a, const void *b);
+extern int __cdecl tclobjcmp(const void *a, const void *b);
+extern int __cdecl tclobjcmprev(const void *a, const void *b);
+
 #endif

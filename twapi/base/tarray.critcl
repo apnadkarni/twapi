@@ -55,8 +55,6 @@ critcl::argtype TArrayObjPtr {
     @A = @@;
 }
 
-
-
 critcl::ccommand tarray::create {} {
     int init_size;
     int tatype;
@@ -161,10 +159,11 @@ critcl::ccommand tarray::sort {} {
     int decreasing = 0;
     int return_indices = 0;
     Tcl_Obj *srcObj;
-    int i, index;
+    int i, n, opt;
     TArrayHdr *srcP;
     TArrayHdr *sortedP;
     Tcl_Obj *resultObj;
+    int (__cdecl *cmpfn)(const void*, const void*);
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?options? tarray");
@@ -175,11 +174,11 @@ critcl::ccommand tarray::sort {} {
         return TCL_ERROR;
 
     for (i = 1; i < objc-1; ++i) {
-	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &i)
+	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &opt)
             != TCL_OK) {
             return TCL_ERROR;
 	}
-        switch ((enum TArraySortSwitches) i) {
+        switch ((enum TArraySortSwitches) opt) {
         case TARRAY_SORT_DECREASING: decreasing = 1; break;
         case TARRAY_SORT_INCREASING: decreasing = 0; break;
         case TARRAY_SORT_INDICES: return_indices = 1; break;
@@ -190,10 +189,8 @@ critcl::ccommand tarray::sort {} {
     srcP = TARRAYHDR(srcObj);
     
     if (! return_indices) {
-        /*
-         * Return sorted contents. Boolean type we treat separately
-         * since we just need to count how many 1's and 0's.
-         */
+        /* We want sorted contents. If object is not shared, we can
+           sort in place, else need to modify */
         if (Tcl_IsShared(srcObj) || TARRAYHDR_SHARED(srcP)) {
             /* Cannot modify in place. Need to dup it */
             sortedP = TArrayClone(srcP, 0);
@@ -201,10 +198,60 @@ critcl::ccommand tarray::sort {} {
         } else {
             sortedP = srcP;
             resultObj = srcObj;
+            Tcl_InvalidateStringRep(resultObj);
         }
-        /* Find number of 1's */
-        
+        /*
+         * Return sorted contents. Boolean type we treat separately
+         * since we just need to count how many 1's and 0's.
+         */
+        if (sortedP->type == TARRAY_BOOLEAN) {
+            n = TArrayNumSetBits(sortedP); /* Number of 1's set */
+            if (decreasing) {
+                bitarray_set(TAHDRELEMPTR(sortedP, unsigned char, 0),
+                             0, n, 1);
+                bitarray_set(TAHDRELEMPTR(sortedP, unsigned char, 0),
+                             n, sortedP->used - n, 0);
+            } else {
+                bitarray_set(TAHDRELEMPTR(sortedP, unsigned char, 0),
+                             0, sortedP->used - n, 0);
+                bitarray_set(TAHDRELEMPTR(sortedP, unsigned char, 0),
+                             sortedP->used - n, n, 1);
+            }
+        } else {
+            switch (sortedP->type) {
+            case TARRAY_UINT:
+                cmpfn = decreasing ? uintcmprev : uintcmp;
+                n = sizeof(unsigned int);
+                break;
+            case TARRAY_INT:
+                cmpfn = decreasing ? intcmprev : intcmp;
+                n = sizeof(int);
+                break;
+            case TARRAY_WIDE:
+                cmpfn = decreasing ? widecmprev : widecmp;
+                n = sizeof(Tcl_WideInt);
+                break;
+            case TARRAY_DOUBLE:
+                cmpfn = decreasing ? doublecmprev : doublecmp;
+                n = sizeof(double);
+                break;
+            case TARRAY_OBJ:
+                cmpfn = decreasing ? tclobjcmprev : tclobjcmp;
+                n = sizeof(Tcl_Obj *);
+                break;
+            default:
+                TArrayTypePanic(sortedP->type);
+            }
+            qsort(TAHDRELEMPTR(sortedP, unsigned char, 0), sortedP->used, n, cmpfn);
+        }
     }
+    else {
+            Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
+            return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
 }
 
 critcl::cproc tarray::bitsset {Tcl_Interp* interp TArrayObjPtr taobjP} ok {
