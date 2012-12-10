@@ -60,6 +60,13 @@ void TArrayTypePanic(unsigned char tatype)
     Tcl_Panic("Unknown tarray type %d", tatype);
 }
 
+void TArrayBadArgError(Tcl_Interp *interp, const char *optname)
+{
+    Tcl_SetObjResult(interp, Tcl_ObjPrintf("Missing or invalid argument to option '%s'", optname));
+    Tcl_SetErrorCode(interp, "TARRAY", "ARGUMENT", NULL);
+}
+
+
 /* Increments the ref counts of Tcl_Objs in a tarray making sure not
    to run past end of array */
 void TArrayIncrObjRefs(TArrayHdr *thdrP, int first, int count)
@@ -629,7 +636,7 @@ int TArrayCalcSize(unsigned char tatype, int count)
     return sizeof(TArrayHdr) + space;
 }
 
-TArrayHdr *TArrayRealloc(Tcl_Interp *interp, TArrayHdr *oldP, int new_count)
+TArrayHdr *TArrayRealloc(TArrayHdr *oldP, int new_count)
 {
     TArrayHdr *thdrP;
 
@@ -806,17 +813,17 @@ TCL_RESULT TArraySet(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
 }
 
 /* Note: nrefs of cloned array is 0 */
-TArrayHdr *TArrayClone(TArrayHdr *srcP, int init_size)
+TArrayHdr *TArrayClone(TArrayHdr *srcP, int minsize)
 {
     TArrayHdr *thdrP;
 
-    if (init_size == 0)
-        init_size = srcP->allocated;
-    else if (init_size < srcP->used)
-        init_size = srcP->used;
+    if (minsize == 0)
+        minsize = srcP->allocated;
+    else if (minsize < srcP->used)
+        minsize = srcP->used;
 
     /* TBD - optimize these two calls */
-    thdrP = TArrayAlloc(srcP->type, init_size);
+    thdrP = TArrayAlloc(srcP->type, minsize);
     if (TArraySet(NULL, thdrP, 0, srcP, 0, srcP->used) != TCL_OK) {
         TArrayFreeHdr(thdrP);
         return NULL;
@@ -874,6 +881,8 @@ TCL_RESULT TArraySetRange(Tcl_Interp *interp, TArrayHdr *dstP, int dst_first,
 {
     int i, n, ival;
     unsigned char *ucP;
+
+    /* TBD - optimize when value is 0 by using memset */
 
     TARRAY_ASSERT(dstP->nrefs < 2); /* Must not be shared */
 
@@ -1142,6 +1151,88 @@ TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indic
     thdrP->used = count;
     return thdrP;
 }
+
+TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
+                               Tcl_Obj *needleObj, int start, int flags)
+{
+    int bval;
+    TArrayHdr *thdrP;
+    unsigned char *ucP;
+    unsigned char uc, uc_mask;
+    int offset;
+    Tcl_Obj *resultObj;
+
+    TARRAY_ASSERT(haystackP->type == TARRAY_BOOLEAN);
+
+    if (Tcl_GetBooleanFromObj(interp, needleObj, &bval) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (flags & TARRAY_SEARCH_INVERT)
+        bval = !bval;
+
+    /* First locate the starting point for the search */
+    ucP = TAHDRELEMPTR(haystackP, unsigned char, 0);
+    ucP += start/CHAR_BIT;
+    uc_mask = BITMASK(start % CHAR_BIT);
+
+    /*
+     * At this point,
+     * ucP points to the memory location containing bit at offset start
+     * uc_mask is the mask for the start bit within that location
+     */
+    if (flags & TARRAY_SEARCH_ALL) {
+        Tcl_SetResult(interp, "Not implementd", TCL_STATIC);
+        return TCL_ERROR;
+    } else {
+        /* Return first found element */
+        int pos = -1;
+        unsigned char skip = bval ? 0 : 0xff;
+
+        /* TBD - to be optimized */
+        for (offset = start; offset < haystackP->used; uc_mask = BITMASK(0)) {
+            /*
+             * At top of loop, *ucP potentially has a matching
+             * bit, uc_mask contains position at which to
+             * begin match
+             */
+            uc = *ucP++;
+            if (uc == skip) {
+                /* Looking for 1's and uc is all 0's or vice versa */
+                offset += CHAR_BIT;
+                continue;
+            }
+            while (uc_mask) {
+                /* Compare bit against 1 or 0 as appropriate */
+                if ((bval && (uc_mask & uc)) ||
+                    !(bval || (uc_mask & uc))) {
+                    /* Note this may be beyond haystackP->used, but
+                     * that's ok, we'll reset later rather than
+                     * add another test to this loop
+                     */
+                    pos = offset;
+                    break;
+                }
+                uc_mask >>= 1;
+                ++offset;
+            }
+            if (pos >= 0)
+                break;
+        }
+
+        if (pos >= haystackP->used)
+            pos = -1;       /* We matched on extraneous bits in last byte */
+        if (pos == -1)
+            resultObj = Tcl_NewObj();
+        else {
+            resultObj =
+                Tcl_NewIntObj((flags & TARRAY_SEARCH_INLINE) ? bval : pos);
+        }
+    }
+
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+}
+                        
 
 /* Find number bits set in a bit array */
 int TArrayNumSetBits(TArrayHdr *thdrP)

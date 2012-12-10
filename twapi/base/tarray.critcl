@@ -320,3 +320,73 @@ critcl::cproc tarray::setrange {Tcl_Interp* interp TArrayObjPtr taobjP int low T
     Tcl_SetObjResult(interp, resultObj);
     return TCL_OK;
 }
+
+critcl::ccommand tarray::search {} {
+    static const char *switches[] = {
+        "-all", "-inline", "-not", "-start", NULL
+    };
+    enum TArraySearchSwitches {
+        TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START
+    };
+    int all = 0;
+    int inline = 0;
+    int flags = 0;
+    int start_index = 0;
+    int i, n, opt;
+    TArrayHdr *haystackP;
+    TArrayHdr *thdrP;
+    Tcl_Obj *resultObj;
+    int (__cdecl *cmpfn)(const void*, const void*);
+    int (__cdecl *cmpindexedfn)(void *, const void*, const void*);
+
+    if (objc < 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?options? tarray pattern");
+	return TCL_ERROR;
+    }
+
+    if (TArrayVerifyType(interp, objv[objc-2]) != TCL_OK)
+        return TCL_ERROR;
+
+    for (i = 1; i < objc-2; ++i) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &opt)
+            != TCL_OK) {
+            return TCL_ERROR;
+	}
+        switch ((enum TArraySortSwitches) opt) {
+        case TARRAY_SEARCH_OPT_ALL: flags |= TARRAY_SEARCH_ALL; break;
+        case TARRAY_SEARCH_OPT_INLINE: flags |= TARRAY_SEARCH_INLINE; break;
+        case TARRAY_SEARCH_OPT_INVERT: flags |= TARRAY_SEARCH_INVERT; break;
+        case TARRAY_SEARCH_OPT_START:
+            if (i > objc-4) {
+                TArrayBadArgError(interp, "-start");
+                return TCL_ERROR;
+            }
+            ++i;
+            /*
+             * To prevent shimmering, check if the index object is same
+             * as tarray object.
+             */
+            if (objv[i] == objv[objc-2]) {
+                Tcl_Obj *dupObj = Tcl_DuplicateObj(objv[i]);
+                n = Tcl_GetIntFromObj(interp, dupObj, &start_index);
+                Tcl_DecrRefCount(dupObj);
+                if (n != TCL_OK)
+                    return TCL_ERROR;
+            } else {
+                if (Tcl_GetIntFromObj(interp, objv[i], &start_index) != TCL_OK)
+                    return TCL_ERROR;
+            }
+            break;
+        }
+    }
+
+    haystackP = TARRAYHDR(objv[objc-2]);
+    switch (haystackP->type) {
+    case TARRAY_BOOLEAN :
+        return TArraySearchBoolean(interp, haystackP, objv[objc-1], start_index, flags);
+
+    default:
+        Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
+        return TCL_ERROR;
+    }
+}
