@@ -55,6 +55,22 @@ const char *gTArrayTypeTokens[] = {
     NULL
 };    
 
+/*
+ * Options for 'tarray search'
+ */
+static const char *switches[] = {
+    "-all", "-inline", "-not", "-start", "-eq", "-gt", "-lt", NULL
+};
+enum TArraySearchSwitches {
+    TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START, TARRAY_SEARCH_OPT_EQ, TARRAY_SEARCH_OPT_GT, TARRAY_SEARCH_OPT_LT
+};
+/* Search flags */
+#define TARRAY_SEARCH_INLINE 1  /* Return values, not indices */
+#define TARRAY_SEARCH_INVERT 2  /* Invert matching expression */
+#define TARRAY_SEARCH_ALL    4  /* Return all matches */
+
+
+
 void TArrayTypePanic(unsigned char tatype)
 {
     Tcl_Panic("Unknown tarray type %d", tatype);
@@ -1152,8 +1168,9 @@ TArrayHdr *TArrayGetValues(Tcl_Interp *interp, TArrayHdr *srcP, TArrayHdr *indic
     return thdrP;
 }
 
-TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
-                               Tcl_Obj *needleObj, int start, int flags)
+
+static TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
+                                      Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
 {
     int bval;
     unsigned char *ucP;
@@ -1166,6 +1183,11 @@ TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
     if (Tcl_GetBooleanFromObj(interp, needleObj, &bval) != TCL_OK)
         return TCL_ERROR;
     
+    if (op != TARRAY_SEARCH_OPT_EQ) {
+        Tcl_SetResult(interp, "Only the -eq operator is supported for searches of the boolean type.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
     if (flags & TARRAY_SEARCH_INVERT)
         bval = !bval;
 
@@ -1281,6 +1303,160 @@ TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
     return TCL_OK;
 }
                         
+static TCL_RESULT TArraySearchWide(Tcl_Interp *interp, TArrayHdr * haystackP,
+                                   Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
+{
+    unsigned char *ucP;
+    int offset;
+    Tcl_Obj *resultObj;
+    Tcl_WideInt wide, *wideP;
+    int compare_result;
+    int compare_wanted;
+
+    TARRAY_ASSERT(haystackP->type == TARRAY_WIDE);
+
+    if (Tcl_GetWideIntFromObj(interp, needleObj, &wide) != TCL_OK)
+        return TCL_ERROR;
+    
+    compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
+
+    /* First locate the starting point for the search */
+    wideP = TAHDRELEMPTR(haystackP, Tcl_WideInt, start);
+
+    if (flags & TARRAY_SEARCH_ALL) {
+        TArrayHdr *thdrP;
+
+        thdrP = TArrayAlloc(
+            flags & TARRAY_SEARCH_INLINE ? TARRAY_WIDE : TARRAY_INT,
+            10);                /* Assume 10 hits */
+
+        for (offset = start; offset < haystackP->used; ++offset, ++wideP) {
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT: compare_result = (*wideP > wide); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (*wideP < wide); break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default: compare_result = (*wideP == wide); break;
+            }
+
+            if (compare_result == compare_wanted) {
+                /* Have a match */
+                /* Ensure enough space in target array */
+                if (thdrP->used >= thdrP->allocated)
+                    thdrP = TArrayRealloc(thdrP, thdrP->used + TARRAY_EXTRA(thdrP->used));
+                if (flags & TARRAY_SEARCH_INLINE) {
+                    *TAHDRELEMPTR(thdrP, Tcl_WideInt, thdrP->used) = *wideP;
+                } else {
+                    *TAHDRELEMPTR(thdrP, int, thdrP->used) = offset;
+                }
+                thdrP->used++;
+            }
+        }
+
+        resultObj = TArrayNewObj(thdrP);
+
+    } else {
+        /* Return first found element */
+        for (offset = start; offset < haystackP->used; ++offset, ++wideP) {
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT: compare_result = (*wideP > wide); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (*wideP < wide); break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default: compare_result = (*wideP == wide); break;
+            }
+            if (compare_result == compare_wanted)
+                break;
+        }
+        if (offset >= haystackP->used) {
+            /* No match */
+            resultObj = Tcl_NewObj();
+        } else {
+            if (flags & TARRAY_SEARCH_INLINE)
+                resultObj = Tcl_NewWideIntObj(*wideP);
+            else
+                resultObj = Tcl_NewIntObj(offset);
+        }
+    }
+
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+}
+
+TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
+                              int objc, Tcl_Obj *const objv[])
+{
+    int flags;
+    int start_index;
+    int i, n, opt;
+    TArrayHdr *haystackP;
+    TArrayHdr *thdrP;
+    Tcl_Obj *resultObj;
+    int (__cdecl *cmpfn)(const void*, const void*);
+    int (__cdecl *cmpindexedfn)(void *, const void*, const void*);
+    enum TArraySearchSwitches op;
+
+    if (objc < 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?options? tarray pattern");
+	return TCL_ERROR;
+    }
+
+    if (TArrayVerifyType(interp, objv[objc-2]) != TCL_OK)
+        return TCL_ERROR;
+
+    flags = 0;
+    start_index = 0;
+    op = TARRAY_SEARCH_OPT_EQ;
+    for (i = 1; i < objc-2; ++i) {
+	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &opt)
+            != TCL_OK) {
+            return TCL_ERROR;
+	}
+        switch ((enum TArraySortSwitches) opt) {
+        case TARRAY_SEARCH_OPT_ALL: flags |= TARRAY_SEARCH_ALL; break;
+        case TARRAY_SEARCH_OPT_INLINE: flags |= TARRAY_SEARCH_INLINE; break;
+        case TARRAY_SEARCH_OPT_INVERT: flags |= TARRAY_SEARCH_INVERT; break;
+        case TARRAY_SEARCH_OPT_START:
+            if (i > objc-4) {
+                TArrayBadArgError(interp, "-start");
+                return TCL_ERROR;
+            }
+            ++i;
+            /*
+             * To prevent shimmering, check if the index object is same
+             * as tarray object.
+             */
+            if (objv[i] == objv[objc-2]) {
+                Tcl_Obj *dupObj = Tcl_DuplicateObj(objv[i]);
+                n = Tcl_GetIntFromObj(interp, dupObj, &start_index);
+                Tcl_DecrRefCount(dupObj);
+                if (n != TCL_OK)
+                    return TCL_ERROR;
+            } else {
+                if (Tcl_GetIntFromObj(interp, objv[i], &start_index) != TCL_OK)
+                    return TCL_ERROR;
+            }
+            break;
+        case TARRAY_SEARCH_OPT_EQ:
+        case TARRAY_SEARCH_OPT_GT:
+        case TARRAY_SEARCH_OPT_LT:
+            op = (enum TArraySortSwitches) opt;
+        }
+    }
+
+    haystackP = TARRAYHDR(objv[objc-2]);
+    switch (haystackP->type) {
+    case TARRAY_BOOLEAN:
+        return TArraySearchBoolean(interp, haystackP, objv[objc-1], start_index, op, flags);
+    case TARRAY_WIDE:
+        return TArraySearchWide(interp, haystackP, objv[objc-1], start_index, op, flags);
+
+    default:
+        Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+}
+
+
 
 /* Find number bits set in a bit array */
 int TArrayNumSetBits(TArrayHdr *thdrP)
