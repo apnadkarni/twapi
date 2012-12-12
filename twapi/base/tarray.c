@@ -653,6 +653,8 @@ TArrayHdr * TArrayAlloc(unsigned char tatype, int count)
     unsigned char nbits;
     TArrayHdr *thdrP;
 
+    if (count == 0)
+            count = TARRAY_DEFAULT_NSLOTS;
     thdrP = (TArrayHdr *) TARRAY_ALLOCMEM(TArrayCalcSize(tatype, count));
     thdrP->nrefs = 0;
     thdrP->allocated = count;
@@ -693,8 +695,6 @@ TArrayHdr * TArrayAllocAndInit(Tcl_Interp *interp, unsigned char tatype,
         }
     } else {
         nelems = 0;
-        if (init_size == 0)
-            init_size = TARRAY_DEFAULT_NSLOTS;
     }
 
     thdrP = TArrayAlloc(tatype, init_size);
@@ -1156,9 +1156,8 @@ TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
                                Tcl_Obj *needleObj, int start, int flags)
 {
     int bval;
-    TArrayHdr *thdrP;
     unsigned char *ucP;
-    unsigned char uc, uc_mask;
+    unsigned char uc, uc_mask, skip;
     int offset;
     Tcl_Obj *resultObj;
 
@@ -1170,10 +1169,14 @@ TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
     if (flags & TARRAY_SEARCH_INVERT)
         bval = !bval;
 
+    skip = bval ? 0 : 0xff;     /* Skip entire bytes of this value */
+
     /* First locate the starting point for the search */
     ucP = TAHDRELEMPTR(haystackP, unsigned char, 0);
     ucP += start/CHAR_BIT;
     uc_mask = BITMASK(start % CHAR_BIT);
+
+    /* TBD - optimize this code */
 
     /*
      * At this point,
@@ -1181,14 +1184,59 @@ TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
      * uc_mask is the mask for the start bit within that location
      */
     if (flags & TARRAY_SEARCH_ALL) {
-        Tcl_SetResult(interp, "Not implementd", TCL_STATIC);
-        return TCL_ERROR;
+        TArrayHdr *thdrP;
+
+        thdrP = TArrayAlloc(
+            flags & TARRAY_SEARCH_INLINE ? TARRAY_BOOLEAN : TARRAY_INT,
+            10);                /* Assume 10 hits */
+
+        for (offset = start; offset < haystackP->used; uc_mask = BITMASK(0)) {
+            /*
+             * At top of loop, *ucP potentially has a matching
+             * bit, uc_mask contains position at which to
+             * begin match
+             */
+            uc = *ucP++;
+            if (uc == skip) {
+                /* Looking for 1's and uc is all 0's or vice versa */
+                offset += CHAR_BIT;
+                continue;
+            }
+            while (uc_mask) {
+                /* Compare bit against 1 or 0 as appropriate */
+                if ((bval && (uc_mask & uc)) ||
+                    !(bval || (uc_mask & uc))) {
+                    /* Note this may be beyond haystackP->used, so check */
+                    if (offset >= haystackP->used) {
+                        /* Yep, beyond end */
+                        break; /* Stop inner loop */
+                    }
+                    /* Ensure enough space in target array */
+                    if (thdrP->used >= thdrP->allocated)
+                        thdrP = TArrayRealloc(thdrP, thdrP->used + TARRAY_EXTRA(thdrP->used));
+                    if (flags & TARRAY_SEARCH_INLINE) {
+                        unsigned char *uc2P = TAHDRELEMPTR(thdrP, unsigned char, thdrP->used/CHAR_BIT);
+                        unsigned char uc = BITMASK(thdrP->used % CHAR_BIT);
+                        if (bval)
+                            *uc2P |= uc;
+                        else
+                            *uc2P &= ~uc;
+                    } else {
+                        *TAHDRELEMPTR(thdrP, int, thdrP->used) = offset;
+                    }
+                    thdrP->used++;
+                }
+                uc_mask >>= 1;
+                ++offset;
+            }
+        }
+
+        resultObj = TArrayNewObj(thdrP);
+
     } else {
         /* Return first found element */
         int pos = -1;
-        unsigned char skip = bval ? 0 : 0xff;
 
-        /* TBD - to be optimized */
         for (offset = start; offset < haystackP->used; uc_mask = BITMASK(0)) {
             /*
              * At top of loop, *ucP potentially has a matching
