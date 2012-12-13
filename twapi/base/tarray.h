@@ -146,6 +146,7 @@ extern int __cdecl bytecmpindexedrev(void *, const void *a, const void *b);
 extern int __cdecl tclobjcmpindexed(void *, const void *a, const void *b);
 extern int __cdecl tclobjcmpindexedrev(void *, const void *a, const void *b);
 
-extern void __cdecl TArrayBadArgError(Tcl_Interp *interp, const char *optname);
+extern TCL_RESULT __cdecl TArrayBadArgError(Tcl_Interp *interp, const char *optname);
+extern TCL_RESULT __cdecl TArrayBadSearchOpError(Tcl_Interp *interp, enum TArraySearchSwitches op);
 
 #endif
