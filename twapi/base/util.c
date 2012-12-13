@@ -26,6 +26,7 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
     char *cP;
     int len;
 
+    /* TBD - verify this code is correct. Does UtfToLower guarantee to be no longer than passed in string ? */
     cP = ObjToStringN(objP, &len);
     resultObj = ObjFromStringN(cP, len);
     len = Tcl_UtfToLower(ObjToString(resultObj));
