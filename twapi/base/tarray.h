@@ -112,6 +112,8 @@ extern TCL_RESULT __cdecl TArraySetRange(Tcl_Interp *interp, TArrayHdr *dstP, in
 extern TCL_RESULT __cdecl TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                       int objc, Tcl_Obj *const objv[]);
 
+extern int __cdecl TArrayCompareObjs(Tcl_Obj *oaP, Tcl_Obj *obP, int ignorecase);
+
 
 extern void __cdecl bitarray_set(unsigned char *ucP, int offset, int count, int ival);
 extern void __cdecl bitarray_copy(const unsigned char *src_org, int src_offset,
