@@ -1303,6 +1303,8 @@ static TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
     return TCL_OK;
 }
                         
+/* TBD - see how much performance is gained by separating this search function into
+   type-specific functions */
 static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
                                    Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
 {
@@ -1349,7 +1351,7 @@ static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
     else {
         if (needle > max_val || needle < min_val) {
             Tcl_SetObjResult(interp,
-                             Tcl_ObjPrintf("Integer \"%s\" too large for typearray (type %d).", Tcl_GetString(needleObj), haystackP->type));
+                             Tcl_ObjPrintf("Integer \"%s\" type mismatch for typearray (type %d).", Tcl_GetString(needleObj), haystackP->type));
             return TCL_ERROR;
         }
     }
@@ -1431,39 +1433,39 @@ static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
     return TCL_OK;
 }
 
-static TCL_RESULT OBSOLETETArraySearchWide(Tcl_Interp *interp, TArrayHdr * haystackP,
-                                   Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
+
+static TCL_RESULT TArraySearchDouble(Tcl_Interp *interp, TArrayHdr * haystackP,
+                                          Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
 {
-    unsigned char *ucP;
     int offset;
     Tcl_Obj *resultObj;
-    Tcl_WideInt wide, *wideP;
+    double dval, *dvalP;
     int compare_result;
     int compare_wanted;
 
-    TARRAY_ASSERT(haystackP->type == TARRAY_WIDE);
+    TARRAY_ASSERT(haystackP->type == TARRAY_DOUBLE);
 
-    if (Tcl_GetWideIntFromObj(interp, needleObj, &wide) != TCL_OK)
+    if (Tcl_GetDoubleFromObj(interp, needleObj, &dval) != TCL_OK)
         return TCL_ERROR;
     
     compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
 
     /* First locate the starting point for the search */
-    wideP = TAHDRELEMPTR(haystackP, Tcl_WideInt, start);
+    dvalP = TAHDRELEMPTR(haystackP, double, start);
 
     if (flags & TARRAY_SEARCH_ALL) {
         TArrayHdr *thdrP;
 
         thdrP = TArrayAlloc(
-            flags & TARRAY_SEARCH_INLINE ? TARRAY_WIDE : TARRAY_INT,
+            flags & TARRAY_SEARCH_INLINE ? TARRAY_DOUBLE : TARRAY_INT,
             10);                /* Assume 10 hits */
 
-        for (offset = start; offset < haystackP->used; ++offset, ++wideP) {
+        for (offset = start; offset < haystackP->used; ++offset, ++dvalP) {
             switch (op) {
-            case TARRAY_SEARCH_OPT_GT: compare_result = (*wideP > wide); break;
-            case TARRAY_SEARCH_OPT_LT: compare_result = (*wideP < wide); break;
+            case TARRAY_SEARCH_OPT_GT: compare_result = (*dvalP > dval); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (*dvalP < dval); break;
             case TARRAY_SEARCH_OPT_EQ:
-            default: compare_result = (*wideP == wide); break;
+            default: compare_result = (*dvalP == dval); break;
             }
 
             if (compare_result == compare_wanted) {
@@ -1472,7 +1474,7 @@ static TCL_RESULT OBSOLETETArraySearchWide(Tcl_Interp *interp, TArrayHdr * hayst
                 if (thdrP->used >= thdrP->allocated)
                     thdrP = TArrayRealloc(thdrP, thdrP->used + TARRAY_EXTRA(thdrP->used));
                 if (flags & TARRAY_SEARCH_INLINE) {
-                    *TAHDRELEMPTR(thdrP, Tcl_WideInt, thdrP->used) = *wideP;
+                    *TAHDRELEMPTR(thdrP, double, thdrP->used) = *dvalP;
                 } else {
                     *TAHDRELEMPTR(thdrP, int, thdrP->used) = offset;
                 }
@@ -1484,12 +1486,12 @@ static TCL_RESULT OBSOLETETArraySearchWide(Tcl_Interp *interp, TArrayHdr * hayst
 
     } else {
         /* Return first found element */
-        for (offset = start; offset < haystackP->used; ++offset, ++wideP) {
+        for (offset = start; offset < haystackP->used; ++offset, ++dvalP) {
             switch (op) {
-            case TARRAY_SEARCH_OPT_GT: compare_result = (*wideP > wide); break;
-            case TARRAY_SEARCH_OPT_LT: compare_result = (*wideP < wide); break;
+            case TARRAY_SEARCH_OPT_GT: compare_result = (*dvalP > dval); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (*dvalP < dval); break;
             case TARRAY_SEARCH_OPT_EQ:
-            default: compare_result = (*wideP == wide); break;
+            default: compare_result = (*dvalP == dval); break;
             }
             if (compare_result == compare_wanted)
                 break;
@@ -1499,7 +1501,7 @@ static TCL_RESULT OBSOLETETArraySearchWide(Tcl_Interp *interp, TArrayHdr * hayst
             resultObj = Tcl_NewObj();
         } else {
             if (flags & TARRAY_SEARCH_INLINE)
-                resultObj = Tcl_NewWideIntObj(*wideP);
+                resultObj = Tcl_NewDoubleObj(*dvalP);
             else
                 resultObj = Tcl_NewIntObj(offset);
         }
@@ -1579,6 +1581,9 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
     case TARRAY_BYTE:
     case TARRAY_WIDE:
         return TArraySearchEntier(interp, haystackP, objv[objc-1], start_index, op, flags);
+
+    case TARRAY_DOUBLE:
+        return TArraySearchDouble(interp, haystackP, objv[objc-1], start_index, op, flags);
 
     default:
         Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
