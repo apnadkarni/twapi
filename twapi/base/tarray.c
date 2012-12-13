@@ -58,17 +58,17 @@ const char *gTArrayTypeTokens[] = {
 /*
  * Options for 'tarray search'
  */
-static const char *switches[] = {
-    "-all", "-inline", "-not", "-start", "-eq", "-gt", "-lt", NULL
+static const char *TArraySearchSwitches[] = {
+    "-all", "-inline", "-not", "-start", "-eq", "-gt", "-lt", "-nocase", NULL
 };
 enum TArraySearchSwitches {
-    TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START, TARRAY_SEARCH_OPT_EQ, TARRAY_SEARCH_OPT_GT, TARRAY_SEARCH_OPT_LT
+    TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START, TARRAY_SEARCH_OPT_EQ, TARRAY_SEARCH_OPT_GT, TARRAY_SEARCH_OPT_LT, TARRAY_SEARCH_OPT_NOCASE
 };
 /* Search flags */
 #define TARRAY_SEARCH_INLINE 1  /* Return values, not indices */
 #define TARRAY_SEARCH_INVERT 2  /* Invert matching expression */
 #define TARRAY_SEARCH_ALL    4  /* Return all matches */
-
+#define TARRAY_SEARCH_NOCASE 8  /* Ignore case */
 
 
 void TArrayTypePanic(unsigned char tatype)
@@ -80,6 +80,11 @@ void TArrayBadArgError(Tcl_Interp *interp, const char *optname)
 {
     Tcl_SetObjResult(interp, Tcl_ObjPrintf("Missing or invalid argument to option '%s'", optname));
     Tcl_SetErrorCode(interp, "TARRAY", "ARGUMENT", NULL);
+}
+
+void TArrayBadSearchOpError(Tcl_Interp *interp, enum TArraySearchSwitches op)
+{
+// TBD
 }
 
 
@@ -1511,6 +1516,89 @@ static TCL_RESULT TArraySearchDouble(Tcl_Interp *interp, TArrayHdr * haystackP,
     return TCL_OK;
 }
 
+static TCL_RESULT TArraySearchObj(Tcl_Interp *interp, TArrayHdr * haystackP,
+                                  Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
+{
+    int offset;
+    Tcl_Obj **objPP;
+    Tcl_Obj *resultObj;
+    int compare_result;
+    int compare_wanted;
+    int nocase;
+
+    TARRAY_ASSERT(haystackP->type == TARRAY_TCLOBJ);
+    
+    compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
+    nocase = flags & TARRAY_SEARCH_NOCASE;
+
+    /* First locate the starting point for the search */
+    objPP = TAHDRELEMPTR(haystackP, Tcl_Obj *, start);
+
+    if (flags & TARRAY_SEARCH_ALL) {
+        TArrayHdr *thdrP;
+
+        thdrP = TArrayAlloc(
+            flags & TARRAY_SEARCH_INLINE ? TARRAY_OBJ : TARRAY_INT,
+            10);                /* Assume 10 hits */
+
+        for (offset = start; offset < haystackP->used; ++offset, ++objPP) {
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT:
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) > 0; break;
+            case TARRAY_SEARCH_OPT_LT: 
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) < 0; break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default:
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) == 0; break;
+            }
+
+            if (compare_result == compare_wanted) {
+                /* Have a match */
+                /* Ensure enough space in target array */
+                if (thdrP->used >= thdrP->allocated)
+                    thdrP = TArrayRealloc(thdrP, thdrP->used + TARRAY_EXTRA(thdrP->used));
+                if (flags & TARRAY_SEARCH_INLINE) {
+                    Tcl_IncrRefCount(*objPP);
+                    *TAHDRELEMPTR(thdrP, Tcl_Obj *, thdrP->used) = *objPP;
+                } else {
+                    *TAHDRELEMPTR(thdrP, int, thdrP->used) = offset;
+                }
+                thdrP->used++;
+            }
+        }
+
+        resultObj = TArrayNewObj(thdrP);
+
+    } else {
+        /* Return first found element */
+        for (offset = start; offset < haystackP->used; ++offset, ++objPP) {
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT:
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) > 0; break;
+            case TARRAY_SEARCH_OPT_LT: 
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) < 0; break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default:
+                compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) == 0; break;
+            }
+            if (compare_result == compare_wanted)
+                break;
+        }
+        if (offset >= haystackP->used) {
+            /* No match */
+            resultObj = Tcl_NewObj();
+        } else {
+            if (flags & TARRAY_SEARCH_INLINE)
+                resultObj = *objPP; /* No need to incr ref, the SetObjResult does it */
+            else
+                resultObj = Tcl_NewIntObj(offset);
+        }
+    }
+
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+}
+
 TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
                               int objc, Tcl_Obj *const objv[])
 {
@@ -1518,10 +1606,6 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
     int start_index;
     int i, n, opt;
     TArrayHdr *haystackP;
-    TArrayHdr *thdrP;
-    Tcl_Obj *resultObj;
-    int (__cdecl *cmpfn)(const void*, const void*);
-    int (__cdecl *cmpindexedfn)(void *, const void*, const void*);
     enum TArraySearchSwitches op;
 
     if (objc < 3) {
@@ -1536,7 +1620,7 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
     start_index = 0;
     op = TARRAY_SEARCH_OPT_EQ;
     for (i = 1; i < objc-2; ++i) {
-	if (Tcl_GetIndexFromObj(interp, objv[i], switches, "option", 0, &opt)
+	if (Tcl_GetIndexFromObj(interp, objv[i], TArraySearchSwitches, "option", 0, &opt)
             != TCL_OK) {
             return TCL_ERROR;
 	}
@@ -1544,6 +1628,7 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case TARRAY_SEARCH_OPT_ALL: flags |= TARRAY_SEARCH_ALL; break;
         case TARRAY_SEARCH_OPT_INLINE: flags |= TARRAY_SEARCH_INLINE; break;
         case TARRAY_SEARCH_OPT_INVERT: flags |= TARRAY_SEARCH_INVERT; break;
+        case TARRAY_SEARCH_OPT_NOCASE: flags |= TARRAY_SEARCH_NOCASE; break;
         case TARRAY_SEARCH_OPT_START:
             if (i > objc-4) {
                 TArrayBadArgError(interp, "-start");
@@ -1575,21 +1660,43 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
     haystackP = TARRAYHDR(objv[objc-2]);
     switch (haystackP->type) {
     case TARRAY_BOOLEAN:
-        return TArraySearchBoolean(interp, haystackP, objv[objc-1], start_index, op, flags);
+        return TArraySearchBoolean(interp, haystackP, objv[objc-1], start_index,op,flags);
     case TARRAY_INT:
     case TARRAY_UINT:
     case TARRAY_BYTE:
     case TARRAY_WIDE:
         return TArraySearchEntier(interp, haystackP, objv[objc-1], start_index, op, flags);
-
     case TARRAY_DOUBLE:
         return TArraySearchDouble(interp, haystackP, objv[objc-1], start_index, op, flags);
-
+    case TARRAY_OBJ:
+        return TArraySearchObj(interp, haystackP, objv[objc-1], start_index, op, flags);
     default:
         Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
         return TCL_ERROR;
     }
 
+}
+
+
+int TArrayCompareObjs(Tcl_Obj *oaP, Tcl_Obj *obP, int ignorecase)
+{
+    char *a, *b;
+    int alen, blen, len;
+    int comparison;
+
+    a = Tcl_GetStringFromObj(oaP, &alen);
+    alen = Tcl_NumUtfChars(a, alen); /* Num bytes -> num chars */
+    b = Tcl_GetStringFromObj(obP, &blen);
+    blen = Tcl_NumUtfChars(b, blen); /* Num bytes -> num chars */
+
+    len = alen < blen ? alen : blen; /* len is the shorter length */
+    
+    comparison = (ignorecase ? Tcl_UtfNcasecmp : Tcl_UtfNcmp)(a, b, len);
+
+    if (comparison == 0) {
+        comparison = alen-blen;
+    }
+    return (comparison > 0) ? 1 : (comparison < 0) ? -1 : 0;
 }
 
 
@@ -1809,7 +1916,7 @@ int bytecmprev(const void *a, const void *b) { RETCMPREV(a,b,unsigned char); }
 int tclobjcmp(const void *a, const void *b)
 {
     int n;
-    n = strcmp(Tcl_GetString(*(Tcl_Obj **)a), Tcl_GetString(*(Tcl_Obj **)b));
+    n = TArrayCompareObjs(*(Tcl_Obj **)a, *(Tcl_Obj **)b, 0);
     if (n)
         return n;
     else
@@ -1818,7 +1925,7 @@ int tclobjcmp(const void *a, const void *b)
 int tclobjcmprev(const void *a, const void *b)
 {
     int n;
-    n = strcmp(Tcl_GetString(*(Tcl_Obj **)b), Tcl_GetString(*(Tcl_Obj **)a));
+    n = TArrayCompareObjs(*(Tcl_Obj **)b, *(Tcl_Obj **)a, 0);
     if (n)
         return n;
     else
@@ -1877,7 +1984,7 @@ int tclobjcmpindexed(void *ctx, const void *ai, const void *bi)
     int n;
     Tcl_Obj *a = *(*(int *)ai + (Tcl_Obj **)ctx);
     Tcl_Obj *b = *(*(int *)bi + (Tcl_Obj **)ctx);
-    n = strcmp(Tcl_GetString(a), Tcl_GetString(b));
+    n = TArrayCompareObjs(a, b, 0);
     if (n)
         return n;
     else
@@ -1888,7 +1995,7 @@ int tclobjcmpindexedrev(void *ctx, const void *ai, const void *bi)
     int n;
     Tcl_Obj *a = *(*(int *)ai + (Tcl_Obj **)ctx);
     Tcl_Obj *b = *(*(int *)bi + (Tcl_Obj **)ctx);
-    n = strcmp(Tcl_GetString(b), Tcl_GetString(a));
+    n = TArrayCompareObjs(b, a, 0);
     if (n)
         return n;
     else
@@ -1896,7 +2003,6 @@ int tclobjcmpindexedrev(void *ctx, const void *ai, const void *bi)
 }
 int booleancmpindexed(void *ctx, const void *ai, const void *bi)
 {
-    int n;
     unsigned char *ucP = (unsigned char *)ctx;
     unsigned char uca, ucb;
 
@@ -1914,7 +2020,6 @@ int booleancmpindexed(void *ctx, const void *ai, const void *bi)
 
 int booleancmpindexedrev(void *ctx, const void *ai, const void *bi)
 {
-    int n;
     unsigned char *ucP = (unsigned char *)ctx;
     unsigned char uca, ucb;
 
@@ -2142,3 +2247,4 @@ loop:	SWAPINIT(a, es);
 	}
 /*		qsort(pn - r, r / es, es, cmp);*/
 }
+
