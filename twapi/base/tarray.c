@@ -73,7 +73,7 @@ enum TArraySearchSwitches {
 
 void TArrayTypePanic(unsigned char tatype)
 {
-    Tcl_Panic("Unknown tarray type %d", tatype);
+    Tcl_Panic("Unknown or unexpected tarray type %d", tatype);
 }
 
 void TArrayBadArgError(Tcl_Interp *interp, const char *optname)
@@ -594,7 +594,7 @@ TCL_RESULT TArraySetFromObjs(Tcl_Interp *interp, TArrayHdr *thdrP,
             for (i = 0; i < nelems; ++i, ++byteP) {
                 if (Tcl_GetIntFromObj(interp, elems[i], &ival) != TCL_OK)
                     goto convert_error;
-                if (ival > 255 || ival < 255) {
+                if (ival > 255 || ival < 0) {
                     if (interp)
                         Tcl_SetObjResult(interp,
                                          Tcl_ObjPrintf("Integer \"%d\" does not fit type \"byte\" typearray.", ival));
@@ -1303,7 +1303,143 @@ static TCL_RESULT TArraySearchBoolean(Tcl_Interp *interp, TArrayHdr * haystackP,
     return TCL_OK;
 }
                         
-static TCL_RESULT TArraySearchWide(Tcl_Interp *interp, TArrayHdr * haystackP,
+static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
+                                   Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
+{
+    int offset;
+    Tcl_Obj *resultObj;
+    Tcl_WideInt needle, elem;
+    int compare_result;
+    int compare_wanted;
+    int elem_size;
+    char *p;
+
+    p = TAHDRELEMPTR(haystackP, char, 0);
+    switch (haystackP->type) {
+    case TARRAY_INT:
+    case TARRAY_UINT:
+    case TARRAY_WIDE:
+    case TARRAY_BYTE:
+        if (Tcl_GetWideIntFromObj(interp, needleObj, &needle) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            Tcl_WideInt max_val;
+            Tcl_WideInt min_val;
+            switch (haystackP->type) {
+            case TARRAY_INT:
+                max_val = INT_MAX;
+                min_val = INT_MIN;
+                p += start * sizeof(int);
+                elem_size = sizeof(int);
+                break;
+            case TARRAY_UINT:
+                max_val = UINT_MAX;
+                min_val = 0;
+                p += start * sizeof(unsigned int);
+                elem_size = sizeof(unsigned int);
+                break;
+            case TARRAY_WIDE:
+                max_val = needle; /* No-op */
+                min_val = needle;
+                p += start * sizeof(Tcl_WideInt);
+                elem_size = sizeof(Tcl_WideInt);
+                break;
+            case TARRAY_BYTE:
+                max_val = UCHAR_MAX;
+                min_val = 0;
+                p += start * sizeof(unsigned char);
+                elem_size = sizeof(unsigned char);
+                break;
+            }
+            if (needle > max_val || needle < min_val) {
+                Tcl_SetObjResult(interp,
+                                 Tcl_ObjPrintf("Integer \"%s\" too large for typearray (type %d).", Tcl_GetString(needleObj), haystackP->type));
+                return TCL_ERROR;
+            }
+        }
+        break;
+    default:
+        TArrayTypePanic(haystackP->type);
+    }
+
+    compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
+
+    if (flags & TARRAY_SEARCH_ALL) {
+        TArrayHdr *thdrP;
+
+        thdrP = TArrayAlloc(
+            flags & TARRAY_SEARCH_INLINE ? haystackP->type : TARRAY_INT,
+            10);                /* Assume 10 hits TBD */
+
+        for (offset = start; offset < haystackP->used; ++offset, p += elem_size) {
+            switch (haystackP->type) {
+            case TARRAY_INT:  elem = *(int *)p; break;
+            case TARRAY_UINT: elem = *(unsigned int *)p; break;
+            case TARRAY_WIDE: elem = *(Tcl_WideInt *)p; break;
+            case TARRAY_BYTE: elem = *(unsigned char *)p; break;
+            }
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT: compare_result = (elem > needle); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (elem < needle); break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default: compare_result = (elem == needle); break;
+            }
+
+            if (compare_result == compare_wanted) {
+                /* Have a match */
+                /* Ensure enough space in target array */
+                if (thdrP->used >= thdrP->allocated)
+                    thdrP = TArrayRealloc(thdrP, thdrP->used + TARRAY_EXTRA(thdrP->used));
+                if (flags & TARRAY_SEARCH_INLINE) {
+                    switch (thdrP->type) {
+                    case TARRAY_INT:  *TAHDRELEMPTR(thdrP, int, thdrP->used) = (int) elem; break;
+                    case TARRAY_UINT: *TAHDRELEMPTR(thdrP, unsigned int, thdrP->used) = (unsigned int) elem; break;
+                    case TARRAY_WIDE: *TAHDRELEMPTR(thdrP, Tcl_WideInt, thdrP->used) = elem; break;
+                    case TARRAY_BYTE:  *TAHDRELEMPTR(thdrP, unsigned char, thdrP->used) = (unsigned char) elem; break;
+                    }
+                } else {
+                    *TAHDRELEMPTR(thdrP, int, thdrP->used) = offset;
+                }
+                thdrP->used++;
+            }
+        }
+
+        resultObj = TArrayNewObj(thdrP);
+
+    } else {
+        /* Return first found element */
+        for (offset = start; offset < haystackP->used; ++offset, p += elem_size) {
+            switch (haystackP->type) {
+            case TARRAY_INT:  elem = *(int *)p; break;
+            case TARRAY_UINT: elem = *(unsigned int *)p; break;
+            case TARRAY_WIDE: elem = *(Tcl_WideInt *)p; break;
+            case TARRAY_BYTE: elem = *(unsigned char *)p; break;
+            }
+            switch (op) {
+            case TARRAY_SEARCH_OPT_GT: compare_result = (elem > needle); break;
+            case TARRAY_SEARCH_OPT_LT: compare_result = (elem < needle); break;
+            case TARRAY_SEARCH_OPT_EQ:
+            default: compare_result = (elem == needle); break;
+            }
+            if (compare_result == compare_wanted)
+                break;
+        }
+        if (offset >= haystackP->used) {
+            /* No match */
+            resultObj = Tcl_NewObj();
+        } else {
+            if (flags & TARRAY_SEARCH_INLINE)
+                resultObj = Tcl_NewWideIntObj(elem);
+            else
+                resultObj = Tcl_NewIntObj(offset);
+        }
+    }
+
+    Tcl_SetObjResult(interp, resultObj);
+    return TCL_OK;
+}
+
+static TCL_RESULT OBSOLETETArraySearchWide(Tcl_Interp *interp, TArrayHdr * haystackP,
                                    Tcl_Obj *needleObj, int start, enum TArraySearchSwitches op, int flags)
 {
     unsigned char *ucP;
@@ -1446,8 +1582,11 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
     switch (haystackP->type) {
     case TARRAY_BOOLEAN:
         return TArraySearchBoolean(interp, haystackP, objv[objc-1], start_index, op, flags);
+    case TARRAY_INT:
+    case TARRAY_UINT:
+    case TARRAY_BYTE:
     case TARRAY_WIDE:
-        return TArraySearchWide(interp, haystackP, objv[objc-1], start_index, op, flags);
+        return TArraySearchEntier(interp, haystackP, objv[objc-1], start_index, op, flags);
 
     default:
         Tcl_SetResult(interp, "Not implemented", TCL_STATIC);
