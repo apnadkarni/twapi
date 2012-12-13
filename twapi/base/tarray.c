@@ -1308,7 +1308,7 @@ static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
 {
     int offset;
     Tcl_Obj *resultObj;
-    Tcl_WideInt needle, elem;
+    Tcl_WideInt needle, elem, min_val, max_val;
     int compare_result;
     int compare_wanted;
     int elem_size;
@@ -1317,49 +1317,41 @@ static TCL_RESULT TArraySearchEntier(Tcl_Interp *interp, TArrayHdr * haystackP,
     p = TAHDRELEMPTR(haystackP, char, 0);
     switch (haystackP->type) {
     case TARRAY_INT:
+        max_val = INT_MAX;
+        min_val = INT_MIN;
+        p += start * sizeof(int);
+        elem_size = sizeof(int);
+        break;
     case TARRAY_UINT:
+        max_val = UINT_MAX;
+        min_val = 0;
+        p += start * sizeof(unsigned int);
+        elem_size = sizeof(unsigned int);
+        break;
     case TARRAY_WIDE:
+        max_val = needle; /* No-op */
+        min_val = needle;
+        p += start * sizeof(Tcl_WideInt);
+        elem_size = sizeof(Tcl_WideInt);
+        break;
     case TARRAY_BYTE:
-        if (Tcl_GetWideIntFromObj(interp, needleObj, &needle) != TCL_OK)
-            return TCL_ERROR;
-        else {
-            Tcl_WideInt max_val;
-            Tcl_WideInt min_val;
-            switch (haystackP->type) {
-            case TARRAY_INT:
-                max_val = INT_MAX;
-                min_val = INT_MIN;
-                p += start * sizeof(int);
-                elem_size = sizeof(int);
-                break;
-            case TARRAY_UINT:
-                max_val = UINT_MAX;
-                min_val = 0;
-                p += start * sizeof(unsigned int);
-                elem_size = sizeof(unsigned int);
-                break;
-            case TARRAY_WIDE:
-                max_val = needle; /* No-op */
-                min_val = needle;
-                p += start * sizeof(Tcl_WideInt);
-                elem_size = sizeof(Tcl_WideInt);
-                break;
-            case TARRAY_BYTE:
-                max_val = UCHAR_MAX;
-                min_val = 0;
-                p += start * sizeof(unsigned char);
-                elem_size = sizeof(unsigned char);
-                break;
-            }
-            if (needle > max_val || needle < min_val) {
-                Tcl_SetObjResult(interp,
-                                 Tcl_ObjPrintf("Integer \"%s\" too large for typearray (type %d).", Tcl_GetString(needleObj), haystackP->type));
-                return TCL_ERROR;
-            }
-        }
+        max_val = UCHAR_MAX;
+        min_val = 0;
+        p += start * sizeof(unsigned char);
+        elem_size = sizeof(unsigned char);
         break;
     default:
         TArrayTypePanic(haystackP->type);
+    }
+
+    if (Tcl_GetWideIntFromObj(interp, needleObj, &needle) != TCL_OK)
+        return TCL_ERROR;
+    else {
+        if (needle > max_val || needle < min_val) {
+            Tcl_SetObjResult(interp,
+                             Tcl_ObjPrintf("Integer \"%s\" too large for typearray (type %d).", Tcl_GetString(needleObj), haystackP->type));
+            return TCL_ERROR;
+        }
     }
 
     compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
