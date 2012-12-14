@@ -1,4 +1,5 @@
 #include "tcl.h"
+#define TARRAY_ENABLE_ASSERT 1
 #include "tarray.h"
 
 
@@ -59,10 +60,10 @@ const char *gTArrayTypeTokens[] = {
  * Options for 'tarray search'
  */
 static const char *TArraySearchSwitches[] = {
-    "-all", "-inline", "-not", "-start", "-eq", "-gt", "-lt", "-match", "-nocase", NULL
+    "-all", "-inline", "-not", "-start", "-eq", "-gt", "-lt", "-pat", "-re", "-nocase", NULL
 };
 enum TArraySearchSwitches {
-    TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START, TARRAY_SEARCH_OPT_EQ, TARRAY_SEARCH_OPT_GT, TARRAY_SEARCH_OPT_LT, TARRAY_SEARCH_OPT_MATCH, TARRAY_SEARCH_OPT_NOCASE
+    TARRAY_SEARCH_OPT_ALL, TARRAY_SEARCH_OPT_INLINE, TARRAY_SEARCH_OPT_INVERT, TARRAY_SEARCH_OPT_START, TARRAY_SEARCH_OPT_EQ, TARRAY_SEARCH_OPT_GT, TARRAY_SEARCH_OPT_LT, TARRAY_SEARCH_OPT_PAT, TARRAY_SEARCH_OPT_RE, TARRAY_SEARCH_OPT_NOCASE
 };
 /* Search flags */
 #define TARRAY_SEARCH_INLINE 1  /* Return values, not indices */
@@ -86,7 +87,7 @@ TCL_RESULT TArrayBadArgError(Tcl_Interp *interp, const char *optname)
 TCL_RESULT TArrayBadSearchOpError(Tcl_Interp *interp, enum TArraySearchSwitches op)
 {
     if (interp) {
-        char *ops = NULL;
+        const char *ops = NULL;
         if ((int)op < (sizeof(TArraySearchSwitches)/sizeof(TArraySearchSwitches[0])))
             ops = TArraySearchSwitches[(int)op];
         if (ops == NULL)
@@ -162,7 +163,7 @@ static void TArrayFreeRep(Tcl_Obj *objP)
 {
     TArrayHdr *thdrP;
 
-    TARRAY_ASSERT(srcP->typePtr == &gTArrayType);
+    TARRAY_ASSERT(objP->typePtr == &gTArrayType);
 
     thdrP = TARRAYHDR(objP); 
     TARRAY_ASSERT(thdrP);
@@ -1549,21 +1550,38 @@ static TCL_RESULT TArraySearchObj(Tcl_Interp *interp, TArrayHdr * haystackP,
     int compare_result;
     int compare_wanted;
     int nocase;
+    Tcl_RegExp re;
 
-    TARRAY_ASSERT(haystackP->type == TARRAY_TCLOBJ);
+    /* TBD - do we need to increment the haystacP ref to guard against shimmering */
+    TARRAY_ASSERT(haystackP->type == TARRAY_OBJ);
     
+    compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
+    nocase = flags & TARRAY_SEARCH_NOCASE;
+
     switch (op) {
     case TARRAY_SEARCH_OPT_GT:
     case TARRAY_SEARCH_OPT_LT: 
     case TARRAY_SEARCH_OPT_EQ:
-    case TARRAY_SEARCH_OPT_MATCH:
+    case TARRAY_SEARCH_OPT_PAT:
+        break;
+    case TARRAY_SEARCH_OPT_RE:
+        /* Following lsearch implementation, get the regexp before any
+           shimmering can take place, and try to compile for the efficient
+           NOSUB case
+        */
+        re = Tcl_GetRegExpFromObj(NULL, needleObj,
+                                  TCL_REG_ADVANCED|(nocase ? TCL_REG_NOCASE : 0)|TCL_REG_NOSUB );
+        if (re == NULL) {
+            /* That failed, so try without the NOSUB flag */
+            re = Tcl_GetRegExpFromObj(interp, needleObj,
+                                      TCL_REG_ADVANCED|(nocase ? TCL_REG_NOCASE : 0));
+            if (re == NULL)
+                return TCL_ERROR;
+        }
         break;
     default:
         return TArrayBadSearchOpError(interp, op);
     }
-
-    compare_wanted = flags & TARRAY_SEARCH_INVERT ? 0 : 1;
-    nocase = flags & TARRAY_SEARCH_NOCASE;
 
     /* First locate the starting point for the search */
     objPP = TAHDRELEMPTR(haystackP, Tcl_Obj *, start);
@@ -1584,13 +1602,20 @@ static TCL_RESULT TArraySearchObj(Tcl_Interp *interp, TArrayHdr * haystackP,
                 compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) < 0; break;
             case TARRAY_SEARCH_OPT_EQ:
                 compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) == 0; break;
-            case TARRAY_SEARCH_OPT_MATCH:
+            case TARRAY_SEARCH_OPT_PAT:
                 compare_result = Tcl_StringCaseMatch(Tcl_GetString(*objPP),
                                                      Tcl_GetString(needleObj),
                                                      nocase ? TCL_MATCH_NOCASE : 0);
                 break;
+            case TARRAY_SEARCH_OPT_RE:
+                compare_result = Tcl_RegExpExecObj(interp, re, *objPP,
+                                                   0, 0, 0);
+                if (compare_result < 0) {
+                    TArrayFreeHdr(thdrP); /* Note this unrefs embedded Tcl_Objs if needed */
+                    return TCL_ERROR;
+                }
+                break;
             }
-
             if (compare_result == compare_wanted) {
                 /* Have a match */
                 /* Ensure enough space in target array */
@@ -1618,10 +1643,16 @@ static TCL_RESULT TArraySearchObj(Tcl_Interp *interp, TArrayHdr * haystackP,
                 compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) < 0; break;
             case TARRAY_SEARCH_OPT_EQ:
                 compare_result = TArrayCompareObjs(*objPP, needleObj, nocase) == 0; break;
-            case TARRAY_SEARCH_OPT_MATCH:
+            case TARRAY_SEARCH_OPT_PAT:
                 compare_result = Tcl_StringCaseMatch(Tcl_GetString(*objPP),
                                                      Tcl_GetString(needleObj),
                                                      nocase ? TCL_MATCH_NOCASE : 0);
+                break;
+            case TARRAY_SEARCH_OPT_RE:
+                compare_result = Tcl_RegExpExecObj(interp, re, *objPP,
+                                                   0, 0, 0);
+                if (compare_result < 0)
+                    return TCL_ERROR;
                 break;
             }
             if (compare_result == compare_wanted)
@@ -1694,7 +1725,8 @@ TCL_RESULT TArray_SearchObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case TARRAY_SEARCH_OPT_EQ:
         case TARRAY_SEARCH_OPT_GT:
         case TARRAY_SEARCH_OPT_LT:
-        case TARRAY_SEARCH_OPT_MATCH:
+        case TARRAY_SEARCH_OPT_PAT:
+        case TARRAY_SEARCH_OPT_RE:
             op = (enum TArraySortSwitches) opt;
         }
     }
