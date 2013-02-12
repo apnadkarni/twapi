@@ -2091,8 +2091,10 @@ static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes)
 {
     SystemFunction036_t fnP = Twapi_GetProc_SystemFunction036();
     Tcl_Obj *objP;
-    if (fnP == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+    if (fnP == NULL) {
+        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+        return NULL;
+    }
 
     objP = Tcl_NewByteArrayObj(NULL, nbytes);
     if (fnP(Tcl_GetByteArrayFromObj(objP, NULL), nbytes)) {
