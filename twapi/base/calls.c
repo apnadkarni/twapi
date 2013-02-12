@@ -12,6 +12,7 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     int objc,
     Tcl_Obj *CONST objv[]
     );
+static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes);
 
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
@@ -1164,21 +1165,12 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         if (ObjToInt(interp, objv[0], &dw) != TCL_OK)
             return TCL_ERROR;
-        if (dw <= sizeof(buf))   /* sizeof, not ARRAYSIZE */
-            bufP = buf;
-        else
-            bufP = MemLifoPushFrame(&ticP->memlifo, dw, NULL);
-        /* Need to cast RtlGenRandom because of missing NTAPI qualifier in prototype */
-        if (RtlGenRandom(bufP, dw)) {
-            TwapiSetObjResult(interp, ObjFromByteArray((char *) bufP, dw));
-            dw = TCL_OK;
-        } else {
-            TwapiSetStaticResult(interp, "RtlGenRandom failed");
-            dw = TCL_ERROR;
-        }
-        if (bufP != buf)
-            MemLifoPopFrame(&ticP->memlifo);
-        return dw;
+        result.value.obj = TwapiRandomByteArrayObj(interp, dw);
+        if (result.value.obj)
+            result.type = TRT_OBJ;
+        else 
+            return TCL_ERROR;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2089,3 +2081,25 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
     return retval;
 }
 
+/* RtlGenRandom (aka SystemFunction036)
+ * The Feb 2003 SDK does not define this in the headers, nor does it
+ * include it in the export libs. So we have to dynamically load it.
+*/
+typedef BOOLEAN (NTAPI *SystemFunction036_t)(PVOID, ULONG);
+MAKE_DYNLOAD_FUNC(SystemFunction036, advapi32, SystemFunction036_t)
+static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes)
+{
+    SystemFunction036_t fnP = Twapi_GetProc_SystemFunction036();
+    Tcl_Obj *objP;
+    if (fnP == NULL)
+        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+
+    objP = Tcl_NewByteArrayObj(NULL, nbytes);
+    if (fnP(Tcl_GetByteArrayFromObj(objP, NULL), nbytes)) {
+        return objP;
+    } else {
+        Tcl_DecrRefCount(objP);
+        TwapiReturnError(interp, TWAPI_SYSTEM_ERROR);
+        return NULL;
+    }
+}
