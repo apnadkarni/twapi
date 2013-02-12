@@ -82,7 +82,7 @@ twapi twapi-bin twapi-modular twapi-lib: $(@)-build
 !else
 twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
-	$(COPY) doc\announce.txt "$(DISTDIR)\$@\RELNOTES.TXT"
+	$(COPY) doc\announce$(TWAPI_MAJOR)$(TWAPI_MINOR).txt "$(DISTDIR)\$@\README.TXT"
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 	if exist "$(USERPROFILE)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\My Documents\Downloads\twapi"
 
