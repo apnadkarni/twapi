@@ -86,7 +86,8 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 	if exist "$(USERPROFILE)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\My Documents\Downloads\twapi"
 
-twapi-lib: twapi-lib-build
+twapi-lib: twapi-lib-build tcl\kitgen_setup_twapi_vfs.tcl
+	$(COPY) tcl\kitgen_setup_twapi_vfs.tcl "$(DISTDIR)\$@"
 	$(COPY) "$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\$@"
 
 !endif

@@ -6,18 +6,27 @@
 #
 # To create the "integrated" Tcl documentation
 #  (1) Create a temporary directory, h2c
-#  (2) Copy twapi doc files into h2c\twapi_doc. Remember to delete any *.man
+#  (2a) Copy twapi doc files into h2c\twapi_doc. Remember to delete any *.man
 #      *.hh*, *.chm and styles.css (keep styleschm.css). Edit the h2c.cfg
 #      to update the table of contents. (why is this necessary?)
-#  (3) Copy Tcl/Tk files from the Tcl\Tk docs to h2c\tcl-tk. Delete the
+#  (2b) Copy Tcl/Tk files from the Tcl\Tk docs to h2c\tcl-tk. Delete the
 #      .chm and .log files from there. Also delete the Keywords directory.
-#  (4) Copy tcllib documentation into h2c\tcllib_doc
-#  (5) Copy tklib documentation into h2c\tklib_doc
-#  (6) Copy h2c-*.cfg files into the respective directories
-#  (7) tclwinhelp.thml to h2c directory
-#  (8) For all above files you may need to use tidy to clean up the HTML
-#      to XHTML. Command: for %f in (*.html) do ..\..\tidy -m %f
-#  (9) Compile with above command
+#  (2c) Copy tcllib documentation into h2c\tcllib_doc
+#  (2d) Copy tklib documentation into h2c\tklib_doc
+#  (2e) Copy tdbc documentation into h2c\tdbc_doc. To build the tdbc docs
+#       extract all the tdbc packages under tcl/pkgs in the tcl tree. Then
+#       run the command 
+#         tclsh86t tdbc1.0.0\tools\tdbc-man2html.tcl --useversion=1.0.0 --srcdir=. --htmldir=tdbc_doc --tdbc --tdbcodbc  --tdbcmysql  --tdbcsqlite3
+#       from within that directory. Note --tdbcpostgres is not included 
+#       as it does not seem to contain any doc files in the distribution.
+#  (2f) Copy thread documentation into h2c\thread_doc. Available in the
+#       thread/doc/html directory in the thread distribution.
+#  (2f) Copy tdom documentation into h2c\tdom_doc
+#  (3) Copy h2c-*.cfg files into the respective directories
+#  (4) tclwinhelp.html to h2c directory
+#  (5) For all above files you may need to use tidy to clean up the HTML
+#      to XHTML. Command: for %f in (*.html *.htm) do ..\..\tidy -m %f
+#  (6) Compile with above command
 
 package require Tcl 8.5
 package require cmdline
@@ -269,7 +278,7 @@ proc html2chm::process_content {path root} {
     # we'll be crude and use a regexp
     set title [file rootname [file tail $path]]; # Default title
     set data [read_file $path]
-    set ctr 0;                  # Just to generate unique targets
+    set pathx [regsub -all {[^a-zA-Z0-9]} $path _]; # Used as dummy name
     if {[catch {
         # Note the -html flag is important, not just for being less
         # strict but also for the selectNodes later to work without
@@ -292,7 +301,7 @@ proc html2chm::process_content {path root} {
                     if {[regexp {\)\s*$} $text]} {
                         continue
                     }
-                    set target ${path}
+                    set target $path
                     if {[$node hasAttribute "name"]} {
                         append target "#[$node getAttribute name]"
                     } else {
@@ -302,11 +311,12 @@ proc html2chm::process_content {path root} {
                             set warned true
                         }
                         # MS Help gets confused if multiple targets in ToC
-                        # are the same. It uses the same name for all the
+                        # are the same even though they point to different
+                        # pages. It uses the same name for all the
                         # ToC entries. So make them unique by adding dummy
                         # target names. Since they do not exist (probably)
                         # target will just be top of the page.
-                        append target "#[incr ctr]"
+                        append target "#$pathx"
                     }
                     if {$xref eq "toc"} {
                         dict lappend meta($path) $xref \
@@ -582,19 +592,19 @@ proc ::html2chm::write_index {hhk_path} {
     # distinguish between them.
     array set counts {}
     foreach {phrase path origin} $indexlist {
-        if {[info exists counts($phrase)]} {
-            incr counts($phrase)
-        } else {
-            set counts($phrase) 1
-        }
+        incr counts($phrase)
     }
 
-    # Now actually write out the stuff
+    # Now actually write out the stuff. Some entries might be genuine dups
+    # so keep track for that and filter out
+    set written [dict create]
     foreach {phrase path origin} $indexlist {
         # Disambiguate if necessary!
         if {$counts($phrase) > 1} {
             append phrase " ([file rootname [file tail $origin]])"
         }
+        if {[dict exists $written $phrase $path]} continue
+        dict set written $phrase $path 1; # This entry already written
         # See comments above for why we need -nonewline
         puts -nonewline $fd "<li> "
         write_hhp_object $fd $phrase $path
@@ -689,6 +699,16 @@ proc html2chm::compile_project {path} {
             set dir [file join $::env(PROGRAMFILES) "HTML Help Workshop"]
             if {[file isdirectory $dir]} {
                 set exe [file join $dir hhc.exe]
+            }
+        }
+        # Perhaps in the 32-bit dir
+        if {$exe eq ""} {
+            set x86env "PROGRAMFILES(x86)"
+            if {[info exists ::env($x86env)]} {
+                set dir [file join $::env($x86env) "HTML Help Workshop"]
+                if {[file isdirectory $dir]} {
+                    set exe [file join $dir hhc.exe]
+                }
             }
         }
     }
