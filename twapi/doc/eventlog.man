@@ -268,7 +268,8 @@ defaults to 1.
 [emph Deprecated]
 Registers [arg SCRIPT] to be invoked whenever the event log specified 
 by [arg EVENTLOGHANDLE] receives a new event. [arg EVENTLOGHANDLE] must
-be a read handle. Windows will invoke [arg SCRIPT] only when new events
+be a read handle to an event log on the local system.
+Windows will invoke [arg SCRIPT] only when new events
 are written to the event log but no more than once every 5 seconds.
 Note that [arg EVENTLOGHANDLE] must not be closed in order for
 the notifications to be sent.
