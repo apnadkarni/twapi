@@ -25,7 +25,8 @@
 #  (3) Copy h2c-*.cfg files into the respective directories
 #  (4) tclwinhelp.html to h2c directory
 #  (5) For all above files you may need to use tidy to clean up the HTML
-#      to XHTML. Command: for %f in (*.html *.htm) do ..\..\tidy -m %f
+#      to XHTML. Command (/R for recursion) : 
+#          for /R %x in (*.html *.htm) do tidy -m %x
 #  (6) Compile with above command
 
 package require Tcl 8.5
@@ -298,7 +299,9 @@ proc html2chm::process_content {path root} {
                     set text [$node asText]
                     # We do not want to create entries for strings like
                     # (1), a) etc. as are present in Tcl man pages
-                    if {[regexp {\)\s*$} $text]} {
+                    # Also, some entries have empty text. Ignore these.
+                    # TBD - try to get next node text and use that.
+                    if {[regexp {(^|\))\s*$} $text]} {
                         continue
                     }
                     set target $path
