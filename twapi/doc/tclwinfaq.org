@@ -2,7 +2,7 @@
 #+STYLE: <style type='text/css'>div#text-table-of-contents ul {padding-left: 1em; list-style-type: none; line-height:1.3em}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul {padding-left: 0em;}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul > li {padding-top: 0.5em; line-height: 1.5em;}</style>
-#+TITLE:     Tcl on Windows FAQ (Draft)
+#+TITLE:     Tcl on Windows FAQ (2013-03-26)
 #+AUTHOR:    Tcl Community
 #+DATE:      2012-04-14 Sat
 #+DESCRIPTION: Frequently Asked Questions about Tcl on Windows
@@ -18,7 +18,7 @@
 
 #+LINK: twapiman http://twapi.magicsplat.com/
 #+LINK: wiki  http://wiki.tcl.tk/
-#+LINK: tclman http://www.tcl.tk/man/tcl8.5/TclCmd/
+#+LINK: tclman http://www.tcl.tk/man/tcl8.6/
 
 * About this FAQ
    This FAQ is targeted towards using Tcl on Windows. Specifically,
@@ -51,9 +51,9 @@
    This FAQ focuses only on Tcl and does NOT address Tk-related questions.
 
 ** What Windows platforms does Tcl support ?
-   The current official release of Tcl, version 8.5, supports newer Windows
-   platforms starting with Windows 2000. Version 8.6, currently in beta,
-   requires Windows XP or later. Earlier versions of Windows, Windows NT 4.0
+   The current release of Tcl, Version 8.6, requires Windows XP
+   or later. The previous release, version 8.5, also supports Windows
+   Windows 2000. Earlier versions of Windows, Windows NT 4.0
    and the Windows 98 series, require Tcl 8.4 and are
    not covered by this FAQ. 
 
@@ -566,28 +566,9 @@ and you should use COM interfaces instead wherever possible.
    on the objects and methods exposed by Office, follow the links
    on the [[http://msdn.microsoft.com/en-us/office/aa905496][Office developer page]].
    
-   The [[#tcomoffice][TcomOffice]] package provides a high level API over the COM
-   interfaces to interact with Microsoft Office.
+   The [[#cawt][CAWT]] package provides a high level Tcl API over COM
+   to interact with Microsoft Office.
 
-   The following example from the Wiki illustrates the use of TCOM
-   to create a worksheet and add some data to it.
-#+BEGIN_SRC tcl -n
-   package require tcom
-   set excel [::tcom::ref createobject Excel.Application]
-   $excel Visible 1
-   set workbooks [$excel Workbooks]
-   set workbook [$workbooks Add]
-   set worksheets [$workbook Worksheets]
-   set worksheet [$worksheets Item [expr 1]]
-   set cells [$worksheet Cells]
-   for {set row 1} {$row<=10} {incr row} {
-     foreach column {A B C D E F G H I J K L} {
-       $cells Item $row $column $column$row
-     }
-   }
-   puts [[[$worksheet UsedRange] Columns] Count]
-   puts [[[$worksheet UsedRange] Rows] Count]
-#+END_SRC
 ** How can SQL Server be accessed from Tcl?
 * System Administration
 ** How can I manage user accounts?
@@ -843,12 +824,6 @@ TBD
    Note this procedure can be used for cross-building 64-bit Tcl from
    a 32-bit system and vice versa.
 
-** How do I build Tcl using MinGW?
-   To be written. Contributions welcome.
-
-** How do I create a single executable Tcl distribution (tclkit)?
-   To be written. Contributions welcome.
-
 * Tcl packages and extensions
 ** Tcllib
    Tcllib is a collection of cross-platform Tcl
@@ -882,13 +857,15 @@ TBD
    support for hosting ActiveX controls. It is available at
    http://www.patthoyts.tk/programming/optcl3010.zip. Like [[#tcom][TCOM]],
    it is not under active development and no 64-bit version is available.
-** TcomOffice
+** CAWT
    :PROPERTIES:
-   :CUSTOM_ID: tcomoffice
+   :CUSTOM_ID: cawt
    :END:
-   The TcomOffice package provides high level interfaces to
-   Microsoft Office programs using Tcl's COM extensions. It is available
-   at [[http://www.posoft.de/html/extTcomExcel.html]].
+   The CAWT (COM Automation With Tcl) package (formerly TcomOffice)
+   provides high level interfaces to
+   Microsoft Office (Excel, Word, Powerpoint), Internet Explorer, Matlab
+   and Google Earth.
+   It is available at http://www.posoft.de/html/extCawt.html.
 ** iocpsock
    The iocpsock extension provides a higher performance socket
    interface using I/O completion ports. It is available from
