@@ -432,7 +432,24 @@ proc ::html2chm::write_toc_entry {fd path {title ""}} {
     variable meta
     variable opts
 
+    # Find out if any children
+    if {[dict exists $meta($path) children]} {
+        if {[dict exists $meta($path) toc]} {
+            # toc field overrides children field
+            set children [dict get $meta($path) toc]
+            set default_toc false
+        } else {
+            # Sort the kids based on the second element (title)
+            set children [lsort -dictionary -index 1 [dict get $meta($path) children]]
+            set default_toc true
+        }
+    } else {
+        set children {}
+    }
+
     # Write the entry for this element first, and then its children
+    # Only write out entry for this element if it has more than one
+    # child
     if {$path ne $tocroot} {
         if {$title eq ""} {
             set title [dict get $meta($path) title]
@@ -457,7 +474,10 @@ proc ::html2chm::write_toc_entry {fd path {title ""}} {
                 write_hhp_object $fd $title \
                     [make_hhp_path [file join $path [dict get $meta($path) homepage]]]
             } else {
-                write_hhp_object $fd $title
+                # Only write node if more than one child
+                if {[llength $children] > 1} {
+                    write_hhp_object $fd $title
+                }
             }
         }
     }
@@ -465,17 +485,10 @@ proc ::html2chm::write_toc_entry {fd path {title ""}} {
     # Write the children if any. If there is a toc field defined,
     # that contains the order and titles of the children. Otherwise
     # sort alphabetically based on titles.
-    if {[dict exists $meta($path) children]} {
-        if {[dict exists $meta($path) toc]} {
-            # toc field overrides children field
-            set children [dict get $meta($path) toc]
-            set default_toc false
-        } else {
-            # Sort the kids based on the second element (title)
-            set children [lsort -dictionary -index 1 [dict get $meta($path) children]]
-            set default_toc true
+    if {[llength $children]} {
+        if {[llength $children] > 1} {
+            puts $fd "<ul>";        # Children are a sublist
         }
-        puts $fd "<ul>";        # Children are a sublist
         foreach child $children {
             # If we are generating the default ToC, then exclude a
             # file if it is the default home page for the directory
@@ -490,7 +503,9 @@ proc ::html2chm::write_toc_entry {fd path {title ""}} {
             }
             write_toc_entry $fd {*}$child
         }
-        puts $fd "</ul>"
+        if {[llength $children] > 1} {
+            puts $fd "</ul>"
+        }
     } else {
         # No kids, but there may still be a ToC for link targets
         if {[dict exists $meta($path) toc]} {
