@@ -1,25 +1,13 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2013, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
-namespace eval twapi {
-}
+namespace eval twapi {}
 
-#
-# Get the default system/user lcid/langid 
-interp alias {} twapi::get_user_default_lcid {} twapi::GetUserDefaultLCID
-interp alias {} twapi::get_system_default_lcid {} twapi::GetSystemDefaultLCID
-interp alias {} twapi::get_user_langid {} twapi::GetUserDefaultLangID
 # Compatibility alias
 interp alias {} twapi::get_user_default_langid {} twapi::get_user_langid
-interp alias {} twapi::get_system_langid {} twapi::GetSystemDefaultLangID
-# Compatibility alias
-interp alias {} twapi::get_system_default_langid {} twapi::get_system_langid
-interp alias {} twapi::get_user_ui_langid {} twapi::GetUserDefaultUILanguage
-interp alias {} twapi::get_system_ui_langid {} twapi::GetSystemDefaultUILanguage
-interp alias {} twapi::get_lcid {} twapi::GetThreadLocale
 
 #
 # Format a number

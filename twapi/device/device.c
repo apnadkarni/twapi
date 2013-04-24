@@ -1236,11 +1236,11 @@ static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(SetupDiGetDeviceRegistryProperty, 63),
         DEFINE_ALIAS_CMD(SetupDiEnumDeviceInterfaces, 64),
         DEFINE_ALIAS_CMD(SetupDiGetDeviceInterfaceDetail, 65),
-        DEFINE_ALIAS_CMD(SetupDiClassNameFromGuidEx, 66),
-        DEFINE_ALIAS_CMD(SetupDiGetDeviceInstanceId, 67),
+        DEFINE_ALIAS_CMD(device_setup_class_guid_to_name, 66), //SetupDiClassNameFromGuidEx
+        DEFINE_ALIAS_CMD(get_device_element_instance_id, 67), //SetupDiGetDeviceInstanceId
         DEFINE_ALIAS_CMD(SetupDiClassGuidsFromNameEx, 68),
         DEFINE_ALIAS_CMD(DeviceIoControl, 69),
-        DEFINE_ALIAS_CMD(SetupDiDestroyDeviceInfoList, 70),
+        DEFINE_ALIAS_CMD(close_devinfoset, 70), //SetupDiDestroyDeviceInfoList
         DEFINE_ALIAS_CMD(Twapi_RegisterDeviceNotification, 71),
         DEFINE_ALIAS_CMD(Twapi_UnregisterDeviceNotification, 72),
     };

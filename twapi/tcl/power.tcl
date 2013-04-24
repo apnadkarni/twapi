@@ -9,9 +9,6 @@ namespace eval twapi {
     set _power_monitors [dict create]
 }
 
-# Indicate is a device is powered down
-interp alias {} twapi::get_device_power_state {} twapi::GetDevicePowerState
-
 # Get the power status of the system
 proc twapi::get_power_status {} {
     lassign  [GetSystemPowerStatus] ac battery lifepercent reserved lifetime fulllifetime

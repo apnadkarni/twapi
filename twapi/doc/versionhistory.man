@@ -103,6 +103,9 @@ and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The command [cmd TwapiThemeDefineValue] is no longer available.
 
+[bullet] [emph "INCOMPATIBLE CHANGE"]
+The deprecated command [cmd address_to_hostname] has been removed.
+
 [list_end]
 
 [section "Version 3.1"]

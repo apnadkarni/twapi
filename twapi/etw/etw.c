@@ -1604,12 +1604,12 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     struct tcl_dispatch_s EtwDispatch[] = {
         DEFINE_TCL_CMD(StartTrace, Twapi_StartTrace),
         DEFINE_TCL_CMD(ControlTrace, Twapi_ControlTrace),
-        DEFINE_TCL_CMD(EnableTrace, Twapi_EnableTrace),
+        DEFINE_TCL_CMD(etw_enable_trace, Twapi_EnableTrace), //EnableTrace
         DEFINE_TCL_CMD(OpenTrace, Twapi_OpenTrace),
         DEFINE_TCL_CMD(CloseTrace, Twapi_CloseTrace),
         DEFINE_TCL_CMD(ProcessTrace, Twapi_ProcessTrace),
         DEFINE_TCL_CMD(RegisterTraceGuids, Twapi_RegisterTraceGuids),
-        DEFINE_TCL_CMD(UnregisterTraceGuids, Twapi_UnregisterTraceGuids),
+        DEFINE_TCL_CMD(etw_unregister_provider, Twapi_UnregisterTraceGuids), //UnregisterTraceGuids
         DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
         DEFINE_TCL_CMD(Twapi, Twapi_ParseEventMofData),
     };

@@ -204,8 +204,6 @@ proc twapi::etw_register_provider {} {
     return [twapi::RegisterTraceGuids $_etw_mof(provider_guid) $_etw_mof(eventclass_guid)]
 }
 
-interp alias {} twapi::etw_unregister_provider {} twapi::UnregisterTraceGuids
-
 proc twapi::etw_log_message {htrace message} {
     # Must match Message event type in MoF definition
     TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
@@ -840,8 +838,6 @@ proc twapi::etw_start_kernel_trace {args} {
     # Note kernel logger cannot use paged memory
     return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -usepagedmemory 0]
 }
-
-interp alias {} twapi::etw_enable_trace {} twapi::EnableTrace
 
 proc twapi::etw_control_trace {action args} {
 
