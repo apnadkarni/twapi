@@ -196,10 +196,10 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 static int TwapiRdsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s RdsDispatch[] = {
-        DEFINE_FNCODE_CMD(WTSOpenServer, 1),
+        DEFINE_FNCODE_CMD(rds_open_server, 1), //WTSOpenServer
         DEFINE_FNCODE_CMD(WTSSendMessage, 2),
         DEFINE_FNCODE_CMD(WTSEnumerateSessions, 101),
-        DEFINE_FNCODE_CMD(WTSCloseServer, 102),
+        DEFINE_FNCODE_CMD(rds_close_server, 102), //WTSCloseServer
         DEFINE_FNCODE_CMD(WTSDisconnectSession, 103),
         DEFINE_FNCODE_CMD(WTSLogoffSession, 104), // TBD - tcl wrapper
         DEFINE_FNCODE_CMD(WTSQuerySessionInformation, 105), // TBD - tcl wrapper

@@ -569,14 +569,14 @@ static int TwapiResourceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(UpdateResource, 7),
         DEFINE_FNCODE_CMD(FindResourceEx, 8),
         DEFINE_FNCODE_CMD(Twapi_LoadResource, 9),
-        DEFINE_FNCODE_CMD(Twapi_EnumResourceNames, 10),
-        DEFINE_FNCODE_CMD(Twapi_EnumResourceLanguages, 11),
-        DEFINE_FNCODE_CMD(Twapi_SplitStringResource, 12),
+        DEFINE_FNCODE_CMD(enumerate_resource_names, 10), // Twapi_EnumResourceNames
+        DEFINE_FNCODE_CMD(enumerate_resource_languages, 11), //Twapi_EnumResourceLanguages
+        DEFINE_FNCODE_CMD(resource_stringblock_to_strings, 12), //Twapi_SplitStringResource
         DEFINE_FNCODE_CMD(LoadImage, 13),
         DEFINE_FNCODE_CMD(Twapi_GetFileVersionInfo, 14),
         DEFINE_FNCODE_CMD(AddFontResourceEx, 15), // TBD - Tcl wrapper
         DEFINE_FNCODE_CMD(BeginUpdateResource, 16),
-        DEFINE_FNCODE_CMD(Twapi_EnumResourceTypes, 17),
+        DEFINE_FNCODE_CMD(enumerate_resource_types, 17), //Twapi_EnumResourceTypes
         DEFINE_FNCODE_CMD(EndUpdateResource, 18),
         DEFINE_FNCODE_CMD(CreateScalableFontResource, 19), // TBD Tcl
         DEFINE_FNCODE_CMD(RemoveFontResourceEx, 20), // TBD Tcl 

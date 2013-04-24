@@ -8,9 +8,6 @@
 
 namespace eval twapi {}
 
-interp alias {} twapi::rds_open_server {} twapi::WTSOpenServer
-interp alias {} twapi::rds_close_server {} twapi::WTSCloseServer
-
 proc twapi::rds_enumerate_sessions {args} {
     array set opts [parseargs args {
         {hserver.arg 0}

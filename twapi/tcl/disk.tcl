@@ -163,7 +163,6 @@ proc twapi::find_logical_drives {args} {
     }
     return $drives
 }
-interp alias {} twapi::get_logical_drives {} twapi::find_logical_drives
 
 # Set the drive label
 proc twapi::set_drive_label {drive label} {

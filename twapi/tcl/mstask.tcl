@@ -58,19 +58,10 @@ proc twapi::itaskscheduler_get_itask {its taskname} {
     return $itask
 }
 
-# Deletes an existing task
-interp alias {} ::twapi::itaskscheduler_delete_task {} ::twapi::ITaskScheduler_Delete
-
 # Check if an itask exists
 proc twapi::itaskscheduler_task_exists {its taskname} {
     return [expr {[ITaskScheduler_IsOfType $its $taskname [name_to_iid ITask]] == 0 ? true : false}]
 }
-
-# Set the target computer for a task
-interp alias {} ::twapi::itaskscheduler_set_target_system {} ::twapi::ITaskScheduler_SetTargetComputer
-
-# Get the target computer for a task
-interp alias {} ::twapi::itaskscheduler_get_target_system {} ::twapi::ITaskScheduler_GetTargetComputer
 
 # Return list of tasks
 proc twapi::itaskscheduler_get_tasks {its} {
@@ -410,12 +401,6 @@ proc twapi::itask_get_runtimes_within_interval {itask args} {
     return $result
 }
 
-# Run a task
-interp alias {} ::twapi::itask_run {} ::twapi::IScheduledWorkItem_Run
-
-# Terminate a task
-interp alias {} ::twapi::itask_end {} ::twapi::IScheduledWorkItem_Terminate
-
 # Saves the specified ITask
 proc twapi::itask_save {itask} {
     set ipersist [Twapi_IUnknown_QueryInterface $itask [name_to_iid IPersistFile] IPersistFile]
@@ -437,26 +422,7 @@ proc twapi::itask_edit_dialog {itask args} {
 }
 
 
-# Create a new trigger. Returns {index interfaceptr}
-interp alias {} ::twapi::itask_new_itasktrigger {} ::twapi::IScheduledWorkItem_CreateTrigger
-
-# Delete a trigger
-interp alias {} ::twapi::itask_delete_itasktrigger {} ::twapi::IScheduledWorkItem_DeleteTrigger
-
 interp alias {} ::twapi::itask_release {} ::twapi::IUnknown_Release
-
-# Get an existing trigger for the task
-proc twapi::itask_get_itasktrigger {itask index} {
-    return [IScheduledWorkItem_GetTrigger $itask $index]
-}
-
-# Get number of triggers in a task
-proc twapi::itask_get_itasktrigger_count {itask} {
-    return [IScheduledWorkItem_GetTriggerCount $itask]
-}
-
-# Get the trigger string description
-interp alias {} ::twapi::itask_get_itasktrigger_string {} ::twapi::IScheduledWorkItem_GetTriggerString
 
 # Get information about a trigger
 proc twapi::itasktrigger_get_info {itt} {

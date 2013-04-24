@@ -1604,7 +1604,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(LsaClose, 13),
         DEFINE_FNCODE_CMD(GetHandleInformation, 14),
         DEFINE_FNCODE_CMD(FreeLibrary, 15),
-        DEFINE_FNCODE_CMD(GetDevicePowerState, 16), // TBD - which module ?
+        DEFINE_FNCODE_CMD(get_device_power_state, 16), // GetDevicePowerState, TBD - which module ?
         DEFINE_FNCODE_CMD(Twapi_MemLifoPushMark, 17),
         DEFINE_FNCODE_CMD(Twapi_MemLifoPopMark, 18),
         DEFINE_FNCODE_CMD(Twapi_MemLifoValidate, 19),
@@ -1637,14 +1637,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetSystemDirectory, 8),        /* TBD Tcl */
         DEFINE_FNCODE_CMD(GetCurrentThreadId, 9),
         DEFINE_FNCODE_CMD(GetTickCount, 10),
-        DEFINE_FNCODE_CMD(GetSystemTimeAsFileTime, 11),
+        DEFINE_FNCODE_CMD(get_system_time, 11),
         DEFINE_FNCODE_CMD(AllocateLocallyUniqueId, 12),
         DEFINE_FNCODE_CMD(LockWorkStation, 13),
         DEFINE_FNCODE_CMD(RevertToSelf, 14), /* Left in base module as it might be
                                        used from multiple extensions */
         DEFINE_FNCODE_CMD(GetSystemPowerStatus, 15),
         DEFINE_FNCODE_CMD(DebugBreak, 16),
-        DEFINE_FNCODE_CMD(GetDefaultPrinter, 17),         /* TBD Tcl */
+        DEFINE_FNCODE_CMD(get_default_printer, 17),  // GetDefaultPrinter
     };
 
     static struct fncode_dispatch_s CallIntArgDispatch[] = {
@@ -1668,11 +1668,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_AppendLog, 1013),
         DEFINE_FNCODE_CMD(GlobalAddAtom, 1014), // TBD - Tcl interface
         DEFINE_FNCODE_CMD(is_valid_sid_syntax, 1015),
-        DEFINE_FNCODE_CMD(FileTimeToSystemTime, 1016),
-        DEFINE_FNCODE_CMD(SystemTimeToFileTime, 1017),
+        DEFINE_FNCODE_CMD(large_system_time_to_timelist, 1016), //FileTimeToSystemTime
+        DEFINE_FNCODE_CMD(timelist_to_large_system_time, 1017), //SystemTimeToFileTime
         DEFINE_FNCODE_CMD(GetWindowThreadProcessId, 1018),
         DEFINE_FNCODE_CMD(Twapi_IsValidGUID, 1019),
-        DEFINE_FNCODE_CMD(ExpandEnvironmentStrings, 1020),
+        DEFINE_FNCODE_CMD(expand_environment_strings, 1020),
         DEFINE_FNCODE_CMD(free, 1021),
         DEFINE_FNCODE_CMD(pointer_registered?, 1022),
         DEFINE_FNCODE_CMD(pointer_to_address, 1023),

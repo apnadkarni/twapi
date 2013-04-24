@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2006-2012, Ashok P. Nadkarni
+ * Copyright (c) 2006-2013, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -910,20 +910,20 @@ static int TwapiMstaskInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct fncode_dispatch_s MstaskDispatch[] = {
         DEFINE_FNCODE_CMD(ITaskScheduler_Activate, 5001),
         DEFINE_FNCODE_CMD(ITaskScheduler_AddWorkItem, 5002),
-        DEFINE_FNCODE_CMD(ITaskScheduler_Delete, 5003),
+        DEFINE_FNCODE_CMD(itaskscheduler_delete_task, 5003), //ITaskScheduler_Delete
         DEFINE_FNCODE_CMD(ITaskScheduler_Enum, 5004),
         DEFINE_FNCODE_CMD(ITaskScheduler_IsOfType, 5005),
         DEFINE_FNCODE_CMD(ITaskScheduler_NewWorkItem, 5006),
-        DEFINE_FNCODE_CMD(ITaskScheduler_SetTargetComputer, 5007),
-        DEFINE_FNCODE_CMD(ITaskScheduler_GetTargetComputer, 5008),
+        DEFINE_FNCODE_CMD(itaskscheduler_set_target_system, 5007), //ITaskScheduler_SetTargetComputer
+        DEFINE_FNCODE_CMD(itaskscheduler_get_target_system, 5008), //ITaskScheduler_GetTargetComputer
 
         DEFINE_FNCODE_CMD(IEnumWorkItems_Clone, 5101),
         DEFINE_FNCODE_CMD(IEnumWorkItems_Reset, 5102),
         DEFINE_FNCODE_CMD(IEnumWorkItems_Skip, 5103),
         DEFINE_FNCODE_CMD(IEnumWorkItems_Next, 5104),
 
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_CreateTrigger, 5201),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_DeleteTrigger, 5202),
+        DEFINE_FNCODE_CMD(itask_new_itasktrigger, 5201), //IScheduledWorkItem_CreateTrigger
+        DEFINE_FNCODE_CMD(itask_delete_itasktrigger, 5202), //IScheduledWorkItem_DeleteTrigger
         DEFINE_FNCODE_CMD(IScheduledWorkItem_EditWorkItem, 5203),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetAccountInformation, 5204),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetComment, 5205),
@@ -936,10 +936,10 @@ static int TwapiMstaskInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetMostRecentRunTime, 5212),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetNextRunTime, 5213),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetStatus, 5214),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_GetTrigger, 5215),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_GetTriggerCount, 5216),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_GetTriggerString, 5217),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_Run, 5218),
+        DEFINE_FNCODE_CMD(itask_get_itasktrigger, 5215), //IScheduledWorkItem_GetTrigger
+        DEFINE_FNCODE_CMD(itask_get_itasktrigger_count, 5216), //IScheduledWorkItem_GetTriggerCount
+        DEFINE_FNCODE_CMD(itask_get_itasktrigger_string, 5217), //IScheduledWorkItem_GetTriggerString
+        DEFINE_FNCODE_CMD(itask_run, 5218), //IScheduledWorkItem_Run
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetAccountInformation, 5219),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetComment, 5220),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetCreator, 5221),
@@ -947,7 +947,7 @@ static int TwapiMstaskInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetErrorRetryInterval, 5223),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetFlags, 5224),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetIdleWait, 5225),
-        DEFINE_FNCODE_CMD(IScheduledWorkItem_Terminate, 5226),
+        DEFINE_FNCODE_CMD(itask_end, 5226), //IScheduledWorkItem_Terminate
         DEFINE_FNCODE_CMD(IScheduledWorkItem_SetWorkItemData, 5227),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetWorkItemData, 5228),
         DEFINE_FNCODE_CMD(IScheduledWorkItem_GetRunTimes, 5229),
