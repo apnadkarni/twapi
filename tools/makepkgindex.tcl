@@ -10,10 +10,17 @@ proc get_ns_commands {ns} {
         return {}
     }
     set cmds [info commands ${ns}::*]
+    foreach alias [interp aliases {}] {
+        if {[string match ${ns}::* $alias]} {
+            lappend cmds $alias
+        }
+    }
     foreach childns [namespace children $ns] {
         lappend cmds {*}[get_ns_commands $childns]
     }
-    return $cmds
+
+    # Nested aliases are duplicated so remove them
+    return [lsort -unique $cmds]
 }
 
 proc get_twapi_commands {} {
