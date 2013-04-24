@@ -484,10 +484,17 @@ namespace eval twapi::input::test {
         string is integer [twapi::get_input_idle_time]
     } -result 1
 
-
-    ::tcltest::cleanupTests
+    ################################################################
+    
+    test get_keyboard_layout_name-1.0 {
+        Get current keyboard layout name
+    } -body {
+        twapi::get_keyboard_layout_name]
+    } -result "00000409"
+    
 }
 
+::tcltest::cleanupTests
 namespace delete ::twapi::input::test
 
 

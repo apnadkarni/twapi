@@ -55,6 +55,9 @@ TclOO in newer Tcl versions (8.6b2 and later)
 Added [uri com.html#define_dispatch_prototypes [cmd define_dispatch_prototypes]].
 
 [bullet]
+Added [uri input.html#get_keyboard_layout_name [cmd get_keyboard_layout_name]].
+
+[bullet]
 Added [uri base.html#get_build_config [cmd get_build_config]] to
 return build information.
 
