@@ -268,6 +268,7 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
     DWORD dw, dw2, dw3;
     LASTINPUTINFO lastin;
     TwapiResult result;
+    WCHAR kl[KL_NAMELENGTH+1];
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -326,6 +327,15 @@ static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, i
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         return (func == 9 ? Twapi_SendInput : Twapi_SendUnicode) (ticP, objv[2]);
+    case 11:
+        if (! GetKeyboardLayoutNameW(kl))
+            result.type = TRT_GETLASTERROR;
+        else {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = kl;
+            result.value.unicode.len = -1;
+        }
+        break;
     }
     return TwapiSetResult(interp, &result);
 }
@@ -344,6 +354,7 @@ static int TwapiInputInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(RegisterHotKey, 8),
         DEFINE_ALIAS_CMD(SendInput, 9),
         DEFINE_ALIAS_CMD(Twapi_SendUnicode, 10),
+        DEFINE_ALIAS_CMD(get_keyboard_layout_name, 11),
     };
 
     /* Create the underlying call dispatch commands */
