@@ -34,6 +34,10 @@ The amount of time elapsed since the last keyboard or mouse input
 event can be obtained through
 [uri \#get_input_idle_time [cmd get_input_idle_time]].
 
+[para]
+The name of the current keyboard layout can be retrieved with 
+[uri #get_keyboard_layout_name [cmd get_keyboard_layout_name]].
+
 [section Commands]
 [list_begin definitions]
 
@@ -60,8 +64,10 @@ may have one of the values [const left], [const right], [const middle],
 Returns the elapsed time in milliseconds since the last keyboard or mouse
 input event.
 
-[call [cmd get_mouse_location]]
+[call [cmd get_keyboard_layout_name]]
+Returns the string identifier for the current keyboard layout.
 
+[call [cmd get_mouse_location]]
 Returns a pair of integers containing the mouse cursor's
 X and Y screen coordinates in pixels.
 
