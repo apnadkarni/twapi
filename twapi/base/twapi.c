@@ -118,6 +118,7 @@ __declspec(dllexport)
 int Twapi_base_Init(Tcl_Interp *interp)
 {
     TwapiInterpContext *ticP;
+    HRESULT hr;
 
     /* IMPORTANT */
     /* MUST BE FIRST CALL as it initializes Tcl stubs - should this be the
@@ -146,6 +147,15 @@ int Twapi_base_Init(Tcl_Interp *interp)
     /*
      * Per interp initialization
      */
+    /*
+     * Single-threaded COM model - note some Shell extensions
+     * require this if functions such as ShellExecute are
+     * invoked. TBD - should we do this lazily in com and mstask modules ?
+     */
+    hr = CoInitializeEx(
+        NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    if (hr != S_OK && hr != S_FALSE)
+        return TCL_ERROR;
 
     /* Create the name space and some variables. Not sure if this is explicitly needed */
     Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
@@ -545,7 +555,6 @@ TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp)
 /* One time (per process) initialization */
 static int TwapiOneTimeInit(Tcl_Interp *interp)
 {
-    HRESULT hr;
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
 
@@ -586,21 +595,8 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
         if (GetVersionEx(&gTwapiOSVersionInfo)) {
             /* Sockets */
             if (WSAStartup(ws_ver, &ws_data) == 0) {
-                /*
-                 * Single-threaded COM model - note some Shell extensions
-                 * require this if functions such as ShellExecute are
-                 * invoked.
-                 * TBD - should this be in twapi_com module ?
-                 */
-                hr = CoInitializeEx(
-                    NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-                if (hr == S_OK || hr == S_FALSE) {
-                    /* All init worked. */
-                    Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
-                    return TCL_OK;
-                } else {
-                    WSACleanup();
-                }
+                Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
+                return TCL_OK;
             }
         }
     }
