@@ -504,7 +504,6 @@ proc twapi::flush_arp_tables {args} {
         }
     }
 }
-interp alias {} twapi::flush_arp_table {} twapi::flush_arp_tables
 
 # Return the list of TCP connections
 proc twapi::get_tcp_connections {args} {
@@ -825,9 +824,6 @@ proc twapi::resolve_address {addr args} {
 
     return $name
 }
-
-interp alias {} twapi::address_to_hostname {} twapi::resolve_address
-
 
 # host name -> IP addresses
 proc twapi::resolve_hostname {name args} {

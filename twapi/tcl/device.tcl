@@ -153,10 +153,6 @@ proc twapi::update_devinfoset {args} {
 }
 
 
-# Close and release resources for a device information set
-interp alias {} twapi::close_devinfoset {} twapi::SetupDiDestroyDeviceInfoList
-
-
 # Given a device information set, returns the device elements within it
 proc twapi::get_devinfoset_elements {hdevinfo} {
     set result [list ]
@@ -285,13 +281,6 @@ proc twapi::device_setup_class_name_to_guids {name args} {
 
     return [twapi::SetupDiClassGuidsFromNameEx $name $opts(system)]
 }
-
-# Given a setup class guid, return the name of the setup class
-interp alias {} twapi::device_setup_class_guid_to_name {} twapi::SetupDiClassNameFromGuidEx
-
-# REturn the device instance id from a device element
-interp alias {} twapi::get_device_element_instance_id {} twapi::SetupDiGetDeviceInstanceId
-
 
 # Utility functions
 

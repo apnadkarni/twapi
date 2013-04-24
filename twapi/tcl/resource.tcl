@@ -268,8 +268,6 @@ proc twapi::read_resource_string {hmod resname langid} {
                 $index_within_block]
 }
 
-interp alias {} twapi::resource_stringblock_to_strings {} twapi::Twapi_SplitStringResource
-
 # Give a list of strings, formats it as a string block. Number of strings
 # must not be greater than 16. If less than 16 strings, remaining are
 # treated as empty.
@@ -291,10 +289,6 @@ proc twapi::resource_stringid_to_stringblockid {id} {
     # Strings are stored in blocks of 16, with block id's beginning at 1, not 0
     return [list [expr {($id / 16) + 1}] [expr {$id & 15}]]
 }
-
-interp alias {} twapi::enumerate_resource_languages {} twapi::Twapi_EnumResourceLanguages
-interp alias {} twapi::enumerate_resource_names {} twapi::Twapi_EnumResourceNames
-interp alias {} twapi::enumerate_resource_types {} twapi::Twapi_EnumResourceTypes
 
 proc twapi::extract_resources {hmod {withdata 0}} {
     set result [dict create]

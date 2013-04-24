@@ -103,10 +103,6 @@ proc twapi::secs_since_1970_to_large_system_time {secs} {
     return [expr {($secs * 10000000) + 116444736000000000}]
 }
 
-interp alias {} ::twapi::get_system_time {} ::twapi::GetSystemTimeAsFileTime
-interp alias {} ::twapi::large_system_time_to_timelist {} ::twapi::FileTimeToSystemTime
-interp alias {} ::twapi::timelist_to_large_system_time {} ::twapi::SystemTimeToFileTime
-
 # Map a Windows error code to a string
 proc twapi::map_windows_error {code} {
     # Trim trailing CR/LF
@@ -322,8 +318,6 @@ proc twapi::format_message {args} {
 proc twapi::revert_to_self {{opt ""}} {
     RevertToSelf
 }
-
-interp alias {} twapi::expand_environment_strings {} twapi::ExpandEnvironmentStrings
 
 proc twapi::_init_security_defs {} {
     variable security_defs

@@ -228,13 +228,13 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
 static int TwapiNlsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct alias_dispatch_s NlsAliasDispatch[] = {
-        DEFINE_ALIAS_CMD(GetUserDefaultLangID, 23),
-        DEFINE_ALIAS_CMD(GetSystemDefaultLangID, 24),
-        DEFINE_ALIAS_CMD(GetUserDefaultLCID, 25),
-        DEFINE_ALIAS_CMD(GetSystemDefaultLCID, 26),
-        DEFINE_ALIAS_CMD(GetUserDefaultUILanguage, 27),
-        DEFINE_ALIAS_CMD(GetSystemDefaultUILanguage, 28),
-        DEFINE_ALIAS_CMD(GetThreadLocale, 29),
+        DEFINE_ALIAS_CMD(get_user_langid, 23), //GetUserDefaultLangID
+        DEFINE_ALIAS_CMD(get_system_langid, 24), //GetSystemDefaultLangID
+        DEFINE_ALIAS_CMD(get_user_default_lcid, 25), //GetUserDefaultLCID
+        DEFINE_ALIAS_CMD(get_system_default_lcid, 26), //GetSystemDefaultLCID
+        DEFINE_ALIAS_CMD(get_user_ui_langid, 27), //GetUserDefaultUILanguage
+        DEFINE_ALIAS_CMD(get_system_ui_langid, 28), //GetSystemDefaultUILanguage
+        DEFINE_ALIAS_CMD(get_lcid, 29), //GetThreadLocale
         DEFINE_ALIAS_CMD(GetACP, 30),
         DEFINE_ALIAS_CMD(GetOEMCP, 31),
         DEFINE_ALIAS_CMD(GetNumberFormat, 32),
