@@ -645,7 +645,7 @@ namespace eval twapi::com::test {
         TBD
     } -body {
         TBD
-    } -return TBD
+    } -result TBD
 
     ################################################################
 
