@@ -1,20 +1,33 @@
-rem Builds all 64-bit release configurations of TWAPI
+:: Builds all 64-bit release configurations of TWAPI
 
-rem Clean out build environment before calling sdk setup
+:: Clean out build environment before calling sdk setup
 set INCLUDE=
 SET LIB=
 SET MSDEVDIR=
 set MSVCDIR=
 SET PATH=%WINDIR%\SYSTEM32
 
-rem Setup build environment
+:: Setup build environment
 IF %TWAPI_COMPILER_DIR%. == . goto setupsdk
 @call "%TWAPI_COMPILER_DIR%"\x64\setup.bat
 
 goto dobuild
 
 :setupsdk
+if NOT EXIST "%ProgramFiles%\Microsoft Platform SDK\SetEnv.cmd" goto setupsdk2
 call "%ProgramFiles%\Microsoft Platform SDK\SetEnv.cmd" /XP64 /RETAIL
+goto dobuild
+
+:setupsdk2
+if NOT EXIST "%ProgramFiles(x86)%\Microsoft Platform SDK\SetEnv.cmd" goto sdkerror
+call "%ProgramFiles(x86)%\Microsoft Platform SDK\SetEnv.cmd" /XP64 /RETAIL
+goto dobuild
+
+:sdkerror
+@echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+@echo ERROR: Could not set up 64-bit compiler and SDK
+@echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+@exit /B 1
 
 :dobuild
 call buildall.cmd %1
