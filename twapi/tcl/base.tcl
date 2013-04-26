@@ -21,43 +21,6 @@ namespace eval twapi {
         10 label
     }
 
-    # Well known group to SID mapping. TBD - update for Win7
-    array set well_known_sids {
-        nullauthority     S-1-0
-        nobody            S-1-0-0
-        worldauthority    S-1-1
-        everyone          S-1-1-0
-        localauthority    S-1-2
-        creatorauthority  S-1-3
-        creatorowner      S-1-3-0
-        creatorgroup      S-1-3-1
-        creatorownerserver  S-1-3-2
-        creatorgroupserver  S-1-3-3
-        ntauthority       S-1-5
-        dialup            S-1-5-1
-        network           S-1-5-2
-        batch             S-1-5-3
-        interactive       S-1-5-4
-        service           S-1-5-6
-        anonymouslogon    S-1-5-7
-        proxy             S-1-5-8
-        serverlogon       S-1-5-9
-        authenticateduser S-1-5-11
-        terminalserver    S-1-5-13
-        localsystem       S-1-5-18
-        localservice      S-1-5-19
-        networkservice    S-1-5-20
-    }
-
-    # Built-in accounts
-    # TBD - see http://support.microsoft.com/?kbid=243330 for more built-ins
-    array set builtin_account_sids {
-        administrators  S-1-5-32-544
-        users           S-1-5-32-545
-        guests          S-1-5-32-546
-        "power users"   S-1-5-32-547
-    }
-
     # Cache mapping account names to SIDs. Dict keyed by system and name
     variable _name_to_sid_cache {}
 

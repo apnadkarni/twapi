@@ -837,29 +837,33 @@ proc twapi::_set_user_priv_level {username priv_level args} {
         variable builtin_account_sids
         switch -exact -- $priv_level {
             guest {
-                set outgroups {administrators users}
-                set ingroup guests
+                # administrators users
+                set outgroups {S-1-5-32-544 S-1-5-32-545}
+                # guests
+                set ingroup S-1-5-32-546
             }
             user  {
-                set outgroups {administrators}
-                set ingroup users
+                # administrators
+                set outgroups {S-1-5-32-544}
+                # users
+                set ingroup S-1-5-32-545
             }
             admin {
                 set outgroups {}
-                set ingroup administrators
+                set ingroup S-1-5-32-544
             }
             default {error "Invalid privilege level '$priv_level'. Must be one of 'guest', 'user' or 'admin'"}
         }
         # Remove from higher priv groups
         foreach outgroup $outgroups {
             # Get the potentially localized name of the group
-            set group [lookup_account_sid $builtin_account_sids($outgroup) -system $opts(system)]
+            set group [lookup_account_sid $outgroup -system $opts(system)]
             # Catch since may not be member of that group
             catch {remove_member_from_local_group $group $username -system $opts(system)}
         }
 
         # Get the potentially localized name of the group to be added
-        set group [lookup_account_sid $builtin_account_sids($ingroup) -system $opts(system)]
+        set group [lookup_account_sid $ingroup -system $opts(system)]
         add_member_to_local_group $group $username -system $opts(system)
     }
 }
