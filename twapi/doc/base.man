@@ -417,8 +417,8 @@ account is to be looked up. If unspecified, the local system is used.
 of [const user], [const group] (domain group),
 [const domain], [const alias] (system local group), [const logonid],
 [const wellknowngroup], [const deletedaccount], [const invalid],
-[const unknown], or [const computer]. The [const logonid] type is returned
-for SID's that identify a logon session.
+[const unknown], [const computer] or [const label].
+The [const logonid] type is returned for SID's that identify a logon session.
 [list_end]
 
 [call [cmd lookup_account_sid] [arg sid] [opt [arg options]]]

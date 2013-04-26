@@ -18,6 +18,7 @@ namespace eval twapi {
         7 invalid
         8 unknown
         9 computer
+        10 label
     }
 
     # Well known group to SID mapping. TBD - update for Win7
@@ -56,6 +57,12 @@ namespace eval twapi {
         guests          S-1-5-32-546
         "power users"   S-1-5-32-547
     }
+
+    # Cache mapping account names to SIDs. Dict keyed by system and name
+    variable _name_to_sid_cache {}
+
+    # Cache mapping SIDs to account names. Dict keyed by system and SID
+    variable _sid_to_name_cache {}
 }
 
 
@@ -771,43 +778,27 @@ proc twapi::_make_secattr {secd inherit} {
     return $sec_attr
 }
 
-# TBD - move the docs for the code below to base module
+# Returns the sid, domain and type for an account
+proc twapi::lookup_account_name {name args} {
+    variable _name_to_sid_cache
 
-# Helper for lookup_account_name{sid,name}
-# TBD - get rid of this common code - makes it slower than it need be
-# when results are cached. Or move cache up one level
-proc twapi::_lookup_account {func account args} {
-    if {$func == "LookupAccountSid"} {
-        set lookup name
-        # If we are mapping a SID to a name, check if it is the logon SID
-        # LookupAccountSid returns an error for this SID
-        if {[is_valid_sid_syntax $account] &&
-            [string match -nocase "S-1-5-5-*" $account]} {
-            set name "Logon SID"
-            set domain "NT AUTHORITY"
-            set type "logonid"
-        }
-    } else {
-        set lookup sid
+    # Fast path - no options specified and cached
+    if {[llength $args] == 0 && [dict exists $_name_to_sid_cache "" $name]} {
+        return [lindex [dict get $_name_to_sid_cache "" $name] 0]
     }
+
     array set opts [parseargs args \
                         [list all \
-                             $lookup \
+                             sid \
                              domain \
                              type \
                              [list system.arg ""]\
                             ]]
 
-
-    # Lookup the info if have not already hardcoded results
-    if {![info exists domain]} {
-        # Use cache if possible
-        variable _lookup_account_cache
-        if {![info exists _lookup_account_cache($lookup,$opts(system),$account)]} {
-            set _lookup_account_cache($lookup,$opts(system),$account) [$func $opts(system) $account]
-        }
-        lassign $_lookup_account_cache($lookup,$opts(system),$account) $lookup domain type
-    }
+    if {! [dict exists $_name_to_sid_cache $opts(system) $name]} {
+        dict set _name_to_sid_cache $opts(system) $name [LookupAccountName $opts(system) $name]
+    }    
+    lassign [dict get $_name_to_sid_cache $opts(system) $name] sid domain type
 
     set result [list ]
     if {$opts(all) || $opts(domain)} {
@@ -822,27 +813,79 @@ proc twapi::_lookup_account {func account args} {
         }
     }
 
-    if {$opts(all) || $opts($lookup)} {
-        lappend result -$lookup [set $lookup]
+    if {$opts(all) || $opts(sid)} {
+        lappend result -sid $sid
     }
 
     # If no options specified, only return the sid/name
     if {[llength $result] == 0} {
-        return [set $lookup]
+        return $sid
     }
 
     return $result
 }
 
-# Returns the sid, domain and type for an account
-proc twapi::lookup_account_name {name args} {
-    return [_lookup_account LookupAccountName $name {*}$args]
-}
-
 
 # Returns the name, domain and type for an account
 proc twapi::lookup_account_sid {sid args} {
-    return [_lookup_account LookupAccountSid $sid {*}$args]
+    variable _sid_to_name_cache
+
+    # Fast path - no options specified and cached
+    if {[llength $args] == 0 && [dict exists $_sid_to_name_cache "" $sid]} {
+        return [lindex [dict get $_sid_to_name_cache "" $sid] 0]
+    }
+
+    array set opts [parseargs args \
+                        [list all \
+                             name \
+                             domain \
+                             type \
+                             [list system.arg ""]\
+                            ]]
+
+    if {! [dict exists $_sid_to_name_cache $opts(system) $sid]} {
+        # Not in cache. Need to look up
+
+        # LookupAccountSid returns an error for this SID
+        if {[is_valid_sid_syntax $sid] &&
+            [string match -nocase "S-1-5-5-*" $sid]} {
+            set name "Logon SID"
+            set domain "NT AUTHORITY"
+            set type "logonid"
+            dict set _sid_to_name_cache $opts(system) $sid [list $name $domain $type]
+        } else {
+            set data [LookupAccountSid $opts(system) $sid]
+            lassign $data name domain type
+            dict set _sid_to_name_cache $opts(system) $sid $data
+        }
+    } else {
+        lassign [dict get $_sid_to_name_cache $opts(system) $sid] name domain type
+    }
+
+
+    set result [list ]
+    if {$opts(all) || $opts(domain)} {
+        lappend result -domain $domain
+    }
+    if {$opts(all) || $opts(type)} {
+        if {[info exists twapi::sid_type_names($type)]} {
+            lappend result -type $twapi::sid_type_names($type)
+        } else {
+            # Could be the "logonid" dummy type we added above
+            lappend result -type $type
+        }
+    }
+
+    if {$opts(all) || $opts(name)} {
+        lappend result -name $name
+    }
+
+    # If no options specified, only return the sid/name
+    if {[llength $result] == 0} {
+        return $name
+    }
+
+    return $result
 }
 
 # Returns the sid for a account - may be given as a SID or name
@@ -941,7 +984,7 @@ proc twapi::get_lsa_policy_handle {args} {
     return [Twapi_LsaOpenPolicy $opts(system) $access]
 }
 
-# Close a LSA policy handle
+# Close a LSA policy handle. TBD - document
 proc twapi::close_lsa_policy_handle {h} {
     LsaClose $h
     return
