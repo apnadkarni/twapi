@@ -1410,17 +1410,8 @@ proc twapi::get_process_commandline {pid args} {
         } else {
             # Read the CommandLine field
             ReadProcessMemory $hpid [expr {$proc_param_addr + 64}] $pgbl 8
-            # TBD - remove 8.4 support
-            if {[string match 8.4* [info tclversion]]} {
-                # 8.4 does not support t, n and u specifiers. Make do with
-                # what we have
-                if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] ssi cmdline_bytelen cmdline_bufsize cmdline_addr]} {
-                    error "Could not get address of command line"
-                }
-            } else {
-                if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
-                    error "Could not get address of command line"
-                }
+            if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
+                error "Could not get address of command line"
             }
         }
 
