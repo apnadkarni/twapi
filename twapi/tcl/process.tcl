@@ -1697,7 +1697,15 @@ proc twapi::get_module_handle_from_address {addr args} {
 # Get the path of a process
 proc twapi::_get_process_name_path_helper {pid {type name} args} {
 
-    # TBD - optimize for case $pid == [pid]
+    if {$pid == [pid]} {
+        # It is our process!
+        set exe [info nameofexecutable]
+        if {$type eq "name"} {
+            return [file tail $exe]
+        } else {
+            return $exe
+        }
+    }
 
     array set opts [parseargs args {
         {noexist.arg "(no such process)"}

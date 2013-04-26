@@ -1214,13 +1214,11 @@ namespace eval ::twapi::process::test {
         twapi::end_process $np_pid -wait 500
     } -result {-restrictedgroups -restrictedgroupattrs 1}
 
-    set testnum 13
+    set testnum 12
 
     ### Option tests - path type fields
     foreach field {-name -path} {
-        test get_process_info-${testnum}.0 "Verify get_process_info $field for another process" -constraints {
-            nt
-        } -body "
+        test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -body "
             set pid \[get_explorer_pid\]
             eval set \[twapi::get_process_info \$pid $field\]
             set checkval \[get_process_field \$pid $field\]
@@ -1231,13 +1229,26 @@ namespace eval ::twapi::process::test {
                 return \"Mismatch in field $field (\$procval != \$checkval)\"
             }
         " -result ""
-        incr testnum
     }
+
+    # Also try for ourselves since that takes a different path
+    test get_process_info-[incr testnum].0 {
+        Verify get_process_info -path for our process
+    } -body {
+        twapi::get_process_info [pid] -path
+    } -result [list -path [info nameofexecutable]]
+
+    test get_process_info-[incr testnum].0 {
+        Verify get_process_info -name for our process
+    } -body {
+        twapi::get_process_info [pid] -name
+    } -result [list -name [info nameofexecutable]]
+
 
     ### Option tests - numeric type fields - exact match
 
     foreach field {-basepriority -parent -pid -threadcount} {
-        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1250,7 +1261,6 @@ namespace eval ::twapi::process::test {
                 return \"Mismatch in field $field (\$procval != \$checkval)\"
             }
         " -result ""
-        incr testnum
     }
     
     ### Option tests - numeric type fields - approximate match
@@ -1263,7 +1273,7 @@ namespace eval ::twapi::process::test {
         -poolnonpagedbytes -poolpagedbytes
         -privatebytes
         -virtualbytes -virtualbytespeak -workingset -workingsetpeak} {
-        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
@@ -1276,7 +1286,6 @@ namespace eval ::twapi::process::test {
                 return \"Mismatch in field $field (\$procval != \$checkval)\"
             }
         " -result ""
-        incr testnum
     }
 
 
@@ -1305,14 +1314,13 @@ namespace eval ::twapi::process::test {
         -userutilization       double
 
     } {
-        test get_process_info-$testnum.0 "Verify get_process_info $field for another process" -constraints {
+        test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
         } -body "
             set pid \[get_explorer_pid\]
             eval set \[twapi::get_process_info \$pid $field\]
             string is $type \[set $field\]
         " -result 1
-        incr testnum
     }
 
     ################################################################
