@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Installation and Usage" n ""]
-[copyright "2003-2012 Ashok P. Nadkarni"]
+[copyright "2003-2013 Ashok P. Nadkarni"]
 [moddesc "TWAPI Installation"]
 [titledesc "Installation requirements and usage instructions"]
 [description]
@@ -55,6 +55,8 @@ The [file twapi-bin-[arg VERSION].zip] distribution
 contains 32- and 64-bit DLL's with the scripts embedded. It is
 intended for deployment into standard Tcl installations where
 the script source is not required or desired.
+If shipping TWAPI as part of a tclkit/starkit/starpack, this distribution
+must be used. The other distributions will not work.
 [bullet]
 In the [file twapi-modular-[arg VERSION].zip] distribution, each
 TWAPI module is built as a separate component with the associated 
@@ -65,8 +67,8 @@ that need only a small subset of TWAPI commands can ship only those modules.
 [section "Installing TWAPI"]
 [para]
 To install any ZIP distribution,
-unzip it into a directory that is included in the path contained
-in your Tcl [cmd auto_path] variable. The ZIP distributions can
+unzip it into a directory that is included in
+your Tcl [cmd auto_path] variable. The ZIP distributions can
 be used by both 32-bit and 64-bit Tcl from the same location.
 
 [keywords "installation" "system requirements" "package dependencies"]

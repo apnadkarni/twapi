@@ -1,13 +1,13 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2012 Ashok P. Nadkarni"]
+[copyright "2003-2013 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0 Alpha"]
+[section "Version 4.0 Beta"]
 
 [para]
 Major changes in this release are support for Windows event tracing,
