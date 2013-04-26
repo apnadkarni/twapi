@@ -2568,10 +2568,28 @@ namespace eval ::twapi::process::test {
         twapi::free_library $h
     } -result {HMODULE 1}
 
+    ################################################################
 
+    test is_system_pid-1.0 {
+        Check system pid (match)
+    } -body {
+        twapi::is_system_pid 4
+    } -result 1
+
+    test is_system_pid-1.1 {
+        Check system pid (no)
+    } -body {
+        twapi::is_system_pid 0; # Idle process
+    } -result 0
+
+    test is_system_pid-1.2 {
+        Check system pid (no)
+    } -body {
+        twapi::is_system_pid [pid]
+    } -result 0
 
     ################################################################
 
-    ::tcltest::cleanupTests
 }
+::tcltest::cleanupTests
 namespace delete ::twapi::process::test

@@ -292,6 +292,8 @@ proc twapi::revert_to_self {{opt ""}} {
 proc twapi::_init_security_defs {} {
     variable security_defs
 
+    # NOTE : the access definitions for those types that are included here
+    # have been updated as of Windows 8.
     array set security_defs {
 
         TOKEN_ASSIGN_PRIMARY           0x00000001
@@ -310,7 +312,6 @@ proc twapi::_init_security_defs {} {
         TOKEN_READ                     0x00020008
         TOKEN_WRITE                    0x000200E0
         TOKEN_EXECUTE                  0x00020000
-
 
         SYSTEM_MANDATORY_LABEL_NO_WRITE_UP         0x1
         SYSTEM_MANDATORY_LABEL_NO_READ_UP          0x2
@@ -690,7 +691,6 @@ proc twapi::_create_disposition_to_code {sym} {
 }
 
 # Wrapper around CreateFile
-# TBD - Move documentation to base module doc
 proc twapi::create_file {path args} {
     array set opts [parseargs args {
         {access.arg {generic_read}}

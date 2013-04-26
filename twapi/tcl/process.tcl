@@ -253,23 +253,9 @@ proc twapi::get_process_handle {pid args} {
 }
 
 # Return true if passed pid is system
-# TBD - update for Win2k8, vista, Windows 7, 64 bits
 proc twapi::is_system_pid {pid} {
-    lassign [get_os_version] major minor
-    if {$major == 4 } {
-        # NT 4
-        set syspid 2
-    } elseif {$major == 5 && $minor == 0} {
-        # Win2K
-        set syspid 8
-    } else {
-        # XP and Win2K3
-        set syspid 4
-    }
-
-    # Redefine ourselves and call the redefinition
-    proc ::twapi::is_system_pid pid "expr \$pid==$syspid"
-    return [is_system_pid $pid]
+    # Note Windows 2000 System PID was 8 but we no longer support it.
+    return [expr {$pid == 4}]
 }
 
 # Return true if passed pid is of idle process
