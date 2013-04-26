@@ -834,7 +834,7 @@ proc twapi::_set_user_priv_level {username priv_level args} {
         # non-English systems. Also note that since
         # we might be lowering privilege level, we have to also
         # remove from higher privileged groups
-        variable builtin_account_sids
+
         switch -exact -- $priv_level {
             guest {
                 # administrators users
