@@ -2096,12 +2096,18 @@ static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes)
         return NULL;
     }
 
+#ifdef DONTDOTHIS
+    /* Sadly older Tcl (even 8.5.11) do not like this */
     objP = Tcl_NewByteArrayObj(NULL, nbytes);
-    if (fnP(Tcl_GetByteArrayFromObj(objP, NULL), nbytes)) {
+    if (fnP(Tcl_GetByteArrayFromObj(objP, NULL), nbytes))
         return objP;
-    } else {
-        Tcl_DecrRefCount(objP);
-        TwapiReturnError(interp, TWAPI_SYSTEM_ERROR);
-        return NULL;
-    }
+#else
+    objP = Tcl_NewByteArrayObj(NULL, 0);
+    if (fnP(Tcl_SetByteArrayLength(objP, nbytes), nbytes))
+        return objP;
+#endif
+
+    Tcl_DecrRefCount(objP);
+    TwapiReturnError(interp, TWAPI_SYSTEM_ERROR);
+    return NULL;
 }
