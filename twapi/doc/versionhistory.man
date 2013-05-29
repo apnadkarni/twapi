@@ -106,6 +106,10 @@ The command [cmd TwapiThemeDefineValue] is no longer available.
 [bullet] [emph "INCOMPATIBLE CHANGE"]
 The deprecated command [cmd address_to_hostname] has been removed.
 
+[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
+The command [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
+now returns an additional element - the day of the week.
+
 [list_end]
 
 [section "Version 3.1"]
