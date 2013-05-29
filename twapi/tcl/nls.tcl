@@ -8,6 +8,7 @@ namespace eval twapi {}
 
 # Compatibility alias
 interp alias {} twapi::get_user_default_langid {} twapi::get_user_langid
+interp alias {} twapi::get_system_default_langid {} twapi::get_system_langid
 
 #
 # Format a number

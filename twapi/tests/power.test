@@ -11,6 +11,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_power
+package require twapi_base
 
 if {[tcltest::testConstraint userInteraction] &&
     [twapi::kl_get [twapi::get_power_status] -batterystate] ne "unknown" &&
