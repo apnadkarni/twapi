@@ -1,6 +1,6 @@
 TWAPI_MAJOR=4
 TWAPI_MINOR=0
-TWAPI_BUILD=18
+TWAPI_BUILD=20
 # RELEASETYPE: a is alpha, b is beta, . is release
 TWAPI_RELEASETYPE = b
 

@@ -284,11 +284,11 @@ proc validate_ip_addresses {addrlist {ipver 0}} {
 interp alias {} valid_ip_addresses {} validate_ip_addresses
 
 proc valid_handle {h} {
-    return [twapi::Twapi_IsPtr $h]
+    return [twapi::pointer? $h]
 }
 
 proc valid_typed_handle {type h} {
-    return [twapi::Twapi_IsPtr $h $type]
+    return [twapi::pointer? $h $type]
 }
 tcltest::customMatch handle valid_typed_handle
 
@@ -458,11 +458,14 @@ proc wait_for_visible_toplevel args {
 
 proc get_processes {{refresh 0}} {
     global psinfo
-    
+
     if {[info exists psinfo(0)] && ! $refresh} return
     
     catch {unset psinfo}
     array set psinfo {} 
+    # WHen  tests are run in quick succession cscript sometimes fails
+    # with a SWBemblah blah not found error. So just delay a bit
+    after 500
     set fd [open "| cscript.exe /nologo process.vbs"]
     while {[gets $fd line] >= 0} {
         if {[string length $line] == 0} continue
@@ -837,7 +840,7 @@ proc wmic_values {obj field {clause ""}} {
 # Return true if $a is close to $b (within 10%)
 proc approx {a b {adjust 0}} {
     set max [expr {$a > $b ? $a : $b}]; # Tcl 8.4 does not have a max() func
-    if {[expr {abs($b-$a) < ($max/20)}]} {
+    if {[expr {abs($b-$a) < ($max/10)}]} {
         return 1
     }
     if {! $adjust} {
