@@ -63,7 +63,7 @@ proc twapi::large_system_time_to_secs_since_1970 {ns100 {fraction false}} {
 
     set secs_since_1970 [expr {$ns100_since_1970/10000000}]
     if {$fraction} {
-        append secs_since_1970 .[expr {$ns100_since_1970%10000000}]
+        append secs_since_1970 .[string range $ns100 end-6 end]
     }
     return $secs_since_1970
 }
