@@ -626,7 +626,7 @@ namespace eval twapi::osinfo::test {
             -systemcache   -swapfiles   -swapfiledetail
             -totalcommit    -totalphysical  -usedcommit
         }
-        set result 1
+        set result {}
         foreach field {
             -allocationgranularity   -availcommit   -availphysical
             -kernelpaged     -kernelnonpaged    
@@ -637,10 +637,12 @@ namespace eval twapi::osinfo::test {
             -systemcache
             -totalcommit    -totalphysical  -usedcommit
         } {
-            set result [expr {$result && [string is integer -strict [twapi::kl_get $mem $field]]}]
+            if {! [string is wide -strict [twapi::kl_get $mem $field]]} {
+                lappend result $field:[twapi::kl_get $mem $field]
+            }
         }
         set result
-    } -result 1
+    } -result {}
 
     ###
     test get_memory_info-2.0 {
