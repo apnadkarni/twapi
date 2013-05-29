@@ -435,7 +435,7 @@ namespace eval twapi::shell::test {
         nt
     } -body {
         set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
-        verify_kl_fields [twapi::read_shortcut $path] {-args -desc -hotkey -iconindex -iconpath -idl -path -showcmd -workdir}
+        verify_kl_fields [twapi::read_shortcut $path] {-args -desc -hotkey -iconindex -iconpath -idl -path -runas -showcmd -workdir}
     } -result ""
 
     ###
