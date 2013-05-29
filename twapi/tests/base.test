@@ -26,6 +26,11 @@ namespace eval twapi::base::test {
     variable administrators_account_name Administrators
     variable my_sid [name2sid $::env(USERNAME)]
     variable guest_sid [name2sid $guest_account_name]
+    variable fncounter 0
+    proc newfilename {} {
+        variable fncounter
+        return [clock clicks]-[incr fncounter]
+    }
 
     ################################################################
 
@@ -119,7 +124,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn]
         file exists $fn
@@ -132,7 +137,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-1.1" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-1.1" [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn]
         # Content should not be modified/truncated
@@ -156,7 +161,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
         read_file $fn
@@ -169,7 +174,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-3.1" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-3.1" [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition create_always]
         # Content should be truncated
@@ -181,7 +186,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition create_new]
         read_file $fn
@@ -194,7 +199,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-3.3" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-3.3" [newfilename]]
     } -body {
         list [catch {twapi::create_file $fn -createdisposition create_new}] \
             [lindex $::errorCode 0] [lindex $::errorCode 1] \
@@ -206,7 +211,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
         read_file $fn
@@ -219,7 +224,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-3.5" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-3.5" [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition open_always]
         # Content should not be truncated
@@ -231,7 +236,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         list [catch {twapi::create_file $fn -createdisposition open_existing}] \
             [lindex $::errorCode 0] [lindex $::errorCode 1]
@@ -242,7 +247,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-3.7" [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition open_existing]
         read_file $fn
@@ -253,7 +258,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         list [catch {twapi::create_file $fn -createdisposition truncate_existing -access generic_write}] \
             [lindex $::errorCode 0] [lindex $::errorCode 1]
@@ -264,7 +269,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [tcltest::makeFile "create_file-3.7" [clock clicks]]
+        set fn [tcltest::makeFile "create_file-3.7" [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -createdisposition truncate_existing -access generic_write]
         read_file $fn
@@ -275,7 +280,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
         # We do not want to pull in the security package so manually
         # construct the security descriptor
         set sid [name2sid $::env(USERNAME)]
@@ -295,8 +300,8 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
+        set fn2 [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x0]
         twapi::close_handle [twapi::create_file $fn2 -flags 0x20]
@@ -311,8 +316,8 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
+        set fn2 [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x0]
         twapi::close_handle [twapi::create_file $fn2 -flags 0x1]
@@ -327,8 +332,8 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
+        set fn2 [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x0]
         twapi::close_handle [twapi::create_file $fn2 -flags 0x4]
@@ -343,8 +348,8 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
-        set fn2 [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
+        set fn2 [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x0]
         twapi::close_handle [twapi::create_file $fn2 -flags 0x2]
@@ -359,7 +364,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x80]
         list [file attributes $fn -hidden] [file attributes $fn -system] [file attributes $fn -readonly]
@@ -372,7 +377,7 @@ namespace eval twapi::base::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [tcltest::temporaryDirectory] [newfilename]]
     } -body {
         twapi::close_handle [twapi::create_file $fn -flags 0x04000000]
         file exists $fn
@@ -2189,8 +2194,8 @@ namespace eval twapi::base::test {
         Check randomness
     } -body {
         # Need a better way to check randomness
-        string compare [twapi::random_bytes 8] [twapi::random_bytes 8]
-    } -result 1
+        string equal [twapi::random_bytes 8] [twapi::random_bytes 8]
+    } -result 0
 
     ################################################################
 
