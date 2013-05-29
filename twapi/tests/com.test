@@ -769,7 +769,7 @@ namespace eval twapi::com::test {
         nt
     } -body {
         twapi::variant_time_to_timelist 2.0
-    } -result "1900 1 1 0 0 0 0"
+    } -result "1900 1 1 0 0 0 0 1"
 
     ################################################################
 
@@ -878,13 +878,10 @@ namespace eval twapi::com::test {
         # supposed to verify a previous bug is fixed where the prototype
         # was cached (it should not be) resulting in failure when
         # retrieving the second event.
-        expr {
-              [llength $res] > 1 &&
-              [string tolower [lindex $res 0]] eq "eventlog"
-          }
+        list [expr {[llength $res] > 1}] [string tolower [lindex $res 0]]
     } -cleanup {
         $wmi -destroy
-    } -result 1
+    } -result {1 eventlog}
 
     ################################################################
 
@@ -949,7 +946,7 @@ namespace eval twapi::com::test {
     
     test define_dispatch_prototype-1.0 {
         TBD
-    } -body {
+    } -constraints {
         TBD
     } -result TBD
 
