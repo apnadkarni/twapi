@@ -1242,7 +1242,7 @@ namespace eval ::twapi::process::test {
         Verify get_process_info -name for our process
     } -body {
         twapi::get_process_info [pid] -name
-    } -result [list -name [info nameofexecutable]]
+    } -result [list -name [file tail [info nameofexecutable]]]
 
 
     ### Option tests - numeric type fields - exact match
