@@ -966,7 +966,7 @@ namespace eval twapi::base::test {
         nt
     } -body {
         join [twapi::large_system_time_to_timelist 0] ,
-    } -result "1601,1,1,0,0,0,0"
+    } -result "1601,1,1,0,0,0,0,1"
 
     ###
 
@@ -976,7 +976,15 @@ namespace eval twapi::base::test {
         nt
     } -body {
         join [twapi::large_system_time_to_timelist 128121282305000000] ,
-    } -result "2007,1,1,12,30,30,500"
+    } -result "2007,1,1,12,30,30,500,1"
+
+    test large_system_time_to_timelist-1.2 {
+        Convert current system epoch to timelist
+    } -constraints {
+        nt
+    } -body {
+        join [twapi::large_system_time_to_timelist [expr {128121282305000000+86400*10000000}]] ,
+    } -result "2007,1,2,12,30,30,500,2"
 
     ################################################################
 
@@ -998,13 +1006,16 @@ namespace eval twapi::base::test {
         twapi::timelist_to_large_system_time {2007 1 1 12 30 30 500}
     } -result 128121282305000000
 
-    test large_system_time_timelist-1.1 {
-        Convert current system epoch to timelist
+    ###
+
+    test timelist_to_large_system_time-1.2 {
+        Convert timelist format to system time (day specified)
     } -constraints {
         nt
     } -body {
-        join [twapi::large_system_time_to_timelist 128121282305000000] ,
-    } -result "2007,1,1,12,30,30,500"
+        twapi::timelist_to_large_system_time {2007 1 1 12 30 30 500 1}
+    } -result 128121282305000000
+
 
     ################################################################
 

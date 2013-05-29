@@ -368,8 +368,8 @@ number of seconds is returned. Otherwise, the fractional part is also returned.
 [call [cmd large_system_time_to_timelist] [arg SYSTEMTIMEVALUE]]
 Some Windows functions return time as the number of 100 nanosecond units
 since Jan 1, 1601. The command converts such time values to a list
-of 7 elements representing the year, month, day, hour, minutes, seconds
-and milliseconds.
+of 8 elements representing the year, month, day, hour, minutes, seconds, 
+milliseconds and day of week.
 
 [call [cmd load_library] [arg FILEPATH] [opt [arg options]]]
 
