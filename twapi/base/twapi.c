@@ -151,6 +151,15 @@ int Twapi_base_Init(Tcl_Interp *interp)
      * Single-threaded COM model - note some Shell extensions
      * require this if functions such as ShellExecute are
      * invoked. TBD - should we do this lazily in com and mstask modules ?
+     *
+     * TBD - recent MSDN docs states:
+     * "Avoid the COM single-threaded apartment model, as it is incompatible
+     * with the thread pool. STA creates thread state which can affect the
+     * next work item for the thread. STA is generally long-lived and has
+     * thread affinity, which is the opposite of the thread pool."
+     * Since we use thread pools, does this mean we should not be
+     * using STA? Or does that only apply when making COM calls from
+     * a thread pool thread in which case it would not apply to us?
      */
     hr = CoInitializeEx(
         NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
