@@ -2,7 +2,13 @@ SRCROOT=$(MAKEDIR)
 DISTDIR=$(MAKEDIR)\dist
 
 # If 1, the generated pkgindex file will do lazy loading
-LAZYPACKAGELOAD=1
+!ifndef LAZYPACKAGELOAD
+# TBD - lazy loading improves start up time (~50ms versus 250). However
+# calling C level commands that are in other modules does not work
+# even after package require twapi. (e.g. GetCursorPos called from move_mouse)
+# Until this is fixed, default to non-lazy loading.
+LAZYPACKAGELOAD=0
+!endif
 
 !include "$(SRCROOT)\include\version.inc"
 !include "$(SRCROOT)\include\tooldefs.inc"
