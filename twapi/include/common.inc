@@ -4,13 +4,6 @@
 !include version.inc
 !include tooldefs.inc
 
-# Try to figure out the Mercurial id
-!if ![echo HGID= ^\> hgid.tmp] && ![hg identify -i >> hgid.tmp]
-!include hgid.tmp
-!endif
-!if ![del $(ERRNUL) /q/f hgid.tmp]
-!endif
-
 # ================ MANDATORY DEFINES ================
 
 # Each module should define the following before including this file
@@ -122,11 +115,18 @@ DISTDIR = $(SRCROOT)\dist
 !endif
 !endif
 
-
 # Define a BUILDID for each build. This is passed to a Tcl script.
 !ifndef BUILDID
 BUILDID = [clock seconds]
 !endif
+
+# Define the Mercurial source identifier. This is set through a file
+# created by the master build script since here we do not have access
+# to hg on the path
+!if exist($(OUTDIR)\hgid.tmp)
+!include "$(OUTDIR)\hgid.tmp"
+!endif
+
 
 ################ Product version definitions ################
 

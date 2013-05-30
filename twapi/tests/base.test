@@ -44,7 +44,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.0b20
+    } -result 4.0b21
 
     ################################################################
 
@@ -60,6 +60,7 @@ namespace eval twapi::base::test {
             single_module
             tcl_header_version
             tea
+            source_id
         }
     } -result ""
 
@@ -117,6 +118,13 @@ namespace eval twapi::base::test {
         twapi::get_build_config tea
     } -result {^0|1$} -match regexp
 
+    test get_build_config-1.9 {
+        Get the build configuration (source_id)
+    } -body {
+        twapi::get_build_config source_id
+    } -result {^[0-9a-f]{12}.?$} -match regexp
+
+
     ################################################################
 
     test create_file-1.0 {
@@ -148,13 +156,10 @@ namespace eval twapi::base::test {
     test create_file-2.0 {
         Create a file with a specific integrity value
     } -constraints {
-        win6
+        Moved 
     } -body {
-        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
-        set secd [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
-        twapi::close_handle [twapi::create_file $fn -secd $secd]
-        twapi::get_resource_integrity file $fn -label
-    } -result {low system_mandatory_label_no_write_up}
+        # Moved - - now in security.test since it needs security functions
+    }
 
     test create_file-3.0 {
         create_file new with -createdisposition create_always
@@ -1851,10 +1856,16 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    if {$::tcl_platform(machine) eq "amd64"} {
+        set rctest_dll "rctest64.dll"
+    } else {
+        set rctest_dll "rctest.dll"
+    }
+
     test load_library-1.0 {
         Load a library
     } -body {
-        set libh [twapi::load_library rctest.dll]
+        set libh [twapi::load_library $rctest_dll]
     } -cleanup {
         twapi::free_library $libh
     } -result "* HANDLE" -match glob
@@ -1862,7 +1873,7 @@ namespace eval twapi::base::test {
     test load_library-1.1 {
         Load a library as a data file
     } -body {
-        set libh [twapi::load_library rctest.dll -datafile]
+        set libh [twapi::load_library $rctest_dll -datafile]
     } -cleanup {
         twapi::free_library $libh
     } -result "* HANDLE" -match glob
@@ -1870,7 +1881,7 @@ namespace eval twapi::base::test {
     test load_library-1.2 {
         Load a library without resolving references
     } -body {
-        set libh [twapi::load_library rctest.dll -dontresolverefs]
+        set libh [twapi::load_library $rctest_dll -dontresolverefs]
     } -cleanup {
         twapi::free_library $libh
     } -result "* HANDLE" -match glob
@@ -1880,7 +1891,7 @@ namespace eval twapi::base::test {
     test free_library-1.0 {
         Free a library
     } -body {
-        twapi::free_library [twapi::load_library rctest.dll]
+        twapi::free_library [twapi::load_library $rctest_dll]
     } -result ""
 
     ################################################################
@@ -1906,17 +1917,25 @@ namespace eval twapi::base::test {
 
     test base-eventlog_log-1.2 {
         Log a message to the system log
+    } -constraints {
+        systemmodificationok
     } -body {
         twapi::eventlog_log "TWAPI System log test message" -source system
     } -result ""
     
     set testnum 0
-    foreach source {application system} {
-        foreach type {success error warning information} {
-            test base-eventlog_log-2.[incr testnum] "Log a message of type $type to the $source log" -body {
-                twapi::eventlog_log "TWAPI log $type message" -type $type -source $source
-            } -result ""
-        }
+    foreach type {success error warning information} {
+        test base-eventlog_log-2.[incr testnum] "Log a message of type $type to the application log" -body {
+            twapi::eventlog_log "TWAPI log $type message" -type $type -source application
+        } -result ""
+    }
+
+    foreach type {success error warning information} {
+        test base-eventlog_log-2.[incr testnum] "Log a message of type $type to the system log" -constraints {
+            systemmodificationok
+        } -body {
+            twapi::eventlog_log "TWAPI log $type message" -type $type -source system
+        } -result ""
     }
 
     ################################################################
@@ -1935,14 +1954,22 @@ namespace eval twapi::base::test {
     ################################################################
 
     set testnum 0
-    foreach source {application system} {
-        foreach type {success error warning information} {
-            test base-eventlog_write-1.[incr testnum] "Write a message of type $type to the $source log" -body {
-                set hevl [twapi::eventlog_open -source $source -write]
-                twapi::eventlog_write $hevl 1 -params [list "TWAPI log $type message"] -type $type
-                twapi::eventlog_close $hevl
-            } -result ""
-        }
+    foreach type {success error warning information} {
+        test base-eventlog_write-1.[incr testnum] "Write a message of type $type to the application log" -body {
+            set hevl [twapi::eventlog_open -source application -write]
+            twapi::eventlog_write $hevl 1 -params [list "TWAPI log $type message"] -type $type
+            twapi::eventlog_close $hevl
+        } -result ""
+    }
+
+    foreach type {success error warning information} {
+        test base-eventlog_write-1.[incr testnum] "Write a message of type $type to the system log" -constraints {
+            systemmodificationok
+        } -body {
+            set hevl [twapi::eventlog_open -source system -write]
+            twapi::eventlog_write $hevl 1 -params [list "TWAPI log $type message"] -type $type
+            twapi::eventlog_close $hevl
+        } -result ""
     }
 
     test base-eventlog_write-2.0 {
