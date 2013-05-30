@@ -6085,6 +6085,18 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -result SeBackupPrivilege
 
 
+    # This create_file test is here because it needs security functions
+    test create_file-with-integrity-2.0 {
+        Create a file with a specific integrity value
+    } -constraints {
+        win6
+    } -body {
+        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        set secd [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
+        twapi::close_handle [twapi::create_file $fn -secd $secd]
+        twapi::get_resource_integrity file $fn -label
+    } -result {low system_mandatory_label_no_write_up}
+
     ################################################################
 
     cleanup_populated_accounts_and_groups

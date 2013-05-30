@@ -15,6 +15,15 @@ IF "x%CPU%" == "xAMD64" goto dobuild
 @echo Existing build and dist directories will be deleted. Ctrl-C to abort
 @pause 
 rmdir/s/q build dist 2>NUL
+mkdir build
+
+:: Generate the mercurial ID
+:: The first echo is a hack to write to a file without a terminating newline
+:: We do it this way and not through the makefile because the compiler
+:: build env is pristine and does not have a path to hg
+if exist build\hgid.tmp del build\hgid.tmp
+echo|set /P=HGID=>build\hgid.tmp
+hg identify -i >>build\hgid.tmp
 
 :: Set up 32-bit build environment. If we are using the TWAPI custom
 :: environment point there, else the standard Microsoft paths
