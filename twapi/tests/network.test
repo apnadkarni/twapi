@@ -843,58 +843,6 @@ namespace eval twapi::network::test {
 
     ################################################################
 
-    test address_to_hostname-1.0 {
-        Map address to host name
-    } -constraints {
-        nt
-    } -body {
-        twapi::address_to_hostname [resolvable_address]
-    } -match glob -result *[resolvable_address_domain]
-
-    test address_to_hostname-1.1 {
-        Map address to host name (no names)
-    } -constraints {
-        nt
-    } -body {
-        llength [twapi::address_to_hostname 127.0.0.2]
-    } -result 0
-
-    test address_to_hostname-1.2 {
-        Map 127.0.0.1
-    } -constraints {
-        nt
-    } -body {
-        set name [twapi::address_to_hostname 127.0.0.1]
-        expr {[string equal -nocase $name localhost] ||
-              [string equal -nocase $name $::env(COMPUTERNAME)]}
-    } -result 1
-
-    test address_to_hostname-2.0 {
-        Map address to host name asynchronous (success)
-    } -constraints {
-        nt
-    } -body {
-        set ::address_to_hostname_result [list ]
-        twapi::address_to_hostname [resolvable_address] -async {lappend ::address_to_hostname_result}
-        vwait ::address_to_hostname_result
-        foreach {addr status hostname} $::address_to_hostname_result break
-        expr {($addr eq [resolvable_address]) && ($status eq "success") && [string match *[resolvable_address_domain] $hostname]}
-    } -result 1
-    
-    test address_to_hostname-2.1 {
-        Map address to host name asynchronous (no addresses)
-    } -constraints {
-        nt
-    } -body {
-        set ::address_to_hostname_result [list ]
-        twapi::address_to_hostname 127.0.0.2 -async {lappend ::address_to_hostname_result}
-        vwait ::address_to_hostname_result
-        foreach {addr status hostname} $::address_to_hostname_result break
-        expr {($addr eq "127.0.0.2") && ($status eq "success") && $hostname eq ""}
-    } -result 1
-
-    ################################################################
-
     test resolve_address-1.0 {
         Map IPv4 address to host name
     } -body {
