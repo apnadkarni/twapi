@@ -330,16 +330,6 @@ proc twapi::get_volume_mount_point_for_path {path} {
     return [GetVolumePathName [file nativename $path]]
 }
 
-# Show property dialog for a volume
-proc twapi::volume_properties_dialog {name args} {
-    array set opts [parseargs args {
-        {hwin.int 0}
-        {page.arg ""}
-    } -maxleftover 0]
-
-    shell_object_properties_dialog $name -type volume -hwin $opts(hwin) -page $opts(page)
-}
-
 
 # Return the times associated with a file
 proc twapi::get_file_times {fd args} {

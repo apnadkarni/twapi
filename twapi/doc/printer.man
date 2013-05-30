@@ -15,10 +15,6 @@ all the printers on the system. The command
 [uri #get_default_printer [cmd get_default_printer]] returns the
 name of the default printer.
 
-[para]
-The command [uri \#printer_properties_dialog [cmd printer_properties_dialog]]
-displays the shell property sheet dialog for a printer.
-
 [section Commands]
 
 [list_begin definitions]
@@ -46,15 +42,6 @@ or remote printers are to be included in the returned list.
 
 [call [cmd get_default_printer]]
 Returns the name of the default printer.
-
-[call [cmd printer_properties_dialog] [arg PRINTERNAME] [opt [arg options]]]
-Displays the shell property dialog for the specified printer.
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -hwin] [arg HWIN]]
-If specified, [arg HWIN] is the handle to the window to be used as
-the parent for the dialog.
-[list_end]
 
 
 [list_end]

@@ -37,7 +37,8 @@ to the Windows Recycle Bin.
 [section "Shell Dialogs"]
 The command
 [uri \#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
-displays the property page dialogs for the specified shell objects.
+displays the property page dialogs for the shell objects such
+as files, printers and volumes.
 
 [section Themes]
 The commands [uri \#OpenThemeData [cmd OpenThemeData]],
@@ -402,7 +403,6 @@ Invoke a dynamic action on a file. This will bring up the property sheet for
 [example "shell_execute -path notepad.exe -verb properties -invokeidlist true"]
 
 
-
 [call [cmd shell_object_properties_dialog] [arg OBJECTPATH] [opt [arg options]]]
 Displays the shell property dialog for the specified object which may be
 a file, a printer or a volume.
@@ -413,9 +413,8 @@ may be specified:
 If specified, [arg HWIN] is the handle to the window to be used as
 the parent for the dialog.
 [opt_def [cmd -type] [const "file|printer|volume"]]
-Specifies the type of the object identified by [arg OBJECTPATH]. If
-this option is not specified, the command will attempt to figure out
-the object type and display the appropriate dialog.
+Specifies the type of the object identified by [arg OBJECTPATH].
+Defaults to [const file].
 [list_end]
 
 
@@ -510,7 +509,6 @@ type), are not played. Default is false (sounds are enabled).
 Removes the specified icon from the system tray. [arg ICONID] is the
 identifier for the icon as returned by
 [uri "#systemtrayaddicon" [cmd "systemtray addicon"]].
-
 
 [call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
 Writes or creates a shortcut. [arg SHORTCUTPATH] specifies the path of
