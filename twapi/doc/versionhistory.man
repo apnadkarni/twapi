@@ -104,7 +104,8 @@ and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 The command [cmd TwapiThemeDefineValue] is no longer available.
 
 [bullet] [emph "INCOMPATIBLE CHANGE"]
-The deprecated command [cmd address_to_hostname] has been removed.
+The deprecated command [cmd address_to_hostname] has been removed. Use
+the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 
 [bullet] [emph "POTENTIAL INCOMPATIBILITY"]
 The command [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]

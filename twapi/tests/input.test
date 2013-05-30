@@ -489,7 +489,7 @@ namespace eval twapi::input::test {
     test get_keyboard_layout_name-1.0 {
         Get current keyboard layout name
     } -body {
-        twapi::get_keyboard_layout_name]
+        twapi::get_keyboard_layout_name
     } -result "00000409"
     
 }
