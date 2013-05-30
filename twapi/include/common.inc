@@ -4,6 +4,13 @@
 !include version.inc
 !include tooldefs.inc
 
+# Try to figure out the Mercurial id
+!if ![echo HGID= ^\> hgid.tmp] && ![hg identify -i >> hgid.tmp]
+!include hgid.tmp
+!endif
+!if ![del $(ERRNUL) /q/f hgid.tmp]
+!endif
+
 # ================ MANDATORY DEFINES ================
 
 # Each module should define the following before including this file
@@ -279,7 +286,7 @@ CINCLUDES     = $(SRCROOT)\include\twapi.h \
 		$(SRCROOT)\include\zlist.h \
 		$(SRCROOT)\include\memlifo.h
 
-CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) -DMODULENAME=\"$(MODULENAME)\" -D$(MODULENAME)_BUILD -DMODULEVERSION=\"$(MODULEVERSION)\"
+CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_WIN32_WINNT=$(TWAPI_WIN_HEADER_VERSION) -DPSAPI_VERSION=1 $(INCFLAGS) -DMODULENAME=\"$(MODULENAME)\" -D$(MODULENAME)_BUILD -DMODULEVERSION=\"$(MODULEVERSION)\" -DHGID=\"$(HGID)\"
 
 !if "$(MACHINE)" == "AMD64" && $(VCVER) < 9
 CFLAGS = $(CFLAGS) /Wp64
