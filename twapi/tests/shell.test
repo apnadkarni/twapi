@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004, Ashok P. Nadkarni
+# Copyright (c) 2004-2013, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -13,7 +13,7 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_shell
 package require twapi_ui;       # TBD - unfortunately required for find_windows
 package require twapi_process;  # TBD - required for get_pid_from_handle
-
+package require twapi_resource; # TBD - required for load_icon_from_system
 namespace eval twapi::shell::test {
     namespace import ::tcltest::test ::tcltest::makeFile
 
@@ -877,87 +877,6 @@ namespace eval twapi::shell::test {
 
     ################################################################
 
-    test file_properties_dialog-1.0 {
-        Show the file properties dialog
-    } -constraints {
-        userInteraction
-    } -body {
-        # Property dialogs can block the caller
-        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
-        after 100
-        twapi::file_properties_dialog [info nameofexecutable]
-        yesno "Did you see a file properties dialog for the tclsh executable?"
-    } -result 1
-
-    test file_properties_dialog-1.1 {
-        Show the file properties dialog on a specific TAB
-    } -constraints {
-        userInteraction
-    } -body {
-        # Property dialogs can block the caller
-        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it AFTER NOTING THE PROPERTY PAGE DISPLAYED."
-        after 100
-        twapi::file_properties_dialog [info nameofexecutable] -page version
-        yesno "Did you see THE VERSION TAB of the file properties dialog for the tclsh executable?"
-    } -result 1
-
-
-    ################################################################
-
-    test volume_properties_dialog-1.0 {
-        Show the volume properties dialog
-    } -constraints {
-        userInteraction
-    } -body {
-        # Volume propety dialog block the caller
-        pause "After hitting Return, you should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
-        twapi::volume_properties_dialog $::env(SYSTEMDRIVE)
-        yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE)?"
-    } -result 1
-
-    test volume_properties_dialog-1.1 {
-        Show the volume properties dialog on a specific tab
-    } -constraints {
-        userInteraction
-    } -body {
-        # Volume propety dialog block the caller
-        pause "After hitting Return, you should see a volume properties dialog for $::env(SYSTEMDRIVE). MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
-        twapi::volume_properties_dialog $::env(SYSTEMDRIVE) -page Tools
-        yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE) opened on the Tools page?"
-    } -result 1
-
-    ################################################################
-
-    test printer_properties_dialog-1.0 {
-        Show the printer properties dialog
-    } -constraints {
-        userInteraction haveprinter
-    } -setup {
-        set printer [lindex [get_printers] 0]
-    } -body {
-        # Property dialogs can block the caller
-        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
-        after 100
-        twapi::printer_properties_dialog $printer
-        yesno "Did you see a printer properties dialog for $printer?"
-    } -result 1
-
-    test printer_properties_dialog-1.1 {
-        Show the printer properties dialog on a specific tab
-    } -constraints {
-        userInteraction haveprinter
-    } -setup {
-        set printer [lindex [get_printers] 0]
-    } -body {
-        # Property dialogs can block the caller
-        pause "After hitting Return, you should see a shell properties dialog. MAKE A NOTE OF THE PROPERTY PAGE TITLE and then Cancel it."
-        after 100
-        twapi::printer_properties_dialog $printer -page Sharing
-        yesno "Did you see the Sharing TAB of the printer properties dialog for $printer?"
-    } -result 1
-
-    ################################################################
-
     test shell_object_properties_dialog-1.0 {
         Show the shell object (file) dialog without type
     } -constraints {
@@ -983,20 +902,6 @@ namespace eval twapi::shell::test {
     } -result 1
 
     test shell_object_properties_dialog-2.0 {
-        Show the shell object (printer) properties dialog
-    } -constraints {
-        userInteraction haveprinter
-    } -setup {
-        set printer [lindex [get_printers] 0]
-    } -body {
-        # Property dialogs can block the caller
-        pause "After hitting Return, you should see a shell properties dialog. Please Cancel it."
-        after 100
-        twapi::shell_object_properties_dialog $printer
-        yesno "Did you see a printer properties dialog for $printer?"
-    } -result 1
-
-    test shell_object_properties_dialog-2.1 {
         Show the shell object (printer) properties dialog -type printer
     } -constraints {
         userInteraction haveprinter
@@ -1011,6 +916,17 @@ namespace eval twapi::shell::test {
     } -result 1
 
     test shell_object_properties_dialog-3.0 {
+        Show the volume properties dialog
+    } -constraints {
+        userInteraction
+    } -body {
+        # Volume propety dialog block the caller
+        pause "After hitting Return, you should see a volume properties dialog for $::env(SYSTEMDRIVE). Please CANCEL it."
+        twapi::shell_object_properties_dialog $::env(SYSTEMDRIVE) -type volume
+        yesno "Did you see a volume properties dialog for $::env(SYSTEMDRIVE)?"
+    } -result 1
+
+    test shell_object_properties_dialog-4.0 {
         Show the shell object properties dialog on a specific tab
     } -constraints {
         userInteraction

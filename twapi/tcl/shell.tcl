@@ -97,32 +97,10 @@ proc twapi::get_shell_folder {csidl args} {
 # Displays a shell property dialog for the given object
 proc twapi::shell_object_properties_dialog {path args} {
     array set opts [parseargs args {
-        {type.arg "" {"" file printer volume}}
+        {type.arg file {file printer volume}}
         {hwin.int 0}
         {page.arg ""}
     } -maxleftover 0]
-
-    # TBD - do not try to guess type. Default to file
-
-    if {$opts(type) eq ""} {
-        # Try figure out object type
-        if {[file exists $path]} {
-            set opts(type) file
-        } elseif {[lsearch -exact [string tolower [find_volumes]] [string tolower $path]] >= 0} {
-            set opts(type) volume
-        } else {
-            # Check if printer
-            foreach printer [enumerate_printers] {
-                if {[string equal -nocase [kl_get $printer name] $path]} {
-                    set opts(type) printer
-                    break
-                }
-            }
-            if {$opts(type) eq ""} {
-                error "Could not figure out type of object '$path'"
-            }
-        }
-    }
 
 
     if {$opts(type) eq "file"} {
@@ -134,17 +112,6 @@ proc twapi::shell_object_properties_dialog {path args} {
         $path \
         $opts(page)
 }
-
-# Show property dialog for a file
-proc twapi::file_properties_dialog {name args} {
-    array set opts [parseargs args {
-        {hwin.int 0}
-        {page.arg ""}
-    } -maxleftover 0]
-
-    shell_object_properties_dialog $name -type file -hwin $opts(hwin) -page $opts(page)
-}
-
 
 # Writes a shell shortcut
 proc twapi::write_shortcut {link args} {

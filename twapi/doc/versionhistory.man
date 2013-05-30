@@ -7,7 +7,7 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0 Beta"]
+[section "Version 4.0.21 Beta"]
 
 [para]
 Major changes in this release are support for Windows event tracing,
@@ -84,32 +84,42 @@ Added [uri base.html#random_bytes [cmd random_bytes]].
 Added [cmd -raw] option to 
 [uri clipboard.html#write_clipboard_text [cmd write_clipboard_text]].
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
 Use [uri base.man#trap [cmd trap]] instead.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]
 has changed.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The [cmd -toplevels] option of the [cmd get_process_info] command
 is no longer available. Also the [cmd -pid] no longer accepts a process name
 as argument. Both these can be replaced by a combination of
 [uri ui.html#get_toplevel_windows] [cmd "get_toplevel_windows -pids"]]
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The command [cmd TwapiThemeDefineValue] is no longer available.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The deprecated command [cmd address_to_hostname] has been removed. Use
 the [uri network.html#resolve_address [cmd resolve_address]] command instead.
+
+[bullet] [emph "INCOMPATIBILITY"]
+The commands [cmd file_properties_dialog], [cmd volume_properties_dialog]
+and [cmd printer_properties_dialog] have been removed. Use the
+[uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
+instead.
 
 [bullet] [emph "POTENTIAL INCOMPATIBILITY"]
 The command [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
 now returns an additional element - the day of the week.
+
+[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
+The command [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
+defaults the object type [const file] instead of attempting to guess the type.
 
 [list_end]
 
@@ -165,17 +175,17 @@ Added [uri printer.html#get_default_printer [cmd get_default_printer]].
 Enhancements to [uri base.html#parseargs [cmd parseargs]] to
 map boolean true values.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 Windows 2000 is no longer supported.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 Tcl 8.4 is no longer supported.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The values returned by the [cmd -type] option to
 [uri network.html#get_netif_info [cmd get_netif_info]] have changed.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 The values returned by the [cmd -type] option to
 [uri network.html#get_netif_info [cmd get_netif_info]] have changed.
 
@@ -292,30 +302,30 @@ with Tcl 8.6 [cmd try].
 [bullet] Added [uri base.html#debuglog debuglog] command to log debug
 and trace messages.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] Removed the commands
+[bullet] [emph "INCOMPATIBILITY"] Removed the commands
 lock_scm_db, unlock_scm_db and query_scm_db_lock_status
 as they have no effect on Vista and later systems and were rarely used
 on older machines as well.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] The format of the data returned by
+[bullet] [emph "INCOMPATIBILITY"] The format of the data returned by
 commands that return the status of 
 [uri services.html "Windows services"] has changed.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] Removed the command
+[bullet] [emph "INCOMPATIBILITY"] Removed the command
 get_mapped_share_info which was deprecated in favor of
 get_client_share_info in previous releases.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] The format of the lists returned by
+[bullet] [emph "INCOMPATIBILITY"] The format of the lists returned by
 [uri services.html#get_dependent_service_status get_dependent_service_status] and
 [uri services.html#get_multiple_service_status get_multiple_service_status]
 has changed to make access simpler and faster.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] The format of the appended arguments
+[bullet] [emph "INCOMPATIBILITY"] The format of the appended arguments
 to the callback invoked via
 [uri storage.html#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
 has changed.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] 
+[bullet] [emph "INCOMPATIBILITY"] 
 The format of expiration time of user accounts as returned by
 [uri users.html#get_user_account_info [cmd get_user_account_info]] has changed
 as have the formats accepted by 
@@ -324,17 +334,17 @@ and
 [uri users.html#set_user_expiration [cmd set_user_expiration]].
 
 [bullet]
-[emph "INCOMPATIBLE CHANGE"] This version supports Windows XP or later versions
+[emph "INCOMPATIBILITY"] This version supports Windows XP or later versions
 of Windows and version 8.5 or later of Tcl. It has also been tested 
 on Windows 2000 and Tcl 8.4 but any bugs specific to these platforms 
 will not be fixed.
 
 [bullet]
-[emph "INCOMPATIBLE CHANGE"] This version does not support
+[emph "INCOMPATIBILITY"] This version does not support
 the [cmd twapi_desktop] and [cmd twapi_server] package subsets of TWAPI
 and does not provide a Tclkit format distribution.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"] 
+[bullet] [emph "INCOMPATIBILITY"] 
 The command [cmd set_user_priv_level] and the
 [cmd -priv] option to the 
 [uri users.html#get_user_account_info [cmd get_user_account_info]],
@@ -343,7 +353,7 @@ and [uri users.html#new_user [cmd new_user]] commands have been removed
 as their use was unsuitable for domain environments. Use specific group
 membership instead to control privileges.
 
-[bullet] [emph "INCOMPATIBLE CHANGE"]
+[bullet] [emph "INCOMPATIBILITY"]
 [cmd set_console_input_mode] and [cmd set_console_output_mode]
 are deprecated. Use
 [uri console.html#modify_console_input_mode [cmd modify_console_input_mode]]
@@ -367,7 +377,7 @@ Added commands
 significantly enhanced. New commands
 [uri device.html#start_device_notifier start_device_notifier] and
 [uri device.html#stop_device_notifier stop_device_notifier] for
-handling device event notifications. "INCOMPATIBLE CHANGE"
+handling device event notifications. "INCOMPATIBILITY"
 Commands start_device_change_monitor and stop_device_change_monitor
 are no longer available.
 
@@ -420,7 +430,7 @@ CryptGenRandom. No Tcl wrappers for these.
 [list_begin bullet]
 
 [bullet]
-[emph "INCOMPATIBLE CHANGE"]
+[emph "INCOMPATIBILITY"]
 Windows NT 4.0 is no longer a supported platform.
 
 [bullet]
@@ -513,7 +523,7 @@ to allow DNS names and accept multiple addresses.
 [bullet]
 Added options -noexist and -noaccess to
 [uri process.html#get_thread_info get_thread_info].
-[emph "INCOMPATIBLE CHANGE"] The command
+[emph "INCOMPATIBILITY"] The command
 no longer raises an exception if a thread does not exist
 or cannot be accessed.
 [bullet] Additional performance optimizations.
@@ -598,7 +608,7 @@ data returned by
 [uri services.html\#get_multiple_service_status get_multiple_service_status].
 
 [bullet]
-[emph "INCOMPATIBLE CHANGE"]
+[emph "INCOMPATIBILITY"]
 Changed default value of
 [uri share.html\#new_share new_share] option -secd.
 
