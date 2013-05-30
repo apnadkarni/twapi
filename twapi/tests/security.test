@@ -6086,7 +6086,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 
 
     # This create_file test is here because it needs security functions
-    test create_file-with-integrity-2.0 {
+    test create_file-with-integrity-1.0 {
         Create a file with a specific integrity value
     } -constraints {
         win6
