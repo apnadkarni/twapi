@@ -101,7 +101,13 @@ proc twapi::get_system_ipaddrs {args} {
     }
 
     set addrs {}
-    foreach entry [GetAdaptersAddresses [_ipversion_to_af $opts(ipversion)] $flags] {
+    trap {
+        set entries [GetAdaptersAddresses [_ipversion_to_af $opts(ipversion)] $flags]
+    } onerror {TWAPI_WIN32 232} {
+        # Not installed, so no addresses
+        return {}
+    }
+    foreach entry $entries {
         foreach fld {-unicastaddresses -anycastaddresses -multicastaddresses} {
             foreach addrset [kl_get $entry $fld] {
                 lappend addrs [kl_get $addrset -address]
@@ -121,7 +127,12 @@ proc twapi::get_netif_indices {} {
 }
 
 proc twapi::get_netif6_indices {} {
-    return [twapi::kl_flatten [twapi::GetAdaptersAddresses 23 8] -ipv6ifindex]
+    trap {
+        return [twapi::kl_flatten [twapi::GetAdaptersAddresses 23 8] -ipv6ifindex]
+    } onerror {TWAPI_WIN32 232} {
+        # No IP v6 installed
+        return {}
+    }
 }
 
 # Get network related information
@@ -319,15 +330,21 @@ proc twapi::get_netif6_info {interface args} {
         incr flags 0x10;        # Want prefixes also
     }
     
+    set entries {}
+    trap {
+        set entries [GetAdaptersAddresses 23 $flags]
+    } onerror {TWAPI_WIN32 232} {
+        error "IPv6 not installed."
+    }
     if {$haveindex} {
-        foreach entry [GetAdaptersAddresses 23 $flags] {
+        foreach entry $entries {
             if {[kl_get $entry -ipv6ifindex] == $interface} {
                 set found $entry
                 break
             }
         }
     } else {
-        foreach entry [GetAdaptersAddresses 23 $flags] {
+        foreach entry $entries {
             if {[string equal -nocase [kl_get $entry -adaptername] $interface] ||
                 [string equal -nocase [kl_get $entry -friendlyname] $interface]} {
                 if {[info exists found]} {

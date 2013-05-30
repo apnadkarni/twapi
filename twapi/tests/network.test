@@ -361,6 +361,8 @@ namespace eval twapi::network::test {
 
     test get_system_ipaddrs-3.0 {
         Get IP addresses for IP V6 only
+    } -constraints {
+        ipv6
     } -body {
         set addrs [twapi::get_system_ipaddrs -ipversion 6]
         list [valid_ip_addresses $addrs] [expr {[lsearch $addrs ::1] >= 0}] [lsearch $addrs 127.0.0.1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
@@ -368,6 +370,8 @@ namespace eval twapi::network::test {
 
     test get_system_ipaddrs-3.1 {
         Get IP addresses for IP V6 only (inet6)
+    } -constraints {
+        ipv6
     } -body {
         set addrs [twapi::get_system_ipaddrs -ipversion inet6]
         list [valid_ip_addresses $addrs] [expr {[lsearch $addrs ::1] >= 0}] [lsearch $addrs 127.0.0.1] [lsearch $addrs 224.0.0.1] [lsearch $addrs ff01::1*]
@@ -630,6 +634,8 @@ namespace eval twapi::network::test {
 
     test get_netif6_info-1.0 {
         Get IPv6 interface info
+    } -constraints {
+        ipv6
     } -body {
         set msgs ""
         foreach ind [twapi::get_netif6_indices] {
@@ -659,6 +665,8 @@ namespace eval twapi::network::test {
 
     test get_netif6_info-2.0 {
         Get IPv6 interface info using adapter name
+    } -constraints {
+        ipv6
     } -body {
         set ind [lindex [twapi::get_netif6_indices] 0]
         set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -adaptername] -adaptername]
@@ -667,6 +675,8 @@ namespace eval twapi::network::test {
 
     test get_netif6_info-3.0 {
         Get IPv6 interface info using friendly name
+    } -constraints {
+        ipv6
     } -body {
         set ind [lindex [twapi::get_netif6_indices] 0]
         set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -friendlyname] -friendlyname]
@@ -809,13 +819,17 @@ namespace eval twapi::network::test {
 
     test resolve_hostname-4.0 {
         Map host name to IPv6 address
+    } -constraints {
+        ipv6
     } -body {
         set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion 6]
         list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 6]
     } -result {1 1}
     
     test resolve_hostname-4.1 {
-        Map host name to IPv4 address (inet6)
+        Map host name to IPv6 address (inet6)
+    } -constraints {
+        ipv6
     } -body {
         set ipaddrs [twapi::resolve_hostname [resolvable_hostname] -ipversion inet6]
         list [expr {[llength $ipaddrs] > 0}] [validate_ip_addresses $ipaddrs 6]
@@ -823,6 +837,8 @@ namespace eval twapi::network::test {
     
     test resolve_hostname-4.2 {
         Map host name to IPv6 address asynchronous
+    } -constraints {
+        ipv6
     } -body {
         set ::resolve_hostname_result [list ]
         twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion 6
@@ -833,6 +849,8 @@ namespace eval twapi::network::test {
 
     test resolve_hostname-4.3 {
         Map host name to IPv6 address asynchronous (inet6)
+    } -constraints {
+        ipv6
     } -body {
         set ::resolve_hostname_result [list ]
         twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result} -ipversion inet6
