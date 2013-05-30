@@ -199,12 +199,18 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         /* Arbitrary args */
         switch (func) {
         case 1002:
-        case 1003:
             if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
                              GETWSTR(s), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = (func == 1002 ? BackupEventLogW : ClearEventLogW)(h, s);
+            result.value.ival = BackupEventLogW(h, s);
+            break;
+        case 1003:
+            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
+                             GETNULLIFEMPTY(s), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = ClearEventLogW(h, s);
             break;
         case 1004:
             if (TwapiGetArgs(interp, objc, objv,
