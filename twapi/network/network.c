@@ -1167,9 +1167,9 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
      * Keep looping as long as we are told we need a bigger buffer. For
      * robustness, we set a limit on number of tries. Note required size
      * can keep changing (unlikely, but possible ) so we try multiple times.
-     * TBD - check for appropriate initial size
+     * Latest MSDN recommends starting with 15K buffer.
      */
-    bufsz = 1000;
+    bufsz = 16000;
     iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
                                                      bufsz, &bufsz);
     for (tries=0; tries < 10 ; ++tries) {
@@ -2000,11 +2000,16 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 (interp, pv, dw, dw2);
         case 10002: // GetExtendedTcpTable
         case 10003: // GetExtendedUdpTable
+            /* Note we cannot use GETVERIFIEDVOIDP because it can be NULL */
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVERIFIEDVOIDP(pv, NULL), GETINT(dw), GETBOOL(dw2),
+                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
                              GETINT(dw3), GETINT(dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
+
+            if (pv && TwapiVerifyPointer(interp, pv, NULL) != TWAPI_NO_ERROR)
+                return TwapiReturnError(interp, TWAPI_POINTER_UNREGISTERED);
+
             return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
                 (interp, pv, dw, dw2, dw3, dw4);
         }
