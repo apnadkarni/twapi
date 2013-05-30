@@ -26,15 +26,6 @@ proc twapi::enumerate_printers {args} {
 }
 
 
-proc twapi::printer_properties_dialog {name args} {
-    array set opts [parseargs args {
-        {hwin.int 0}
-        {page.arg ""}
-    } -maxleftover 0]
-    
-    shell_object_properties_dialog $name -type printer -hwin $opts(hwin) -page $opts(page)
-}
-
 # Utilities
 # 
 proc twapi::_symbolize_printer_attributes {attr} {

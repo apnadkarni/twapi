@@ -29,11 +29,6 @@ used to set and remove volumes from volume mount points. The command
 [uri \#get_mounted_volume_name [cmd get_mounted_volume_name]] will return
 the name of the volume mounted on a drive letter or volume mount point.
 
-[para]
-The command [uri \#volume_properties_dialog [cmd volume_properties_dialog]]
-displays the shell property sheet dialog for a volume.
-
-
 [section "Logical drives"]
 
 For all drive related commands,
@@ -69,10 +64,6 @@ may be used to assign and unassign a drive letter to a local path.
 The commands [uri \#begin_filesystem_monitor [cmd begin_filesystem_monitor]]
 and [uri \#cancel_filesystem_monitor [cmd cancel_filesystem_monitor]]
 can be used for monitoring changes to the file system.
-
-[para]
-The command [uri \#file_properties_dialog [cmd file_properties_dialog]]
-displays the shell property sheet dialog for a file.
 
 [para]
 The commands [uri \#get_file_times [cmd get_file_times]] and
@@ -224,15 +215,6 @@ not specified, all drives in the system are returned. Otherwise, only drives
 whose type is in [arg DRIVETYPELIST] are returned.
 [arg DRIVETYPELIST] must be a subset of the
 values returned by the [uri \#get_drive_type [cmd get_drive_type]] command.
-
-[call [cmd file_properties_dialog] [arg FILEPATH] [opt [arg options]]]
-Displays the shell property dialog for the specified file.
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -hwin] [arg HWIN]]
-If specified, [arg HWIN] is the handle to the window to be used as
-the parent for the dialog.
-[list_end]
 
 [call [cmd find_volumes]]
 Returns the list of volumes in the system. Each entry in the list includes
@@ -438,14 +420,6 @@ Returns 1 if the given drive has at least [arg space] bytes free, and
 available to the caller as opposed to total free bytes on the drive. The
 former may be smaller if disk quotas are being enforced on the drive.
 
-[call [cmd volume_properties_dialog] [arg VOLUME] [opt [arg options]]]
-Displays the shell property dialog for the specified volume.
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -hwin] [arg HWIN]]
-If specified, [arg HWIN] is the handle to the window to be used as
-the parent for the dialog.
-[list_end]
 
 [list_end]
 
