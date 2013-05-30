@@ -302,7 +302,7 @@ int Twapi_GetTwapiBuildInfo(
     Tcl_Obj *CONST objv[]
 )
 {
-    Tcl_Obj *objs[14];
+    Tcl_Obj *objs[16];
 
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -359,7 +359,14 @@ int Twapi_GetTwapiBuildInfo(
     objs[12] = STRING_LITERAL_OBJ("tcl_header_version");
     objs[13] = ObjFromString(TCL_PATCH_LEVEL);
 
-    return TwapiSetObjResult(interp, ObjNewList(14, objs));
+    objs[14] = STRING_LITERAL_OBJ("source_id");
+#ifdef HGID
+    objs[15] = STRING_LITERAL_OBJ(HGID);
+#else
+    objs[15] = Tcl_NewObj();
+#endif
+
+    return TwapiSetObjResult(interp, ObjNewList(16, objs));
 }
 
 
