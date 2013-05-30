@@ -1094,15 +1094,14 @@ namespace eval twapi::ui::test {
         set np_pid2 [notepad_exec]
         set np_win2 [notepad_top $np_pid2]
     } -body {
-        expr {
-              [twapi::get_foreground_window] == $np_win2 &&
-              [twapi::set_foreground_window $np_win] &&
-              [twapi::get_foreground_window] == $np_win
-          }
+        list [expr { [twapi::get_foreground_window] == $np_win2 }] \
+            [twapi::set_foreground_window $np_win] \
+            [after 100] \
+            [expr { [twapi::get_foreground_window] == $np_win}]
     } -cleanup {
         kill $np_pid -wait $end_process_timeout
         kill $np_pid2 -wait $end_process_timeout
-    } -result 1
+    } -result {1 1 {} 1}
 
     ################################################################
 
