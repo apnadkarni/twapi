@@ -685,7 +685,7 @@ proc twapi::_evt_normalize_path {path} {
     if {$path eq ""} {
         return ""
     } else {
-        return [file nativename [_evt_normalize_path $path]]
+        return [file nativename [file normalize $path]]
     }
 }
 
