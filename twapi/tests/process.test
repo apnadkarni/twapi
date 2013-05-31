@@ -157,18 +157,17 @@ namespace eval ::twapi::process::test {
         # TBD - verify -groups, -groupattrs, -restrictedgroups
         # and -restrictedgroupattrs
 
-        # Following fields are verified only if $verify_all is 1
-        # since they are volatile and liable to change, particularly
-        # if the process being checked is self
-        if {$verify_all} {
+        # In some cases, like when we are checking ourselves, we do not
+        # want to verify all fields since they rapidly change
+        if ${verify_all} {
             foreach field {-handlecount
                 -pagefilebytes -pagefilebytespeak
                 -poolnonpagedbytes -poolpagedbytes
                 -privatebytes -threadcount
                 -virtualbytes -virtualbytespeak
                 -workingset -workingsetpeak} {
-                if {[get_process_field $pid $field] != $procinfo($field)} {
-                    lappend mismatches "Mismatch in field $field"
+                if {![approx [get_process_field $pid $field] $procinfo($field)]} {
+                    lappend mismatches "Mismatch in field $field: [get_process_field $pid $field] != $procinfo($field)"
                 }
             }
         }

@@ -474,25 +474,27 @@ proc get_processes {{refresh 0}} {
             error $msg
         }
 
+        # Note some values are returned in kilobytes by wmi so we scale
+        # them accordingly
         set pid $processinfo(ProcessId)
         set psinfo($pid) \
             [list \
                  -basepriority $processinfo(Priority) \
                  -handlecount  $processinfo(HandleCount) \
                  -name         $processinfo(Name) \
-                 -pagefilebytes $processinfo(PageFileUsage) \
-                 -pagefilebytespeak $processinfo(PeakPageFileUsage) \
+                 -pagefilebytes [expr {1024*$processinfo(PageFileUsage)}] \
+                 -pagefilebytespeak [expr {1024*$processinfo(PeakPageFileUsage)}] \
                  -parent       $processinfo(ParentProcessId) \
                  -path         $processinfo(ExecutablePath) \
                  -pid          $pid \
-                 -poolnonpagedbytes $processinfo(QuotaNonPagedPoolUsage) \
-                 -poolpagedbytes $processinfo(QuotaPagedPoolUsage) \
+                 -poolnonpagedbytes [expr {1024*$processinfo(QuotaNonPagedPoolUsage)}] \
+                 -poolpagedbytes [expr {1024*$processinfo(QuotaPagedPoolUsage)}] \
                  -privatebytes $processinfo(PrivatePageCount) \
                  -threadcount  $processinfo(ThreadCount) \
                  -virtualbytes     $processinfo(VirtualSize) \
                  -virtualbytespeak $processinfo(PeakVirtualSize) \
                  -workingset       $processinfo(WorkingSetSize) \
-                 -workingsetpeak   $processinfo(PeakWorkingSetSize) \
+                 -workingsetpeak   [expr {1024*$processinfo(PeakWorkingSetSize)}] \
                  -user             $processinfo(User) \
                 ]
     }
@@ -720,6 +722,28 @@ proc valid_guid {guid} {
 }
 
 
+# Exec a wmic command
+proc wmic_exec {wmi_cmdline} {
+    # Unfortunately, different variations have been tried to get this working
+    # The current version is first. Remaining versions below are commented
+    # out with their problems.
+
+    set fd [open "|$wmi_cmdline"]
+    fconfigure $fd -translation binary
+    set lines [read $fd]
+    close $fd
+    return $lines
+
+    # On some systems when invoking wmic
+    # the "cmd echo..." is required because otherwise wmic hangs for some 
+    # reason when spawned from a non-interactive tclsh
+    # On the other hand, if this is done, tests cannot be excuted from 
+    # a read-only dir. So we have both versions here, with one or the other
+    # commented out
+    # set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:list]
+    #set lines [exec wmic path $obj get [join $fields ,] /format:list]
+}
+
 # Note - use single quotes, not double quotes to pass values to wmic from exec
 proc wmic_delete {obj clause} {
     # The cmd echo is required because otherwise wmic hangs for some obscure
@@ -730,61 +754,101 @@ proc wmic_delete {obj clause} {
 # Note - use single quotes, not double quotes to pass values to wmic from exec
 proc wmic_get {obj {fields *} {clause ""}} {
 
-    # On some systems when invoking wmic
-    # the "cmd echo..." is required because otherwise wmic hangs for some 
-    # reason when spawned from a non-interactive tclsh
-    # On the other hand, if this is done, tests cannot be excuted from 
-    # a read-only dir. So we have both versions here, with one or the other
-    # commented out
-    if {$clause eq ""} {
-        set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:csv]
-        #set lines [exec wmic path $obj get [join $fields ,] /format:csv]
+    if {0} {
+        # Commented out because wmic does not properly escape comma separators
+        # if they appear in values
+        if {$clause eq ""} {
+            set lines [wmic_exec "wmic path $obj get [join $fields ,] /format:csv"]
+        } else {
+            set lines [wmic_exec "wmic path $obj where $clause get [join $fields ,] /format:csv"]
+        }
+        set data {}
+        foreach line [split $lines \n] {
+            set line [string trim $line]
+            if {$line eq ""} continue
+            # Assumes no "," in content
+            lappend data [split $line ,]
+        }
+
+        # First element is field names, not in same order as $fields. Also,
+        # Case might be different. Make them consistent with what caller
+        # expects.
+        # Code below assumes no duplicate names
+        set fieldnames {}
+        foreach fname [lindex $data 0] {
+            set fieldname $fname
+            foreach fname2 $fields {
+                if {[string equal -nocase $fname $fname2]} {
+                    set fieldname $fname2
+                    break
+                }
+            }
+            lappend fieldnames $fieldname
+        }
+
+        set result {}
+        foreach values [lrange $data 1 end] {
+            # wmic seems to html-encode when outputting in csv format
+            # We do minimal necessary for our test scripts
+            set decoded_values {}
+            foreach value $values {
+                lappend decoded_values [string map {&amp; &} $value]
+            }
+            set dict {}
+            foreach fieldname $fieldnames decoded_value $decoded_values {
+                lappend dict $fieldname $decoded_value
+            }
+            lappend result $dict
+        }
+
+        return $result
+
     } else {
-        set lines [exec cmd /c echo . | wmic path $obj where $clause get [join $fields ,] /format:csv]
-        #set lines [exec wmic path $obj where $clause get [join $fields ,] /format:csv]
-    }
 
+        if {$clause eq ""} {
+            set lines [wmic_exec "wmic path $obj get [join $fields ,] /format:list"]
+        } else {
+            set lines [wmic_exec "wmic path $obj where $clause get [join $fields ,] /format:list"]
+        }
 
-    set data {}
-    foreach line [split $lines \n] {
-        set line [string trim $line]
-        if {$line eq ""} continue
-        # Assumes no "," in content
-        lappend data [split $line ,]
-    }
+        # Data is returned with blank lines separating records. Each
+        # record is a sequence of lines of the form FIELDNAME=...
+        # Code below assumes no duplicate names
+        set records {}
+        set rec {}
+        foreach line [split $lines \n] {
+            set line [string trim $line]
+            if {[string length $line] == 0} {
+                # End of a record or just a blank line
+                if {[llength $rec]} {
+                    # End of a record since we have collected some fields.
+                    lappend records $rec
+                    set rec {}
+                }
+                continue
+            }
+            set pos [string first = $line]
+            if {$pos < 1} {
+                error "Invalid field value format in wmic output line '$line'"
+            }
+            set wmicfield [string range $line 0 $pos-1]
+            # wmic seems to html-encode values. Do minimal mapping
+            set wmicvalue [string map {&amp; &} [string range $line $pos+1 end]]
 
-    # First element is field names, not in same order as $fields. Also,
-    # Case might be different. Make them consistent with what caller
-    # expects.
-    # Code below assumes no duplicate names
-    set fieldnames {}
-    foreach fname [lindex $data 0] {
-        set fieldname $fname
-        foreach fname2 $fields {
-            if {[string equal -nocase $fname $fname2]} {
-                set fieldname $fname2
-                break
+            # The field name may differ in upper/lower case with what was 
+            # passed in. If it matches, then use the name that was passed
+            # in. Else use as is (e.g. if passed in was *)
+            set pos [lsearch -ascii -nocase $fields $wmicfield]
+            if {$pos >= 0} {
+                lappend rec [lindex $fields $pos] $wmicvalue
+            } else {
+                lappend rec $wmicfield $wmicvalue
             }
         }
-        lappend fieldnames $fieldname
+        
+        return $records
     }
 
-    set result {}
-    foreach values [lrange $data 1 end] {
-        # wmic seems to html-encode when outputting in csv format
-        # We do minimal necessary for our test scripts
-        set decoded_values {}
-        foreach value $values {
-            lappend decoded_values [string map {&amp; &} $value]
-        }
-        set dict {}
-        foreach fieldname $fieldnames decoded_value $decoded_values {
-            lappend dict $fieldname $decoded_value
-        }
-        lappend result $dict
-    }
-
-    return $result
 }
 
 # Gets all fields of specified class with all field names in lower case.
