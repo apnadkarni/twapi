@@ -283,7 +283,7 @@ proc twapi::get_perf_process_counter_paths {pids args} {
             ioreadopsrate         {"IO Read Operations/sec"  large 1}
             iowritebytesrate      {"IO Write Bytes/sec"      large 1}
             iowriteopsrate        {"IO Write Operations/sec" large 1}
-            pagefaultrate         {"Page Faults/sec"         large 0}
+            pagefaultrate         {"Page Faults/sec"         large 1}
             pagefilebytes         {"Page File Bytes"         large 0}
             pagefilebytespeak     {"Page File Bytes Peak"    large 0}
             poolnonpagedbytes     {"Pool Nonpaged Bytes"     large 0}
