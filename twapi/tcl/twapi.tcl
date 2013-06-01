@@ -18,17 +18,6 @@ namespace eval twapi {
 
     variable scriptdir [file dirname [info script]]
 
-    # Accessing global environ in ::env is expensive so cache
-    # it. Not updated even if real environ changes
-    proc getenv {varname} {
-        variable envcache
-        set varname [string toupper $varname]
-        if {[info exists envcache($varname)]} {
-            return $envcache($varname)
-        }
-        return [set envcache($varname) $::env($varname)]
-    }
-
 }
 
 # Make twapi versions the same as the base module versions
@@ -705,15 +694,20 @@ proc twapi::_get_public_commands {} {
 
 proc twapi::export_public_commands {} {
     variable exports;           # Populated via pkgIndex.tcl
-    if {![info exists exports]} {
-        error "Export table does not exist."
-    }
-    # Only export commands under twapi (e.g. not metoo)
-    dict for {ns cmds} $exports {
-        if {[regexp {^::twapi($|::)} $ns]} {
-            uplevel #0 [list namespace eval $ns [list namespace export {*}$cmds]
+    if {[info exists exports]} {
+        # Only export commands under twapi (e.g. not metoo)
+        dict for {ns cmds} $exports {
+            if {[regexp {^::twapi($|::)} $ns]} {
+                uplevel #0 [list namespace eval $ns [list namespace export {*}$cmds]
 ] 
+            }
         }
+    } else {
+        set cmds {}
+        foreach cmd [lsearch -regexp -inline -all [info commands [namespace current]::*] {::twapi::[a-z].*}] {
+            lappend cmds [namespace tail $cmd]
+        }
+        namespace eval [namespace current] "namespace export {*}$cmds"
     }
 }
 
