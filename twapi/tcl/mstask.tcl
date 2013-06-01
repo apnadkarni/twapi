@@ -1,10 +1,12 @@
 #
-# Copyright (c) 2006 Ashok P. Nadkarni
+# Copyright (c) 2006-2013 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 # Task scheduler API
+
+package require twapi_com
 
 namespace eval twapi {
     variable CLSID_ITaskScheduler {{148BD52A-A2AB-11CE-B11F-00AA00530503}}
