@@ -819,7 +819,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
                      ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (ObjGetElements(interp, objv[3], &naccts, &accts) != TCL_OK)
+    if (ObjGetElements(interp, objv[5], &naccts, &accts) != TCL_OK)
         return TCL_ERROR;
 
     if (naccts == 0)
