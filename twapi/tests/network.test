@@ -55,7 +55,7 @@ namespace eval twapi::network::test {
         return yahoo.com
     }
     proc resolvable_address6 {} {
-        return 2001:4f8:3:7:230:48ff:fec6:9aaa
+        return 2001:4f8:3:7:14::25
     }
     proc resolvable_address6_domain {} {
         return netbsd.org
@@ -1185,7 +1185,7 @@ namespace eval twapi::network::test {
     foreach {matchopt opt val} [list \
                                     -matchlocaladdr -localaddr 127.0.0.1 \
                                     -matchlocalport -localport 1900 \
-                                    -matchpid -pid  [lindex [lindex [twapi::get_udp_connections -pid -matchlocalport 123] 0] 1]] {
+                                    -matchpid -pid  [lindex [lindex [twapi::get_udp_connections -pid -matchlocalport 1900] 0] 1]] {
         test get_udp_connections-[incr testnum].0 {
             get_udp_connections -all $matchopt $val
         } -body "validate_connections \[twapi::get_udp_connections -all $matchopt $val\] 1 [list $get_udp_connections_fields] {$opt $val}" \
