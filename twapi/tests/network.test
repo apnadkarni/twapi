@@ -1163,14 +1163,18 @@ namespace eval twapi::network::test {
         Get UDP connections -modulepath
     } -body {
         array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
-        file dirname [set aconns(-modulepath)]
-    } -result [file join $::env(WINDIR) system32] -match path
+        # Sometimes path does not contain directory
+        set dir [file dirname [set aconns(-modulepath)]]
+        expr {$dir eq "." || [equal_paths $dir [file join $::env(WINDIR) system32]]}
+    } -result 1
 
     test get_udp_connections-2.1 {
         Get UDP connections -modulename
     } -body {
         array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
-        file exists [file join $::env(WINDIR) system32 $aconns(-modulename)]
+        expr {[file exists [file join $::env(WINDIR) system32 $aconns(-modulename)]] ||
+              [file exists [file join $::env(WINDIR) system32 $aconns(-modulename).exe]] ||
+              [file exists [file join $::env(WINDIR) system32 $aconns(-modulename).dll]]}
     } -result 1
 
     set testnum 1
@@ -1200,29 +1204,23 @@ namespace eval twapi::network::test {
     test terminate_tcp_connections-1.0 {
         Terminate TCP connections for a specific process (-matchpid)
     } -setup {
-        set nconns [llength [twapi::get_tcp_connections -pid]]
         set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
         set client_socket [socket 127.0.0.1 9341]
         set client_socket2 [socket 127.0.0.1 9341]
     } -body {
         # Assumes no other extraneous connections are created on the system
         twapi::terminate_tcp_connections -matchpid [pid]
-        set conns [twapi::get_tcp_connections -pid]
-        # Both active connections should be gone (server listen socket
-        # will still be present). This also verifies somewhat that
-        # we did not kill connections from other processes.
-        list [expr {[llength $conns]-$nconns}] \
-            [twapi::get_tcp_connections -pid -matchpid [pid]]
+        list [llength [twapi::get_tcp_connections -matchpid [pid] -matchstate estab]] \
+            [llength [twapi::get_tcp_connections -ipversion 4 -matchlocalport 9341 -matchstate listen]]
     } -cleanup {
         close $client_socket
         close $client_socket2
         close $server_socket
-    } -result [list 1 [list [list -pid [pid]]]]
+    } -result {0 1}
 
     test terminate_tcp_connections-2.0 {
         Terminate TCP connections for a remote port (-matchremoteport)
     } -setup {
-        set nconns [llength [twapi::get_tcp_connections -pid]]
         set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
         set server_socket2 [socket -server [list lappend ::connection_establised 1] 9342]
         set client_socket [socket 127.0.0.1 9341]
@@ -1230,18 +1228,16 @@ namespace eval twapi::network::test {
     } -body {
         # Assumes no other extraneous connections are created on the system
         twapi::terminate_tcp_connections -matchremoteport 9342
-        set conns [twapi::get_tcp_connections -pid]
-        # One active connections should be gone (both server listen socket
-        # will still be present). This also verifies somewhat that
-        # we did not kill connections from other processes.
-        list [expr {[llength $conns]-$nconns}] \
-            [twapi::get_tcp_connections -pid -matchpid [pid]]
+        list [llength [twapi::get_tcp_connections -matchremoteport 9342 -matchstate estab]] \
+            [llength [twapi::get_tcp_connections -matchremoteport 9341 -matchstate estab]] \
+            [llength [twapi::get_tcp_connections -ipversion 4 -matchlocalport 9341 -matchstate listen]] \
+            [llength [twapi::get_tcp_connections -ipversion 4 -matchlocalport 9342 -matchstate listen]]
     } -cleanup {
         close $server_socket
         close $server_socket2
         close $client_socket
         close $client_socket2
-    } -result [list 4 [list [list -pid [pid]] [list -pid [pid]] [list -pid [pid]] [list -pid [pid]]] ]
+    } -result {0 1 1 1}
 
     test terminate_tcp_connections-3.0 {
         Terminate TCP connections for a remote address (-matchremoteaddress)
@@ -1367,13 +1363,17 @@ namespace eval twapi::network::test {
         # Try to make sure ARP table populated
         catch { close [socket $dest 1234] }
     } -body {
-        set countA [llength [twapi::get_arp_table]]
         twapi::flush_arp_tables
-        set countB [llength [twapi::get_arp_table]]
-        expr {
-              $countA > 0 && $countB == 0
-          }
-    } -result 1
+        set fail 0
+        foreach entry [twapi::get_arp_table] {
+            lassign $entry ifind hw ip status
+            if {$status ne "static" && $status ne "invalid"} {
+                set fail 1
+                break
+            }
+        }
+        set fail
+    } -result 0
 
     ################################################################
 
