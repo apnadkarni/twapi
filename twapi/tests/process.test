@@ -1684,10 +1684,16 @@ namespace eval ::twapi::process::test {
         if {[llength $result] != 2} {
             error "Create process returned [llength $result] elements"
         }
-        # Give time to start. wait_for_input_idle is ineffective with console
-        after 50;
         set pid [lindex $result 0]
-        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        # Give time to start. wait_for_input_idle is ineffective with console
+        for {set i 0} {$i < 20} {incr i} {
+            set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+            if {$hwin ne ""} break
+            after 50
+        }
+        if {$hwin eq ""} {
+            error "Could not find window for spawned cmd"
+        }
         foreach {x y} [twapi::get_window_client_area_size $hwin] break
         twapi::end_process $pid
         # Size may not be exact because the window may be slightly off
@@ -1709,10 +1715,16 @@ namespace eval ::twapi::process::test {
         if {[llength $result] != 2} {
             error "Create process returned [llength $result] elements"
         }
-        # Give time to start. wait_for_input_idle is ineffective with console
-        after 50;
         set pid [lindex $result 0]
-        set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+        # Give time to start. wait_for_input_idle is ineffective with console
+        for {set i 0} {$i < 20} {incr i} {
+            set hwin [lindex [twapi::find_windows -toplevel true -pids $pid] 0]
+            if {$hwin ne ""} break
+            after 50
+        }
+        if {$hwin eq ""} {
+            error "Could not find window for spawned cmd"
+        }
         foreach {x y} [twapi::get_window_client_area_size $hwin] break
         twapi::end_process $pid
         # Size may not be exact because the window may be slightly off
