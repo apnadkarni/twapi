@@ -33,6 +33,16 @@ int Twapi_NetUserAdd(Tcl_Interp *interp, LPCWSTR servername, LPWSTR name,
                      LPWSTR password, DWORD priv, LPWSTR home_dir,
                      LPWSTR comment, DWORD flags, LPWSTR script_path);
 
+
+/*
+ * Control how large buffers passed to NetEnum* functions be. This
+ * is managed at script level through twapi::Twapi_SetNetEnumBufSize
+ * and is used primarily for testing purposes to test cases where 
+ * we want to check correct operation when all data does not get returned
+ * in a single buffer.
+ */
+static int g_netenum_buf_size = MAX_PREFERRED_LENGTH;
+
 /*
  * Convert local info structure to a list. Returns TCL_OK/TCL_ERROR
  * interp may be NULL
@@ -644,7 +654,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
             (func == 3 ? NetGroupEnum : NetLocalGroupEnum) (
                 s1, netenum.level,
                 &netenum.netbufP,
-                MAX_PREFERRED_LENGTH,
+                g_netenum_buf_size,
                 &netenum.entriesread,
                 &netenum.totalentries,
                 &netenum.hresume);
@@ -683,7 +693,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         objfn = ObjFromUSER_INFO;
         netenum.status = NetUserEnum(s1, netenum.level, dw,
                                        &netenum.netbufP,
-                                       MAX_PREFERRED_LENGTH,
+                                       g_netenum_buf_size,
                                        &netenum.entriesread,
                                        &netenum.totalentries,
                                        &dwresume);
@@ -704,7 +714,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         netenum.hresume = 0; /* Not used for these calls */
         netenum.status = NetUserGetGroups(
             s1, s2, netenum.level, &netenum.netbufP,
-            MAX_PREFERRED_LENGTH, &netenum.entriesread, &netenum.totalentries);
+            g_netenum_buf_size, &netenum.entriesread, &netenum.totalentries);
         break;
 
     case 7:
@@ -719,7 +729,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         objfn = ObjFromLOCALGROUP_USERS_INFO;
         netenum.hresume = 0; /* Not used for these calls */
         netenum.status = NetUserGetLocalGroups (
-            s1, s2, netenum.level, dw, &netenum.netbufP, MAX_PREFERRED_LENGTH,
+            s1, s2, netenum.level, dw, &netenum.netbufP, g_netenum_buf_size,
             &netenum.entriesread, &netenum.totalentries);
         break;
     case 8:
@@ -730,7 +740,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         netenum.status = (func == 8 ? NetLocalGroupGetMembers : NetGroupGetUsers) (
-            s1, s2, netenum.level, &netenum.netbufP, MAX_PREFERRED_LENGTH,
+            s1, s2, netenum.level, &netenum.netbufP, g_netenum_buf_size,
             &netenum.entriesread, &netenum.totalentries, &netenum.hresume);
         if (func == 8) {
             objfn = ObjFromLOCALGROUP_MEMBERS_INFO;
@@ -959,6 +969,24 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
 }
 
+/* Used for testing purposes */
+static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
+    Tcl_Interp *clientdata,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    if (objc > 1) {
+        if (ObjToLong(interp, objv[1], &g_netenum_buf_size) != TCL_OK)
+            return TCL_ERROR;
+        if (g_netenum_buf_size < 0)
+            g_netenum_buf_size = MAX_PREFERRED_LENGTH;
+    }
+
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(g_netenum_buf_size));
+    return TCL_OK;
+}
+
 static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s AcctCallDispatch[] = {
@@ -995,6 +1023,9 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     /* TBD - write Tcl commands to add / delete SIDs */
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NetLocalGroupMembers", Twapi_NetLocalGroupMembersObjCmd, ticP, NULL);
 
+    /* Set buffer size for testing purposes. Should really be grouped with
+       other commands but they all take server and user parameters */
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_SetNetEnumBufSize", Twapi_SetNetEnumBufSizeObjCmd, NULL, NULL);
 
     return TCL_OK;
 }
