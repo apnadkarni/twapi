@@ -728,20 +728,23 @@ proc wmic_exec {wmi_cmdline} {
     # The current version is first. Remaining versions below are commented
     # out with their problems.
 
-    set fd [open "|$wmi_cmdline"]
-    fconfigure $fd -translation binary
-    set lines [read $fd]
-    close $fd
-    return $lines
-
-    # On some systems when invoking wmic
-    # the "cmd echo..." is required because otherwise wmic hangs for some 
-    # reason when spawned from a non-interactive tclsh
-    # On the other hand, if this is done, tests cannot be excuted from 
-    # a read-only dir. So we have both versions here, with one or the other
-    # commented out
-    # set lines [exec cmd /c echo . | wmic path $obj get [join $fields ,] /format:list]
-    #set lines [exec wmic path $obj get [join $fields ,] /format:list]
+    if {1} {
+        set fd [open "| cmd /c echo . | $wmi_cmdline"]
+        fconfigure $fd -translation binary
+        set lines [read $fd]
+        close $fd
+        return $lines
+    } else {
+        # On some systems when invoking wmic
+        # the "cmd echo..." is required because otherwise wmic hangs for some 
+        # reason when spawned from a non-interactive tclsh
+        # On the other hand, if this is done, tests cannot be excuted from 
+        # a read-only dir. So we have both versions here, with one or the other
+        # commented out
+        
+        set lines [exec cmd /c echo . | {*}$wmi_cmdline]
+         #set lines [exec wmic path $obj get [join $fields ,] /format:list]
+     }
 }
 
 # Note - use single quotes, not double quotes to pass values to wmic from exec
