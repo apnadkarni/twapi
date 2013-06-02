@@ -1,4 +1,4 @@
-# Tcl Windows API (TWAPI) 4.0.21 BETA
+# Tcl Windows API (TWAPI) 4.0.22 BETA
 
 This is the first beta release of TWAPI 4.0.
 
