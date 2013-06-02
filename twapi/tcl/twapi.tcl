@@ -643,9 +643,8 @@ proc twapi::_net_enum_helper {function args} {
                 return [list $moredata $resumehandle $totalentries [kl_flatten $groups name]]
             }
         }
-        # Append to existing result
-        # TBD - can the K operator makes this concatnation faster ?
-        set result [concat $result $groups]
+
+        lappend result {*}$groups
     }
 
     # Return what we have. Format depend on caller options.
