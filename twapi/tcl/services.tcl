@@ -973,7 +973,7 @@ proc twapi::_map_errorcontrol_code {code} {
 
 # Map error control sym to int code
 proc twapi::_map_errorcontrol_sym {sym} {
-    return [dict get {ignore 0 normal 1 severe 2 critical 4} $sym]
+    return [dict get {ignore 0 normal 1 severe 2 critical 3} $sym]
 }
 
 # Standard template for calling a service function. v_opts should refer
