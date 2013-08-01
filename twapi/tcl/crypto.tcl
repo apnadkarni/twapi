@@ -34,15 +34,67 @@ namespace eval twapi {
         usesessionkey        0x20
         usesuppliedcreds     0x80
     }
+
+    # Symbols used for mapping security package capabilities
+    array set _secpkg_capability_syms {
+        integrity                   0x00000001
+        privacy                     0x00000002
+        tokenonly                  0x00000004
+        datagram                    0x00000008
+        connection                  0x00000010
+        multirequired              0x00000020
+        clientonly                 0x00000040
+        extendederror              0x00000080
+        impersonation               0x00000100
+        acceptwin32name           0x00000200
+        stream                      0x00000400
+        negotiable                  0x00000800
+        gsscompatible              0x00001000
+        logon                       0x00002000
+        asciibuffers               0x00004000
+        fragment                    0x00008000
+        mutualauth                 0x00010000
+        delegation                  0x00020000
+        readonlywithchecksum      0x00040000
+        restrictedtokens           0x00080000
+        negoextender               0x00100000
+        negotiable2                 0x00200000
+        appcontainerpassthrough  0x00400000
+        appcontainerchecks  0x00800000
+    }
+
 }
 
 # Return list of security packages
-proc twapi::sspi_enumerate_packages {} {
-    set packages [list ]
-    foreach pkg [EnumerateSecurityPackages] {
-        lappend packages [kl_get $pkg Name]
+proc twapi::sspi_enumerate_packages {args} {
+    set pkgs [EnumerateSecurityPackages]
+    if {[llength $args] == 0} {
+        set names [list ]
+        foreach pkg $pkgs {
+            lappend names [kl_get $pkg Name]
+        }
+        return $names
     }
-    return $packages
+
+    array set opts [parseargs args {
+        all capabilities version rpcid maxtokensize name comment
+    } -maxleftover 0 -hyphenated]
+
+    variable _secpkg_capability_syms
+    set retdata {}
+    foreach pkg $pkgs {
+        set rec {}
+        if {$opts(-all) || $opts(-capabilities)} {
+            lappend rec -capabilities [_make_symbolic_bitmask [kl_get $pkg fCapabilities] _secpkg_capability_syms]
+        }
+        foreach {opt field} {-version wVersion -rpcid wRPCID -maxtokensize cbMaxToken -name Name -comment Comment} {
+            if {$opts(-all) || $opts($opt)} {
+                lappend rec $opt [kl_get $pkg $field]
+            }
+        }
+        dict set recdata [kl_get $pkg Name] $rec
+    }
+    return $recdata
 }
 
 

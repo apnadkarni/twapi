@@ -9,11 +9,6 @@
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 #include "tclTomMath.h"
 
-#if _WIN32_WINNT < 0x0500
-#error _WIN32_WINNT too low
-#endif
-
-        
 #define TWAPI_TCL_MAJOR 8
 #define TWAPI_MIN_TCL_MINOR 5
 

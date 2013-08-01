@@ -178,9 +178,25 @@ a list of three elements - the encryption token, the encrypted data
 and padding. These must be passed to [uri #sspi_decrypt] for decryption
 to be successful.
 
-[call [cmd sspi_enumerate_packages]]
-Returns a list of the names of the security provider packages available
-on the system.
+[call [cmd sspi_enumerate_packages] [opt [arg options]]]
+If no arguments are specified, 
+returns a list of the names of the security provider packages available
+on the system. If any options are specified, returns a dictionary
+keyed by the package name. The corresponding value is itself a dictionary
+with the keys dependent on the options specified to the command:
+
+[list_begin opt]
+[opt_def [cmd -all]] Same as all options being specified.
+[opt_def [cmd -capabilities]] A list of tokens that describe the 
+capabilties of the provider.
+[opt_def [cmd -comment]] A comment describing the provider.
+[opt_def [cmd -rpcid]] A DCE RPC identifier, if supported.
+[opt_def [cmd -maxtokensize]] Maximum size of a security token.
+[opt_def [cmd -name]] Name of the provider.
+[opt_def [cmd -version]] The version of the provider interface.
+[list_end]
+
+
 
 [call [cmd sspi_generate_signature] [arg CONTEXT] [arg DATA] [opt [arg options]]]
 Generates a signature for [arg DATA] based on the supplied security context.
