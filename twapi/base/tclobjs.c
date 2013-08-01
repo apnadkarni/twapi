@@ -3955,7 +3955,19 @@ Tcl_Obj *ObjFromEmptyString()
 
 Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
 {
-    return Tcl_NewByteArrayObj(bytes, len);
+    /* Older versions (< 8.6b1) of Tcl do not allow bytes to be NULL */
+
+    /* Assumes major version==8 check already made at init time */
+    if (bytes != NULL ||
+        (gTclVersion.minor == 6 && gTclVersion.reltype != TCL_ALPHA_RELEASE) ||
+        gTclVersion.minor > 6) {
+        return Tcl_NewByteArrayObj(bytes, len);
+    } else {
+        Tcl_Obj *o;
+        o =  Tcl_NewByteArrayObj("", 0);
+        Tcl_SetByteArrayLength(o, len);
+        return o;
+    }
 }
 
 unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
