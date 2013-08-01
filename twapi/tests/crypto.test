@@ -93,6 +93,151 @@ namespace eval twapi::crypto::test {
           }
     } -result 1
 
+    test sspi_enumerate_packages-2.0 {
+        Enumerate SSPI providers -all
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -all]
+        set missing {}
+        foreach pkgname {NTLM Kerberos Schannel Negotiate} {
+            foreach field {-capabilities -version -rpcid -name -maxtokensize -comment} {
+                if {![dict exists $packages $pkgname $field]} {
+                    lappend missing $pkgname.$field
+                }
+            }
+        }
+        set missing
+    } -result {}
+
+    test sspi_enumerate_packages-2.1 {
+        Enumerate SSPI providers -all extra args
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -all somearg]
+    } -returnCodes error -result "Command has extra arguments specified: somearg"
+
+    test sspi_enumerate_packages-3.0 {
+        Enumerate SSPI providers -capabilities
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -capabilities]
+        set errors {}
+        # Just some random sanity checks
+        foreach {name cap} {
+            Schannel stream
+            Schannel mutualauth
+            Negotiate connection
+            Negotiate gsscompatible
+            NTLM multirequired
+            Kerberos datagram
+        } {
+            if {[lsearch -exact [dict get $packages $name -capabilities] $cap] < 0} {
+                lappend errors "Capability $cap missing in $name"
+            }
+        }
+        foreach {name cap} {
+            Schannel logon
+            Schannel datagram
+            Negotiate stream
+            Negotiate mutualauth
+            NTLM gsscompatible
+            NTLM datagram
+            NTLM stream
+            Kerberos stream
+        } {
+            if {[lsearch -exact [dict get $packages $name -capabilities] $cap] >= 0} {
+                lappend errors "Capability $cap should not be present in $name"
+            }
+        }
+
+        set errors
+    } -result {}
+
+    test sspi_enumerate_packages-4.0 {
+        Enumerate SSPI providers -version
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -version]
+        set errors {}
+        if {[dict size $packages] == 0} {
+            lappend errors "No security packages listed"
+        } else {
+            dict for {pkgname pkg} $packages {
+                if {[dict get $pkg -version] != 1} {
+                    lappend errors "$pkgname version is not 1"
+                }
+            }
+        }
+        set errors
+    } -result {}
+
+    test sspi_enumerate_packages-5.0 {
+        Enumerate SSPI providers -rpcid
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -rpcid]
+        set errors {}
+        if {[dict size $packages] == 0} {
+            lappend errors "No security packages listed"
+        } else {
+            dict for {pkgname pkg} $packages {
+                if {![string is integer -strict [dict get $pkg -rpcid]]} {
+                    lappend errors "$pkgname rpcid is not an integer"
+                }
+            }
+        }
+        set errors
+    } -result {}
+
+    test sspi_enumerate_packages-6.0 {
+        Enumerate SSPI providers -maxtokensize
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -maxtokensize]
+        set errors {}
+        if {[dict size $packages] == 0} {
+            lappend errors "No security packages listed"
+        } else {
+            dict for {pkgname pkg} $packages {
+                if {![string is integer -strict [dict get $pkg -maxtokensize]]} {
+                    lappend errors "$pkgname maxtokensize is not an integer"
+                }
+                if {[dict get $pkg -maxtokensize] < 0} {
+                    lappend errors "$pkgname maxtokensize is less than 0"
+                }
+            }
+        }
+        set errors
+    } -result {}
+
+    test sspi_enumerate_packages-7.0 {
+        Enumerate SSPI providers -name
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -name]
+        set errors {}
+        if {[dict size $packages] == 0} {
+            lappend errors "No security packages listed"
+        } else {
+            dict for {pkgname pkg} $packages {
+                if {$pkgname ne [dict get $pkg -name]} {
+                    lappend errors "$pkgname name does not match"
+                }
+            }
+        }
+        set errors
+    } -result {}
+
+    test sspi_enumerate_packages-8.0 {
+        Enumerate SSPI providers -comment
+    } -body {
+        set packages [twapi::sspi_enumerate_packages -comment]
+        set errors {}
+        if {[dict size $packages] == 0} {
+            lappend errors "No security packages listed"
+        } else {
+            dict for {pkgname pkg} $packages {
+                # Nothing to check except that the field exists
+                dict get $pkg -comment
+            }
+        }
+        set errors
+    } -result {}
+
+
     #
     # Clean up
     ::tcltest::cleanupTests

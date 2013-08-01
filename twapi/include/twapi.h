@@ -8,6 +8,11 @@
  * See the file LICENSE for license
  */
 
+#if _WIN32_WINNT < 0x0501
+#error _WIN32_WINNT too low
+#endif
+        
+
 /* Enable prototype-less extern functions warnings even at warning level 1 */
 #pragma warning (1 : 13)
 
