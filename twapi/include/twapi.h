@@ -672,7 +672,13 @@ typedef struct {
     } value;
 } TwapiResult;
 
-#define InitTwapiResult(tr_) do {(tr_)->type = TRT_EMPTY;} while (0)
+#define TWAPI_SET_NONNULL_RESULT(res_, name_, val_) \
+    do {                                            \
+        (res_).type = TRT_NONNULL;                  \
+        (res_).value.nonnull.p = (void*) (val_);     \
+        (res_).value.nonnull.name = # name_;        \
+    } while (0)
+
 
 /*
  * Macros for passing arguments to TwapiGetArgs.
@@ -1421,9 +1427,9 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
 #define NEW_TIC     1
     );
 
-TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag);
-TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, void *p, void *typetag);
-TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag);
+TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
+TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
+TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag);
 
 TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH);
 
