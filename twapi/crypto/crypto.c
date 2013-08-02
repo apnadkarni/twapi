@@ -657,6 +657,60 @@ static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 }
 
 
+static Twapi_CertGetNameString(
+    Tcl_Interp *interp,
+    PCCERT_CONTEXT pcert,
+    DWORD type,
+    DWORD flags,
+    Tcl_Obj *owhat)
+{
+    void *pv;
+    DWORD dw, nchars;
+    WCHAR buf[1024];
+
+    switch (type) {
+    case CERT_NAME_EMAIL_TYPE: // 1
+    case CERT_NAME_SIMPLE_DISPLAY_TYPE: // 4
+    case CERT_NAME_FRIENDLY_DISPLAY_TYPE: // 5
+    case CERT_NAME_DNS_TYPE: // 6
+    case CERT_NAME_URL_TYPE: // 7
+    case CERT_NAME_UPN_TYPE: // 8
+        pv = NULL;
+        break;
+    case CERT_NAME_RDN_TYPE: // 2
+        if (ObjToInt(interp, owhat, &dw) != TCL_OK)
+            return TCL_ERROR;
+        pv = &dw;
+        break;
+    case CERT_NAME_ATTR_TYPE: // 3
+        pv = ObjToString(owhat);
+        break;
+    default:
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("CertGetNameString: unknown type %d", type));
+        return TCL_ERROR;
+    }
+
+    // 1 -> CERT_NAME_ISSUER_FLAG 
+    // 0x00010000 -> CERT_NAME_DISABLE_IE4_UTF8_FLAG 
+    // are supported.
+    // 2 -> CERT_NAME_SEARCH_ALL_NAMES_FLAG
+    // 0x00200000 -> CERT_NAME_STR_ENABLE_PUNYCODE_FLAG 
+    // are post Win8 AND they will change output encoding/format
+    // Only support what we know
+    if (flags & ~(0x00010001)) {
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("CertGetNameString: unsupported flags %d", flags));
+        return TCL_ERROR;
+    }
+
+    /* TBD - check for buf too small */
+    nchars = CertGetNameStringW(pcert, type, flags, pv, buf, ARRAYSIZE(buf));
+    /* Note nchars includes terminating NULL */
+    if (nchars)
+        Tcl_SetObjResult(interp, ObjFromUnicodeN(buf, nchars-1));
+    return TCL_OK;
+}
+
+
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -671,6 +725,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     LARGE_INTEGER largeint;
     Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
+    PCCERT_CONTEXT pcert;
 
     --objc;
     ++objv;
@@ -714,9 +769,89 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.value.ival = ImpersonateSecurityContext(&sech);
             break;
         }
+    } else if (func < 300) {
+        /* Single arg of any type */
+        if (objc != 1)
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        switch (func) {
+        case 201:
+            h = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
+            /* CertCloseStore does not check ponter validity! So do ourselves*/
+            if (TwapiRegisterPointer(interp, h, CertCloseStore) != TCL_OK)
+                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TWAPI_SET_NONNULL_RESULT(result, HCERTSTORE, h);
+            break;
+        }
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10013: // CertGetNameString
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(pcert, CERT_CONTEXT*, CertFreeCertificateContext),
+                             GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            
+            return Twapi_CertGetNameString(interp, pcert, dw, dw2, objv[3]);
+
+        case 10014: // CertFreeCertificateContext
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETPTR(pcert, CERT_CONTEXT*), ARGEND) != TCL_OK ||
+                TwapiUnregisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+                return TCL_ERROR;
+            TWAPI_ASSERT(pcert);
+            result.type = TRT_EMPTY;
+            CertFreeCertificateContext(pcert);
+            break;
+
+        case 10015: // TwapiFindCertBySubjectName
+            /* Supports tiny subset of CertFindCertificateInStore */
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(h, HCERTSTORE, CertCloseStore),
+                             GETWSTR(s1), GETPTR(pcert, CERT_CONTEXT*),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            /* Unregister previous context since the next call will free it */
+            if (pcert &&
+                TwapiUnregisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+                return TCL_ERROR;
+            pcert = CertFindCertificateInStore(
+                h,
+                X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                0,
+                CERT_FIND_SUBJECT_STR_W,
+                s1,
+                pcert);
+            if (pcert) {
+                if (TwapiRegisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+                    Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+                TWAPI_SET_NONNULL_RESULT(result, CERT_CONTEXT*, pcert);
+            } else {
+                result.type = GetLastError() == CRYPT_E_NOT_FOUND ? TRT_EMPTY : TRT_GETLASTERROR;
+            }
+            break;
+            
+        case 10016:
+            /* This command is there to primarily clean up mistakes in testing */
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETWSTR(s1), GETINT(dw), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CertUnregisterSystemStore(s1, dw);
+            break;
+        case 10017:
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETHANDLET(h, HCERTSTORE), ARGUSEDEFAULT,
+                             GETINT(dw), ARGEND) != TCL_OK ||
+                TwapiUnregisterPointer(interp, h, CertCloseStore) != TCL_OK)
+                return TCL_ERROR;
+
+            result.type = TRT_BOOL;
+            result.value.bval = CertCloseStore(h, dw);
+            if (result.value.bval == FALSE) {
+                if (GetLastError() != CRYPT_E_PENDING_CLOSE)
+                    result.type = TRT_GETLASTERROR;
+            }
+            break;
         case 10018:
             if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s1), ARGUSEDEFAULT,
@@ -883,6 +1018,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FreeCredentialsHandle, 102),
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
+        DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(CertGetNameString, 10013),
+        DEFINE_FNCODE_CMD(cert_free, 10014), //CertFreeCertificateContext - doc
+        DEFINE_FNCODE_CMD(TwapiFindCertBySubjectName, 10015),
+        DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
+        DEFINE_FNCODE_CMD(CertCloseStore, 10017),
         DEFINE_FNCODE_CMD(Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY, 10018),
         DEFINE_FNCODE_CMD(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, 10019),
         DEFINE_FNCODE_CMD(AcquireCredentialsHandle, 10020),
