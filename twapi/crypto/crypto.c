@@ -705,8 +705,19 @@ static Twapi_CertGetNameString(
     /* TBD - check for buf too small */
     nchars = CertGetNameStringW(pcert, type, flags, pv, buf, ARRAYSIZE(buf));
     /* Note nchars includes terminating NULL */
-    if (nchars)
-        Tcl_SetObjResult(interp, ObjFromUnicodeN(buf, nchars-1));
+    if (nchars > 1) {
+        if (nchars < ARRAYSIZE(buf)) {
+            Tcl_SetObjResult(interp, ObjFromUnicodeN(buf, nchars-1));
+        } else {
+            /* Buffer might have been truncated. Explicitly get buffer size */
+            WCHAR *bufP;
+            nchars = CertGetNameStringW(pcert, type, flags, pv, NULL, 0);
+            bufP = TwapiAlloc(nchars*sizeof(WCHAR));
+            nchars = CertGetNameStringW(pcert, type, flags, pv, bufP, nchars);
+            Tcl_SetObjResult(interp, ObjFromUnicodeN(bufP, nchars-1));
+            TwapiFree(bufP);
+        }
+    }
     return TCL_OK;
 }
 
