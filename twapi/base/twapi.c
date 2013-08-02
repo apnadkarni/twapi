@@ -868,7 +868,7 @@ static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
     }
 }
 
-int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag)
+int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
     TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
@@ -889,7 +889,7 @@ int TwapiVerifyPointer(Tcl_Interp *interp, void *p, void *typetag)
     return TWAPI_POINTER_UNREGISTERED;
 }
 
-TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag)
+TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
     TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
@@ -910,7 +910,7 @@ TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, void *p, void *typetag)
     }
 }
 
-TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, void *p, void *typetag)
+TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
     TwapiInterpContext *ticP = TwapiGetBaseContext(interp);

@@ -252,7 +252,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
     int tcl_status;
     TwapiResult *responseP = &cbP->response;
 
-    InitTwapiResult(responseP);
+    responseP->type = TRT_EMPTY;
 
     /*
      * Before we eval, make sure stuff does not disappear in the eval. We

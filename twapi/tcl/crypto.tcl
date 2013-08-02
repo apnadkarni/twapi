@@ -63,6 +63,55 @@ namespace eval twapi {
         appcontainerchecks  0x00800000
     }
 
+    # Maps OID mnemonics
+    variable _oid_map
+    array set _oid_map {
+        oid_common_name                   "2.5.4.3"
+        oid_sur_name                      "2.5.4.4"
+        oid_device_serial_number          "2.5.4.5"
+        oid_country_name                  "2.5.4.6"
+        oid_locality_name                 "2.5.4.7"
+        oid_state_or_province_name        "2.5.4.8"
+        oid_street_address                "2.5.4.9"
+        oid_organization_name             "2.5.4.10"
+        oid_organizational_unit_name      "2.5.4.11"
+        oid_title                         "2.5.4.12"
+        oid_description                   "2.5.4.13"
+        oid_search_guide                  "2.5.4.14"
+        oid_business_category             "2.5.4.15"
+        oid_postal_address                "2.5.4.16"
+        oid_postal_code                   "2.5.4.17"
+        oid_post_office_box               "2.5.4.18"
+        oid_physical_delivery_office_name "2.5.4.19"
+        oid_telephone_number              "2.5.4.20"
+        oid_telex_number                  "2.5.4.21"
+        oid_teletext_terminal_identifier  "2.5.4.22"
+        oid_facsimile_telephone_number    "2.5.4.23"
+        oid_x21_address                   "2.5.4.24"
+        oid_international_isdn_number     "2.5.4.25"
+        oid_registered_address            "2.5.4.26"
+        oid_destination_indicator         "2.5.4.27"
+        oid_user_password                 "2.5.4.35"
+        oid_user_certificate              "2.5.4.36"
+        oid_ca_certificate                "2.5.4.37"
+        oid_authority_revocation_list     "2.5.4.38"
+        oid_certificate_revocation_list   "2.5.4.39"
+        oid_cross_certificate_pair        "2.5.4.40"
+    }
+}
+
+proc twapi::oid {oid} {
+    variable _oid_map
+
+    if {[info exists _oid_map($oid)]} {
+        return $_oid_map($oid)
+    }
+    
+    if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
+        return $oid
+    } else {
+        error "Invalid OID '$oid'"
+    }
 }
 
 # Return list of security packages
@@ -401,6 +450,75 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
     return $plaintext
 }
 
+################################################################
+# Certificate procs
+
+# Close a certificate store
+# TBD - document
+proc twapi::cert_close_store {hstore} {
+    CertCloseStore $hstore 0
+}
+
+proc twapi::cert_find {hstore args} {
+    # Currently only subject names supported
+    array set opts [parseargs args {
+        subject.arg
+        {hcert.arg NULL}
+    } -maxleftover 0]
+                    
+    if {![info exists opts(subject)]} {
+        error "Option -subject must be specified"
+    }
+
+    return [TwapiFindCertBySubjectName $hstore $opts(subject) $opts(hcert)]
+}
+
+proc twapi::cert_get_name {hcert args} {
+    array set opts [parseargs args {
+        issuer
+        {name.arg oid_common_name}
+        {separator.arg comma {comma semi newline}}
+        {reverse 0 0x02000000}
+        {noquote 0 0x10000000}
+        {noplus  0 0x20000000}
+    } -maxleftover 0]
+
+    set arg ""
+    switch $opts(name) {
+        email { set what 1 }
+        simpledisplay { set what 4 }
+        friendlydisplay {set what 5 }
+        dns { set what 6 }
+        url { set what 7 }
+        upn { set what 8 }
+        rdnsimple -
+        rdnoid -
+        rdnx500 {
+            set what 2
+            switch $opts(name) {
+                rdnsimple {set arg 1}
+                rdnoid {set arg 2}
+                rdnx500 {set arg 3}
+            }
+            set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
+            switch $opts(separator) {
+                semi    { set arg [expr {$arg | 0x40000000}] }
+                newline { set arg [expr {$arg | 0x08000000}] }
+            }
+        }
+        default {
+            set what 3;         # Assume OID
+            set arg [oid $opts(name)]
+        }
+    }
+
+
+
+    return [CertGetNameString $hcert $what $opts(issuer) $arg]
+
+}
+
+################################################################
 # Utility procs
 
 # Construct a high level SSPI security context structure
