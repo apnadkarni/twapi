@@ -404,11 +404,9 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 5:
         u.lifoP = TwapiAlloc(sizeof(MemLifo));
         result.value.ival = MemLifoInit(u.lifoP, NULL, NULL, NULL, dw, 0);
-        if (result.value.ival == ERROR_SUCCESS) {
-            result.type = TRT_NONNULL;
-            result.value.nonnull.p = u.lifoP;
-            result.value.nonnull.name = "MemLifo*";
-        } else
+        if (result.value.ival == ERROR_SUCCESS)
+            TwapiResult_SET_PTR(result, MemLifo*, u.lifoP);
+        else
             result.type = TRT_EXCEPTION_ON_ERROR;
         break;
     case 6:
@@ -943,12 +941,12 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                          GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.nonnull.p = TwapiAlloc(dw);
-        if (TwapiRegisterPointer(interp, result.value.nonnull.p, TwapiAlloc) != TCL_OK) {
+        result.value.ptr.p = TwapiAlloc(dw);
+        if (TwapiRegisterPointer(interp, result.value.ptr.p, TwapiAlloc) != TCL_OK) {
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
         }
-        result.value.nonnull.name = cP[0] ? cP : "void*";
-        result.type = TRT_NONNULL;
+        result.value.ptr.name = cP[0] ? cP : "void*";
+        result.type = TRT_NONNULL_PTR;
         break;
     case 10031: // pointer_equal?
         if (objc != 2)
@@ -1265,9 +1263,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
                 ? TRT_BOOL : TRT_GETLASTERROR;
             break;
         case 17:
-            result.type = TRT_NONNULL;
-            result.value.nonnull.p = MemLifoPushMark(h);
-            result.value.nonnull.name = "MemLifoMark*";
+            TwapiResult_SET_NONNULL_PTR(result, MemLifoMark*, MemLifoPushMark(h));
             break;
         case 18:
             result.type = TRT_LONG;
