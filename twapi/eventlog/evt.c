@@ -1094,11 +1094,8 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtClearLog(hevt, s, s2, dw);
-        } else {
-            result.type = TRT_NONNULL;
-            result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p = EvtQuery(hevt, s, s2, dw);
-        }
+        } else
+            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtQuery(hevt, s, s2, dw));
         break;
     case 3: // EvtSeek
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1113,9 +1110,8 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_NONNULL;
-        result.value.nonnull.name = "EVT_HANDLE";
-        result.value.nonnull.p = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, s, dw);
+        hevt2 = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, s, dw);
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, hevt2);
         break;
     case 6: // EvtArchiveExportedLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1130,9 +1126,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          GETHANDLE(h), GETWSTR(s), GETNULLIFEMPTY(s2),
                          GETEVTH(hevt2), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_NONNULL;
-        result.value.nonnull.name = "EVT_HANDLE";
-        result.value.nonnull.p = EvtSubscribe(hevt, h, s, s2, hevt2, NULL, NULL, dw);
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, s, s2, hevt2, NULL, NULL, dw));
         break;
     case 8: // EvtExportLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1207,9 +1201,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw),
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_NONNULL;
-        result.value.nonnull.name = "EVT_HANDLE";
-        result.value.nonnull.p = EvtOpenPublisherMetadata(hevt, s, s2, dw, dw2);
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, s, s2, dw, dw2));
         break;
 
     case 11: // evt_create_bookmark
@@ -1217,9 +1209,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          GETWSTR(s), ARGEND) != TCL_OK)
             return TCL_ERROR;
         NULLIFY_EMPTY(s);
-        result.type = TRT_NONNULL;
-        result.value.nonnull.name = "EVT_HANDLE";
-        result.value.nonnull.p = EvtCreateBookmark(s);
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtCreateBookmark(s));
         break;
 
     case 12: // evt_update_bookmark
@@ -1253,9 +1243,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = EvtCancel(hevt);
             break;
         case 103:
-            result.type = TRT_NONNULL;
-            result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p =EvtOpenChannelEnum(hevt, dw);
+            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenChannelEnum(hevt, dw));
             break;
         case 104: // EvtNextChannelPath
         case 109: // EvtNextPublisherId
@@ -1275,20 +1263,14 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.value.ival = EvtSaveChannelConfig(hevt, dw);
             break;
         case 106:
-            result.type = TRT_NONNULL;
-            result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p = EvtOpenPublisherEnum(hevt, dw);
+            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherEnum(hevt, dw));
             break;
         case 107:
-            result.type = TRT_NONNULL;
-            result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p = EvtOpenEventMetadataEnum(hevt, dw);
+            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenEventMetadataEnum(hevt, dw));
             break;
         case 108:
-            result.type = TRT_NONNULL;
-            result.value.nonnull.name = "EVT_HANDLE";
-            result.value.nonnull.p = EvtNextEventMetadata(hevt, dw);
-            if (result.value.nonnull.p == NULL &&
+            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtNextEventMetadata(hevt, dw));
+            if (result.value.ptr.p == NULL &&
                 GetLastError() == ERROR_NO_MORE_ITEMS)
                 return TCL_OK;
             break;

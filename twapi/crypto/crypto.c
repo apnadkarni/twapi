@@ -796,7 +796,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             /* CertCloseStore does not check ponter validity! So do ourselves*/
             if (TwapiRegisterPointer(interp, h, CertCloseStore) != TCL_OK)
                 Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-            TWAPI_SET_NONNULL_RESULT(result, HCERTSTORE, h);
+            TwapiResult_SET_NONNULL_PTR(result, HCERTSTORE, h);
             break;
         }
     } else {
@@ -871,7 +871,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             if (pcert) {
                 if (TwapiRegisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
                     Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-                TWAPI_SET_NONNULL_RESULT(result, CERT_CONTEXT*, pcert);
+                TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)pcert);
             } else {
                 result.type = GetLastError() == CRYPT_E_NOT_FOUND ? TRT_EMPTY : TRT_GETLASTERROR;
             }

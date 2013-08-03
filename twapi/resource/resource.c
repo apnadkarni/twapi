@@ -511,9 +511,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     case 13: // LoadImage
         return Twapi_LoadImage(interp, objc, objv);
     case 14:
-        result.type = TRT_NONNULL;
-        result.value.nonnull.name = "TWAPI_FILEVERINFO";
-        result.value.nonnull.p = Twapi_GetFileVersionInfo(ObjToUnicode(objv[0]));
+        TwapiResult_SET_NONNULL_PTR(result, TWAPI_FILEVERINFO, Twapi_GetFileVersionInfo(ObjToUnicode(objv[0])));
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
