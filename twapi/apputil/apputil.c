@@ -142,8 +142,10 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     ++objv;
     switch (func) {
     case 2:
-        result.type = Twapi_Wow64DisableWow64FsRedirection(&result.value.pv) ?
-            TRT_LPVOID : TRT_GETLASTERROR;
+        if (Twapi_Wow64DisableWow64FsRedirection(&pv))
+            TwapiResult_SET_PTR(result, void*, pv);
+        else
+            result.type = TRT_GETLASTERROR;
         break;
     case 3:
         result.value.unicode.str = GetCommandLineW();

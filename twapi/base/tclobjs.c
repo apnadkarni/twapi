@@ -577,10 +577,8 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_HWINSTA:
     case TRT_SC_HANDLE:
     case TRT_LSA_HANDLE:
-    case TRT_SEC_WINNT_AUTH_IDENTITY:
     case TRT_HDEVINFO:
     case TRT_HRGN:
-    case TRT_NONNULL_LPVOID:
     case TRT_HKEY:
         if (resultP->value.hval == NULL) {
             return TwapiReturnSystemError(interp);
@@ -610,14 +608,8 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         case TRT_LSA_HANDLE:
             typenameP = "LSA_HANDLE";
             break;
-        case TRT_SEC_WINNT_AUTH_IDENTITY:
-            typenameP = "SEC_WINNT_AUTH_IDENTITY_W*";
-            break;
         case TRT_HDEVINFO:
             typenameP = "HDEVINFO";
-            break;
-        case TRT_NONNULL_LPVOID:
-            typenameP = "void*";
             break;
         case TRT_HRGN:
             typenameP = "HRGN";
@@ -629,10 +621,6 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             return TCL_ERROR;
         }
         resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
-        break;
-
-    case TRT_LPVOID:
-        resultObj = ObjFromOpaque(resultP->value.hval, "void*");
         break;
 
     case TRT_LONG:

@@ -469,8 +469,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1008:
         if (ObjToDWORD_PTR(interp, objv[0], &dwp) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_LPVOID;
-        result.value.pv = (void *) dwp;
+        TwapiResult_SET_PTR(result, void*, (void*)dwp);
         break;
     case 1009:
         u.sidP = NULL;
@@ -1225,8 +1224,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.value.dwp = GlobalSize(h);
             break;
         case 8:
-            result.type = TRT_NONNULL_LPVOID;
-            result.value.pv = GlobalLock(h);
+            TwapiResult_SET_NONNULL_PTR(result, void*, GlobalLock(h));
             break;
         case 9:
             MemLifoClose(h);
@@ -1315,12 +1313,10 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             }
             break;
         case 1003:
-            result.type = TRT_LPVOID;
-            result.value.pv = MemLifoAlloc(h, dw, NULL);
+            TwapiResult_SET_PTR(result, void*, MemLifoAlloc(h, dw, NULL));
             break;
         case 1004:
-            result.type = TRT_LPVOID;
-            result.value.pv = MemLifoPushFrame(h, dw, NULL);
+            TwapiResult_SET_PTR(result, void*, MemLifoPushFrame(h, dw, NULL));
             break;
         }
     } else if (func < 3000) {
@@ -1337,16 +1333,13 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.value.ival = SetHandleInformation(h, dw, dw2);
             break;
         case 2002: 
-            result.type = TRT_LPVOID;
-            result.value.pv = MemLifoExpandLast(h, dw, dw2);
+            TwapiResult_SET_PTR(result, void*, MemLifoExpandLast(h, dw, dw2));
             break;
         case 2003: 
-            result.type = TRT_LPVOID;
-            result.value.pv = MemLifoShrinkLast(h, dw, dw2);
+            TwapiResult_SET_PTR(result, void*, MemLifoShrinkLast(h, dw, dw2));
             break;
         case 2004: 
-            result.type = TRT_LPVOID;
-            result.value.pv = MemLifoResizeLast(h, dw, dw2);
+            TwapiResult_SET_PTR(result, void*, MemLifoResizeLast(h, dw, dw2));
             break;
         }
     }
