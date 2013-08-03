@@ -701,11 +701,13 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             Tcl_ResetResult(interp);
         break;
 
-    case TRT_NONNULL:
-        if (resultP->value.nonnull.p == NULL)
+    case TRT_NONNULL_PTR:
+        if (resultP->value.ptr.p == NULL)
             return TwapiReturnSystemError(interp);
-        resultObj = ObjFromOpaque(resultP->value.nonnull.p,
-                                  resultP->value.nonnull.name);
+        /* FALLTHRU */
+    case TRT_PTR:
+        resultObj = ObjFromOpaque(resultP->value.ptr.p,
+                                  resultP->value.ptr.name);
         break;
 
     case TRT_TCL_RESULT:

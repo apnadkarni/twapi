@@ -603,7 +603,7 @@ typedef enum {
     TRT_DOUBLE = 38,
     TRT_GUID = 39,  /* Also use for IID, CLSID; string rep differs from TRT_UUID
  */
-    TRT_NONNULL = 40,    /* Non-null typed ptr, GetLastError() on NULL */
+    TRT_NONNULL_PTR = 40,    /* Like TRT_PTR but GetLastError() on NULL */
     TRT_TCL_RESULT = 41,             /* Interp result already set. Return ival
                                         field as status */
     TRT_NTSTATUS = 42,
@@ -618,6 +618,7 @@ typedef enum {
     TRT_HMODULE = 51,
     TRT_LONG = 52,              /* Signed long */
     TRT_HKEY = 53,
+    TRT_PTR = 54,            /* Typed pointer */
 } TwapiResultType;
 
 typedef struct {
@@ -664,7 +665,7 @@ typedef struct {
         struct {
             void *p;
             char *name;
-        } nonnull;
+        } ptr;                  /* TRT_NONNULL_PTR and TRT_PTR */
         VARIANT var;            /* Must VariantInit before use!! */
         LPOLESTR lpolestr; /* WCHAR string to be freed through CoTaskMemFree */
         SYSTEMTIME systime;
@@ -672,11 +673,18 @@ typedef struct {
     } value;
 } TwapiResult;
 
-#define TWAPI_SET_NONNULL_RESULT(res_, name_, val_) \
-    do {                                            \
-        (res_).type = TRT_NONNULL;                  \
-        (res_).value.nonnull.p = (void*) (val_);     \
-        (res_).value.nonnull.name = # name_;        \
+#define TwapiResult_SET_NONNULL_PTR(res_, name_, val_) \
+    do {                                           \
+        (res_).type = TRT_NONNULL_PTR;             \
+        (res_).value.ptr.p = (val_);       \
+        (res_).value.ptr.name = # name_;           \
+    } while (0)
+
+#define TwapiResult_SET_PTR(res_, name_, val_)  \
+    do {                                        \
+        (res_).type = TRT_PTR;                  \
+        (res_).value.ptr.p = (val_);    \
+        (res_).value.ptr.name = # name_;        \
     } while (0)
 
 
