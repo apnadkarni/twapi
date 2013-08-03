@@ -905,8 +905,8 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                              GETWSTR(s2), GETWSTR(s3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            result.type = TRT_SEC_WINNT_AUTH_IDENTITY;
-            result.value.hval = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(s1, s2, s3);
+            ;
+            TwapiResult_SET_NONNULL_PTR(result, SEC_WINNT_AUTH_IDENTITY_W*, Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(s1, s2, s3));
             break;
         case 10019:
             if (objc != 1)

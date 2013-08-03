@@ -590,8 +590,8 @@ typedef enum {
     TRT_GETLASTERROR = 27,   /* Set result as error code from GetLastError() */
     TRT_EXCEPTION_ON_WNET_ERROR = 28,
     TRT_DWORD_PTR = 29,
-    TRT_LPVOID = 30,
-    TRT_NONNULL_LPVOID = 31,
+    TRT_PTR = 30,
+    TRT_NONNULL_PTR = 31,
     TRT_INTERFACE = 32,         /* COM interface */
     TRT_OBJ = 33,
     TRT_UNINITIALIZED = 34,     /* Error - result not initialized */
@@ -603,12 +603,12 @@ typedef enum {
     TRT_DOUBLE = 38,
     TRT_GUID = 39,  /* Also use for IID, CLSID; string rep differs from TRT_UUID
  */
-    TRT_NONNULL_PTR = 40,    /* Like TRT_PTR but GetLastError() on NULL */
+    TRT_HKEY = 40,
     TRT_TCL_RESULT = 41,             /* Interp result already set. Return ival
                                         field as status */
     TRT_NTSTATUS = 42,
     TRT_LSA_HANDLE = 43,
-    TRT_SEC_WINNT_AUTH_IDENTITY = 44,
+    TRT_LONG = 44,              /* Signed long */
     TRT_HDEVINFO = 45,
     TRT_PIDL = 46,              /* Freed using CoTaskMemFree */
     TRT_WIDE = 47,              /* Tcl_WideInt */
@@ -616,9 +616,6 @@ typedef enum {
     TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
     TRT_HRGN = 50,
     TRT_HMODULE = 51,
-    TRT_LONG = 52,              /* Signed long */
-    TRT_HKEY = 53,
-    TRT_PTR = 54,            /* Typed pointer */
 } TwapiResultType;
 
 typedef struct {
