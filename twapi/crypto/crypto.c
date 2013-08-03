@@ -526,6 +526,8 @@ int Twapi_MakeSignature(
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(ticP->interp, ss);
 
+    /* TBD - change to directly use ByteArray without memlifo allocs */
+
     sigP = MemLifoPushFrame(&ticP->memlifo, spc_sizes.cbMaxSignature, NULL);
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
@@ -578,6 +580,8 @@ int Twapi_EncryptMessage(
 
     ss = SEC_E_INSUFFICIENT_MEMORY; /* Assumed error */
 
+    /* TBD - change to directly use ByteArray without memlifo allocs */
+
     trailerP = MemLifoPushFrame(&ticP->memlifo,
                                 spc_sizes.cbSecurityTrailer, NULL);
     padP = MemLifoAlloc(&ticP->memlifo, spc_sizes.cbBlockSize, NULL);
@@ -614,6 +618,8 @@ int Twapi_EncryptMessage(
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }
 
+#ifdef NOTNEEDED
+/* RtlGenRandom in base provides this */
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 {
     BYTE buf[256];
@@ -632,6 +638,7 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
         return TwapiReturnSystemError(interp);
     }
 }
+#endif
 
 static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -656,8 +663,7 @@ static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         ticP, &sech, dw, dw2, cP, dw3);
 }
 
-
-static Twapi_CertGetNameString(
+static TwapiCertGetNameString(
     Tcl_Interp *interp,
     PCCERT_CONTEXT pcert,
     DWORD type,
@@ -702,7 +708,6 @@ static Twapi_CertGetNameString(
         return TCL_ERROR;
     }
 
-    /* TBD - check for buf too small */
     nchars = CertGetNameStringW(pcert, type, flags, pv, buf, ARRAYSIZE(buf));
     /* Note nchars includes terminating NULL */
     if (nchars > 1) {
@@ -737,6 +742,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
     PCCERT_CONTEXT pcert;
+    struct _CRYPTOAPI_BLOB blob;
 
     --objc;
     ++objv;
@@ -796,13 +802,43 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10011: // CertStrToName
+            if (TwapiGetArgs(interp, objc, objv, GETWSTR(s1), ARGUSEDEFAULT,
+                             GETINT(dw), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_GETLASTERROR;
+            dw2 = 0;
+            if (CertStrToNameW(X509_ASN_ENCODING, s1, dw, NULL, NULL, &dw2, NULL)) {
+                result.value.obj = ObjFromByteArray(NULL, dw2);
+                if (CertStrToNameW(X509_ASN_ENCODING, s1, dw, NULL,
+                                   ObjToByteArray(result.value.obj, &dw2),
+                                   &dw2, NULL)) {
+                    Tcl_SetByteArrayLength(result.value.obj, dw2);
+                    result.type = TRT_OBJ;
+                } else {
+                    Tcl_DecrRefCount(result.value.obj);
+                }
+            }
+            break;
+
+        case 10012: // CertNameToStr
+            if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw), ARGEND)
+                != TCL_OK)
+                return TCL_ERROR;
+            blob.pbData = ObjToByteArray(objv[0], &blob.cbData);
+            dw2 = CertNameToStrW(X509_ASN_ENCODING, &blob, dw, NULL, 0);
+            result.value.unicode.str = TwapiAlloc(dw2*sizeof(WCHAR));
+            result.value.unicode.len = CertNameToStrW(X509_ASN_ENCODING, &blob, dw, result.value.unicode.str, dw2) - 1;
+            result.type = TRT_UNICODE_DYNAMIC;
+            break;
+
         case 10013: // CertGetNameString
             if (TwapiGetArgs(interp, objc, objv,
                              GETVERIFIEDPTR(pcert, CERT_CONTEXT*, CertFreeCertificateContext),
                              GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
             
-            return Twapi_CertGetNameString(interp, pcert, dw, dw2, objv[3]);
+            return TwapiCertGetNameString(interp, pcert, dw, dw2, objv[3]);
 
         case 10014: // CertFreeCertificateContext
             if (TwapiGetArgs(interp, objc, objv,
@@ -955,12 +991,16 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.value.ival = CryptReleaseContext(dwp, dw);
             break;
 
-        case 10025:
+        case 10025: // CryptAcquireContext
             if (TwapiGetArgs(interp, objc, objv,
-                             GETDWORD_PTR(dwp), GETINT(dw),
+                             GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_CryptGenRandom(interp, dwp, dw);
+            if (CryptAcquireContextW(&result.value.dwp, s1, s2, dw, dw2))
+                result.type = TRT_DWORD_PTR;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
 
         case 10026: // VerifySignature
             if (TwapiGetArgs(interp, objc, objv,
@@ -998,16 +1038,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             TwapiFreeSecBufferDesc(&sbd);
             break;
 
-        case 10028: // CryptAcquireContext
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (CryptAcquireContextW(&result.value.dwp, s1, s2, dw, dw2))
-                result.type = TRT_DWORD_PTR;
-            else
-                result.type = TRT_GETLASTERROR;
-            break;
 
         }
     }
@@ -1030,6 +1060,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(CertStrToName, 10011),
+        DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),
         DEFINE_FNCODE_CMD(cert_free, 10014), //CertFreeCertificateContext - doc
         DEFINE_FNCODE_CMD(TwapiFindCertBySubjectName, 10015),
@@ -1042,10 +1074,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(AcceptSecurityContext, 10022),
         DEFINE_FNCODE_CMD(QueryContextAttributes, 10023),
         DEFINE_FNCODE_CMD(CryptReleaseContext, 10024),
-        DEFINE_FNCODE_CMD(CryptGenRandom, 10025),
+        DEFINE_FNCODE_CMD(CryptAcquireContext, 10025),
         DEFINE_FNCODE_CMD(VerifySignature, 10026),
         DEFINE_FNCODE_CMD(DecryptMessage, 10027),
-        DEFINE_FNCODE_CMD(CryptAcquireContext, 10028),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

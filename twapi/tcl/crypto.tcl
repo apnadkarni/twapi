@@ -481,6 +481,7 @@ proc twapi::cert_get_name {hcert args} {
         {reverse 0 0x02000000}
         {noquote 0 0x10000000}
         {noplus  0 0x20000000}
+        {format x500 {x500 oid simple}}
     } -maxleftover 0]
 
     set arg ""
@@ -491,14 +492,12 @@ proc twapi::cert_get_name {hcert args} {
         dns { set what 6 }
         url { set what 7 }
         upn { set what 8 }
-        rdnsimple -
-        rdnoid -
-        rdnx500 {
+        rdn {
             set what 2
-            switch $opts(name) {
-                rdnsimple {set arg 1}
-                rdnoid {set arg 2}
-                rdnx500 {set arg 3}
+            switch $opts(format) {
+                x500 {set arg 3}
+                simple {set arg 1}
+                oid {set arg 2}
             }
             set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
             switch $opts(separator) {
@@ -512,11 +511,59 @@ proc twapi::cert_get_name {hcert args} {
         }
     }
 
-
-
     return [CertGetNameString $hcert $what $opts(issuer) $arg]
 
 }
+
+proc twapi::cert_blob_to_name {blob args} {
+    array set opts [parseargs args {
+        {format.arg x500 {x500 oid simple}}
+        {separator.arg comma {comma semi newline}}
+        {reverse 0 0x02000000}
+        {noquote 0 0x10000000}
+        {noplus  0 0x20000000}
+    } -maxleftover 0]
+
+    switch $opts(format) {
+        x500   {set arg 3}
+        simple {set arg 1}
+        oid    {set arg 2}
+    }
+
+    set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
+    switch $opts(separator) {
+        semi    { set arg [expr {$arg | 0x40000000}] }
+        newline { set arg [expr {$arg | 0x08000000}] }
+    }
+
+    return [CertNameToStr $blob $arg]
+}
+
+proc twapi::cert_name_to_blob {name args} {
+    array set opts [parseargs args {
+        {format.arg x500 {x500 oid simple}}
+        {separator.arg comma {comma semi newline}}
+        {reverse 0 0x02000000}
+        {noquote 0 0x10000000}
+        {noplus  0 0x20000000}
+    } -maxleftover 0]
+
+    switch $opts(format) {
+        x500   {set arg 3}
+        simple {set arg 1}
+        oid    {set arg 2}
+    }
+
+    set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
+    switch $opts(separator) {
+        comma   { set arg [expr {$arg | 0x04000000}] }
+        semi    { set arg [expr {$arg | 0x40000000}] }
+        newline { set arg [expr {$arg | 0x08000000}] }
+    }
+
+    return [CertStrToName $name $arg]
+}
+
 
 ################################################################
 # Utility procs
