@@ -2050,18 +2050,20 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             hr = ifc.recordinfo->lpVtbl->RecordCopy(ifc.recordinfo, pv, pv2);
             break;
         case 509: // RecordCreate
-            result.type = TRT_LPVOID;
-            result.value.pv =
+            result.type = TRT_PTR;
+            result.value.ptr.p =
                 ifc.recordinfo->lpVtbl->RecordCreate(ifc.recordinfo);
+            result.value.ptr.name = "void*";
             break;
         case 510: // RecordCreateCopy
             if (objc != 2)
                 goto badargs;
             if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK)
                 goto ret_error;
-            result.type = TRT_LPVOID;
+            result.type = TRT_PTR;
+            result.value.ptr.name = "void*";
             hr = ifc.recordinfo->lpVtbl->RecordCreateCopy(ifc.recordinfo, pv,
-                                                          &result.value.pv);
+                                                          &result.value.ptr.p);
             break;
         case 511: // RecordDestroy
             if (objc != 2)
