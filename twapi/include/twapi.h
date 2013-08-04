@@ -1173,6 +1173,7 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 /* C - Tcl result and parameter conversion  */
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
+/* TBD - TwapiGetArgs could als obe used to parse lists into C structs */
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
 TWAPI_EXTERN void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 TWAPI_EXTERN TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP);
