@@ -51,6 +51,7 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 
 
+
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
     Tcl_Obj *objv[2];
@@ -640,6 +641,160 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 }
 #endif
 
+static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    void *pv;
+    HCRYPTPROV hprov;
+    DWORD flags;
+    int status;
+    CERT_NAME_BLOB name_blob;
+    CRYPT_KEY_PROV_INFO ki, *kiP;
+    CRYPT_ALGORITHM_IDENTIFIER algid, *algidP;
+    Tcl_Obj **objs;
+    int       nobjs;
+    SYSTEMTIME start, end, *startP, *endP;
+    PCERT_CONTEXT certP;
+    CERT_EXTENSIONS exts, *extsP;
+
+    if ((status = TwapiGetArgs(interp, objc-1, objv+1,
+                               GETPTR(pv, HCRYPTPROV),
+                               GETBIN(name_blob.pbData, name_blob.cbData),
+                               GETINT(flags),
+                               ARGSKIP, // CRYPT_KEY_PROV_INFO
+                               ARGSKIP, // CRYPT_ALGORITHM_IDENTIFIER
+                               ARGSKIP, // STARTTIME
+                               ARGSKIP, // ENDTIME
+                               ARGSKIP, // EXTENSIONS
+                               ARGEND)) != TCL_OK)
+        return status;
+    
+    if (pv && (status = TwapiVerifyPointer(interp, pv, CryptReleaseContext)) != TCL_OK)
+        return status;
+    hprov = (HCRYPTPROV) pv;
+
+    /* Parse CRYPT_KEY_PROV_INFO */
+    if ((status = ObjGetElements(interp, objv[4], &nobjs, &objs)) != TCL_OK)
+        return status;
+    if (nobjs == 0)
+        kiP = NULL;
+    else {
+        if (TwapiGetArgs(interp, nobjs, objs,
+                         GETWSTR(ki.pwszContainerName),
+                         GETWSTR(ki.pwszProvName),
+                         GETINT(ki.dwProvType),
+                         GETINT(ki.dwFlags),
+                         GETINT(ki.cProvParam),
+                         ARGSKIP,
+                         GETINT(ki.dwKeySpec),
+                         ARGEND) != TCL_OK
+            ||
+            ki.cProvParam != 0) {
+            Tcl_SetResult(interp, "Invalid or unimplemented provider parameters", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        ki.rgProvParam = NULL;
+        kiP = &ki;
+    }
+
+    /* Parse CRYPT_ALGORITHM_IDENTIFIER */
+    if ((status = ObjGetElements(interp, objv[5], &nobjs, &objs)) != TCL_OK)
+        return status;
+    if (nobjs == 0)
+        algidP = NULL;
+    else {
+        if (nobjs > 2) {
+            Tcl_SetResult(interp, "Invalid algorithm identifier format", TCL_STATIC);
+            return TCL_ERROR;
+        } else if (nobjs == 2) {
+            Tcl_SetResult(interp, "Algorithm identifier formats with parameters are not implemented", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        algid.pszObjId = ObjToString(objs[0]);
+        algid.Parameters.cbData = 0;
+        algid.Parameters.pbData = 0;
+        algidP = &algid;
+    }
+
+    if ((status = ObjGetElements(interp, objv[6], &nobjs, &objs)) != TCL_OK)
+        return status;
+    if (nobjs == 0)
+        startP = NULL;
+    else {
+        if ((status = ObjToSYSTEMTIME(interp, objv[6], &start)) != TCL_OK)
+            return status;
+        startP = &start;
+    }
+
+    if ((status = ObjGetElements(interp, objv[7], &nobjs, &objs)) != TCL_OK)
+        return status;
+    if (nobjs == 0)
+        endP = NULL;
+    else {
+        if ((status = ObjToSYSTEMTIME(interp, objv[7], &end)) != TCL_OK)
+            return status;
+        endP = &end;
+    }
+
+    if ((status = ObjGetElements(interp, objv[8], &nobjs, &objs)) != TCL_OK)
+        return status;
+    if (nobjs == 0)
+        extsP = NULL;
+    else {
+        DWORD i;
+
+        exts.rgExtension = MemLifoPushFrame(
+            &ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
+        exts.cExtension = nobjs;
+
+        for (i = 0; i < exts.cExtension; ++i) {
+            Tcl_Obj **extobjs;
+            int       nextobjs;
+            int       bval;
+            PCERT_EXTENSION extP = &exts.rgExtension[i];
+
+            status = ObjGetElements(interp, objs[i], &nextobjs, &extobjs);
+            if (status == TCL_OK) {
+                if (nextobjs == 2 || nextobjs == 3) {
+                    status = ObjToBoolean(interp, extobjs[1], &bval);
+                    if (status == TCL_OK) {
+                        extP->pszObjId = ObjToString(extobjs[0]);
+                        extP->fCritical = (BOOL) bval;
+                        if (nextobjs == 3) {
+                            extP->Value.pbData = ObjToByteArray(extobjs[1], &extP->Value.cbData);
+                        } else {
+                            extP->Value.cbData = 0;
+                            extP->Value.pbData = NULL;
+                        }
+                    }
+                } else {
+                    Tcl_SetResult(interp, "Certificate extension format invalid or not implemented", TCL_STATIC);
+                    status = TCL_ERROR;
+                }
+            }
+
+            if (status != TCL_OK) {
+                MemLifoPopFrame(&ticP->memlifo);
+                return status;
+            }
+        }
+    }
+
+    certP = (PCERT_CONTEXT) CertCreateSelfSignCertificate(hprov, &name_blob, flags,
+                                          kiP, algidP, startP, endP, extsP);
+    if (extsP && extsP->rgExtension) {
+        MemLifoPopFrame(&ticP->memlifo);
+    }
+
+    if (certP) {
+        if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+        Tcl_SetObjResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
+        return TCL_OK;
+    } else {
+        return TwapiReturnSystemError(interp);
+    }
+}
+
 static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SecHandle sech;
@@ -665,7 +820,7 @@ static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
 
 static TwapiCertGetNameString(
     Tcl_Interp *interp,
-    PCCERT_CONTEXT pcert,
+    PCCERT_CONTEXT certP,
     DWORD type,
     DWORD flags,
     Tcl_Obj *owhat)
@@ -708,7 +863,7 @@ static TwapiCertGetNameString(
         return TCL_ERROR;
     }
 
-    nchars = CertGetNameStringW(pcert, type, flags, pv, buf, ARRAYSIZE(buf));
+    nchars = CertGetNameStringW(certP, type, flags, pv, buf, ARRAYSIZE(buf));
     /* Note nchars includes terminating NULL */
     if (nchars > 1) {
         if (nchars < ARRAYSIZE(buf)) {
@@ -716,9 +871,9 @@ static TwapiCertGetNameString(
         } else {
             /* Buffer might have been truncated. Explicitly get buffer size */
             WCHAR *bufP;
-            nchars = CertGetNameStringW(pcert, type, flags, pv, NULL, 0);
+            nchars = CertGetNameStringW(certP, type, flags, pv, NULL, 0);
             bufP = TwapiAlloc(nchars*sizeof(WCHAR));
-            nchars = CertGetNameStringW(pcert, type, flags, pv, bufP, nchars);
+            nchars = CertGetNameStringW(certP, type, flags, pv, bufP, nchars);
             Tcl_SetObjResult(interp, ObjFromUnicodeN(bufP, nchars-1));
             TwapiFree(bufP);
         }
@@ -741,7 +896,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     LARGE_INTEGER largeint;
     Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
-    PCCERT_CONTEXT pcert;
+    PCCERT_CONTEXT certP;
     struct _CRYPTOAPI_BLOB blob;
 
     --objc;
@@ -860,44 +1015,44 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
         case 10013: // CertGetNameString
             if (TwapiGetArgs(interp, objc, objv,
-                             GETVERIFIEDPTR(pcert, CERT_CONTEXT*, CertFreeCertificateContext),
+                             GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                              GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
             
-            return TwapiCertGetNameString(interp, pcert, dw, dw2, objv[3]);
+            return TwapiCertGetNameString(interp, certP, dw, dw2, objv[3]);
 
         case 10014: // CertFreeCertificateContext
             if (TwapiGetArgs(interp, objc, objv,
-                             GETPTR(pcert, CERT_CONTEXT*), ARGEND) != TCL_OK ||
-                TwapiUnregisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+                             GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK ||
+                TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
                 return TCL_ERROR;
-            TWAPI_ASSERT(pcert);
+            TWAPI_ASSERT(certP);
             result.type = TRT_EMPTY;
-            CertFreeCertificateContext(pcert);
+            CertFreeCertificateContext(certP);
             break;
 
         case 10015: // TwapiFindCertBySubjectName
             /* Supports tiny subset of CertFindCertificateInStore */
             if (TwapiGetArgs(interp, objc, objv,
                              GETVERIFIEDPTR(h, HCERTSTORE, CertCloseStore),
-                             GETWSTR(s1), GETPTR(pcert, CERT_CONTEXT*),
+                             GETWSTR(s1), GETPTR(certP, CERT_CONTEXT*),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             /* Unregister previous context since the next call will free it */
-            if (pcert &&
-                TwapiUnregisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+            if (certP &&
+                TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
                 return TCL_ERROR;
-            pcert = CertFindCertificateInStore(
+            certP = CertFindCertificateInStore(
                 h,
                 X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
                 0,
                 CERT_FIND_SUBJECT_STR_W,
                 s1,
-                pcert);
-            if (pcert) {
-                if (TwapiRegisterPointer(interp, pcert, CertFreeCertificateContext) != TCL_OK)
+                certP);
+            if (certP) {
+                if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
                     Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-                TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)pcert);
+                TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
             } else {
                 result.type = GetLastError() == CRYPT_E_NOT_FOUND ? TRT_EMPTY : TRT_GETLASTERROR;
             }
@@ -1115,6 +1270,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
     Tcl_CreateObjCommand(interp, "twapi::CallSignEncrypt", Twapi_SignEncryptObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CertCreateSelfSignCertificate", Twapi_CertCreateSelfSignCertificate, ticP, NULL);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(SignEncryptAliasDispatch), SignEncryptAliasDispatch, "twapi::CallSignEncrypt");
 
     return TCL_OK;
