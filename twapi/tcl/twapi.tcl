@@ -675,6 +675,12 @@ proc twapi::true {args} {
     return true
 }
 
+# Throws a bad argument error that appears to come from caller's invocation
+proc twapi::badargs! {msg} {
+    return -level 2 -code error -errorcode [list TWAPI BADARGS $msg] $msg
+}
+
+
 namespace eval twapi {
     # Get a handle to ourselves. This handle never need be closed
     variable my_process_handle [GetCurrentProcess]

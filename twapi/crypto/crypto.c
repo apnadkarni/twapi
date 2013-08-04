@@ -747,6 +747,10 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     --objc;
     ++objv;
 
+    TWAPI_ASSERT(sizeof(HCRYPTPROV) <= sizeof(pv));
+    TWAPI_ASSERT(sizeof(HCRYPTKEY) <= sizeof(pv));
+    TWAPI_ASSERT(sizeof(dwp) <= sizeof(void*));
+
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 100) {
         /* Functions taking no arguments */
@@ -802,6 +806,28 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10009: // CryptDestroyKey
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CryptDestroyKey((HCRYPTKEY) pv);
+            break;
+            
+        case 10010: // CryptGenKey
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (CryptGenKey((HCRYPTPROV) pv, dw, dw2, &dwp)) {
+                if (TwapiRegisterPointer(interp, (void*)dwp, CryptDestroyKey) != TCL_OK)
+                    Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+                TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+
         case 10011: // CertStrToName
             if (TwapiGetArgs(interp, objc, objv, GETWSTR(s1), ARGUSEDEFAULT,
                              GETINT(dw), ARGEND) != TCL_OK)
@@ -982,13 +1008,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 return TCL_ERROR;
             return Twapi_QueryContextAttributes(interp, &sech, dw);
 
-        case 10024:
+        case 10024: //CryptReleaseContext
             if (TwapiGetArgs(interp, objc, objv,
-                             GETDWORD_PTR(dwp), GETINT(dw),
+                             GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext), GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CryptReleaseContext(dwp, dw);
+            result.value.ival = CryptReleaseContext((HCRYPTPROV)pv, dw);
             break;
 
         case 10025: // CryptAcquireContext
@@ -996,9 +1022,15 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                              GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (CryptAcquireContextW(&result.value.dwp, s1, s2, dw, dw2))
-                result.type = TRT_DWORD_PTR;
-            else
+            if (CryptAcquireContextW(&dwp, s1, s2, dw, dw2)) {
+                if (dw2 & CRYPT_DELETEKEYSET)
+                    result.type = TRT_EMPTY;
+                else {
+                    if (TwapiRegisterPointer(interp, (void*)dwp, CryptReleaseContext) != TCL_OK)
+                        Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+                    TwapiResult_SET_PTR(result, HCRYPTPROV, (void*)dwp);
+                }
+            } else
                 result.type = TRT_GETLASTERROR;
             break;
 
@@ -1060,6 +1092,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(crypt_destroy_key, 10009), // Doc TBD
+        DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),

@@ -98,6 +98,44 @@ namespace eval twapi {
         oid_certificate_revocation_list   "2.5.4.39"
         oid_cross_certificate_pair        "2.5.4.40"
     }
+
+    variable _provider_names
+    array set _provider_names {
+        rsa_full           1
+        rsa_sig            2
+        dss                3
+        fortezza           4
+        ms_exchange        5
+        ssl                6
+        rsa_schannel       12
+        dss_dh             13
+        ec_ecdsa_sig       14
+        ec_ecnra_sig       15
+        ec_ecdsa_full      16
+        ec_ecnra_full      17
+        dh_schannel        18
+        spyrus_lynks       20
+        rng                21
+        intel_sec          22
+        replace_owf        23
+        rsa_aes            24
+    }
+}
+
+proc twapi::_crypto_provider_type prov {
+    variable _provider_names
+
+    set key [string tolower $prov]
+
+    if {[info exists _provider_names($key)]} {
+        return $_provider_names($key)
+    }
+
+    if {[string is integer -strict $prov]} {
+        return $prov
+    }
+
+    badargs! "Invalid or unknown provider name '$prov'"
 }
 
 proc twapi::oid {oid} {
@@ -564,9 +602,100 @@ proc twapi::cert_name_to_blob {name args} {
     return [CertStrToName $name $arg]
 }
 
+proc twapi::crypt_acquire_context {args} {
+    array set opts [parseargs args {
+        container.arg
+        provider.arg
+        {providertype.arg rsa_full}
+        {storage.arg user {machine user}}
+        {create 0 0x8}
+        {silent 0 0x40}
+        {verifycontext 0 0xf0000000}
+    } -maxleftover 0 -nulldefault]
+    
+    # Based on http://support.microsoft.com/kb/238187    
+    if {$opts(verifycontext) && $opts(container) eq ""} {
+        badargs! "Option -verifycontext must be specified if -container option is unspecified or empty"
+    }
+
+    set flags [expr {$opts(create) | $opts(silent) | $opts(verifycontext)}]
+    if {$opts(storage) eq "machine"} {
+        incr flags 0x20;        # CRYPT_MACHINE_KEYSET
+    }
+
+    return [CryptAcquireContext $opts(container) $opts(provider) [_crypto_provider_type $opts(providertype) $flags]]
+}
+
+proc twapi::crypt_delete_key_container args {
+    array set opts [parseargs args {
+        container.arg
+        provider.arg
+        {providertype.arg rsa_full}
+        {storage.arg user {machine user}}
+    } -maxleftover 0 -nulldefault]
+
+    set flags 0x10;             # CRYPT_DELETEKEYSET
+    if {$opts(storage) eq "machine"} {
+        incr flags 0x20;        # CRYPT_MACHINE_KEYSET
+    }
+
+    return [CryptAcquireContext $opts(container) $opts(provider) [_crypto_provider_type $opts(providertype) $flags]]
+}
+
+proc twapi::crypt_generate_key {hprov algid args} {
+
+    array set opts [parseargs args {
+        {archivable 0 0x4000}
+        {salt 0 4}
+        {exportable 0 1}
+        {pregen 0x40}
+        {userprotected 0 2}
+        {nosalt40 0 0x10}
+        {size 0}
+    } -maxleftover 0]
+
+    if {![string is integer -strict $algid]} {
+        # See wincrypt.h in SDK
+        switch -nocase -exact -- $algid {
+            keyexhange {set algid 1}
+            signature {set algid 2}
+            dh_ephemeral {set algid [_algid 5 5 2]}
+            dh_sandf {set algid [_algid 5 5 1]}
+            md5 {set algid [_algid 4 0 3]}
+            sha -
+            sha1 {set algid [_algid 4 0 4]}
+            mac {set algid [_algid 4 0 5]}
+            ripemd {set algid [_algid 4 0 6]}
+            rimemd160 {set algid [_algid 4 0 7]}
+            ssl3_shamd5 {set algid [_algid 4 0 8]}
+            hmac {set algid [_algid 4 0 9]}
+            sha256 {set algid [_algid 4 0 12]}
+            sha384 {set algid [_algid 4 0 13]}
+            sha512 {set algid [_algid 4 0 14]}
+            rsa_sign {set algid [_algid 1 2 0]}
+            dss_sign {set algid [_algid 1 1 0]}
+            rsa_keyx {set algid [_algid 5 2 0]}
+            des {set algid [_algid 3 3 1]}
+            3des {set algid [_algid 3 3 3]}
+            3des112 {set algid [_algid 3 3 9]}
+            desx {set algid [_algid 3 3 4]}
+            default {badargs! "Invalid value '$algid' for parameter algid"}
+        }
+    }
+
+    if {$opts(size) < 0 || $opts(size) > 65535} {
+        badargs! "Bad key size parameter '$size':  must be positive integer less than 65536"
+    }
+
+    return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
+}
 
 ################################################################
 # Utility procs
+
+proc twapi::_algid {class type alg} {
+    return [expr {($class << 13) | ($type << 9) | $alg}]
+}
 
 # Construct a high level SSPI security context structure
 # ctx is context as returned from C level code
