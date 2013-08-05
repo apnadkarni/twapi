@@ -50,6 +50,97 @@ int Twapi_EncryptMessage(TwapiInterpContext *ticP, SecHandle *INPUT,
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
 
+/* Note: Allocates memory for blobP from lifoP. Note structure internal
+ pointers may point to Tcl_Obj areas within valObj */
+TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
+                                  Tcl_Obj *oidObj, Tcl_Obj *valObj,
+                                  CRYPT_OBJID_BLOB *blobP)
+{
+    LPCSTR    soid;
+    DWORD     dw;
+    Tcl_Obj **objs;
+    int       nobjs;
+    int       status;
+    void     *penc;
+    int       nenc;
+    union {
+        void *pv;
+        CERT_ALT_NAME_ENTRY  *altnameP;
+    } p;
+
+    /* Note: X509_ALTERNATE_NAME etc. are integer values cast as LPSTR in
+       headers. Hence all the casting around soid. Ugh and Yuck */
+
+    /* The oidobj may be specified as either a string or an integer */
+    if (ObjToDWORD(NULL, oidObj, &dw) == TCL_OK && dw < 65536) {
+        soid = (LPSTR) (DWORD_PTR) dw;
+    } else {
+        soid = ObjToString(oidObj);
+        if (STREQ(soid, szOID_SUBJECT_ALT_NAME) ||
+            STREQ(soid, szOID_ISSUER_ALT_NAME)) {
+            soid = X509_ALTERNATE_NAME; /* soid NOW A DWORD!!! */
+        } else {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
+            return TCL_ERROR;
+        }
+    }
+
+    switch ((DWORD_PTR)soid) {
+    case (DWORD_PTR) X509_ALTERNATE_NAME:
+        p.altnameP = MemLifoAlloc(lifoP, sizeof(*p.altnameP), NULL);
+        if ((status = ObjGetElements(interp, valObj, &nobjs, &objs)) != TCL_OK)
+            return status;
+        if (nobjs != 2 ||
+            ObjToDWORD(NULL, objs[0], &p.altnameP->dwAltNameChoice) != TCL_OK)
+            goto invalid_name_error;
+        switch (p.altnameP->dwAltNameChoice) {
+        case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
+        case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
+        case CERT_ALT_NAME_URL:
+            p.altnameP->pwszRfc822Name = ObjToUnicode(objs[1]);
+            break;
+        case CERT_ALT_NAME_REGISTERED_ID:
+            p.altnameP->pszRegisteredID = ObjToString(objs[1]);
+            break;
+        case CERT_ALT_NAME_OTHER_NAME: /* FALLTHRU */
+        case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
+        case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
+        default:
+            goto invalid_name_error;
+        }
+        break;
+
+    default:
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
+        return TCL_ERROR;
+    }
+
+    /* Assume 256 bytes enough but get as much as we can */
+    penc = MemLifoAlloc(lifoP, 256, &nenc);
+    if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                            soid, /* Yuck */
+                            p.pv, 0, NULL, penc, &nenc) == 0) {
+        if (GetLastError() != ERROR_MORE_DATA)
+            return TwapiReturnSystemError(interp);
+        /* Retry with specified buffer size */
+        penc = MemLifoAlloc(lifoP, nenc, &nenc);
+        if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                                soid, /* Yuck */
+                                p.pv, 0, NULL, penc, &nenc) == 0)
+            return TwapiReturnSystemError(interp);
+    }
+    
+    blobP->cbData = nenc;
+    blobP->pbData = penc;
+
+    /* Note caller has to MemLifoPopFrame to release lifo memory */
+    return TCL_OK;
+
+invalid_name_error:
+    Tcl_SetObjResult(interp,
+                     Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(valObj)));
+    return TCL_ERROR;
+}
 
 
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
@@ -760,7 +851,10 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                         extP->pszObjId = ObjToString(extobjs[0]);
                         extP->fCritical = (BOOL) bval;
                         if (nextobjs == 3) {
-                            extP->Value.pbData = ObjToByteArray(extobjs[1], &extP->Value.cbData);
+                            status = TwapiCryptEncodeObject(
+                                interp, &ticP->memlifo,
+                                extobjs[0], extobjs[2],
+                                &extP->Value);
                         } else {
                             extP->Value.cbData = 0;
                             extP->Value.pbData = NULL;
