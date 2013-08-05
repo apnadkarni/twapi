@@ -946,7 +946,44 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
     return TCL_OK;
 }
 
-static TwapiCertGetNameString(
+static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    PCCERT_CONTEXT certP;
+    CRYPT_KEY_PROV_INFO ckpi;
+    Tcl_Obj **objs;
+    int       nobjs;
+    TCL_RESULT status;
+
+    /* Note - objc/objv have initial command name arg removed by caller */
+    if ((status = TwapiGetArgs(interp, objc, objv,
+                               GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                               ARGSKIP, ARGEND)) != TCL_OK)
+        return status;
+
+    if ((status = ObjGetElements(interp, objv[1], &nobjs, &objs)) != TCL_OK)
+        return status;
+
+    if ((status = TwapiGetArgs(interp, nobjs, objs,
+                               GETWSTR(ckpi.pwszContainerName),
+                               GETWSTR(ckpi.pwszProvName),
+                               GETINT(ckpi.dwProvType),
+                               GETINT(ckpi.dwFlags),
+                               ARGSKIP, // cProvParam+rgProvParam
+                               GETINT(ckpi.dwKeySpec),
+                               ARGEND)) != TCL_OK)
+        return status;
+
+    ckpi.cProvParam = 0;
+    ckpi.rgProvParam = NULL;
+
+    if (CertSetCertificateContextProperty(certP, CERT_KEY_PROV_INFO_PROP_ID,
+                                          0, &ckpi))
+        return TCL_OK;
+    else
+        return TwapiReturnSystemError(interp);
+}
+
+static TCL_RESULT TwapiCertGetNameString(
     Tcl_Interp *interp,
     PCCERT_CONTEXT certP,
     DWORD type,
@@ -1089,6 +1126,32 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10005: // Twapi_SetCertContextKeyProvInfo
+            return Twapi_SetCertContextKeyProvInfo(interp, objc, objv);
+
+        case 10006: // CertEnumCertificatesInStore
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(h, HCERTSTORE, CertCloseStore),
+                             GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            /* Unregister previous context since the next call will free it */
+            if (certP &&
+                TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+                return TCL_ERROR;
+            certP = CertEnumCertificatesInStore(h, certP);
+            if (certP) {
+                if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+                    Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+                TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            } else {
+                result.value.ival = GetLastError();
+                if (result.value.ival == CRYPT_E_NOT_FOUND ||
+                    result.value.ival == ERROR_NO_MORE_FILES)
+                    result.type = TRT_EMPTY;
+                else
+                    result.type = TRT_GETLASTERROR;
+            }
+            break;
         case 10007: // CertEnumCertificateContextProperties
             if (TwapiGetArgs(interp, objc, objv,
                              GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
@@ -1391,6 +1454,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
+        DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
         DEFINE_FNCODE_CMD(crypt_destroy_key, 10009), // Doc TBD
