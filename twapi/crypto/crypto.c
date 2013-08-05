@@ -24,6 +24,7 @@ int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
 
+static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp);
 int Twapi_InitializeSecurityContext(
     Tcl_Interp *interp,
@@ -49,99 +50,16 @@ int Twapi_EncryptMessage(TwapiInterpContext *ticP, SecHandle *INPUT,
                         ULONG qop, int BINLEN, void *BINDATA, ULONG seqnum);
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV hProv, DWORD dwLen);
 
-
-/* Note: Allocates memory for blobP from lifoP. Note structure internal
- pointers may point to Tcl_Obj areas within valObj */
-TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
-                                  Tcl_Obj *oidObj, Tcl_Obj *valObj,
-                                  CRYPT_OBJID_BLOB *blobP)
-{
-    LPCSTR    soid;
-    DWORD     dw;
-    Tcl_Obj **objs;
-    int       nobjs;
-    int       status;
-    void     *penc;
-    int       nenc;
-    union {
-        void *pv;
-        CERT_ALT_NAME_ENTRY  *altnameP;
-    } p;
-
-    /* Note: X509_ALTERNATE_NAME etc. are integer values cast as LPSTR in
-       headers. Hence all the casting around soid. Ugh and Yuck */
-
-    /* The oidobj may be specified as either a string or an integer */
-    if (ObjToDWORD(NULL, oidObj, &dw) == TCL_OK && dw < 65536) {
-        soid = (LPSTR) (DWORD_PTR) dw;
-    } else {
-        soid = ObjToString(oidObj);
-        if (STREQ(soid, szOID_SUBJECT_ALT_NAME) ||
-            STREQ(soid, szOID_ISSUER_ALT_NAME)) {
-            soid = X509_ALTERNATE_NAME; /* soid NOW A DWORD!!! */
-        } else {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
-            return TCL_ERROR;
-        }
-    }
-
-    switch ((DWORD_PTR)soid) {
-    case (DWORD_PTR) X509_ALTERNATE_NAME:
-        p.altnameP = MemLifoAlloc(lifoP, sizeof(*p.altnameP), NULL);
-        if ((status = ObjGetElements(interp, valObj, &nobjs, &objs)) != TCL_OK)
-            return status;
-        if (nobjs != 2 ||
-            ObjToDWORD(NULL, objs[0], &p.altnameP->dwAltNameChoice) != TCL_OK)
-            goto invalid_name_error;
-        switch (p.altnameP->dwAltNameChoice) {
-        case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
-        case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
-        case CERT_ALT_NAME_URL:
-            p.altnameP->pwszRfc822Name = ObjToUnicode(objs[1]);
-            break;
-        case CERT_ALT_NAME_REGISTERED_ID:
-            p.altnameP->pszRegisteredID = ObjToString(objs[1]);
-            break;
-        case CERT_ALT_NAME_OTHER_NAME: /* FALLTHRU */
-        case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
-        case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
-        default:
-            goto invalid_name_error;
-        }
-        break;
-
-    default:
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
-        return TCL_ERROR;
-    }
-
-    /* Assume 256 bytes enough but get as much as we can */
-    penc = MemLifoAlloc(lifoP, 256, &nenc);
-    if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
-                            soid, /* Yuck */
-                            p.pv, 0, NULL, penc, &nenc) == 0) {
-        if (GetLastError() != ERROR_MORE_DATA)
-            return TwapiReturnSystemError(interp);
-        /* Retry with specified buffer size */
-        penc = MemLifoAlloc(lifoP, nenc, &nenc);
-        if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
-                                soid, /* Yuck */
-                                p.pv, 0, NULL, penc, &nenc) == 0)
-            return TwapiReturnSystemError(interp);
-    }
-    
-    blobP->cbData = nenc;
-    blobP->pbData = penc;
-
-    /* Note caller has to MemLifoPopFrame to release lifo memory */
-    return TCL_OK;
-
-invalid_name_error:
-    Tcl_SetObjResult(interp,
-                     Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(valObj)));
-    return TCL_ERROR;
-}
-
+static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
+                                         Tcl_Obj *oidObj, Tcl_Obj *valObj,
+                                         CRYPT_OBJID_BLOB *blobP);
+static TwapiCertGetNameString(
+    Tcl_Interp *interp,
+    PCCERT_CONTEXT certP,
+    DWORD type,
+    DWORD flags,
+    Tcl_Obj *owhat);
 
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
@@ -710,6 +628,29 @@ int Twapi_EncryptMessage(
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }
 
+static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    SecHandle sech;
+    int func;
+    DWORD dw, dw2, dw3;
+    unsigned char *cP;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETINT(func),
+                     GETVAR(sech, ObjToSecHandle),
+                     GETINT(dw),
+                     GETBIN(cP, dw2),
+                     GETINT(dw3),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (func != 1 && func != 2)
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+
+    return (func == 1 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
+        ticP, &sech, dw, dw2, cP, dw3);
+}
+
 #ifdef NOTNEEDED
 /* RtlGenRandom in base provides this */
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
@@ -731,6 +672,98 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
     }
 }
 #endif
+
+/* Note: Allocates memory for blobP from lifoP. Note structure internal
+ pointers may point to Tcl_Obj areas within valObj */
+static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
+                                  Tcl_Obj *oidObj, Tcl_Obj *valObj,
+                                  CRYPT_OBJID_BLOB *blobP)
+{
+    LPCSTR    soid;
+    DWORD     dw;
+    Tcl_Obj **objs;
+    int       nobjs;
+    int       status;
+    void     *penc;
+    int       nenc;
+    union {
+        void *pv;
+        CERT_ALT_NAME_ENTRY  *altnameP;
+    } p;
+
+    /* Note: X509_ALTERNATE_NAME etc. are integer values cast as LPSTR in
+       headers. Hence all the casting around soid. Ugh and Yuck */
+
+    /* The oidobj may be specified as either a string or an integer */
+    if (ObjToDWORD(NULL, oidObj, &dw) == TCL_OK && dw < 65536) {
+        soid = (LPSTR) (DWORD_PTR) dw;
+    } else {
+        soid = ObjToString(oidObj);
+        if (STREQ(soid, szOID_SUBJECT_ALT_NAME) ||
+            STREQ(soid, szOID_ISSUER_ALT_NAME)) {
+            soid = X509_ALTERNATE_NAME; /* soid NOW A DWORD!!! */
+        } else {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
+            return TCL_ERROR;
+        }
+    }
+
+    switch ((DWORD_PTR)soid) {
+    case (DWORD_PTR) X509_ALTERNATE_NAME:
+        p.altnameP = MemLifoAlloc(lifoP, sizeof(*p.altnameP), NULL);
+        if ((status = ObjGetElements(interp, valObj, &nobjs, &objs)) != TCL_OK)
+            return status;
+        if (nobjs != 2 ||
+            ObjToDWORD(NULL, objs[0], &p.altnameP->dwAltNameChoice) != TCL_OK)
+            goto invalid_name_error;
+        switch (p.altnameP->dwAltNameChoice) {
+        case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
+        case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
+        case CERT_ALT_NAME_URL:
+            p.altnameP->pwszRfc822Name = ObjToUnicode(objs[1]);
+            break;
+        case CERT_ALT_NAME_REGISTERED_ID:
+            p.altnameP->pszRegisteredID = ObjToString(objs[1]);
+            break;
+        case CERT_ALT_NAME_OTHER_NAME: /* FALLTHRU */
+        case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
+        case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
+        default:
+            goto invalid_name_error;
+        }
+        break;
+
+    default:
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
+        return TCL_ERROR;
+    }
+
+    /* Assume 256 bytes enough but get as much as we can */
+    penc = MemLifoAlloc(lifoP, 256, &nenc);
+    if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                            soid, /* Yuck */
+                            p.pv, 0, NULL, penc, &nenc) == 0) {
+        if (GetLastError() != ERROR_MORE_DATA)
+            return TwapiReturnSystemError(interp);
+        /* Retry with specified buffer size */
+        penc = MemLifoAlloc(lifoP, nenc, &nenc);
+        if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                                soid, /* Yuck */
+                                p.pv, 0, NULL, penc, &nenc) == 0)
+            return TwapiReturnSystemError(interp);
+    }
+    
+    blobP->cbData = nenc;
+    blobP->pbData = penc;
+
+    /* Note caller has to MemLifoPopFrame to release lifo memory */
+    return TCL_OK;
+
+invalid_name_error:
+    Tcl_SetObjResult(interp,
+                     Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(valObj)));
+    return TCL_ERROR;
+}
 
 static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -889,27 +922,28 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     }
 }
 
-static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CONTEXT certP, DWORD prop_id)
 {
-    SecHandle sech;
-    int func;
-    DWORD dw, dw2, dw3;
-    unsigned char *cP;
+    BOOL status;
+    DWORD n = 0;
+    Tcl_Obj *objP;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func),
-                     GETVAR(sech, ObjToSecHandle),
-                     GETINT(dw),
-                     GETBIN(cP, dw2),
-                     GETINT(dw3),
-                     ARGEND) != TCL_OK)
+    if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
+        return TwapiReturnSystemError(interp);
+
+    objP = ObjFromByteArray(NULL, n);
+    status = CertGetCertificateContextProperty(certP, prop_id,
+                                               ObjToByteArray(objP, &n),
+                                               &n);
+    if (!status) {
+        TwapiReturnSystemError(interp);
+        Tcl_DecrRefCount(objP);
         return TCL_ERROR;
+    }
 
-    if (func != 1 && func != 2)
-        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-
-    return (func == 1 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
-        ticP, &sech, dw, dw2, cP, dw3);
+    Tcl_SetByteArrayLength(objP, n);
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
 }
 
 static TwapiCertGetNameString(
@@ -1055,6 +1089,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10008: // CertGetCertificateContextProperty
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                             GETINT(dw), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            return Twapi_CertGetCertificateContextProperty(interp, certP, dw);
+
         case 10009: // CryptDestroyKey
             if (TwapiGetArgs(interp, objc, objv,
                              GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
@@ -1341,6 +1382,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
         DEFINE_FNCODE_CMD(crypt_destroy_key, 10009), // Doc TBD
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
