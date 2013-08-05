@@ -1089,6 +1089,15 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10007: // CertEnumCertificateContextProperties
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                             GETINT(dw), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_DWORD;
+            result.value.ival = CertEnumCertificateContextProperties(certP, dw);
+            break;
+
         case 10008: // CertGetCertificateContextProperty
             if (TwapiGetArgs(interp, objc, objv,
                              GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
@@ -1382,6 +1391,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
         DEFINE_FNCODE_CMD(crypt_destroy_key, 10009), // Doc TBD
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
