@@ -120,6 +120,74 @@ namespace eval twapi {
         replace_owf        23
         rsa_aes            24
     }
+
+    # Certificate property menomics
+    variable _cert_prop_ids
+    array set _cert_prop_ids {
+        key_prov_handle        1
+        key_prov_info          2
+        sha1_hash              3
+        hash                   3
+        md5_hash               4
+        key_context            5
+        key_spec               6
+        ie30_reserved          7
+        pubkey_hash_reserved   8
+        enhkey_usage           9
+        ctl_usage              9
+        next_update_location   10
+        friendly_name          11
+        pvk_file               12
+        description            13
+        access_state           14
+        signature_hash         15
+        smart_card_data        16
+        efs                    17
+        fortezza_data          18
+        archived               19
+        key_identifier         20
+        auto_enroll            21
+        pubkey_alg_para        22
+        cross_cert_dist_points 23
+        issuer_public_key_md5_hash     24
+        subject_public_key_md5_hash    25
+        id             26
+        date_stamp             27
+        issuer_serial_number_md5_hash  28
+        subject_name_md5_hash  29
+        extended_error_info    30
+
+        renewal                64
+        archived_key_hash      65
+        auto_enroll_retry      66
+        aia_url_retrieved      67
+        authority_info_access  68
+        backed_up              69
+        ocsp_response          70
+        request_originator     71
+        source_location        72
+        source_url             73
+        new_key                74
+        ocsp_cache_prefix      75
+        smart_card_root_info   76
+        no_auto_expire_check   77
+        ncrypt_key_handle      78
+        hcryptprov_or_ncrypt_key_handle   79
+
+        subject_info_access    80
+        ca_ocsp_authority_info_access  81
+        ca_disable_crl         82
+        root_program_cert_policies    83
+        root_program_name_constraints 84
+        subject_ocsp_authority_info_access  85
+        subject_disable_crl    86
+        cep                    87
+
+        sign_hash_cng_alg      89
+
+        scard_pin_id           90
+        scard_pin_info         91
+    }
 }
 
 proc twapi::_crypto_provider_type prov {
@@ -689,6 +757,50 @@ proc twapi::crypt_generate_key {hprov algid args} {
 
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
+
+proc twapi::cert_enum_context_properties {hcert} {
+    variable _cert_prop_ids
+
+    foreach {k val} [array get _cert_prop_ids] {
+        set reverse($val) $k
+    }
+
+    set id 0
+    set ids {}
+    while {[set id [CertEnumCertificateContextProperties $hcert $id]]} {
+        if {[info exists reverse($id)]} {
+            lappend ids [list $id $reverse($id)]
+        } else {
+            lappend ids [list $id $id]
+        }
+    }
+    return $ids
+}
+
+proc twapi::cert_get_context_property {hcert prop} {
+    variable _cert_prop_ids
+
+    if {[string is integer -strict $prop]} {
+        return [CertGetCertificateContextProperty $hcert $prop]
+    } 
+                                  
+    return [switch $prop {
+        access_state -
+        key_spec {
+            binary scan [CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)] i i
+            set i
+        }
+        extended_error_info -
+        friendly_name -
+        pvk_file {
+            string range [encoding convertfrom unicode [CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)]] 0 end-1
+        }
+        default {
+            CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)
+        }
+    }]
+}
+
 
 ################################################################
 # Utility procs
