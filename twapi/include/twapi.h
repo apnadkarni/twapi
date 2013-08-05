@@ -1238,9 +1238,10 @@ TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, 
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
-/* Unsigned ints/longs need to be promoted to wide ints */
+/* Unsigned ints/longs need to be promoted to wide ints when converting to Tcl_Obj*/
 #define ObjFromDWORD(dw_) ObjFromWideInt((DWORD)(dw_))
 #define ObjFromULONG      ObjFromDWORD
+#define ObjToDWORD        ObjToLong
 
 TWAPI_EXTERN Tcl_Obj *ObjFromBoolean(int bval);
 TWAPI_EXTERN TCL_RESULT ObjToBoolean(Tcl_Interp *, Tcl_Obj *, int *);
