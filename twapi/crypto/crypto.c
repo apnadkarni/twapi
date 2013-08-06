@@ -522,15 +522,14 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
-    DWORD dw, dw2, dw3, dw4;
+    DWORD dw, dw2;
     DWORD_PTR dwp;
     LPVOID pv;
-    LPWSTR s1, s2, s3;
+    LPWSTR s1;
     HANDLE h;
-    Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
-    PCCERT_CONTEXT certP;
     struct _CRYPTOAPI_BLOB blob;
+    PCCERT_CONTEXT certP;
 
     --objc;
     ++objv;

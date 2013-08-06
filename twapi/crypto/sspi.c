@@ -627,8 +627,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     LARGE_INTEGER largeint;
     Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
-    PCCERT_CONTEXT certP;
-    struct _CRYPTOAPI_BLOB blob;
 
     --objc;
     ++objv;
