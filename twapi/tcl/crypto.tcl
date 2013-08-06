@@ -678,8 +678,8 @@ proc twapi::cert_name_to_blob {name args} {
 proc twapi::crypt_acquire_context {args} {
     array set opts [parseargs args {
         container.arg
-        provider.arg
-        {providertype.arg rsa_full}
+        csp.arg
+        {type.arg rsa_full}
         {storage.arg user {machine user}}
         {create 0 0x8}
         {silent 0 0x40}
@@ -696,14 +696,14 @@ proc twapi::crypt_acquire_context {args} {
         incr flags 0x20;        # CRYPT_MACHINE_KEYSET
     }
 
-    return [CryptAcquireContext $opts(container) $opts(provider) [_crypto_provider_type $opts(providertype) $flags]]
+    return [CryptAcquireContext $opts(container) $opts(csp) [_crypto_provider_type $opts(type)] $flags]
 }
 
 proc twapi::crypt_delete_key_container args {
     array set opts [parseargs args {
         container.arg
-        provider.arg
-        {providertype.arg rsa_full}
+        csp.arg
+        {type.arg rsa_full}
         {storage.arg user {machine user}}
     } -maxleftover 0 -nulldefault]
 
@@ -712,7 +712,7 @@ proc twapi::crypt_delete_key_container args {
         incr flags 0x20;        # CRYPT_MACHINE_KEYSET
     }
 
-    return [CryptAcquireContext $opts(container) $opts(provider) [_crypto_provider_type $opts(providertype) $flags]]
+    return [CryptAcquireContext $opts(container) $opts(csp) [_crypto_provider_type $opts(type)] $flags]
 }
 
 proc twapi::crypt_generate_key {hprov algid args} {
@@ -763,7 +763,7 @@ proc twapi::crypt_generate_key {hprov algid args} {
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
 
-proc twapi::cert_enum_context_properties {hcert} {
+proc twapi::cert_enum_properties {hcert} {
     variable _cert_prop_ids
 
     foreach {k val} [array get _cert_prop_ids] {
@@ -782,7 +782,7 @@ proc twapi::cert_enum_context_properties {hcert} {
     return $ids
 }
 
-proc twapi::cert_get_context_property {hcert prop} {
+proc twapi::cert_get_property {hcert prop} {
     variable _cert_prop_ids
 
     if {[string is integer -strict $prop]} {
