@@ -674,7 +674,9 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 #endif
 
 /* Note: Allocates memory for blobP from lifoP. Note structure internal
- pointers may point to Tcl_Obj areas within valObj */
+   pointers may point to Tcl_Obj areas within valObj so
+   TREAT RETURNED STRUCTURES AS VOLATILE.
+*/
 static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
                                   Tcl_Obj *oidObj, Tcl_Obj *valObj,
                                   CRYPT_OBJID_BLOB *blobP)
@@ -1126,6 +1128,18 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
+        case 10004: // CertDeleteCertificateFromStore
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            /* Unregister previous context since the next call will free it,
+               EVEN ON FAILURES */
+            if (TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CertDeleteCertificateFromStore(certP);
+            break;
+
         case 10005: // Twapi_SetCertContextKeyProvInfo
             return Twapi_SetCertContextKeyProvInfo(interp, objc, objv);
 
@@ -1229,6 +1243,12 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TwapiCertGetNameString(interp, certP, dw, dw2, objv[3]);
 
         case 10014: // CertFreeCertificateContext
+            /* TBD -
+               CertDuplicateCertificateContext will return the same pointer!
+               However, our registration will barf when trying to release
+               it the second time. Perhaps if the Cert API deals with bad
+               pointer values, do not register it ourselves. Or do not
+               implement the CertDuplicateCertificateContext call */
             if (TwapiGetArgs(interp, objc, objv,
                              GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK ||
                 TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
@@ -1265,7 +1285,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             }
             break;
             
-        case 10016:
+        case 10016: // CertUnregisterSystemStore
             /* This command is there to primarily clean up mistakes in testing */
             if (TwapiGetArgs(interp, objc, objv,
                              GETWSTR(s1), GETINT(dw), ARGEND) != TCL_OK)
@@ -1454,6 +1474,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
         DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(cert_delete_from_store, 10004), // Doc TBD
         DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
