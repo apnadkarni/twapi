@@ -424,6 +424,100 @@ static TCL_RESULT TwapiCertGetNameString(
     return TCL_OK;
 }
 
+static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
+                                          HCRYPTPROV hprov, DWORD param,
+                                          DWORD flags, Tcl_Obj *objP)
+{
+    TCL_RESULT res;
+    void *pv;
+    HWND hwnd;
+    SECURITY_DESCRIPTOR *secdP;
+
+    switch (param) {
+    case PP_CLIENT_HWND:
+        if ((res = ObjToHWND(interp, objP, &hwnd)) != TCL_OK)
+            return res;
+        pv = &hwnd;
+        break;
+    case PP_DELETEKEY:
+        pv = NULL;
+        break;
+    case PP_KEYEXCHANGE_PIN: /* FALLTHRU */
+    case PP_SIGNATURE_PIN:
+        pv = ObjToString(objP);
+        break;
+    case PP_KEYSET_SEC_DESCR:
+        if ((res = ObjToPSECURITY_DESCRIPTOR(interp, objP, &secdP)) != TCL_OK)
+            return res;
+        /* TBD - check what happens with NULL secdP (which is valid) */
+        pv = secdP;
+        break;
+#ifdef PP_PIN_PROMPT_STRING
+    case PP_PIN_PROMPT_STRING:
+#else
+    case 44:
+#endif
+        /* FALLTHRU */
+    case PP_UI_PROMPT:
+        pv = ObjToUnicode(objP);
+        break;
+    default:
+        return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS, Tcl_ObjPrintf("Provider parameter %d not implemented", param));
+    }
+
+    if (CryptSetProvParam(hprov, param, pv, flags)) {
+        res = TCL_OK;
+    } else {
+        res = TwapiReturnSystemError(interp);
+    }
+
+    TwapiFreeSECURITY_DESCRIPTOR(secdP); /* OK if NULL */
+    
+    return res;
+}
+
+
+static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
+                                          HCRYPTPROV hprov,
+                                          DWORD param, DWORD flags)
+{
+    Tcl_Obj *objP;
+    DWORD n;
+    void *pv;
+
+    n = 0;
+    if (! CryptGetProvParam(hprov, param, NULL, &n, flags))
+        return TwapiReturnSystemError(interp);
+    
+    if (param == PP_KEYSET_SEC_DESCR) {
+        objP = NULL;
+        pv = TwapiAlloc(n);
+    } else {
+        objP = ObjFromByteArray(NULL, n);
+        pv = ObjToByteArray(objP, &n);
+    }
+
+    if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
+        if (objP)
+            Tcl_DecrRefCount(objP);
+        TwapiReturnSystemError(interp);
+        return TCL_ERROR;
+    }
+
+    if (param == PP_KEYSET_SEC_DESCR) {
+        if (n == 0)
+            objP = ObjFromEmptyString();
+        else
+            objP = ObjFromSECURITY_DESCRIPTOR(interp, pv);
+        TwapiFree(pv);
+        if (objP == NULL)
+            return TCL_ERROR;   /* interp already contains error */
+    } else
+        Tcl_SetByteArrayLength(objP, n);
+
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
 
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -447,7 +541,23 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 10003:
+    case 10001: // CryptReleaseContext
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = CryptReleaseContext((HCRYPTPROV)pv, dw);
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        break;
+
+    case 10002: // CryptGetProvParam
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        return Twapi_CryptGetProvParam(interp, (HCRYPTPROV) pv, dw, dw2);
+
+    case 10003: // cert_open_system_store
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         h = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
@@ -636,6 +746,20 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 result.type = TRT_GETLASTERROR;
         }
         break;
+
+    case 10018: // CryptGetUserKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptGetUserKey((HCRYPTPROV) pv, dw, &dwp)) {
+            if (TwapiRegisterPointer(interp, (void*)dwp, CryptDestroyKey) != TCL_OK)
+                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -645,7 +769,9 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s CryptoDispatch[] = {
-        DEFINE_FNCODE_CMD(cert_open_system_store, 201), // Doc TBD
+        DEFINE_FNCODE_CMD(crypt_release_context, 10001), // Doc TBD
+        DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
+        DEFINE_FNCODE_CMD(cert_open_system_store, 10003), // Doc TBD
         DEFINE_FNCODE_CMD(cert_delete_from_store, 10004), // Doc TBD
         DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
@@ -660,6 +786,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(TwapiFindCertBySubjectName, 10015),
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
+        DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
