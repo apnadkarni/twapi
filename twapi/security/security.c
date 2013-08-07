@@ -8,6 +8,7 @@
 /* Interface to Windows API related to security and access control functions */
 
 #include "twapi.h"
+#include <wincred.h>
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -845,6 +846,106 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 }
 
 
+static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
+{
+    int nobjs, user_len, password_len ;
+    Tcl_Obj **objs;
+    LPWSTR target, user, password;
+    DWORD autherr, save, flags;
+    TCL_RESULT res;
+    CREDUI_INFOW cui, *cuiP;
+    WCHAR *user_buf, *password_buf;
+    DWORD status;
+    BOOL bsave;
+    Tcl_Obj *resultObjs[3];
+
+    if (TwapiGetArgs(interp, objc, objv, 
+                     GETWSTR(target), ARGSKIP, GETINT(autherr), 
+                     GETWSTRN(user, user_len),
+                     GETWSTRN(password, password_len), GETBOOL(save),
+                     GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    bsave = save ? TRUE : FALSE;
+
+    if (uiObj == NULL) {
+        if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
+            /* Not documented but for cmdline version one of these flags
+               is required else you get ERROR_INVALID_FLAGS */
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "CredUICmdLinePromptForCredentials requires REQUIRE_SMARTCARD or EXCLUDE_CERTIFICATES flag to be specified.");
+        }
+        cuiP = NULL;
+    }
+    else {
+        if ((res = ObjGetElements(interp, uiObj, &nobjs, &objs)) != TCL_OK)
+            return res;
+        if (nobjs == 0)
+            cuiP = NULL;
+        else {
+            if ((res = TwapiGetArgs(interp, nobjs, objs,
+                                     GETHWND(cui.hwndParent),
+                                     GETNULLIFEMPTY(cui.pszMessageText),
+                                     GETNULLIFEMPTY(cui.pszCaptionText),
+                                     GETHANDLET(cui.hbmBanner, HBITMAP),
+                                     ARGEND)) != TCL_OK)
+                return res;
+        
+            cui.cbSize = sizeof(cui);
+            cuiP = &cui;
+        }
+    }
+
+    if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
+        password_len > CREDUI_MAX_PASSWORD_LENGTH) {
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
+    }
+    user_buf = TwapiAlloc(sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1));
+    password_buf = TwapiAlloc(sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1));
+    /* Zero first as recommended by MSDN */
+    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
+    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
+
+    CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
+    CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
+
+    if (uiObj) {
+        status = CredUIPromptForCredentialsW(
+            cuiP, target, NULL, autherr,
+            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
+            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
+    } else {
+        status = CredUICmdLinePromptForCredentialsW(
+            target, NULL, autherr,
+            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
+            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
+    }
+
+    switch (status) {
+    case NO_ERROR:
+        resultObjs[0] = ObjFromUnicode(user_buf);
+        resultObjs[1] = ObjFromUnicode(password_buf);
+        resultObjs[2] = ObjFromBoolean(bsave);
+        Tcl_SetObjResult(interp, ObjNewList(3, resultObjs));
+        res = TCL_OK;
+        break;
+    case ERROR_CANCELLED:
+        res = TCL_OK;           /* Return empty result */
+        break;
+    default:
+        Twapi_AppendSystemError(interp, status);
+        res = TCL_ERROR;
+        break;
+    }
+
+
+    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
+    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
+    TwapiFree(user_buf);
+    TwapiFree(password_buf);
+
+    return res;
+}
+
+
 #if 0
 /* Not explicitly visible in Win2K and XP SP0 so we use CheckTokenMembership
    directly for which this is a wrapper */
@@ -852,7 +953,7 @@ BOOL IsUserAnAdmin();
 #endif
 
 
-static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2, s3;
     DWORD dw, dw2, dw3;
@@ -1077,6 +1178,13 @@ static int Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10011:
+            if (objc == 0)
+                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+            return Twapi_CredPrompt(interp, objv[0], --objc, &objv[1]);
+            
+        case 10012:
+            return Twapi_CredPrompt(interp, NULL, objc, objv);
         case 10013:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -1299,6 +1407,8 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
 
+        DEFINE_FNCODE_CMD(CredUIPromptForCredentials, 10011), //Tcl
+        DEFINE_FNCODE_CMD(CredUICmdLinePromptForCredentials, 10012), //Tcl
         DEFINE_FNCODE_CMD(UnloadUserProfile, 10013), // TBD - Tcl
         DEFINE_FNCODE_CMD(LogonUser, 10014),
         DEFINE_FNCODE_CMD(LsaAddAccountRights, 10015),
