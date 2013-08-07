@@ -4,6 +4,6 @@ MODULENAME=twapi_security
 
 OBJS  = $(OBJDIR)\security.obj
 TCLFILES=..\tcl\security.tcl
-EXTRALIBS = $(SDKLIB)userenv.lib
+EXTRALIBS = $(SDKLIB)userenv.lib $(SDKLIB)credui.lib
 
 !include ..\include\rules.inc
