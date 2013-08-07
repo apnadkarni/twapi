@@ -675,7 +675,7 @@ proc twapi::cert_name_to_blob {name args} {
     return [CertStrToName $name $arg]
 }
 
-proc twapi::crypt_acquire_context {args} {
+proc twapi::crypt_context_acquire {args} {
     array set opts [parseargs args {
         container.arg
         csp.arg
@@ -715,7 +715,7 @@ proc twapi::crypt_delete_key_container args {
     return [CryptAcquireContext $opts(container) $opts(csp) [_crypto_provider_type $opts(type)] $flags]
 }
 
-proc twapi::crypt_generate_key {hprov algid args} {
+proc twapi::crypt_context_generate_key {hprov algid args} {
 
     array set opts [parseargs args {
         {archivable 0 0x4000}
@@ -761,6 +761,32 @@ proc twapi::crypt_generate_key {hprov algid args} {
     }
 
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
+}
+
+proc twapi::crypt_context_security_descriptor {hprov args} {
+    if {[llength $args] == 1} {
+        CryptSetProvParam $hprov 8 [lindex $args 0]
+    } elseif {[llength $args] == 0} {
+        return [CryptGetProvParam $hprov 8 7]
+    } else {
+        badargs! "wrong # args: should be \"[lindex [info level 0] 0] hprov ?secd?\""
+    }
+}
+
+proc twapi::crypt_context_container {hprov} {
+    return [_ascii_binary_to_string [CryptGetProvParam $hprov 6 0]]
+}
+
+proc twapi::crypt_context_unique_container {hprov} {
+    return [_ascii_binary_to_string [CryptGetProvParam $hprov 36 0]]
+}
+
+proc twapi::crypt_context_csp {hprov} {
+    return [_ascii_binary_to_string [CryptGetProvParam $hprov 4 0]]
+}
+
+proc twapi::crypt_context_containers {hprov} {
+    return [CryptGetProvParam $hprov 2 0]
 }
 
 proc twapi::cert_enum_properties {hcert} {
