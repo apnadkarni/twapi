@@ -489,6 +489,25 @@ proc twapi::_ucs16_binary_to_string {bin {off 0}} {
     }
 }
 
+# Extract a string from a binary. Cannot directly use
+# encoding convertfrom because that will not stop at the terminating
+# null.
+proc twapi::_ascii_binary_to_string {bin {off 0}} {
+    set bin [string range $bin $off end]
+
+    # Find the terminating null.
+    set off [string first \0 $bin]
+
+    # off is offset of terminating null, or -1 if not found
+    if {$off < 0} {
+        # No terminator
+        return [encoding convertfrom ascii $bin]
+    } else {
+        return [encoding convertfrom ascii [string range $bin 0 $off-1]]
+    }
+}
+
+
 # Given a binary, return a GUID. The formatting is done as per the
 # Windows StringFromGUID2 convention used by COM
 proc twapi::_binary_to_guid {bin {off 0}} {
