@@ -3949,7 +3949,7 @@ Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
 
     /* Assumes major version==8 check already made at init time */
     if (bytes != NULL ||
-        (gTclVersion.minor == 6 && gTclVersion.reltype != TCL_ALPHA_RELEASE) ||
+        (gTclVersion.minor == 6 && gTclVersion.reltype == TCL_FINAL_RELEASE) ||
         gTclVersion.minor > 6) {
         return Tcl_NewByteArrayObj(bytes, len);
     } else {
