@@ -486,6 +486,29 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     void *pv;
 
     n = 0;
+    /* Special case PP_ENUMCONTAINERS because of how the iteration
+       works. We return ALL containers as opposed to one at a time */
+    if (param == PP_ENUMCONTAINERS) {
+        if (! CryptGetProvParam(hprov, param, NULL, &n, CRYPT_FIRST))
+            return TwapiReturnSystemError(interp);
+        /* n is now the max size buffer. Subsequent calls will not change that value */
+        pv = TwapiAlloc(n * sizeof(char));
+        objP = Tcl_NewListObj(0, NULL);
+        flags = CRYPT_FIRST;
+        while (CryptGetProvParam(hprov, param, pv, &n, flags)) {
+            ObjAppendElement(NULL, objP, ObjFromString(pv));
+            flags = CRYPT_NEXT;
+        }
+        n = GetLastError();
+        TwapiFree(pv);
+        if (n != ERROR_NO_MORE_ITEMS) {
+            Tcl_DecrRefCount(objP);
+            return Twapi_AppendSystemError(interp, n);
+        }
+        Tcl_SetObjResult(interp, objP);
+        return TCL_OK;
+    }
+    
     if (! CryptGetProvParam(hprov, param, NULL, &n, flags))
         return TwapiReturnSystemError(interp);
     
@@ -759,6 +782,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_GETLASTERROR;
         break;
 
+    case 10019: // CryptSetProvParam
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        return Twapi_CryptSetProvParam(interp, (HCRYPTPROV) pv, dw, dw2, objv[3]);
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -786,6 +816,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
+        DEFINE_FNCODE_CMD(CryptGetProvParam, 10019),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
