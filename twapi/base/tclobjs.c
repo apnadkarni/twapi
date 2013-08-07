@@ -100,6 +100,7 @@ static struct Tcl_ObjType gVariantType = {
     NULL,     /* jenglish says keep this NULL */
 };
 
+
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     if (interp) {
@@ -3963,4 +3964,89 @@ Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
 unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
 {
     return Tcl_GetByteArrayFromObj(objP, lenP);
+}
+
+
+Tcl_Obj *MakeEncryptedObj(Tcl_Interp *interp, char *p, int len)
+{
+    int sz;
+    int pad_len;
+    Tcl_Obj *objP;
+    NTSTATUS status;
+
+    /* Total length has to be multiple of encryption block size */
+
+    /* Encryption involves padding. We will stick a byte
+       at the end to hold actual pad length */
+#ifndef RTL_ENCRYPT_MEMORY_SIZE // Not defined in all SDK's
+# define RTL_ENCRYPT_MEMORY_SIZE 8
+#endif    
+#define BLOCK_SIZE_MASK (RTL_ENCRYPT_MEMORY_SIZE-1)
+    
+    if (len & BLOCK_SIZE_MASK) {
+        /* Not a multiple of RTL_ENCRYPT_MEMORY_SIZE */
+        sz = (len + BLOCK_SIZE_MASK) & ~BLOCK_SIZE_MASK;
+        pad_len = sz - len;
+    } else {
+        /* Exact size. But we need a byte for the pad length field
+           so need to add an entire block for that */
+        pad_len = RTL_ENCRYPT_MEMORY_SIZE;
+        sz = len + pad_len;
+    }
+    TWAPI_ASSERT(pad_len > 0);
+    TWAPI_ASSERT(pad_len <= RTL_ENCRYPT_MEMORY_SIZE);
+
+    objP = ObjFromByteArray(p, len);
+    Tcl_SetByteArrayLength(objP, sz);
+    p = ObjToByteArray(objP, &sz);
+    p[sz-1] = (unsigned char) pad_len;
+    
+    /* RtlEncryptMemory */
+    status = SystemFunction040(p, sz, 0);
+    if (status != 0) {
+        Tcl_DecrRefCount(objP);
+        Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
+        return NULL;
+    }
+    return objP;
+}
+
+Tcl_Obj *ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP)
+{
+    int len;
+    char *p;
+    int pad_len;
+    NTSTATUS status;
+
+    p = ObjToByteArray(objP, &len);
+    if (len == 0 || (len & BLOCK_SIZE_MASK)) {
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid length (%d) of encrypted object. Must be non-zero multiple of block size (%d).", len, RTL_ENCRYPT_MEMORY_SIZE));
+        return NULL;
+    }
+
+    objP = Tcl_DuplicateObj(objP);
+    p = ObjToByteArray(objP, &len);
+    
+    /* RtlDecryptMemory */
+    status = SystemFunction041(p, len, 0);
+    if (status != 0) {
+        Tcl_DecrRefCount(objP);
+        Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
+        return NULL;
+    }
+
+    pad_len = (unsigned char) p[len-1];
+
+    if (pad_len == 0 ||
+        pad_len > RTL_ENCRYPT_MEMORY_SIZE ||
+        pad_len > len) {
+        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                           Tcl_ObjPrintf("Invalid pad (%d) in decrypted object. Object corrupted or was not encrypted.", pad_len));
+        Tcl_DecrRefCount(objP);
+        return NULL;
+    }
+    
+    Tcl_SetByteArrayLength(objP, len-pad_len);
+    return objP;
 }
