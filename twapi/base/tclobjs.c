@@ -3966,7 +3966,7 @@ unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
     return Tcl_GetByteArrayFromObj(objP, lenP);
 }
 
-Tcl_Obj *MakeEncryptedObj(Tcl_Interp *interp, char *p, int len)
+TCL_RESULT MakeEncryptedObj(Tcl_Interp *interp, char *p, int len, Tcl_Obj **objPP)
 {
     int sz;
     int pad_len;
@@ -4005,9 +4005,10 @@ Tcl_Obj *MakeEncryptedObj(Tcl_Interp *interp, char *p, int len)
     if (status != 0) {
         Tcl_DecrRefCount(objP);
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
-        return NULL;
+        return TCL_ERROR;
     }
-    return objP;
+    *objPP = objP;
+    return TCL_OK;
 }
 
 #ifdef OBSOLETE
@@ -4054,17 +4055,17 @@ Tcl_Obj *ObjDecryptToByteArray(Tcl_Interp *interp, Tcl_Obj *objP)
 
 
 /* Encrypts the UTF-8 string rep to a byte array */
-Tcl_Obj *ObjEncrypt(Tcl_Interp *interp, Tcl_Obj *objP)
+TCL_RESULT ObjEncrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
 {
     char *plain;
     int len;
 
     plain = ObjToStringN(objP, &len);
-    return MakeEncryptedObj(interp, plain, len);
+    return MakeEncryptedObj(interp, plain, len, objPP);
 }
 
 /* Decrypts byte array into a UTF-8 string rep */
-Tcl_Obj *ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP)
+TCL_RESULT ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
 {
     int len;
     char *plain, *enc;
@@ -4075,7 +4076,7 @@ Tcl_Obj *ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP)
     if (len == 0 || (len & BLOCK_SIZE_MASK)) {
         TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                            Tcl_ObjPrintf("Invalid length (%d) of encrypted object. Must be non-zero multiple of block size (%d).", len, RTL_ENCRYPT_MEMORY_SIZE));
-        return NULL;
+        return TCL_ERROR;
     }
 
     objP = ObjFromEmptyString();
@@ -4088,7 +4089,7 @@ Tcl_Obj *ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP)
     if (status != 0) {
         Tcl_DecrRefCount(objP);
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
-        return NULL;
+        return TCL_ERROR;
     }
 
     pad_len = (unsigned char) plain[len-1];
@@ -4099,9 +4100,10 @@ Tcl_Obj *ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP)
         TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                            Tcl_ObjPrintf("Invalid pad (%d) in decrypted object. Object corrupted or was not encrypted.", pad_len));
         Tcl_DecrRefCount(objP);
-        return NULL;
+        return TCL_ERROR;
     }
     
     Tcl_SetObjLength(objP, len-pad_len);
-    return objP;
+    *objPP = objP;
+    return TCL_OK;
 }
