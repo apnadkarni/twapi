@@ -468,9 +468,10 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     switch (func) {
     case 1006: // DecryptObject
     case 1007: // EncryptObject
-        result.value.obj = (func == 1006 ? ObjDecrypt : ObjEncrypt)(interp, objv[0]);
-        if (result.value.obj == NULL)
-            return TCL_ERROR;
+        
+        dw = (func == 1006 ? ObjDecrypt : ObjEncrypt)(interp, objv[0], &result.value.obj);
+        if (dw != TCL_OK)
+            return dw;
         result.type = TRT_OBJ;
         break;
 
@@ -1657,8 +1658,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
-        DEFINE_FNCODE_CMD(DecryptObj, 1006), // TBD Document
-        DEFINE_FNCODE_CMD(EncryptObj, 1007), // TBD Document
+        DEFINE_FNCODE_CMD(reveal, 1006), // TBD Document
+        DEFINE_FNCODE_CMD(conceal, 1007), // TBD Document
         DEFINE_FNCODE_CMD(Twapi_AddressToPointer, 1008),
         DEFINE_FNCODE_CMD(IsValidSid, 1009),
         DEFINE_FNCODE_CMD(VariantTimeToSystemTime, 1010),
