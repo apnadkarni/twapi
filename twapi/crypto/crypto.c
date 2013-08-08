@@ -542,6 +542,122 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     return TCL_OK;
 }
 
+static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD store_provider, enc_type, flags;
+    void *pv = NULL;
+    HCERTSTORE hstore;
+    HANDLE h;
+    TCL_RESULT res;
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETINT(store_provider), GETINT(enc_type), ARGUNUSED,
+                     GETINT(flags), ARGSKIP, ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    /* Using literals because the #defines are cast as LPCSTR */
+    switch (store_provider) {
+    case 2: // CERT_STORE_PROV_MEMORY
+    case 11: // CERT_STORE_PROV_COLLECTION
+        break;
+
+    case 3: // CERT_STORE_PROV_FILE
+        if ((res = ObjToOpaque(interp, objv[4], &h, "HANDLE")) != TCL_OK)
+            return res;
+        pv = &h;
+        break;
+
+    case 4: // CERT_STORE_PROV_REG
+        /* Docs imply pv itself is the handle unlike the FILE case above */
+        if ((res = ObjToOpaque(interp, objv[4], &pv, "HANDLE")) != TCL_OK)
+            return res;
+        break;
+
+    case 8: // CERT_STORE_PROV_FILENAME_W
+    case 14: // CERT_STORE_PROV_PHYSICAL_W
+    case 10: // CERT_STORE_PROV_SYSTEM_W
+    case 13: // CERT_STORE_PROV_SYSTEM_REGISTRY_W
+        pv = ObjToUnicode(objv[4]);
+        break;
+
+    case 5: // CERT_STORE_PROV_PKCS7
+    case 6: // CERT_STORE_PROV_SERIALIZED
+    case 15: // CERT_STORE_PROV_SMART_CARD
+    case 16: // CERT_STORE_PROV_LDAP
+    case 1: // CERT_STORE_PROV_MSG
+    default:
+        Tcl_SetObjResult(interp,
+                         Tcl_ObjPrintf("Invalid or unsupported store provider \"%d\"", store_provider));
+        return TCL_ERROR;
+    }
+
+    hstore = CertOpenStore(IntToPtr(store_provider), enc_type, 0, flags, pv);
+    if (hstore) {
+        /* CertCloseStore does not check ponter validity! So do ourselves*/
+        if (TwapiRegisterPointer(interp, h, CertCloseStore) != TCL_OK)
+            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+        Tcl_SetObjResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
+        return TCL_OK;
+    } else {
+        if (flags & CERT_STORE_DELETE_FLAG) {
+            /* Return value can mean success as well */
+            if (GetLastError() == 0)
+                return TCL_OK;
+        }
+        return TwapiReturnSystemError(interp);
+    }
+}
+
+static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HCERTSTORE hstore;
+    LPWSTR password;
+    int password_len;
+    Tcl_Obj *objP;
+    CRYPT_DATA_BLOB blob;
+    BOOL status;
+    int flags;
+    
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
+                     ARGSKIP, ARGUNUSED, 
+                     GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (ObjDecrypt(interp, objv[1], &objP) != TCL_OK)
+        return TCL_ERROR;
+    password = ObjToUnicodeN(objP, &password_len);
+    
+    blob.cbData = 0;
+    blob.pbData = NULL;
+
+    status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
+    
+    TWAPI_ASSERT(! Tcl_IsShared(objP));
+    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
+    Tcl_DecrRefCount(objP);
+    objP = NULL;
+    password = NULL;            /* Since this pointed into objP */
+
+    if (!status)
+        return TwapiReturnSystemError(interp);
+
+    if (blob.cbData == 0)
+        return TCL_OK;        /* Nothing to export ? */
+
+    objP = ObjFromByteArray(NULL, blob.cbData);
+    blob.pbData = ObjToByteArray(objP, &blob.cbData);
+    status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
+    if (! status) {
+        TwapiReturnSystemError(interp);
+        Tcl_DecrRefCount(objP);
+        return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, objP);
+    return TCL_OK;
+}
+
+
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -789,6 +905,11 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         return Twapi_CryptSetProvParam(interp, (HCRYPTPROV) pv, dw, dw2, objv[3]);
 
+    case 10020: // CertOpenStore
+        return Twapi_CertOpenStore(interp, objc, objv);
+
+    case 10021: // PFXExportCertStoreEx
+        return Twapi_PFXExportCertStoreEx(interp, objc, objv);
     }
 
     return TwapiSetResult(interp, &result);
@@ -817,6 +938,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10019),
+        DEFINE_FNCODE_CMD(CertOpenStore, 10020),
+        DEFINE_FNCODE_CMD(PFXExportCertStoreEx, 10021),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

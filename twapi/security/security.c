@@ -866,10 +866,6 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
         return TCL_ERROR;
     bsave = save ? TRUE : FALSE;
 
-    if ((res = ObjDecrypt(interp, objv[4], &objP)) != TCL_OK)
-        return res;
-    password = ObjToUnicodeN(objP, &password_len);
-
     if (uiObj == NULL) {
         if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
             /* Not documented but for cmdline version one of these flags
@@ -897,8 +893,13 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
         }
     }
 
+    if ((res = ObjDecrypt(interp, objv[4], &objP)) != TCL_OK)
+        return res;
+    password = ObjToUnicodeN(objP, &password_len);
+
     if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
         password_len > CREDUI_MAX_PASSWORD_LENGTH) {
+        Tcl_DecrRefCount(objP);
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
     }
     user_buf = TwapiAlloc(sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1));
@@ -909,6 +910,11 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
 
     CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
     CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
+
+    TWAPI_ASSERT(! Tcl_IsShared(objP));
+    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
+    Tcl_DecrRefCount(objP);
+    password = NULL;            /* Since this pointed into objP */
 
     if (uiObj) {
         status = CredUIPromptForCredentialsW(

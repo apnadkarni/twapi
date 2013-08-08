@@ -716,7 +716,8 @@ typedef struct {
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
 #define ARGVERIFIEDPTR 'z'
-#define ARGSKIP     'x'
+#define ARGSKIP     'x'   /* Leave arg parsing to caller */
+#define ARGUNUSED ARGSKIP /* For readability when even caller does not care */
 #define ARGUSEDEFAULT '?'
 
 #define GETBOOL(v)    ARGBOOL, &(v)
