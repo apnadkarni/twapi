@@ -467,15 +467,8 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1006: // DecryptObject
-        result.value.obj = ObjDecrypt(interp, objv[0]);
-        if (result.value.obj == NULL)
-            return TCL_ERROR;
-        result.type = TRT_OBJ;
-        break;
-
     case 1007: // EncryptObject
-        pv = ObjToByteArray(objv[0], &dw);
-        result.value.obj = MakeEncryptedObj(interp, pv, dw);
+        result.value.obj = (func == 1006 ? ObjDecrypt : ObjEncrypt)(interp, objv[0]);
         if (result.value.obj == NULL)
             return TCL_ERROR;
         result.type = TRT_OBJ;
