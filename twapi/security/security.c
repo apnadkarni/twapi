@@ -845,7 +845,6 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     return TCL_OK;
 }
 
-
 static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
 {
     int nobjs, user_len, password_len ;
@@ -857,15 +856,19 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
     WCHAR *user_buf, *password_buf;
     DWORD status;
     BOOL bsave;
-    Tcl_Obj *resultObjs[3];
+    Tcl_Obj *resultObjs[3], *objP;
 
     if (TwapiGetArgs(interp, objc, objv, 
                      GETWSTR(target), ARGSKIP, GETINT(autherr), 
-                     GETWSTRN(user, user_len),
-                     GETWSTRN(password, password_len), GETBOOL(save),
+                     GETWSTRN(user, user_len), ARGSKIP,
+                     GETBOOL(save),
                      GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     bsave = save ? TRUE : FALSE;
+
+    if ((res = ObjDecrypt(interp, objv[4], &objP)) != TCL_OK)
+        return res;
+    password = ObjToUnicodeN(objP, &password_len);
 
     if (uiObj == NULL) {
         if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
@@ -921,8 +924,12 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
 
     switch (status) {
     case NO_ERROR:
+        objP = ObjFromUnicode(password_buf);
+        res = ObjEncrypt(interp, objP, &resultObjs[1]);
+        Tcl_DecrRefCount(objP);
+        if (res != TCL_OK)
+            break;
         resultObjs[0] = ObjFromUnicode(user_buf);
-        resultObjs[1] = ObjFromUnicode(password_buf);
         resultObjs[2] = ObjFromBoolean(bsave);
         Tcl_SetObjResult(interp, ObjNewList(3, resultObjs));
         res = TCL_OK;
