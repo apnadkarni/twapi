@@ -14,60 +14,6 @@ namespace eval twapi {
         eventclass_guid "{D5B52E95-8447-40C1-B316-539894449B36}"
     }
 
-    # Maps event field type strings to enums to pass to the C code
-    variable _etw_fieldtypes
-    # 0 should be unmapped. Note some are duplicates because they
-    # are the same format. Some are legacy formats not explicitly documented
-    # in MSDN but found in the sample code.
-    array set _etw_fieldtypes {
-        string  1
-        stringnullterminated 1
-        wstring 2
-        wstringnullterminated 2
-        stringcounted 3
-        stringreversecounted 4
-        wstringcounted 5
-        wstringreversecounted 6
-        boolean 7
-        sint8 8
-        uint8 9
-        csint8 10
-        cuint8 11
-        sint16 12
-        uint16 13
-        uint32 14
-        sint32 15
-        sint64 16
-        uint64 17
-        xsint16 18
-        xuint16 19
-        xsint32 20
-        xuint32 21
-        xsint64 22
-        xuint64 23
-        real32 24
-        real64 25
-        object 26
-        char16 27
-        uint8guid 28
-        objectguid 29
-        objectipaddrv4 30
-        uint32ipaddr 30
-        objectipaddr 30
-        objectipaddrv6 31
-        objectvariant 32
-        objectsid 33
-        uint64wmitime 34
-        objectwmitime 35
-        uint16port 38
-        objectport 39
-        datetime 40
-        stringnotcounted 41
-        wstringnotcounted 42
-        pointer 43
-        sizet   43
-    }
-
     # Cache of event definitions for parsing event. Nested dictionary
     # with the following structure (uppercase keys are variables,
     # lower case are constant/tokens, "->" is nested dict, "-" is scalar):
@@ -374,8 +320,61 @@ proc twapi::etw_parse_mof_event_class {ocls} {
 }
 
 # Deciphers an event  field type
-proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
+
+twapi::proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
+    # Maps event field type strings to enums to pass to the C code
     variable _etw_fieldtypes
+    # 0 should be unmapped. Note some are duplicates because they
+    # are the same format. Some are legacy formats not explicitly documented
+    # in MSDN but found in the sample code.
+    set etw_fieldtypes {
+        string  1
+        stringnullterminated 1
+        wstring 2
+        wstringnullterminated 2
+        stringcounted 3
+        stringreversecounted 4
+        wstringcounted 5
+        wstringreversecounted 6
+        boolean 7
+        sint8 8
+        uint8 9
+        csint8 10
+        cuint8 11
+        sint16 12
+        uint16 13
+        uint32 14
+        sint32 15
+        sint64 16
+        uint64 17
+        xsint16 18
+        xuint16 19
+        xsint32 20
+        xuint32 21
+        xsint64 22
+        xuint64 23
+        real32 24
+        real64 25
+        object 26
+        char16 27
+        uint8guid 28
+        objectguid 29
+        objectipaddrv4 30
+        uint32ipaddr 30
+        objectipaddr 30
+        objectipaddrv6 31
+        objectvariant 32
+        objectsid 33
+        uint64wmitime 34
+        objectwmitime 35
+        uint16port 38
+        objectport 39
+        datetime 40
+        stringnotcounted 41
+        wstringnotcounted 42
+        pointer 43
+        sizet   43
+    }
 
     # On any errors, we will set type to unknown or unsupported
     set type unknown
@@ -425,10 +424,10 @@ proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
         set type "arrayof$type"
     }
 
-    if {![info exists _etw_fieldtypes($type)]} {
+    if {![dict exists $etw_fieldtypes $type]} {
         set fieldtype 0
     } else {
-        set fieldtype $_etw_fieldtypes($type)
+        set fieldtype [dict get $etw_fieldtypes $type]
     }
 
     return [dict create -type $type -fieldtype $fieldtype -extension $quals(extension)]

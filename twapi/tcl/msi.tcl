@@ -14,6 +14,18 @@ namespace eval twapi {
     variable msiprotos_database
     variable msiprotos_record
     variable msi_guids
+}
+
+# Initialize MSI module
+proc twapi::init_msi {} {
+    variable msi_guids
+
+    # Load all the prototypes and definitions
+    # Following code generated using the generate_code_from_typelib function
+    # msi objects do not support ITypeInfo so cannot use at run time binding
+
+    package require twapi_com
+
     array set msi_guids {
         database    {{000C109D-0000-0000-C000-000000000046}}
         featureinfo {{000C109A-0000-0000-C000-000000000046}}
@@ -28,15 +40,6 @@ namespace eval twapi {
         uipreview   {{000C109A-0000-0000-C000-000000000046}}
         view        {{000C109C-0000-0000-C000-000000000046}}
     }
-}
-
-# Initialize MSI module
-proc twapi::init_msi {} {
-    # Load all the prototypes and definitions
-    # Following code generated using the generate_code_from_typelib function
-    # msi objects do not support ITypeInfo so cannot use at run time binding
-
-    package require twapi_com
 
     # Dispatch Interface Installer
     # Installer Methods
@@ -326,26 +329,19 @@ proc twapi::delete_msi {obj} {
 }
 
 # Cast an MSI object, needed because MSI does not support ITypeInfo
-proc twapi::cast_msi_object {obj type} {
-
+twapi::proc* twapi::cast_msi_object {obj type} {
     # Init protos and stuff
     init_msi
-
-    # Redefine ourselves so we don't call init_msi everytime
-    proc ::twapi::cast_msi_object {obj type} {
-        if {[$obj -isnull]} {
-            error "Attempt to cast NULL comobj to Windows Installer type $type"
-        }
-
-        set type [string tolower $type]
-        variable msi_guids
-
-        # Tell the object it's type (guid)
-        $obj -interfaceguid $msi_guids($type)
+} {
+    if {[$obj -isnull]} {
+        badargs "Attempt to cast NULL comobj to Windows Installer type $type"
     }
 
-    # Call our new definition
-    return [cast_msi_object $obj $type]
+    set type [string tolower $type]
+    variable msi_guids
+
+    # Tell the object it's type (guid)
+    $obj -interfaceguid $msi_guids($type)
 }
 
 interp alias {} twapi::load_msi_prototypes {} twapi::cast_msi_object
