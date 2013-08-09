@@ -5,80 +5,6 @@
 # See the file LICENSE for license
 
 namespace eval twapi {
-    array set IfOperStatusTokens {
-        0 nonoperational
-        1 wanunreachable
-        2 disconnected
-        3 wanconnecting
-        4 wanconnected
-        5 operational
-    }
-
-    # Various pieces of information come from different sources. Moreover,
-    # the same information may be available from multiple APIs. In addition
-    # older versions of Windows may not have all the APIs. So we try
-    # to first get information from older API's whenever we have a choice
-    # These tables map fields to positions in the corresponding API result.
-    # -1 means rerieving is not as simple as simply indexing into a list
-
-    # GetIfEntry is available from NT4 SP4 onwards
-    array set GetIfEntry_opts {
-        type                2
-        mtu                 3
-        speed               4
-        physicaladdress     5
-        adminstatus         6
-        operstatus          7
-        laststatuschange    8
-        inbytes             9
-        inunicastpkts      10
-        innonunicastpkts   11
-        indiscards         12
-        inerrors           13
-        inunknownprotocols 14
-        outbytes           15
-        outunicastpkts     16
-        outnonunicastpkts  17
-        outdiscards        18
-        outerrors          19
-        outqlen            20
-        description        21
-    }
-
-    # GetIpAddrTable also exists in NT4 SP4+
-    array set GetIpAddrTable_opts {
-        ipaddresses -1
-        ifindex     -1
-        reassemblysize -1
-    }
-
-    # Win2K and up
-    array set GetAdaptersInfo_opts {
-        adaptername     0
-        adapterdescription     1
-        adapterindex    3
-        dhcpenabled     5
-        defaultgateway  7
-        dhcpserver      8
-        havewins        9
-        primarywins    10
-        secondarywins  11
-        dhcpleasestart 12
-        dhcpleaseend   13
-    }
-
-    # Win2K and up
-    array set GetPerAdapterInfo_opts {
-        autoconfigenabled 0
-        autoconfigactive  1
-        dnsservers        2
-    }
-
-    # Win2K and up
-    array set GetInterfaceInfo_opts {
-        ifname  -1
-    }
-
 }
 
 # TBD - Tcl interface to GetIfTable ?
@@ -182,7 +108,79 @@ proc twapi::get_network_info {args} {
 }
 
 
-proc twapi::get_netif_info {interface args} {
+twapi::proc* twapi::get_netif_info {interface args} {
+    variable GetIfEntry_opts
+    variable GetIpAddrTable_opts
+    variable GetAdaptersInfo_opts
+    variable GetPerAdapterInfo_opts
+    variable GetInterfaceInfo_opts
+
+    # Various pieces of information come from different sources. Moreover,
+    # the same information may be available from multiple APIs. In addition
+    # older versions of Windows may not have all the APIs. So we try
+    # to first get information from older API's whenever we have a choice
+    # These tables map fields to positions in the corresponding API result.
+    # -1 means rerieving is not as simple as simply indexing into a list
+
+    # GetIfEntry is available from NT4 SP4 onwards
+    array set GetIfEntry_opts {
+        type                2
+        mtu                 3
+        speed               4
+        physicaladdress     5
+        adminstatus         6
+        operstatus          7
+        laststatuschange    8
+        inbytes             9
+        inunicastpkts      10
+        innonunicastpkts   11
+        indiscards         12
+        inerrors           13
+        inunknownprotocols 14
+        outbytes           15
+        outunicastpkts     16
+        outnonunicastpkts  17
+        outdiscards        18
+        outerrors          19
+        outqlen            20
+        description        21
+    }
+
+    # GetIpAddrTable also exists in NT4 SP4+
+    array set GetIpAddrTable_opts {
+        ipaddresses -1
+        ifindex     -1
+        reassemblysize -1
+    }
+
+    # Win2K and up
+    array set GetAdaptersInfo_opts {
+        adaptername     0
+        adapterdescription     1
+        adapterindex    3
+        dhcpenabled     5
+        defaultgateway  7
+        dhcpserver      8
+        havewins        9
+        primarywins    10
+        secondarywins  11
+        dhcpleasestart 12
+        dhcpleaseend   13
+    }
+
+    # Win2K and up
+    array set GetPerAdapterInfo_opts {
+        autoconfigenabled 0
+        autoconfigactive  1
+        dnsservers        2
+    }
+
+    # Win2K and up
+    array set GetInterfaceInfo_opts {
+        ifname  -1
+    }
+
+} {
     variable GetIfEntry_opts
     variable GetIpAddrTable_opts
     variable GetAdaptersInfo_opts
@@ -198,6 +196,15 @@ proc twapi::get_netif_info {interface args} {
                              [array names GetInterfaceInfo_opts]]]
 
     array set result [list ]
+
+    set IfOperStatusTokens {
+        0 nonoperational
+        1 wanunreachable
+        2 disconnected
+        3 wanconnecting
+        4 wanconnected
+        5 operational
+    }
 
     set nif $interface
     if {![string is integer $nif]} {
@@ -288,8 +295,8 @@ proc twapi::get_netif_info {interface args} {
         }
     }
     if {[info exists result(-operstatus)] &&
-        [info exists twapi::IfOperStatusTokens($result(-operstatus))]} {
-        set result(-operstatus) $twapi::IfOperStatusTokens($result(-operstatus))
+        [dict exists $IfOperStatusTokens $result(-operstatus)]} {
+        set result(-operstatus) [dict get $IfOperStatusTokens $result(-operstatus)]
     }
 
     return [array get result]

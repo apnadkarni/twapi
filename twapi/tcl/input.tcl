@@ -23,30 +23,27 @@ proc twapi::window_input_enabled {hwin} {
 
 # Simulate user input
 proc twapi::send_input {inputlist} {
-    variable input_defs
-    if {![info exists input_defs]} {
-        array set input_defs {
-            MOUSEEVENTF_MOVE        0x0001
-            MOUSEEVENTF_LEFTDOWN    0x0002
-            MOUSEEVENTF_LEFTUP      0x0004
-            MOUSEEVENTF_RIGHTDOWN   0x0008
-            MOUSEEVENTF_RIGHTUP     0x0010
-            MOUSEEVENTF_MIDDLEDOWN  0x0020
-            MOUSEEVENTF_MIDDLEUP    0x0040
-            MOUSEEVENTF_XDOWN       0x0080
-            MOUSEEVENTF_XUP         0x0100
-            MOUSEEVENTF_WHEEL       0x0800
-            MOUSEEVENTF_VIRTUALDESK 0x4000
-            MOUSEEVENTF_ABSOLUTE    0x8000
+    array set input_defs {
+        MOUSEEVENTF_MOVE        0x0001
+        MOUSEEVENTF_LEFTDOWN    0x0002
+        MOUSEEVENTF_LEFTUP      0x0004
+        MOUSEEVENTF_RIGHTDOWN   0x0008
+        MOUSEEVENTF_RIGHTUP     0x0010
+        MOUSEEVENTF_MIDDLEDOWN  0x0020
+        MOUSEEVENTF_MIDDLEUP    0x0040
+        MOUSEEVENTF_XDOWN       0x0080
+        MOUSEEVENTF_XUP         0x0100
+        MOUSEEVENTF_WHEEL       0x0800
+        MOUSEEVENTF_VIRTUALDESK 0x4000
+        MOUSEEVENTF_ABSOLUTE    0x8000
+        
+        KEYEVENTF_EXTENDEDKEY 0x0001
+        KEYEVENTF_KEYUP       0x0002
+        KEYEVENTF_UNICODE     0x0004
+        KEYEVENTF_SCANCODE    0x0008
 
-            KEYEVENTF_EXTENDEDKEY 0x0001
-            KEYEVENTF_KEYUP       0x0002
-            KEYEVENTF_UNICODE     0x0004
-            KEYEVENTF_SCANCODE    0x0008
-
-            XBUTTON1      0x0001
-            XBUTTON2      0x0002
-        }
+        XBUTTON1      0x0001
+        XBUTTON2      0x0002
     }
 
     set inputs [list ]
@@ -157,7 +154,7 @@ proc twapi::send_input {inputlist} {
 proc twapi::block_input {} {
     return [BlockInput 1]
 }
-
+9
 # Unblock the input
 proc twapi::unblock_input {} {
     return [BlockInput 0]
