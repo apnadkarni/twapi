@@ -154,7 +154,7 @@ proc twapi::send_input {inputlist} {
 proc twapi::block_input {} {
     return [BlockInput 1]
 }
-9
+
 # Unblock the input
 proc twapi::unblock_input {} {
     return [BlockInput 0]
