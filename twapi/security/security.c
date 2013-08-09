@@ -914,6 +914,7 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
     TWAPI_ASSERT(! Tcl_IsShared(objP));
     SecureZeroMemory(password, sizeof(WCHAR) * password_len);
     Tcl_DecrRefCount(objP);
+    objP = NULL;
     password = NULL;            /* Since this pointed into objP */
 
     if (uiObj) {
