@@ -695,7 +695,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         return Twapi_CryptGetProvParam(interp, (HCRYPTPROV) pv, dw, dw2);
 
-    case 10003: // cert_open_system_store
+    case 10003: // CertOpenSystemStore
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         h = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
@@ -921,7 +921,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct fncode_dispatch_s CryptoDispatch[] = {
         DEFINE_FNCODE_CMD(crypt_release_context, 10001), // Doc TBD
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
-        DEFINE_FNCODE_CMD(cert_open_system_store, 10003), // Doc TBD
+        DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
         DEFINE_FNCODE_CMD(cert_delete_from_store, 10004), // Doc TBD
         DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
