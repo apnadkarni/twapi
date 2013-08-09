@@ -63,8 +63,13 @@ namespace eval twapi {
         appcontainerchecks  0x00800000
     }
 
-    # Maps OID mnemonics
+}
+
+
+# Maps OID mnemonics
+twapi::proc* twapi::oid {oid} {
     variable _oid_map
+
     array set _oid_map {
         oid_common_name                   "2.5.4.3"
         oid_sur_name                      "2.5.4.4"
@@ -98,121 +103,11 @@ namespace eval twapi {
         oid_certificate_revocation_list   "2.5.4.39"
         oid_cross_certificate_pair        "2.5.4.40"
     }
-
-    variable _provider_names
-    array set _provider_names {
-        rsa_full           1
-        rsa_sig            2
-        dss                3
-        fortezza           4
-        ms_exchange        5
-        ssl                6
-        rsa_schannel       12
-        dss_dh             13
-        ec_ecdsa_sig       14
-        ec_ecnra_sig       15
-        ec_ecdsa_full      16
-        ec_ecnra_full      17
-        dh_schannel        18
-        spyrus_lynks       20
-        rng                21
-        intel_sec          22
-        replace_owf        23
-        rsa_aes            24
-    }
-
-    # Certificate property menomics
-    variable _cert_prop_ids
-    array set _cert_prop_ids {
-        key_prov_handle        1
-        key_prov_info          2
-        sha1_hash              3
-        hash                   3
-        md5_hash               4
-        key_context            5
-        key_spec               6
-        ie30_reserved          7
-        pubkey_hash_reserved   8
-        enhkey_usage           9
-        ctl_usage              9
-        next_update_location   10
-        friendly_name          11
-        pvk_file               12
-        description            13
-        access_state           14
-        signature_hash         15
-        smart_card_data        16
-        efs                    17
-        fortezza_data          18
-        archived               19
-        key_identifier         20
-        auto_enroll            21
-        pubkey_alg_para        22
-        cross_cert_dist_points 23
-        issuer_public_key_md5_hash     24
-        subject_public_key_md5_hash    25
-        id             26
-        date_stamp             27
-        issuer_serial_number_md5_hash  28
-        subject_name_md5_hash  29
-        extended_error_info    30
-
-        renewal                64
-        archived_key_hash      65
-        auto_enroll_retry      66
-        aia_url_retrieved      67
-        authority_info_access  68
-        backed_up              69
-        ocsp_response          70
-        request_originator     71
-        source_location        72
-        source_url             73
-        new_key                74
-        ocsp_cache_prefix      75
-        smart_card_root_info   76
-        no_auto_expire_check   77
-        ncrypt_key_handle      78
-        hcryptprov_or_ncrypt_key_handle   79
-
-        subject_info_access    80
-        ca_ocsp_authority_info_access  81
-        ca_disable_crl         82
-        root_program_cert_policies    83
-        root_program_name_constraints 84
-        subject_ocsp_authority_info_access  85
-        subject_disable_crl    86
-        cep                    87
-
-        sign_hash_cng_alg      89
-
-        scard_pin_id           90
-        scard_pin_info         91
-    }
-}
-
-proc twapi::_crypto_provider_type prov {
-    variable _provider_names
-
-    set key [string tolower $prov]
-
-    if {[info exists _provider_names($key)]} {
-        return $_provider_names($key)
-    }
-
-    if {[string is integer -strict $prov]} {
-        return $prov
-    }
-
-    badargs! "Invalid or unknown provider name '$prov'"
-}
-
-proc twapi::oid {oid} {
+} {
     variable _oid_map
-
     if {[info exists _oid_map($oid)]} {
         return $_oid_map($oid)
     }
-    
     if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
         return $oid
     } else {
@@ -558,11 +453,109 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
 
 ################################################################
 # Certificate procs
+# TBD - document
 
 # Close a certificate store
-# TBD - document
-proc twapi::cert_close_store {hstore} {
+proc twapi::cert_store_close {hstore} {
     CertCloseStore $hstore 0
+}
+
+proc twapi::cert_memory_store_open {} {
+    return [CertOpenStore 2 0 NULL 0 ""]
+}
+
+proc twapi::cert_file_store_open {path args} {
+    array set opts [parseargs args {
+        {readonly        0 0x00008000}
+        {commitenable    0 0x00010000}
+        {existing        0 0x00004000}
+        {create          0 0x00002000}
+        {includearchived 0 0x00000200}
+        {maxpermissions  0 0x00001000}
+        {deferclose      0 0x00000004}
+        {backupprivilege 0 0x00000800}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(readonly) && $opts(commitenable)} {
+        badargs! "Options -commitenable and -readonly are mutually exclusive."
+    }
+
+    set flags 0
+    foreach {opt val} [array get opts] {
+        incr flags $val
+    }
+
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    return [CertOpenStore 8 0x10001 NULL $flags [file nativename [file normalize $path]]]
+}
+
+proc twapi::cert_file_store_delete {name} {
+    return [CertOpenStore 8 0 NULL 0x10 [file nativename [file normalize $path]]]
+}
+
+proc twapi::cert_physical_store_open {name location args} {
+    variable _system_stores
+
+    array set opts [parseargs args {
+        {readonly        0 0x00008000}
+        {commitenable    0 0x00010000}
+        {existing        0 0x00004000}
+        {create          0 0x00002000}
+        {includearchived 0 0x00000200}
+        {maxpermissions  0 0x00001000}
+        {deferclose      0 0x00000004}
+        {backupprivilege 0 0x00000800}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(readonly) && $opts(commitenable)} {
+        badargs! "Options -commitenable and -readonly are mutually exclusive."
+    }
+
+    set flags 0
+    foreach {opt val} [array get opts] {
+        incr flags $val
+    }
+    incr flags [_system_store_id $location]
+    return [CertOpenStore 14 0 NULL $flags $name]
+}
+
+proc twapi::cert_physical_store_delete {name} {
+    return [CertOpenStore 14 0 NULL 0x10 $name]
+}
+
+proc twapi::cert_system_store_open {name args} {
+    variable _system_stores
+
+    if {[llength $args] == 0} {
+        return [CertOpenSystemStore $name]
+    }
+
+    set args [lassign $args location]
+    array set opts [parseargs args {
+        {readonly        0 0x00008000}
+        {commitenable    0 0x00010000}
+        {existing        0 0x00004000}
+        {create          0 0x00002000}
+        {includearchived 0 0x00000200}
+        {maxpermissions  0 0x00001000}
+        {deferclose      0 0x00000004}
+        {backupprivilege 0 0x00000800}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(readonly) && $opts(commitenable)} {
+        badargs! "Options -commitenable and -readonly are mutually exclusive."
+    }
+
+    set flags 0
+    foreach {opt val} [array get opts] {
+        incr flags $val
+    }
+    incr flags [_system_store_id $location]
+    return [CertOpenStore 10 0 NULL $flags $name]
+}
+
+proc twapi::cert_system_store_delete {name} {
+    return [CertOpenStore 10 0 NULL 0x10 $name]
 }
 
 proc twapi::cert_find {hstore args} {
@@ -674,6 +667,44 @@ proc twapi::cert_name_to_blob {name args} {
 
     return [CertStrToName $name $arg]
 }
+
+proc twapi::cert_enum_properties {hcert} {
+    set id 0
+    set ids {}
+    while {[set id [CertEnumCertificateContextProperties $hcert $id]]} {
+        lappend ids [list $id [_cert_prop_name $id]]
+    }
+    return $ids
+}
+
+proc twapi::cert_get_property {hcert prop} {
+
+    if {[string is integer -strict $prop]} {
+        return [CertGetCertificateContextProperty $hcert $prop]
+    } 
+                                  
+    return [switch $prop {
+        access_state -
+        key_spec {
+            binary scan [CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]] i i
+            set i
+        }
+        extended_error_info -
+        friendly_name -
+        pvk_file {
+            string range [encoding convertfrom unicode [CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]]] 0 end-1
+        }
+        default {
+            CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]
+        }
+    }]
+}
+
+
+
+
+################################################################
+# Provider contexts
 
 proc twapi::crypt_context_acquire {args} {
     array set opts [parseargs args {
@@ -789,48 +820,6 @@ proc twapi::crypt_context_containers {hprov} {
     return [CryptGetProvParam $hprov 2 0]
 }
 
-proc twapi::cert_enum_properties {hcert} {
-    variable _cert_prop_ids
-
-    foreach {k val} [array get _cert_prop_ids] {
-        set reverse($val) $k
-    }
-
-    set id 0
-    set ids {}
-    while {[set id [CertEnumCertificateContextProperties $hcert $id]]} {
-        if {[info exists reverse($id)]} {
-            lappend ids [list $id $reverse($id)]
-        } else {
-            lappend ids [list $id $id]
-        }
-    }
-    return $ids
-}
-
-proc twapi::cert_get_property {hcert prop} {
-    variable _cert_prop_ids
-
-    if {[string is integer -strict $prop]} {
-        return [CertGetCertificateContextProperty $hcert $prop]
-    } 
-                                  
-    return [switch $prop {
-        access_state -
-        key_spec {
-            binary scan [CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)] i i
-            set i
-        }
-        extended_error_info -
-        friendly_name -
-        pvk_file {
-            string range [encoding convertfrom unicode [CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)]] 0 end-1
-        }
-        default {
-            CertGetCertificateContextProperty $hcert $_cert_prop_ids($prop)
-        }
-    }]
-}
 
 
 ################################################################
@@ -854,19 +843,169 @@ proc twapi::_construct_sspi_security_context {ctx ctxtype inattr target credenti
 
 }
 
+twapi::proc* twapi::_cert_prop_id {prop} {
+    # Certificate property menomics
+    variable _cert_prop_id2name
+    array set _cert_prop_id2name {
+        key_prov_handle        1
+        key_prov_info          2
+        sha1_hash              3
+        hash                   3
+        md5_hash               4
+        key_context            5
+        key_spec               6
+        ie30_reserved          7
+        pubkey_hash_reserved   8
+        enhkey_usage           9
+        ctl_usage              9
+        next_update_location   10
+        friendly_name          11
+        pvk_file               12
+        description            13
+        access_state           14
+        signature_hash         15
+        smart_card_data        16
+        efs                    17
+        fortezza_data          18
+        archived               19
+        key_identifier         20
+        auto_enroll            21
+        pubkey_alg_para        22
+        cross_cert_dist_points 23
+        issuer_public_key_md5_hash     24
+        subject_public_key_md5_hash    25
+        id             26
+        date_stamp             27
+        issuer_serial_number_md5_hash  28
+        subject_name_md5_hash  29
+        extended_error_info    30
 
+        renewal                64
+        archived_key_hash      65
+        auto_enroll_retry      66
+        aia_url_retrieved      67
+        authority_info_access  68
+        backed_up              69
+        ocsp_response          70
+        request_originator     71
+        source_location        72
+        source_url             73
+        new_key                74
+        ocsp_cache_prefix      75
+        smart_card_root_info   76
+        no_auto_expire_check   77
+        ncrypt_key_handle      78
+        hcryptprov_or_ncrypt_key_handle   79
 
-proc twapi::_sspi_sample {} {
-    set ccred [sspi_new_credentials -usage outbound]
-    set scred [sspi_new_credentials -usage inbound]
-    set cctx [sspi_client_new_context $ccred -target LUNA -confidentiality true -connection true]
-    lassign  [sspi_security_context_next $cctx] step data cctx
-    set sctx [sspi_server_new_context $scred $data]
-    lassign  [sspi_security_context_next $sctx] step data sctx
-    lassign  [sspi_security_context_next $cctx $data] step data cctx
-    lassign  [sspi_security_context_next $sctx $data] step data sctx
-    sspi_free_credentials $scred
-    sspi_free_credentials $ccred
-    return [list $cctx $sctx]
+        subject_info_access    80
+        ca_ocsp_authority_info_access  81
+        ca_disable_crl         82
+        root_program_cert_policies    83
+        root_program_name_constraints 84
+        subject_ocsp_authority_info_access  85
+        subject_disable_crl    86
+        cep                    87
+
+        sign_hash_cng_alg      89
+
+        scard_pin_id           90
+        scard_pin_info         91
+    }
+} {
+    variable _cert_prop_id2name
+
+    if {[string is integer -strict $prop]} {
+        return $prop
+    }
+    if {![info exists _cert_prop_id2name($prop)]} {
+        badargs! "Unknown certificate property id '$prop'" 3
+    }
+
+    return $_cert_prop_id2name($prop)
 }
 
+twapi::proc* twapi::_cert_prop_name {id} {
+    variable _cert_prop_name2id
+    variable _cert_prop_id2name
+
+    _cert_prop_id key_prov_handle; # Just to init _cert_prop_id2name
+    foreach {k val} [array get _cert_prop_id2name] {
+        set _cert_prop_name2id($val) $k
+    }
+} {
+    variable _cert_prop_id2name
+    if {[info exists _cert_prop_id2name($id)]} {
+        return $_cert_prop_id2name($id)
+    }
+    if {[string is integer -strict $id]} {
+        return $id
+    }
+    badargs! "Unknown certificate property id '$id'" 3
+}
+
+twapi::proc* twapi::_system_store_id {name} {
+    variable _system_stores
+    array set _system_stores {
+        service          0x40000
+        ""               0x10000
+        user             0x10000
+        usergrouppolicy  0x70000
+        localmachine     0x20000
+        localmachineenterprise  0x90000
+        localmachinegrouppolicy 0x80000
+        services 0x50000
+        users    0x60000
+    }
+} {
+    variable _system_stores
+    if {[string is integer -strict $name]} {
+        if {$name < 65536} {
+            badargs! "Invalid system store name $name" 3
+        }
+        return $name
+    }
+
+    if {![info exists _system_stores($name)]} {
+        badargs! "Invalid system store name $name" 3
+    }
+
+    return $system_stores($name)
+}
+
+twapi::proc* twapi::_crypto_provider_type prov {
+    variable _provider_names
+    array set _provider_names {
+        rsa_full           1
+        rsa_sig            2
+        dss                3
+        fortezza           4
+        ms_exchange        5
+        ssl                6
+        rsa_schannel       12
+        dss_dh             13
+        ec_ecdsa_sig       14
+        ec_ecnra_sig       15
+        ec_ecdsa_full      16
+        ec_ecnra_full      17
+        dh_schannel        18
+        spyrus_lynks       20
+        rng                21
+        intel_sec          22
+        replace_owf        23
+        rsa_aes            24
+    }
+} {
+    variable _provider_names
+
+    set key [string tolower $prov]
+
+    if {[info exists _provider_names($key)]} {
+        return $_provider_names($key)
+    }
+
+    if {[string is integer -strict $prov]} {
+        return $prov
+    }
+
+    badargs! "Invalid or unknown provider name '$prov'"
+}
