@@ -3966,12 +3966,25 @@ unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
     return Tcl_GetByteArrayFromObj(objP, lenP);
 }
 
+/* RtlEncryptMemory (aka SystemFunction040)
+ * The Feb 2003 SDK does not define this in the headers, nor does it
+ * include it in the export libs. So we have to dynamically load it.
+*/
+typedef BOOLEAN (NTAPI *SystemFunction040_t)(PVOID, ULONG, ULONG);
+MAKE_DYNLOAD_FUNC(SystemFunction040, advapi32, SystemFunction040_t)
+
 TCL_RESULT MakeEncryptedObj(Tcl_Interp *interp, char *p, int len, Tcl_Obj **objPP)
 {
     int sz;
     int pad_len;
     Tcl_Obj *objP;
     NTSTATUS status;
+    SystemFunction040_t fnP = Twapi_GetProc_SystemFunction040();
+
+    if (fnP == NULL) {
+        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+        return TCL_ERROR;
+    }
 
     /* Total length has to be multiple of encryption block size */
 
@@ -4001,7 +4014,7 @@ TCL_RESULT MakeEncryptedObj(Tcl_Interp *interp, char *p, int len, Tcl_Obj **objP
     p[sz-1] = (unsigned char) pad_len;
     
     /* RtlEncryptMemory */
-    status = SystemFunction040(p, sz, 0);
+    status = fnP(p, sz, 0);
     if (status != 0) {
         Tcl_DecrRefCount(objP);
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
@@ -4064,6 +4077,13 @@ TCL_RESULT ObjEncrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
     return MakeEncryptedObj(interp, plain, len, objPP);
 }
 
+/* RtlDecryptMemory (aka SystemFunction041)
+ * The Feb 2003 SDK does not define this in the headers, nor does it
+ * include it in the export libs. So we have to dynamically load it.
+*/
+typedef BOOLEAN (NTAPI *SystemFunction041_t)(PVOID, ULONG, ULONG);
+MAKE_DYNLOAD_FUNC(SystemFunction041, advapi32, SystemFunction041_t)
+
 /* Decrypts byte array into a UTF-8 string rep */
 TCL_RESULT ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
 {
@@ -4071,6 +4091,12 @@ TCL_RESULT ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
     char *plain, *enc;
     int pad_len;
     NTSTATUS status;
+    SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
+
+    if (fnP == NULL) {
+        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+        return TCL_ERROR;
+    }
     
     enc = ObjToByteArray(objP, &len);
     if (len == 0 || (len & BLOCK_SIZE_MASK)) {
@@ -4085,7 +4111,7 @@ TCL_RESULT ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **objPP)
     CopyMemory(plain, enc, len);
 
     /* RtlDecryptMemory */
-    status = SystemFunction041(plain, len, 0);
+    status = fnP(plain, len, 0);
     if (status != 0) {
         Tcl_DecrRefCount(objP);
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
