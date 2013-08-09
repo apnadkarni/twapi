@@ -6,71 +6,73 @@
 
 namespace eval twapi {
 
-    # Symbols used for mapping server security context flags
-    array set _server_security_context_syms {
-        confidentiality      0x10
-        connection           0x800
-        delegate             0x1
-        extendederror        0x8000
-        integrity            0x20000
-        mutualauth           0x2
-        replaydetect         0x4
-        sequencedetect       0x8
-        stream               0x10000
-    }
+    proc* _init_security_context_syms {} {
+        variable _server_security_context_syms
+        variable _client_security_context_syms
 
-    # Symbols used for mapping client security context flags
-    array set _client_security_context_syms {
-        confidentiality      0x10
-        connection           0x800
-        delegate             0x1
-        extendederror        0x4000
-        integrity            0x10000
-        manualvalidation     0x80000
-        mutualauth           0x2
-        replaydetect         0x4
-        sequencedetect       0x8
-        stream               0x8000
-        usesessionkey        0x20
-        usesuppliedcreds     0x80
-    }
+        # Symbols used for mapping server security context flags
+        array set _server_security_context_syms {
+            confidentiality      0x10
+            connection           0x800
+            delegate             0x1
+            extendederror        0x8000
+            integrity            0x20000
+            mutualauth           0x2
+            replaydetect         0x4
+            sequencedetect       0x8
+            stream               0x10000
+        }
 
-    # Symbols used for mapping security package capabilities
-    array set _secpkg_capability_syms {
-        integrity                   0x00000001
-        privacy                     0x00000002
-        tokenonly                  0x00000004
-        datagram                    0x00000008
-        connection                  0x00000010
-        multirequired              0x00000020
-        clientonly                 0x00000040
-        extendederror              0x00000080
-        impersonation               0x00000100
-        acceptwin32name           0x00000200
-        stream                      0x00000400
-        negotiable                  0x00000800
-        gsscompatible              0x00001000
-        logon                       0x00002000
-        asciibuffers               0x00004000
-        fragment                    0x00008000
-        mutualauth                 0x00010000
-        delegation                  0x00020000
-        readonlywithchecksum      0x00040000
-        restrictedtokens           0x00080000
-        negoextender               0x00100000
-        negotiable2                 0x00200000
-        appcontainerpassthrough  0x00400000
-        appcontainerchecks  0x00800000
-    }
+        # Symbols used for mapping client security context flags
+        array set _client_security_context_syms {
+            confidentiality      0x10
+            connection           0x800
+            delegate             0x1
+            extendederror        0x4000
+            integrity            0x10000
+            manualvalidation     0x80000
+            mutualauth           0x2
+            replaydetect         0x4
+            sequencedetect       0x8
+            stream               0x8000
+            usesessionkey        0x20
+            usesuppliedcreds     0x80
+        }
 
+        # Symbols used for mapping security package capabilities
+        array set _secpkg_capability_syms {
+            integrity                   0x00000001
+            privacy                     0x00000002
+            tokenonly                  0x00000004
+            datagram                    0x00000008
+            connection                  0x00000010
+            multirequired              0x00000020
+            clientonly                 0x00000040
+            extendederror              0x00000080
+            impersonation               0x00000100
+            acceptwin32name           0x00000200
+            stream                      0x00000400
+            negotiable                  0x00000800
+            gsscompatible              0x00001000
+            logon                       0x00002000
+            asciibuffers               0x00004000
+            fragment                    0x00008000
+            mutualauth                 0x00010000
+            delegation                  0x00020000
+            readonlywithchecksum      0x00040000
+            restrictedtokens           0x00080000
+            negoextender               0x00100000
+            negotiable2                 0x00200000
+            appcontainerpassthrough  0x00400000
+            appcontainerchecks  0x00800000
+        }
+    } {}
 }
 
 
 # Maps OID mnemonics
 twapi::proc* twapi::oid {oid} {
-    variable _oid_map
-
-    array set _oid_map {
+    set map {
         oid_common_name                   "2.5.4.3"
         oid_sur_name                      "2.5.4.4"
         oid_device_serial_number          "2.5.4.5"
@@ -103,15 +105,14 @@ twapi::proc* twapi::oid {oid} {
         oid_certificate_revocation_list   "2.5.4.39"
         oid_cross_certificate_pair        "2.5.4.40"
     }
-} {
-    variable _oid_map
-    if {[info exists _oid_map($oid)]} {
-        return $_oid_map($oid)
+
+    if {[dict exists $map $oid]} {
+        return [dict get $map $oid]
     }
     if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
         return $oid
     } else {
-        error "Invalid OID '$oid'"
+        badargs! "Invalid OID '$oid'"
     }
 }
 
@@ -130,6 +131,7 @@ proc twapi::sspi_enumerate_packages {args} {
         all capabilities version rpcid maxtokensize name comment
     } -maxleftover 0 -hyphenated]
 
+    _init_security_context_syms
     variable _secpkg_capability_syms
     set retdata {}
     foreach pkg $pkgs {
@@ -188,6 +190,9 @@ proc twapi::sspi_free_credentials {cred} {
 
 # Return a client context
 proc ::twapi::sspi_client_new_context {cred args} {
+    _init_security_context_syms
+    variable _client_security_context_syms
+
     array set opts [parseargs args {
         target.arg
         {datarep.arg network {native network}}
@@ -206,7 +211,7 @@ proc ::twapi::sspi_client_new_context {cred args} {
     } -maxleftover 0 -nulldefault]
 
     set context_flags 0
-    foreach {opt flag} [array get ::twapi::_client_security_context_syms] {
+    foreach {opt flag} [array get _client_security_context_syms] {
         if {$opts($opt)} {
             set context_flags [expr {$context_flags | $flag}]
         }
@@ -315,6 +320,9 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
 
 # Return a server context
 proc ::twapi::sspi_server_new_context {cred clientdata args} {
+    _init_security_context_syms
+    variable _server_security_context_syms
+
     array set opts [parseargs args {
         {datarep.arg network {native network}}
         confidentiality.bool
@@ -329,7 +337,7 @@ proc ::twapi::sspi_server_new_context {cred clientdata args} {
     } -maxleftover 0 -nulldefault]
 
     set context_flags 0
-    foreach {opt flag} [array get ::twapi::_server_security_context_syms] {
+    foreach {opt flag} [array get _server_security_context_syms] {
         if {$opts($opt)} {
             set context_flags [expr {$context_flags | $flag}]
         }
@@ -354,6 +362,8 @@ proc ::twapi::sspi_server_new_context {cred clientdata args} {
 
 # Get the security context flags after completion of request
 proc ::twapi::sspi_get_security_context_features {ctx} {
+    _init_security_context_syms
+
     # We could directly look in the context itself but intead we make
     # an explicit call, just in case they change after initial setup
     set flags [QueryContextAttributes [kl_get $ctx -handle] 14]
@@ -361,9 +371,9 @@ proc ::twapi::sspi_get_security_context_features {ctx} {
     # Mapping of symbols depends on whether it is a client or server
     # context
     if {[kl_get $ctx -type] eq "client"} {
-        upvar 0 ::twapi::_client_security_context_syms syms
+        upvar 0 [namespace current]::_client_security_context_syms syms
     } else {
-        upvar 0 ::twapi::_server_security_context_syms syms
+        upvar 0 [namespace current]::_server_security_context_syms syms
     }
 
     set result [list -raw $flags]
@@ -943,9 +953,15 @@ twapi::proc* twapi::_cert_prop_name {id} {
     badargs! "Unknown certificate property id '$id'" 3
 }
 
-twapi::proc* twapi::_system_store_id {name} {
-    variable _system_stores
-    array set _system_stores {
+proc twapi::_system_store_id {name} {
+    if {[string is integer -strict $name]} {
+        if {$name < 65536} {
+            badargs! "Invalid system store name $name" 3
+        }
+        return $name
+    }
+
+    set system_stores {
         service          0x40000
         ""               0x10000
         user             0x10000
@@ -956,25 +972,16 @@ twapi::proc* twapi::_system_store_id {name} {
         services 0x50000
         users    0x60000
     }
-} {
-    variable _system_stores
-    if {[string is integer -strict $name]} {
-        if {$name < 65536} {
-            badargs! "Invalid system store name $name" 3
-        }
-        return $name
-    }
 
-    if {![info exists _system_stores($name)]} {
+    if {![dict exists $system_stores $name]} {
         badargs! "Invalid system store name $name" 3
     }
 
-    return $system_stores($name)
+    return [dict get $system_stores $name]
 }
 
-twapi::proc* twapi::_crypto_provider_type prov {
-    variable _provider_names
-    array set _provider_names {
+proc twapi::_crypto_provider_type prov {
+    set provider_names {
         rsa_full           1
         rsa_sig            2
         dss                3
@@ -994,18 +1001,16 @@ twapi::proc* twapi::_crypto_provider_type prov {
         replace_owf        23
         rsa_aes            24
     }
-} {
-    variable _provider_names
 
     set key [string tolower $prov]
 
-    if {[info exists _provider_names($key)]} {
-        return $_provider_names($key)
+    if {[dict exists $provider_names $key]} {
+        return [dict get $provider_names $key]
     }
 
     if {[string is integer -strict $prov]} {
         return $prov
     }
 
-    badargs! "Invalid or unknown provider name '$prov'"
+    badargs! "Invalid or unknown provider name '$prov'" 3
 }

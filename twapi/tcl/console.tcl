@@ -81,59 +81,17 @@ proc twapi::set_standard_handle {type handle} {
     return [SetStdHandle $type $handle]
 }
 
-
-array set twapi::_console_input_mode_syms {
-    -processedinput 0x0001
-    -lineinput      0x0002
-    -echoinput      0x0004
-    -windowinput    0x0008
-    -mouseinput     0x0010
-    -insertmode     0x0020
-    -quickeditmode  0x0040
-    -extendedmode   0x0080
-    -autoposition   0x0100
-}
-
-array set twapi::_console_output_mode_syms {
-    -processedoutput 1
-    -wrapoutput      2
-}
-
-array set twapi::_console_output_attr_syms {
-    -fgblue 1
-    -fggreen 2
-    -fgturquoise 3
-    -fgred 4
-    -fgpurple 5
-    -fgyellow 6
-    -fggray 7
-    -fgbright 8
-    -fgwhite 15
-    -bgblue 16
-    -bggreen 32
-    -bgturquoise 48
-    -bgred 64
-    -bgpurple 80
-    -bgyellow 96
-    -bggray 112
-    -bgbright 128
-    -bgwhite 240
-}
-
 proc twapi::_console_output_attr_to_flags {attrs} {
-    variable _console_output_attr_syms
     set flags 0
     foreach {attr bool} $attrs {
         if {$bool} {
-            set flags [expr {$flags | $_console_output_attr_syms($attr)}]
+            set flags [expr {$flags | [_console_output_attr $attr]}]
         }
     }
     return $flags
 }
 
 proc twapi::_flags_to_console_output_attr {flags} {
-    variable _console_output_attr_syms
-
     # Check for multiple bit attributes first, in order
     set attrs {}
     foreach attr {
@@ -142,9 +100,9 @@ proc twapi::_flags_to_console_output_attr {flags} {
         -fgred -bgred -fggreen -bggreen -fgblue -bgblue
         -fgbright -bgbright
     } {
-        if {($flags & $_console_output_attr_syms($attr)) == $_console_output_attr_syms($attr)} {
+        if {($flags & [_console_output_attr $attr]) == [_console_output_attr $attr]} {
             lappend attrs $attr 1
-            set flags [expr {$flags & ~ $_console_output_attr_syms($attr)}]
+            set flags [expr {$flags & ~ [_console_output_attr $attr]}]
             if {$flags == 0} {
                 break
             }
@@ -158,20 +116,20 @@ proc twapi::_flags_to_console_output_attr {flags} {
 # Get the current mode settings for the console
 proc twapi::_get_console_input_mode {conh} {
     set mode [GetConsoleMode $conh]
-    return [_bitmask_to_switches $mode twapi::_console_input_mode_syms]
+    return [_bitmask_to_switches $mode [_console_input_mode_syms]]
 }
 interp alias {} twapi::get_console_input_mode {} twapi::_do_console_proc twapi::_get_console_input_mode stdin
 
 # Get the current mode settings for the console
 proc twapi::_get_console_output_mode {conh} {
     set mode [GetConsoleMode $conh]
-    return [_bitmask_to_switches $mode twapi::_console_output_mode_syms]
+    return [_bitmask_to_switches $mode [_console_output_mode_syms]]
 }
 interp alias {} twapi::get_console_output_mode {} twapi::_do_console_proc twapi::_get_console_output_mode stdout
 
 # Set console input mode
 proc twapi::_set_console_input_mode {conh args} {
-    set mode [_switches_to_bitmask $args twapi::_console_input_mode_syms]
+    set mode [_switches_to_bitmask $args [_console_input_mode_syms]]
     # If insertmode or quickedit mode are set, make sure to set extended bit
     if {$mode & 0x60} {
         setbits mode 0x80;              # ENABLE_EXTENDED_FLAGS
@@ -184,7 +142,7 @@ interp alias {} twapi::set_console_input_mode {} twapi::_do_console_proc twapi::
 # Modify console input mode
 proc twapi::_modify_console_input_mode {conh args} {
     set prev [GetConsoleMode $conh]
-    set mode [_switches_to_bitmask $args twapi::_console_input_mode_syms $prev]
+    set mode [_switches_to_bitmask $args [_console_input_mode_syms] $prev]
     # If insertmode or quickedit mode are set, make sure to set extended bit
     if {$mode & 0x60} {
         setbits mode 0x80;              # ENABLE_EXTENDED_FLAGS
@@ -192,14 +150,14 @@ proc twapi::_modify_console_input_mode {conh args} {
 
     SetConsoleMode $conh $mode
     # Returns the old modes
-    return [_bitmask_to_switches $prev twapi::_console_input_mode_syms]
+    return [_bitmask_to_switches $prev [_console_input_mode_syms]]
 }
 interp alias {} twapi::modify_console_input_mode {} twapi::_do_console_proc twapi::_modify_console_input_mode stdin
 
 #
 # Set console output mode
 proc twapi::_set_console_output_mode {conh args} {
-    set mode [_switches_to_bitmask $args twapi::_console_output_mode_syms]
+    set mode [_switches_to_bitmask $args [_console_output_mode_syms]]
 
     SetConsoleMode $conh $mode
 
@@ -209,11 +167,11 @@ interp alias {} twapi::set_console_output_mode {} twapi::_do_console_proc twapi:
 # Set console output mode
 proc twapi::_modify_console_output_mode {conh args} {
     set prev [GetConsoleMode $conh]
-    set mode [_switches_to_bitmask $args twapi::_console_output_mode_syms $prev]
+    set mode [_switches_to_bitmask $args [_console_output_mode_syms] $prev]
 
     SetConsoleMode $conh $mode
     # Returns the old modes
-    return [_bitmask_to_switches $prev twapi::_console_output_mode_syms]
+    return [_bitmask_to_switches $prev [_console_output_mode_syms]]
 }
 interp alias {} twapi::modify_console_output_mode {} twapi::_do_console_proc twapi::_modify_console_output_mode stdout
 
@@ -660,3 +618,53 @@ proc twapi::_do_console_proc {proc default args} {
     
     return [eval [list $proc] $args]
 }
+
+proc twapi::_console_input_mode_syms {} {
+    return {
+        -processedinput 0x0001
+        -lineinput      0x0002
+        -echoinput      0x0004
+        -windowinput    0x0008
+        -mouseinput     0x0010
+        -insertmode     0x0020
+        -quickeditmode  0x0040
+        -extendedmode   0x0080
+        -autoposition   0x0100
+    }
+}
+
+proc twapi::_console_output_mode_syms {} {
+    return { -processedoutput 1 -wrapoutput 2 }
+}
+
+twapi::proc* twapi::_console_output_attr {sym} {
+    variable _console_output_attr_syms
+    array set _console_output_attr_syms {
+        -fgblue 1
+        -fggreen 2
+        -fgturquoise 3
+        -fgred 4
+        -fgpurple 5
+        -fgyellow 6
+        -fggray 7
+        -fgbright 8
+        -fgwhite 15
+        -bgblue 16
+        -bggreen 32
+        -bgturquoise 48
+        -bgred 64
+        -bgpurple 80
+        -bgyellow 96
+        -bggray 112
+        -bgbright 128
+        -bgwhite 240
+    }
+} {
+    variable _console_output_attr_syms
+    if {[info exists _console_output_attr_syms($sym)]} {
+        return $_console_output_attr_syms($sym)
+    }
+
+    badargs! "Invalid console output attribute '$sym'" 3
+}
+

@@ -6,27 +6,7 @@
 
 package require twapi_security
 
-namespace eval twapi {
-    # Variable that maps logon session type codes to integer values
-    # Position of each symbol gives its corresponding type value
-    # See ntsecapi.h for definitions
-    set logon_session_type_map {
-        0
-        1
-        interactive
-        network
-        batch
-        service
-        proxy
-        unlockworkstation
-        networkclear
-        newcredentials
-        remoteinteractive
-        cachedinteractive
-        cachedremoteinteractive
-        cachedunlockworkstation
-    }
-}
+namespace eval twapi {}
 
 # Add a new user account
 proc twapi::new_user {username args} {
@@ -790,22 +770,47 @@ proc twapi::_change_user_info_flags {username mask values args} {
 }
 
 # Returns the logon session type value for a symbol
-proc twapi::_logon_session_type_code {type} {
-    # Type may be an integer or one of the strings below
-    set code [lsearch -exact $::twapi::logon_session_type_map $type]
+twapi::proc* twapi::_logon_session_type_code {type} {
+    variable _logon_session_type_map
+    # Variable that maps logon session type codes to integer values
+    # Position of each symbol gives its corresponding type value
+    # See ntsecapi.h for definitions
+    set _logon_session_type_map {
+        0
+        1
+        interactive
+        network
+        batch
+        service
+        proxy
+        unlockworkstation
+        networkclear
+        newcredentials
+        remoteinteractive
+        cachedinteractive
+        cachedremoteinteractive
+        cachedunlockworkstation
+    }
+} {
+    variable _logon_session_type_map
+
+    # Type may be an integer or a token
+    set code [lsearch -exact $_logon_session_type_map $type]
     if {$code >= 0} {
         return $code
     }
 
     if {![string is integer -strict $type]} {
-        error "Invalid logon session type '$type' specified"
+        badargs! "Invalid logon session type '$type' specified" 3
     }
     return $type
 }
 
 # Returns the logon session type symbol for an integer value
 proc twapi::_logon_session_type_symbol {code} {
-    set symbol [lindex $::twapi::logon_session_type_map $code]
+    variable _logon_session_type_map
+    _logon_session_type_code interactive; # Just to init _logon_session_type_map
+    set symbol [lindex $_logon_session_type_map $code]
     if {$symbol eq ""} {
         return $code
     } else {
