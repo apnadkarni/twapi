@@ -18,6 +18,11 @@ namespace eval twapi {
 
     variable scriptdir [file dirname [info script]]
 
+    # Defines a proc with some initialization code
+    proc proc* {procname arglist initcode body} {
+        set proc_def [format {proc %s {%s} {%s ; proc %s {%s} {%s} ; uplevel 1 [list %s] [lrange [info level 0] 1 end]}} $procname $arglist $initcode $procname $arglist $body $procname]
+        uplevel 1 $proc_def
+    }
 }
 
 # Make twapi versions the same as the base module versions
@@ -695,8 +700,9 @@ proc twapi::true {args} {
 }
 
 # Throws a bad argument error that appears to come from caller's invocation
-proc twapi::badargs! {msg} {
-    return -level 2 -code error -errorcode [list TWAPI BADARGS $msg] $msg
+# (if default level is 2)
+proc twapi::badargs! {msg {level 2}} {
+    return -level $level -code error -errorcode [list TWAPI BADARGS $msg] $msg
 }
 
 
