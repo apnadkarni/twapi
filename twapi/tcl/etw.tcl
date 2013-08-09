@@ -321,7 +321,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
 
 # Deciphers an event  field type
 
-twapi::proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
+proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
     # Maps event field type strings to enums to pass to the C code
     variable _etw_fieldtypes
     # 0 should be unmapped. Note some are duplicates because they

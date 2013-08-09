@@ -71,7 +71,7 @@ namespace eval twapi {
 
 
 # Maps OID mnemonics
-twapi::proc* twapi::oid {oid} {
+proc twapi::oid {oid} {
     set map {
         oid_common_name                   "2.5.4.3"
         oid_sur_name                      "2.5.4.4"
