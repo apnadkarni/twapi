@@ -1647,6 +1647,20 @@ int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *ar
     return TCL_OK;
 }
 
+Tcl_Obj *ObjFromArgvA(int argc, char **argv)
+{
+    int i;
+    Tcl_Obj *objP = Tcl_NewListObj(0, NULL);
+    if (argv) {
+        for (i=0; i < argc; ++i) {
+            if (argv[i] == NULL)
+                break;
+            ObjAppendElement(NULL, objP, ObjFromString(argv[i]));
+        }
+    }
+    return objP;
+}
+
 int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP)
 {
     int       objc, i;
