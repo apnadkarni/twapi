@@ -760,33 +760,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                 return TCL_ERROR;
             return Twapi_QueryContextAttributes(interp, &sech, dw);
 
-        case 10024: //CryptReleaseContext
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext), GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CryptReleaseContext((HCRYPTPROV)pv, dw);
-            break;
-
-        case 10025: // CryptAcquireContext
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (CryptAcquireContextW(&dwp, s1, s2, dw, dw2)) {
-                if (dw2 & CRYPT_DELETEKEYSET)
-                    result.type = TRT_EMPTY;
-                else {
-                    if (TwapiRegisterPointer(interp, (void*)dwp, CryptReleaseContext) != TCL_OK)
-                        Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-                    TwapiResult_SET_PTR(result, HCRYPTPROV, (void*)dwp);
-                }
-            } else
-                result.type = TRT_GETLASTERROR;
-            break;
-
-        case 10026: // VerifySignature
+        case 10024: // VerifySignature
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
                              GETVAR(sbd, ObjToSecBufferDescRO),
@@ -804,7 +778,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             }
             break;
 
-        case 10027: // DecryptMessage
+        case 10025: // DecryptMessage
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
                              GETVAR(sbd, ObjToSecBufferDescRW),
@@ -849,10 +823,8 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(InitializeSecurityContext, 10021),
         DEFINE_FNCODE_CMD(AcceptSecurityContext, 10022),
         DEFINE_FNCODE_CMD(QueryContextAttributes, 10023),
-        DEFINE_FNCODE_CMD(CryptReleaseContext, 10024),
-        DEFINE_FNCODE_CMD(CryptAcquireContext, 10025),
-        DEFINE_FNCODE_CMD(VerifySignature, 10026),
-        DEFINE_FNCODE_CMD(DecryptMessage, 10027),
+        DEFINE_FNCODE_CMD(VerifySignature, 10024),
+        DEFINE_FNCODE_CMD(DecryptMessage, 10025),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SspiDispatch), SspiDispatch, Twapi_SspiCallObjCmd);
