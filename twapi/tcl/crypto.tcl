@@ -534,8 +534,8 @@ proc twapi::_algid {class type alg} {
 
 twapi::proc* twapi::_cert_prop_id {prop} {
     # Certificate property menomics
-    variable _cert_prop_id_name_map
-    array set _cert_prop_id_name_map {
+    variable _cert_prop_name_id_map
+    array set _cert_prop_name_id_map {
         key_prov_handle        1
         key_prov_info          2
         sha1_hash              3
@@ -601,24 +601,24 @@ twapi::proc* twapi::_cert_prop_id {prop} {
         scard_pin_info         91
     }
 } {
-    variable _cert_prop_id_name_map
+    variable _cert_prop_name_id_map
 
     if {[string is integer -strict $prop]} {
         return $prop
     }
-    if {![info exists _cert_prop_id_name_map($prop)]} {
+    if {![info exists _cert_prop_name_id_map($prop)]} {
         badargs! "Unknown certificate property id '$prop'" 3
     }
 
-    return $_cert_prop_id_name_map($prop)
+    return $_cert_prop_name_id_map($prop)
 }
 
 twapi::proc* twapi::_cert_prop_name {id} {
     variable _cert_prop_name_id_map
     variable _cert_prop_id_name_map
 
-    _cert_prop_id key_prov_handle; # Just to init _cert_prop_id_name_map
-    array set _cert_prop_name_id_map [swapl [array get _cert_prop_id_name_map]]
+    _cert_prop_id key_prov_handle; # Just to init _cert_prop_name_id_map
+    array set _cert_prop_id_name_map [swapl [array get _cert_prop_name_id_map]]
 } {
     variable _cert_prop_id_name_map
     if {[info exists _cert_prop_id_name_map($id)]} {

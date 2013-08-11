@@ -49,10 +49,49 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 }
 #endif
 
-/* Note: Allocates memory for blobP from lifoP. Note structure internal
-   pointers may point to Tcl_Obj areas within valObj so
-   TREAT RETURNED STRUCTURES AS VOLATILE.
-*/
+static TCL_RESULT TwapiCryptDecodeObject(Tcl_Interp *interp, LPCSTR oid, void *penc, DWORD nenc, Tcl_Obj **objPP)
+{
+    Tcl_Obj *objP;
+    void *pv;
+    DWORD n;
+
+    /* We handle only DWORD OIDs. These are passed as LPSTR due to the
+       CryptDecodeObjectEx accepting either type as parameters */
+
+    if (! CryptDecodeObjectEx(
+            X509_ASN_ENCODING|PKCS_7_ASN_ENCODING,
+            oid, penc, nenc,
+            CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG | CRYPT_DECODE_SHARE_OID_STRING_FLAG,
+            NULL,
+            &pv,
+            &n))
+        return TwapiReturnSystemError(interp);
+    
+    switch ((DWORD_PTR) oid) {
+    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
+        objP = ObjFromArgvA(((CERT_ENHKEY_USAGE*)pv)->cUsageIdentifier,
+                            ((CERT_ENHKEY_USAGE*)pv)->rgpszUsageIdentifier);
+        break;
+    default:
+        LocalFree(pv);
+        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+    }
+
+    LocalFree(pv);
+    *objPP = objP;
+    return TCL_OK;
+}
+    
+                                         
+/*
+ * Note: Allocates memory for blobP from lifoP. Note structure internal
+ * pointers may point to Tcl_Obj areas within valObj so
+ *  TREAT RETURNED STRUCTURES AS VOLATILE.
+ *
+ * We use MemLifo instead of letting CryptEncodeObjectEx do its own
+ * memory allocation because it greatly simplifies freeing memory in
+ * caller when multiple allocations are made.
+ */
 static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
                                   Tcl_Obj *oidObj, Tcl_Obj *valObj,
                                   CRYPT_OBJID_BLOB *blobP)
@@ -308,7 +347,9 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
     CERT_KEY_CONTEXT ckctx;
     char *s;
     DWORD_PTR dwp;
+    TCL_RESULT res;
 
+    result.type = TRT_BADFUNCTIONCODE;
     if (cooked) {
         switch (prop_id) {
         case CERT_ACCESS_STATE_PROP_ID:
@@ -342,10 +383,11 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
                 TwapiFree(pv);
                 return TwapiReturnSystemError(interp);
             }        
-            result.value.obj = ObjFromArgvA(((CERT_ENHKEY_USAGE*)pv)->cUsageIdentifier,
-                                            ((CERT_ENHKEY_USAGE*)pv)->rgpszUsageIdentifier);
-            result.type = TRT_OBJ;
+            res = TwapiCryptDecodeObject(interp, X509_ENHANCED_KEY_USAGE, pv, n, &result.value.obj);
             TwapiFree(pv);
+            if (res != TCL_OK)
+                return res;
+            result.type = TRT_OBJ;
             break;
 
         case CERT_KEY_CONTEXT_PROP_ID:
@@ -389,7 +431,9 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
             }
             break;
         }
-    } else {
+    } 
+
+    if (result.type == TRT_BADFUNCTIONCODE) {
         /* Either raw format wanted or binary data */
 
         /*        
