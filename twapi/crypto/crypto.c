@@ -300,28 +300,131 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     }
 }
 
-static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CONTEXT certP, DWORD prop_id)
+static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CONTEXT certP, DWORD prop_id, int cooked)
 {
-    BOOL status;
     DWORD n = 0;
-    Tcl_Obj *objP;
+    TwapiResult result;
+    void *pv;
+    CERT_KEY_CONTEXT ckctx;
+    char *s;
+    DWORD_PTR dwp;
 
-    if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
-        return TwapiReturnSystemError(interp);
+    if (cooked) {
+        switch (prop_id) {
+        case CERT_ACCESS_STATE_PROP_ID:
+        case CERT_KEY_SPEC_PROP_ID:
+            result.type = TRT_DWORD; 
+            n = sizeof(result.value.ival);
+            result.type = CertGetCertificateContextProperty(certP, prop_id, &result.value.uval, &n) ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case CERT_DATE_STAMP_PROP_ID:
+            n = sizeof(result.value.filetime);
+            result.type = CertGetCertificateContextProperty(certP, prop_id,
+                                                            &result.value.filetime, &n)
+                ? TRT_FILETIME : TRT_GETLASTERROR;
+            break;
+        case CERT_ARCHIVED_PROP_ID:
+            result.type = TRT_BOOL;
+            if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n)) {
+                if ((result.value.ival = GetLastError()) == CRYPT_E_NOT_FOUND)
+                    result.value.bval = 0;
+                else
+                    result.type = TRT_EXCEPTION_ON_ERROR;
+            } else
+                result.value.bval = 1;
+            break;
 
-    objP = ObjFromByteArray(NULL, n);
-    status = CertGetCertificateContextProperty(certP, prop_id,
-                                               ObjToByteArray(objP, &n),
-                                               &n);
-    if (!status) {
-        TwapiReturnSystemError(interp);
-        Tcl_DecrRefCount(objP);
-        return TCL_ERROR;
+        case CERT_ENHKEY_USAGE_PROP_ID:
+            if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
+                return TwapiReturnSystemError(interp);
+            pv = TwapiAlloc(n);
+            if (! CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
+                TwapiFree(pv);
+                return TwapiReturnSystemError(interp);
+            }        
+            result.value.obj = ObjFromArgvA(((CERT_ENHKEY_USAGE*)pv)->cUsageIdentifier,
+                                            ((CERT_ENHKEY_USAGE*)pv)->rgpszUsageIdentifier);
+            result.type = TRT_OBJ;
+            TwapiFree(pv);
+            break;
+
+        case CERT_KEY_CONTEXT_PROP_ID:
+            n = ckctx.cbSize = sizeof(ckctx);
+            if (CertGetCertificateContextProperty(certP, prop_id, &ckctx, &n)) {
+                result.value.obj = ObjNewList(0, NULL);
+                if (ckctx.dwKeySpec == AT_KEYEXCHANGE ||
+                    ckctx.dwKeySpec == AT_SIGNATURE) 
+                    s = "HCRYPTPROV";
+                else
+                    s = "NCRYPT_KEY_HANDLE";
+                ObjAppendElement(NULL, result.value.obj, ObjFromOpaque((void*)ckctx.hCryptProv, s));
+                ObjAppendElement(NULL, result.value.obj, ObjFromDWORD(ckctx.dwKeySpec));
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        
+        case CERT_KEY_PROV_HANDLE_PROP_ID:
+            n = sizeof(dwp);
+            if (CertGetCertificateContextProperty(certP, prop_id, &dwp, &n)) {
+                TwapiResult_SET_PTR(result, HCRYPTPROV, (void*)dwp);
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+
+        case CERT_AUTO_ENROLL_PROP_ID:
+        case CERT_EXTENDED_ERROR_INFO_PROP_ID:
+        case CERT_FRIENDLY_NAME_PROP_ID:
+        case CERT_PVK_FILE_PROP_ID:
+            if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
+                return TwapiReturnSystemError(interp);
+            result.value.unicode.str = TwapiAlloc(n);
+            if (CertGetCertificateContextProperty(certP, prop_id,
+                                                  result.value.unicode.str, &n)) {
+                result.value.unicode.len = -1;
+                result.type = TRT_UNICODE_DYNAMIC; /* Will also free memory */
+            } else {
+                TwapiReturnSystemError(interp);
+                TwapiFree(result.value.unicode.str);
+                return TCL_ERROR;
+            }
+            break;
+        }
+    } else {
+        /* Either raw format wanted or binary data */
+
+        /*        
+         * The following are handled via defaults for now
+         *  CERT_DESCRIPTION_PROP_ID: // TBD - is this unicode?
+         *  CERT_HASH_PROP_ID:
+         *  CERT_ISSUER_PUBLIC_KEY_MD5_HASH_PROP_ID:
+         *  CERT_ISSUER_SERIAL_NUMBER_MD5_HASH_PROP_ID:
+         *  CERT_ARCHIVED_KEY_HASH_PROP_ID:
+         *  CERT_KEY_IDENTIFIER_PROP_ID:
+         *  CERT_KEY_PROV_INFO_PROP_ID
+         *  CERT_MD5_HASH_PROP_ID
+         *  CERT_RENEWAL_PROP_ID
+         *  CERT_SHA1_HASH_PROP_ID
+         *  CERT_SIGNATURE_HASH_PROP_ID
+         *  CERT_SUBJECT_PUBLIC_KEY_MD5_HASH_PROP_ID
+         *  CERT_REQUEST_ORIGINATOR_PROP_ID:
+         */
+
+        if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
+            return TwapiReturnSystemError(interp);
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromByteArray(NULL, n);
+        if (! CertGetCertificateContextProperty(
+                certP, prop_id,
+                ObjToByteArray(result.value.obj, &n),
+                &n)) {
+            TwapiReturnSystemError(interp);
+            Tcl_DecrRefCount(result.value.obj);
+            return TCL_ERROR;
+        }
+        Tcl_SetByteArrayLength(result.value.obj, n);
     }
 
-    Tcl_SetByteArrayLength(objP, n);
-    Tcl_SetObjResult(interp, objP);
-    return TCL_OK;
+    return TwapiSetResult(interp, &result);
 }
 
 static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -771,9 +874,9 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 10008: // CertGetCertificateContextProperty
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                         GETINT(dw), ARGEND) != TCL_OK)
+                         GETINT(dw), ARGUSEDEFAULT, GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        return Twapi_CertGetCertificateContextProperty(interp, certP, dw);
+        return Twapi_CertGetCertificateContextProperty(interp, certP, dw, dw2);
 
     case 10009: // CryptDestroyKey
         if (TwapiGetArgs(interp, objc, objv,
