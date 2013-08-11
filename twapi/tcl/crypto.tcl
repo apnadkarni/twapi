@@ -282,26 +282,10 @@ proc twapi::cert_get_property {hcert prop} {
 
     if {[string is integer -strict $prop]} {
         return [CertGetCertificateContextProperty $hcert $prop]
-    } 
-                                  
-    return [switch $prop {
-        access_state -
-        key_spec {
-            binary scan [CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]] i i
-            set i
-        }
-        extended_error_info -
-        friendly_name -
-        pvk_file {
-            string range [encoding convertfrom unicode [CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]]] 0 end-1
-        }
-        default {
-            CertGetCertificateContextProperty $hcert [_cert_prop_id $prop]
-        }
-    }]
+    } else {
+        return [CertGetCertificateContextProperty $hcert [_cert_prop_id $prop] 1]
+    }
 }
-
-
 
 
 ################################################################
@@ -309,31 +293,31 @@ proc twapi::cert_get_property {hcert prop} {
 
 proc twapi::crypt_context_acquire {args} {
     array set opts [parseargs args {
-        container.arg
+        keycontainer.arg
         csp.arg
-        {type.arg rsa_full}
-        {storage.arg user {machine user}}
-        {create 0 0x8}
-        {silent 0 0x40}
-        {verifycontext 0 0xf0000000}
+        {csptype.arg rsa_full}
+        {keysettype.arg user {user machine}}
+        {create.bool 0 0x8}
+        {silent.bool 0 0x40}
+        {verifycontext.bool 0 0xf0000000}
     } -maxleftover 0 -nulldefault]
     
     # Based on http://support.microsoft.com/kb/238187    
-    if {$opts(verifycontext) && $opts(container) eq ""} {
-        badargs! "Option -verifycontext must be specified if -container option is unspecified or empty"
+    if {$opts(verifycontext) && $opts(keycontainer) eq ""} {
+        badargs! "Option -verifycontext must be specified if -keycontainer option is unspecified or empty"
     }
 
     set flags [expr {$opts(create) | $opts(silent) | $opts(verifycontext)}]
-    if {$opts(storage) eq "machine"} {
-        incr flags 0x20;        # CRYPT_MACHINE_KEYSET
+    if {$opts(keysettype) eq "machine"} {
+        incr flags 0x20;        # CRYPT_KEYSET_MACHINE
     }
 
-    return [CryptAcquireContext $opts(container) $opts(csp) [_crypto_provider_type $opts(type)] $flags]
+    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags]
 }
 
-proc twapi::crypt_delete_key_container args {
+proc twapi::crypt_key_container_delete args {
     array set opts [parseargs args {
-        container.arg
+        keycontainer.arg
         csp.arg
         {type.arg rsa_full}
         {storage.arg user {machine user}}
@@ -344,25 +328,25 @@ proc twapi::crypt_delete_key_container args {
         incr flags 0x20;        # CRYPT_MACHINE_KEYSET
     }
 
-    return [CryptAcquireContext $opts(container) $opts(csp) [_crypto_provider_type $opts(type)] $flags]
+    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(type)] $flags]
 }
 
 proc twapi::crypt_context_generate_key {hprov algid args} {
 
     array set opts [parseargs args {
-        {archivable 0 0x4000}
-        {salt 0 4}
-        {exportable 0 1}
-        {pregen 0x40}
-        {userprotected 0 2}
-        {nosalt40 0 0x10}
-        {size 0}
+        {archivable.bool 0 0x4000}
+        {salt.bool 0 4}
+        {exportable.bool 0 1}
+        {pregen.bool 0x40}
+        {userprotected.bool 0 2}
+        {nosalt40.bool 0 0x10}
+        {size.int 0}
     } -maxleftover 0]
 
     if {![string is integer -strict $algid]} {
         # See wincrypt.h in SDK
         switch -nocase -exact -- $algid {
-            keyexhange {set algid 1}
+            keyexchange {set algid 1}
             signature {set algid 2}
             dh_ephemeral {set algid [_algid 5 5 2]}
             dh_sandf {set algid [_algid 5 5 1]}
@@ -395,6 +379,14 @@ proc twapi::crypt_context_generate_key {hprov algid args} {
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
 
+proc twapi::crypt_context_get_key {hprov keytype} {
+    return [switch $keytype {
+        keyexchange {CryptGetUserKey $hprov 1}
+        signature   {CryptGetUserKey $hprov 2}
+        default { badargs! "Invalid keytype value '$keytype'" }
+    }]
+}
+
 proc twapi::crypt_context_security_descriptor {hprov args} {
     if {[llength $args] == 1} {
         CryptSetProvParam $hprov 8 [lindex $args 0]
@@ -405,11 +397,11 @@ proc twapi::crypt_context_security_descriptor {hprov args} {
     }
 }
 
-proc twapi::crypt_context_container {hprov} {
+proc twapi::crypt_context_key_container {hprov} {
     return [_ascii_binary_to_string [CryptGetProvParam $hprov 6 0]]
 }
 
-proc twapi::crypt_context_unique_container {hprov} {
+proc twapi::crypt_context_unique_key_container {hprov} {
     return [_ascii_binary_to_string [CryptGetProvParam $hprov 36 0]]
 }
 
@@ -417,10 +409,120 @@ proc twapi::crypt_context_csp {hprov} {
     return [_ascii_binary_to_string [CryptGetProvParam $hprov 4 0]]
 }
 
-proc twapi::crypt_context_containers {hprov} {
+proc twapi::crypt_context_csptype {hprov} {
+    binary scan [CryptGetProvParam $hprov 16 0] i i
+    return [_csp_type_id_to_name $i]
+}
+
+proc twapi::crypt_context_key_containers {hprov} {
     return [CryptGetProvParam $hprov 2 0]
 }
 
+proc twapi::crypt_context_session_key_size {hprov} {
+    binary scan [CryptGetProvParam $hprov 20 0] i i
+    return $i
+}
+
+proc twapi::crypt_context_keyset_type {hprov} {
+    binary scan [CryptGetProvParam $hprov 27 0] i i
+    return [expr {$i & 0x20 ? "machine" : "user"}]
+}
+
+proc twapi::crypt_context_symmetric_key_size {hprov} {
+    binary scan [CryptGetProvParam $hprov 19 0] i i
+    return $i
+}
+
+# Steps to create a certificate
+# - acquire a context via crypt_context_acquire
+# - create a new key container in it using crypt_context_generate_key
+#   (either keyexchange or signature)
+# - close the context and the key
+# - call CertCreateSelfSignCertificate using the name of the new key container
+# - store it in cert store
+# - export the store
+proc twapi::cert_create_self_signed {subject args} {
+    array set opts [parseargs args {
+        keytype.arg keyexchange {keyexchange signature}
+        keycontainer.arg
+        {keysettype.arg user {machine user}}
+        {silent.bool 0 0x40}
+        csp.arg
+        csptype.arg
+        signaturealgorithm.arg
+        start.int
+        end.int
+        {gmt.bool 0}
+        {extensions.arg {}}
+    } -maxleftover 0 -ignoreunknown]
+
+    set name_blob [cert_name_to_blob $subject]
+    if {[info exists opts(signaturealgorithm)]} {
+        set alg [list [oid $opts(signaturealgorithm)]]
+    } else {
+        set alg {}
+    }
+
+    if {![info exists opts(start)]} {
+        set opts(start) [clock seconds]
+    }
+    if {![info exists opts(end)]} {
+        set opts(end) [clock add $opts(start) 1 year]
+    }
+    if {$opts(end) <= $opts(start)} {
+        badargs! "Start time $opts(start) is greater than end time $opts(end)"
+    }
+    set start [_seconds_to_timelist $opts(start) $opts(gmt)]
+    set end [_seconds_to_timelist $opts(end) $opts(gmt)]
+
+    # 0x1 ->  CERT_KEY_CONTEXT_PROP_ID (not sure this is actually needed TBD*/
+    set kiflags [expr {$opts(silent) | 0x1}]
+    if {$opts(keysettype) eq "machine"} {
+        incr kiflags 0x20;  # CRYPT_MACHINE_KEYSET
+    }
+    set keyinfo [list \
+                     $opts(keycontainer) \
+                     $opts(csp) \
+                     $opts(csptype) \
+                     $kiflags \
+                     {} \
+                     [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
+
+    set flags 0;                # Always 0 for now
+    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $start $end $opts(extensions)]
+}
+
+proc twapi::cert_create_self_signed_from_crypt_context {subject hprov} {
+    array set opts [parseargs args {
+        {silent.bool 0 0x40}
+        start.int
+        end.int
+        {gmt.bool 0}
+        {extensions.arg {}}
+        signaturealgorithm.arg
+    } -maxleftover 0]
+
+    set name_blob [cert_name_to_blob $subject]
+    if {[info exists opts(signaturealgorithm)]} {
+        set alg [list [oid $opts(signaturealgorithm)]]
+    } else {
+        set alg {}
+    }
+
+    if {![info exists opts(start)]} {
+        set opts(start) [clock seconds]
+    }
+    if {![info exists opts(end)]} {
+        set opts(end) [clock add $opts(start) 1 year]
+    }
+    if {$opts(end) <= $opts(start)} {
+        badargs! "Start time $opts(start) is greater than end time $opts(end)"
+    }
+    set start [_seconds_to_timelist $opts(start) $opts(gmt)]
+    set end [_seconds_to_timelist $opts(end) $opts(gmt)]
+    set flags 0;                # Always 0 for now
+    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $start $end $opts(extensions)]
+}
 
 
 ################################################################
@@ -432,8 +534,8 @@ proc twapi::_algid {class type alg} {
 
 twapi::proc* twapi::_cert_prop_id {prop} {
     # Certificate property menomics
-    variable _cert_prop_id2name
-    array set _cert_prop_id2name {
+    variable _cert_prop_id_name_map
+    array set _cert_prop_id_name_map {
         key_prov_handle        1
         key_prov_info          2
         sha1_hash              3
@@ -499,30 +601,28 @@ twapi::proc* twapi::_cert_prop_id {prop} {
         scard_pin_info         91
     }
 } {
-    variable _cert_prop_id2name
+    variable _cert_prop_id_name_map
 
     if {[string is integer -strict $prop]} {
         return $prop
     }
-    if {![info exists _cert_prop_id2name($prop)]} {
+    if {![info exists _cert_prop_id_name_map($prop)]} {
         badargs! "Unknown certificate property id '$prop'" 3
     }
 
-    return $_cert_prop_id2name($prop)
+    return $_cert_prop_id_name_map($prop)
 }
 
 twapi::proc* twapi::_cert_prop_name {id} {
-    variable _cert_prop_name2id
-    variable _cert_prop_id2name
+    variable _cert_prop_name_id_map
+    variable _cert_prop_id_name_map
 
-    _cert_prop_id key_prov_handle; # Just to init _cert_prop_id2name
-    foreach {k val} [array get _cert_prop_id2name] {
-        set _cert_prop_name2id($val) $k
-    }
+    _cert_prop_id key_prov_handle; # Just to init _cert_prop_id_name_map
+    array set _cert_prop_name_id_map [swapl [array get _cert_prop_id_name_map]]
 } {
-    variable _cert_prop_id2name
-    if {[info exists _cert_prop_id2name($id)]} {
-        return $_cert_prop_id2name($id)
+    variable _cert_prop_id_name_map
+    if {[info exists _cert_prop_id_name_map($id)]} {
+        return $_cert_prop_id_name_map($id)
     }
     if {[string is integer -strict $id]} {
         return $id
@@ -557,8 +657,10 @@ proc twapi::_system_store_id {name} {
     return [dict get $system_stores $name]
 }
 
-proc twapi::_crypto_provider_type prov {
-    set provider_names {
+twapi::proc* twapi::_csp_type_name_to_id prov {
+    variable _csp_name_id_map
+
+    array set _csp_name_id_map {
         rsa_full           1
         rsa_sig            2
         dss                3
@@ -578,11 +680,13 @@ proc twapi::_crypto_provider_type prov {
         replace_owf        23
         rsa_aes            24
     }
+} {
+    variable _csp_name_id_map
 
     set key [string tolower $prov]
 
-    if {[dict exists $provider_names $key]} {
-        return [dict get $provider_names $key]
+    if {[info exists _csp_name_id_map($key)]} {
+        return $_csp_name_id_map($key)
     }
 
     if {[string is integer -strict $prov]} {
@@ -591,6 +695,27 @@ proc twapi::_crypto_provider_type prov {
 
     badargs! "Invalid or unknown provider name '$prov'" 3
 }
+
+twapi::proc* twapi::_csp_type_id_to_name prov {
+    variable _csp_name_id_map
+    variable _csp_id_name_map
+
+    _csp_type_name_to_id rsa_full; # Just to ensure _csp_name_id_map exists
+    array set _csp_id_name_map [swapl [array get _csp_name_id_map]]
+} {
+    variable _csp_id_name_map
+    if {[info exists _csp_id_name_map($prov)]} {
+        return $_csp_id_name_map($prov)
+    }
+
+    if {[string is integer -strict $prov]} {
+        return $prov
+    }
+
+    badargs! "Invalid or unknown provider id '$prov'" 3
+}
+
+
 
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "crypto.tcl"} {
