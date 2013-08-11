@@ -18,11 +18,28 @@ namespace eval twapi {
 
     variable scriptdir [file dirname [info script]]
 
+    ################################################################
+    # Following procs are used early in init process so defined here
+
     # Defines a proc with some initialization code
     proc proc* {procname arglist initcode body} {
+        if {![string match ::* $procname]} {
+            set ns [uplevel 1 {namespace current}]
+            set procname ${ns}::$procname
+        }
         set proc_def [format {proc %s {%s} {%s ; proc %s {%s} {%s} ; uplevel 1 [list %s] [lrange [info level 0] 1 end]}} $procname $arglist $initcode $procname $arglist $body $procname]
         uplevel 1 $proc_def
     }
+
+    # Swap keys and values
+    proc swapl {l} {
+        set swapped {}
+        foreach {a b} $l {
+            lappend swapped $b $a
+        }
+        return $swapped
+    }
+
 }
 
 # Make twapi versions the same as the base module versions
@@ -420,11 +437,11 @@ proc twapi::_normalize_path {path} {
 
 
 # Convert seconds to a list {Year Month Day Hour Min Sec Ms}
-# (Ms will always be zero). Always return local time
-proc twapi::_seconds_to_timelist {secs} {
+# (Ms will always be zero).
+proc twapi::_seconds_to_timelist {secs {gmt 0}} {
     # For each field, we need to trim the leading zeroes
     set result [list ]
-    foreach x [clock format $secs -format "%Y %m %e %k %M %S 0" -gmt false] {
+    foreach x [clock format $secs -format "%Y %m %e %k %M %S 0" -gmt $gmt] {
         lappend result [scan $x %d]
     }
     return $result
