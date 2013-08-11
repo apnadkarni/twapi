@@ -617,6 +617,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             break;
         case TRT_HKEY:
             typenameP = "HKEY";
+            break;
         default:
             TwapiSetStaticResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements");
             return TCL_ERROR;
