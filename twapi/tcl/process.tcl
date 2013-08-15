@@ -478,7 +478,7 @@ proc twapi::end_process {pid args} {
 
     # First try to close nicely. We need to send messages to toplevels
     # as well as message-only windows. We could make use of get_toplevel_windows
-    # and find_windows but those would require pullin in the whole 
+    # and find_windows but those would require pulling in the whole 
     # twapi_ui package so do it ourselves.
     set toplevels {}
     foreach toplevel [EnumWindows] {
@@ -501,7 +501,11 @@ proc twapi::end_process {pid args} {
             break
         }
         if {[pointer_null? $toplevel]} break
-        lappend toplevels $toplevel
+        catch {
+            if {[lindex [GetWindowThreadProcessId $toplevel] 1] == $pid} {
+                lappend toplevels $toplevel
+            }
+        }
         set prev $toplevel
     }
     
