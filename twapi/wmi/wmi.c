@@ -24,37 +24,45 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
     int    buflen;
     HRESULT hr;
     WBEM_COMPILE_STATUS_INFO wcsi;
+    Tcl_Obj *server_namespaceObj, *userObj, *authorityObj, *passwordObj;
 
     if (type == 2) {
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(ifc, IMofCompiler), ARGSKIP, ARGSKIP,
                          ARGUSEDEFAULT,
-                         GETNULLIFEMPTY(server_namespace),
+                         GETOBJ(server_namespaceObj),
                          GETINT(optflags), GETINT(classflags),
                          GETINT(instflags), ARGEND) != TCL_OK)
             return TCL_ERROR;
     } else {
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(ifc, IMofCompiler), ARGSKIP, ARGUSEDEFAULT,
-                         GETNULLIFEMPTY(server_namespace), GETNULLIFEMPTY(user),
-                         GETNULLIFEMPTY(authority), GETNULLIFEMPTY(password),
+                         GETOBJ(server_namespaceObj),
+                         GETOBJ(userObj),
+                         GETOBJ(authorityObj), GETOBJ(passwordObj),
                          GETINT(optflags), GETINT(classflags),
                          GETINT(instflags), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        user = userObj ? ObjToLPWSTR_NULL_IF_EMPTY(userObj) : NULL;
+        authority = authorityObj ? ObjToLPWSTR_NULL_IF_EMPTY(authorityObj) : NULL;
+        /* TBD - password should be in concealed form ? */
+        password = passwordObj ? ObjToLPWSTR_NULL_IF_EMPTY(passwordObj) : NULL;
     }            
+
+    server_namespace = server_namespaceObj ? ObjToLPWSTR_NULL_IF_EMPTY(server_namespaceObj) : NULL;
 
     ZeroMemory(&wcsi, sizeof(wcsi));
 
     switch (type) {
     case 0:
-        buf = Tcl_GetStringFromObj(objv[1], &buflen);
+        buf = ObjToStringN(objv[1], &buflen);
         hr = ifc->lpVtbl->CompileBuffer(ifc, buflen, buf, server_namespace,
                                          user, authority, password,
                                          optflags, classflags, instflags,
                                          &wcsi);
         break;
     case 1:
-        hr = ifc->lpVtbl->CompileFile(ifc, Tcl_GetUnicode(objv[1]),
+        hr = ifc->lpVtbl->CompileFile(ifc, ObjToUnicode(objv[1]),
                                        server_namespace,
                                        user, authority, password,
                                        optflags, classflags, instflags,
@@ -62,8 +70,8 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
         break;
 
     case 2:
-        hr = ifc->lpVtbl->CreateBMOF(ifc, Tcl_GetUnicode(objv[1]),
-                                     Tcl_GetUnicode(objv[2]),
+        hr = ifc->lpVtbl->CreateBMOF(ifc, ObjToUnicode(objv[1]),
+                                     ObjToUnicode(objv[2]),
                                      server_namespace,
                                      optflags, classflags, instflags,
                                      &wcsi);

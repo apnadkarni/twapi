@@ -1317,13 +1317,17 @@ Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
 
 /*
  * Convert a Tcl list to a "MULTI_SZ" list of Unicode strings, terminated
- * with two nulls. Returns TCL_OK on success with a dynamically alloced multi_sz
- * string in *multiszPtrPtr. Returns TCL_ERROR on failure
+ * with two nulls.  Pointer to dynamically alloced multi_sz is stored
+ * in *multiszPtrPtr on success. If lifoP is NULL, the allocated memory
+ * must be freed using TwapiFree. If lifoP is not NULL, it is allocated
+ * from that pool and is to be freed as appropriate. Note in this latter
+ * case, memory may or may not have been allocated from pool even for errors.
  */
-int ObjToMultiSz (
+TCL_RESULT ObjToMultiSzEx (
      Tcl_Interp *interp,
      Tcl_Obj    *listPtr,
-     LPCWSTR     *multiszPtrPtr
+     LPCWSTR     *multiszPtrPtr,
+     MemLifo    *lifoP
     )
 {
     int       i;
@@ -1343,11 +1347,15 @@ int ObjToMultiSz (
     }
 
     ++len;                      /* One extra null char at the end */
-    buf = TwapiAlloc(len*sizeof(*buf));
+    if (lifoP)
+        buf = MemLifoAlloc(lifoP, len*sizeof(*buf), NULL);
+    else
+        buf = TwapiAlloc(len*sizeof(*buf));
 
     for (i=0, dst=buf; ; ++i) {
         if (Tcl_ListObjIndex(interp, listPtr, i, &objPtr) == TCL_ERROR) {
-            TwapiFree(buf);
+            if (lifoP == NULL)
+                TwapiFree(buf);
             return TCL_ERROR;
         }
         if (objPtr == NULL)
@@ -1367,6 +1375,15 @@ int ObjToMultiSz (
     return TCL_OK;
 }
 
+/* This wrapper needed for ObjToMultiSzEx so it can be used from GETVAR */
+TCL_RESULT ObjToMultiSz (
+     Tcl_Interp *interp,
+     Tcl_Obj    *listPtr,
+     LPCWSTR     *multiszPtrPtr
+    )
+{
+    return ObjToMultiSzEx(interp, listPtr, multiszPtrPtr, NULL);
+}
 
 /*
  * Convert a "MULTI_SZ" list of Unicode strings, terminated with two nulls to
@@ -1681,6 +1698,29 @@ int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *
     *argcP = objc;
     return TCL_OK;
 }
+
+
+LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, int *argcP)
+{
+    int       j, objc;
+    Tcl_Obj **objv;
+    LPWSTR *argv;
+
+    if (ObjGetElements(ticP->interp, objP, &objc, &objv) != TCL_OK)
+        return NULL;
+
+    argv = MemLifoAlloc(&ticP->memlifo, (objc+1) * sizeof(LPCWSTR), NULL);
+    for (j = 0; j < objc; ++j) {
+        WCHAR *s;
+        int slen;
+        s = ObjToUnicodeN(objv[j], &slen);
+        argv[j] = MemLifoCopy(&ticP->memlifo, s, sizeof(WCHAR)*(slen+1));
+    }
+    argv[j] = NULL;
+    *argcP = objc;
+    return argv;
+}
+
 
 Tcl_Obj *ObjFromOpaque(void *pv, char *name)
 {

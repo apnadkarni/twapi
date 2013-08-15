@@ -293,12 +293,13 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     COORD coord;
     CHAR_INFO chinfo;
     DWORD dw, dw2, dw3;
-    LPWSTR s;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
     WORD w;
     int func = PtrToInt(clientdata);
     TwapiResult result;
+    Tcl_Obj *sObj;
+    LPWSTR s;
 
     --objc;
     ++objv;
@@ -444,11 +445,13 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             break;
         case 1004:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETWSTRN(s, dw),
+                             GETHANDLE(h), GETOBJ(sObj),
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (WriteConsoleOutputCharacterW(h, s, dw, coord, &result.value.uval))
+            s = ObjToUnicodeN(sObj, &dw);
+            if (WriteConsoleOutputCharacterW(h, s,
+                                             dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    
@@ -494,20 +497,23 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             break;
         case 1012:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETWSTR(s), ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
+                             GETHANDLE(h), GETOBJ(sObj),
+                             ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (WriteConsoleW(h, s, dw, &result.value.uval, NULL))
+            if (WriteConsoleW(h, ObjToUnicode(sObj),
+                              dw, &result.value.uval, NULL))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;
             break;
         case 1013:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETWSTR(s), GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
+                             GETHANDLE(h), GETOBJ(sObj),
+                             GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (ObjToCOORD(interp, objv[3], &coord) != TCL_OK)
                 return TCL_ERROR;
-            if (FillConsoleOutputCharacterW(h, s[0], dw, coord, &result.value.uval))
+            if (FillConsoleOutputCharacterW(h, *ObjToUnicode(sObj), dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;

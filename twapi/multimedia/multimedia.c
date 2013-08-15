@@ -16,11 +16,11 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 
 static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s;
     DWORD dw, dw2;
     HMODULE hmod;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    Tcl_Obj *sObj;
 
     --objc;
     ++objv;
@@ -28,11 +28,11 @@ static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     switch (func) {
     case 1:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETNULLIFEMPTY(s), GETHANDLET(hmod, HMODULE), GETINT(dw),
+                         GETOBJ(sObj), GETHANDLET(hmod, HMODULE), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
-        result.value.ival = PlaySoundW(s, hmod, dw);
+        result.value.ival = PlaySoundW(ObjToLPWSTR_NULL_IF_EMPTY(sObj), hmod, dw);
         break;
     case 2:
         if (TwapiGetArgs(interp, objc, objv,

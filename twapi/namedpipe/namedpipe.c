@@ -1215,16 +1215,16 @@ static void NPipeConfigureChannelDefaults(Tcl_Interp *interp, NPipeChannel *pcP)
 
 int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPCWSTR name;
     DWORD open_mode, pipe_mode, max_instances;
     DWORD inbuf_sz, outbuf_sz, timeout;
     SECURITY_ATTRIBUTES *secattrP = NULL;
     NPipeChannel *pcP;
     DWORD winerr = ERROR_SUCCESS;
     NPipeTls *tlsP;
+    Tcl_Obj *nameObj;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETWSTR(name), GETINT(open_mode), GETINT(pipe_mode),
+                     GETOBJ(nameObj), GETINT(open_mode), GETINT(pipe_mode),
                      GETINT(max_instances), GETINT(outbuf_sz),
                      GETINT(inbuf_sz), GETINT(timeout),
                      GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES), ARGEND)
@@ -1248,7 +1248,7 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     pcP = NPipeChannelNew();
 
     open_mode |= FILE_FLAG_OVERLAPPED;
-    pcP->hpipe = CreateNamedPipeW(name, open_mode, pipe_mode, max_instances,
+    pcP->hpipe = CreateNamedPipeW(ObjToUnicode(nameObj), open_mode, pipe_mode, max_instances,
                                   outbuf_sz, inbuf_sz, timeout, secattrP);
 
     if (pcP->hpipe != INVALID_HANDLE_VALUE) {
@@ -1330,7 +1330,6 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 
 int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPCWSTR name;
     DWORD desired_access, share_mode, creation_disposition;
     DWORD flags_attr;
     SECURITY_ATTRIBUTES *secattrP = NULL;
@@ -1338,9 +1337,10 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     DWORD winerr;
     NPipeTls *tlsP;
     HANDLE hpipe;
+    Tcl_Obj *nameObj;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETWSTR(name),
+                     GETOBJ(nameObj),
                      GETINT(desired_access),
                      GETINT(share_mode),
                      GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
@@ -1359,7 +1359,7 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     tlsP = GetNPipeTls();
 
     flags_attr |= FILE_FLAG_OVERLAPPED;
-    hpipe = CreateFileW(name, desired_access,
+    hpipe = CreateFileW(ObjToUnicode(nameObj), desired_access,
                         share_mode, secattrP,
                         creation_disposition,
                         flags_attr, NULL);

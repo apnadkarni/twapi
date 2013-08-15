@@ -74,10 +74,9 @@ int Twapi_SetServiceStatus(
 {
     SERVICE_STATUS ss;
     int service_index;
-    WCHAR *nameP;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETWSTR(nameP), GETINT(ss.dwCurrentState),
+                     ARGSKIP, GETINT(ss.dwCurrentState),
                      GETINT(ss.dwWin32ExitCode),
                      GETINT(ss.dwServiceSpecificExitCode),
                      GETINT(ss.dwCheckPoint),
@@ -87,7 +86,7 @@ int Twapi_SetServiceStatus(
         != TCL_OK)
         return TCL_ERROR;
 
-    service_index = TwapiFindServiceIndex(nameP);
+    service_index = TwapiFindServiceIndex(ObjToUnicode(objv[0]));
     if (service_index < 0)
         return Twapi_AppendSystemError(ticP->interp, ERROR_INVALID_NAME);
 

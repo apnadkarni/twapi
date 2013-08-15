@@ -239,7 +239,6 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
 
 static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s, s2;
     DWORD dw, dw2, dw3;
     TwapiResult result;
     union {
@@ -250,6 +249,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     SYSTEMTIME systime;
     TIME_ZONE_INFORMATION *tzinfoP;
     int func = PtrToInt(clientdata);
+    Tcl_Obj *sObj, *s2Obj;
     FARPROC fn;
 
     --objc;
@@ -329,18 +329,18 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             break;
         case 1002:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s), ARGEND) != TCL_OK)
+                             GETOBJ(sObj), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = AbortSystemShutdownW(s);
+            result.value.ival = AbortSystemShutdownW(ObjToLPWSTR_NULL_IF_EMPTY(sObj));
         case 1003:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             GETOBJ(sObj), GETOBJ(s2Obj),
                              GETINT(dw), GETBOOL(dw2), GETBOOL(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = InitiateSystemShutdownW(s, s2, dw, dw2, dw3);
+            result.value.ival = InitiateSystemShutdownW(ObjToLPWSTR_NULL_IF_EMPTY(sObj), ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), dw, dw2, dw3);
             break;
         case 1004:
             if (TwapiGetArgs(interp, objc, objv,

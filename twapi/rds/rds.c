@@ -151,10 +151,12 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 2:
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETINT(dw),
-                         GETWSTRN(s, i), GETWSTRN(s2, i2),
+                         ARGSKIP, ARGSKIP,
                          GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
+        s = ObjToUnicodeN(objv[2], &i);
+        s2 = ObjToUnicodeN(objv[3], &i2);
         if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
                             s2, sizeof(WCHAR)*i2, dw2,
                             dw3, &result.value.uval, dw4))

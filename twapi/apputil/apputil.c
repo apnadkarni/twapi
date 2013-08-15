@@ -131,7 +131,7 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
 
 static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s, s2, s3, s4;
+    LPWSTR s;
     DWORD dw;
     TwapiResult result;
     LPVOID pv;
@@ -142,83 +142,78 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     ++objv;
     switch (func) {
     case 2:
+        CHECK_NARGS(interp, objc, 0);
         if (Twapi_Wow64DisableWow64FsRedirection(&pv))
             TwapiResult_SET_PTR(result, void*, pv);
         else
             result.type = TRT_GETLASTERROR;
         break;
     case 3:
+        CHECK_NARGS(interp, objc, 0);
         result.value.unicode.str = GetCommandLineW();
         result.value.unicode.len = -1;
         result.type = TRT_UNICODE;
         break;
     case 4:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVOIDP(pv),
-                         ARGEND) != TCL_OK)
+        CHECK_NARGS(interp, objc, 1);
+        if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
         break;
     case 5: // WritePrivateProfileString
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
-                         GETWSTR(s4),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 4);
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = WritePrivateProfileStringW(s, s2, s3, s4);
+        result.value.ival = WritePrivateProfileStringW(
+            ObjToUnicode(objv[0]), ObjToLPWSTR_WITH_NULL(objv[1]),
+            ObjToLPWSTR_WITH_NULL(objv[2]), ObjToUnicode(objv[3]));
         break;
     case 6:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETNULLTOKEN(s), GETNULLTOKEN(s2), GETNULLTOKEN(s3),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 3);
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = WriteProfileStringW(s, s2, s3);
+        result.value.ival = WriteProfileStringW(
+            ObjToLPWSTR_WITH_NULL(objv[0]),
+            ObjToLPWSTR_WITH_NULL(objv[1]),
+            ObjToLPWSTR_WITH_NULL(objv[2]));
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETNULLIFEMPTY(s), GETWSTR(s2), GETINT(dw), GETWSTR(s3),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 4);
+        /* As always, extract the int first to avoid shimmering issues */
+        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
         result.type = TRT_LONG;
-        result.value.ival = GetPrivateProfileIntW(s, s2, dw, s3);
+        result.value.ival = GetPrivateProfileIntW(
+            ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
+            ObjToUnicode(objv[1]), dw,
+            ObjToUnicode(objv[3]));
         break;
     case 8:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETWSTR(s2), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 3);
+        /* As always, extract the int first to avoid shimmering issues */
+        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
         result.type = TRT_LONG;
-        result.value.ival = GetProfileIntW(s, s2, dw);
+        result.value.ival = GetProfileIntW(
+            ObjToUnicode(objv[0]), ObjToUnicode(objv[1]), dw);
         break;
     case 9:
-    case 10:
-    case 11:
-        /* Single string arg */
-        if (objc != 1)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        s = ObjToUnicode(objv[0]);
-        switch (func) {
-        case 9:
-            CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
-            break;
-        case 10:
-            return Twapi_CommandLineToArgv(interp, s);
-        case 11: // GetPrivateProfileSectionNames
-            NULLIFY_EMPTY(s);
-            return TwapiGetProfileSectionHelper(interp, NULL, s);
-        }
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
         break;
+    case 10:
+        CHECK_NARGS(interp, objc, 1);
+        return Twapi_CommandLineToArgv(interp, ObjToUnicode(objv[0]));
+    case 11:
+        CHECK_NARGS(interp, objc, 1);
+        s = ObjToUnicode(objv[0]);
+        NULLIFY_EMPTY(s);
+        return TwapiGetProfileSectionHelper(interp, NULL, s);
     case 12: // GetPrivateProfileSection
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETNULLIFEMPTY(s2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        return TwapiGetProfileSectionHelper(interp, s, s2);
+        CHECK_NARGS(interp, objc, 2);
+        return TwapiGetProfileSectionHelper(
+            interp,
+            ObjToUnicode(objv[0]),
+            ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
     }
 
     return TwapiSetResult(interp, &result);

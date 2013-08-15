@@ -154,7 +154,6 @@ void MemLifoClose(MemLifo *l)
     TwapiZeroMemory(l, sizeof(*l));
 }
 
-
 void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
 {
     MemLifoChunk *c;
@@ -288,6 +287,14 @@ void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
     }
 
     return m->lm_last_alloc;
+}
+
+void* MemLifoCopy(MemLifo *l, void *srcP, DWORD nbytes)
+{
+    void *dstP = MemLifoAlloc(l, nbytes, NULL);
+    if (dstP)
+        memcpy(dstP, srcP, nbytes);
+    return dstP;
 }
 
 MemLifoMarkHandle MemLifoPushMark(MemLifo *l)

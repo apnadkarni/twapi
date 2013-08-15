@@ -980,7 +980,6 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
 static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s, s2;
     DWORD dw, dw2, dw3, dw4, dw5, dw6;
     HANDLE h;
     TwapiResult result;
@@ -1195,12 +1194,13 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         case 10004: 
             return Twapi_GetThemeFont(interp, objc, objv);
         case 10005:
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s), GETINT(dw), GETINT(dw2),
+            if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
+                             GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             u.display_device.cb = sizeof(u.display_device);
-            if (EnumDisplayDevicesW(s, dw, &u.display_device, dw2)) {
+            if (EnumDisplayDevicesW(ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
+                                    dw, &u.display_device, dw2)) {
                 result.value.obj = ObjFromDISPLAY_DEVICE(&u.display_device);
                 result.type = TRT_OBJ;
             } else {
@@ -1217,12 +1217,11 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                 return TCL_ERROR;
             return Twapi_EnumDisplayMonitors(interp, h, rectP);
         case 10007:
-            if (TwapiGetArgs(interp, objc, objv, 
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
+            CHECK_NARGS(interp, objc, 2);
             result.type = TRT_HWND;
-            result.value.hwin = FindWindowW(s,s2);
+            result.value.hwin = FindWindowW(
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
             break;
         }
     }

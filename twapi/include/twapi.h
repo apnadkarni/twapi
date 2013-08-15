@@ -351,6 +351,20 @@ typedef volatile LONG TwapiOneTimeInitState;
             return TCL_ERROR;                                           \
     } while (0)
 
+/* Check number of arguments */
+#define CHECK_NARGS(interp_, n_, m_)                        \
+    do {                                                                \
+        if ((n_) != (m_))                                               \
+            return TwapiReturnError((interp_), TWAPI_BAD_ARG_COUNT);    \
+    } while (0)
+
+#define CHECK_NARGS_RANGE(interp_, nargs_, min_, max_)                  \
+    do {                                                                \
+        if ((nargs_) < (min_) || (nargs_) > (max_))                     \
+            return TwapiReturnError((interp_), TWAPI_BAD_ARG_COUNT);    \
+    } while (0)
+
+
 /* String equality test - check first char before calling strcmp */
 #define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpA((x), (y)) )
 #define STREQUN(x, y, n) \
@@ -697,21 +711,21 @@ typedef struct {
 #define ARGEND      0
 #define ARGTERM     1
 #define ARGBOOL    'b'
-#define ARGBIN     'B'
+#define ARGBA     'B'
 #define ARGDOUBLE  'd'
-#define ARGNULLIFEMPTY 'E'
+#define ARGEMPTYASNULL 'E'
 #define ARGINT     'i'
 #define ARGWIDE    'I'
-#define ARGNULLTOKEN 'N'
+#define ARGTOKENNULL 'N'
 #define ARGOBJ     'o'
 #define ARGPTR      'p'
 #define ARGDWORD_PTR 'P'
-#define ARGAARGV   'r'
-#define ARGWARGV   'R'
+#define ARGVA   'r'
+#define ARGVW   'R'
 #define ARGASTR      's'
 #define ARGASTRN     'S'
-#define ARGWSTR     'u'
-#define ARGWSTRN    'U'
+#define ARGSTRW     'u'
+#define ARGSTRWN    'U'
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
@@ -721,7 +735,7 @@ typedef struct {
 #define ARGUSEDEFAULT '?'
 
 #define GETBOOL(v)    ARGBOOL, &(v)
-#define GETBIN(v, n)  ARGBIN, &(v), &(n)
+#define GETBA(v, n)  ARGBA, &(v), &(n)
 #define GETINT(v)     ARGINT, &(v)
 #define GETWIDE(v)    ARGWIDE, &(v)
 #define GETDOUBLE(v)  ARGDOUBLE, &(v)
@@ -729,10 +743,10 @@ typedef struct {
 #define GETDWORD_PTR(v) ARGDWORD_PTR, &(v)
 #define GETASTR(v)      ARGASTR, &(v)
 #define GETASTRN(v, n)  ARGASTRN, &(v), &(n)
-#define GETWSTR(v)     ARGWSTR, &(v)
-#define GETWSTRN(v, n) ARGWSTRN, &(v), &(n)
-#define GETNULLIFEMPTY(v) ARGNULLIFEMPTY, &(v)
-#define GETNULLTOKEN(v) ARGNULLTOKEN, &(v)
+#define GETSTRW(v)     ARGSTRW, &(v)
+#define GETSTRWN(v, n) ARGSTRWN, &(v), &(n)
+#define GETEMPTYASNULL(v) ARGEMPTYASNULL, &(v)
+#define GETTOKENNULL(v) ARGTOKENNULL, &(v)
 #define GETWORD(v)     ARGWORD, &(v)
 #define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
@@ -745,9 +759,14 @@ typedef struct {
 #define GETVARWITHDEFAULT(v, fn)  ARGVARWITHDEFAULT, &(v), fn
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
 #define GETUUID(v)     GETVAR(v, ObjToUUID)
-/* For GETAARGV/GETWARGV, v is of type char *v[n], or WCHAR *v[n] */
-#define GETAARGV(v, I, n) ARGAARGV, (v), (I), &(n)
-#define GETWARGV(v, I, n) ARGWARGV, (v), (I), &(n)
+/* For GETARGVA/GETWARGVW, v is of type char **, or WCHAR ** */
+#define GETARGVA(v, n) ARGVA, (&v), &(n)
+#define GETARGVW(v, n) ARGVW, (&v), &(n)
+
+#define GETWSTR ha-ha
+#define GETWSTRN ha-ha
+#define GETNULLIFEMPTY ha-ha
+
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
@@ -1174,8 +1193,9 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 /* C - Tcl result and parameter conversion  */
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
-/* TBD - TwapiGetArgs could als obe used to parse lists into C structs */
+/* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
 TWAPI_EXTERN void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 TWAPI_EXTERN TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP);
 
@@ -1302,6 +1322,7 @@ TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
 TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 
+TWAPI_EXTERN LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, int *argcP);
 TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
 TWAPI_EXTERN Tcl_Obj *ObjFromArgvA(int argc, char **argv);
 TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
@@ -1340,8 +1361,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
 TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt);
 
 /* Note: the returned multiszPP must be free()'ed */
+TWAPI_EXTERN int ObjToMultiSzEx (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP, MemLifo *lifoP);
 TWAPI_EXTERN int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
-#define Twapi_ConvertTclListToMultiSz ObjToMultiSz
 TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
 #define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,

@@ -182,60 +182,45 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
 
 int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR szMachineName;
-    LPWSTR szObjectName;
-    LPWSTR szInstanceName;
-    LPWSTR szParentInstance;
-    DWORD   dwInstanceIndex;
-    LPWSTR szCounterName;
     DWORD   dwFlags;
-
     PDH_COUNTER_PATH_ELEMENTS_W pdh_elements;
     PDH_STATUS  pdh_status;
     WCHAR      *path_buf; 
     DWORD       path_buf_size;
-    int         result;
+    TCL_RESULT  result;
+    MemLifoMarkHandle mark;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETNULLIFEMPTY(szMachineName), GETWSTR(szObjectName),
-                     GETNULLIFEMPTY(szInstanceName),
-                     GETNULLIFEMPTY(szParentInstance),
-                     GETINT(dwInstanceIndex), GETWSTR(szCounterName),
-                     GETINT(dwFlags),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    mark = MemLifoPushMark(&ticP->memlifo);
 
-
-    pdh_elements.szMachineName    = szMachineName;
-    pdh_elements.szObjectName     = szObjectName;
-    pdh_elements.szInstanceName   = szInstanceName;
-    pdh_elements.szParentInstance = szParentInstance;
-    pdh_elements.dwInstanceIndex  = dwInstanceIndex;
-    pdh_elements.szCounterName    = szCounterName;
-    
-    path_buf_size = 0;
-    pdh_status = PdhMakeCounterPathW(&pdh_elements, NULL,
-                                     &path_buf_size, dwFlags);
-    if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
-        return Twapi_AppendSystemError(ticP->interp, pdh_status);
+    result = TwapiGetArgsEx(ticP, objc, objv,
+                            GETEMPTYASNULL(pdh_elements.szMachineName),
+                            GETSTRW(pdh_elements.szObjectName),
+                            GETEMPTYASNULL(pdh_elements.szInstanceName),
+                            GETEMPTYASNULL(pdh_elements.szParentInstance),
+                            GETINT(pdh_elements.dwInstanceIndex),
+                            GETSTRW(pdh_elements.szCounterName),
+                            GETINT(dwFlags),
+                            ARGEND);
+    if (result == TCL_OK) {
+        path_buf_size = 0;
+        pdh_status = PdhMakeCounterPathW(&pdh_elements, NULL,
+                                         &path_buf_size, dwFlags);
+        if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
+            result = Twapi_AppendSystemError(ticP->interp, pdh_status);
+        } else {
+            path_buf = MemLifoAlloc(&ticP->memlifo,
+                                    path_buf_size*sizeof(*path_buf), NULL);
+            pdh_status = PdhMakeCounterPathW(&pdh_elements, path_buf,
+                                             &path_buf_size, dwFlags);
+            if (pdh_status != ERROR_SUCCESS)
+                result = Twapi_AppendSystemError(ticP->interp, pdh_status);
+            else
+                TwapiSetObjResult(ticP->interp, ObjFromUnicode(path_buf));
+        }
     }
-    
-    path_buf = MemLifoPushFrame(&ticP->memlifo,
-                                path_buf_size*sizeof(*path_buf), NULL);
-    pdh_status = PdhMakeCounterPathW(&pdh_elements, path_buf,
-                                     &path_buf_size, dwFlags);
-    if (pdh_status != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(ticP->interp, pdh_status);
-        result = TCL_ERROR;
-    }
-    else {
-        TwapiSetObjResult(ticP->interp, ObjFromUnicode(path_buf));
-        result = TCL_OK;
-    }
-    MemLifoPopFrame(&ticP->memlifo);
 
+    MemLifoPopMark(mark);
     return result;
-
 }
 
 
@@ -409,7 +394,7 @@ PdhExpandCounterPath has a bug on Win2K. So we do not wrap it; TBD
 int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s, s2, s3;
+    LPWSTR s;
     DWORD   dw, dw2;
     HANDLE h;
     TwapiResult result;
@@ -439,8 +424,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         }
     } else if (func < 200) {
         /* Single argument */
-        if (objc != 3)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        CHECK_NARGS(interp, objc, 3);
 
         switch (func) {
         case 101:
@@ -459,11 +443,11 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
         }
     } else if (func < 300) {
-        /* Single string with integer arg */
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETWSTR(s), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        /* Single string with integer arg. */
+        CHECK_NARGS(interp, objc, 4);
+        /* To prevent shimmering issues, get int arg first */
+        CHECK_INTEGER_OBJ(interp, dw, objv[3]);
+        s = ObjToUnicode(objv[2]);
         switch (func) {
         case 201: 
             return Twapi_PdhParseCounterPath(ticP, s, dw);
@@ -512,10 +496,10 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return Twapi_PdhGetFormattedCounterValue(interp, h, dw);
         case 1002:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETWSTR(s), GETINT(dw),
+                             GETHANDLE(h), ARGSKIP, GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            dw = PdhAddCounterW(h, s, dw, &result.value.hval);
+            dw = PdhAddCounterW(h, ObjToUnicode(objv[3]), dw, &result.value.hval);
             if (dw == 0)
                 result.type = TRT_HANDLE;
             else {
@@ -527,18 +511,27 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             return Twapi_PdhMakeCounterPath(ticP, objc-2, objv+2);
         case 1004:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
-                             GETWSTR(s3), GETINT(dw), GETINT(dw2),
+                             ARGSKIP, ARGSKIP, ARGSKIP,
+                             GETINT(dw), GETINT(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_PdhEnumObjectItems(ticP, s, s2, s3, dw, dw2);
+            return Twapi_PdhEnumObjectItems(
+                ticP,
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
+                ObjToUnicode(objv[4]),
+                dw, dw2);
         case 1005:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2),
+                             ARGSKIP, ARGSKIP,
                              GETINT(dw), GETBOOL(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_PdhEnumObjects(ticP, s, s2, dw, dw2);
+            return Twapi_PdhEnumObjects(
+                ticP,
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
+                dw, dw2);
         }
     }
 

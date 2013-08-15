@@ -21,7 +21,6 @@ BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
                               LPCWSTR szObject, LPCWSTR szPage);
 
 int Twapi_GetShellVersion(Tcl_Interp *interp);
-int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_WriteShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
 int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath);
@@ -119,11 +118,15 @@ BOOL Twapi_SHObjectProperties(
 
 
 // Create a shell link
-int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_WriteShortcutObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
 {
     LPCWSTR linkPath;
     LPCWSTR objPath;
-    LPITEMIDLIST itemIds = NULL;
+    LPITEMIDLIST itemIds;
     LPCWSTR commandArgs;
     LPCWSTR desc;
     WORD    hotkey;
@@ -135,115 +138,127 @@ int Twapi_WriteShortcut (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     DWORD runas;
 
     HRESULT hres; 
-    IShellLinkW* psl = NULL; 
-    IPersistFile* ppf = NULL;
-    IShellLinkDataList* psldl = NULL;
+    IShellLinkW* psl; 
+    IPersistFile* ppf;
+    IShellLinkDataList* psldl;
+    MemLifoMarkHandle mark;
+    TCL_RESULT res;
+
+    psl = NULL;
+    psldl = NULL;
+    itemIds = NULL;
+    ppf = NULL;
+    mark = MemLifoPushMark(&ticP->memlifo);
  
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETWSTR(linkPath), GETNULLIFEMPTY(objPath),
-                     GETVAR(itemIds, ObjToPIDL),
-                     GETNULLIFEMPTY(commandArgs),
-                     GETNULLIFEMPTY(desc),
-                     GETWORD(hotkey),
-                     GETNULLIFEMPTY(iconPath),
-                     GETINT(iconIndex),
-                     GETNULLIFEMPTY(relativePath),
-                     GETINT(showCommand),
-                     GETNULLIFEMPTY(workingDirectory),
-                     ARGUSEDEFAULT,
-                     GETINT(runas),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETSTRW(linkPath), GETEMPTYASNULL(objPath),
+                         GETVAR(itemIds, ObjToPIDL),
+                         GETEMPTYASNULL(commandArgs),
+                         GETEMPTYASNULL(desc),
+                         GETWORD(hotkey),
+                         GETEMPTYASNULL(iconPath),
+                         GETINT(iconIndex),
+                         GETEMPTYASNULL(relativePath),
+                         GETINT(showCommand),
+                         GETEMPTYASNULL(workingDirectory),
+                         ARGUSEDEFAULT,
+                         GETINT(runas),
+                         ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
 
     if (objPath == NULL && itemIds == NULL) {
         hres = ERROR_INVALID_PARAMETER;
-        goto vamoose;
+        goto hres_vamoose;
     }
 
     // Get a pointer to the IShellLink interface. 
     hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
                             &IID_IShellLinkW, (LPVOID*)&psl); 
     if (FAILED(hres)) 
-        goto vamoose;
+        goto hres_vamoose;
 
     if (objPath)
         hres = psl->lpVtbl->SetPath(psl,objPath); 
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (itemIds)
         hres = psl->lpVtbl->SetIDList(psl, itemIds);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (commandArgs)
         hres = psl->lpVtbl->SetArguments(psl, commandArgs);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (desc)
         hres = psl->lpVtbl->SetDescription(psl, desc); 
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (hotkey)
         hres = psl->lpVtbl->SetHotkey(psl, hotkey);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (iconPath)
         hres = psl->lpVtbl->SetIconLocation(psl, iconPath, iconIndex);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (relativePath)
         hres = psl->lpVtbl->SetRelativePath(psl, relativePath, 0);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (showCommand >= 0)
         hres = psl->lpVtbl->SetShowCmd(psl, showCommand);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
     if (workingDirectory)
         hres = psl->lpVtbl->SetWorkingDirectory(psl, workingDirectory);
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
 
     if (runas) {
         hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
                                            (LPVOID*)&psldl); 
         if (FAILED(hres))
-            goto vamoose;
+            goto hres_vamoose;
 
         hres = psldl->lpVtbl->GetFlags(psldl, &runas);
         if (FAILED(hres))
-            goto vamoose;
+            goto hres_vamoose;
         
         hres = psldl->lpVtbl->SetFlags(psldl, runas | SLDF_RUNAS_USER);
         if (FAILED(hres))
-            goto vamoose;
+            goto hres_vamoose;
     }
 
     hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
     if (FAILED(hres))
-        goto vamoose;
+        goto hres_vamoose;
  
     /* Save the link  */
     hres = ppf->lpVtbl->Save(ppf, linkPath, TRUE); 
     ppf->lpVtbl->Release(ppf); 
     
- vamoose:
+ hres_vamoose:
     if (psl)
         psl->lpVtbl->Release(psl); 
     if (psldl)
         psldl->lpVtbl->Release(psldl); 
     TwapiFreePIDL(itemIds);     /* OK if NULL */
-
+    
     if (hres != S_OK) {
         Twapi_AppendSystemError(interp, hres);
-        return TCL_ERROR;
+        res = TCL_ERROR;
     } else
-        return TCL_OK;
+        res = TCL_OK;
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
 }
 
 /* Read a shortcut */
 int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPCWSTR linkPath;
     int pathFlags;
     HWND hwnd;
     DWORD resolve_flags;
@@ -263,10 +278,11 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     int   retval = TCL_ERROR;
     IShellLinkDataList* psldl = NULL;
     DWORD runas;
+    Tcl_Obj *linkObj;
  
     if (TwapiGetArgs(interp, objc, objv,
-                     GETWSTR(linkPath), GETINT(pathFlags),
-                     GETDWORD_PTR(hwnd), GETINT(resolve_flags),
+                     GETOBJ(linkObj), GETINT(pathFlags),
+                     GETHWND(hwnd), GETINT(resolve_flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -281,7 +297,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (FAILED(hres))
         goto fail;
     
-    hres = ppf->lpVtbl->Load(ppf, linkPath, STGM_READ);
+    hres = ppf->lpVtbl->Load(ppf, ObjToUnicode(linkObj), STGM_READ);
     if (FAILED(hres))
         goto fail;
 
@@ -494,8 +510,6 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
 /* Invoke a URL shortcut */
 int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPCWSTR linkPath;
-    LPCWSTR verb;
     DWORD flags;
     HWND hwnd;
 
@@ -503,9 +517,10 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     IUniformResourceLocatorW *psl = NULL; 
     IPersistFile *ppf = NULL;
     URLINVOKECOMMANDINFOW urlcmd;
+    Tcl_Obj *linkObj, *verbObj;
  
     if (TwapiGetArgs(interp, objc, objv,
-                     GETWSTR(linkPath), GETWSTR(verb), GETINT(flags),
+                     GETOBJ(linkObj), GETOBJ(verbObj), GETINT(flags),
                      GETHANDLE(hwnd),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
@@ -522,14 +537,14 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
            use TWAPI_STORE_COM_ERROR */
         Twapi_AppendSystemError(interp, hres);
     } else {
-        hres = ppf->lpVtbl->Load(ppf, linkPath, STGM_READ);
+        hres = ppf->lpVtbl->Load(ppf, ObjToUnicode(linkObj), STGM_READ);
         if (FAILED(hres)) {
             TWAPI_STORE_COM_ERROR(interp, hres, ppf, &IID_IPersistFile);
         } else {
             urlcmd.dwcbSize = sizeof(urlcmd);
             urlcmd.dwFlags = flags;
             urlcmd.hwndParent = hwnd;
-            urlcmd.pcszVerb = verb;
+            urlcmd.pcszVerb = ObjToUnicode(verbObj);
 
             hres = psl->lpVtbl->InvokeCommand(psl, &urlcmd);
             if (FAILED(hres)) {
@@ -554,17 +569,20 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     SHFILEOPSTRUCTW sfop;
     Tcl_Obj *objs[2];
     int      tcl_status = TCL_ERROR;
+    Tcl_Obj  *titleObj;
 
-    sfop.pFrom = NULL;          /* To track necessary deallocs */
+    sfop.pFrom = NULL;          /* Init to track necessary deallocs */
     sfop.pTo   = NULL;
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(sfop.hwnd), GETINT(sfop.wFunc),
                      GETVAR(sfop.pFrom, ObjToMultiSz),
                      GETVAR(sfop.pTo, ObjToMultiSz),
-                     GETWORD(sfop.fFlags), GETWSTR(sfop.lpszProgressTitle),
+                     GETWORD(sfop.fFlags), GETOBJ(titleObj),
                      ARGEND) != TCL_OK)
         goto vamoose;
 
+
+    sfop.lpszProgressTitle = ObjToUnicode(titleObj);
     sfop.hNameMappings = NULL;
 
     if (SHFileOperationW(&sfop) != 0) {
@@ -605,64 +623,65 @@ vamoose:
     return tcl_status;
 }
 
-int Twapi_ShellExecuteEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_ShellExecuteExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPCWSTR lpClass;
     HKEY hkeyClass;
     DWORD dwHotKey;
     HANDLE hIconOrMonitor;
-
+    TCL_RESULT res;
     SHELLEXECUTEINFOW sei;
+    MemLifoMarkHandle mark;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
     
     TwapiZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
                                      Need to track if it needs freeing */
     sei.cbSize = sizeof(sei);
 
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETINT(sei.fMask), GETHANDLE(sei.hwnd),
-                     GETNULLIFEMPTY(sei.lpVerb),
-                     GETNULLIFEMPTY(sei.lpFile),
-                     GETNULLIFEMPTY(sei.lpParameters),
-                     GETNULLIFEMPTY(sei.lpDirectory),
-                     GETINT(sei.nShow),
-                     GETVAR(sei.lpIDList, ObjToPIDL),
-                     GETNULLIFEMPTY(lpClass),
-                     GETHANDLE(hkeyClass),
-                     GETINT(dwHotKey),
-                     GETHANDLE(hIconOrMonitor),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
-
-    if (sei.fMask & SEE_MASK_CLASSNAME)
-        sei.lpClass = lpClass;
-    if (sei.fMask & SEE_MASK_CLASSKEY)
-        sei.hkeyClass = hkeyClass;
-    if (sei.fMask & SEE_MASK_HOTKEY)
-        sei.dwHotKey = dwHotKey;
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETINT(sei.fMask), GETHANDLE(sei.hwnd),
+                         GETEMPTYASNULL(sei.lpVerb),
+                         GETEMPTYASNULL(sei.lpFile),
+                         GETEMPTYASNULL(sei.lpParameters),
+                         GETEMPTYASNULL(sei.lpDirectory),
+                         GETINT(sei.nShow),
+                         GETVAR(sei.lpIDList, ObjToPIDL),
+                         GETEMPTYASNULL(lpClass),
+                         GETHANDLE(hkeyClass),
+                         GETINT(dwHotKey),
+                         GETHANDLE(hIconOrMonitor),
+                         ARGEND);
+    if (res == TCL_OK) {
+        if (sei.fMask & SEE_MASK_CLASSNAME)
+            sei.lpClass = lpClass;
+        if (sei.fMask & SEE_MASK_CLASSKEY)
+            sei.hkeyClass = hkeyClass;
+        if (sei.fMask & SEE_MASK_HOTKEY)
+            sei.dwHotKey = dwHotKey;
 #ifndef SEE_MASK_ICON
 # define SEE_MASK_ICON 0x00000010
 #endif
-    if (sei.fMask & SEE_MASK_ICON)
-        sei.hIcon = hIconOrMonitor;
-    if (sei.fMask & SEE_MASK_HMONITOR)
-        sei.hMonitor = hIconOrMonitor;
+        if (sei.fMask & SEE_MASK_ICON)
+            sei.hIcon = hIconOrMonitor;
+        if (sei.fMask & SEE_MASK_HMONITOR)
+            sei.hMonitor = hIconOrMonitor;
 
-    if (ShellExecuteExW(&sei) == 0) {
-        DWORD winerr = GetLastError();
-        /* Note: error code in se.hInstApp is ignored as per
-           http://blogs.msdn.com/b/oldnewthing/archive/2012/10/18/10360604.aspx
-        */
+        if (ShellExecuteExW(&sei)) {
+            if (sei.fMask & SEE_MASK_NOCLOSEPROCESS) {
+                TwapiSetObjResult(interp, ObjFromHANDLE(sei.hProcess));
+            }
+        } else {
+            /* Note: error code in se.hInstApp is ignored as per
+               http://blogs.msdn.com/b/oldnewthing/archive/2012/10/18/10360604.aspx
+            */
+            res = TwapiReturnSystemError(interp);
+        }
         TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
-        return Twapi_AppendSystemError(interp, winerr);
     }
 
-    TwapiFreePIDL(sei.lpIDList);     /* OK if NULL */
-
-    /* Success, see if any fields to be returned */
-    if (sei.fMask & SEE_MASK_NOCLOSEPROCESS) {
-        TwapiSetObjResult(interp, ObjFromHANDLE(sei.hProcess));
-    }
-    return TCL_OK;
+    MemLifoPopMark(mark);
+    return res;
 }
 
 
@@ -854,7 +873,6 @@ wrong_nargs_error:
 static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HWND   hwnd;
-    LPWSTR s, s2;
     DWORD dw, dw2;
     union {
         NOTIFYICONDATAW *niP;
@@ -863,14 +881,13 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     HANDLE h;
     TwapiResult result;
     LPITEMIDLIST idlP;
+    Tcl_Obj *sObj, *s2Obj;
     int func = PtrToInt(clientdata);
 
     --objc;
     ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 1:
-        return Twapi_WriteShortcut(interp, objc, objv);
     case 2:
         return Twapi_ReadShortcut(interp, objc, objv);
     case 3:
@@ -878,11 +895,12 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 4: // SHInvokePrinterCommand
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(hwnd), GETINT(dw),
-                         GETWSTR(s), GETWSTR(s2), GETBOOL(dw2),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETBOOL(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = SHInvokePrinterCommandW(hwnd, dw, s, s2, dw2);
+        result.value.ival = SHInvokePrinterCommandW(
+            hwnd, dw, ObjToUnicode(sObj), ObjToUnicode(s2Obj), dw2);
         break;
     case 5:
         return Twapi_GetShellVersion(interp);
@@ -946,10 +964,9 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
 
     case 10: // Shell_NotifyIcon
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETBIN(u.niP, dw2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 2);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        u.niP = ObjToByteArray(objv[1], &dw2);
         if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
         }
@@ -965,24 +982,27 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 12:
         return Twapi_SHFileOperation(interp, objc, objv);
     case 13:
-        return Twapi_ShellExecuteEx(interp, objc, objv);
+        return Twapi_SHChangeNotify(interp, objc, objv);
     case 14:
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hwnd, HWND), GETINT(dw),
-                         GETWSTR(s), GETNULLIFEMPTY(s2),
+                         GETOBJ(sObj), GETOBJ(s2Obj),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Twapi_SHObjectProperties(hwnd, dw, s, s2);
+        result.value.ival =
+            Twapi_SHObjectProperties(hwnd, dw,
+                                     ObjToUnicode(sObj),
+                                     ObjToLPWSTR_NULL_IF_EMPTY(s2Obj));
         break;
     case 15:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETWSTR(s2), GETINT(dw),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        return Twapi_WriteUrlShortcut(interp, s, s2, dw);
-    case 16:
-        return Twapi_SHChangeNotify(interp, objc, objv);
+        return Twapi_WriteUrlShortcut(interp,
+                                      ObjToUnicode(sObj),
+                                      ObjToUnicode(s2Obj), dw);
     }
 
     return TwapiSetResult(interp, &result);
@@ -991,7 +1011,6 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
 static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s ShellDispatch[] = {
-        DEFINE_FNCODE_CMD(Twapi_WriteShortcut, 1),
         DEFINE_FNCODE_CMD(Twapi_ReadShortcut, 2),
         DEFINE_FNCODE_CMD(Twapi_InvokeUrlShortcut, 3),
         DEFINE_FNCODE_CMD(SHInvokePrinterCommand, 4), // TBD - Tcl
@@ -1003,13 +1022,15 @@ static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Shell_NotifyIcon, 10),
         DEFINE_FNCODE_CMD(Twapi_ReadUrlShortcut, 11),
         DEFINE_FNCODE_CMD(Twapi_SHFileOperation, 12), // TBD - some more wrapper
-        DEFINE_FNCODE_CMD(Twapi_ShellExecuteEx, 13),
+        DEFINE_FNCODE_CMD(SHChangeNotify, 13),
         DEFINE_FNCODE_CMD(SHObjectProperties, 14),
         DEFINE_FNCODE_CMD(Twapi_WriteUrlShortcut, 15),
-        DEFINE_FNCODE_CMD(SHChangeNotify, 16),
+
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ShellDispatch), ShellDispatch, Twapi_ShellCallObjCmd);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_WriteShortcut", Twapi_WriteShortcutObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_ShellExecuteEx", Twapi_ShellExecuteExObjCmd, ticP, NULL);
 
     return TCL_OK;
 }

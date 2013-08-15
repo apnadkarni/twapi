@@ -156,7 +156,6 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
 {
     TwapiResult result;
     int func = PtrToInt(clientdata);
-    LPWSTR s, s2;
     HANDLE h, h2;
 
     --objc;
@@ -196,28 +195,26 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             }
         }
     } else {
-        /* Arbitrary args */
+        /* Exactly 2 args */
+        CHECK_NARGS(interp, objc, 2);
         switch (func) {
         case 1002:
-            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                             GETWSTR(s), ARGEND) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = BackupEventLogW(h, s);
+            result.value.ival = BackupEventLogW(h, ObjToUnicode(objv[1]));
             break;
         case 1003:
-            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                             GETNULLIFEMPTY(s), ARGEND) != TCL_OK)
+            if (ObjToLPVOID(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ClearEventLogW(h, s);
+            result.value.ival = ClearEventLogW(h, ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
             break;
         case 1004:
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s), GETWSTR(s2), ARGEND) != TCL_OK)
-                return TCL_ERROR;
             result.type = TRT_HANDLE;
-            result.value.hval = OpenBackupEventLogW(s, s2);
+            result.value.hval = OpenBackupEventLogW(
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
+                ObjToUnicode(objv[1]));
             break;
         }
     }

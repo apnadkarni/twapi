@@ -845,7 +845,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
 {
     int nobjs, user_len, password_len ;
     Tcl_Obj **objs;
@@ -856,54 +856,64 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
     WCHAR *user_buf, *password_buf;
     DWORD status;
     BOOL bsave;
-    Tcl_Obj *resultObjs[3], *objP;
+    Tcl_Obj *resultObjs[3], *objP, *passwordObj;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
 
-    if (TwapiGetArgs(interp, objc, objv, 
-                     GETWSTR(target), ARGSKIP, GETINT(autherr), 
-                     GETWSTRN(user, user_len), ARGSKIP,
-                     GETBOOL(save),
-                     GETINT(flags), ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    mark = MemLifoPushMark(&ticP->memlifo);
+    user_buf = NULL;
+    password_buf = NULL;
+
+    res = TwapiGetArgsEx(ticP, objc, objv, 
+                       GETSTRW(target), ARGUNUSED, GETINT(autherr), 
+                       GETSTRWN(user, user_len), GETOBJ(passwordObj),
+                       GETBOOL(save),
+                       GETINT(flags), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
     bsave = save ? TRUE : FALSE;
 
     if (uiObj == NULL) {
         if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
             /* Not documented but for cmdline version one of these flags
                is required else you get ERROR_INVALID_FLAGS */
-            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "CredUICmdLinePromptForCredentials requires REQUIRE_SMARTCARD or EXCLUDE_CERTIFICATES flag to be specified.");
+            res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "CredUICmdLinePromptForCredentials requires REQUIRE_SMARTCARD or EXCLUDE_CERTIFICATES flag to be specified.");
+            goto vamoose;
         }
         cuiP = NULL;
     }
     else {
         if ((res = ObjGetElements(interp, uiObj, &nobjs, &objs)) != TCL_OK)
-            return res;
+            goto vamoose;
         if (nobjs == 0)
             cuiP = NULL;
         else {
-            if ((res = TwapiGetArgs(interp, nobjs, objs,
+            if ((res = TwapiGetArgsEx(ticP, nobjs, objs,
                                      GETHWND(cui.hwndParent),
-                                     GETNULLIFEMPTY(cui.pszMessageText),
-                                     GETNULLIFEMPTY(cui.pszCaptionText),
+                                     GETEMPTYASNULL(cui.pszMessageText),
+                                     GETEMPTYASNULL(cui.pszCaptionText),
                                      GETHANDLET(cui.hbmBanner, HBITMAP),
                                      ARGEND)) != TCL_OK)
-                return res;
+                goto vamoose;
         
             cui.cbSize = sizeof(cui);
             cuiP = &cui;
         }
     }
 
-    if ((res = ObjDecrypt(interp, objv[4], &objP)) != TCL_OK)
-        return res;
+    if ((res = ObjDecrypt(interp, passwordObj, &objP)) != TCL_OK)
+        goto vamoose;
     password = ObjToUnicodeN(objP, &password_len);
 
     if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
         password_len > CREDUI_MAX_PASSWORD_LENGTH) {
         Tcl_DecrRefCount(objP);
-        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
+        goto vamoose;
     }
-    user_buf = TwapiAlloc(sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1));
-    password_buf = TwapiAlloc(sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1));
+    user_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
+    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
     /* Zero first as recommended by MSDN */
     SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
     SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
@@ -911,7 +921,9 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
     CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
     CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
 
+    /* Zero out the decrypted password */
     TWAPI_ASSERT(! Tcl_IsShared(objP));
+    password = ObjToUnicodeN(objP, &password_len);
     SecureZeroMemory(password, sizeof(WCHAR) * password_len);
     Tcl_DecrRefCount(objP);
     objP = NULL;
@@ -950,12 +962,11 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
         break;
     }
 
-
+vamoose:
     SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
     SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
-    TwapiFree(user_buf);
-    TwapiFree(password_buf);
 
+    MemLifoPopMark(mark);
     return res;
 }
 
@@ -966,10 +977,30 @@ static TCL_RESULT Twapi_CredPrompt(Tcl_Interp *interp, Tcl_Obj *uiObj, int objc,
 BOOL IsUserAnAdmin();
 #endif
 
+static TCL_RESULT Twapi_CredUIPromptObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    return Twapi_CredPrompt(ticP, objv[1], objc+2, &objv[2]);
+}
+
+static TCL_RESULT Twapi_CredUICmdLinePromptObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return Twapi_CredPrompt(ticP, NULL, objc+1, &objv[1]);
+}
+
 
 static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s, s2, s3;
+    LPWSTR s, s2;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2;
@@ -1074,9 +1105,10 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else if (func < 1000) {
         /* Args - string, dw, optional dw2 */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETINT(dw), ARGUSEDEFAULT,
+                         ARGSKIP, GETINT(dw), ARGUSEDEFAULT,
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        s = ObjToUnicode(objv[0]);
         switch (func) {
         case 501:
             if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -1192,13 +1224,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else {
         /* Arbitrary args */
         switch (func) {
-        case 10011:
-            if (objc == 0)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            return Twapi_CredPrompt(interp, objv[0], --objc, &objv[1]);
-            
-        case 10012:
-            return Twapi_CredPrompt(interp, NULL, objc, objv);
         case 10013:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -1209,10 +1234,14 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 10014:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETWSTR(s), GETNULLIFEMPTY(s2), GETWSTR(s3),
+                             ARGSKIP, ARGSKIP, ARGSKIP,
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (LogonUserW(s, s2, s3, dw,dw2, &result.value.hval))
+            if (LogonUserW(
+                    ObjToUnicode(objv[0]),
+                    ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
+                    ObjToUnicode(objv[2]),
+                    dw, dw2, &result.value.hval))
                 result.type = TRT_HANDLE;
             else
                 result.type = TRT_GETLASTERROR;
@@ -1279,17 +1308,17 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 10018: // LoadUserProfile
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETINT(dw), GETWSTR(s),
-                             GETNULLIFEMPTY(s2),
+                             GETHANDLE(h), GETINT(dw), ARGSKIP, ARGSKIP,
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            return Twapi_LoadUserProfile(interp, h, dw, s, s2);
+            return Twapi_LoadUserProfile(interp, h, dw, ObjToUnicode(objv[2]),
+                                         ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
         case 10019:
             return Twapi_LsaGetLogonSessionData(interp, objc, objv);
         case 10020: // SetNamedSecurityInfo
             /* Note even in case of errors, sids and acls might have been alloced */
             if (TwapiGetArgs(interp, objc, objv,
-                             GETWSTR(s), GETINT(dw), GETINT(dw2),
+                             ARGSKIP, GETINT(dw), GETINT(dw2),
                              GETVAR(osidP, ObjToPSID),
                              GETVAR(gsidP, ObjToPSID),
                              GETVAR(daclP, ObjToPACL),
@@ -1297,7 +1326,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              ARGEND) == TCL_OK) {
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 result.value.ival = SetNamedSecurityInfoW(
-                    s, dw, dw2, osidP, gsidP, daclP, saclP);
+                    ObjToUnicode(objv[0]),
+                    dw, dw2, osidP, gsidP, daclP, saclP);
             } else {
                 result.type = TRT_TCL_RESULT;
                 result.value.ival = TCL_ERROR;
@@ -1305,12 +1335,12 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 10021: // LookupPrivilegeName
             if (TwapiGetArgs(interp, objc, objv,
-                             GETWSTR(s), GETVAR(luid, ObjToLUID),
+                             ARGSKIP, GETVAR(luid, ObjToLUID),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (LookupPrivilegeNameW(s, &luid,
+            if (LookupPrivilegeNameW(ObjToUnicode(objv[0]), &luid,
                                      u.buf, &result.value.unicode.len)) {
                 result.type = TRT_UNICODE;
                 result.value.unicode.str = u.buf;
@@ -1421,8 +1451,6 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
 
-        DEFINE_FNCODE_CMD(CredUIPromptForCredentials, 10011), //Tcl
-        DEFINE_FNCODE_CMD(CredUICmdLinePromptForCredentials, 10012), //Tcl
         DEFINE_FNCODE_CMD(UnloadUserProfile, 10013), // TBD - Tcl
         DEFINE_FNCODE_CMD(LogonUser, 10014),
         DEFINE_FNCODE_CMD(LsaAddAccountRights, 10015),
@@ -1439,6 +1467,8 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SecCallDispatch), SecCallDispatch, Twapi_SecCallObjCmd);
+    Tcl_CreateObjCommand(interp, "twapi::CredUIPromptForCredentials", Twapi_CredUIPromptObjCmd, ticP, NULL); // TBD - Tcl
+    Tcl_CreateObjCommand(interp, "twapi::CredUICmdLinePromptForCredentials", Twapi_CredUICmdLinePromptObjCmd, ticP, NULL); // TBD - Tcl
 
     return TCL_OK;
 }

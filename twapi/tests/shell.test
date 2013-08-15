@@ -1189,7 +1189,7 @@ namespace eval twapi::shell::test {
         Call shell_execute with -substenv true
     } -body {
         twapi::shell_execute -path %HOMEDRIVE%\\%HOMEPATH% -noui true -substenv true
-        set w [wait_for_window -text [file tail $::env(HOMEPATH)]]
+        set w [wait_for_window -text [file tail $::env(HOMEPATH)] -toplevel 1]
         set w
     } -cleanup {
         twapi::close_window $w

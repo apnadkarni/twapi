@@ -21,24 +21,24 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     UINT      ndigits; 
     UINT      leading_zero; 
     UINT      grouping; 
-    LPWSTR    decimal_sep; 
-    LPWSTR    thousand_sep; 
     UINT      negative_order;
 
     NUMBERFMTW numfmt;
     NUMBERFMTW *fmtP;
     int        numchars;
     WCHAR     *buf;
+    Tcl_Obj *number_stringObj, *decimal_sepObj, *thousand_sepObj;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETINT(opts), GETINT(loc), GETINT(flags),
-                     GETWSTR(number_string), GETINT(ndigits),
+                     GETOBJ(number_stringObj), GETINT(ndigits),
                      GETINT(leading_zero),
-                     GETINT(grouping), GETWSTR(decimal_sep),
-                     GETWSTR(thousand_sep), GETINT(negative_order),
+                     GETINT(grouping), GETOBJ(decimal_sepObj),
+                     GETOBJ(thousand_sepObj), GETINT(negative_order),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+    number_string = ObjToUnicode(number_stringObj);
 
 #define TWAPI_GETNUMBERFORMAT_USELOCALE 1 // Defined in newer SDK's
 
@@ -48,8 +48,8 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
         numfmt.NumDigits = ndigits;
         numfmt.LeadingZero = leading_zero;
         numfmt.Grouping = grouping;
-        numfmt.lpDecimalSep = decimal_sep;
-        numfmt.lpThousandSep = thousand_sep;
+        numfmt.lpDecimalSep = ObjToUnicode(decimal_sepObj);
+        numfmt.lpThousandSep = ObjToUnicode(thousand_sepObj);
         numfmt.NegativeOrder = negative_order;
         fmtP = &numfmt;
     }
@@ -82,27 +82,26 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     UINT      ndigits;
     UINT      leading_zero; 
     UINT      grouping; 
-    LPWSTR    decimal_sep; 
-    LPWSTR    thousand_sep; 
     UINT      negative_order;
     UINT      positive_order;
-    LPWSTR    currency_sym;
 
     CURRENCYFMTW fmt;
     CURRENCYFMTW *fmtP;
     int        numchars;
     WCHAR     *buf;
+    Tcl_Obj *number_stringObj, *decimal_sepObj, *thousand_sepObj, *currency_symObj;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETINT(opts), GETINT(loc), GETINT(flags),
-                     GETWSTR(number_string), GETINT(ndigits),
+                     GETOBJ(number_stringObj), GETINT(ndigits),
                      GETINT(leading_zero),
-                     GETINT(grouping), GETWSTR(decimal_sep),
-                     GETWSTR(thousand_sep), GETINT(negative_order),
-                     GETINT(positive_order), GETWSTR(currency_sym),
+                     GETINT(grouping), GETOBJ(decimal_sepObj),
+                     GETOBJ(thousand_sepObj), GETINT(negative_order),
+                     GETINT(positive_order), GETOBJ(currency_symObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+    number_string = ObjToUnicode(number_stringObj);
 
 #define TWAPI_GETCURRENCYFORMAT_USELOCALE 1
 
@@ -112,11 +111,11 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         fmt.NumDigits = ndigits;
         fmt.LeadingZero = leading_zero;
         fmt.Grouping = grouping;
-        fmt.lpDecimalSep = decimal_sep;
-        fmt.lpThousandSep = thousand_sep;
+        fmt.lpDecimalSep = ObjToUnicode(decimal_sepObj);
+        fmt.lpThousandSep = ObjToUnicode(thousand_sepObj);
         fmt.NegativeOrder = negative_order;
         fmt.PositiveOrder = positive_order;
-        fmt.lpCurrencySymbol = currency_sym;
+        fmt.lpCurrencySymbol = ObjToUnicode(currency_symObj);
         fmtP = &fmt;
     }
 

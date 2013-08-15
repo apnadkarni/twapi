@@ -1654,6 +1654,7 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     VARDESC  *vardesc;
     char *cP;
     int func = PtrToInt(clientdata);
+    Tcl_Obj *sObj;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1985,13 +1986,13 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         switch (func) {
         case 501: // GetField
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETVOIDP(pv), GETWSTR(s),
+                             GETVOIDP(pv), GETOBJ(sObj),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             VariantInit(&result.value.var);
             result.type = TRT_VARIANT;
             hr = ifc.recordinfo->lpVtbl->GetField(
-                ifc.recordinfo, pv, s, &result.value.var);
+                ifc.recordinfo, pv, ObjToUnicode(sObj), &result.value.var);
             break;
         case 502: // GetGuid
             if (objc != 1)
@@ -2309,10 +2310,11 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         switch (func) {
         case 1401:
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s), GETINT(dw1), GETWORD(w),
+                             GETOBJ(sObj), GETINT(dw1), GETWORD(w),
                              ARGEND) != TCL_OK)
                 goto ret_error;
-            return Twapi_ITypeComp_Bind(interp, ifc.typecomp, s, dw1, w);
+            return Twapi_ITypeComp_Bind(interp, ifc.typecomp,
+                                        ObjToUnicode(sObj), dw1, w);
         }
     } else if (func < 5600) {
         /* IPersistFile */
@@ -2343,19 +2345,20 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 5503: // Load
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s), GETINT(dw1),
+                             GETOBJ(sObj), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
-            hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile, s, dw1);
+            hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile,
+                                               ObjToUnicode(sObj), dw1);
             break;
         case 5504: // Save
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETNULLIFEMPTY(s), GETINT(dw1),
+                             GETOBJ(sObj), GETINT(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
-            hr = ifc.persistfile->lpVtbl->Save(ifc.persistfile, s, dw1);
+            hr = ifc.persistfile->lpVtbl->Save(ifc.persistfile, ObjToLPWSTR_NULL_IF_EMPTY(sObj), dw1);
             break;
         case 5505: // SaveCompleted
             if (objc != 2)
@@ -2437,7 +2440,7 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 10008: // CoGetObject
             if (TwapiGetArgs(interp, objc, objv,
-                             GETWSTR(s), ARGSKIP, GETGUID(guid), GETASTR(cP),
+                             GETOBJ(sObj), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (Tcl_ListObjLength(interp, objv[1], &dw1) == TCL_ERROR ||
@@ -2447,7 +2450,8 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             }
             result.type = TRT_INTERFACE;
             result.value.ifc.name = cP;
-            hr = CoGetObject(s, NULL, &guid, &result.value.ifc.p);
+            hr = CoGetObject(ObjToUnicode(sObj),
+                             NULL, &guid, &result.value.ifc.p);
             break;
         case 10009: // GetActiveObject
             if (objc != 1)

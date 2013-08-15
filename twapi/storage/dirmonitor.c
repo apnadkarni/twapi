@@ -37,21 +37,26 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_In
     int    path_len;
     int    include_subtree;
     int    npatterns;
-    WCHAR  *patterns[MAXPATTERNS];
+    WCHAR  **patterns;
     DWORD  winerr;
     DWORD filter;
+    MemLifoMarkHandle mark;
 
     ERROR_IF_UNTHREADED(interp);
 
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
+    mark = MemLifoPushMark(&ticP->memlifo);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                     GETSTRWN(pathP, path_len), GETBOOL(include_subtree),
                      GETINT(filter),
-                     GETWARGV(patterns, ARRAYSIZE(patterns), npatterns),
+                     GETARGVW(patterns, npatterns),
                      ARGEND)
-        != TCL_OK)
+        != TCL_OK) {
+        MemLifoPopMark(mark);
         return TCL_ERROR;
-        
+    }        
     dmcP = TwapiDirectoryMonitorContextNew(pathP, path_len, include_subtree, filter, patterns, npatterns);
+
+    MemLifoPopMark(mark);       /* Don't need parsed args any more */
     
     /* 
      * TBD - Should we add FILE_SHARE_DELETE to allow deleting of
