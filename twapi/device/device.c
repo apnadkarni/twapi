@@ -286,47 +286,49 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     void  *reserved;
     DWORD  i;
     DWORD buf_sz;
+    MemLifoMarkHandle mark;
 
-    if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETWSTR(class_name),
-                     ARGUSEDEFAULT,
-                     GETNULLIFEMPTY(system_name),
-                     GETVOIDP(reserved),
-                     ARGEND) != TCL_OK)
-            return TCL_ERROR;
+    mark = MemLifoPushMark(&ticP->memlifo);
 
-    guidP = MemLifoPushFrame(&ticP->memlifo, 10 * sizeof(*guidP), &buf_sz);
-    allocated = buf_sz / sizeof(*guidP);
-
-    /*
-     * We keep looping on success returns because a success return does
-     * not mean all entries were retrieved.
-     */
     success = 0;
-    while (SetupDiClassGuidsFromNameExW(class_name, guidP, allocated,
-                                        &needed, system_name, reserved)) {
-        if (needed <= allocated) {
-            /* All retrieved */
-            success = 1;
-            break;
+    if (TwapiGetArgsEx(ticP, objc, objv,
+                       GETSTRW(class_name),
+                       ARGUSEDEFAULT,
+                       GETEMPTYASNULL(system_name),
+                       GETVOIDP(reserved),
+                       ARGEND) == TCL_OK) {
+
+        guidP = MemLifoAlloc(&ticP->memlifo, 10 * sizeof(*guidP), &buf_sz);
+        allocated = buf_sz / sizeof(*guidP);
+
+        /*
+         * We keep looping on success returns because a success return does
+         * not mean all entries were retrieved.
+         */
+        while (SetupDiClassGuidsFromNameExW(class_name, guidP, allocated,
+                                            &needed, system_name, reserved)) {
+            if (needed <= allocated) {
+                /* All retrieved */
+                success = 1;
+                break;
+            }
+            /* Retry with larger buffer size as returned in call */
+            allocated = needed;
+            MemLifoAlloc(&ticP->memlifo, allocated * sizeof(*guidP), NULL);
         }
-        /* Retry with larger buffer size as returned in call */
-        allocated = needed;
-        MemLifoAlloc(&ticP->memlifo, allocated * sizeof(*guidP), NULL);
+
+        if (success) {
+            Tcl_Obj *objP = ObjNewList(0, NULL);
+            /* Note - use 'needed', not 'allocated' in loop! */
+            for (i = 0; i < needed; ++i) {
+                ObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
+            }
+            TwapiSetObjResult(ticP->interp, objP);
+        } else
+            Twapi_AppendSystemError(ticP->interp, GetLastError());
     }
 
-    if (success) {
-        Tcl_Obj *objP = ObjNewList(0, NULL);
-        /* Note - use 'needed', not 'allocated' in loop! */
-        for (i = 0; i < needed; ++i) {
-            ObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
-        }
-        TwapiSetObjResult(ticP->interp, objP);
-    } else
-        Twapi_AppendSystemError(ticP->interp, GetLastError());
-
-    MemLifoPopFrame(&ticP->memlifo);
-
+    MemLifoPopMark(mark);
     return success ? TCL_OK : TCL_ERROR;
 }
 
@@ -1068,7 +1070,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     GUID *guidP;
     HWND   hwnd;
     LPVOID pv, pv2, pv3;
-    LPWSTR s, s2;
+    Tcl_Obj *sObj, *s2Obj;
     DWORD dw, dw2, dw3;
     union {
         WCHAR buf[MAX_PATH+1];
@@ -1092,30 +1094,32 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETVAR(guidP, ObjToGUID_NULL),
                          GETHWND(hwnd),
-                         GETNULLIFEMPTY(s),
+                         GETOBJ(sObj),
                          GETVOIDP(pv),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDEVINFO;
-        result.value.hval = SetupDiCreateDeviceInfoListExW(guidP, hwnd, s, pv);
+        result.value.hval = SetupDiCreateDeviceInfoListExW(
+            guidP, hwnd, ObjToLPWSTR_NULL_IF_EMPTY(sObj), pv);
         break;
 
     case 61:
         guidP = &guid;
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETVAR(guidP, ObjToGUID_NULL),
-                         GETNULLIFEMPTY(s),
+                         GETOBJ(sObj),
                          GETHWND(hwnd),
                          GETINT(dw),
                          GETHANDLET(h, HDEVINFO),
-                         GETNULLIFEMPTY(s2),
+                         GETOBJ(s2Obj),
                          ARGUSEDEFAULT,
                          GETVOIDP(pv),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDEVINFO;
-        result.value.hval = SetupDiGetClassDevsExW(guidP, s, hwnd, dw,
-                                                   h, s2, pv);
+        result.value.hval = SetupDiGetClassDevsExW(
+            guidP, ObjToLPWSTR_NULL_IF_EMPTY(sObj), hwnd, dw, h,
+            ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), pv);
         break;
     case 62: // SetupDiEnumDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1160,12 +1164,13 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETGUID(guid),
                          ARGUSEDEFAULT,
-                         GETNULLIFEMPTY(s),
+                         GETOBJ(sObj),
                          GETVOIDP(pv),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (SetupDiClassNameFromGuidExW(&guid, u.buf, ARRAYSIZE(u.buf),
-                                        NULL, s, pv)) {
+        if (SetupDiClassNameFromGuidExW(
+                &guid, u.buf, ARRAYSIZE(u.buf),
+                NULL, ObjToLPWSTR_NULL_IF_EMPTY(sObj), pv)) {
             result.type = TRT_UNICODE;
             result.value.unicode.str = u.buf;
             result.value.unicode.len = -1;

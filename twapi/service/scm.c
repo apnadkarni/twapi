@@ -265,14 +265,13 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     SC_ENUM_TYPE infolevel;
     DWORD     dwServiceType;
     DWORD     dwServiceState;
-    LPCWSTR   groupname;
     ENUM_SERVICE_STATUS_PROCESSW *sbuf;
     DWORD buf_sz;
     DWORD buf_needed;
     DWORD services_returned;
     DWORD resume_handle;
     BOOL  success;
-    Tcl_Obj *resultObj;
+    Tcl_Obj *resultObj, *groupnameObj;
     Tcl_Obj *rec[12];    /* Holds values for each status record */
     Tcl_Obj *keys[ARRAYSIZE(rec)];
     Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
@@ -284,7 +283,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     if (TwapiGetArgs(interp, objc, objv,
                      GETPTR(hService, SC_HANDLE), GETINT(infolevel),
                      GETINT(dwServiceType),
-                     GETINT(dwServiceState), GETNULLTOKEN(groupname),
+                     GETINT(dwServiceState), GETOBJ(groupnameObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -343,7 +342,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
             &buf_needed,
             &services_returned,
             &resume_handle,
-            groupname);
+            ObjToLPWSTR_WITH_NULL(groupnameObj));
         if ((!success) && ((winerr = GetLastError()) != ERROR_MORE_DATA)) {
             Twapi_FreeNewTclObj(resultObj);
             Twapi_AppendSystemError(interp, winerr);
@@ -513,7 +512,7 @@ pop_and_vamoose:
 }
 
 
-int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
+int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     SC_HANDLE h;
     DWORD service_type;
     DWORD start_type;
@@ -521,58 +520,65 @@ int Twapi_ChangeServiceConfig(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
     DWORD tag_id;
     DWORD *tag_idP;
     LPWSTR dependencies = NULL;
-    int result = 0;
+    TCL_RESULT res;
     LPWSTR path, logrp, start_name, password, display_name;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
+    Tcl_Obj *tagObj, *depObj;
 
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETHANDLET(h, SC_HANDLE),
-                     GETINT(service_type), GETINT(start_type),
-                     GETINT(error_control), GETNULLTOKEN(path),
-                     GETNULLTOKEN(logrp), ARGSKIP, ARGSKIP,
-                     GETNULLTOKEN(start_name),
-                     GETNULLTOKEN(password), GETNULLTOKEN(display_name),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    mark = MemLifoPushMark(&ticP->memlifo);
 
-    if (ObjToLong(interp, objv[6], &tag_id) == TCL_OK)
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETHANDLET(h, SC_HANDLE),
+                         GETINT(service_type), GETINT(start_type),
+                         GETINT(error_control), GETTOKENNULL(path),
+                         GETTOKENNULL(logrp), GETOBJ(tagObj), GETOBJ(depObj),
+                         GETTOKENNULL(start_name),
+                         GETTOKENNULL(password), GETTOKENNULL(display_name),
+                         ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    if (ObjToLong(interp, tagObj, &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
-        if (Tcl_GetCharLength(objv[6]) != 0)
-            return TCL_ERROR;   /* interp already holds error */
+        if (Tcl_GetCharLength(tagObj) != 0) {
+            res = TCL_ERROR;
+            goto vamoose;   /* interp already holds error fom ObjToLong */
+        }
+        Tcl_ResetResult(interp);
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = ObjToUnicode(objv[7]);
+    dependencies = ObjToUnicode(depObj);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        if (ObjToMultiSz(interp, objv[7], (LPCWSTR*) &dependencies) == TCL_ERROR)
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, &ticP->memlifo);
+        if (res != TCL_OK)
             goto vamoose;
     }
     
-    result = ChangeServiceConfigW(h, service_type, start_type, error_control,
-                                  path, logrp, tag_idP, dependencies,
-                                  start_name, password, display_name);
-    if (result) {
+    if (ChangeServiceConfigW(h, service_type, start_type, error_control,
+                             path, logrp, tag_idP, dependencies,
+                             start_name, password, display_name)) {
         /* If caller wants new tag id returned (by not specifying
          * an empty tagid, return it, else return empty string.
          */
         if (tag_idP)
             TwapiSetObjResult(interp, Tcl_NewLongObj(*tag_idP));
+        res = TCL_OK;
     } else
-        TwapiReturnSystemError(interp);
+        res = TwapiReturnSystemError(interp);
 
 vamoose:    
-    if (dependencies)
-        TwapiFree(dependencies);
-
-    return result ? TCL_OK : TCL_ERROR;
+    MemLifoPopMark(mark);
+    return res;
 }
 
-
 int
-Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
+Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     SC_HANDLE    scmH;
     SC_HANDLE    svcH;
     DWORD        access;
@@ -581,38 +587,45 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
     DWORD        error_control;
     DWORD tag_id;
     DWORD *tag_idP;
-    LPWSTR dependencies = NULL;
-    int tcl_result = TCL_ERROR;
+    LPWSTR dependencies;
+    int res;
     LPWSTR service_name, display_name, path, logrp;
     LPWSTR service_start_name, password;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
+    Tcl_Obj *tagObj, *depObj;
 
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETHANDLET(scmH, SC_HANDLE),
-                     GETWSTR(service_name), GETWSTR(display_name),
-                     GETINT(access), GETINT(service_type),
-                     GETINT(start_type), GETINT(error_control),
-                     GETWSTR(path), GETWSTR(logrp),
-                     ARGSKIP, ARGSKIP,
-                     GETNULLIFEMPTY(service_start_name),
-                     GETNULLIFEMPTY(password),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    dependencies = NULL;
+    mark = MemLifoPushMark(&ticP->memlifo);
 
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETHANDLET(scmH, SC_HANDLE),
+                         GETSTRW(service_name), GETSTRW(display_name),
+                         GETINT(access), GETINT(service_type),
+                         GETINT(start_type), GETINT(error_control),
+                         GETSTRW(path), GETSTRW(logrp),
+                         GETOBJ(tagObj), GETOBJ(depObj),
+                         GETEMPTYASNULL(service_start_name),
+                         GETEMPTYASNULL(password),
+                         ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
 
-    if (ObjToLong(NULL, objv[9], &tag_id) == TCL_OK)
+    if (ObjToLong(NULL, tagObj, &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
-        if (Tcl_GetCharLength(objv[9]) != 0)
+        if (Tcl_GetCharLength(tagObj) != 0)
             return TCL_ERROR;   /* interp already holds error */
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = ObjToUnicode(objv[10]);
+    dependencies = ObjToUnicode(depObj);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        if (ObjToMultiSz(interp, objv[10], (LPCWSTR*) &dependencies) == TCL_ERROR)
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, &ticP->memlifo);
+        if (res == TCL_ERROR)
             goto vamoose;
     }
 
@@ -624,16 +637,13 @@ Twapi_CreateService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) {
     /* Check return handle validity */
     if (svcH) {
         TwapiSetObjResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
-        tcl_result = TCL_OK;
-    } else {
-        TwapiReturnSystemError(interp);
-    }
+        res = TCL_OK;
+    } else
+        res = TwapiReturnSystemError(interp);
 
 vamoose:
-    if (dependencies)
-        TwapiFree(dependencies);
-
-    return tcl_result;
+    MemLifoPopMark(mark);
+    return res;
 }
 
 int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) 
@@ -704,8 +714,9 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         WCHAR buf[MAX_PATH+1];
     } u;
     DWORD dw;
-    LPWSTR s, s2;
+    LPWSTR s;
     HANDLE h;
+    Tcl_Obj *sObj;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -753,9 +764,10 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     } else if (func < 300) {
         /* Handle, string, int */
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLE(h), GETWSTR(s), ARGUSEDEFAULT,
+                         GETHANDLE(h), GETOBJ(sObj), ARGUSEDEFAULT,
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        s = ObjToUnicode(sObj);
         switch (func) {
         case 201:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
@@ -787,9 +799,9 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         case 10001:
             return Twapi_EnumServicesStatusEx(ticP, objc-2, objv+2);
         case 10002:
-            return Twapi_ChangeServiceConfig(interp, objc-2, objv+2);
+            return Twapi_ChangeServiceConfig(ticP, objc-2, objv+2);
         case 10003:
-            return Twapi_CreateService(interp, objc-2, objv+2);
+            return Twapi_CreateService(ticP, objc-2, objv+2);
         case 10004:
             return Twapi_StartService(interp, objc-2, objv+2);
         case 10005:
@@ -797,12 +809,13 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         case 10006:
             return Twapi_BecomeAService(ticP, objc-2, objv+2);
         case 10007:
-            if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETNULLIFEMPTY(s), GETNULLIFEMPTY(s2), GETINT(dw),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
+            CHECK_NARGS(interp, objc, 5);
+            CHECK_INTEGER_OBJ(interp, dw, objv[4]);
             result.type = TRT_SC_HANDLE;
-            result.value.hval = OpenSCManagerW(s, s2, dw);
+            result.value.hval = OpenSCManagerW(
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
+                dw);
             break;
         }
     }

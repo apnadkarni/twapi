@@ -66,7 +66,6 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
 
 static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s;
     DWORD dw, dw2, dw3;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
@@ -84,22 +83,22 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.hval = GetProcessWindowStation();
         break;
     case 3:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
+                         GETINT(dw), GETINT(dw2),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
-        result.value.hval = CreateWindowStationW(s, dw, dw2, secattrP);
+        result.value.hval = CreateWindowStationW(ObjToUnicode(objv[0]), dw, dw2, secattrP);
         TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;
     case 4:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         ARGSKIP, GETINT(dw), GETINT(dw2), GETINT(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
-        result.value.hval = OpenDesktopW(s, dw, dw2, dw3);
+        result.value.hval = OpenDesktopW(ObjToUnicode(objv[0]), dw, dw2, dw3);
         break;
     case 5:
         if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
@@ -117,21 +116,21 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 7:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                         ARGSKIP, GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
-        result.value.hval = OpenWindowStationW(s, dw, dw2);
+        result.value.hval = OpenWindowStationW(ObjToUnicode(objv[0]), dw, dw2);
         break;
     case 8: // CreateDesktopW
         /* Note second, third args are ignored and are reserved as NULL */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), ARGSKIP, ARGSKIP, GETINT(dw),
-                         GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        if (ObjToPSECURITY_ATTRIBUTES(interp, objv[5], &secattrP) != TCL_OK)
+                         ARGSKIP, ARGUNUSED, ARGUNUSED, GETINT(dw),
+                         GETINT(dw2),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
-        result.value.hval = CreateDesktopW(s, NULL, NULL, dw, dw2, secattrP);
+        result.value.hval = CreateDesktopW(ObjToUnicode(objv[0]), NULL, NULL, dw, dw2, secattrP);
         if (secattrP)
             TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;

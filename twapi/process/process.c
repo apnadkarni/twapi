@@ -22,7 +22,6 @@ static MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
 
 /* Processes and threads */
-int TwapiCreateProcessHelper(Tcl_Interp *interp, int func, int objc, Tcl_Obj * CONST objv[]);
 int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
                                                     HANDLE processH);
 int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp,
@@ -438,76 +437,36 @@ int Twapi_WaitForInputIdle(
     return TCL_OK;
 }
 
-int ListObjToSTARTUPINFO(Tcl_Interp *interp, Tcl_Obj *siObj, STARTUPINFOW *siP)
+/* Note this allocates memory from ticP->memlifo and expects caller to
+   clean up */
+static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTUPINFOW *siP)
 {
     int  objc;
-    long flags;
-    long lval;
     Tcl_Obj **objvP;
+    Tcl_Obj *stdhObj;
+    Tcl_Interp *interp = ticP->interp;
 
     TwapiZeroMemory(siP, sizeof(*siP));
 
     siP->cb = sizeof(*siP);
 
-    if (ObjGetElements(interp, siObj, &objc, &objvP) != TCL_OK)
+    if (ObjGetElements(interp, siObj, &objc, &objvP) != TCL_OK ||
+        TwapiGetArgsEx(ticP, objc, objvP,
+                       GETTOKENNULL(siP->lpDesktop),
+                       GETSTRW(siP->lpTitle),
+                       GETINT(siP->dwX), GETINT(siP->dwY),
+                       GETINT(siP->dwXSize), GETINT(siP->dwYSize),
+                       GETINT(siP->dwXCountChars), GETINT(siP->dwYCountChars),
+                       GETINT(siP->dwFillAttribute),
+                       GETINT(siP->dwFlags),
+                       GETWORD(siP->wShowWindow),
+                       GETOBJ(stdhObj), ARGEND) != TCL_OK) {
+        TwapiSetStaticResult(interp, "Invalid STARTUPINFO list.");
         return TCL_ERROR;
-
-    if (objc != 12) {
-        TwapiSetStaticResult(interp, "STARTUPINFO list must have 12 elements.");
-        return TCL_ERROR;
     }
 
-    if (ObjToLong(interp, objvP[9], &flags) != TCL_OK)
-        return TCL_ERROR;
-    siP->dwFlags = (DWORD) flags;
-
-    siP->lpDesktop = ObjToUnicode(objvP[0]);
-    if (!lstrcmpW(siP->lpDesktop, NULL_TOKEN_L))
-        siP->lpDesktop = NULL;
-
-    siP->lpTitle = ObjToUnicode(objvP[1]);
-
-    if (flags & STARTF_USEPOSITION) {
-        if (ObjToLong(interp, objvP[2], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwX = (DWORD) lval;
-        if (ObjToLong(interp, objvP[3], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwY = (DWORD) lval;
-    }
-
-    if (flags & STARTF_USESIZE) {
-        if (ObjToLong(interp, objvP[4], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwXSize = (DWORD) lval;
-        if (ObjToLong(interp, objvP[5], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwYSize = (DWORD) lval;
-    }
-
-    if (flags & STARTF_USECOUNTCHARS) {
-        if (ObjToLong(interp, objvP[6], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwXCountChars = (DWORD) lval;
-        if (ObjToLong(interp, objvP[7], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwYCountChars = (DWORD) lval;
-    }
-    
-    if (flags & STARTF_USEFILLATTRIBUTE) {
-        if (ObjToLong(interp, objvP[8], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->dwFillAttribute = (DWORD) lval;
-    }
-
-    if (flags & STARTF_USESHOWWINDOW) {
-        if (ObjToLong(interp, objvP[10], &lval) != TCL_OK)
-            return TCL_ERROR;
-        siP->wShowWindow = (WORD) lval;
-    }
-    
-    if (flags & STARTF_USESTDHANDLES) {
-        if (ObjGetElements(interp, objvP[11], &objc, &objvP) != TCL_OK)
+    if (siP->dwFlags & STARTF_USESTDHANDLES) {
+        if (ObjGetElements(interp, stdhObj, &objc, &objvP) != TCL_OK)
             return TCL_ERROR;
 
         if (objc != 3) {
@@ -516,14 +475,13 @@ int ListObjToSTARTUPINFO(Tcl_Interp *interp, Tcl_Obj *siObj, STARTUPINFOW *siP)
         }
 
         if (ObjToHANDLE(interp, objvP[0], &siP->hStdInput) != TCL_OK ||
-            ObjToHANDLE(interp, objvP[0], &siP->hStdOutput) != TCL_OK ||
-            ObjToHANDLE(interp, objvP[0], &siP->hStdError) != TCL_OK)
+            ObjToHANDLE(interp, objvP[1], &siP->hStdOutput) != TCL_OK ||
+            ObjToHANDLE(interp, objvP[2], &siP->hStdError) != TCL_OK)
             return TCL_ERROR;
     }
     
     return TCL_OK;
 }
-
 
 
 Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP)
@@ -713,7 +671,7 @@ Tcl_Obj *ObjFromPROCESS_INFORMATION(PROCESS_INFORMATION *piP)
     return ObjNewList(4, objv);
 }
 
-int TwapiCreateProcessHelper(Tcl_Interp *interp, int asuser, int objc, Tcl_Obj *CONST objv[])
+static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE tokH;
     SECURITY_ATTRIBUTES *pattrP = NULL;
@@ -725,12 +683,13 @@ int TwapiCreateProcessHelper(Tcl_Interp *interp, int asuser, int objc, Tcl_Obj *
     BOOL status = 0;
     PROCESS_INFORMATION pi;
     LPWSTR appname, cmdline, curdir;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
+    Tcl_Obj *startinfoObj, *envObj;
 
-    if (asuser != 0 && asuser != 1)
-        return TwapiReturnErrorEx(interp, TWAPI_BUG,
-                                  Tcl_ObjPrintf("Invalid asuser value %d.",
-                                                asuser));
-    if (objc != (9+asuser))
+    asuser = (asuser != 0);     /* Make 0 or 1 */
+
+    if (objc != (1+asuser+9))
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (asuser) {
@@ -738,28 +697,28 @@ int TwapiCreateProcessHelper(Tcl_Interp *interp, int asuser, int objc, Tcl_Obj *
             return TCL_ERROR;
     }
         
+    mark = MemLifoPushMark(&ticP->memlifo);
+
     pattrP = NULL;              /* May be alloc'ed even on error */
     tattrP = NULL;              /* May be alloc'ed even on error */
     envP = NULL;
-    if (TwapiGetArgs(interp, objc-asuser, objv+asuser,
-                     GETNULLIFEMPTY(appname),   GETNULLIFEMPTY(cmdline),
-                     GETVAR(pattrP, ObjToPSECURITY_ATTRIBUTES),
-                     GETVAR(tattrP, ObjToPSECURITY_ATTRIBUTES),
-                     GETINT(inherit), GETINT(flags),
-                     ARGSKIP,   GETNULLIFEMPTY(curdir),
-                     GETVAR(startinfo, ListObjToSTARTUPINFO),
-                     ARGEND) != TCL_OK)
-        goto vamoose;           /* So any allocs can be freed */
+    if (TwapiGetArgsEx(ticP, objc-asuser-1, objv+asuser+1,
+                       GETEMPTYASNULL(appname),   GETEMPTYASNULL(cmdline),
+                       GETVAR(pattrP, ObjToPSECURITY_ATTRIBUTES),
+                       GETVAR(tattrP, ObjToPSECURITY_ATTRIBUTES),
+                       GETINT(inherit), GETINT(flags),
+                       GETOBJ(envObj),   GETEMPTYASNULL(curdir),
+                       GETOBJ(startinfoObj), ARGEND) != TCL_OK)
+        goto vamoose;           /* So any allocs/marks can be freed */
 
-    envP = ObjToLPWSTR_WITH_NULL(objv[asuser+6]);
+    envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (Twapi_ConvertTclListToMultiSz(interp, objv[asuser+6], (LPWSTR*) &envP) == TCL_ERROR) {
-            goto vamoose;       /* So any allocs can be freed */
-        }
-        // Note envP is dynamically allocated
+        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, &ticP->memlifo) == TCL_ERROR)
+            goto vamoose;
+        /* Note envP is allocated from ticP->memlifo */
     }
     
-    if (ListObjToSTARTUPINFO(interp, objv[asuser+8], &startinfo) != TCL_OK)
+    if (ListObjToSTARTUPINFO(ticP, startinfoObj, &startinfo) != TCL_OK)
         goto vamoose;
 
     if (! asuser)
@@ -801,12 +760,29 @@ vamoose:
         TwapiFreeSECURITY_ATTRIBUTES(pattrP);
     if (tattrP)
         TwapiFreeSECURITY_ATTRIBUTES(tattrP);
-    if (envP)
-        TwapiFree(envP);
 
+    MemLifoPopMark(mark);
     return status ? TCL_OK : TCL_ERROR;
 }
 
+
+static TCL_RESULT Twapi_CreateProcessObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return TwapiCreateProcessHelper(ticP, 0, objc, objv);
+}
+
+static TCL_RESULT Twapi_CreateProcessAsUserObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return TwapiCreateProcessHelper(ticP, 1, objc, objv);
+}
 
 
 #if 0 /* TBD - XP only */
@@ -835,13 +811,10 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 4:
+    case 6:
         result.type = TRT_HANDLE;
         result.value.hval = GetCurrentThread();
         break;
-    case 5: // CreateProcess
-    case 6: // CreateProcessAsUser
-        return TwapiCreateProcessHelper(interp, func==6, objc, objv);
     case 7: // ReadProcessMemory
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETDWORD_PTR(u.dwp), GETVOIDP(pv),
@@ -1030,9 +1003,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
 static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s ProcessDispatch[] = {
-        DEFINE_FNCODE_CMD(GetCurrentThread, 4),
-        DEFINE_FNCODE_CMD(CreateProcess, 5),
-        DEFINE_FNCODE_CMD(CreateProcessAsUser, 6),
+        DEFINE_FNCODE_CMD(GetCurrentThread, 6),
         DEFINE_FNCODE_CMD(ReadProcessMemory, 7),
         DEFINE_FNCODE_CMD(GetModuleFileNameEx, 8),
         DEFINE_FNCODE_CMD(GetModuleBaseName, 9),
@@ -1069,6 +1040,8 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ProcessDispatch), ProcessDispatch, Twapi_ProcessCallObjCmd);
 
     Tcl_CreateObjCommand(interp, "twapi::EnumProcessHelper", Twapi_EnumProcessesModulesObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CreateProcess", Twapi_CreateProcessObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CreateProcessAsUser", Twapi_CreateProcessAsUserObjCmd, ticP, NULL);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(EnumDispatch), EnumDispatch, "twapi::EnumProcessHelper");
 
     return TCL_OK;

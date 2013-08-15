@@ -1051,26 +1051,28 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     if (ObjGetElements(interp, objv[2], &nobjs, &loginObjs) != TCL_OK)
         return TCL_ERROR;
 
-    if (TwapiGetArgs(interp, nobjs, loginObjs, GETWSTR(erl.Server),
-                     GETNULLIFEMPTY(erl.User), GETNULLIFEMPTY(erl.Domain),
-                     GETNULLIFEMPTY(erl.Password), GETINT(erl.Flags),
-                     ARGEND) != TCL_OK) {
+    if (nobjs != 5 ||
+        ObjToInt(interp, loginObjs[4], &erl.Flags) != TCL_OK) {
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid EVT_RPC_LOGIN structure");
-    }
 
+    }
+    erl.Server = ObjToUnicode(loginObjs[0]);
+    erl.User = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[1]);
+    erl.Domain = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[2]);
+    /* TBD - use [conceal]ed password ? */
+    erl.Password = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[3]);
     return TwapiReturnNonnullHandle(interp,
                                     EvtOpenSession(login_class, &erl,
                                                    timeout, flags),
                                     "EVT_HANDLE");
 }
 
-
-
 int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     DWORD dw, dw2;
-    LPWSTR s, s2, s3;
+    Tcl_Obj *sObj, *s2Obj, *s3Obj;
+    LPWSTR s, s2;
     EVT_HANDLE hevt, hevt2;
     Tcl_WideInt wide;
     int func = PtrToInt(clientdata);
@@ -1085,12 +1087,17 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     --objc;
     ++objv;
 
+    /* NOTE AS ALWAYS, TO AVOID SHIMMERING ISSUES, WSTR ARGS ARE ALWAYS
+       EXTRACTED AFTER SCALAR ARGS */
+
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
     case 2:
-        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        s = ObjToUnicode(sObj);
+        s2 = ObjToLPWSTR_NULL_IF_EMPTY(s2Obj);
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtClearLog(hevt, s, s2, dw);
@@ -1108,33 +1115,33 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     case 4: // EvtOpenLog
     case 5: // EvtOpenChannelConfig
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
+                         GETOBJ(sObj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        hevt2 = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, s, dw);
+        hevt2 = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, ObjToUnicode(sObj), dw);
         TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, hevt2);
         break;
     case 6: // EvtArchiveExportedLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETWSTR(s), GETINT(dw), GETINT(dw2),
+                         GETOBJ(sObj), GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtArchiveExportedLog(hevt, s, dw, dw2);
+        result.value.ival = EvtArchiveExportedLog(hevt, ObjToUnicode(sObj), dw, dw2);
         break;
     case 7: // EvtSubscribe
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETHANDLE(h), GETWSTR(s), GETNULLIFEMPTY(s2),
+                         GETHANDLE(h), GETOBJ(sObj), GETOBJ(s2Obj),
                          GETEVTH(hevt2), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, s, s2, hevt2, NULL, NULL, dw));
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, ObjToUnicode(sObj), ObjToUnicode(s2Obj), hevt2, NULL, NULL, dw));
         break;
     case 8: // EvtExportLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETWSTR(s), GETWSTR(s2), GETWSTR(s3), GETINT(dw),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETOBJ(s3Obj), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtExportLog(hevt, s, s2, s3, dw);
+        result.value.ival = EvtExportLog(hevt, ObjToUnicode(sObj), ObjToUnicode(s2Obj), ObjToUnicode(s3Obj), dw);
         break;
 
     case 9: // EvtSetChannelConfigProperty
@@ -1198,17 +1205,17 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
 
     case 10: // EvtOpenPublisherMetadata
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
-                         GETWSTR(s), GETNULLIFEMPTY(s2), GETINT(dw),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw),
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, s, s2, dw, dw2));
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToUnicode(sObj), ObjToUnicode(s2Obj), dw, dw2));
         break;
 
     case 11: // evt_create_bookmark
         if (TwapiGetArgs(interp, objc, objv, ARGUSEDEFAULT,
-                         GETWSTR(s), ARGEND) != TCL_OK)
+                         GETOBJ(sObj), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        NULLIFY_EMPTY(s);
+        s = ObjToLPWSTR_NULL_IF_EMPTY(sObj);
         TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtCreateBookmark(s));
         break;
 

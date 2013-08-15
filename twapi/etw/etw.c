@@ -1045,10 +1045,11 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
     WCHAR *s;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETWSTR(s), GETINT(real_time),
+                     ARGSKIP, GETINT(real_time),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
+    s = ObjToUnicode(objv[0]);
     ZeroMemory(&etl, sizeof(etl));
     if (real_time) {
         etl.LoggerName = s;
