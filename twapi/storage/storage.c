@@ -208,8 +208,8 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 9:
     case 10:
     case 11:
-        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 1);
+        s = ObjToUnicode(objv[0]);
         switch (func) {
         case 3:
             return Twapi_QueryDosDevice(interp, s);
@@ -296,20 +296,27 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         }
         break;
     case 18:
+        CHECK_NARGS(interp, objc, 3);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETWSTR(s), GETNULLIFEMPTY(s2),
-                         ARGEND) != TCL_OK)
+                         GETINT(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = DefineDosDeviceW(dw, s, s2);
+        result.value.ival =
+            DefineDosDeviceW(dw, ObjToUnicode(objv[1]),
+                             ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
         break;
     case 19:
     case 20:
     case 21:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s), GETWSTR(s2),
-                         ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS_RANGE(interp, objc, 2, 3);
+        if (objc == 2)
+            dw = 0;
+        else {
+            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        }
+        s = ObjToUnicode(objv[0]);
+        s2 = ObjToUnicode(objv[1]);
         switch (func) {
         case 19:
             NULLIFY_EMPTY(s2);
@@ -329,8 +336,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         }
         break;
     case 22:
-        if (objc != 4)
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        CHECK_NARGS(interp, objc, 4);
         if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
             return TCL_ERROR;
         for (i = 0; i < 3; ++i) {

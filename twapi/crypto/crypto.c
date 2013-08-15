@@ -196,42 +196,49 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
     CERT_EXTENSIONS exts, *extsP;
+    MemLifoMarkHandle mark;
 
-    if ((status = TwapiGetArgs(interp, objc-1, objv+1,
-                               GETHANDLET(pv, HCRYPTPROV),
-                               GETBIN(name_blob.pbData, name_blob.cbData),
-                               GETINT(flags),
-                               ARGSKIP, // CRYPT_KEY_PROV_INFO
-                               ARGSKIP, // CRYPT_ALGORITHM_IDENTIFIER
-                               ARGSKIP, // STARTTIME
-                               ARGSKIP, // ENDTIME
-                               ARGSKIP, // EXTENSIONS
-                               ARGEND)) != TCL_OK)
-        return status;
+    mark = MemLifoPushMark(&ticP->memlifo);
+
+    if ((status = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                                 GETHANDLET(pv, HCRYPTPROV),
+                                 GETBA(name_blob.pbData, name_blob.cbData),
+                                 GETINT(flags),
+                                 ARGSKIP, // CRYPT_KEY_PROV_INFO
+                                 ARGSKIP, // CRYPT_ALGORITHM_IDENTIFIER
+                                 ARGSKIP, // STARTTIME
+                                 ARGSKIP, // ENDTIME
+                                 ARGSKIP, // EXTENSIONS
+                                 ARGEND)) != TCL_OK)
+        goto vamoose;
     
-    if (pv && (status = TwapiVerifyPointer(interp, pv, CryptReleaseContext)) != TCL_OK)
-        return status;
-    hprov = (HCRYPTPROV) pv;
 
+    if (pv && (status = TwapiVerifyPointer(interp, pv, CryptReleaseContext)) != TCL_OK)
+        goto vamoose;
+
+    hprov = (HCRYPTPROV) pv;
+ 
     /* Parse CRYPT_KEY_PROV_INFO */
     if ((status = ObjGetElements(interp, objv[4], &nobjs, &objs)) != TCL_OK)
-        return status;
+        goto vamoose;
+
     if (nobjs == 0)
         kiP = NULL;
     else {
-        if (TwapiGetArgs(interp, nobjs, objs,
-                         GETWSTR(ki.pwszContainerName),
-                         GETWSTR(ki.pwszProvName),
-                         GETINT(ki.dwProvType),
-                         GETINT(ki.dwFlags),
-                         GETINT(ki.cProvParam),
-                         ARGSKIP,
-                         GETINT(ki.dwKeySpec),
-                         ARGEND) != TCL_OK
+        if (TwapiGetArgsEx(ticP, nobjs, objs,
+                           GETSTRW(ki.pwszContainerName),
+                           GETSTRW(ki.pwszProvName),
+                           GETINT(ki.dwProvType),
+                           GETINT(ki.dwFlags),
+                           GETINT(ki.cProvParam),
+                           ARGSKIP,
+                           GETINT(ki.dwKeySpec),
+                           ARGEND) != TCL_OK
             ||
             ki.cProvParam != 0) {
             Tcl_SetResult(interp, "Invalid or unimplemented provider parameters", TCL_STATIC);
-            return TCL_ERROR;
+            status = TCL_ERROR;
+            goto vamoose;
         }
         ki.rgProvParam = NULL;
         kiP = &ki;
@@ -239,16 +246,14 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
 
     /* Parse CRYPT_ALGORITHM_IDENTIFIER */
     if ((status = ObjGetElements(interp, objv[5], &nobjs, &objs)) != TCL_OK)
-        return status;
+        goto vamoose;
     if (nobjs == 0)
         algidP = NULL;
     else {
-        if (nobjs > 2) {
-            Tcl_SetResult(interp, "Invalid algorithm identifier format", TCL_STATIC);
-            return TCL_ERROR;
-        } else if (nobjs == 2) {
-            Tcl_SetResult(interp, "Algorithm identifier formats with parameters are not implemented", TCL_STATIC);
-            return TCL_ERROR;
+        if (nobjs >= 2) {
+            Tcl_SetResult(interp, "Invalid algorithm identifier format or unsupported parameters", TCL_STATIC);
+            status = TCL_ERROR;
+            goto vamoose;
         }
         algid.pszObjId = ObjToString(objs[0]);
         algid.Parameters.cbData = 0;
@@ -257,33 +262,33 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     }
 
     if ((status = ObjGetElements(interp, objv[6], &nobjs, &objs)) != TCL_OK)
-        return status;
+        goto vamoose;
     if (nobjs == 0)
         startP = NULL;
     else {
         if ((status = ObjToSYSTEMTIME(interp, objv[6], &start)) != TCL_OK)
-            return status;
+            goto vamoose;
         startP = &start;
     }
 
     if ((status = ObjGetElements(interp, objv[7], &nobjs, &objs)) != TCL_OK)
-        return status;
+        goto vamoose;
     if (nobjs == 0)
         endP = NULL;
     else {
         if ((status = ObjToSYSTEMTIME(interp, objv[7], &end)) != TCL_OK)
-            return status;
+            goto vamoose;
         endP = &end;
     }
 
     if ((status = ObjGetElements(interp, objv[8], &nobjs, &objs)) != TCL_OK)
-        return status;
+        goto vamoose;
     if (nobjs == 0)
         extsP = NULL;
     else {
         DWORD i;
 
-        exts.rgExtension = MemLifoPushFrame(
+        exts.rgExtension = MemLifoAlloc(
             &ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
         exts.cExtension = nobjs;
 
@@ -316,27 +321,26 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                 }
             }
 
-            if (status != TCL_OK) {
-                MemLifoPopFrame(&ticP->memlifo);
-                return status;
-            }
+            if (status != TCL_OK)
+                goto vamoose;
         }
     }
 
     certP = (PCERT_CONTEXT) CertCreateSelfSignCertificate(hprov, &name_blob, flags,
                                           kiP, algidP, startP, endP, extsP);
-    if (extsP && extsP->rgExtension) {
-        MemLifoPopFrame(&ticP->memlifo);
-    }
 
     if (certP) {
         if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
         Tcl_SetObjResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
-        return TCL_OK;
+        status = TCL_OK;
     } else {
-        return TwapiReturnSystemError(interp);
+        status = TwapiReturnSystemError(interp);
     }
+
+vamoose:
+    MemLifoPopMark(mark);
+    return status;
 }
 
 static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CONTEXT certP, DWORD prop_id, int cooked)
@@ -478,6 +482,7 @@ static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, 
     Tcl_Obj **objs;
     int       nobjs;
     TCL_RESULT status;
+    Tcl_Obj *connameObj, *provnameObj;
 
     /* Note - objc/objv have initial command name arg removed by caller */
     if ((status = TwapiGetArgs(interp, objc, objv,
@@ -488,9 +493,10 @@ static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, 
     if ((status = ObjGetElements(interp, objv[1], &nobjs, &objs)) != TCL_OK)
         return status;
 
+    /* As always, extract WSTR AFTER other args to avoid shimmering */
     if ((status = TwapiGetArgs(interp, nobjs, objs,
-                               GETWSTR(ckpi.pwszContainerName),
-                               GETWSTR(ckpi.pwszProvName),
+                               GETOBJ(connameObj),
+                               GETOBJ(provnameObj),
                                GETINT(ckpi.dwProvType),
                                GETINT(ckpi.dwFlags),
                                ARGSKIP, // cProvParam+rgProvParam
@@ -501,6 +507,8 @@ static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, 
     ckpi.cProvParam = 0;
     ckpi.rgProvParam = NULL;
 
+    ckpi.pwszContainerName = ObjToUnicode(connameObj);
+    ckpi.pwszProvName = ObjToUnicode(provnameObj);
     if (CertSetCertificateContextProperty(certP, CERT_KEY_PROV_INFO_PROP_ID,
                                           0, &ckpi))
         return TCL_OK;
@@ -811,12 +819,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     DWORD dw, dw2, dw3;
     DWORD_PTR dwp;
     LPVOID pv;
-    LPWSTR s1, s2;
+    LPWSTR s1;
     LPSTR  cP;
     struct _CRYPTOAPI_BLOB blob;
     PCCERT_CONTEXT certP;
     void *bufP;
     DWORD buf_sz;
+    Tcl_Obj *s1Obj, *s2Obj;
     int func = PtrToInt(clientdata);
 
     --objc;
@@ -830,10 +839,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     switch (func) {
     case 10000: // CryptAcquireContext
         if (TwapiGetArgs(interp, objc, objv,
-                         GETNULLIFEMPTY(s1), GETNULLIFEMPTY(s2), GETINT(dw), GETINT(dw2),
+                         GETOBJ(s1Obj), GETOBJ(s2Obj), GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (CryptAcquireContextW(&dwp, s1, s2, dw, dw2)) {
+        if (CryptAcquireContextW(&dwp,
+                                 ObjToLPWSTR_NULL_IF_EMPTY(s1Obj),
+                                 ObjToLPWSTR_NULL_IF_EMPTY(s2Obj),
+                                 dw, dw2)) {
             if (dw2 & CRYPT_DELETEKEYSET)
                 result.type = TRT_EMPTY;
             else {
@@ -947,12 +959,14 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 10011: // CertStrToName
-        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s1), ARGUSEDEFAULT,
+        if (TwapiGetArgs(interp, objc, objv, GETOBJ(s1Obj), ARGUSEDEFAULT,
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_GETLASTERROR;
         dw2 = 0;
-        if (CertStrToNameW(X509_ASN_ENCODING, s1, dw, NULL, NULL, &dw2, NULL)) {
+        s1 = ObjToUnicode(s1Obj); /* Do AFTER extracting other args above */
+        if (CertStrToNameW(X509_ASN_ENCODING, s1,
+                           dw, NULL, NULL, &dw2, NULL)) {
             result.value.obj = ObjFromByteArray(NULL, dw2);
             if (CertStrToNameW(X509_ASN_ENCODING, s1, dw, NULL,
                                ObjToByteArray(result.value.obj, &dw2),
@@ -1004,7 +1018,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         /* Supports tiny subset of CertFindCertificateInStore */
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                         GETWSTR(s1), GETPTR(certP, CERT_CONTEXT*),
+                         GETOBJ(s1Obj), GETPTR(certP, CERT_CONTEXT*),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         /* Unregister previous context since the next call will free it */
@@ -1016,7 +1030,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
             0,
             CERT_FIND_SUBJECT_STR_W,
-            s1,
+            ObjToUnicode(s1Obj),
             certP);
         if (certP) {
             if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
@@ -1030,10 +1044,10 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 10016: // CertUnregisterSystemStore
         /* This command is there to primarily clean up mistakes in testing */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETWSTR(s1), GETINT(dw), ARGEND) != TCL_OK)
+                         GETOBJ(s1Obj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = CertUnregisterSystemStore(s1, dw);
+        result.value.ival = CertUnregisterSystemStore(ObjToUnicode(s1Obj), dw);
         break;
     case 10017:
         if (TwapiGetArgs(interp, objc, objv,

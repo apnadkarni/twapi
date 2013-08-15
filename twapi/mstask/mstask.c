@@ -370,7 +370,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     int tcl_status;
     void *pv;
     GUID guid, guid2;
-    LPWSTR s, s2;
+    Tcl_Obj *sObj, *s2Obj;
     WORD w, w2;
     Tcl_Obj *objs[4];
     SYSTEMTIME systime, systime2;
@@ -403,13 +403,13 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         switch (func) {
         case 5001: // Activate
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s), GETVAR(guid, ObjToGUID),
+                             GETOBJ(sObj), GETVAR(guid, ObjToGUID),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->Activate(
-                ifc.taskscheduler,   s,   &guid,
+                ifc.taskscheduler,   ObjToUnicode(sObj),   &guid,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5002: // AddWorkItem
@@ -439,32 +439,31 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             break;
         case 5005: // IsOfType
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s), GETVAR(guid, ObjToGUID),
+                             GETOBJ(sObj), GETVAR(guid, ObjToGUID),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_BOOL;
             result.value.bval = ifc.taskscheduler->lpVtbl->IsOfType(
-                ifc.taskscheduler, s, &guid) == S_OK;
+                ifc.taskscheduler, ObjToUnicode(sObj), &guid) == S_OK;
             break;
         case 5006: // NewWorkItem
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s),
+                             GETOBJ(sObj),
                              GETGUID(guid), GETGUID(guid2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->NewWorkItem(
-                ifc.taskscheduler, s, &guid, &guid2,
+                ifc.taskscheduler, ObjToUnicode(sObj), &guid, &guid2,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5007: // SetTargetComputer
             if (objc != 2)
                 goto badargs;
-            s = ObjToLPWSTR_NULL_IF_EMPTY(objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->SetTargetComputer(
-                ifc.taskscheduler, s);
+                ifc.taskscheduler, ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
             break;
         case 5008: // GetTargetComputer
             if (objc != 1)
@@ -669,14 +668,14 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             break;
         case 5219: // SetAccountInformation
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETWSTR(s),
+                             GETOBJ(sObj),
                              ARGUSEDEFAULT,
-                             GETNULLTOKEN(s2),
+                             GETOBJ(s2Obj),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
-                ifc.scheduledworkitem, s, s2);
+                ifc.scheduledworkitem, ObjToUnicode(sObj), ObjToLPWSTR_NULL_IF_EMPTY(s2Obj));
             break;
         case 5220: // SetComment
             if (objc != 2)

@@ -185,18 +185,31 @@ TCL_RESULT Twapi_UpdateResource(
     DWORD reslen;
     LPCWSTR restype;
     LPCWSTR resname;
+    Tcl_Obj *resObj, *restypeObj, *resnameObj;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
-                     GETVAR(restype, ObjToResourceIntOrString),
-                     GETVAR(resname, ObjToResourceIntOrString),
+                     GETOBJ(restypeObj),
+                     GETOBJ(resnameObj),
                      GETWORD(langid),
                      ARGUSEDEFAULT,
-                     GETBIN(resP, reslen),
-                     ARGEND) != TCL_OK) {
+                     GETOBJ(resObj),
+                     ARGEND) != TCL_OK)
         return TCL_ERROR;
-    }
+
+    /* Following args include Tcl_Obj internal pointers so extract
+       them AFTER scalars are extracted above to prevent shimmering bugs */
+    if (ObjToResourceIntOrString(interp, restypeObj, &restype) != TCL_OK ||
+        ObjToResourceIntOrString(interp, resnameObj, &resname) != TCL_OK)
+        return TCL_ERROR;
+
     /* Note resP / reslen might be NULL/0 -> delete resource */
+    if (resObj)
+        resP = ObjToByteArray(resObj, &reslen);
+    else {
+        resP = NULL;
+        reslen = 0;
+    }
 
     if (UpdateResourceW(h, restype, resname, langid, resP, reslen))
         return TCL_OK;
@@ -214,15 +227,22 @@ TCL_RESULT Twapi_FindResourceEx(
     LPCWSTR restype;
     LPCWSTR resname;
     HRSRC hrsrc;
+    Tcl_Obj *restypeObj, *resnameObj;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
-                     GETVAR(restype, ObjToResourceIntOrString),
-                     GETVAR(resname, ObjToResourceIntOrString),
+                     GETOBJ(restypeObj),
+                     GETOBJ(resnameObj),
                      GETWORD(langid),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+
+    /* Following args include Tcl_Obj internal pointers so extract
+       them AFTER scalars are extracted above to prevent shimmering bugs */
+    if (ObjToResourceIntOrString(interp, restypeObj, &restype) != TCL_OK ||
+        ObjToResourceIntOrString(interp, resnameObj, &resname) != TCL_OK)
+        return TCL_ERROR;
 
     hrsrc = FindResourceExW(h, restype, resname, langid);
     if (hrsrc) {
@@ -290,13 +310,19 @@ TCL_RESULT Twapi_EnumResourceNames(
     HANDLE hmodule;
     LPCWSTR restype;
     TwapiEnumCtx ctx;
+    Tcl_Obj *restypeObj;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hmodule),
-                     GETVAR(restype, ObjToResourceIntOrString),
+                     GETOBJ(restypeObj),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+
+    /* Following args include Tcl_Obj internal pointers so extract
+       them AFTER scalars are extracted above to prevent shimmering bugs */
+    if (ObjToResourceIntOrString(interp, restypeObj, &restype) != TCL_OK)
+        return TCL_ERROR;
 
     ctx.interp = interp;
     ctx.objP = ObjEmptyList();
@@ -368,14 +394,21 @@ TCL_RESULT Twapi_EnumResourceLanguages(
     LPCWSTR restype;
     LPCWSTR resname;
     TwapiEnumCtx ctx;
+    Tcl_Obj *restypeObj, *resnameObj;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(hmodule),
-                     GETVAR(restype, ObjToResourceIntOrString),
-                     GETVAR(resname, ObjToResourceIntOrString),
+                     GETOBJ(restypeObj),
+                     GETOBJ(resnameObj),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+
+    /* Following args include Tcl_Obj internal pointers so extract
+       them AFTER scalars are extracted above to prevent shimmering bugs */
+    if (ObjToResourceIntOrString(interp, restypeObj, &restype) != TCL_OK ||
+        ObjToResourceIntOrString(interp, resnameObj, &resname) != TCL_OK)
+        return TCL_ERROR;
 
     ctx.interp = interp;
     ctx.objP = ObjEmptyList();
@@ -402,11 +435,8 @@ TCL_RESULT Twapi_SplitStringResource(
     int len;
     Tcl_Obj *objP = ObjEmptyList();
     
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETBIN(wP, len),
-                     ARGEND) != TCL_OK) {
-        return TCL_ERROR;
-    }
+    CHECK_NARGS(interp, objc, 1);
+    wP = (WCHAR *)ObjToByteArray(objv[0], &len);
     
     while (len >= 2) {
         WORD slen = *wP++;
@@ -433,16 +463,22 @@ TCL_RESULT Twapi_LoadImage(
     LPCWSTR resname;
     DWORD image_type, cx, cy, flags;
     TwapiResult result;
+    Tcl_Obj *resnameObj;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
-                     GETVAR(resname, ObjToResourceIntOrString),
+                     GETOBJ(resnameObj),
                      GETINT(image_type),
                      ARGUSEDEFAULT, GETINT(cx), GETINT(cy),
                      GETINT(flags),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+
+    /* Following args include Tcl_Obj internal pointers so extract
+       them AFTER scalars are extracted above to prevent shimmering bugs */
+    if (ObjToResourceIntOrString(interp, resnameObj, &resname) != TCL_OK)
+        return TCL_ERROR;
 
     result.type = TRT_HANDLE;
     result.value.hval = LoadImageW(h, resname, image_type, cx, cy, flags);
@@ -451,7 +487,7 @@ TCL_RESULT Twapi_LoadImage(
 
 static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR s, s2, s3;
+    LPWSTR s;
     DWORD dw;
     HANDLE h;
     TwapiResult result;
@@ -515,8 +551,9 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
-        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        s = ObjToUnicode(objv[0]);
         if (func == 15) {
             result.type = TRT_LONG;
             result.value.ival = AddFontResourceExW(s, dw, NULL);
@@ -536,18 +573,20 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         result.value.ival = EndUpdateResourceW(h, dw);
         break;
     case 19:
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), GETWSTR(s),
-                         GETWSTR(s2), GETWSTR(s3), ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 4);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = CreateScalableFontResourceW(dw, s, s2, s3);
+        result.value.ival =
+            CreateScalableFontResourceW(dw,
+                                        ObjToUnicode(objv[1]),
+                                        ObjToUnicode(objv[2]),
+                                        ObjToUnicode(objv[3]));
         break;
     case 20:
-        if (TwapiGetArgs(interp, objc, objv, GETWSTR(s), GETINT(dw),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_NARGS(interp, objc, 2);
+        CHECK_INTEGER_OBJ(interp, dw, objv[1]);
         result.type = TRT_BOOL;
-        result.value.bval = RemoveFontResourceExW(s, dw, NULL);
+        result.value.bval = RemoveFontResourceExW(ObjToUnicode(objv[0]), dw, NULL);
         break;
     }
 

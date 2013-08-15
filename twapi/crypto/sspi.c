@@ -485,7 +485,7 @@ int Twapi_MakeSignature(
     SecHandle *ctxP,
     ULONG qop,
     int datalen,
-    void *dataP,
+    void *dataP, /* Points into Tcl_Obj, must NOT be modified ! */
     ULONG seqnum)
 {
     SECURITY_STATUS ss;
@@ -534,7 +534,7 @@ int Twapi_EncryptMessage(
     SecHandle *ctxP,
     ULONG qop,
     int   datalen,
-    void *dataP,
+    void *dataP, /* Must not be modified, may point into Tcl_Obj owned space */
     ULONG seqnum
     )
 {
@@ -557,8 +557,7 @@ int Twapi_EncryptMessage(
     trailerP = MemLifoPushFrame(&ticP->memlifo,
                                 spc_sizes.cbSecurityTrailer, NULL);
     padP = MemLifoAlloc(&ticP->memlifo, spc_sizes.cbBlockSize, NULL);
-    edataP = MemLifoAlloc(&ticP->memlifo, datalen, NULL);
-    CopyMemory(edataP, dataP, datalen);
+    edataP = MemLifoCopy(&ticP->memlifo, dataP, datalen);
     
     sbufs[0].BufferType = SECBUFFER_TOKEN;
     sbufs[0].cbBuffer   = spc_sizes.cbSecurityTrailer;
@@ -601,13 +600,15 @@ static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                      GETINT(func),
                      GETVAR(sech, ObjToSecHandle),
                      GETINT(dw),
-                     GETBIN(cP, dw2),
+                     ARGSKIP,
                      GETINT(dw3),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     if (func != 1 && func != 2)
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+
+    cP = ObjToByteArray(objv[4], &dw2);
 
     return (func == 1 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
         ticP, &sech, dw, dw2, cP, dw3);
@@ -617,9 +618,8 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 {
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4;
-    DWORD_PTR dwp;
     LPVOID pv;
-    LPWSTR s1, s2, s3;
+    Tcl_Obj *s1Obj;
     HANDLE h;
     SecHandle sech, sech2, *sech2P;
     SecBufferDesc sbd, *sbdP;
@@ -630,10 +630,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
     --objc;
     ++objv;
-
-    TWAPI_ASSERT(sizeof(HCRYPTPROV) <= sizeof(pv));
-    TWAPI_ASSERT(sizeof(HCRYPTKEY) <= sizeof(pv));
-    TWAPI_ASSERT(sizeof(dwp) <= sizeof(void*));
 
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 100) {
@@ -678,13 +674,12 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
         case 10018:
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETWSTR(s1), ARGUSEDEFAULT,
-                             GETWSTR(s2), GETWSTR(s3),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            ;
-            TwapiResult_SET_NONNULL_PTR(result, SEC_WINNT_AUTH_IDENTITY_W*, Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(s1, s2, s3));
+            CHECK_NARGS_RANGE(interp, objc, 1, 3);
+            pv = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(
+                ObjToUnicode(objv[0]),
+                objc > 1 ? ObjToUnicode(objv[1]) : L"",
+                objc > 2 ? ObjToUnicode(objv[2]) : L"");
+            TwapiResult_SET_NONNULL_PTR(result, SEC_WINNT_AUTH_IDENTITY_W*, pv);
             break;
         case 10019:
             if (objc != 1)
@@ -697,12 +692,13 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         case 10020:
             luidP = &luid;
             if (TwapiGetArgs(interp, objc, objv,
-                             GETNULLIFEMPTY(s1), GETWSTR(s2), GETINT(dw),
+                             ARGSKIP, ARGSKIP, GETINT(dw),
                              GETVAR(luidP, ObjToLUID_NULL),
                              GETVOIDP(pv), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival = AcquireCredentialsHandleW(
-                s1, s2,
+                ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
+                ObjToUnicode(objv[1]),
                 dw, luidP, pv, NULL, NULL, &sech, &largeint);
             if (result.value.ival) {
                 result.type = TRT_EXCEPTION_ON_ERROR;
@@ -719,7 +715,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
                              GETVAR(sech2P, ObjToSecHandle_NULL),
-                             GETWSTR(s1),
+                             GETOBJ(s1Obj),
                              GETINT(dw),
                              GETINT(dw2),
                              GETINT(dw3),
@@ -730,7 +726,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             sbdP = sbd.cBuffers ? &sbd : NULL;
             result.type = TRT_TCL_RESULT;
             result.value.ival = Twapi_InitializeSecurityContext(
-                interp, &sech, sech2P, s1,
+                interp, &sech, sech2P, ObjToUnicode(s1Obj),
                 dw, dw2, dw3, sbdP, dw4);
             TwapiFreeSecBufferDesc(sbdP);
             break;
