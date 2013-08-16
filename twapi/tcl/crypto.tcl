@@ -492,7 +492,7 @@ proc twapi::cert_create_self_signed {subject args} {
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $start $end $opts(extensions)]
 }
 
-proc twapi::cert_create_self_signed_from_crypt_context {subject hprov} {
+proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     array set opts [parseargs args {
         {silent.bool 0 0x40}
         start.int
