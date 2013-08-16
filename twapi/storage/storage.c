@@ -25,7 +25,7 @@ int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)
             return Twapi_AppendSystemError(interp, winerr);
         }
     }
-    TwapiSetObjResult(interp, ObjFromLong(file_type));
+    ObjSetResult(interp, ObjFromLong(file_type));
     return TCL_OK;
 }
 
@@ -49,7 +49,7 @@ int TwapiFirstVolume(
     objv[0] = ObjFromHANDLE(h);
     objv[1] = ObjFromUnicode(buf);
 
-    TwapiSetObjResult(interp, ObjNewList(2, objv));
+    ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -66,14 +66,14 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
         Tcl_Obj *objv[2];
         objv[0] = ObjFromLong(1);
         objv[1] = ObjFromUnicode(buf);
-        TwapiSetObjResult(interp, ObjNewList(2, objv));
+        ObjSetResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     } else {
         DWORD lasterr = GetLastError();
         buf[0] = 0;
         if (lasterr == ERROR_NO_MORE_FILES) {
             /* Not an error, signal no more volumes */
-            TwapiSetObjResult(interp, ObjFromLong(0));
+            ObjSetResult(interp, ObjFromLong(0));
             return TCL_OK;
         }
         else
@@ -102,7 +102,7 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
     objv[2] = ObjFromLong(max_component_len);
     objv[3] = ObjFromLong(sysflags);
     objv[4] = ObjFromUnicode(fsname);
-    TwapiSetObjResult(interp, ObjNewList(5, objv));
+    ObjSetResult(interp, ObjNewList(5, objv));
 
     return TCL_OK;
 }
@@ -146,7 +146,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
     }
 
     if (result) {
-        TwapiSetObjResult(interp, ObjFromMultiSz(pathP, result));
+        ObjSetResult(interp, ObjFromMultiSz(pathP, result));
         result = TCL_OK;
     } else {
         result = TwapiReturnSystemError(interp);
@@ -170,7 +170,7 @@ int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir)
     objv[0] = ObjFromWideInt(free_avail.QuadPart);
     objv[1] = ObjFromWideInt(total_bytes.QuadPart);
     objv[2] = ObjFromWideInt(free_total.QuadPart);
-    TwapiSetObjResult(interp, ObjNewList(3, objv));
+    ObjSetResult(interp, ObjNewList(3, objv));
     return TCL_OK;
 }
 

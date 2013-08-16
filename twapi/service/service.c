@@ -118,7 +118,7 @@ int Twapi_BecomeAService(
 
     if (InterlockedCompareExchangePointer(&gServiceInterpContextP, ticP, NULL)
         != NULL) {
-        TwapiSetStaticResult(interp, "Twapi_BecomeAService multiple invocations.");
+        ObjSetStaticResult(interp, "Twapi_BecomeAService multiple invocations.");
         return TCL_ERROR;
     }
     TwapiInterpContextRef(ticP, 1);
@@ -134,7 +134,7 @@ int Twapi_BecomeAService(
         if (ObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||
             n != 2 ||
             ObjToLong(interp, objs[1], &ctrls) != TCL_OK) {
-            TwapiSetStaticResult(interp, "Invalid service specification.");
+            ObjSetStaticResult(interp, "Invalid service specification.");
             goto error_handler;
         }
         /* Allocate a single block for the context and name */
@@ -153,7 +153,7 @@ int Twapi_BecomeAService(
      * Note: originally we were doing this in the Tcl code.
      */
     if (! SetConsoleCtrlHandler( (PHANDLER_ROUTINE) ConsoleCtrlHandler, TRUE )) {
-        TwapiSetStaticResult(interp, "Console control handler install failed.");
+        ObjSetStaticResult(interp, "Console control handler install failed.");
         return TCL_ERROR;
     }
 

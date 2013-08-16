@@ -672,7 +672,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
     }
 
 
-    TwapiSetObjResult(interp, ObjFromOpaque(ervhP, "TwapiEVT_RENDER_VALUES_HEADER*"));
+    ObjSetResult(interp, ObjFromOpaque(ervhP, "TwapiEVT_RENDER_VALUES_HEADER*"));
     return TCL_OK;
 }
 
@@ -718,7 +718,7 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     /* Unicode string. Should we use sz/2 instead of -1 ? TBD */
     objP = ObjFromUnicode(bufP);
     MemLifoPopFrame(&ticP->memlifo);
-    TwapiSetObjResult(ticP->interp, objP);
+    ObjSetResult(ticP->interp, objP);
     return TCL_OK;
 }
 
@@ -731,7 +731,7 @@ static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(TwapiInterpContext *ticP,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
         
-    Tcl_SetObjResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, varP, dw));
+    ObjSetResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, varP, dw));
     return TCL_OK;
 }
 
@@ -745,7 +745,7 @@ static TCL_RESULT Twapi_ExtractEVT_RENDER_VALUESObjCmd(TwapiInterpContext *ticP,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    Tcl_SetObjResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, ERVHP_BUFFER(ervhP), ervhP->header.count));
+    ObjSetResult(interp, ObjFromEVT_VARIANT_ARRAY(ticP, ERVHP_BUFFER(ervhP), ervhP->header.count));
     return TCL_OK;
 }
 
@@ -773,7 +773,7 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
             for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromEVT_HANDLE(hevtP[i]);
             }
-            TwapiSetObjResult(interp, ObjNewList(count, objPP));
+            ObjSetResult(interp, ObjNewList(count, objPP));
         }
         result = TCL_OK;
         dw = 0;
@@ -821,7 +821,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
     DWORD ret = TCL_ERROR;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, ARGSKIP, GETINT(flags), ARGEND) != TCL_OK ||
-        Tcl_ListObjLength(interp, objv[1], &count) != TCL_OK)
+        ObjListLength(interp, objv[1], &count) != TCL_OK)
         return TCL_ERROR;
 
     if (count == 0) {
@@ -839,7 +839,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
         goto vamoose;
     }
         
-    TwapiSetObjResult(interp, ObjFromEVT_HANDLE(hevt));
+    ObjSetResult(interp, ObjFromEVT_HANDLE(hevt));
     ret = TCL_OK;
 
 vamoose:
@@ -953,10 +953,10 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                 status = TCL_ERROR; /* Invalid variable */
             }
             else {
-                TwapiSetObjResult(interp, ObjFromInt(winerr == ERROR_SUCCESS));
+                ObjSetResult(interp, ObjFromInt(winerr == ERROR_SUCCESS));
             }
         } else
-            TwapiSetObjResult(interp, objP);
+            ObjSetResult(interp, objP);
     }
 
     if (bufP != buf)
@@ -1023,7 +1023,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
         TwapiReturnSystemError(interp);
         Twapi_AppendEvtExtendedStatus(interp);
     } else {
-        TwapiSetObjResult(interp, ObjFromEVT_VARIANT(ticP, varP, 0));
+        ObjSetResult(interp, ObjFromEVT_VARIANT(ticP, varP, 0));
     }
     MemLifoPopFrame(&ticP->memlifo);
 
@@ -1257,7 +1257,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             /* Note channel/publisher is max 255 chars so no need to check
                for ERROR_INSUFFICIENT_BUFFER */
             if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(buf), buf, &dw) != FALSE) {
-                TwapiSetObjResult(interp, ObjFromUnicodeN(buf, dw-1));
+                ObjSetResult(interp, ObjFromUnicodeN(buf, dw-1));
                 return TCL_OK;
             }
             result.type = TRT_EXCEPTION_ON_ERROR;

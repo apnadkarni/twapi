@@ -37,7 +37,7 @@ int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
         }
     }
 
-    return TwapiSetObjResult(interp, resultObj);
+    return ObjSetResult(interp, resultObj);
 }
 
 /* Structure to hold callback data */
@@ -102,7 +102,7 @@ TCL_RESULT Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP)
     struct TwapiClipboardMonitorState *clip_stateP;
 
     if (ticP->module.data.hwnd) {
-        TwapiSetStaticResult(ticP->interp, "Clipboard monitoring is already in progress");
+        ObjSetStaticResult(ticP->interp, "Clipboard monitoring is already in progress");
         return TCL_ERROR;
     }
 

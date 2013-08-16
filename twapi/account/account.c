@@ -382,21 +382,21 @@ int TwapiNetUserOrGroupGetInfoHelper(
             fmt_fn = ObjFromLOCALGROUP_INFO;
             break;
         default:
-            TwapiSetStaticResult(interp, "Internal error: bad type passed to TwapiNetUserOrGroupGetInfoHelper");
+            ObjSetStaticResult(interp, "Internal error: bad type passed to TwapiNetUserOrGroupGetInfoHelper");
             return TCL_ERROR;
         }
         status = (*get_fn)(servername, name, level, &infoP);
         if (status != NERR_Success) {
-            TwapiSetStaticResult(interp,
+            ObjSetStaticResult(interp,
                                  "Could not retrieve global user or group information: ");
             return Twapi_AppendSystemError(interp, status);
         }
-        TwapiSetObjResult(interp, (*fmt_fn)(interp, infoP, level));
+        ObjSetResult(interp, (*fmt_fn)(interp, infoP, level));
         NetApiBufferFree(infoP);
         break;
 
     default:
-        TwapiSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
+        ObjSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
         return TCL_ERROR;
     }
 
@@ -433,7 +433,7 @@ int Twapi_NetLocalGroupGetInfo(
     )
 {
     if (level != 1) {
-        TwapiSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
+        ObjSetStaticResult(interp, "Invalid or unsupported user or group information level specified");
         return TCL_ERROR;
     }
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
@@ -470,7 +470,7 @@ int Twapi_NetUserAdd(
         return TCL_OK;
 
     /* Indicate the parameter */
-    TwapiSetStaticResult(interp, "Error adding user account: ");
+    ObjSetStaticResult(interp, "Error adding user account: ");
     error_field = NULL;
     switch (error_parm) {
     case 0: error_field = "user name"; break;
@@ -809,7 +809,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     objs[2] = ObjFromLong(netenum.totalentries);
     objs[3] = enumObj;
 
-    TwapiSetObjResult(interp, ObjNewList(4, objs));
+    ObjSetResult(interp, ObjNewList(4, objs));
 
     if (netenum.netbufP)
         NetApiBufferFree((LPBYTE) netenum.netbufP);
@@ -1038,7 +1038,7 @@ static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
             g_netenum_buf_size = MAX_PREFERRED_LENGTH;
     }
 
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(g_netenum_buf_size));
+    ObjSetResult(interp, Tcl_NewIntObj(g_netenum_buf_size));
     return TCL_OK;
 }
 

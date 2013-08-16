@@ -355,7 +355,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
         return TCL_ERROR;
 
     if (objc & 1) {
-        TwapiSetStaticResult(interp, "Invalid EVENT_TRACE_PROPERTIES format");
+        ObjSetStaticResult(interp, "Invalid EVENT_TRACE_PROPERTIES format");
         return TCL_ERROR;
     }
 
@@ -509,7 +509,7 @@ st */
             etP->LoggerThreadId = (HANDLE) wide;
             break;
         default:
-            TwapiSetStaticResult(interp, "Internal error: Unexpected field index.");
+            ObjSetStaticResult(interp, "Internal error: Unexpected field index.");
             goto error_handler;
         }
         
@@ -654,19 +654,19 @@ TCL_RESULT Twapi_RegisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, i
     
     if (IsEqualGUID(&provider_guid, &gNullGuid) ||
         IsEqualGUID(&event_class_guid, &gNullGuid)) {
-        TwapiSetStaticResult(interp, "NULL provider GUID specified.");
+        ObjSetStaticResult(interp, "NULL provider GUID specified.");
         return TCL_ERROR;
     }
 
     /* We should not already have registered a different provider */
     if (! IsEqualGUID(&gETWProviderGuid, &gNullGuid)) {
         if (IsEqualGUID(&gETWProviderGuid, &provider_guid)) {
-            TwapiSetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
+            ObjSetResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
 
             return TCL_OK;      /* Same GUID - ok */
         }
         else {
-            TwapiSetStaticResult(interp, "ETW Provider GUID already registered");
+            ObjSetStaticResult(interp, "ETW Provider GUID already registered");
             return TCL_ERROR;
         }
     }
@@ -688,7 +688,7 @@ TCL_RESULT Twapi_RegisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, i
         gETWProviderGuid = provider_guid;
         gETWProviderEventClassGuid = event_class_guid;
         gETWProviderEventClassRegistrationHandle = event_class_reg.RegHandle;
-        TwapiSetObjResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
+        ObjSetResult(interp, ObjFromTRACEHANDLE(gETWProviderRegistrationHandle));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, rc);
@@ -707,7 +707,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(ClientData clientdata, Tcl_Interp *interp,
         return TCL_ERROR;
 
     if (traceH != gETWProviderRegistrationHandle) {
-        TwapiSetStaticResult(interp, "Unknown ETW provider registration handle");
+        ObjSetStaticResult(interp, "Unknown ETW provider registration handle");
         return TCL_ERROR;
     }
 
@@ -798,7 +798,7 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
     objs[0] = ObjFromTRACEHANDLE(htrace);
     objs[1] = ObjFromEVENT_TRACE_PROPERTIES(etP);
     TwapiFree(etP);
-    TwapiSetObjResult(interp, ObjNewList(2, objs));
+    ObjSetResult(interp, ObjNewList(2, objs));
     return TCL_OK;
 }
 
@@ -827,7 +827,7 @@ TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int obj
         Twapi_AppendSystemError(interp, GetLastError());
         code = TCL_ERROR;
     } else {
-        TwapiSetObjResult(interp, ObjFromEVENT_TRACE_PROPERTIES(etP));
+        ObjSetResult(interp, ObjFromEVENT_TRACE_PROPERTIES(etP));
         code = TCL_OK;
     }
 
@@ -1064,7 +1064,7 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
     if (INVALID_SESSIONTRACE_HANDLE(htrace))
         return TwapiReturnSystemError(interp);
 
-    TwapiSetObjResult(interp, ObjFromTRACEHANDLE(htrace));
+    ObjSetResult(interp, ObjFromTRACEHANDLE(htrace));
     return TCL_OK;
 }
 
@@ -1114,7 +1114,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
      * effectively drain the buffer without doing anything
      */
     buffer_cmdlen = 0;
-    if (Tcl_ListObjLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
+    if (ObjListLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
         return TCL_ERROR;
 
     if (Tcl_GetCharLength(objv[3]) == 0)
@@ -1552,7 +1552,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             break;
 
         default:
-            TwapiSetObjResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
+            ObjSetResult(interp, Tcl_ObjPrintf("Internal error: unknown mof typeenum %d", typeenum));
             goto error_handler;
         }
 
@@ -1563,7 +1563,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
     }
     
     done:
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     return TCL_OK;
 
 error_handler:
@@ -1595,7 +1595,7 @@ static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
     }
 
-    TwapiSetObjResult(interp, objP);
+    ObjSetResult(interp, objP);
     return TCL_OK;
 }
 

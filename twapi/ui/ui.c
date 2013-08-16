@@ -89,7 +89,7 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP)
         return TCL_OK;
     }
 
-    TwapiSetStaticResult(interp, "Invalid FLASHWINFO structure. Need 4 elements - window handle, flags, count and timeout.");
+    ObjSetStaticResult(interp, "Invalid FLASHWINFO structure. Need 4 elements - window handle, flags, count and timeout.");
     return TCL_ERROR;
 }
 
@@ -160,7 +160,7 @@ int Twapi_EnumChildWindows(Tcl_Interp *interp, HWND parent_handle)
      * We now follow the docs and ignore return value.
      */
     EnumChildWindows(parent_handle, Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx);
-    TwapiSetObjResult(interp, enum_win_ctx.objP);
+    ObjSetResult(interp, enum_win_ctx.objP);
     return TCL_OK;
 }
 
@@ -184,7 +184,7 @@ int Twapi_EnumDesktopWindows(Tcl_Interp *interp, HDESK desk_handle)
         }
     }
 
-    TwapiSetObjResult(interp, enum_win_ctx.objP);
+    ObjSetResult(interp, enum_win_ctx.objP);
     return TCL_OK;
 }
 
@@ -218,7 +218,7 @@ int Twapi_GetGUIThreadInfo(Tcl_Interp *interp, DWORD idThread)
     objv[16] = STRING_LITERAL_OBJ("rcCaret");
     objv[17] = ObjFromRECT(&gti.rcCaret);
 
-    TwapiSetObjResult(interp, ObjNewList(18, objv));
+    ObjSetResult(interp, ObjNewList(18, objv));
     return TCL_OK;
 }
 
@@ -888,7 +888,7 @@ int TwapiGetThemeDefine(Tcl_Interp *interp, char *name)
     return TCL_ERROR;
 
  success_return:
-    TwapiSetObjResult(interp, ObjFromLong(val));
+    ObjSetResult(interp, ObjFromLong(val));
     return TCL_OK;
 
 #undef cmp_and_return_
@@ -914,7 +914,7 @@ int Twapi_GetCurrentThemeName(Tcl_Interp *interp)
     objv[0] = ObjFromUnicode(filename);
     objv[1] = ObjFromUnicode(color);
     objv[2] = ObjFromUnicode(size);
-    TwapiSetObjResult(interp, ObjNewList(3, objv));
+    ObjSetResult(interp, ObjNewList(3, objv));
     return TCL_OK;
 }
 
@@ -938,7 +938,7 @@ int Twapi_GetThemeColor(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (status != S_OK)
         return Twapi_AppendSystemError(interp, status);
 
-    TwapiSetObjResult(interp,
+    ObjSetResult(interp,
                      Tcl_ObjPrintf("#%2.2x%2.2x%2.2x",
                                    GetRValue(color),
                                    GetGValue(color),
@@ -974,7 +974,7 @@ int Twapi_GetThemeFont(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (hr != S_OK)
         return Twapi_AppendSystemError(interp, hr);
 
-    TwapiSetObjResult(interp, ObjFromLOGFONTW(&lf));
+    ObjSetResult(interp, ObjFromLOGFONTW(&lf));
     return TCL_OK;
 }
 

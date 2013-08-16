@@ -151,7 +151,7 @@ int Twapi_RecordArrayObjCmd(
         cmd = RA_SLICE;
         raindex = 2;
     } else {
-        TwapiSetStaticResult(interp, "Invalid command. Must be one of 'exists', 'field', 'filter', 'get', 'keys' or 'slice'.");
+        ObjSetStaticResult(interp, "Invalid command. Must be one of 'exists', 'field', 'filter', 'get', 'keys' or 'slice'.");
         return TCL_ERROR;
     }
 
@@ -161,7 +161,7 @@ int Twapi_RecordArrayObjCmd(
     /* Special case - empty list */
     if (i == 0) {
         if (cmd == RA_EXISTS)
-            TwapiSetObjResult(interp, ObjFromBoolean(0));
+            ObjSetResult(interp, ObjFromBoolean(0));
         else
             Tcl_ResetResult(interp);
         return TCL_OK;
@@ -172,7 +172,7 @@ int Twapi_RecordArrayObjCmd(
         /* Record array must have exactly two elements
            the second of which (the key,record list) must have an even
            number of elements */
-        TwapiSetStaticResult(interp, "Invalid format.");
+        ObjSetStaticResult(interp, "Invalid format.");
         return TCL_ERROR;
     }
 
@@ -189,7 +189,7 @@ int Twapi_RecordArrayObjCmd(
         else if (STREQ("-glob", s))
             cmptype |= 0x4;
         else {
-            TwapiSetStaticResult(interp, "Option must be -string, -nocase, -glob, -integer.");
+            ObjSetStaticResult(interp, "Option must be -string, -nocase, -glob, -integer.");
             return TCL_ERROR;
         }
     }
@@ -201,7 +201,7 @@ int Twapi_RecordArrayObjCmd(
     case 4:  cmpfn = TwapiGlobCmp; break; /* Case sensitive glob match */
     case 6:  cmpfn = TwapiGlobCmpCase; break;  /* Case insensitive flob match */
     default:
-        TwapiSetStaticResult(interp, "Invalid combination of options specified.");
+        ObjSetStaticResult(interp, "Invalid combination of options specified.");
         return TCL_ERROR;
     }
 
@@ -223,7 +223,7 @@ int Twapi_RecordArrayObjCmd(
                 ObjAppendElement(interp, resultObj, objP); // Value
             }
         }
-        return TwapiSetObjResult(interp, resultObj);
+        return ObjSetResult(interp, resultObj);
     }
 
     /* Locate the key. */
@@ -283,7 +283,7 @@ int Twapi_RecordArrayObjCmd(
                 break;
         }
         if (j >= nfields) {
-            TwapiSetStaticResult(interp, "Field name not found.");
+            ObjSetStaticResult(interp, "Field name not found.");
             return TCL_ERROR;
         }
 
@@ -298,7 +298,7 @@ int Twapi_RecordArrayObjCmd(
             for (i = 0; i < nrecs; i += 2) {
                 Tcl_Obj *objP;
                 int ival;
-                if (Tcl_ListObjIndex(interp, recs[i+1], j, &objP) != TCL_OK)
+                if (ObjListIndex(interp, recs[i+1], j, &objP) != TCL_OK)
                     goto error_return;
                 if (objP == NULL)
                     continue;   /* This field not in the record */
@@ -315,7 +315,7 @@ int Twapi_RecordArrayObjCmd(
             /* Iterate over all records matching on the field */
             for (i = 0; i < nrecs; i += 2) {
                 Tcl_Obj *objP;
-                if (Tcl_ListObjIndex(interp, recs[i+1], j, &objP) != TCL_OK)
+                if (ObjListIndex(interp, recs[i+1], j, &objP) != TCL_OK)
                     goto error_return;
                 if (objP == NULL)
                     continue;   /* This field not in the record */
@@ -347,7 +347,7 @@ int Twapi_RecordArrayObjCmd(
                 break;
         }
         if (j >= nfields) {
-            TwapiSetStaticResult(interp, "Field name not found.");
+            ObjSetStaticResult(interp, "Field name not found.");
             return TCL_ERROR;
         }
         if (objc == 4) {
@@ -357,7 +357,7 @@ int Twapi_RecordArrayObjCmd(
                 Tcl_Obj *objP;
                 // Append key
                 ObjAppendElement(interp, resultObj, recs[i]);
-                if (Tcl_ListObjIndex(interp, recs[i+1], j, &objP) != TCL_OK)
+                if (ObjListIndex(interp, recs[i+1], j, &objP) != TCL_OK)
                     goto error_return;
                 // Append field value
                 ObjAppendElement(interp, resultObj,
@@ -366,7 +366,7 @@ int Twapi_RecordArrayObjCmd(
         } else {
             /* Get value of a single element field (empty if does not exist) */
             /* Get the corresponding element from the record (or empty) */
-            if (Tcl_ListObjIndex(interp, recs[i+1], j, &resultObj) != TCL_OK)
+            if (ObjListIndex(interp, recs[i+1], j, &resultObj) != TCL_OK)
                 return TCL_ERROR;
             /* Note resultObj may be NULL even on TCL_OK */
         }
@@ -384,7 +384,7 @@ int Twapi_RecordArrayObjCmd(
                                    &nslice_fields, &slice_fields) != TCL_OK)
             return TCL_ERROR;
         if (nslice_fields > MAX_SLICE_WIDTH) {
-            TwapiSetStaticResult(interp, "Limit on fields in slice exceeded.");
+            ObjSetStaticResult(interp, "Limit on fields in slice exceeded.");
             return TCL_ERROR;
         }
 
@@ -404,7 +404,7 @@ int Twapi_RecordArrayObjCmd(
                 slice_newfields[i] = names[1];
             } else {
                 /* Should be just 1 or 2 elements in renaming entry */
-                TwapiSetStaticResult(interp, "Invalid slice field renaming entry.");
+                ObjSetStaticResult(interp, "Invalid slice field renaming entry.");
                 return TCL_ERROR;
             }
             s = ObjToStringN(names[0], &slen);
@@ -418,7 +418,7 @@ int Twapi_RecordArrayObjCmd(
                 }
             }
             if (j == nfields) {
-                TwapiSetStaticResult(interp, "Field not found.");
+                ObjSetStaticResult(interp, "Field not found.");
                 return TCL_ERROR;
             }
         }
@@ -465,7 +465,7 @@ int Twapi_RecordArrayObjCmd(
 
         
     if (resultObj)              /* May legitimately be NULL */
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
     else
         Tcl_ResetResult(interp); /* Because some intermediate checks might
                                     have left error messages */

@@ -52,7 +52,7 @@ int Twapi_LoadUserProfile(
         return TwapiReturnSystemError(interp);
     }
 
-    return TwapiSetObjResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+    return ObjSetResult(interp, ObjFromHANDLE(profileinfo.hProfile));
 }
 
 /*
@@ -384,7 +384,7 @@ int Twapi_GetTokenInformation(
              * case, resultObj will be freed if non-NULL
              */
             if (result == TCL_OK)
-                TwapiSetObjResult(interp, resultObj);
+                ObjSetResult(interp, resultObj);
             else if (resultObj)
                 Twapi_FreeNewTclObj(resultObj);
 
@@ -400,7 +400,7 @@ int Twapi_GetTokenInformation(
     }
 
     if (infoP == NULL) {
-        TwapiSetStaticResult(interp, "Error getting security token information: ");
+        ObjSetStaticResult(interp, "Error getting security token information: ");
         Twapi_AppendSystemError(interp, GetLastError());
         return TCL_ERROR;
     }
@@ -484,7 +484,7 @@ int Twapi_GetTokenInformation(
             ObjAppendElement(interp, resultObj, obj);
             result = TCL_OK;
         } else {
-            TwapiSetStaticResult(interp, "Could not convert token source to LUID");
+            ObjSetStaticResult(interp, "Could not convert token source to LUID");
         }
         break;
 
@@ -530,11 +530,11 @@ int Twapi_GetTokenInformation(
 
     case TokenSessionReference:
     case TokenDefaultDacl:
-        TwapiSetStaticResult(interp, "Unsupported token information type");
+        ObjSetStaticResult(interp, "Unsupported token information type");
         break;
 
     default:
-        TwapiSetStaticResult(interp, "Unknown token information type");
+        ObjSetStaticResult(interp, "Unknown token information type");
         break;
     }
 
@@ -545,7 +545,7 @@ int Twapi_GetTokenInformation(
      *  case, resultObj will be freed if non-NULL
      */
     if (result == TCL_OK)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
     else if (resultObj)
         Twapi_FreeNewTclObj(resultObj);
 
@@ -605,7 +605,7 @@ int Twapi_AdjustTokenPrivileges(
     } else {
         objP = ObjFromTOKEN_PRIVILEGES(interp, (PTOKEN_PRIVILEGES) bufP);
         if (objP) {
-            TwapiSetObjResult(interp, objP);
+            ObjSetResult(interp, objP);
             tcl_result = TCL_OK;
         }
         else {
@@ -631,7 +631,7 @@ int Twapi_InitializeSecurityDescriptor(Tcl_Interp *interp)
     if (resultObj == NULL)
         return TCL_ERROR;
 
-    return TwapiSetObjResult(interp, resultObj);
+    return ObjSetResult(interp, resultObj);
 }
 
 int Twapi_GetNamedSecurityInfo (
@@ -657,7 +657,7 @@ int Twapi_GetNamedSecurityInfo (
     resultObj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
     LocalFree(secdP);
     if (resultObj)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
     return TCL_OK;
 
 }
@@ -685,7 +685,7 @@ int Twapi_GetSecurityInfo (
     resultObj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
     LocalFree(secdP);
     if (resultObj)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
     return TCL_OK;
 }
 
@@ -704,7 +704,7 @@ int Twapi_LsaEnumerateAccountRights(
 
     ntstatus = LsaEnumerateAccountRights(policyH, sidP, &rightsP, &count);
     if (ntstatus != STATUS_SUCCESS) {
-        TwapiSetStaticResult(interp, "Could not enumerate account rights: ");
+        ObjSetStaticResult(interp, "Could not enumerate account rights: ");
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
     }
 
@@ -721,7 +721,7 @@ int Twapi_LsaEnumerateAccountRights(
     LsaFreeMemory(rightsP);
 
     if (result == TCL_OK)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
     return result;
 }
@@ -742,7 +742,7 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
     ntstatus = LsaEnumerateAccountsWithUserRight(policyH, rightP,
                                                  (void **) &buf, &count);
     if (ntstatus != STATUS_SUCCESS) {
-        TwapiSetStaticResult(interp, "Could not enumerate accounts with specified privileges: ");
+        ObjSetStaticResult(interp, "Could not enumerate accounts with specified privileges: ");
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(ntstatus));
     }
 
@@ -760,7 +760,7 @@ int Twapi_LsaEnumerateAccountsWithUserRight(
     LsaFreeMemory(buf);
 
     if (result == TCL_OK)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
     return result;
 
@@ -787,7 +787,7 @@ int Twapi_LsaEnumerateLogonSessions(Tcl_Interp *interp)
                                  ObjFromLUID(&luids[i]));
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
 
     LsaFreeReturnBuffer(luids);
 
@@ -839,7 +839,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp, resultObj, sessionP, Upn);
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
 
     LsaFreeReturnBuffer(sessionP);
     return TCL_OK;
@@ -950,7 +950,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
             break;
         resultObjs[0] = ObjFromUnicode(user_buf);
         resultObjs[2] = ObjFromBoolean(bsave);
-        Tcl_SetObjResult(interp, ObjNewList(3, resultObjs));
+        ObjSetResult(interp, ObjNewList(3, resultObjs));
         res = TCL_OK;
         break;
     case ERROR_CANCELLED:

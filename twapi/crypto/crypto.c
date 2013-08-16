@@ -36,12 +36,12 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
     if (len > sizeof(buf)) {
         Tcl_SetObjErrorCode(interp,
                             Twapi_MakeTwapiErrorCodeObj(TWAPI_INTERNAL_LIMIT));
-        Tcl_SetResult(interp, "Too many random bytes requested.", TCL_STATIC);
+        ObjSetStaticResult(interp, "Too many random bytes requested.");
         return TCL_ERROR;
     }
 
     if (CryptGenRandom(provH, len, buf)) {
-        TwapiSetObjResult(interp, ObjFromByteArray(buf, len));
+        ObjSetResult(interp, ObjFromByteArray(buf, len));
         return TCL_OK;
     } else {
         return TwapiReturnSystemError(interp);
@@ -64,7 +64,7 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
         TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
                        GETINT(blobP->cUnusedBits)) != TCL_OK ||
         blobP->cUnusedBits > 7) {
-        TwapiSetStaticResult(interp, "Invalid CERT_PUBLIC_KEY_INFO structure");
+        ObjSetStaticResult(interp, "Invalid CERT_PUBLIC_KEY_INFO structure");
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -89,7 +89,7 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
         return res;
 
     if (nobjs != 1) {
-        TwapiSetStaticResult(ticP->interp, "Invalid algorithm identifier format or unsupported parameters");
+        ObjSetStaticResult(ticP->interp, "Invalid algorithm identifier format or unsupported parameters");
         return TCL_ERROR;
     }
 
@@ -112,7 +112,7 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     int       nobjs;
 
     if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK || nobjs != 2) {
-        TwapiSetStaticResult(ticP->interp,
+        ObjSetStaticResult(ticP->interp,
                              "Invalid CERT_PUBLIC_KEY_INFO structure");
         return TCL_ERROR;
     }
@@ -161,7 +161,7 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
         if ((res = ObjGetElements(interp, objs[i], &nextobjs, &extobjs)) != TCL_OK)
             return res;
         if (nextobjs != 2 && nextobjs != 3) {
-            Tcl_SetResult(interp, "Certificate extension format invalid or not implemented", TCL_STATIC);
+            ObjSetStaticResult(interp, "Certificate extension format invalid or not implemented");
             return TCL_ERROR;
         }
         if ((res = ObjToBoolean(interp, extobjs[1], &bval)) != TCL_OK)
@@ -211,7 +211,7 @@ static TCL_RESULT ParseCERT_INFO(
                        GETOBJ(issuerIdObj),
                        GETOBJ(subjectIdObj),
                        GETOBJ(extsObj), ARGEND) != TCL_OK) {
-        TwapiSetStaticResult(interp, "Invalid CERT_INFO structure");
+        ObjSetStaticResult(interp, "Invalid CERT_INFO structure");
         return TCL_ERROR;
     }
 
@@ -324,7 +324,7 @@ static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
             STREQ(soid, szOID_ISSUER_ALT_NAME)) {
             soid = X509_ALTERNATE_NAME; /* soid NOW A DWORD!!! */
         } else {
-            Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
+            ObjSetResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
             return TCL_ERROR;
         }
     }
@@ -355,7 +355,7 @@ static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
         break;
 
     default:
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
+        ObjSetResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
         return TCL_ERROR;
     }
 
@@ -381,7 +381,7 @@ static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
     return TCL_OK;
 
 invalid_name_error:
-    Tcl_SetObjResult(interp,
+    ObjSetResult(interp,
                      Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(valObj)));
     return TCL_ERROR;
 }
@@ -441,7 +441,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                            ARGEND) != TCL_OK
             ||
             ki.cProvParam != 0) {
-            Tcl_SetResult(interp, "Invalid or unimplemented provider parameters", TCL_STATIC);
+            ObjSetStaticResult(interp, "Invalid or unimplemented provider parameters");
             status = TCL_ERROR;
             goto vamoose;
         }
@@ -478,7 +478,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     if (certP) {
         if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-        Tcl_SetObjResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
+        ObjSetResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
         status = TCL_OK;
     } else {
         status = TwapiReturnSystemError(interp);
@@ -691,7 +691,7 @@ static TCL_RESULT TwapiCertGetNameString(
         pv = ObjToString(owhat);
         break;
     default:
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("CertGetNameString: unknown type %d", type));
+        ObjSetResult(interp, Tcl_ObjPrintf("CertGetNameString: unknown type %d", type));
         return TCL_ERROR;
     }
 
@@ -703,7 +703,7 @@ static TCL_RESULT TwapiCertGetNameString(
     // are post Win8 AND they will change output encoding/format
     // Only support what we know
     if (flags & ~(0x00010001)) {
-        Tcl_SetObjResult(interp, Tcl_ObjPrintf("CertGetNameString: unsupported flags %d", flags));
+        ObjSetResult(interp, Tcl_ObjPrintf("CertGetNameString: unsupported flags %d", flags));
         return TCL_ERROR;
     }
 
@@ -711,14 +711,14 @@ static TCL_RESULT TwapiCertGetNameString(
     /* Note nchars includes terminating NULL */
     if (nchars > 1) {
         if (nchars < ARRAYSIZE(buf)) {
-            Tcl_SetObjResult(interp, ObjFromUnicodeN(buf, nchars-1));
+            ObjSetResult(interp, ObjFromUnicodeN(buf, nchars-1));
         } else {
             /* Buffer might have been truncated. Explicitly get buffer size */
             WCHAR *bufP;
             nchars = CertGetNameStringW(certP, type, flags, pv, NULL, 0);
             bufP = TwapiAlloc(nchars*sizeof(WCHAR));
             nchars = CertGetNameStringW(certP, type, flags, pv, bufP, nchars);
-            Tcl_SetObjResult(interp, ObjFromUnicodeN(bufP, nchars-1));
+            ObjSetResult(interp, ObjFromUnicodeN(bufP, nchars-1));
             TwapiFree(bufP);
         }
     }
@@ -806,7 +806,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
             Tcl_DecrRefCount(objP);
             return Twapi_AppendSystemError(interp, n);
         }
-        Tcl_SetObjResult(interp, objP);
+        ObjSetResult(interp, objP);
         return TCL_OK;
     }
     
@@ -839,7 +839,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     } else
         Tcl_SetByteArrayLength(objP, n);
 
-    Tcl_SetObjResult(interp, objP);
+    ObjSetResult(interp, objP);
     return TCL_OK;
 }
 
@@ -887,7 +887,7 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
     case 16: // CERT_STORE_PROV_LDAP
     case 1: // CERT_STORE_PROV_MSG
     default:
-        Tcl_SetObjResult(interp,
+        ObjSetResult(interp,
                          Tcl_ObjPrintf("Invalid or unsupported store provider \"%d\"", store_provider));
         return TCL_ERROR;
     }
@@ -897,7 +897,7 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
         /* CertCloseStore does not check ponter validity! So do ourselves*/
         if (TwapiRegisterPointer(interp, h, CertCloseStore) != TCL_OK)
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-        Tcl_SetObjResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
+        ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
         return TCL_OK;
     } else {
         if (flags & CERT_STORE_DELETE_FLAG) {
@@ -954,7 +954,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
         Tcl_DecrRefCount(objP);
         return TCL_ERROR;
     }
-    Tcl_SetObjResult(interp, objP);
+    ObjSetResult(interp, objP);
     return TCL_OK;
 }
 
@@ -1000,7 +1000,7 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCert(
                                           ObjToByteArray(encodedObj, NULL),
                                           &nbytes)) {
             Tcl_SetByteArrayLength(encodedObj, nbytes);
-            TwapiSetObjResult(ticP->interp, encodedObj);
+            ObjSetResult(ticP->interp, encodedObj);
         } else
             res = TwapiReturnSystemError(ticP->interp);
     }

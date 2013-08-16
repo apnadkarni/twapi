@@ -46,7 +46,7 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
 
     objv[0] = fields;
     objv[1] = records;
-    TwapiSetObjResult(interp, ObjNewList(2, objv));
+    ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -78,7 +78,7 @@ int Twapi_WTSQuerySessionInformation(
         }
         /* Note bufP can be NULL even on success! */
         if (bufP)
-            TwapiSetObjResult(interp, ObjFromUnicode(bufP));
+            ObjSetResult(interp, ObjFromUnicode(bufP));
         break;
 
     case WTSClientBuildNumber:
@@ -90,7 +90,7 @@ int Twapi_WTSQuerySessionInformation(
             goto handle_error;
         }
         if (bufP)
-            TwapiSetObjResult(interp, ObjFromLong(*(long *)bufP));
+            ObjSetResult(interp, ObjFromLong(*(long *)bufP));
         break;
         
     case WTSClientProductId:
@@ -100,7 +100,7 @@ int Twapi_WTSQuerySessionInformation(
             goto handle_error;
         }
         if (bufP)
-            TwapiSetObjResult(interp, ObjFromLong(*(USHORT *)bufP));
+            ObjSetResult(interp, ObjFromLong(*(USHORT *)bufP));
         break;
 
     case WTSClientAddress: /* TBD */
@@ -120,7 +120,7 @@ int Twapi_WTSQuerySessionInformation(
     if (bufP)
         Twapi_WTSFreeMemory(bufP);
 
-    TwapiSetStaticResult(interp, "Could not query TS information.");
+    ObjSetStaticResult(interp, "Could not query TS information.");
 
     return Twapi_AppendSystemError(interp, winerr);
 }
