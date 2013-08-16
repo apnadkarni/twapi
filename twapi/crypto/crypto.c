@@ -418,9 +418,6 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
         goto vamoose;
     
 
-    if (pv && (status = TwapiVerifyPointer(interp, pv, CryptReleaseContext)) != TCL_OK)
-        goto vamoose;
-
     hprov = (HCRYPTPROV) pv;
  
     /* Parse CRYPT_KEY_PROV_INFO */
