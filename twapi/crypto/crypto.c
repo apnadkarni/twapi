@@ -892,7 +892,7 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
     hstore = CertOpenStore(IntToPtr(store_provider), enc_type, 0, flags, pv);
     if (hstore) {
         /* CertCloseStore does not check ponter validity! So do ourselves*/
-        if (TwapiRegisterPointer(interp, h, CertCloseStore) != TCL_OK)
+        if (TwapiRegisterPointer(interp, hstore, CertCloseStore) != TCL_OK)
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
         ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
         return TCL_OK;
@@ -1336,7 +1336,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s CryptoDispatch[] = {
         DEFINE_FNCODE_CMD(CryptAcquireContext, 10000),
-        DEFINE_FNCODE_CMD(crypt_release_context, 10001),
+        DEFINE_FNCODE_CMD(crypt_context_release, 10001),
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
         DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
         DEFINE_FNCODE_CMD(cert_delete_from_store, 10004), // Doc TBD
