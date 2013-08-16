@@ -966,7 +966,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 10: // Shell_NotifyIcon
         CHECK_NARGS(interp, objc, 2);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-        u.niP = ObjToByteArray(objv[1], &dw2);
+        u.niP = (NOTIFYICONDATAW *) ObjToByteArray(objv[1], &dw2);
         if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
         }
