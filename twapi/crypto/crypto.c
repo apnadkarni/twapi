@@ -49,6 +49,210 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 }
 #endif
 
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_BIT_BLOB(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *pkObj,
+    CRYPT_BIT_BLOB *blobP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    Tcl_Interp *interp = ticP->interp;
+
+    if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK ||
+        TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
+                       GETINT(blobP->cUnusedBits)) != TCL_OK ||
+        blobP->cUnusedBits > 7) {
+        TwapiSetStaticResult(interp, "Invalid CERT_PUBLIC_KEY_INFO structure");
+        return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+/* Returns pointer to a CRYPT_ALGORITHM_IDENTIFIER structure in algidP
+   using memory from ticP->memlifo. Caller responsible for storage
+   in both success and error cases
+*/
+static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *algObj,
+    CRYPT_ALGORITHM_IDENTIFIER *algidP
+    )
+{
+    TCL_RESULT res;
+    Tcl_Obj **objs;
+    int       n, nobjs;
+    char     *p;
+
+    if ((res = ObjGetElements(ticP->interp, algObj, &nobjs, &objs)) != TCL_OK)
+        return res;
+
+    if (nobjs != 1) {
+        TwapiSetStaticResult(ticP->interp, "Invalid algorithm identifier format or unsupported parameters");
+        return TCL_ERROR;
+    }
+
+    p = ObjToStringN(objs[0], &n);
+    algidP->pszObjId = MemLifoCopy(&ticP->memlifo, p, n+1);
+    algidP->Parameters.cbData = 0;
+    algidP->Parameters.pbData = 0;
+    return TCL_OK;
+}
+
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *pkObj,
+    CERT_PUBLIC_KEY_INFO *pkP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+
+    if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK || nobjs != 2) {
+        TwapiSetStaticResult(ticP->interp,
+                             "Invalid CERT_PUBLIC_KEY_INFO structure");
+        return TCL_ERROR;
+    }
+    
+    if (ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, objs[0], &pkP->Algorithm) != TCL_OK ||
+        ParseCRYPT_BIT_BLOB(ticP, objs[1], &pkP->PublicKey) != TCL_OK)
+        return TCL_ERROR;
+    
+    return TCL_OK;
+}
+
+/* Returns pointer to a CERT_EXTENSIONS_IDENTIFIER structure in *extsPP
+   using memory from ticP->memlifo. Caller responsible for storage in both
+   success and error cases.
+   Can return NULL in *extsPP if extObj is empty list.
+*/
+static TCL_RESULT ParseCERT_EXTENSIONS(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *extsObj,
+    DWORD *nextsP,
+    CERT_EXTENSION **extsPP
+    )
+{
+    CERT_EXTENSION *extsP;
+    Tcl_Obj **objs;
+    int       i, n, nobjs;
+    TCL_RESULT res;
+    char *p;
+    Tcl_Interp *interp = ticP->interp;
+
+    if ((res = ObjGetElements(interp, extsObj, &nobjs, &objs)) != TCL_OK)
+        return res;
+
+    if (nobjs == 0) {
+        *extsPP = NULL;
+        *nextsP = 0;
+        return TCL_OK;
+    }
+
+    extsP = MemLifoAlloc(&ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
+    for (i = 0; i < nobjs; ++i) {
+        Tcl_Obj **extobjs;
+        int       nextobjs;
+        int       bval;
+        PCERT_EXTENSION extP = &extsP[i];
+        if ((res = ObjGetElements(interp, objs[i], &nextobjs, &extobjs)) != TCL_OK)
+            return res;
+        if (nextobjs != 2 && nextobjs != 3) {
+            Tcl_SetResult(interp, "Certificate extension format invalid or not implemented", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if ((res = ObjToBoolean(interp, extobjs[1], &bval)) != TCL_OK)
+            return res;
+        p = ObjToStringN(extobjs[0], &n);
+        extP->pszObjId = MemLifoCopy(&ticP->memlifo, p, n+1);
+        extP->fCritical = (BOOL) bval;
+        if (nextobjs == 3) {
+            res = TwapiCryptEncodeObject(
+                interp, &ticP->memlifo,
+                extobjs[0], extobjs[2],
+                &extP->Value);
+            if (res != TCL_OK)
+                return res;
+        } else {
+            extP->Value.cbData = 0;
+            extP->Value.pbData = NULL;
+        }
+    }
+    *extsPP = extsP;
+    *nextsP = nobjs;
+    return TCL_OK;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCERT_INFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *ciObj,
+    CERT_INFO *ciP             /* Will contain garbage in case of errors */
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
+
+    if (ObjGetElements(NULL, ciObj, &nobjs, &objs) != TCL_OK ||
+        TwapiGetArgsEx(ticP, nobjs, objs,
+                       GETINT(ciP->dwVersion),
+                       GETBA(ciP->SerialNumber.pbData, ciP->SerialNumber.cbData),
+                       GETOBJ(algObj),
+                       GETBA(ciP->Issuer.pbData, ciP->Issuer.cbData),
+                       GETVAR(ciP->NotBefore, ObjToFILETIME),
+                       GETVAR(ciP->NotAfter, ObjToFILETIME),
+                       GETBA(ciP->Subject.pbData, ciP->Subject.cbData),
+                       GETOBJ(pubkeyObj),
+                       GETOBJ(issuerIdObj),
+                       GETOBJ(subjectIdObj),
+                       GETOBJ(extsObj), ARGEND) != TCL_OK) {
+        TwapiSetStaticResult(interp, "Invalid CERT_INFO structure");
+        return TCL_ERROR;
+    }
+
+    if (ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algObj, &ciP->SignatureAlgorithm) != TCL_OK ||
+        ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &ciP->SubjectPublicKeyInfo) != TCL_OK ||
+        ParseCRYPT_BIT_BLOB(ticP, issuerIdObj, &ciP->IssuerUniqueId) != TCL_OK ||
+        ParseCRYPT_BIT_BLOB(ticP, subjectIdObj, &ciP->SubjectUniqueId) != TCL_OK ||
+        ParseCERT_EXTENSIONS(ticP, extsObj, &ciP->cExtension, &ciP->rgExtension) != TCL_OK)
+        return TCL_ERROR;
+        
+    return TCL_OK;
+}
+
+/* 
+ * Parses a non-empty Tcl_Obj into a SYSTEMTIME structure *timeP 
+ * and stores timeP in *timePP. If the Tcl_Obj is empty (meaning use default)
+ * stores NULL in *timePP (and still return TCL_OK)
+ */
+static TCL_RESULT ParseSYSTEMTIME(
+    Tcl_Interp *interp,
+    Tcl_Obj *timeObj,
+    SYSTEMTIME *timeP,
+    SYSTEMTIME **timePP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    TCL_RESULT res;
+
+    if ((res = ObjGetElements(interp, timeObj, &nobjs, &objs)) != TCL_OK)
+        return res;
+    if (nobjs == 0)
+        *timePP = NULL;
+    else {
+        if ((res = ObjToSYSTEMTIME(interp, timeObj, timeP)) != TCL_OK)
+            return res;
+        *timePP = timeP;
+    }
+    return TCL_OK;
+}
+
 static TCL_RESULT TwapiCryptDecodeObject(Tcl_Interp *interp, LPCSTR oid, void *penc, DWORD nenc, Tcl_Obj **objPP)
 {
     Tcl_Obj *objP;
@@ -195,7 +399,8 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     int       nobjs;
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
-    CERT_EXTENSIONS exts, *extsP;
+    CERT_EXTENSIONS exts;
+    Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj;
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(&ticP->memlifo);
@@ -204,11 +409,11 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                                  GETHANDLET(pv, HCRYPTPROV),
                                  GETBA(name_blob.pbData, name_blob.cbData),
                                  GETINT(flags),
-                                 ARGSKIP, // CRYPT_KEY_PROV_INFO
-                                 ARGSKIP, // CRYPT_ALGORITHM_IDENTIFIER
-                                 ARGSKIP, // STARTTIME
-                                 ARGSKIP, // ENDTIME
-                                 ARGSKIP, // EXTENSIONS
+                                 GETOBJ(provinfoObj),
+                                 GETOBJ(algidObj),
+                                 GETOBJ(startObj),
+                                 GETOBJ(endObj),
+                                 GETOBJ(extsObj),
                                  ARGEND)) != TCL_OK)
         goto vamoose;
     
@@ -219,7 +424,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     hprov = (HCRYPTPROV) pv;
  
     /* Parse CRYPT_KEY_PROV_INFO */
-    if ((status = ObjGetElements(interp, objv[4], &nobjs, &objs)) != TCL_OK)
+    if ((status = ObjGetElements(interp, provinfoObj, &nobjs, &objs)) != TCL_OK)
         goto vamoose;
 
     if (nobjs == 0)
@@ -245,89 +450,30 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     }
 
     /* Parse CRYPT_ALGORITHM_IDENTIFIER */
-    if ((status = ObjGetElements(interp, objv[5], &nobjs, &objs)) != TCL_OK)
+    if ((status = ObjListLength(interp, algidObj, &nobjs)) != TCL_OK)
         goto vamoose;
     if (nobjs == 0)
         algidP = NULL;
     else {
-        if (nobjs >= 2) {
-            Tcl_SetResult(interp, "Invalid algorithm identifier format or unsupported parameters", TCL_STATIC);
-            status = TCL_ERROR;
-            goto vamoose;
-        }
-        algid.pszObjId = ObjToString(objs[0]);
-        algid.Parameters.cbData = 0;
-        algid.Parameters.pbData = 0;
         algidP = &algid;
-    }
-
-    if ((status = ObjGetElements(interp, objv[6], &nobjs, &objs)) != TCL_OK)
-        goto vamoose;
-    if (nobjs == 0)
-        startP = NULL;
-    else {
-        if ((status = ObjToSYSTEMTIME(interp, objv[6], &start)) != TCL_OK)
+        status = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algidObj, algidP);
+        if (status != TCL_OK)
             goto vamoose;
-        startP = &start;
     }
 
-    if ((status = ObjGetElements(interp, objv[7], &nobjs, &objs)) != TCL_OK)
+    if ((status = ParseSYSTEMTIME(interp, startObj, &start, &startP)) != TCL_OK)
         goto vamoose;
-    if (nobjs == 0)
-        endP = NULL;
-    else {
-        if ((status = ObjToSYSTEMTIME(interp, objv[7], &end)) != TCL_OK)
-            goto vamoose;
-        endP = &end;
-    }
-
-    if ((status = ObjGetElements(interp, objv[8], &nobjs, &objs)) != TCL_OK)
+    if ((status = ParseSYSTEMTIME(interp, endObj, &end, &endP)) != TCL_OK)
         goto vamoose;
-    if (nobjs == 0)
-        extsP = NULL;
-    else {
-        DWORD i;
 
-        exts.rgExtension = MemLifoAlloc(
-            &ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
-        exts.cExtension = nobjs;
+    if ((status = ParseCERT_EXTENSIONS(ticP, extsObj,
+                                       &exts.cExtension, &exts.rgExtension))
+        != TCL_OK)
+        goto vamoose;
 
-        for (i = 0; i < exts.cExtension; ++i) {
-            Tcl_Obj **extobjs;
-            int       nextobjs;
-            int       bval;
-            PCERT_EXTENSION extP = &exts.rgExtension[i];
-
-            status = ObjGetElements(interp, objs[i], &nextobjs, &extobjs);
-            if (status == TCL_OK) {
-                if (nextobjs == 2 || nextobjs == 3) {
-                    status = ObjToBoolean(interp, extobjs[1], &bval);
-                    if (status == TCL_OK) {
-                        extP->pszObjId = ObjToString(extobjs[0]);
-                        extP->fCritical = (BOOL) bval;
-                        if (nextobjs == 3) {
-                            status = TwapiCryptEncodeObject(
-                                interp, &ticP->memlifo,
-                                extobjs[0], extobjs[2],
-                                &extP->Value);
-                        } else {
-                            extP->Value.cbData = 0;
-                            extP->Value.pbData = NULL;
-                        }
-                    }
-                } else {
-                    Tcl_SetResult(interp, "Certificate extension format invalid or not implemented", TCL_STATIC);
-                    status = TCL_ERROR;
-                }
-            }
-
-            if (status != TCL_OK)
-                goto vamoose;
-        }
-    }
-
-    certP = (PCERT_CONTEXT) CertCreateSelfSignCertificate(hprov, &name_blob, flags,
-                                          kiP, algidP, startP, endP, extsP);
+    certP = (PCERT_CONTEXT) CertCreateSelfSignCertificate(
+        hprov, &name_blob, flags, kiP, algidP, startP, endP,
+        exts.rgExtension ? &exts : NULL);
 
     if (certP) {
         if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
@@ -810,6 +956,58 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
     }
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
+}
+
+
+static TCL_RESULT Twapi_CryptSignAndEncodeCert(
+    TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
+    Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *algidObj, *certinfoObj, *encodedObj;
+    TCL_RESULT res;
+    CRYPT_ALGORITHM_IDENTIFIER algid;
+    DWORD keyspec, enctype;
+    CERT_INFO ci;
+    HCRYPTPROV hprov;
+    MemLifoMarkHandle mark;
+    DWORD nbytes;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    res = TwapiGetArgsEx(ticP, objc, objv, GETHANDLET(hprov, HCRYPTPROV),
+                         GETINT(keyspec), GETINT(enctype),
+                         GETOBJ(certinfoObj), GETOBJ(algidObj),
+                         ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algidObj, &algid);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    res = ParseCERT_INFO(ticP, certinfoObj, &ci);
+    if (res != TCL_OK)
+        goto vamoose;
+    
+    if (! CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
+                                        X509_CERT_TO_BE_SIGNED, &ci,
+                                        &algid, NULL, NULL, &nbytes))
+        res = TwapiReturnSystemError(ticP->interp);
+    else {
+        encodedObj = ObjFromByteArray(NULL, nbytes);
+        if (CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
+                                          X509_CERT_TO_BE_SIGNED, &ci,
+                                          &algid, NULL,
+                                          ObjToByteArray(encodedObj, NULL),
+                                          &nbytes)) {
+            Tcl_SetByteArrayLength(encodedObj, nbytes);
+            TwapiSetObjResult(ticP->interp, encodedObj);
+        } else
+            res = TwapiReturnSystemError(ticP->interp);
+    }
+
+vamoose:                       
+    MemLifoPopMark(mark);
+    return res;
 }
 
 
