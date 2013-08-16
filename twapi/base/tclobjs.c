@@ -104,7 +104,7 @@ static struct Tcl_ObjType gVariantType = {
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     if (interp) {
-        (void) TwapiSetObjResult(interp,
+        (void) ObjSetResult(interp,
                          Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
                                        vt));
     }
@@ -141,7 +141,7 @@ static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
         Tcl_Obj *objP; 
         objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
         Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
-        (void)TwapiSetObjResult(interp, objP);
+        (void)ObjSetResult(interp, objP);
     }
 
     return TCL_ERROR;
@@ -162,7 +162,7 @@ static void UpdateOpaqueTypeString(Tcl_Obj *objP)
         objs[1] = OPAQUE_REP_CTYPE(objP);
 
     listObj = ObjNewList(2, objs);
-    Tcl_GetString(listObj);     /* Ensure string rep */
+    ObjToString(listObj);     /* Ensure string rep */
 
     /* We could just shift the bytes field from listObj to objP resetting
        the former to NULL. But I'm nervous about doing that behind Tcl's back */
@@ -305,7 +305,7 @@ int TwapiInitTclTypes(void)
      */
     if (gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr == NULL) {
         Tcl_Obj *objP = STRING_LITERAL_OBJ("true");
-        Tcl_GetBooleanFromObj(NULL, objP, &i);
+        ObjToBoolean(NULL, objP, &i);
         /* This may still be NULL, but what can we do ? */
         gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
     }    
@@ -346,10 +346,10 @@ int Twapi_GetTclTypeObjCmd(
             const char *typename;
             if (LookupBaseVT(NULL, (VARTYPE) VARIANT_REP_VT(objv[1]), &typename) == TCL_OK &&
                 typename) {
-                return TwapiSetObjResult(interp, ObjFromString(typename));
+                return ObjSetResult(interp, ObjFromString(typename));
             }
         }
-        TwapiSetObjResult(interp, ObjFromString(objv[1]->typePtr->name));
+        ObjSetResult(interp, ObjFromString(objv[1]->typePtr->name));
     } else {
         /* Leave result as empty string */
     }
@@ -376,7 +376,7 @@ int Twapi_InternalCastObjCmd(
 
     if (*typename == '\0') {
         /* No type, keep as is */
-        return TwapiSetObjResult(interp, objv[2]);
+        return ObjSetResult(interp, objv[2]);
     }
         
     /*
@@ -386,12 +386,12 @@ int Twapi_InternalCastObjCmd(
      * even a registered type in Tcl.
      */
     if (STREQ(typename, "boolean") || STREQ(typename, "booleanString")) {
-        if (Tcl_GetBooleanFromObj(interp, objv[2], &i) == TCL_ERROR)
+        if (ObjToBoolean(interp, objv[2], &i) == TCL_ERROR)
             return TCL_ERROR;
         /* Directly calling Tcl_NewBooleanObj returns an int type object */
         objP = ObjFromString(i ? "true" : "false");
-        Tcl_GetBooleanFromObj(NULL, objP, &i);
-        return TwapiSetObjResult(interp, objP);
+        ObjToBoolean(NULL, objP, &i);
+        return ObjSetResult(interp, objP);
     }
 
     typeP = Tcl_GetObjType(typename);
@@ -423,7 +423,7 @@ int Twapi_InternalCastObjCmd(
             }
         }
 
-        return TwapiSetObjResult(interp, objP);
+        return ObjSetResult(interp, objP);
     }
 
     /* Not a registered Tcl type. See if one of ours */
@@ -437,7 +437,7 @@ int Twapi_InternalCastObjCmd(
             Tcl_InvalidateStringRep(objP);
             objP->typePtr = &gVariantType;
             VARIANT_REP_VT(objP) = vt;
-            return TwapiSetObjResult(interp, objP);
+            return ObjSetResult(interp, objP);
         }
     }
 
@@ -447,12 +447,12 @@ error_handler:
 }
 
 /* Call to set static result */
-void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[])
+void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[])
 {
     Tcl_SetResult(interp, (char *) s, TCL_STATIC);
 }
 
-TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP)
+TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP)
 {
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
@@ -619,7 +619,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             typenameP = "HKEY";
             break;
         default:
-            TwapiSetStaticResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements");
+            ObjSetStaticResult(interp, "Internal error: TwapiSetResult - inconsistent nesting of case statements");
             return TCL_ERROR;
         }
         resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
@@ -720,14 +720,14 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         break;
 
     default:
-        TwapiSetStaticResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult");
+        ObjSetStaticResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult");
         return TCL_ERROR;
     }
 
     TwapiClearResult(resultP);  /* Clear out resources */
 
     if (resultObj)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
 
     return TCL_OK;
@@ -913,7 +913,7 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
 
     if (i < low || i > high) {
         if (interp) {
-            TwapiSetObjResult(interp,
+            ObjSetResult(interp,
                              Tcl_ObjPrintf("Integer '%d' not within range %d-%d", i, low, high));
         }
         return TCL_ERROR;
@@ -1041,7 +1041,7 @@ Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP)
 int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *ftimeP)
 {
     LARGE_INTEGER large;
-    if (Tcl_GetWideIntFromObj(interp, obj, &large.QuadPart) != TCL_OK)
+    if (ObjToWideInt(interp, obj, &large.QuadPart) != TCL_OK)
         return TCL_ERROR;
 
     if (ftimeP) {
@@ -1062,7 +1062,7 @@ Tcl_Obj *ObjFromCY(const CY *cyP)
 int ObjToCY(Tcl_Interp *interp, Tcl_Obj *obj, CY *cyP)
 {
     Tcl_WideInt wi;
-    if (Tcl_GetWideIntFromObj(interp, obj, &wi) != TCL_OK)
+    if (ObjToWideInt(interp, obj, &wi) != TCL_OK)
         return TCL_ERROR;
 
     if (cyP)
@@ -1153,7 +1153,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
              * The 2 is for the trailing 2 null bytes
              */
             if (itemlen > (numbytes-2)) {
-                TwapiSetStaticResult(interp, "Invalid item id list format");
+                ObjSetStaticResult(interp, "Invalid item id list format");
                 return TCL_ERROR;
             }
             numbytes -= itemlen;
@@ -1164,7 +1164,7 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
     *idsPP = CoTaskMemAlloc(numbytes);
     if (*idsPP == NULL) {
         if (interp)
-            TwapiSetStaticResult(interp, "CoTaskMemAlloc failed in SHChangeNotify");
+            ObjSetStaticResult(interp, "CoTaskMemAlloc failed in SHChangeNotify");
         return TCL_ERROR;
     }
 
@@ -1338,7 +1338,7 @@ TCL_RESULT ObjToMultiSzEx (
 
     *multiszPtrPtr = NULL;
     for (i=0, len=0; ; ++i) {
-        if (Tcl_ListObjIndex(interp, listPtr, i, &objPtr) == TCL_ERROR)
+        if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR)
             return TCL_ERROR;
         if (objPtr == NULL)
             break;              /* No more items */
@@ -1352,7 +1352,7 @@ TCL_RESULT ObjToMultiSzEx (
         buf = TwapiAlloc(len*sizeof(*buf));
 
     for (i=0, dst=buf; ; ++i) {
-        if (Tcl_ListObjIndex(interp, listPtr, i, &objPtr) == TCL_ERROR) {
+        if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR) {
             if (lifoP == NULL)
                 TwapiFree(buf);
             return TCL_ERROR;
@@ -1431,7 +1431,7 @@ int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
         return TCL_ERROR;
     if (lval & 0xffff0000) {
         if (interp)
-            TwapiSetStaticResult(interp, "Integer value must be less than 65536");
+            ObjSetStaticResult(interp, "Integer value must be less than 65536");
         return TCL_ERROR;
     }
     *wordP = (WORD) lval;
@@ -1448,7 +1448,7 @@ int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP)
     }
 
     if (objc != 4) {
-        TwapiSetStaticResult(interp, "Invalid RECT format.");
+        ObjSetStaticResult(interp, "Invalid RECT format.");
         return TCL_ERROR;
     }
     if ((ObjToLong(interp, objv[0], &rectP->left) != TCL_OK) ||
@@ -1508,7 +1508,7 @@ int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP)
     }
 
     if (objc != 2) {
-        TwapiSetStaticResult(interp, "Invalid POINT format.");
+        ObjSetStaticResult(interp, "Invalid POINT format.");
         return TCL_ERROR;
     }
     if ((ObjToLong(interp, objv[0], &ptP->x) != TCL_OK) ||
@@ -1556,7 +1556,7 @@ int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP)
         }
     }
     if (interp) {
-        TwapiSetStaticResult(interp, "Invalid LUID format: ");
+        ObjSetStaticResult(interp, "Invalid LUID format: ");
         Tcl_AppendResult(interp, strP, NULL);
     }
     return TCL_ERROR;
@@ -1639,7 +1639,7 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
     return ObjNewList(2, objv);
 
 badformat:
-    TwapiSetStaticResult(interp, "Badly formatted registry value");
+    ObjSetStaticResult(interp, "Badly formatted registry value");
     return NULL;
 }
 
@@ -2148,7 +2148,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
     if ((vt == VT_UI1 || vt == VT_VARIANT) &&
         tcltype == TWAPI_TCLTYPE_BYTEARRAY) {
         /* Special case byte array */
-        valP = Tcl_GetByteArrayFromObj(valueObj, &i);
+        valP = ObjToByteArray(valueObj, &i);
         saP = SafeArrayCreateVector(VT_UI1, 0, i);
         if (saP == NULL)
             return TwapiReturnErrorMsg(interp, TWAPI_SYSTEM_ERROR,
@@ -2167,7 +2167,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
      * if its current Tcl type is not list. For nested levels, we do
      * treat it as a list only if it is actually already typed as a list.
      */
-    if (Tcl_ListObjIndex(interp, valueObj, 0, &objP) != TCL_OK ||
+    if (ObjListIndex(interp, valueObj, 0, &objP) != TCL_OK ||
         ObjListLength(interp, valueObj, &i) != TCL_OK)
         return TCL_ERROR;       /* Top level obj must be a list */
 
@@ -2194,7 +2194,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
 
         ++ndim; /* Additional level of nesting implies one more dimension */
 
-        if (Tcl_ListObjIndex(interp, objP, 0, &objP) != TCL_OK)
+        if (ObjListIndex(interp, objP, 0, &objP) != TCL_OK)
             return TCL_ERROR;   /* Huh? Type was list so why fail? */
 
         /* Note objP can be NULL (empty list) */
@@ -2226,7 +2226,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
        while loop below ?*/
     for (i = 1; i < ndim; ++i) {
         indices[i] = 0;
-        if (Tcl_ListObjIndex(interp, objs[i-1], 0, &objs[i]) != TCL_OK)
+        if (ObjListIndex(interp, objs[i-1], 0, &objs[i]) != TCL_OK)
             goto error_handler;
     }
 
@@ -2259,7 +2259,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
          * at all and the loop below is not entered at all.
          */
         while (++cur_dim < ndim) {
-            if (Tcl_ListObjIndex(interp, objs[cur_dim-1], indices[cur_dim-1], &objs[cur_dim]) != TCL_OK)
+            if (ObjListIndex(interp, objs[cur_dim-1], indices[cur_dim-1], &objs[cur_dim]) != TCL_OK)
                 goto error_handler;
         }
 
@@ -2267,7 +2267,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         if ((hr = SafeArrayPtrOfIndex(saP, indices, &valP)) != S_OK)
             goto system_error_handler;
 
-        if (Tcl_ListObjIndex(interp, objs[ndim-1], indices[ndim-1], &objP) != TCL_OK)
+        if (ObjListIndex(interp, objs[ndim-1], indices[ndim-1], &objP) != TCL_OK)
             goto error_handler;
 
         if (objP == NULL) {
@@ -2309,7 +2309,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         case VT_R4:
         case VT_R8:
         case VT_DATE:
-            if (Tcl_GetDoubleFromObj(interp, objP, &dval) != TCL_OK)
+            if (ObjToDouble(interp, objP, &dval) != TCL_OK)
                 goto error_handler;
             if (vt == VT_R4)
                 *(float *) valP = (float) dval;
@@ -2328,7 +2328,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
             break;
 
         case VT_BOOL:
-            if (Tcl_GetBooleanFromObj(interp, objP, &ival) != TCL_OK)
+            if (ObjToBoolean(interp, objP, &ival) != TCL_OK)
                 goto error_handler;
             *(VARIANT_BOOL *)valP = ival ? VARIANT_TRUE : VARIANT_FALSE;
             break;
@@ -2486,7 +2486,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
             if (objP == NULL)
                 goto error_handler;
             else
-                Tcl_ListObjAppendElement(NULL, resultObj, objP);
+                ObjAppendElement(NULL, resultObj, objP);
         }
     } else {
 
@@ -2557,7 +2557,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
             if (objP == NULL)
                 goto error_handler;
             else
-                Tcl_ListObjAppendElement(NULL, resultObj, objP);
+                ObjAppendElement(NULL, resultObj, objP);
         }
     }
 
@@ -2658,7 +2658,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     case TWAPI_TCLTYPE_OPAQUE:
         TWAPI_ASSERT(objP->typePtr == &gOpaqueType);
         if (OPAQUE_REP_CTYPE(objP)) {
-            s = Tcl_GetString(OPAQUE_REP_CTYPE(objP));
+            s = ObjToString(OPAQUE_REP_CTYPE(objP));
             if (STREQ(s, "IDispatch"))
                 return VT_DISPATCH;
             if (STREQ(s, "IUnknown"))
@@ -2734,7 +2734,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
 
     case VT_R4:
     case VT_R8:
-        if (Tcl_GetDoubleFromObj(interp, objP, &varP->dblVal) != TCL_OK)
+        if (ObjToDouble(interp, objP, &varP->dblVal) != TCL_OK)
             return TCL_ERROR;
         varP->vt = VT_R8;
         if (vt == VT_R4) {
@@ -2753,7 +2753,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         break;
 
     case VT_DATE:
-        if (Tcl_GetDoubleFromObj(interp, objP, & V_DATE(varP)) != TCL_OK)
+        if (ObjToDouble(interp, objP, & V_DATE(varP)) != TCL_OK)
             return TCL_ERROR;
         varP->vt = VT_DATE;
         break;
@@ -2774,7 +2774,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
          */
         if (ObjToLong(NULL, objP, &varP->lVal) == TCL_OK) {
             varP->vt = VT_I4;
-        } else if (Tcl_GetDoubleFromObj(NULL, objP, &varP->dblVal) == TCL_OK) {
+        } else if (ObjToDouble(NULL, objP, &varP->dblVal) == TCL_OK) {
             varP->vt = VT_R8;
         } else if (ObjToIDispatch(NULL, objP, &varP->pdispVal) == TCL_OK) {
             varP->vt = VT_DISPATCH;
@@ -2809,7 +2809,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         break;
 
     case VT_BOOL:
-        if (Tcl_GetBooleanFromObj(interp, objP, &varP->intVal) != TCL_OK)
+        if (ObjToBoolean(interp, objP, &varP->intVal) != TCL_OK)
             return TCL_ERROR;
         varP->boolVal = varP->intVal ? VARIANT_TRUE : VARIANT_FALSE;
         varP->vt = VT_BOOL;
@@ -2835,7 +2835,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         break;
 
     default:
-        TwapiSetObjResult(interp,
+        ObjSetResult(interp,
                           Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
                                         vt));
         return TCL_ERROR;
@@ -3223,7 +3223,7 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
 
     if (aceP == NULL) {
         if (interp)
-            TwapiSetStaticResult(interp, "NULL ACE pointer");
+            ObjSetStaticResult(interp, "NULL ACE pointer");
         return NULL;
     }
 
@@ -3387,7 +3387,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
 
  format_error:
     if (interp)
-        TwapiSetStaticResult(interp, "Invalid ACE format.");
+        ObjSetStaticResult(interp, "Invalid ACE format.");
     return TCL_ERROR;
 
  system_error:
@@ -3472,7 +3472,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
 
     if (objc != 2) {
         if (interp)
-            TwapiSetStaticResult(interp, "Invalid ACL format.");
+            ObjSetStaticResult(interp, "Invalid ACL format.");
         return TCL_ERROR;
     }
 
@@ -3537,7 +3537,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
 
     if (! IsValidAcl(*aclPP)) {
         if (interp)
-            TwapiSetStaticResult(interp, "Internal error constructing ACL");
+            ObjSetStaticResult(interp, "Internal error constructing ACL");
         goto error_return;
     }
 
@@ -3589,7 +3589,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     if (rev != SECURITY_DESCRIPTOR_REVISION) {
         /* Dunno how to handle this */
         if (interp)
-            TwapiSetStaticResult(interp, "Unsupported SECURITY_DESCRIPTOR version");
+            ObjSetStaticResult(interp, "Unsupported SECURITY_DESCRIPTOR version");
         goto error_return;
     }
 
@@ -3678,7 +3678,7 @@ int ObjToPSECURITY_DESCRIPTOR(
 
     if (objc != 5) {
         if (interp)
-            TwapiSetStaticResult(interp, "Invalid SECURITY_DESCRIPTOR format.");
+            ObjSetStaticResult(interp, "Invalid SECURITY_DESCRIPTOR format.");
         return TCL_ERROR;
     }
 
@@ -3696,7 +3696,7 @@ int ObjToPSECURITY_DESCRIPTOR(
     if (secd_control != temp) {
         /* Truncation error */
         if (interp)
-            TwapiSetStaticResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR");
+            ObjSetStaticResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR");
         goto error_return;
     }
 
@@ -3867,7 +3867,7 @@ int ObjToPSECURITY_ATTRIBUTES(
 
     if (objc != 2) {
         if (interp)
-            TwapiSetStaticResult(interp, "Invalid SECURITY_ATTRIBUTES format.");
+            ObjSetStaticResult(interp, "Invalid SECURITY_ATTRIBUTES format.");
         return TCL_ERROR;
     }
 
@@ -3958,6 +3958,11 @@ TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
     return Tcl_GetWideIntFromObj(interp, objP, wideP);
 }
 
+TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *dblP)
+{
+    return Tcl_GetDoubleFromObj(interp, objP, dblP);
+}
+
 Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[])
 {
     return Tcl_NewListObj(objc, objv);
@@ -3978,6 +3983,11 @@ TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e)
     return Tcl_ListObjAppendElement(interp, l, e);
 }
 
+TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, int ix, Tcl_Obj **objPP)
+{
+    return Tcl_ListObjIndex(interp, l, ix, objPP);
+}
+
 TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP)
 {
     return Tcl_ListObjGetElements(interp, l, objcP, objvP);
@@ -3991,6 +4001,11 @@ Tcl_Obj *ObjFromLong(long val)
 Tcl_Obj *ObjFromWideInt(Tcl_WideInt val)
 {
     return Tcl_NewWideIntObj(val);
+}
+
+Tcl_Obj *ObjFromDouble(double val)
+{
+    return Tcl_NewDoubleObj(val);
 }
 
 Tcl_Obj *ObjFromBoolean(int bval)

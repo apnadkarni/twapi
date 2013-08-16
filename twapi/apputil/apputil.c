@@ -55,7 +55,7 @@ static int TwapiGetProfileSectionHelper(
     }
 
     if (numchars)
-        TwapiSetObjResult(interp, ObjFromMultiSz(bufP, numchars+1));
+        ObjSetResult(interp, ObjFromMultiSz(bufP, numchars+1));
 
     TwapiFree(bufP);
     return TCL_OK;
@@ -123,7 +123,7 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
         ObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
 
     GlobalFree(argv);
     return TCL_OK;

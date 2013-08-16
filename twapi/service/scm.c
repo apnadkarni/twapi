@@ -88,7 +88,7 @@ static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     rec[18] = STRING_LITERAL_OBJ("interactive");
     rec[19] = ObjFromBoolean(ssp.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-    TwapiSetObjResult(interp, ObjNewList(ARRAYSIZE(rec), rec));
+    ObjSetResult(interp, ObjNewList(ARRAYSIZE(rec), rec));
     return TCL_OK;
 }
 
@@ -148,7 +148,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     objv[17] = ObjFromUnicode(qbuf->lpDisplayName);
     objv[18] = STRING_LITERAL_OBJ("-interactive");
     objv[19] = ObjFromBoolean(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
-    TwapiSetObjResult(ticP->interp, ObjNewList(20,objv));
+    ObjSetResult(ticP->interp, ObjNewList(20,objv));
     tcl_result = TCL_OK;
 
 vamoose:
@@ -197,7 +197,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
 
     /* If NULL, we keep result as empty string. Not an error */
     if (bufP->lpDescription)
-        TwapiSetObjResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
+        ObjSetResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
     tcl_result = TCL_OK;
 
 vamoose:
@@ -249,7 +249,7 @@ int  Twapi_QueryServiceLockStatus(
 
     MemLifoPopFrame(&ticP->memlifo);
 
-    TwapiSetObjResult(interp, obj);
+    ObjSetResult(interp, obj);
 
     return TCL_OK;
 }
@@ -288,7 +288,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         return TCL_ERROR;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
-        TwapiSetStaticResult(interp, "Unsupported information level");
+        ObjSetStaticResult(interp, "Unsupported information level");
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
 
@@ -390,7 +390,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
@@ -503,7 +503,7 @@ int Twapi_EnumDependentServices(
         Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[7]), TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     status = TCL_OK;
 
 pop_and_vamoose:
@@ -567,7 +567,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
          * an empty tagid, return it, else return empty string.
          */
         if (tag_idP)
-            TwapiSetObjResult(interp, Tcl_NewLongObj(*tag_idP));
+            ObjSetResult(interp, Tcl_NewLongObj(*tag_idP));
         res = TCL_OK;
     } else
         res = TwapiReturnSystemError(interp);
@@ -636,7 +636,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
 
     /* Check return handle validity */
     if (svcH) {
-        TwapiSetObjResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
+        ObjSetResult(interp, ObjFromOpaque(svcH, "SC_HANDLE"));
         res = TCL_OK;
     } else
         res = TwapiReturnSystemError(interp);
@@ -664,7 +664,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TCL_ERROR;
 
     if (nargs > ARRAYSIZE(args)) {
-        TwapiSetStaticResult(interp, "Exceeded limit on number of service arguments.");
+        ObjSetStaticResult(interp, "Exceeded limit on number of service arguments.");
         return TCL_ERROR;
     }
 

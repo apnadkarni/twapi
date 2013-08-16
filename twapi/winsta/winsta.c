@@ -41,7 +41,7 @@ int Twapi_EnumWindowStations(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    TwapiSetObjResult(interp, enum_ctx.objP);
+    ObjSetResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 
@@ -60,7 +60,7 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
         return TCL_ERROR;
     }
 
-    TwapiSetObjResult(interp, enum_ctx.objP);
+    ObjSetResult(interp, enum_ctx.objP);
     return TCL_OK;
 }
 

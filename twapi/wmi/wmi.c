@@ -90,7 +90,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
 
     case WBEM_S_FALSE: /* Fall thru */
     default:
-        Tcl_SetObjResult(interp,
+        ObjSetResult(interp,
                          Tcl_ObjPrintf("IMofCompiler error: phase: %d, object number: %d, first line: %d, last line: %d.",
                                        wcsi.lPhaseError,
                                        wcsi.ObjectNum,

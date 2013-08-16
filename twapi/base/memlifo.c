@@ -758,7 +758,7 @@ int Twapi_MemLifoDump(Tcl_Interp *interp, MemLifo *l)
         m = m->lm_prev;
     } while (1);
     
-    return TwapiSetObjResult(interp, ObjNewList(ARRAYSIZE(objs),objs));
+    return ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs),objs));
 }
 
 #if 0

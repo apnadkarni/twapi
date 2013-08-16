@@ -41,7 +41,7 @@ int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP)
     if (objc != 2 ||
         ObjToULONG_PTR(interp, objv[0], &shP->dwLower) != TCL_OK ||
         ObjToULONG_PTR(interp, objv[1], &shP->dwUpper) != TCL_OK) {
-        Tcl_SetResult(interp, "Invalid security handle format", TCL_STATIC);
+        ObjSetStaticResult(interp, "Invalid security handle format");
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -50,7 +50,7 @@ int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP)
 int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP)
 {
     int n;
-    if (Tcl_ListObjLength(interp, obj, &n) != TCL_OK)
+    if (ObjListLength(interp, obj, &n) != TCL_OK)
         return TCL_ERROR;
     if (n == 0) {
         *shPP = NULL;
@@ -119,7 +119,7 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
             return TCL_ERROR;
         if (bufobjc != 2 ||
             Tcl_GetIntFromObj(interp, bufobjv[0], &buftype) != TCL_OK) {
-            Tcl_SetResult(interp, "Invalid SecBuffer format", TCL_STATIC);
+            ObjSetStaticResult(interp, "Invalid SecBuffer format");
             goto handle_error;
         }
         dataP = ObjToByteArray(bufobjv[1], &datalen);
@@ -191,7 +191,7 @@ int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp)
 
     FreeContextBuffer(spiP);
 
-    TwapiSetObjResult(interp, obj);
+    ObjSetResult(interp, obj);
     return TCL_OK;
 }
 
@@ -259,7 +259,7 @@ int Twapi_InitializeSecurityContext(
     objv[3] = ObjFromLong(new_context_attr);
     objv[4] = ObjFromWideInt(expiration.QuadPart);
 
-    TwapiSetObjResult(interp, ObjNewList(5, objv));
+    ObjSetResult(interp, ObjNewList(5, objv));
 
     if (sb_out.pvBuffer)
         FreeContextBuffer(sb_out.pvBuffer);
@@ -334,7 +334,7 @@ int Twapi_AcceptSecurityContext(
     objv[3] = ObjFromLong(new_context_attr);
     objv[4] = ObjFromWideInt(expiration.QuadPart);
 
-    TwapiSetObjResult(interp,
+    ObjSetResult(interp,
                      ObjNewList(5, objv));
 
 
@@ -465,7 +465,7 @@ int Twapi_QueryContextAttributes(
         break;
         
     default:
-        Tcl_SetResult(interp, "Unsupported QuerySecurityContext attribute id", TCL_STATIC);
+        ObjSetStaticResult(interp, "Unsupported QuerySecurityContext attribute id");
     }
 
     if (buf)
@@ -475,7 +475,7 @@ int Twapi_QueryContextAttributes(
         return Twapi_AppendSystemError(interp, ss);
 
     if (obj)
-        TwapiSetObjResult(interp, obj);
+        ObjSetResult(interp, obj);
 
     return TCL_OK;
 }
@@ -520,7 +520,7 @@ int Twapi_MakeSignature(
         Tcl_Obj *objv[2];
         objv[0] = ObjFromByteArray(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
         objv[1] = ObjFromByteArray(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
-        TwapiSetObjResult(ticP->interp, ObjNewList(2, objv));
+        ObjSetResult(ticP->interp, ObjNewList(2, objv));
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -581,7 +581,7 @@ int Twapi_EncryptMessage(
         objv[0] = ObjFromByteArray(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
         objv[1] = ObjFromByteArray(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
         objv[2] = ObjFromByteArray(sbufs[2].pvBuffer, sbufs[2].cbBuffer);
-        TwapiSetObjResult(ticP->interp, ObjNewList(3, objv));
+        ObjSetResult(ticP->interp, ObjNewList(3, objv));
     }
 
     MemLifoPopFrame(&ticP->memlifo);

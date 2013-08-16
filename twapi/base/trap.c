@@ -244,7 +244,7 @@ GlobalImport (interp)
     if (code == TCL_ERROR)
         goto errorExit;
 
-    return TwapiSetObjResult (interp, savedResult);
+    return ObjSetResult (interp, savedResult);
 
   errorExit:
     Tcl_DecrRefCount (savedResult);

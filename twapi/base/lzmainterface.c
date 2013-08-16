@@ -34,7 +34,7 @@ unsigned char *TwapiLzmaUncompressBuffer(Tcl_Interp *interp,
     ELzmaStatus status;
 
     if (insz < (LZMA_PROPS_SIZE+8)) {
-        TwapiSetStaticResult(interp, "Input LZMA data header too small.");
+        ObjSetStaticResult(interp, "Input LZMA data header too small.");
         return NULL;
     }
 
@@ -44,7 +44,7 @@ unsigned char *TwapiLzmaUncompressBuffer(Tcl_Interp *interp,
         outsz += (UInt64)indata[LZMA_PROPS_SIZE + i] << (i * 8);
 
     if (outsz == 0xffffffffffffffff) {
-        TwapiSetStaticResult(interp, "No length field in LZMA data. Propably compressed with eos marker. This is not supported.");
+        ObjSetStaticResult(interp, "No length field in LZMA data. Propably compressed with eos marker. This is not supported.");
         return NULL;
     }
 
@@ -71,7 +71,7 @@ unsigned char *TwapiLzmaUncompressBuffer(Tcl_Interp *interp,
     return outdata;
 
 error_return:
-    TwapiSetStaticResult(interp, "LzmaDecode failed.");
+    ObjSetStaticResult(interp, "LzmaDecode failed.");
     if (outdata)
         TwapiFree(outdata);
     return NULL;
