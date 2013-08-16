@@ -310,8 +310,8 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
         /* Errors will be handled below */
         break;
     case TRT_BOOL:
-        tcl_status = Tcl_GetBooleanFromObj(cbP->ticP->interp, objP,
-                                           &responseP->value.bval);
+        tcl_status = ObjToBoolean(cbP->ticP->interp, objP,
+                                  &responseP->value.bval);
         /* Errors will be handled below */
         break;
     case TRT_EMPTY:
@@ -371,7 +371,7 @@ int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
 
     var = Tcl_GetVar2Ex(interp, TWAPI_LOG_VAR, NULL, 0);
     if (var) {
-        if (Tcl_ListObjLength(interp, var, &len) != TCL_OK) {
+        if (ObjListLength(interp, var, &len) != TCL_OK) {
             /* Not a list. Some error, blow it all away. */
             var = ObjFromEmptyString();
             Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, var, 0);
@@ -412,7 +412,7 @@ TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *interp, HANDLE h, char *typestr)
     if (typestr == NULL)
         typestr = "HANDLE";
 
-    return TwapiSetObjResult(interp, ObjFromOpaque(h, typestr));
+    return ObjSetResult(interp, ObjFromOpaque(h, typestr));
 }
 
 

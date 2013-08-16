@@ -191,7 +191,7 @@ static int NPipeModuleInit(Tcl_Interp *interp)
 {
     gNPipeTlsSlot = Twapi_AssignTlsSlot();
     if (gNPipeTlsSlot < 0) {
-        Tcl_SetResult(interp, "Could not assign private TLS slot", TCL_STATIC);
+        ObjSetStaticResult(interp, "Could not assign private TLS slot");
         return TCL_ERROR;
     }
 
@@ -1241,7 +1241,7 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 
     if (pipe_mode & 0x7) {
         /* Currently, must be byte mode pipe and must not have NOWAIT flag */
-        Tcl_SetResult(interp,  "Pipe mode must be byte mode and not specify the NPIPE_NOWAIT flag.", TCL_STATIC);
+        ObjSetStaticResult(interp,  "Pipe mode must be byte mode and not specify the NPIPE_NOWAIT flag.");
         return Twapi_AppendSystemError(interp, TWAPI_INVALID_ARGS);
     }
 
@@ -1302,7 +1302,7 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
                         }
 
                         /* Return channel name */
-                        Tcl_SetObjResult(ticP->interp,
+                        ObjSetResult(ticP->interp,
                                          Tcl_NewStringObj(instance_name, -1));
                         return TCL_OK;
                     } else {
@@ -1415,7 +1415,7 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
                 
                 pcP->flags |= NPIPE_F_CONNECTED;
                 /* Return channel name */
-                Tcl_SetObjResult(ticP->interp,
+                ObjSetResult(ticP->interp,
                                  Tcl_NewStringObj(instance_name, -1));
                 return TCL_OK;
             }

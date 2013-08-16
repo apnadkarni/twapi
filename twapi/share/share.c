@@ -431,12 +431,12 @@ int Twapi_NetShareCheck(
     if (status == NERR_Success) {
         objv[0] = ObjFromLong(1);
         objv[1] = ObjFromDWORD(type);
-        TwapiSetObjResult(interp, ObjNewList(2, objv));
+        ObjSetResult(interp, ObjNewList(2, objv));
     }
     else if (status == NERR_DeviceNotShared) {
         objv[0] = ObjFromLong(0);
         objv[1] = ObjFromLong(0);
-        TwapiSetObjResult(interp, ObjNewList(2, objv));
+        ObjSetResult(interp, ObjNewList(2, objv));
     }
     else {
         return Twapi_AppendSystemError(interp, status);
@@ -462,10 +462,10 @@ int Twapi_NetShareGetInfo(
     case 502:
         status = NetShareGetInfo(servername, netname, level, &shareP);
         if (status != NERR_Success) {
-            TwapiSetStaticResult(interp, "Could not retrieve share information: ");
+            ObjSetStaticResult(interp, "Could not retrieve share information: ");
             return Twapi_AppendSystemError(interp, status);
         }
-        TwapiSetObjResult(
+        ObjSetResult(
             interp,
             ObjFromSHARE_INFO(interp, shareP, level)
             );
@@ -473,7 +473,7 @@ int Twapi_NetShareGetInfo(
         break;
 
     default:
-        TwapiSetStaticResult(interp, "Invalid or unsupported share information level specified");
+        ObjSetStaticResult(interp, "Invalid or unsupported share information level specified");
         return TCL_ERROR;
     }
 
@@ -496,7 +496,7 @@ int Twapi_NetShareSetInfo(
 
     status = NetShareGetInfo(server_name, net_name, 502, (LPBYTE *) &shareP);
     if (status != NERR_Success) {
-        TwapiSetStaticResult(interp, "Could not retrieve share information: ");
+        ObjSetStaticResult(interp, "Could not retrieve share information: ");
         return Twapi_AppendSystemError(interp, status);
     }
 
@@ -555,7 +555,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     error = WNetUseConnectionW(winH, &netresource, passwordP, usernameP, flags,
                                accessname, &accessname_size, &outflags);
     if (error == NO_ERROR) {
-        TwapiSetObjResult(interp, ObjFromUnicode(accessname));
+        ObjSetResult(interp, ObjFromUnicode(accessname));
         return TCL_OK;
     }
     else {
@@ -586,7 +586,7 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(TwapiInterpContext *ticP, Tcl
                                       buf, &buf_sz);
     }
     if (error == NO_ERROR) {
-        TwapiSetObjResult(ticP->interp,
+        ObjSetResult(ticP->interp,
                          ListObjFromREMOTE_NAME_INFOW(ticP->interp,
                                                       (REMOTE_NAME_INFOW *) buf));
         result = TCL_OK;
@@ -631,7 +631,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *tic
         if (error == ERROR_SUCCESS) {
             objs[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
             objs[1] = ObjFromUnicode(systempart);
-            TwapiSetObjResult(ticP->interp, ObjNewList(2, objs));
+            ObjSetResult(ticP->interp, ObjNewList(2, objs));
             res = TCL_OK;
         } else
             res = Twapi_AppendWNetError(ticP->interp, error);
@@ -660,7 +660,7 @@ int Twapi_NetUseGetInfo(
 
     objP = ObjFromUSE_INFO(interp, buf, level);
     if (objP)
-        TwapiSetObjResult(interp, objP);
+        ObjSetResult(interp, objP);
 
     NetApiBufferFree(buf);
     return objP ? TCL_OK : TCL_ERROR;
@@ -679,7 +679,7 @@ int Twapi_WNetGetUser(
     if (error != NO_ERROR)
         return Twapi_AppendWNetError(interp, error);
 
-    TwapiSetObjResult(interp, ObjFromUnicode(buf));
+    ObjSetResult(interp, ObjFromUnicode(buf));
     return TCL_OK;
 }
 
@@ -703,7 +703,7 @@ int Twapi_NetSessionGetInfo(
     
     resultObj = ObjFromSESSION_INFO(interp, bufP, level);
     if (resultObj)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
     NetApiBufferFree(bufP);
     return resultObj ? TCL_OK : TCL_ERROR;
@@ -728,7 +728,7 @@ int Twapi_NetFileGetInfo(
     
     resultObj = ObjFromFILE_INFO(interp, bufP, level);
     if (resultObj)
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
     NetApiBufferFree(bufP);
     return resultObj ? TCL_OK : TCL_ERROR;
@@ -904,7 +904,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         objP = objfn(interp, p, netenum.level);
         if (objP == NULL)
             goto error_return;
-        Tcl_ListObjAppendElement(interp, enumObj, objP);
+        ObjAppendElement(interp, enumObj, objP);
     }
 
     objs[0] = ObjFromLong(netenum.status == ERROR_MORE_DATA);
@@ -912,7 +912,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
     objs[2] = ObjFromLong(netenum.totalentries);
     objs[3] = enumObj;
 
-    TwapiSetObjResult(interp, ObjNewList(4, objs));
+    ObjSetResult(interp, ObjNewList(4, objs));
 
     if (netenum.netbufP)
         NetApiBufferFree((LPBYTE) netenum.netbufP);

@@ -156,7 +156,7 @@ TCL_RESULT TwapiThreadPoolRegister(
                                     wait_ms,
                                     flags)) {
         
-        return TwapiSetObjResult(ticP->interp, ObjFromTwapiId(tprP->id));
+        return ObjSetResult(ticP->interp, ObjFromTwapiId(tprP->id));
     } else {
         tprP->tp_handle = INVALID_HANDLE_VALUE; /* Just to be sure */
         /* Back out the ref for thread pool since it failed */

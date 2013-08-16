@@ -79,7 +79,7 @@ static void UpdateStringParseargsOpt(Tcl_Obj *objP)
         ObjAppendElement(NULL, listObj, ObjNewList(nelems, elems));
     }
 
-    Tcl_GetString(listObj);     /* Ensure string rep */
+    ObjToString(listObj);     /* Ensure string rep */
 
     /* We could just shift the bytes field from listObj to objP resetting
        the former to NULL. But I'm nervous about doing that behind Tcl's back */
@@ -179,7 +179,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         curP->type = OPT_SWITCH; /* Assumed option type */
         curP->name = elems[0];
         Tcl_IncrRefCount(elems[0]);
-        p = Tcl_GetStringFromObj(elems[0], &len);
+        p = ObjToStringN(elems[0], &len);
         curP->first = *p;
         type = Tcl_UtfFindFirst(p, '.');
         if (type == NULL)
@@ -276,7 +276,7 @@ static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
 {
     return Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'",
                          error_type, ObjToString(value),
-                         opt_name_len, Tcl_GetString(opt_name));
+                         opt_name_len, ObjToString(opt_name));
 }
 
 static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct OptionDescriptor *opts, int nopts)
@@ -288,11 +288,11 @@ static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct
     objP = Tcl_ObjPrintf("Invalid option '%s'. Must be one of ", badopt);
 
     for (j = 0; j < nopts; ++j) {
-        Tcl_AppendPrintfToObj(objP, "%s%.*s", sep, opts[j].name_len, Tcl_GetString(opts[j].name));
+        Tcl_AppendPrintfToObj(objP, "%s%.*s", sep, opts[j].name_len, ObjToString(opts[j].name));
         sep = ", -";
     }
 
-    TwapiSetObjResult(interp, objP);
+    ObjSetResult(interp, objP);
     return;
 }
 
@@ -359,7 +359,7 @@ int Twapi_ParseargsObjCmd(
         else if (STREQ("-maxleftover", s)) {
             ++j;
             if (j == objc) {
-                TwapiSetStaticResult(interp, "Missing value for -maxleftover");
+                ObjSetStaticResult(interp, "Missing value for -maxleftover");
                 goto invalid_args_error;
             }
 
@@ -400,7 +400,7 @@ int Twapi_ParseargsObjCmd(
         for (j = 0; j < nopts; ++j) {
             if (opts[j].name_len == (argp_len-1) &&
                 opts[j].first == argp[1] &&
-                ! Tcl_UtfNcmp(Tcl_GetString(opts[j].name), argp+1, (argp_len-1))) {
+                ! Tcl_UtfNcmp(ObjToString(opts[j].name), argp+1, (argp_len-1))) {
                 break;          /* Match ! */
             }
         }
@@ -494,8 +494,8 @@ int Twapi_ParseargsObjCmd(
             if (valuesP[k] == NULL) {
                 valuesP[k] = ObjFromInt(0);
             }
-            else if (Tcl_GetWideIntFromObj(interp, valuesP[k], &wide) == TCL_ERROR) {
-                (void) TwapiSetObjResult(interp,
+            else if (ObjToWideInt(interp, valuesP[k], &wide) == TCL_ERROR) {
+                (void) ObjSetResult(interp,
                                          TwapiParseargsBadValue("Non-integer",
                                                                 valuesP[k],
                                                                 opts[k].name,
@@ -507,8 +507,8 @@ int Twapi_ParseargsObjCmd(
             if (opts[k].valid_values) {
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
                     Tcl_WideInt valid_wide;
-                    if (Tcl_GetWideIntFromObj(interp, validObjs[ivalid], &valid_wide) == TCL_ERROR) {
-                        (void) TwapiSetObjResult(interp, TwapiParseargsBadValue(
+                    if (ObjToWideInt(interp, validObjs[ivalid], &valid_wide) == TCL_ERROR) {
+                        (void) ObjSetResult(interp, TwapiParseargsBadValue(
                                              "Non-integer enumeration",
                                              valuesP[k],
                                              opts[k].name, opts[k].name_len));
@@ -544,8 +544,8 @@ int Twapi_ParseargsObjCmd(
             if (valuesP[k] == NULL)
                 valuesP[k] = ObjFromBoolean(0);
             else {
-                if (Tcl_GetBooleanFromObj(interp, valuesP[k], &j) == TCL_ERROR) {
-                    (void) TwapiSetObjResult(
+                if (ObjToBoolean(interp, valuesP[k], &j) == TCL_ERROR) {
+                    (void) ObjSetResult(
                         interp, TwapiParseargsBadValue("Non-boolean",
                                                        valuesP[k],
                                                        opts[k].name,
@@ -580,7 +580,7 @@ int Twapi_ParseargsObjCmd(
                                                              opts[k].name_len);
                 Tcl_AppendStringsToObj(invalidObj, ". Must be one of ", NULL);
                 TwapiAppendObjArray(invalidObj, nvalid, validObjs, ", ");
-                (void) TwapiSetObjResult(interp, invalidObj);
+                (void) ObjSetResult(interp, invalidObj);
                 goto error_return;
             }
         }
@@ -590,7 +590,7 @@ int Twapi_ParseargsObjCmd(
             objP = STRING_LITERAL_OBJ("-");
             Tcl_AppendToObj(objP, Tcl_GetString(opts[k].name), opts[k].name_len);
         } else {
-            objP = ObjFromStringN(Tcl_GetString(opts[k].name), opts[k].name_len);
+            objP = ObjFromStringN(ObjToString(opts[k].name), opts[k].name_len);
         }
         ObjAppendElement(interp, namevalList, objP);
         ObjAppendElement(interp, namevalList, valuesP[k]);
@@ -603,7 +603,7 @@ int Twapi_ParseargsObjCmd(
         tooManyErrorObj = STRING_LITERAL_OBJ("Command has extra arguments specified: ");
         TwapiAppendObjArray(tooManyErrorObj, argc-iarg,
                             &argv[iarg], " ");
-        TwapiSetObjResult(interp, tooManyErrorObj);
+        ObjSetResult(interp, tooManyErrorObj);
         goto error_return;
     }
 
@@ -621,7 +621,7 @@ int Twapi_ParseargsObjCmd(
     if (valuesP && valuesP != values)
         MemLifoPopFrame(&ticP->memlifo);
 
-    return TwapiSetObjResult(interp, namevalList);
+    return ObjSetResult(interp, namevalList);
 
 invalid_args_error:
     Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));

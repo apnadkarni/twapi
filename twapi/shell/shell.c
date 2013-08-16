@@ -43,7 +43,7 @@ static DLLVERSIONINFO *TwapiShellVersion()
 int Twapi_GetShellVersion(Tcl_Interp *interp)
 {
     DLLVERSIONINFO *ver = TwapiShellVersion();
-    TwapiSetObjResult(interp,
+    ObjSetResult(interp,
                      Tcl_ObjPrintf("%u.%u.%u",
                                    ver->dwMajorVersion,
                                    ver->dwMinorVersion,
@@ -391,7 +391,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         }
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     retval = TCL_OK;
 
  vamoose:
@@ -488,7 +488,7 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
     if (FAILED(hres))
         goto fail;
 
-    TwapiSetObjResult(interp, ObjFromUnicode(url));
+    ObjSetResult(interp, ObjFromUnicode(url));
     CoTaskMemFree(url);
 
     retval = TCL_OK;
@@ -587,7 +587,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (SHFileOperationW(&sfop) != 0) {
         // Note GetLastError() is not set by the call
-        TwapiSetStaticResult(interp, "SHFileOperation failed");
+        ObjSetStaticResult(interp, "SHFileOperation failed");
         goto vamoose;
     }
 
@@ -611,7 +611,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         SHFreeNameMappings(sfop.hNameMappings);
     }
 
-    TwapiSetObjResult(interp, ObjNewList(2, objs));
+    ObjSetResult(interp, ObjNewList(2, objs));
     tcl_status = TCL_OK;
 
 vamoose:
@@ -669,7 +669,7 @@ static TCL_RESULT Twapi_ShellExecuteExObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 
         if (ShellExecuteExW(&sei)) {
             if (sei.fMask & SEE_MASK_NOCLOSEPROCESS) {
-                TwapiSetObjResult(interp, ObjFromHANDLE(sei.hProcess));
+                ObjSetResult(interp, ObjFromHANDLE(sei.hProcess));
             }
         } else {
             /* Note: error code in se.hInstApp is ignored as per
@@ -844,7 +844,7 @@ int Twapi_SHChangeNotify(
         break;
 
     default:
-        TwapiSetStaticResult(interp, "Unknown SHChangeNotify event type");
+        ObjSetStaticResult(interp, "Unknown SHChangeNotify event type");
         goto vamoose;
 
     }
@@ -862,7 +862,7 @@ vamoose:
     return status;
 
 invalid_flags_error:
-    TwapiSetStaticResult(interp, "Unknown SHChangeNotify flags type");
+    ObjSetStaticResult(interp, "Unknown SHChangeNotify flags type");
     goto vamoose;
 
 wrong_nargs_error:

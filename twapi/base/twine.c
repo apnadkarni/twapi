@@ -39,7 +39,7 @@ int Twapi_TwineObjCmd(
     if (resultObj == NULL)
         return TCL_ERROR;
 
-    return TwapiSetObjResult(interp, resultObj);
+    return ObjSetResult(interp, resultObj);
 }
 
 /* Twine (merge) two lists */

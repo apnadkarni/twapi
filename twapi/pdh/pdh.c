@@ -64,7 +64,7 @@ int Twapi_PdhLookupPerfNameByIndex(
     bufsz=ARRAYSIZE(buf);
     status = PdhLookupPerfNameByIndexW(szMachineName, ctr_index, buf, &bufsz);
     if (status == ERROR_SUCCESS) {
-        TwapiSetObjResult(interp, ObjFromUnicode(buf));
+        ObjSetResult(interp, ObjFromUnicode(buf));
         return TCL_OK;
     }
     else {
@@ -105,7 +105,7 @@ int Twapi_PdhEnumObjects(
     status = PdhEnumObjectsW(szDataSource, szMachineName, buf, &buf_sz,
                             dwDetailLevel, 0);
     if (status == ERROR_SUCCESS)
-        TwapiSetObjResult(ticP->interp, ObjFromMultiSz(buf, buf_sz));
+        ObjSetResult(ticP->interp, ObjFromMultiSz(buf, buf_sz));
     else
         Twapi_AppendSystemError(ticP->interp, status);
 
@@ -169,7 +169,7 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
         objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
         if (instance_buf_size)
             objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
-        TwapiSetObjResult(ticP->interp,
+        ObjSetResult(ticP->interp,
                          ObjNewList((instance_buf_size ? 2 : 1), objs));
     }
 
@@ -215,7 +215,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
             if (pdh_status != ERROR_SUCCESS)
                 result = Twapi_AppendSystemError(ticP->interp, pdh_status);
             else
-                TwapiSetObjResult(ticP->interp, ObjFromUnicode(path_buf));
+                ObjSetResult(ticP->interp, ObjFromUnicode(path_buf));
         }
     }
 
@@ -264,7 +264,7 @@ int Twapi_PdhParseCounterPath(
             objs[9] = ObjFromLong(pdh_elems->dwInstanceIndex);
             objs[10] = STRING_LITERAL_OBJ("szCounterName");
             objs[11] = ObjFromUnicode(pdh_elems->szCounterName);
-            TwapiSetObjResult(ticP->interp, ObjNewList(12, objs));
+            ObjSetResult(ticP->interp, ObjNewList(12, objs));
             result = TCL_OK;
         }
         MemLifoPopFrame(&ticP->memlifo);
@@ -291,7 +291,7 @@ int Twapi_PdhGetFormattedCounterValue(
 
     if ((pdh_status != ERROR_SUCCESS)
         || (counter_value.CStatus != ERROR_SUCCESS)) {
-        TwapiSetObjResult(interp,
+        ObjSetResult(interp,
                          Tcl_ObjPrintf("Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus));
         return Twapi_AppendSystemError(interp,
                                        (counter_value.CStatus != ERROR_SUCCESS ?
@@ -316,7 +316,7 @@ int Twapi_PdhGetFormattedCounterValue(
         break;
 
     default:
-        TwapiSetObjResult(interp,
+        ObjSetResult(interp,
                          Tcl_ObjPrintf("Invalid PDH counter format value 0x%x",
                                        dwFormat));
         return  TCL_ERROR;
@@ -325,7 +325,7 @@ int Twapi_PdhGetFormattedCounterValue(
     objs[1] = Tcl_ObjPrintf("0x%x", counter_type);
 
     /* Create the result list consisting of type and value */
-    TwapiSetObjResult(interp, ObjNewList(2, objs));
+    ObjSetResult(interp, ObjNewList(2, objs));
     return TCL_OK;
 }
 
@@ -378,7 +378,7 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, pdh_status);
     }
 
-    TwapiSetObjResult(interp, ObjFromMultiSz(browse_dlg.szReturnPathBuffer,
+    ObjSetResult(interp, ObjFromMultiSz(browse_dlg.szReturnPathBuffer,
                                             browse_dlg.cchReturnPathLength));
     TwapiFree(browse_dlg.szReturnPathBuffer);
     return TCL_OK;

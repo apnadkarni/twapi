@@ -137,7 +137,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
 
     if (tdP == NULL) {
         if (interp) {
-            TwapiSetStaticResult(interp, "Internal error: ObjFromTYPEDESC: NULL TYPEDESC pointer");
+            ObjSetStaticResult(interp, "Internal error: ObjFromTYPEDESC: NULL TYPEDESC pointer");
         }
         return NULL;
     }
@@ -520,7 +520,7 @@ int Twapi_ComEventSinkObjCmd(
     Tcl_IncrRefCount(objv[2]);
     sinkP->cmd = objv[2];
 
-    TwapiSetObjResult(interp, ObjFromIUnknown(sinkP));
+    ObjSetResult(interp, ObjFromIUnknown(sinkP));
 
 
     return TCL_OK;
@@ -593,7 +593,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                      GETINT(dispid), GETINT(lcid),
                      GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
                      ARGTERM) != TCL_OK) {
-        TwapiSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
+        ObjSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
         return TCL_ERROR;
     }
 
@@ -713,17 +713,17 @@ int Twapi_IDispatch_InvokeObjCmd(
             /* Yep, one of those funky results */
             if (SUCCEEDED(V_I4(&dispargP[0]))) {
                 /* Yes return status is success, pick up return value */
-                TwapiSetObjResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
+                ObjSetResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
             } else {
                 /* Hmm, toplevel HRESULT is success, retval HRESULT is not
                    WTF does that mean ? Treat as error */
                 /* Not sure if standard COM error handling should apply  so skip */
-                TwapiSetStaticResult(interp, "Unexpected COM result: Invoke returned success but retval param is error.");
+                ObjSetStaticResult(interp, "Unexpected COM result: Invoke returned success but retval param is error.");
                 goto vamoose;
             }
         } else {
             if (retvar_vt != VT_VOID) {
-                TwapiSetObjResult(interp, ObjFromVARIANT(&dispargP[0], 0));
+                ObjSetResult(interp, ObjFromVARIANT(&dispargP[0], 0));
             }
         }
 
@@ -772,7 +772,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                 Tcl_AppendUnicodeToObj(errorResultObj,
                                        einfo.bstrDescription,
                                        SysStringLen(einfo.bstrDescription));
-                TwapiSetObjResult(interp, errorResultObj);
+                ObjSetResult(interp, errorResultObj);
             } else {
                 /* No error description. Perhaps the scode field
                  * tells us something more.
@@ -788,7 +788,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                         errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
-                        TwapiSetObjResult(interp, errorResultObj);
+                        ObjSetResult(interp, errorResultObj);
                         Tcl_DecrRefCount(scodeObj);
                     }
                 }
@@ -804,7 +804,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  * the Tcl perspective, numbered from the end) and 0-based,
                  * our error message parameter position is 1-based.
                  */
-                TwapiSetObjResult(interp,
+                ObjSetResult(interp,
                                  Tcl_ObjPrintf(
                                      "Parameter error. Offending parameter position %d.", nparams-badarg_index));
             }
@@ -896,7 +896,7 @@ static int TwapiGetIDsOfNamesHelper(
             ObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
             ObjAppendElement(interp, resultObj, ObjFromLong(ids[i]));
         }
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
         status = TCL_OK;
     }
     else {
@@ -963,7 +963,7 @@ int Twapi_ITypeInfo_GetTypeAttr(Tcl_Interp *interp, ITypeInfo *tiP)
     objv[35] = ObjFromInt(taP->idldescType.wIDLFlags);
 
     tiP->lpVtbl->ReleaseTypeAttr(tiP, taP);
-    TwapiSetObjResult(interp, ObjNewList(36, objv));
+    ObjSetResult(interp, ObjNewList(36, objv));
     return TCL_OK;
 }
 
@@ -994,7 +994,7 @@ int Twapi_ITypeInfo_GetNames(
             SysFreeString(names[i]);
             names[i] = NULL;
         }
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
         return TCL_OK;
     }
     else {
@@ -1025,7 +1025,7 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
 
         tlP->lpVtbl->ReleaseTLibAttr(tlP, attrP);
 
-        TwapiSetObjResult(interp, ObjNewList(12, objv));
+        ObjSetResult(interp, ObjNewList(12, objv));
         return TCL_OK;
     }
     else {
@@ -1132,7 +1132,7 @@ int TwapiMakeVariantParam(
                 else if (STREQ(s, "inout"))
                     *paramflagsP = PARAMFLAG_FOUT | PARAMFLAG_FIN;
                 else {
-                    TwapiSetStaticResult(interp, "Unknown parameter modifiers");
+                    ObjSetStaticResult(interp, "Unknown parameter modifiers");
                     goto vamoose;
                 }
             }
@@ -1145,7 +1145,7 @@ int TwapiMakeVariantParam(
         if (paramfieldsc > 1) {
             /* Default is {vt value} list.
                We are only interested in the second object */
-            if (Tcl_ListObjIndex(interp, paramfields[1], 1, &paramdefaultObj) != TCL_OK)
+            if (ObjListIndex(interp, paramfields[1], 1, &paramdefaultObj) != TCL_OK)
                 goto vamoose;
 
             /* Note paramdefaultObj may be NULL even if return was TCL_OK */
@@ -1260,7 +1260,7 @@ int TwapiMakeVariantParam(
                 vt = VT_ERROR;  // Indicates optional param below
                 target_vt = VT_ERROR;
             } else {
-                TwapiSetStaticResult(interp, "Missing value and no default for IDispatch invoke parameter");
+                ObjSetStaticResult(interp, "Missing value and no default for IDispatch invoke parameter");
                 goto vamoose;
             }
         }
@@ -1385,7 +1385,7 @@ int TwapiMakeVariantParam(
                 V_UI8REF(varP) = &V_UI8(targetP);
                 break;
             default:
-                TwapiSetStaticResult(interp, "Internal error while constructing referenced VARIANT parameter");
+                ObjSetStaticResult(interp, "Internal error while constructing referenced VARIANT parameter");
                 goto vamoose;
             }
         }
@@ -1400,7 +1400,7 @@ vamoose:
     return status;
 
 invalid_type:
-    TwapiSetStaticResult(interp, "Unsupported or invalid type information format in parameter");
+    ObjSetStaticResult(interp, "Unsupported or invalid type information format in parameter");
     goto vamoose;
 }
 
@@ -1463,7 +1463,7 @@ int Twapi_ITypeComp_Bind(Tcl_Interp *interp, ITypeComp *tcP, LPWSTR nameP, long 
         break;
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     return status;
 }
 
@@ -1488,7 +1488,7 @@ int Twapi_IRecordInfo_GetFieldNames(Tcl_Interp *interp, IRecordInfo *riP)
         SysFreeString(bstrs[i]);
     }
 
-    TwapiSetObjResult(interp, ObjNewList(nbstrs, objv));
+    ObjSetResult(interp, ObjNewList(nbstrs, objv));
     return TCL_OK;
 }
 
@@ -1523,7 +1523,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     if (count == 0) {
         objv[0] = ObjFromBoolean(1);
         objv[1] = ObjNewList(0, NULL);
-        TwapiSetObjResult(interp, ObjNewList(2, objv));
+        ObjSetResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     }
 
@@ -1540,7 +1540,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
         elem_size = sizeof(*(u.icpP));
         break;
     default:
-        TwapiSetStaticResult(interp, "Unknown enum_type passed to TwapiIEnumNextHelper");
+        ObjSetStaticResult(interp, "Unknown enum_type passed to TwapiIEnumNextHelper");
         return TCL_ERROR;
         
     }
@@ -1610,7 +1610,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     }
         
     MemLifoPopFrame(&ticP->memlifo);
-    TwapiSetObjResult(interp, ObjNewList(2, objv));
+    ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -1672,7 +1672,7 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         if (pv == NULL) {
-            TwapiSetStaticResult(interp, "NULL interface pointer.");
+            ObjSetStaticResult(interp, "NULL interface pointer.");
             return TCL_ERROR;
         }
     }
@@ -2443,9 +2443,9 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                              GETOBJ(sObj), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (Tcl_ListObjLength(interp, objv[1], &dw1) == TCL_ERROR ||
+            if (ObjListLength(interp, objv[1], &dw1) == TCL_ERROR ||
                 dw1 != 0) {
-                TwapiSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
+                ObjSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
                 goto ret_error;
             }
             result.type = TRT_INTERFACE;
@@ -2613,7 +2613,7 @@ badargs:
     return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
 null_interface_error:
-    TwapiSetStaticResult(interp, "NULL interface pointer.");
+    ObjSetStaticResult(interp, "NULL interface pointer.");
     return TCL_ERROR;
 }
 

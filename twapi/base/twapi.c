@@ -361,7 +361,7 @@ int Twapi_GetTwapiBuildInfo(
     objs[15] = Tcl_NewObj();
 #endif
 
-    return TwapiSetObjResult(interp, ObjNewList(16, objs));
+    return ObjSetResult(interp, ObjNewList(16, objs));
 }
 
 
@@ -655,7 +655,7 @@ TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp)
 {
     if (! gTclIsThreaded) {
         if (interp)
-            TwapiSetStaticResult(interp, "Tcl build is not threaded.");
+            ObjSetStaticResult(interp, "Tcl build is not threaded.");
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -675,7 +675,7 @@ TwapiInterpContext *TwapiRegisterModule(
 
     if (modP->finalizer && ! context_type) {
         /* Non-private context cannot be requested if finalizer is specified */
-        TwapiSetStaticResult(interp, "Finalizer mandates private context");
+        ObjSetStaticResult(interp, "Finalizer mandates private context");
     }
 
     if (context_type != DEFAULT_TIC) {
@@ -745,7 +745,7 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
     Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wProductType);
     Twapi_APPEND_WORD_FIELD_TO_LIST(interp, objP, &vi,  wReserved);
 
-    return TwapiSetObjResult(interp, objP);
+    return ObjSetResult(interp, objP);
 }
 
 int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
@@ -801,7 +801,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
     /* Put field names and records to make up the recordarray */
     objv[0] = fields;
     objv[1] = records;
-    return TwapiSetObjResult(interp, ObjNewList(2, objv));
+    return ObjSetResult(interp, ObjNewList(2, objv));
 }
 
 
@@ -811,7 +811,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
  * a prior Tcl_IncrRefCount. Moreover, if it wants to hang on to it
  * it must do a Tcl_IncrRefCount itself directly, or implicitly via
  * a call such as ObjAppendElement.
- * (This is similar to Tcl_ListObjIndex)
+ * (This is similar to ObjListIndex)
  */
 Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
 {

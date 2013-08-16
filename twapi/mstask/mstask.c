@@ -97,7 +97,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
         return TCL_ERROR;
 
     if (objc & 1) {
-        TwapiSetStaticResult(interp, "Invalid TASK_TRIGGER format - must have even number of elements");
+        ObjSetStaticResult(interp, "Invalid TASK_TRIGGER format - must have even number of elements");
         return TCL_ERROR;
     }
 
@@ -172,7 +172,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
             }
             if (ntype == 0) {
             trigger_type_count_error:
-                TwapiSetStaticResult(interp, "Invalid task trigger type format");
+                ObjSetStaticResult(interp, "Invalid task trigger type format");
                 return TCL_ERROR;
             }
 
@@ -241,7 +241,7 @@ int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
     if (count == 0) {
         objv[0] = ObjFromBoolean(1);
         objv[1] = ObjNewList(0, NULL);
-        TwapiSetObjResult(interp, ObjNewList(2, objv));
+        ObjSetResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     }
 
@@ -270,7 +270,7 @@ int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
         CoTaskMemFree(jobsP);
     }    
 
-    TwapiSetObjResult(interp, ObjNewList(2, objv));
+    ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }
 
@@ -322,7 +322,7 @@ int Twapi_IScheduledWorkItem_GetRunTimes (
         return TCL_ERROR;
     }
 
-    TwapiSetObjResult(interp, ObjNewList(objv[1] ? 2 : 1, objv));
+    ObjSetResult(interp, ObjNewList(objv[1] ? 2 : 1, objv));
     return TCL_OK;
     
 }
@@ -338,7 +338,7 @@ int Twapi_IScheduledWorkItem_GetWorkItemData (
 
     hr = swiP->lpVtbl->GetWorkItemData(swiP, &count, &dataP);
     if (SUCCEEDED(hr)) {
-        TwapiSetObjResult(interp, ObjFromByteArray(dataP, count));
+        ObjSetResult(interp, ObjFromByteArray(dataP, count));
         return TCL_OK;
     }
     else {
@@ -384,7 +384,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         return TCL_ERROR;
 
     if (pv == NULL) {
-        TwapiSetStaticResult(interp, "NULL interface pointer.");
+        ObjSetStaticResult(interp, "NULL interface pointer.");
         return TCL_ERROR;
     }
 
@@ -735,7 +735,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             pv = ObjToByteArray(objv[1], &dw1);
             if (dw1 > MAXWORD) {
-                TwapiSetStaticResult(interp, "Binary data exceeds MAXWORD");
+                ObjSetStaticResult(interp, "Binary data exceeds MAXWORD");
                 return TCL_ERROR;
             }
             result.type = TRT_EMPTY;

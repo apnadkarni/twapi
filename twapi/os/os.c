@@ -39,7 +39,7 @@ int Twapi_GetSystemInfo(Tcl_Interp *interp)
     objv[8] = ObjFromInt((unsigned)sysinfo.wProcessorLevel);
     objv[9] = ObjFromInt((unsigned)sysinfo.wProcessorRevision);
 
-    TwapiSetObjResult(interp, ObjNewList(10, objv));
+    ObjSetResult(interp, ObjNewList(10, objv));
     return TCL_OK;
 }
 
@@ -65,7 +65,7 @@ int Twapi_GlobalMemoryStatus(Tcl_Interp *interp)
         objv[12] = STRING_LITERAL_OBJ("ullAvailVirtual");
         objv[13] = ObjFromULONGLONG(memstatex.ullAvailVirtual);
         
-        TwapiSetObjResult(interp, ObjNewList(14, objv));
+        ObjSetResult(interp, ObjNewList(14, objv));
         return TCL_OK;
     } else {
         return TwapiReturnSystemError(interp);
@@ -106,7 +106,7 @@ int Twapi_GetPerformanceInformation(Tcl_Interp *interp)
         objv[24] = STRING_LITERAL_OBJ("ThreadCount");
         objv[25] = ObjFromDWORD(perf.ThreadCount);
 
-        TwapiSetObjResult(interp, ObjNewList(26, objv));
+        ObjSetResult(interp, ObjNewList(26, objv));
         return TCL_OK;
     } else
         return TwapiReturnSystemError(interp);
@@ -157,7 +157,7 @@ static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(TwapiInterpContext *ticP, Tcl
             ObjAppendElement(interp, resultObj, obj);
         }
 
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -204,7 +204,7 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
     */
 
     if (EnumPageFilesW((PENUM_PAGE_FILE_CALLBACKW) TwapiEnumPageFilesProc, resultObj)) {
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();
@@ -233,7 +233,7 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, ERROR_INSUFFICIENT_BUFFER);
     }
 
-    TwapiSetObjResult(interp, ObjFromUnicodeN(path, len));
+    ObjSetResult(interp, ObjFromUnicodeN(path, len));
     return TCL_OK;
 }
 

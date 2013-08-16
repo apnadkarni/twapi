@@ -66,7 +66,7 @@ int TwapiFormatMessageHelper(
 
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
     if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
-        TwapiSetObjResult(interp, ObjFromUnicode(msgP));
+        ObjSetResult(interp, ObjFromUnicode(msgP));
         LocalFree(msgP);
         return TCL_OK;
     } else {
@@ -182,7 +182,7 @@ int TwapiReturnError(Tcl_Interp *interp, int code)
 {
     if (interp) {
         Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(code));
-        (void) TwapiSetObjResult(interp, TwapiGetErrorMsg(code));
+        (void) ObjSetResult(interp, TwapiGetErrorMsg(code));
     }
     /* TBD - what if code is TWAPI_NO_ERROR ? */
     return TCL_ERROR;           /* Always, so caller can just return */
@@ -210,7 +210,7 @@ int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
                 Tcl_AppendStringsToObj(objP, " TWAPI error: ", msgP, NULL);
             else
                 Tcl_AppendPrintfToObj(objP, " TWAPI error code: %d", code);
-            (void) TwapiSetObjResult(interp, objP);
+            (void) ObjSetResult(interp, objP);
         } else {
             TwapiReturnError(interp, code);
         }
@@ -342,14 +342,14 @@ int Twapi_AppendSystemErrorEx(
     errorCodeObj = Twapi_MakeWindowsErrorCodeObj(error, extra);
 
     /* Third element of error code is also the message */
-    if (Tcl_ListObjIndex(NULL, errorCodeObj, 2, &msgObj) == TCL_OK &&
+    if (ObjListIndex(NULL, errorCodeObj, 2, &msgObj) == TCL_OK &&
         msgObj != NULL) {
         Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
         if (Tcl_GetCharLength(resultObj)) {
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         }
         Tcl_AppendObjToObj(resultObj, msgObj);
-        (void) TwapiSetObjResult(interp, resultObj);
+        (void) ObjSetResult(interp, resultObj);
     }
     Tcl_SetObjErrorCode(interp, errorCodeObj);
 
@@ -401,7 +401,7 @@ int Twapi_AppendWNetError(
         Tcl_AppendUnicodeToObj(resultObj, provider, -1);
         Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
         Tcl_AppendUnicodeToObj(resultObj, errorbuf, -1);
-        (void) TwapiSetObjResult(interp, resultObj);
+        (void) ObjSetResult(interp, resultObj);
     }
 
     return TCL_ERROR;

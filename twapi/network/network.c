@@ -962,7 +962,7 @@ int Twapi_FormatExtendedTcpTable(
         goto error_return;
     }
 
-    TwapiSetObjResult(interp, obj);
+    ObjSetResult(interp, obj);
     return TCL_OK;
 
 error_return:
@@ -1009,7 +1009,7 @@ int Twapi_FormatExtendedUdpTable(
         goto error_return;
     }
 
-    TwapiSetObjResult(interp, obj);
+    ObjSetResult(interp, obj);
     return TCL_OK;
 
 error_return:
@@ -1092,7 +1092,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
     }
 
     if (error == NO_ERROR) {
-        TwapiSetObjResult(ticP->interp, (*objbuilder)(ticP->interp, bufP));
+        ObjSetResult(ticP->interp, (*objbuilder)(ticP->interp, bufP));
     } else {
         Twapi_AppendSystemError(ticP->interp, error);
     }
@@ -1130,7 +1130,7 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
         objv[5] = ObjFromDWORD(netinfoP->EnableRouting);
         objv[6] = ObjFromDWORD(netinfoP->EnableProxy);
         objv[7] = ObjFromDWORD(netinfoP->EnableDns);
-        TwapiSetObjResult(ticP->interp, ObjNewList(8, objv));
+        ObjSetResult(ticP->interp, ObjNewList(8, objv));
     } else {
         Twapi_AppendSystemError(ticP->interp, error);
     }
@@ -1193,7 +1193,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
             ObjAppendElement(NULL, resultObj, ObjFromIP_ADAPTER_ADDRESSES(iaaP));
             iaaP = iaaP->Next;
         }
-        TwapiSetObjResult(ticP->interp, resultObj);
+        ObjSetResult(ticP->interp, resultObj);
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -1226,7 +1226,7 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
         objv[0] = ObjFromDWORD(ainfoP->AutoconfigEnabled);
         objv[1] = ObjFromDWORD(ainfoP->AutoconfigActive);
         objv[2] = ObjFromIP_ADDR_STRINGAddress(ticP->interp, &ainfoP->DnsServerList);
-        TwapiSetObjResult(ticP->interp, ObjNewList(3, objv));
+        ObjSetResult(ticP->interp, ObjNewList(3, objv));
     } else
         Twapi_AppendSystemError(ticP->interp, error);
 
@@ -1259,7 +1259,7 @@ int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index)
     if (error) {
         return Twapi_AppendSystemError(interp, error);
     }
-    TwapiSetObjResult(interp, ObjFromMIB_IFROW(interp, &ifr));
+    ObjSetResult(interp, ObjFromMIB_IFROW(interp, &ifr));
     return TCL_OK;
 }
 
@@ -1339,7 +1339,7 @@ int Twapi_GetExtendedTcpTable(
        
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
-        TwapiSetObjResult(interp, ObjFromInt(buf_sz));
+        ObjSetResult(interp, ObjFromInt(buf_sz));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, error);
@@ -1370,7 +1370,7 @@ int Twapi_GetExtendedUdpTable(
     }
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
-        TwapiSetObjResult(interp, ObjFromInt(buf_sz));
+        ObjSetResult(interp, ObjFromInt(buf_sz));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, error);
@@ -1397,7 +1397,7 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
         if (error)
             return Twapi_AppendSystemError(ticP->interp, error);
 
-        TwapiSetObjResult(ticP->interp, ObjFromTcpExTable(ticP->interp, buf));
+        ObjSetResult(ticP->interp, ObjFromTcpExTable(ticP->interp, buf));
         HeapFree(GetProcessHeap(), 0, buf);
         return TCL_OK;
     } else {
@@ -1425,7 +1425,7 @@ int Twapi_AllocateAndGetTcpExTableFromStack(
         }
         
         if (error == ERROR_SUCCESS)
-            TwapiSetObjResult(ticP->interp, ObjFromMIB_TCPTABLE(ticP->interp, tab));
+            ObjSetResult(ticP->interp, ObjFromMIB_TCPTABLE(ticP->interp, tab));
         else
             Twapi_AppendSystemError(ticP->interp, error);
         if (tab)
@@ -1454,7 +1454,7 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
         if (error)
             return Twapi_AppendSystemError(ticP->interp, error);
 
-        TwapiSetObjResult(ticP->interp, ObjFromUdpExTable(ticP->interp, buf));
+        ObjSetResult(ticP->interp, ObjFromUdpExTable(ticP->interp, buf));
         HeapFree(GetProcessHeap(), 0, buf);
         return TCL_OK;
     } else {
@@ -1482,7 +1482,7 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
         }
         
         if (error == ERROR_SUCCESS)
-            TwapiSetObjResult(ticP->interp, ObjFromMIB_UDPTABLE(ticP->interp, tab));
+            ObjSetResult(ticP->interp, ObjFromMIB_UDPTABLE(ticP->interp, tab));
         else
             Twapi_AppendSystemError(ticP->interp, error);
         if (tab)
@@ -1520,7 +1520,7 @@ static int Twapi_GetNameInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     objs[0] = ObjFromString(hostname);
     objs[1] = ObjFromString(portname);
 
-    TwapiSetObjResult(interp, ObjNewList(2,objs));
+    ObjSetResult(interp, ObjNewList(2,objs));
     return TCL_OK;
 }
 
@@ -1575,7 +1575,7 @@ static int Twapi_GetAddrInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         return Twapi_AppendSystemError(interp, status);
     }
 
-    TwapiSetObjResult(interp, TwapiCollectAddrInfo(addrP, hints.ai_family));
+    ObjSetResult(interp, TwapiCollectAddrInfo(addrP, hints.ai_family));
     if (addrP)
         freeaddrinfo(addrP);
 
@@ -1597,7 +1597,7 @@ static int Twapi_GetBestRouteObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
     error = GetBestRoute(dest, src, &route);
     if (error == NO_ERROR) {
-        Tcl_SetObjResult(ticP->interp, ObjFromMIB_IPFORWARDROW(ticP->interp, &route));
+        ObjSetResult(ticP->interp, ObjFromMIB_IPFORWARDROW(ticP->interp, &route));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(ticP->interp, error);
@@ -1640,7 +1640,7 @@ static int Twapi_GetBestInterfaceObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
             return Twapi_AppendSystemError(interp, result);
     }
 
-    Tcl_SetObjResult(interp, ObjFromLong(ifindex));
+    ObjSetResult(interp, ObjFromLong(ifindex));
     return TCL_OK;
 }
 
@@ -1735,7 +1735,7 @@ static int Twapi_ResolveHostnameAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     CopyMemory(theP->name, name, len+1);
 
     if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT)) {
-        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
+        ObjSetResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
     }
 
@@ -1860,7 +1860,7 @@ static int Twapi_ResolveAddressAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp 
     CopyMemory(theP->name, addrstr, len+1);
 
     if (QueueUserWorkItem(TwapiAddressHandler, theP, WT_EXECUTEDEFAULT)) {
-        Tcl_SetObjResult(ticP->interp, ObjFromTwapiId(id));
+        ObjSetResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
     }
     winerr = GetLastError();    /* Remember the error */

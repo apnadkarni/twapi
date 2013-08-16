@@ -143,7 +143,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 vamoose:
     MemLifoPopFrame(&ticP->memlifo);
     if (winerr == ERROR_SUCCESS) {
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
         return TCL_OK;
     } else {
         Twapi_AppendSystemError(interp, winerr);

@@ -45,7 +45,7 @@ int Twapi_DsGetDcName(
         objv[16] = STRING_LITERAL_OBJ("ClientSiteName");
         objv[17] = ObjFromUnicode(dcP->ClientSiteName);
 
-        TwapiSetObjResult(interp, ObjNewList(18, objv));
+        ObjSetResult(interp, ObjNewList(18, objv));
 
         NetApiBufferFree(dcP);
     }

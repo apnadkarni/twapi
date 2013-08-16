@@ -296,9 +296,9 @@ static TCL_RESULT Twapi_GetProcessList(
     if (flags && process_fieldObj) {
         field_and_list[0] = process_fieldObj;
         field_and_list[1] = resultObj;
-        TwapiSetObjResult(interp, ObjNewList(2, field_and_list));
+        ObjSetResult(interp, ObjNewList(2, field_and_list));
     } else
-        TwapiSetObjResult(interp, resultObj);
+        ObjSetResult(interp, resultObj);
 
     TwapiFree(bufP);
     return TCL_OK;
@@ -404,7 +404,7 @@ static int Twapi_EnumProcessesModulesObjCmd(
             }
         }
 
-        TwapiSetObjResult(ticP->interp, ObjNewList(num, objvP));
+        ObjSetResult(ticP->interp, ObjNewList(num, objvP));
     }
 
     MemLifoPopFrame(&ticP->memlifo);
@@ -421,17 +421,17 @@ int Twapi_WaitForInputIdle(
     DWORD error;
     switch (WaitForInputIdle(hProcess, dwMilliseconds)) {
     case 0:
-        TwapiSetObjResult(interp, ObjFromInt(1));
+        ObjSetResult(interp, ObjFromInt(1));
         break;
     case WAIT_TIMEOUT:
-        TwapiSetObjResult(interp, ObjFromInt(0));
+        ObjSetResult(interp, ObjFromInt(0));
         break;
     default:
         error = GetLastError();
         if (error)
             return TwapiReturnSystemError(interp);
         /* No error - probably a console process. Treat as always ready */
-        TwapiSetObjResult(interp, ObjFromInt(1));
+        ObjSetResult(interp, ObjFromInt(1));
         break;
     }
     return TCL_OK;
@@ -461,7 +461,7 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
                        GETINT(siP->dwFlags),
                        GETWORD(siP->wShowWindow),
                        GETOBJ(stdhObj), ARGEND) != TCL_OK) {
-        TwapiSetStaticResult(interp, "Invalid STARTUPINFO list.");
+        ObjSetStaticResult(interp, "Invalid STARTUPINFO list.");
         return TCL_ERROR;
     }
 
@@ -470,7 +470,7 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
             return TCL_ERROR;
 
         if (objc != 3) {
-            TwapiSetStaticResult(interp, "STARTUPINFO structure handles must be 3.");
+            ObjSetStaticResult(interp, "STARTUPINFO structure handles must be 3.");
             return TCL_ERROR;
         }
 
@@ -549,7 +549,7 @@ int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp, HANDLE p
                                         &pbi, sizeof(pbi)) != TCL_OK)
         return TCL_ERROR;
 
-    TwapiSetObjResult(interp,
+    ObjSetResult(interp,
                      ListObjFromPROCESS_BASIC_INFORMATION(interp, &pbi));
     
     return TCL_OK;
@@ -613,7 +613,7 @@ int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp, HANDLE th
                                       &tbi, sizeof(tbi)) != TCL_OK)
         return TCL_ERROR;
 
-    TwapiSetObjResult(interp,
+    ObjSetResult(interp,
                      ListObjFromTHREAD_BASIC_INFORMATION(interp, &tbi));
     
     return TCL_OK;
@@ -649,7 +649,7 @@ int Twapi_Rundll(Tcl_Interp *interp, LPCSTR dll, LPCSTR function, HWND hwnd, LPC
         FARPROC fn;
         fn = GetProcAddress(hInst, function);
         if (fn) {
-            TwapiSetObjResult(
+            ObjSetResult(
                 interp,
                 ObjFromInt((*fn)(hwnd, hInst, cmdline, cmdshow))
                 );
@@ -750,7 +750,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
             );
 
     if (status) {
-        TwapiSetObjResult(interp, ObjFromPROCESS_INFORMATION(&pi));
+        ObjSetResult(interp, ObjFromPROCESS_INFORMATION(&pi));
     } else {
         TwapiReturnSystemError(interp);
         // Do not return just yet as we have to free buffers

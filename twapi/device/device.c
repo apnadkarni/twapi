@@ -143,7 +143,7 @@ int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA
 {
     int n;
 
-    if (objP && Tcl_ListObjLength(interp, objP, &n) == TCL_OK && n != 0)
+    if (objP && ObjListLength(interp, objP, &n) == TCL_OK && n != 0)
         return ObjToSP_DEVINFO_DATA(interp, objP, *sddPP);
 
     *sddPP = NULL;
@@ -223,7 +223,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     /* Success. regprop contains the registry property type */
     objP = ObjFromRegValue(ticP->interp, regtype, bufP, buf_sz);
     if (objP) {
-        TwapiSetObjResult(ticP->interp, objP);
+        ObjSetResult(ticP->interp, objP);
         tcl_status = TCL_OK;
     }
 
@@ -266,7 +266,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     if (success) {
         objs[0] = ObjFromUnicode(sdiddP->DevicePath);
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
-        TwapiSetObjResult(ticP->interp, ObjNewList(2, objs));
+        ObjSetResult(ticP->interp, ObjNewList(2, objs));
     } else
         Twapi_AppendSystemError(ticP->interp, winerr);
 
@@ -323,7 +323,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
             for (i = 0; i < needed; ++i) {
                 ObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
             }
-            TwapiSetObjResult(ticP->interp, objP);
+            ObjSetResult(ticP->interp, objP);
         } else
             Twapi_AppendSystemError(ticP->interp, GetLastError());
     }
@@ -867,7 +867,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     TwapiDeviceNotificationContextRef(dncP, 1);
     if (PostThreadMessageW(TwapiDeviceNotificationTid, TWAPI_WM_ADD_DEVICE_NOTIFICATION, (WPARAM) dncP, 0)) {
-        TwapiSetObjResult(ticP->interp, ObjFromTwapiId(id));
+        ObjSetResult(ticP->interp, ObjFromTwapiId(id));
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();

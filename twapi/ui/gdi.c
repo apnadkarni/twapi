@@ -57,7 +57,7 @@ BOOL CALLBACK Twapi_EnumDisplayMonitorsCallback(
     objv[0] = ObjFromOpaque(hmon, "HMONITOR");
     objv[1] = ObjFromOpaque(hdc, "HDC");
     objv[2] = ObjFromRECT(rectP);
-    Tcl_ListObjAppendElement(p_enum_ctx->interp,
+    ObjAppendElement(p_enum_ctx->interp,
                              p_enum_ctx->objP,
                              Tcl_NewListObj(3, objv));
     return 1;
@@ -83,6 +83,6 @@ int Twapi_EnumDisplayMonitors(
         return TCL_ERROR;
     }
 
-    Tcl_SetObjResult(interp, enum_ctx.objP);
+    ObjSetResult(interp, enum_ctx.objP);
     return TCL_OK;
 }

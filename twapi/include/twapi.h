@@ -410,27 +410,27 @@ enum {
 /* Appends a struct DWORD field name and value pair to a given Tcl list object */
 #define Twapi_APPEND_DWORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromDWORD(((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_), (listp_), ObjFromDWORD(((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_LONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromLong(((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_), (listp_), ObjFromLong(((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_WORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromLong((WORD)((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_), (listp_), ObjFromLong((WORD)((structp_)->field_))); \
   } while (0)
 
 /* Appends a struct ULONGLONG field name and value pair to a given Tcl list object */
 #define Twapi_APPEND_ULONGLONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromWideInt((ULONGLONG)(structp_)->field_)); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_), (listp_), ObjFromWideInt((ULONGLONG)(structp_)->field_)); \
   } while (0)
 
 /* Append a struct SIZE_T field name and value pair to a Tcl list object */
@@ -444,55 +444,55 @@ enum {
 /* Appends a struct LARGE_INTEGER field name and value pair to a given Tcl list object */
 #define Twapi_APPEND_LARGE_INTEGER_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_), (listp_), ObjFromWideInt((structp_)->field_.QuadPart)); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_), (listp_), ObjFromWideInt((structp_)->field_.QuadPart)); \
   } while (0)
 
 /* Appends a struct Unicode field name and string pair to a Tcl list object */
 #define Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromUnicodeN(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromUnicodeN(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
   } while (0)
 
 /* Appends a struct char string field name and string pair to a Tcl list object */
 #define Twapi_APPEND_LPCSTR_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromString(((structp_)->field_ ? (structp_)->field_ : ""))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromString(((structp_)->field_ ? (structp_)->field_ : ""))); \
   } while (0)
 
 
 /* Appends a struct Unicode field name and string pair to a Tcl list object */
 #define Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromLSA_UNICODE_STRING(&((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromLSA_UNICODE_STRING(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_UUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromUUID(&((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromUUID(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_LUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromLUID(&((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromLUID(&((structp_)->field_))); \
   } while (0)
 
 #define Twapi_APPEND_PSID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     Tcl_Obj *obj = ObjFromSIDNoFail((structp_)->field_); \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), obj ? obj : ObjFromEmptyString()); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), obj ? obj : ObjFromEmptyString()); \
   } while (0)
 
 #define Twapi_APPEND_GUID_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
-    Tcl_ListObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    Tcl_ListObjAppendElement((interp_),(listp_), ObjFromGUID(&((structp_)->field_))); \
+    ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
+    ObjAppendElement((interp_),(listp_), ObjFromGUID(&((structp_)->field_))); \
   } while (0)
 
 /*
@@ -1078,6 +1078,8 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
 TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[]);
 TWAPI_EXTERN Tcl_Obj *ObjEmptyList(void);
 TWAPI_EXTERN TCL_RESULT ObjListLength(Tcl_Interp *interp, Tcl_Obj *l, int *lenP);
+TWAPI_EXTERN TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, int ix, Tcl_Obj **);
+
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 
@@ -1197,8 +1199,10 @@ TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 /* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
 TWAPI_EXTERN TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
-TWAPI_EXTERN void TwapiSetStaticResult(Tcl_Interp *interp, CONST char s[]);
-TWAPI_EXTERN TCL_RESULT TwapiSetObjResult(Tcl_Interp *interp, Tcl_Obj *objP);
+TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
+#define TwapiSetStaticResult ObjSetStaticResult
+TWAPI_EXTERN TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP);
+#define TwapiSetObjResult ObjSetResult
 
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
@@ -1274,6 +1278,8 @@ TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP
 
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
+TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
+TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
 
 #ifdef _WIN64
 #define ObjToDWORD_PTR        ObjToWideInt

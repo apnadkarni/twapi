@@ -22,7 +22,7 @@ static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK ||
         objc != 2 ||
         ObjToInt(interp, objv[1], &i) != TCL_OK) {
-        TwapiSetStaticResult(interp, "Invalid CHAR_INFO structure.");
+        ObjSetStaticResult(interp, "Invalid CHAR_INFO structure.");
         return TCL_ERROR;
     }
 
@@ -54,7 +54,7 @@ static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
 
  format_error:
     if (interp)
-        TwapiSetStaticResult(interp, "Invalid Console coordinates format.");
+        ObjSetStaticResult(interp, "Invalid Console coordinates format.");
     return TCL_ERROR;
 }
 
@@ -82,7 +82,7 @@ static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
     }
 
     if (objc != 4) {
-        TwapiSetStaticResult(interp, "Invalid SMALL_RECT structure");
+        ObjSetStaticResult(interp, "Invalid SMALL_RECT structure");
         return TCL_ERROR;
     }
     if ((ObjToInt(interp, objv[0], &l) != TCL_OK) ||
@@ -143,7 +143,7 @@ static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numch
         bufP = buf;
 
     if (ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
-        TwapiSetObjResult(interp, ObjFromUnicodeN(bufP, len));
+        ObjSetResult(interp, ObjFromUnicodeN(bufP, len));
         status = TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
@@ -231,7 +231,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
     pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            ticP, NULL);
     if (pv) {
-        TwapiSetStaticResult(ticP->interp, "Console control handler is already set.");
+        ObjSetStaticResult(ticP->interp, "Console control handler is already set.");
         return TCL_ERROR;
     }
 
@@ -253,7 +253,7 @@ static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
     pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            NULL, ticP);
     if (pv != (void*) ticP) {
-        TwapiSetStaticResult(ticP->interp, "Console control handler not set by this interpreter.");
+        ObjSetStaticResult(ticP->interp, "Console control handler not set by this interpreter.");
         return TCL_ERROR;
     }
     SetConsoleCtrlHandler(TwapiConsoleCtrlHandler, FALSE);
@@ -385,13 +385,13 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             if (GetConsoleScreenBufferInfo(h, &u.csbi) == 0)
                 result.type = TRT_GETLASTERROR;
             else {
-                TwapiSetObjResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
+                ObjSetResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
                 return TCL_OK;
             }
             break;
         case 204:
             coord = GetLargestConsoleWindowSize(h);
-            TwapiSetObjResult(interp, ObjFromCOORD(interp, &coord));
+            ObjSetResult(interp, ObjFromCOORD(interp, &coord));
             return TCL_OK;
         case 205:
             result.type = GetNumberOfConsoleInputEvents(h, &result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;

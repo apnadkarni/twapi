@@ -125,7 +125,7 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_In
             INFINITE,           /* No timeout */
             WT_EXECUTEINIOTHREAD
             )) {
-        TwapiSetObjResult(interp, ObjFromHANDLE(dmcP->directory_handle));
+        ObjSetResult(interp, ObjFromHANDLE(dmcP->directory_handle));
         return TCL_OK;
     }
 

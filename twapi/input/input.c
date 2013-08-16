@@ -55,7 +55,7 @@ int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 {
     BOOL result = BlockInput(block);
     if (result || (GetLastError() == 0)) {
-        TwapiSetObjResult(interp, ObjFromInt(result));
+        ObjSetResult(interp, ObjFromInt(result));
         return TCL_OK;
     } else {
         return TwapiReturnSystemError(interp);
@@ -69,7 +69,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     int result = TCL_ERROR;
     Tcl_Interp *interp = ticP->interp;
     
-    if (Tcl_ListObjLength(interp, input_obj, &num_inputs) != TCL_OK) {
+    if (ObjListLength(interp, input_obj, &num_inputs) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -83,14 +83,14 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         int   option;
 
 
-        if (Tcl_ListObjIndex(interp, input_obj, i, &event_obj) != TCL_OK)
+        if (ObjListIndex(interp, input_obj, i, &event_obj) != TCL_OK)
             goto done;
 
         if (event_obj == NULL)
             break;
 
         /* This element is itself a list, parse it to get input type etc. */
-        if (Tcl_ListObjIndex(interp, event_obj, 0, &field_obj[0]) != TCL_OK)
+        if (ObjListIndex(interp, event_obj, 0, &field_obj[0]) != TCL_OK)
             goto  done;
         
         if (field_obj[0] == NULL)
@@ -108,10 +108,10 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
              * Extra arguments ignored
              */
             for (j = 1; j < 4; ++j) {
-                if (Tcl_ListObjIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
+                if (ObjListIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
                     goto done;
                 if (field_obj[j] == NULL) {
-                    TwapiSetStaticResult(interp, "Missing field in key event");
+                    ObjSetStaticResult(interp, "Missing field in key event");
                     goto done;
                 }
                 if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
@@ -122,11 +122,11 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
              * Validate and add to input
              */
             if (value[1] < 0 || value[1] > 254) {
-                TwapiSetStaticResult(interp, "Invalid virtual key code");
+                ObjSetStaticResult(interp, "Invalid virtual key code");
                 goto done;
             }
             if (value[2] < 0 || value[2] > 65535) {
-                TwapiSetStaticResult(interp, "Invalid scan code value.");
+                ObjSetStaticResult(interp, "Invalid scan code value.");
                 goto done;
             }
             init_keyboard_input(&input[i], (WORD) value[1], value[3]);
@@ -139,10 +139,10 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
              * Extra arguments ignored
              */
             for (j = 1; j < 5; ++j) {
-                if (Tcl_ListObjIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
+                if (ObjListIndex(interp, event_obj, j, &field_obj[j]) != TCL_OK)
                     goto done;
                 if (field_obj[j] == NULL) {
-                    TwapiSetStaticResult(interp, "Missing field in mouse event");
+                    ObjSetStaticResult(interp, "Missing field in mouse event");
                     goto done;
                 }
                 if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
@@ -160,7 +160,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
          default:
             /* Shouldn't happen else Tcl_GetIndexFromObj would return error */
-             TwapiSetStaticResult(interp, "Unknown field event type");
+             ObjSetStaticResult(interp, "Unknown field event type");
             goto done;
         }
 
@@ -169,7 +169,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     
     /* i is actual number of elements found */
     if (i != num_inputs) {
-        TwapiSetStaticResult(interp, "Invalid or empty element in input event list");
+        ObjSetStaticResult(interp, "Invalid or empty element in input event list");
         goto done;
     }
 
@@ -178,13 +178,13 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         num_inputs = SendInput(i, input, sizeof(input[0]));
         if (num_inputs == 0) {
             j = GetLastError();
-            TwapiSetStaticResult(interp, "Error sending input events: ");
+            ObjSetStaticResult(interp, "Error sending input events: ");
             Twapi_AppendSystemError(interp, j);
             goto done;
         }
     }    
 
-    TwapiSetObjResult(interp, ObjFromInt(num_inputs));
+    ObjSetResult(interp, ObjFromInt(num_inputs));
     result = TCL_OK;
 
  done:
@@ -234,7 +234,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         sent_inputs = SendInput(j, input, sizeof(input[0]));
         if (sent_inputs == 0) {
             i = GetLastError();
-            TwapiSetStaticResult(ticP->interp, "Error sending input events: ");
+            ObjSetStaticResult(ticP->interp, "Error sending input events: ");
             Twapi_AppendSystemError(ticP->interp, i);
             goto done;
         }
@@ -243,7 +243,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         sent_inputs = 0;
     }
 
-    TwapiSetObjResult(ticP->interp, ObjFromInt(sent_inputs));
+    ObjSetResult(ticP->interp, ObjFromInt(sent_inputs));
     result = TCL_OK;
 
  done:

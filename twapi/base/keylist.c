@@ -30,7 +30,7 @@ int Twapi_KlGetObjCmd(
     }
 
     if (count & 1) {
-        TwapiSetStaticResult(interp, "Keyed list must have even number of elements.");
+        ObjSetStaticResult(interp, "Keyed list must have even number of elements.");
         return TCL_ERROR;
     }
 
@@ -39,13 +39,13 @@ int Twapi_KlGetObjCmd(
     for (i = 0; i < count; i += 2) {
         char *entry = ObjToString(klObj[i]);
         if (STREQ(key, entry)) {
-            return TwapiSetObjResult(interp, klObj[i+1]);
+            return ObjSetResult(interp, klObj[i+1]);
         }
     }
 
     /* Not found. see if a default was specified */
     if (objc == 4) {
-        return TwapiSetObjResult(interp, objv[3]);
+        return ObjSetResult(interp, objv[3]);
     }
 
     Tcl_AppendResult(interp, "No field ", key, " found in keyed list.", NULL);

@@ -52,7 +52,7 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         ObjAppendElement(interp, resultObj, printerObj);
     }
 
-    TwapiSetObjResult(interp, resultObj);
+    ObjSetResult(interp, resultObj);
     MemLifoPopFrame(&ticP->memlifo);
 
     return TCL_OK;
