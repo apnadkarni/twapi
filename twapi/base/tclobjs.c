@@ -1030,7 +1030,6 @@ int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP)
     return TCL_OK;
 }
 
-
 Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP)
 {
     LARGE_INTEGER large;
@@ -1466,7 +1465,7 @@ int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP)
 int ObjToRECT_NULL(Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP)
 {
     int len;
-    if (Tcl_ListObjLength(interp, obj, &len) != TCL_OK)
+    if (ObjListLength(interp, obj, &len) != TCL_OK)
         return TCL_ERROR;
     if (len == 0) {
         *rectPP = NULL;
@@ -2169,7 +2168,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
      * treat it as a list only if it is actually already typed as a list.
      */
     if (Tcl_ListObjIndex(interp, valueObj, 0, &objP) != TCL_OK ||
-        Tcl_ListObjLength(interp, valueObj, &i) != TCL_OK)
+        ObjListLength(interp, valueObj, &i) != TCL_OK)
         return TCL_ERROR;       /* Top level obj must be a list */
 
     bounds[0].lLbound = 0;
@@ -2188,7 +2187,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
             return TwapiReturnError(interp, TWAPI_INTERNAL_LIMIT);
 
 
-        if (Tcl_ListObjLength(interp, objP, &i) != TCL_OK)
+        if (ObjListLength(interp, objP, &i) != TCL_OK)
             return TCL_ERROR;   /* Huh? Type was list so why fail? */
         bounds[ndim].lLbound = 0;
         bounds[ndim].cElements = i;
@@ -2636,7 +2635,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
          * A list is usually a SAFEARRAY. However, it could be
          * an IDispatch or IUnknown in certain special cases.
          */
-        if (Tcl_ListObjLength(NULL, objP, &i) == TCL_OK && i == 2) {
+        if (ObjListLength(NULL, objP, &i) == TCL_OK && i == 2) {
             /* Possibly IUnknown or IDispatch */
             if (ObjToIDispatch(NULL, objP, &pv) == TCL_OK)
                 return VT_DISPATCH;
@@ -3967,6 +3966,11 @@ Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[])
 Tcl_Obj *ObjEmptyList(void)
 {
     return Tcl_NewObj();
+}
+
+TCL_RESULT ObjListLength(Tcl_Interp *interp, Tcl_Obj *l, int *lenP)
+{
+    return Tcl_ListObjLength(interp, l, lenP);
 }
 
 TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e)
