@@ -50,10 +50,11 @@ MANFILES= \
 	network.man \
 	namedpipe.man \
 	security.man \
-	crypto.man \
 	eventlog.man \
 	etw.man \
 	apputil.man \
+	crypto.man \
+	sspi.man \
 	console.man \
 	winsta.man \
 	schedule.man \
