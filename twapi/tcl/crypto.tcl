@@ -661,24 +661,24 @@ twapi::proc* twapi::_csp_type_name_to_id prov {
     variable _csp_name_id_map
 
     array set _csp_name_id_map {
-        rsa_full           1
-        rsa_sig            2
-        dss                3
-        fortezza           4
-        ms_exchange        5
-        ssl                6
-        rsa_schannel       12
-        dss_dh             13
-        ec_ecdsa_sig       14
-        ec_ecnra_sig       15
-        ec_ecdsa_full      16
-        ec_ecnra_full      17
-        dh_schannel        18
-        spyrus_lynks       20
-        rng                21
-        intel_sec          22
-        replace_owf        23
-        rsa_aes            24
+        prov_rsa_full           1
+        prov_rsa_sig            2
+        prov_dss                3
+        prov_fortezza           4
+        prov_ms_exchange        5
+        prov_ssl                6
+        prov_rsa_schannel       12
+        prov_dss_dh             13
+        prov_ec_ecdsa_sig       14
+        prov_ec_ecnra_sig       15
+        prov_ec_ecdsa_full      16
+        prov_ec_ecnra_full      17
+        prov_dh_schannel        18
+        prov_spyrus_lynks       20
+        prov_rng                21
+        prov_intel_sec          22
+        prov_replace_owf        23
+        prov_rsa_aes            24
     }
 } {
     variable _csp_name_id_map
