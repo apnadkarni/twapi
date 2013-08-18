@@ -42,7 +42,49 @@ int Twapi_TwineObjCmd(
     return ObjSetResult(interp, resultObj);
 }
 
+#ifdef OBSOLETE
 /* Twine (merge) two lists */
+Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
+{
+    Tcl_Obj **list1;
+    Tcl_Obj **list2;
+    int i, n1, n2, nmin, nmax;
+    Tcl_Obj *resultObj;
+
+    if (ObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
+        ObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
+        return NULL;
+    }
+
+    nmin = n1 > n2 ? n2 : n1;
+    nmax = n1 > n2 ? n1 : n2;
+    resultObj = ObjNewList(nmax, NULL);
+
+    for (i = 0;  i < nmin; ++i) {
+        ObjAppendElement(interp, resultObj, list1[i]);
+        ObjAppendElement(interp, resultObj, list2[i]);
+    }
+
+    if (i < n1) {
+        /* n1 != n2 and n2 was the minimum. Use an empty object for list2 */
+        Tcl_Obj *empty = ObjFromEmptyString();
+        for ( ; i < n1; ++i) {
+            ObjAppendElement(interp, resultObj, list1[i]);
+            ObjAppendElement(interp, resultObj, empty);
+        }
+    } else if (i < n2) {
+        /* n1 != n2 and n1 was the minimum. Use an empty object for list1 */
+        Tcl_Obj *empty = ObjFromEmptyString();
+        for ( ; i < n2; ++i) {
+            ObjAppendElement(interp, resultObj, empty);
+            ObjAppendElement(interp, resultObj, list2[i]);
+        }
+    }
+
+    return resultObj;
+}
+#endif
+
 Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 {
     Tcl_Obj **list1;
@@ -55,47 +97,34 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
         return NULL;
     }
 
-    /* TBD - much faster to build lists, not dicts and let Tcl shimmer when necessary */
-
-    resultObj = Tcl_NewDictObj();
     nmin = n1 > n2 ? n2 : n1;
-    for (i = 0;  i < nmin; ++i) {
-        Tcl_DictObjPut(interp, resultObj, list1[i], list2[i]);
-    }
 
-    if (i < n1) {
+    resultObj = TwapiTwineObjv(list1, list2, nmin);
+    if (nmin < n1) {
         /* n1 != n2 and n2 was the minimum. Use an empty object for list2 */
         Tcl_Obj *empty = ObjFromEmptyString();
-        for ( ; i < n1; ++i) {
-            Tcl_DictObjPut(interp, resultObj, list1[i], empty);
+        for (i = nmin ; i < n1; ++i) {
+            ObjAppendElement(interp, resultObj, list1[i]);
+            ObjAppendElement(interp, resultObj, empty);
         }
-    } else if (i < n2) {
+    } else if (nmin < n2) {
         /* n1 != n2 and n1 was the minimum. Use an empty object for list1 */
         Tcl_Obj *empty = ObjFromEmptyString();
-        for ( ; i < n2; ++i) {
-            Tcl_DictObjPut(interp, resultObj, empty, list2[i]);
+        for (i = nmin ; i < n2; ++i) {
+            ObjAppendElement(interp, resultObj, empty);
+            ObjAppendElement(interp, resultObj, list2[i]);
         }
     }
 
     return resultObj;
 }
 
+
 /* Twine (merge) objv arrays */
 Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
 {
     int i;
     Tcl_Obj *resultObj;
-
-#if 0
-    Commented out - much faster to build a list and let
-    Tcl automatically shimmer as needed.
-    resultObj = Tcl_NewDictObj();
-    for (i = 0;  i < n; ++i) {
-        Tcl_DictObjPut(NULL, resultObj, first[i], second[i]);
-    }
-
-    return resultObj;
-#else
     Tcl_Obj *objv[2*100];
     Tcl_Obj **objs;
 
@@ -115,6 +144,4 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
         TwapiFree(objs);
 
     return resultObj;
-
-#endif
 }

@@ -1210,6 +1210,24 @@ namespace eval twapi::base::test {
         twapi::twine {a b c} {1 2}
     } -result {a 1 b 2 c {}}
 
+    test twine-1.5 {
+        Twine two large lists (allocation differs from small case)
+    } -body {
+        twapi::twine [lrepeat 5000 a] [lrepeat 5000 b]
+    } -result [lrepeat 5000 a b]
+
+    test twine-1.6 {
+        Twine two large unequal lists (allocation differs from small case)
+    } -body {
+        twapi::twine [lrepeat 5100 a] [lrepeat 5000 b]
+    } -result [linsert [lrepeat 5000 a b] end {*}[lrepeat 100 a {}]]
+
+    test twine-1.7 {
+        Twine two large unequal lists (allocation differs from small case)
+    } -body {
+        twapi::twine [lrepeat 5000 a] [lrepeat 5100 b]
+    } -result [linsert [lrepeat 5000 a b] end {*}[lrepeat 100 {} b]]
+
     ################################################################
 
     test kl_create-1.0 {
