@@ -1007,6 +1007,75 @@ vamoose:
     return res;
 }
 
+BOOL WINAPI TwapiCertEnumSystemStoreCallback(
+    const void *storeP,
+    DWORD flags,
+    PCERT_SYSTEM_STORE_INFO storeinfoP,
+    void *reserved,
+    Tcl_Obj *listObj
+)
+{
+    Tcl_Obj *objs[2];
+
+    if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+        return FALSE;     /* We do not know how to handle this currently */
+
+    objs[0] = ObjFromUnicode(storeP);
+    objs[1] = ObjFromDWORD(flags);
+    ObjAppendElement(NULL, listObj, ObjNewList(2, objs));
+    return TRUE;          /* Continue iteration */
+}
+
+BOOL WINAPI TwapiCertEnumSystemStoreLocationCallback(
+    const void *locationP,
+    DWORD flags,
+    void *reserved,
+    Tcl_Obj *listObj
+)
+{
+    Tcl_Obj *objs[2];
+
+    if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+        return FALSE;     /* We do not know how to handle this currently */
+
+    objs[0] = ObjFromUnicode(locationP);
+    objs[1] = ObjFromDWORD(flags);
+    ObjAppendElement(NULL, listObj, ObjNewList(2, objs));
+    return TRUE;          /* Continue iteration */
+}
+
+BOOL WINAPI TwapiCertEnumPhysicalStoreCallback(
+    const void *system_storeP,
+    DWORD flags,
+    LPCWSTR store_nameP,
+    PCERT_PHYSICAL_STORE_INFO storeinfoP,
+    void *reserved,
+    Tcl_Obj *listObj
+)
+{
+    Tcl_Obj *objs[4];
+    Tcl_Obj *infoObjs[6];
+
+    if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+        return FALSE;     /* We do not know how to handle this currently */
+    
+    objs[0] = ObjFromUnicode(system_storeP);
+    objs[1] = ObjFromDWORD(flags);
+    objs[2] = ObjFromUnicode(store_nameP);
+
+    infoObjs[0] = ObjFromString(storeinfoP->pszOpenStoreProvider);
+    infoObjs[1] = ObjFromDWORD(storeinfoP->dwOpenEncodingType);
+    infoObjs[2] = ObjFromDWORD(storeinfoP->dwOpenFlags);
+    infoObjs[3] = ObjFromByteArray(storeinfoP->OpenParameters.pbData,
+                                  storeinfoP->OpenParameters.cbData);
+    infoObjs[4] = ObjFromDWORD(storeinfoP->dwFlags);
+    infoObjs[5] = ObjFromDWORD(storeinfoP->dwPriority);
+    objs[3] = ObjNewList(6, infoObjs);
+
+    ObjAppendElement(NULL, listObj, ObjNewList(4, objs));
+    return TRUE;          /* Continue iteration */
+}
+
 
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -1324,6 +1393,57 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
         TwapiResult_SET_NONNULL_PTR(result, CERT_PUBLIC_KEY_INFO*, bufP);
         break;
+
+    case 10024:
+        CHECK_NARGS(interp, objc, 2);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "RELOCATE flag not supported.");
+        result.value.obj = ObjNewList(0, NULL);
+        if (CertEnumSystemStore(dw, ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
+                                result.value.obj,
+                                TwapiCertEnumSystemStoreCallback)) {
+            result.type = TRT_OBJ;
+        } else {
+            TwapiReturnSystemError(interp);
+            Tcl_DecrRefCount(result.value.obj);
+            return TCL_ERROR;
+        }
+        break;
+
+    case 10025:
+        CHECK_NARGS(interp, objc, 2);
+        CHECK_INTEGER_OBJ(interp, dw, objv[1]);
+        if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "RELOCATE flag not supported.");
+        result.value.obj = ObjNewList(0, NULL);
+        if (CertEnumPhysicalStore(ObjToUnicode(objv[0]), dw,
+                                result.value.obj,
+                                TwapiCertEnumPhysicalStoreCallback)) {
+            result.type = TRT_OBJ;
+        } else {
+            TwapiReturnSystemError(interp);
+            Tcl_DecrRefCount(result.value.obj);
+            return TCL_ERROR;
+        }
+        break;
+
+    case 10026:
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "RELOCATE flag not supported.");
+        result.value.obj = ObjNewList(0, NULL);
+        if (CertEnumSystemStoreLocation(dw, result.value.obj,
+                                        TwapiCertEnumSystemStoreLocationCallback)) {
+            result.type = TRT_OBJ;
+        } else {
+            TwapiReturnSystemError(interp);
+            Tcl_DecrRefCount(result.value.obj);
+            return TCL_ERROR;
+        }
+        break;
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -1359,6 +1479,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(PFXExportCertStoreEx, 10021),
         DEFINE_FNCODE_CMD(CertAddCertificateContextToStore, 10022),
         DEFINE_FNCODE_CMD(CryptExportPublicKeyInfoEx, 10023),
+        DEFINE_FNCODE_CMD(CertEnumSystemStore, 10024),
+        DEFINE_FNCODE_CMD(CertEnumPhysicalStore, 10025),
+        DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
