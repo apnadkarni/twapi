@@ -302,7 +302,6 @@ proc twapi::cert_enum_properties {hcert} {
 }
 
 proc twapi::cert_get_property {hcert prop} {
-
     if {[string is integer -strict $prop]} {
         return [CertGetCertificateContextProperty $hcert $prop]
     } else {
@@ -310,6 +309,29 @@ proc twapi::cert_get_property {hcert prop} {
     }
 }
 
+proc twapi::cert_set_key_prov {hcert args} {
+    array set opts [parseargs args {
+        keycontainer.arg
+        csp.arg
+        {csptype.arg prov_rsa_full}
+        {keysettype.arg user {user machine}}
+        {silent.bool 0 0x40}
+        {keytype.arg signature {keyexchange signature}}
+    } -maxleftover 0 -nulldefault]
+
+    set flags $opts(silent)
+    if {$opts(keysettype) eq "machine"} {
+        incr flags 0x20;        # CRYPT_KEYSET_MACHINE
+    }
+
+
+    # TBD - does the keytype matter ? In case of self signed cert
+    # which (keyexchange/signature) or both have to be specified ?
+    set keytype [expr {$opts(keytype) eq "signature" ? 2 : 1}]
+    Twapi_CertSetCertificateKeyProvInfo $hcert \
+        [list $opts(keycontainer) $opts(csp) $opts(csptype) $flags {} $keytype]
+    return
+}
 
 ################################################################
 # Provider contexts
@@ -318,7 +340,7 @@ proc twapi::crypt_context_acquire {args} {
     array set opts [parseargs args {
         keycontainer.arg
         csp.arg
-        {csptype.arg rsa_full}
+        {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
@@ -346,7 +368,7 @@ proc twapi::crypt_key_container_delete args {
     array set opts [parseargs args {
         keycontainer.arg
         csp.arg
-        {type.arg rsa_full}
+        {type.arg prov_rsa_full}
         {storage.arg user {machine user}}
     } -maxleftover 0 -nulldefault]
 
@@ -727,7 +749,7 @@ twapi::proc* twapi::_csp_type_id_to_name prov {
     variable _csp_name_id_map
     variable _csp_id_name_map
 
-    _csp_type_name_to_id rsa_full; # Just to ensure _csp_name_id_map exists
+    _csp_type_name_to_id prov_rsa_full; # Just to ensure _csp_name_id_map exists
     array set _csp_id_name_map [swapl [array get _csp_name_id_map]]
 } {
     variable _csp_id_name_map
