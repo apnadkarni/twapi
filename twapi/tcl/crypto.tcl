@@ -159,7 +159,7 @@ proc twapi::cert_system_store_delete {name} {
     return [CertOpenStore 10 0 NULL 0x10 $name]
 }
 
-proc twapi::cert_find {hstore args} {
+proc twapi::cert_store_find_certificate {hstore args} {
     # Currently only subject names supported
     array set opts [parseargs args {
         subject.arg
@@ -173,8 +173,31 @@ proc twapi::cert_find {hstore args} {
     return [TwapiFindCertBySubjectName $hstore $opts(subject) $opts(hcert)]
 }
 
-proc twapi::cert_enum_store {hstore {hcert NULL}} {
+proc twapi::cert_store_enum_contents {hstore {hcert NULL}} {
     return [CertEnumCertificatesInStore $hstore $hcert]
+}
+
+proc twapi::cert_store_add_certificate {hstore hcert args} {
+    array set opts [parseargs args {
+        {disposition.arg preserve {overwrite duplicate update preserve}}
+    } -maxleftover 0 -nulldefault]
+
+    switch $opts(disposition) {
+        duplicate {
+            set disposition 4; # CERT_STORE_ADD_ALWAYS
+        }
+        overwrite {
+            set disposition 3; # CERT_STORE_ADD_REPLACE_EXISTING
+        }
+        update {
+            set disposition 6; # CERT_STORE_ADD_NEWER
+        }
+        preserve {
+            set disposition 1; # CERT_STORE_ADD_NEW
+        }
+    }
+
+    return [CertAddCertificateContextToStore $hstore $hcert $disposition]
 }
 
 proc twapi::cert_get_name {hcert args} {
@@ -313,6 +336,10 @@ proc twapi::crypt_context_acquire {args} {
     }
 
     return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags]
+}
+
+proc twapi::crypt_context_free {hcrypt} {
+    twapi::CryptReleaseContext $hcrypt
 }
 
 proc twapi::crypt_key_container_delete args {
