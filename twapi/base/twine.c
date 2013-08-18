@@ -42,49 +42,6 @@ int Twapi_TwineObjCmd(
     return ObjSetResult(interp, resultObj);
 }
 
-#ifdef OBSOLETE
-/* Twine (merge) two lists */
-Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
-{
-    Tcl_Obj **list1;
-    Tcl_Obj **list2;
-    int i, n1, n2, nmin, nmax;
-    Tcl_Obj *resultObj;
-
-    if (ObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
-        ObjGetElements(interp, second, &n2, &list2) != TCL_OK) {
-        return NULL;
-    }
-
-    nmin = n1 > n2 ? n2 : n1;
-    nmax = n1 > n2 ? n1 : n2;
-    resultObj = ObjNewList(nmax, NULL);
-
-    for (i = 0;  i < nmin; ++i) {
-        ObjAppendElement(interp, resultObj, list1[i]);
-        ObjAppendElement(interp, resultObj, list2[i]);
-    }
-
-    if (i < n1) {
-        /* n1 != n2 and n2 was the minimum. Use an empty object for list2 */
-        Tcl_Obj *empty = ObjFromEmptyString();
-        for ( ; i < n1; ++i) {
-            ObjAppendElement(interp, resultObj, list1[i]);
-            ObjAppendElement(interp, resultObj, empty);
-        }
-    } else if (i < n2) {
-        /* n1 != n2 and n1 was the minimum. Use an empty object for list1 */
-        Tcl_Obj *empty = ObjFromEmptyString();
-        for ( ; i < n2; ++i) {
-            ObjAppendElement(interp, resultObj, empty);
-            ObjAppendElement(interp, resultObj, list2[i]);
-        }
-    }
-
-    return resultObj;
-}
-#endif
-
 Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 {
     Tcl_Obj **list1;
