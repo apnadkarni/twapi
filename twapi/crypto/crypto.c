@@ -1449,22 +1449,19 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     return TwapiSetResult(interp, &result);
 }
 
-
-
-
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s CryptoDispatch[] = {
         DEFINE_FNCODE_CMD(CryptAcquireContext, 10000),
-        DEFINE_FNCODE_CMD(crypt_context_release, 10001),
+        DEFINE_FNCODE_CMD(CryptReleaseContext, 10001),
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
         DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
-        DEFINE_FNCODE_CMD(cert_delete_from_store, 10004), // Doc TBD
+        DEFINE_FNCODE_CMD(cert_store_delete_certificate, 10004), // Doc TBD
         DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
-        DEFINE_FNCODE_CMD(crypt_destroy_key, 10009), // Doc TBD
+        DEFINE_FNCODE_CMD(crypt_release_key, 10009), // Doc TBD
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),

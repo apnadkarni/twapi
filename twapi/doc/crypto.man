@@ -54,7 +54,7 @@ CSP type. For example, a CSP of type [const PROV_RSA_FULL] supports
 digital signatures and encryption using the RSA public key algorithm.
 On the other hand, a CSP of type [const PROV_DSS] uses the DSA algorithm and
 only supports hashes and signatures. When creating a
-[sectref "Cryptographic Context"], an application needs to specify 
+[sectref "Cryptographic contexts"], an application needs to specify 
 a CSP type that supports the desired operations.
 
 [para]
@@ -66,7 +66,7 @@ On most systems, the latter is the default when no specific CSP is selected
 and is sufficient in most cases unless some special functionality like
 hardware based cryptography is desired.
 
-[section "Keys and Key Containers"]
+[section "Keys and key containers"]
 The keys used for cryptographic operations are stored in 
 [emph "key containers"] within a CSP's control.
 The keys are not generally exposed directly to an application but rather
@@ -76,7 +76,7 @@ the CSP carries out the operations using the keys on the application's behalf.
 A CSP may be associated with multiple key containers, each identified by a name.
 The specific key container and the keys within that container that
 are used for an operation depends on the 
-[sectref "Cryptographic Context"] is bound at the time the context is
+[sectref "Cryptographic contexts"] is bound at the time the context is
 created via the [uri #crypt_context_acquire [cmd crypt_context_acquire]]
 command. This command also allows creation of new key containers within
 a CSP if they do not exist. 
@@ -118,7 +118,7 @@ see the description of
 [uri #crypt_context_generate_key [cmd crypt_context_generate_key]].
 Note that not all algorithms are supported on all platforms.
 
-[section "Cryptographic Context"]
+[section "Cryptographic contexts"]
 In order to perform cryptographic operations, an application must
 choose a CSP, the algorithms to use and their parameters including keys.
 The command [uri #crypt_context_acquire [cmd crypt_context_acquire]]
@@ -156,19 +156,189 @@ return the size of the keys in the container.
 
 [list_end]
 
-[section "Certificates"]
-The CryptoAPI interface provides functions for certificate handling 
-and storage.
+When no longer needed, cryptographic contexts must be freed with
+the [uri #crypt_context_free [cmd crypt_context_free]] command.
 
-TBD - this section to be written
-
-[section "Certificate Stores"]
+[section "Certificate stores"]
+The CryptoAPI interface provides functions for handling and storage of
+X.509 digital certificates.
 A [emph "certificate store"] is a container for certificates.
-The container may be a physical store, for example on disk or in memory,
+The container may be a physical store, for example on disk,
 or a logical store which is a collection of physical stores presented
 to the application as a single store.
+Certificate stores may also be created as in-memory temporary stores 
+which are not persisted.
+[para]
+Certain certificate stores, called [emph "system stores"]
+are predefined by Windows. These include the stores [const MY],
+[const ROOT], [const Trust] and [const CA]. Most applications should
+store certificates in either the [const MY] store, or in their
+own custom store.
+[para]
+Note that the system stores are relative to a [emph "system store location"]
+which must be specified when opening the store.
+These locations are specified in the following table:
 
-TBD - this sections to be written
+[list_begin opt]
+[opt_def [const user]] Certificates associated with the current user account.
+[opt_def [const users]] Certificates shared among all user accounts on the system.
+[opt_def [const service]] Certificates associated with the current service account.
+[opt_def [const services]] Certificates shared among all services on the system.
+[opt_def [const localmachine]] Certificates associated with the system.
+[opt_def [const localmachineenterprise]] Certificates downloaded from the
+global enterprise directory.
+[opt_def [const localmachinegrouppolicy]] Certificates associated with the group policy for the system.
+[opt_def [const usergrouppolicy]]  Certificates associated with the group policy for the current user.
+[list_end]
+
+Most certificate store operations require the store to be first opened
+using the one of the commands
+[uri #cert_system_store_open [cmd cert_system_store_open]],
+[uri #cert_physical_store_open [cmd cert_physical_store_open]],
+[uri #cert_file_store_open [cmd cert_file_store_open]] and
+[uri #cert_memory_store_open [cmd cert_memory_store_open]]
+as appropriate. These commands will optionally create the store
+if it does not exist.
+The handle returned from these commands must be passed to any
+commands that operate on stores and released by calling
+[uri #cert_store_close [cmd cert_store_close]] when no longer required.
+
+[para]
+Existing certificate stores can be deleted using the commands
+[uri #cert_system_store_delete [cmd cert_system_store_delete]],
+[uri #cert_physical_store_delete [cmd cert_physical_store_delete]] and
+[uri #cert_file_store_delete [cmd cert_file_store_delete]].
+A in-memory certificate store is deleted when its handle is closed.
+
+[section "Certificate properties"]
+When a certificate is placed
+in a store, it is associated with additional properties that are not
+part of the certificate itself, for example a private key associated
+with the certificate. These properties can be enumerated
+with [uri #cert_enum_properties [cmd cert_enum_properties]]
+and the value of an individual property can be retrieved with
+[uri #cert_get_property [cmd cert_get_property]].
+
+[section "Certificate contexts"]
+
+Operating on a certificate requires a [emph "certificate context"]
+which encapsulates all information about the certificate.
+Most often, the certificate of interest is an existing certificate
+that is located in a certificate store. The commands for 
+finding certificates in a store return a handle to a suitable
+certificate context. Similarly, commands that create new certificates
+or add certificates to a store return handles to certificate contexts
+as well.
+
+[para]
+When no longer needed, certificate contexts must be freed by calling
+[uri #cert_free [cmd cert_free]].
+
+[section "Finding a certificate in a store"]
+An existing certificate in a store can be retrieved in one of two ways:
+[list_begin bullet]
+[bullet] Enumerate each certificate in the store using
+[uri #cert_store_enum_contents [cmd cert_store_enum_contents]] and
+looking for a match using
+[uri #cert_get_name [cmd cert_get_name]] or
+[uri #cert_get_property [cmd cert_get_property]].
+[bullet] Searching for a match on the subject name using
+[uri #cert_store_find_certificate [cmd cert_store_find_certificate]].
+[list_end]
+Both these commands return a handle to a certificate context that
+can be used for further operations on the certificate.
+
+[section "Creating a new certificate"]
+New certificates can be created
+by commands such as 
+[uri #cert_create_self_signed [cmd cert_create_self_signed]],
+[uri #cert_create_signed_from_crypt_context [cmd cert_create_signed_from_crypt_context]] and
+[uri #cert_create_certificate [cmd cert_create_certificate]].
+These return handles to certificate contexts that are not associated with 
+any store. The certificates must be explicitly placed in a certificate store
+if desired.
+[para]
+Creating a new certificate involves several steps. As always, first
+a cryptographic context is needed that defines the algorithms,
+keys etc. that will be used to create the certificate.
+[example {set crypt [crypt_context_acquire -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1]}]
+This assumes a key container called twapi_test_container does not exist.
+All the options specified above happen to be the defaults if unspecified.
+[para]
+The key container is created without any keys so we need to generate
+public/private key pairs. As we will use the certificate for both
+signing and key exchange, we generate two key pairs for the container.
+[example_begin]
+crypt_release_key [lb]crypt_context_generate_key $crypt signature -exportable 1[rb]
+crypt_release_key [lb]crypt_context_generate_key $crypt keyexchange -exportable 1[rb]
+[example_end]
+Note we immediately release the key handles as they are not needed. This
+does not destroy the underlying keys. Also, because we want to write
+the certificate out to a file with the private keys, we mark the keys
+exportable.
+[para]
+Next, we create a self signed certificate from the cryptographic context
+we created. This will use the keys we just added.
+[example {set cert [cert_create_self_signed_from_crypt_context "CN=TwapiTestCA" $crypt]}]
+
+We now have a certificate context for a new self signed certificate.
+In most cases, we will want to either store it in a certificate store
+for future use or export it to a file. This is illustrated in 
+succeeding sections of this document.
+[para]
+The cryptographic context is not needed any more and can be released.
+[example {crypt_context_release $crypt}]
+
+[section "Adding and deleting certificates from a store"]
+Certificates can be added and deleted from certificate stores with
+the commands
+[uri #cert_store_add_certificate [cmd cert_store_add_certificate]]
+and [uri #cert_store_delete_certificate [cmd cert_store_delete_certificate]]
+respectively. Note that adding a certificate to a store creates a
+[emph copy] of the certificate. The original certificate (context) is
+unmodified.
+
+[para]
+The sample code below adds the certificate we created in the previous
+section to a memory store. First we create the memory store.
+[example {set store [cert_create_memory_store]}]
+Then we add the certificate to it.
+[example {set mcert [cert_store_add_certificate $store $cert]}]
+This creates a copy of the certificate we created earlier. Since we
+no longer need the original, we need to free it.
+[example {cert_free $cert}]
+There is now one crucial additional step. The association between
+a certificate and its private key is maintained by the store and is not
+part of the certificate. We therefore have to explicitly make the
+association between the CSP key container and the new certificate context
+for the memory store.
+
+[example {cert_set_key_prov $mcert -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1}]
+Notice we have specified exactly the key container we had created earlier.
+[para]
+The certificate is now stored in the memory store and will be available
+as long as the volatile memory store is not closed. As a final step
+we will export the certificate and the private keys to a file. This step
+is only necessary if we want to move the certificate elsewhere.
+[example_begin]
+set fd [lb]open MyCert.pfx w[rb]
+chan configure $fd -translation binary
+puts -nonewline $fd [lb]cert_store_export $store -password [lb]password[rb] -exportprivate[rb]
+close $fd
+[example_end]
+Note that because we are exporting private keys, it is important to
+protect the exported certificate with a password.
+[para]
+Finally, assuming we have no use to hold on to the certificate, we can
+free up the resources.
+[example_begin]
+cert_free $mcert
+cert_store_close $store
+[example_end]
+
+
+TBD - using a cert for signing
+
 
 [section Commands]
 
