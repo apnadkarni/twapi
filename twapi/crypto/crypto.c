@@ -956,6 +956,128 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
 }
 
 
+static TCL_RESULT Twapi_CertFindCertificateInStore(
+    TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
+    Tcl_Obj *CONST objv[])
+{
+    HCERTSTORE hstore;
+    PCCERT_CONTEXT certP, cert2P;
+    DWORD         enctype, flags, findtype, dw;
+    Tcl_Obj      *findObj;
+    int           i;
+    void         *pv;
+    CERT_BLOB     blob;
+    CERT_INFO     cinfo;
+    TCL_RESULT    res;
+    CERT_PUBLIC_KEY_INFO pki;
+    MemLifoMarkHandle mark = NULL;
+
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
+                     GETINT(enctype), GETINT(flags), GETINT(findtype),
+                     GETOBJ(findObj), GETPTR(certP, CERT_CONTEXT*),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (certP) {
+        i = TwapiVerifyPointer(interp, certP, CertFreeCertificateContext);
+        if (i != TWAPI_NO_ERROR)
+            return TwapiReturnError(interp, i);
+    }
+
+    res = TCL_OK;
+    switch (findtype) {
+    case CERT_FIND_ANY:
+        pv = NULL;
+        break;
+    case CERT_FIND_EXISTING:
+        res = ObjToOpaque(interp, findObj, (void **)&cert2P, "CERT_CONTEXT*");
+        if (res == TCL_OK) {
+            i = TwapiVerifyPointer(interp, cert2P, CertFreeCertificateContext);
+            if (i != TWAPI_NO_ERROR)
+                res = TwapiReturnError(interp, i);
+            else
+                pv = (void *)cert2P;
+        }
+        break;
+    case CERT_FIND_SUBJECT_CERT:
+        pv = &cinfo;
+        mark = MemLifoPushMark(&ticP->memlifo);
+        res = ParseCERT_INFO(ticP, findObj, &cinfo);
+        break;
+    case CERT_FIND_KEY_IDENTIFIER: /* FALLTHRU */
+    case CERT_FIND_MD5_HASH:    /* FALLTHRU */
+    case CERT_FIND_PUBKEY_MD5_HASH:    /* FALLTHRU */
+    case CERT_FIND_SHA1_HASH:   /* FALLTHRU */
+    case CERT_FIND_SIGNATURE_HASH: /* FALLTHRU */
+    case CERT_FIND_ISSUER_NAME: /* FALLTHRU */
+    case CERT_FIND_SUBJECT_NAME:
+        blob.pbData = ObjToByteArray(findObj, &blob.cbData);
+        pv = &blob;
+        break;
+    case CERT_FIND_ISSUER_STR_W: /* FALLTHRU */
+    case CERT_FIND_SUBJECT_STR_W:
+        pv = ObjToUnicode(findObj);
+        break;
+    case CERT_FIND_PROPERTY: /* FALLTHRU */
+    case CERT_FIND_KEY_SPEC:
+        res = ObjToDWORD(interp, findObj, &dw);
+        pv = &dw;
+        break;
+    case CERT_FIND_PUBLIC_KEY:
+        pv = &pki;
+        mark = MemLifoPushMark(&ticP->memlifo);
+        res = ParseCERT_PUBLIC_KEY_INFO(ticP, findObj, &pki);
+        break;
+    default:
+        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+    }
+
+    if (res == TCL_OK) {
+        if (certP) {
+            PCCERT_CONTEXT dupP;
+            /* The CertFindCertificateInStore call ALWAYS releases certP so
+               incr its ref count since we leave it to caller to free */
+            dupP = CertDuplicateCertificateContext(certP);
+            /*
+             * As per the docs, currently all Windows system have cert2P == certP 
+             * as they simply increment the ref count. Protect against future
+             * changes by checking for this.
+             */
+            if (dupP != certP) {
+                CertFreeCertificateContext(dupP); /* Since we have no way to
+                                                     return this to caller */
+                TwapiSetStaticResult(interp, "Internal error duplicating cert context");
+                res = TCL_ERROR;
+            }
+        }
+    }
+    
+    if (res == TCL_OK) {
+        certP = CertFindCertificateInStore(
+            pv,
+            X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+            0,
+            CERT_FIND_SUBJECT_STR_W,
+            pv,
+            certP);
+        if (certP) {
+            if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            ObjSetResult(interp, ObjFromOpaque((void*)certP, "CERT_CONTEXT*"));
+        } else {
+            /* EOF is not an error */
+            if (GetLastError() != CRYPT_E_NOT_FOUND)
+                res = TwapiReturnSystemError(interp);
+        }
+    }
+
+    if (mark)
+        MemLifoPopMark(mark);
+
+    return res;
+}
+
 static TCL_RESULT Twapi_CryptSignAndEncodeCert(
     TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     Tcl_Obj *CONST objv[])
@@ -1278,31 +1400,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         CertFreeCertificateContext(certP);
         break;
 
-    case 10015: // TwapiFindCertBySubjectName
-        /* Supports tiny subset of CertFindCertificateInStore */
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                         GETOBJ(s1Obj), GETPTR(certP, CERT_CONTEXT*),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        /* Unregister previous context since the next call will free it */
-        if (certP &&
-            TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-            return TCL_ERROR;
-        certP = CertFindCertificateInStore(
-            pv,
-            X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
-            0,
-            CERT_FIND_SUBJECT_STR_W,
-            ObjToUnicode(s1Obj),
-            certP);
-        if (certP) {
-            if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
-        } else {
-            result.type = GetLastError() == CRYPT_E_NOT_FOUND ? TRT_EMPTY : TRT_GETLASTERROR;
-        }
+    case 10015: // TBD
         break;
             
     case 10016: // CertUnregisterSystemStore
@@ -1467,7 +1565,6 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),
         DEFINE_FNCODE_CMD(cert_free, 10014), //CertFreeCertificateContext - doc
-        DEFINE_FNCODE_CMD(TwapiFindCertBySubjectName, 10015),
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
@@ -1483,6 +1580,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
     Tcl_CreateObjCommand(interp, "twapi::CertCreateSelfSignCertificate", Twapi_CertCreateSelfSignCertificate, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CertFindCertificateInStore", Twapi_CertFindCertificateInStore, ticP, NULL);
 
     return TwapiSspiInitCalls(interp, ticP);
 }
