@@ -49,6 +49,34 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 }
 #endif
 
+static Tcl_Obj *ObjFromCRYPT_KEY_PROV_INFO(CRYPT_KEY_PROV_INFO *infP)
+{
+    Tcl_Obj *objs[6];
+    DWORD i;
+    
+    objs[0] = ObjFromUnicode(infP->pwszContainerName);
+    objs[1] = ObjFromUnicode(infP->pwszProvName);
+    objs[2] = ObjFromDWORD(infP->dwProvType);
+    objs[3] = ObjFromDWORD(infP->dwFlags);
+    objs[4] = ObjNewList(infP->cProvParam, NULL);
+    objs[5] = ObjFromDWORD(infP->dwKeySpec);
+    
+    if (infP->rgProvParam) {
+        for (i=0; i < infP->cProvParam; ++i) {
+            /* TBD - for now just return raw bytes. */
+            Tcl_Obj *parObjs[3];
+            parObjs[0] = ObjFromDWORD(infP->rgProvParam[i].dwParam);
+            parObjs[1] = ObjFromByteArray(infP->rgProvParam[i].pbData,
+                                         infP->rgProvParam[i].cbData);
+            parObjs[2] = ObjFromDWORD(infP->rgProvParam[i].dwFlags);
+            ObjAppendElement(NULL, objs[4], ObjNewList(3, parObjs));
+        }
+    }
+
+    return ObjNewList(6, objs);
+}
+
+
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BIT_BLOB(
     TwapiInterpContext *ticP,
@@ -537,6 +565,19 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
             result.type = TRT_OBJ;
             break;
 
+        case CERT_KEY_PROV_INFO_PROP_ID:
+            if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
+                return TwapiReturnSystemError(interp);
+            pv = TwapiAlloc(n);
+            if (! CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
+                TwapiFree(pv);
+                return TwapiReturnSystemError(interp);
+            }        
+            result.value.obj = ObjFromCRYPT_KEY_PROV_INFO(pv);
+            TwapiFree(pv);
+            result.type = TRT_OBJ;
+            break;
+
         case CERT_KEY_CONTEXT_PROP_ID:
             n = ckctx.cbSize = sizeof(ckctx);
             if (CertGetCertificateContextProperty(certP, prop_id, &ckctx, &n)) {
@@ -564,6 +605,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_EXTENDED_ERROR_INFO_PROP_ID:
         case CERT_FRIENDLY_NAME_PROP_ID:
         case CERT_PVK_FILE_PROP_ID:
+        case CERT_REQUEST_ORIGINATOR_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
             result.value.unicode.str = TwapiAlloc(n);
@@ -597,7 +639,6 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
          *  CERT_SHA1_HASH_PROP_ID
          *  CERT_SIGNATURE_HASH_PROP_ID
          *  CERT_SUBJECT_PUBLIC_KEY_MD5_HASH_PROP_ID
-         *  CERT_REQUEST_ORIGINATOR_PROP_ID:
          */
 
         if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
