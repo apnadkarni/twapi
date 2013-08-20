@@ -67,14 +67,14 @@ proc twapi::cert_memory_store_open {} {
 
 proc twapi::cert_file_store_open {path args} {
     array set opts [parseargs args {
-        {readonly        0 0x00008000}
-        {commitenable    0 0x00010000}
-        {existing        0 0x00004000}
-        {create          0 0x00002000}
-        {includearchived 0 0x00000200}
-        {maxpermissions  0 0x00001000}
-        {deferclose      0 0x00000004}
-        {backupprivilege 0 0x00000800}
+        {readonly.bool        0 0x00008000}
+        {commitenable.bool    0 0x00010000}
+        {existing.bool        0 0x00004000}
+        {create.bool          0 0x00002000}
+        {includearchived.bool 0 0x00000200}
+        {maxpermissions.bool  0 0x00001000}
+        {deferclose.bool      0 0x00000004}
+        {backupprivilege.bool 0 0x00000800}
     } -maxleftover 0 -nulldefault]
 
     if {$opts(readonly) && $opts(commitenable)} {
@@ -90,22 +90,18 @@ proc twapi::cert_file_store_open {path args} {
     return [CertOpenStore 8 0x10001 NULL $flags [file nativename [file normalize $path]]]
 }
 
-proc twapi::cert_file_store_delete {name} {
-    return [CertOpenStore 8 0 NULL 0x10 [file nativename [file normalize $path]]]
-}
-
 proc twapi::cert_physical_store_open {name location args} {
     variable _system_stores
 
     array set opts [parseargs args {
-        {readonly        0 0x00008000}
-        {commitenable    0 0x00010000}
-        {existing        0 0x00004000}
-        {create          0 0x00002000}
-        {includearchived 0 0x00000200}
-        {maxpermissions  0 0x00001000}
-        {deferclose      0 0x00000004}
-        {backupprivilege 0 0x00000800}
+        {readonly.bool        0 0x00008000}
+        {commitenable.bool    0 0x00010000}
+        {existing.bool        0 0x00004000}
+        {create.bool          0 0x00002000}
+        {includearchived.bool 0 0x00000200}
+        {maxpermissions.bool  0 0x00001000}
+        {deferclose.bool      0 0x00000004}
+        {backupprivilege.bool 0 0x00000800}
     } -maxleftover 0 -nulldefault]
 
     if {$opts(readonly) && $opts(commitenable)} {
@@ -120,8 +116,11 @@ proc twapi::cert_physical_store_open {name location args} {
     return [CertOpenStore 14 0 NULL $flags $name]
 }
 
-proc twapi::cert_physical_store_delete {name} {
-    return [CertOpenStore 14 0 NULL 0x10 $name]
+proc twapi::cert_physical_store_delete {name location} {
+    set flags 0x10;             # CERT_STORE_DELETE_FLAG
+    incr flags [_system_store_id $location]
+    
+    return [CertOpenStore 14 0 NULL $flags $name]
 }
 
 proc twapi::cert_system_store_open {name args} {
@@ -155,24 +154,44 @@ proc twapi::cert_system_store_open {name args} {
     return [CertOpenStore 10 0 NULL $flags $name]
 }
 
-proc twapi::cert_system_store_delete {name} {
-    return [CertOpenStore 10 0 NULL 0x10 $name]
+proc twapi::cert_system_store_delete {name location} {
+    set flags 0x10;             # CERT_STORE_DELETE_FLAG
+    incr flags [_system_store_id $location]
+    return [CertOpenStore 10 0 NULL $flags $name]
 }
 
-proc twapi::cert_store_find_certificate {hstore args} {
-    # Currently only subject names supported
-    array set opts [parseargs args {
-        subject.arg
-        {hcert.arg NULL}
-    } -maxleftover 0]
-                    
-    if {![info exists opts(subject)]} {
-        error "Option -subject must be specified"
+proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL}} {
+
+    set term_types {
+        any 0
+        existing 13<<16
+        subject_cert 11<<16
+        key_identifier 15<<16
+        md5_hash 4<<16
+        pubkey_md5_hash 18<<16
+        sha1_hash 1<<16
+        signature_hash 14<<16
+        issuer_name (2<<16)|4
+        subject_name  2<<16
+        issuer_substring (8<<16)|4
+        subject_substring 8<<16
+        property 5<<16
+        key_spec 9<<16
+        public_key 6<<16
     }
 
-    return [TwapiFindCertBySubjectName $hstore $opts(subject) $opts(hcert)]
+    if {![string is integer -strict $type]} {
+        if {![dict exists $term_types $term]} {
+            badargs! "Invalid certificate find type '$type'. Must be one of [join [dict keys $term_types] {, }]"
+        }
+        set type [expr [dict get $term_types $type]]
+    }
+
+    return [CertFindCertificateInStore $hstore 0x10001 0 $type $term $hcert]
 }
 
+# TBD - does this need to be documented - cert_store_find_certificate
+# with type=any does the same?
 proc twapi::cert_store_enum_contents {hstore {hcert NULL}} {
     return [CertEnumCertificatesInStore $hstore $hcert]
 }
@@ -200,14 +219,34 @@ proc twapi::cert_store_add_certificate {hstore hcert args} {
     return [CertAddCertificateContextToStore $hstore $hcert $disposition]
 }
 
-proc twapi::cert_get_name {hcert args} {
+proc twapi::cert_store_export {hstore password args} {
     array set opts [parseargs args {
-        issuer
+        {exportprivatekeys.bool 0 0x4}
+        {failonmissingkey.bool 0 0x1}
+        {failonunexportablekey.bool 0 0x2}
+    } -maxleftover 0]
+
+    set flags [tcl::mathop::| $opts(exportprivatekeys) $opts(failonunexportablekey) $opts(failonmissingkey)]
+
+    return [::twapi::PFXExportCertStoreEx $hstore $password {} $flags]
+}
+
+interp alias {} twapi::cert_subject_name {} twapi::_cert_get_name subject
+interp alias {} twapi::cert_issuer_name {} twapi::_cert_get_name issuer
+
+proc twapi::_cert_get_name {field hcert args} {
+
+    switch $field {
+        subject { set field 0 }
+        issuer  { set field 1 }
+        default { badargs! "Invalid name type '$field': must be \"subject\" or \"issuer\"."
+    }
+    array set opts [parseargs args {
         {name.arg oid_common_name}
-        {separator.arg comma {comma semi newline}}
-        {reverse 0 0x02000000}
-        {noquote 0 0x10000000}
-        {noplus  0 0x20000000}
+        {separator.arg comma {comma semicolon newline}}
+        {reverse.bool 0 0x02000000}
+        {noquote.bool 0 0x10000000}
+        {noplus.bool  0 0x20000000}
         {format.arg x500 {x500 oid simple}}
     } -maxleftover 0]
 
@@ -229,7 +268,7 @@ proc twapi::cert_get_name {hcert args} {
             }
             set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
             switch $opts(separator) {
-                semi    { set arg [expr {$arg | 0x40000000}] }
+                semicolon    { set arg [expr {$arg | 0x40000000}] }
                 newline { set arg [expr {$arg | 0x08000000}] }
             }
         }
@@ -239,7 +278,7 @@ proc twapi::cert_get_name {hcert args} {
         }
     }
 
-    return [CertGetNameString $hcert $what $opts(issuer) $arg]
+    return [CertGetNameString $hcert $what $field $arg]
 
 }
 
@@ -270,7 +309,7 @@ proc twapi::cert_blob_to_name {blob args} {
 proc twapi::cert_name_to_blob {name args} {
     array set opts [parseargs args {
         {format.arg x500 {x500 oid simple}}
-        {separator.arg comma {comma semi newline}}
+        {separator.arg any {any comma semicolon newline}}
         {reverse 0 0x02000000}
         {noquote 0 0x10000000}
         {noplus  0 0x20000000}
@@ -285,7 +324,7 @@ proc twapi::cert_name_to_blob {name args} {
     set arg [expr {$arg | $opts(reverse) | $opts(noquote) | $opts(noplus)}]
     switch $opts(separator) {
         comma   { set arg [expr {$arg | 0x04000000}] }
-        semi    { set arg [expr {$arg | 0x40000000}] }
+        semicolon    { set arg [expr {$arg | 0x40000000}] }
         newline { set arg [expr {$arg | 0x08000000}] }
     }
 
@@ -302,6 +341,8 @@ proc twapi::cert_enum_properties {hcert} {
 }
 
 proc twapi::cert_get_property {hcert prop} {
+    # TBD - need to cook some properties
+
     if {[string is integer -strict $prop]} {
         return [CertGetCertificateContextProperty $hcert $prop]
     } else {
@@ -344,12 +385,18 @@ proc twapi::crypt_context_acquire {args} {
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
-        {verifycontext.bool 0 0xf0000000}
+        {verifycontext.bool 1 0xf0000000}
     } -maxleftover 0 -nulldefault]
     
-    # Based on http://support.microsoft.com/kb/238187    
-    if {$opts(verifycontext) && $opts(keycontainer) eq ""} {
-        badargs! "Option -verifycontext must be specified if -keycontainer option is unspecified or empty"
+    # Based on http://support.microsoft.com/kb/238187, if verifycontext
+    # is not specified, default container must not be used as keys
+    # from different applications might overwrite. The docs for
+    # CryptAcquireContext say keycontainer must be empty if verifycontext
+    # is specified. Thus they are mutually exclusive.
+    if {! $opts(verifycontext)} {
+        if {$opts(keycontainer) eq ""} {
+            badargs! "Option -verifycontext must be specified if -keycontainer option is unspecified or empty"
+        }
     }
 
     set flags [expr {$opts(create) | $opts(silent) | $opts(verifycontext)}]
@@ -422,7 +469,7 @@ proc twapi::crypt_context_generate_key {hprov algid args} {
     }
 
     if {$opts(size) < 0 || $opts(size) > 65535} {
-        badargs! "Bad key size parameter '$size':  must be positive integer less than 65536"
+        badargs! "Bad key size value '$size':  must be positive integer less than 65536"
     }
 
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
@@ -482,14 +529,6 @@ proc twapi::crypt_context_symmetric_key_size {hprov} {
     return $i
 }
 
-# Steps to create a certificate
-# - acquire a context via crypt_context_acquire
-# - create a new key container in it using crypt_context_generate_key
-#   (either keyexchange or signature)
-# - close the context and the key
-# - call CertCreateSelfSignCertificate using the name of the new key container
-# - store it in cert store
-# - export the store
 proc twapi::cert_create_self_signed {subject args} {
     array set opts [parseargs args {
         keytype.arg keyexchange {keyexchange signature}
