@@ -55,7 +55,28 @@ digital signatures and encryption using the RSA public key algorithm.
 On the other hand, a CSP of type [const PROV_DSS] uses the DSA algorithm and
 only supports hashes and signatures. When creating a
 [sectref "Cryptographic contexts"], an application needs to specify 
-a CSP type that supports the desired operations.
+a CSP type that supports the desired operations. The following types
+are recognized:
+[const prov_rsa_full],
+[const prov_rsa_sig],
+[const prov_dss],
+[const prov_fortezza],
+[const prov_ms_exchange],
+[const prov_ssl],
+[const prov_rsa_schannel],
+[const prov_dss_dh],
+[const prov_ec_ecdsa_sig],
+[const prov_ec_ecnra_sig],
+[const prov_ec_ecdsa_full],
+[const prov_ec_ecnra_full],
+[const prov_dh_schannel],
+[const prov_spyrus_lynks],
+[const prov_rng],
+[const prov_intel_sec],
+[const prov_replace_owf],
+[const prov_rsa_aes].
+Refer to the Windows SDK for details about the features provided by each.
+For most applications, the default [const prov_rsa_full] is sufficient.
 
 [para]
 Two standard providers shipped as part of Windows are
@@ -79,7 +100,16 @@ are used for an operation depends on the
 [sectref "Cryptographic contexts"] is bound at the time the context is
 created via the [uri #crypt_context_acquire [cmd crypt_context_acquire]]
 command. This command also allows creation of new key containers within
-a CSP if they do not exist. 
+a CSP if they do not exist.
+
+[para]
+Depending on the options specified and the account under which they
+are created, key containers are created with restricted access. The
+exact access depends on the account group membership 
+(e.g. whether an adminitrator or not) and operating system version.
+Applications can set specific access rules by setting a 
+[uri security.html DACL] on the container using 
+[uri #crypt_context_security_descriptor [cmd crypt_context_security_descriptor]].
 
 [para]
 To delete key containers, use the
@@ -202,6 +232,12 @@ if it does not exist.
 The handle returned from these commands must be passed to any
 commands that operate on stores and released by calling
 [uri #cert_store_close [cmd cert_store_close]] when no longer required.
+[para]
+The returned handle from these commands refers to a cached copy of the store.
+Any changes made via this handle are made to the cached copy and
+must be explicitly saved if they need to persist. This can be done
+either via the [cmd -commitenable] option when the store is opened, or
+by calling [uri #cert_save_store [cmd cert_save_store]].
 
 [para]
 Existing certificate stores can be deleted using the commands
@@ -323,32 +359,451 @@ is only necessary if we want to move the certificate elsewhere.
 [example_begin]
 set fd [lb]open MyCert.pfx w[rb]
 chan configure $fd -translation binary
-puts -nonewline $fd [lb]cert_store_export $store -password [lb]password[rb] -exportprivate[rb]
+puts -nonewline $fd [lb]cert_store_export $store [lb]password[rb] -exportprivate[rb]
 close $fd
 [example_end]
-Note that because we are exporting private keys, it is important to
-protect the exported certificate with a password.
+Note that because we are exporting private keys, a password is required
+to protect the exported file.
 [para]
-Finally, assuming we have no use to hold on to the certificate, we can
+Finally, assuming we have no need to hold on to the certificate, we can
 free up the resources.
 [example_begin]
 cert_free $mcert
 cert_store_close $store
 [example_end]
 
-
-TBD - using a cert for signing
-
-
 [section Commands]
 
 [list_begin definitions]
 
-[call [cmd crypt_context_acquire] [opt [arg options]]]
-Returns a handle to a cryptographic context based on the specified options.
+[call [cmd cert_blob_to_name] [arg ENCODEDBLOB] [opt [arg options]]]
+Converts the encoded X.509 ASN encoded name in [arg ENCODEDBLOB]
+to a string. The following options control how the returned name
+is formatted.
 [list_begin opt]
-[opt_def [cmd -confidentiality] [arg BOOL]]
-If specified as [const true], messages are to be encrypted.
+[opt_def [cmd -format] [arg FORMAT]] Specifies how the output
+is to be formatted. [arg FORMAT] must be one of [const x500] (default),
+[const oid] or [const simple].
+[opt_def [cmd -noplus] [arg BOOLEAN]] If [const true], the plus sign
+in names is replaced with a single space. Default is [const false].
+[opt_def [cmd -noquote] [arg BOOLEAN]] If [const true], quoting of
+special characters in RDN names is disabled. Default is [const false].
+[opt_def [cmd -reverse] [arg BOOLEAN]] If [const true], order of
+RDN components is reversed. Default is [const false].
+[opt_def [cmd -separator] [arg SEPARATOR]] Specifies the separator
+to use between RDN components.
+[arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
+or [const newline].
+[list_end]
+
+See [uri #cert_name_to_blob [cmd cert_name_to_blob]] for the reverse
+operation.
+
+[call [cmd cert_enum_properties] [arg HCERT]]
+Returns a list properties defined for the certificate context [arg HCERT].
+
+[call [cmd cert_file_store_open] [arg PATH] [opt [arg options]]]
+Opens a certificate store from a file [arg PATH]
+and returns a handle to a cached copy of it.
+The following options may be specified:
+
+[list_begin opt]
+
+[opt_def [cmd -backupprivilege] [arg BOOLEAN]]
+If [const true], specifies that the thread's [const SE_BACKUP_NAME]
+and [const SE_RESTORE_NAME] privileges must be used to open the store.
+Default is [const false].
+
+[opt_def [cmd -commitenable] [arg BOOLEAN]]
+If [const true], any changes made to the store are persisted to [arg PATH]
+when the store is closed. Default is [const false]. 
+
+[opt_def [cmd -create] [arg BOOLEAN]]
+If [const true], a new store is opened only if it did not exist. An error
+is raised if the store already existed.
+Default is [const false] so no error is raised in the latter case.
+
+[opt_def [cmd -deferclose] [arg BOOLEAN]]
+Normally changes to any certificate contexts made after the associated store
+is closed are not persisted. Setting this option to [const true] will
+defer the closing of the store until all associated certificate contexts
+have been released.
+Default is [const false].
+
+[opt_def [cmd -existing] [arg BOOLEAN]]
+If [const true], when [arg PATH] does not already exist, it is not created.
+An exception is raised instead.
+Default is [const false].
+[opt_def [cmd -includearchived] [arg BOOLEAN]]
+By default, enumeration of certificates in a store will not include any
+that are marked as archived. Setting this option to [const true] will
+cause those certificates to be included.
+Default is [const false].
+[opt_def [cmd -maxpermissions] [arg BOOLEAN]]
+If [const true], the store is opened with the maximum set of access permissions
+possible.
+Default is [const false].
+[opt_def [cmd -readonly] [arg BOOLEAN]]
+If [const true], the store is opened in read-only mode. Changes made cannot
+be persisted.
+Default is [const false].
+[list_end]
+
+The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+when no longer needed.
+
+[call [cmd cert_get_property] [arg HCERT] [arg PROPERTY]]
+Returns the value of a property in a certificate context. Raises
+an error if the property does not exist in the context.
+
+[arg PROPERTY] must be one of the following:
+[list_begin opt]
+[opt_def [cmd access_state]] A non-0 integer if write operations
+to the certificate context are persisted and 0 if they are not.
+[opt_def [cmd archived]] If this property exists, the certificate is
+an archived certificate.
+[opt_def [cmd auto_enroll]] The certificate type for which
+this certificate has been auto-enrolled.
+[opt_def [cmd date_stamp]] The date and time that the certificate was
+added to the store.
+[opt_def [cmd description]] The description associated with the certificate
+for display purposes.
+[opt_def [cmd enhkey_usage]] A list of enhanced key usage OID's.
+[opt_def [cmd extended_error_info]] Any extended error information
+for the certificate context.
+[opt_def [cmd friendly_name]] The display name for the certificate.
+[opt_def [cmd issuer_public_key_md5_hash]] The MD5 hash of the issuer's public
+key used to sign the certificate.
+[opt_def [cmd issuer_serial_number_md5_hash]]
+The MD5 hash of the issuer name and serial number.
+[opt_def [cmd key_context]] A list of two elements containing a handle
+to the cryptographic context for the certificate and the key type.
+[opt_def [cmd key_identifier]] A binary containing the Subject Key Identifier
+value if it exists else the SHA1 hash on the certificate Subject Public Key.
+[opt_def [cmd key_prov_handle]] A handle to the associated cryptographic
+context.
+[opt_def [cmd key_prov_info]] A list containing the following elements:
+the name of the key container, the name of the CSP, the CSP type,
+attributes, key container parameters and the key type.
+[opt_def [cmd key_spec]] Specifies the private key.
+[opt_def [cmd md5_hash]] Binary containing the MD5 hash of the certificate.
+[opt_def [cmd pvk_file]] File path of the private key file corresponding
+to the certificate's public key.
+[opt_def [cmd sha1_hash]] Binary containing the SHA1 hash of the certificate.
+[opt_def [cmd signature_hash]] Signature hash.
+[opt_def [cmd subject_name_md5_hash]] Binary containing the MD5 hash of the
+encoded subject name.
+[opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
+[list_end]
+
+[call [cmd cert_issuer_name] [arg HCERT] [opt [arg options]]]
+Returns an issuer name field from the certificate context [arg HCERT]. 
+The field may be from the certificate itself or a certificate property
+in the context.
+[nl]
+Refer to [uri #cert_subject_name [cmd cert_subject_name]] for a list
+of options.
+
+[call [cmd cert_name_to_blob] [arg NAME] [opt [arg options]]]
+Converts the string [arg NAME] to an X.509 ASN encoded binary.
+The following options control the allowed format for [arg NAME].
+[list_begin opt]
+[opt_def [cmd -format] [arg FORMAT]] Specifies how [arg NAME] is
+formatted. [arg FORMAT] must be one of [const x500] (default),
+[const oid] or [const simple].
+[opt_def [cmd -noplus] [arg BOOLEAN]] If [const true], the plus sign
+in [arg NAME] is not treated as a value separator. Default is [const false].
+[opt_def [cmd -noquote] [arg BOOLEAN]] If [const true], quoting is
+not supported in [arg NAME]. Default is [const false].
+[opt_def [cmd -reverse] [arg BOOLEAN]] If [const true], order of
+RDN components in [arg NAME] 
+is reversed before encoding. Default is [const false].
+[opt_def [cmd -separator] [arg SEPARATOR]] If unspecified, 
+commans and semicolons are parsed as separators. If specified,
+only [arg SEPARATOR] is treated as a separator. 
+[arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
+or [const newline]. In the case of [const newline], carriage return
+and linefeed characters are treated as separators.
+[list_end]
+
+See [uri #cert_blob_to_name [cmd cert_blob_to_name]] for the reverse
+operation.
+
+[call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
+Returns a subject name field from the certificate context [arg HCERT]. 
+The field may be from the certificate itself or a certificate property
+in the context.
+[nl]
+By default the common name in the certificate is returned.
+The [cmd -name] option can be specified to retrieve a different field.
+The value of the option can be a OID string identifying a certificate
+name attribute or one of the values in the table below:
+[list_begin opt]
+[opt_def [const dns]] Returns the DNSName choice in the Alternative Name
+extension if there is one, or the the CN OID [const 2.5.4.3] from the
+Subject Name field. If neither is found returns an empty string.
+[opt_def [const email]] Returns the first rfc822Name choice in 
+the Alternative Name extension. If not found, returns the name field
+for the Email OID. Otherwise returns an empty string.
+[opt_def [const friendlydisplay]] Returns the [const CERT_FRIENDLY_NAME_PROP_ID]
+property if there is one. Otherwise behaves as [cmd simpledisplay].
+[opt_def [const simpledisplay]] Returns the first attribute suitable
+for display purposes from
+Name or Alternative Name extension.
+[opt_def [const oid_common_name]] Returns the Common Name (Default).
+[opt_def [const rdn]] Returns the Subject Name RDN if there is one.
+If not found, returns the first Directory Name choice from
+the Alternative Name extension if there is one. Otherwise returns
+an empty string. The format for this option can be further controlled
+as described later.
+[opt_def [const upn]] Returns the UPN from the OID 
+[const 1.3.6.1.4.1.311.20.2.3] in the OtherName choices from
+the Alternative Name extension and an empty string if not found.
+[opt_def [const url]] Returns the URL choice in the Alternative Name
+extension if there is one. If not found, returns an empty string.
+[list_end]
+
+When the [cmd -name] option is [const rdn], the following options
+may be further specified to control the returned format.
+[list_begin opt]
+[opt_def [cmd -format] [arg FORMAT]] Specifies how the output
+is to be formatted. [arg FORMAT] must be one of [const x500] (default),
+[const oid] or [const simple].
+[opt_def [cmd -noplus] [arg BOOLEAN]] If [const true], the plus sign
+in names is replaced with a single space. Default is [const false].
+[opt_def [cmd -noquote] [arg BOOLEAN]] If [const true], quoting of
+special characters in RDN names is disabled. Default is [const false].
+[opt_def [cmd -reverse] [arg BOOLEAN]] If [const true], order of
+RDN components is reversed. Default is [const false].
+[opt_def [cmd -separator] [arg SEPARATOR]] Specifies the separator
+to use between RDN components.
+[arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
+or [const newline].
+[list_end]
+
+[call [cmd cert_memory_store_open]]
+Opens a new certificate store in memory and returns a handle to it. 
+The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+when no longer needed. All contents of the store are deleted when
+it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
+can be used to save the contents to a persistent store if desired.
+
+
+[call [cmd cert_physical_store_open] [arg NAME] [arg LOCATION] [opt [arg options]]]
+Opens a certificate physical store that is part of a logical system
+store and returns a handle to a cached copy.
+[arg NAME] is the name of the physical store including the
+system store component, e.g. [const Root\\.Default]. [arg LOCATION]
+specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
+[nl]
+Refer to the documentation of
+[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
+of [arg options].
+[nl]
+The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+when no longer needed.
+
+[call [cmd cert_physical_store_delete] [arg NAME] [arg LOCATION]]
+Deletes a certificate physical store that is part of a logical system
+store. [arg NAME] is the name of the physical store including the
+system store component, e.g. [const Root\\.Default]. [arg LOCATION]
+specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
+
+[call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
+Associates the certificate context [arg HCERT] with a CSP key container.
+The following options specify the container:
+
+[list_begin opt]
+[opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP for
+the container.
+If unspecified, the default Microsoft CSP for the system is used.
+[opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
+CSP. Defaults to [const prov_rsa_full]. 
+See [sectref "Cryptographic Service Providers"] for all possible types.
+[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
+Specifies the name of the key container for which the context is to
+be returned. If unspecified, the context returned is for the default
+container.
+[opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
+[const user] (default) or [const machine].
+[opt_def [cmd -keytype] [arg KEYTYPE]] [arg KEYTYPE] must be one of
+[const keyexchange] or [const signature].
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to create the context. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will raise an error if a user prompt was required.
+[list_end]
+
+
+
+[call [cmd cert_store_add_certificate] [arg HSTORE] [arg HCERT] [opt "[cmd -disposition] [arg DISPOSITION]"]]
+Adds a new certificate to a certificate store. [arg HSTORE] is the handle
+to the store and [arg HCERT] is a handle to a certificate context.
+The new certificate is a [emph copy] of [arg HCERT]. The command returns
+a handle to the new certificate context which must be freed
+with [uri #cert_free] when no longer needed. 
+Note that the new certificate is not persisted until the store is saved.
+[nl]
+Any properties associated with [arg HCERT] are also copied to the new
+certificate context with the exception of any key associations.
+These must be explicitly added to the new context if desired using
+[uri #cert_set_key_prov [cmd cert_set_key_prov]].
+[nl]
+The [cmd -disposition] option controls what happens if a matching
+certificate already exists in the store. [arg DISPOSITION] may take one
+of the following values:
+[list_begin opt]
+[opt_def duplicate] Creates the new certificate while keeping the existing
+one. This will create duplicates in the store.
+[opt_def overwrite] Overwrites the existing certificate with the new one.
+[opt_def preserve] If a matching certificate exists, it is preserved
+and a error raised. Otherwise, the new certificate is added.
+[opt_def update] The new certificate is added if there is no matching
+certificate or the matching certificate's validity period start time
+is less than that of the new certificate. Otherwise an error is raised.
+[list_end]
+
+[call [cmd cert_store_close] [arg HSTORE]]
+Releases the specified handle to a certificate store.
+
+[call [cmd cert_store_export] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
+Returns a binary containing all the certificates in a certificate store.
+[arg HSTORE] is a handle to the store and [arg PASSWORD] is the password
+to be used for encrypting the returned content. [arg PASSWORD] itself
+must not be in plaintext, but should be in encrypted form as returned
+by the [uri security.html#password [cmd password]] or
+[uri base.html#conceal [cmd conceal]] commands.
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -exportprivatekeys] [arg BOOLEAN]]
+If [const true], any private keys associated with the exported certificates
+are included in the returned binary. Default is [const false].
+[opt_def [cmd -failonmissingkey] [arg BOOLEAN]]
+If [const true], the command raises an error if any certificate does
+not have keys associated with it. Default is [const false].
+[opt_def [cmd -failonunexportablekey] [arg BOOLEAN]]
+If [const true], the command raises an error if the keys associated
+with any certificate are note marked exportable. Default is [const false].
+[list_end]
+
+
+[call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
+The command returns a handle to a certificate context for 
+the next matching certificate in the store specified by the handle
+[arg HSTORE]. When [arg HCERT] is not specified or is specified as
+[const NULL], the search starts from the first certificate in the store.
+If [arg HCERT] is specified, it must be a handle to a certificate context
+returned by a previous call to the command. The search then begins with
+the next certificate in the store.
+[nl]
+All certificate context handles returned by the command must be released
+by calling [uri #cert_free [cmd cert_free]]. The command returns an
+empty string when there are no more certificates in the store.
+[nl]
+The criteria for matching are specified by the [arg SEARCHTYPE] and
+[arg SEARCHTERM] arguments as in the table below where the first column
+specifies possible values of [arg SEARCHTYPE].
+[list_begin opt]
+[opt_def [const any]]
+Returns every certificate in the store. [arg SEARCHTERM] is ignored.
+[opt_def [const certificate]]
+Returns certificates that exactly match the certificate context whose
+handle is specified as [arg SEARCHTERM].
+[opt_def [const issuer_name]]
+Returns certificates whose issuer exactly matches [arg SEARCHTERM].
+[arg SEARCHTERM] is a X.509 name in encoded form as returned
+by [uri #cert_name_to_blob [cmd cert_name_to_blob]].
+[opt_def [const issuer_substring]]
+Returns certificates whose issuer contains the string [arg SEARCHTERM].
+Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
+[opt_def [const key_identifier]] Returns certificates with a matching
+value for the subject key identifier (OID [const 2.5.29.14]) extension.
+[opt_def [const key_spec]]
+Returns certificates whose [const CERT_KEY_SPEC_PROP_ID] matches
+the integer [arg SEARCHTERM].
+[opt_def [const md5_hash]]
+Returns certificates that have a MD5 hash which matches the binary [arg SEARCHTERM].
+[opt_def [const property]]
+Returns certificates that have a property with id [arg SEARCHTERM]
+(see [uri #cert_get_property [cmd cert_get_property]]).
+[opt_def [const pubkey_md5_hash]]
+Returns certificates whose MD5-hashed public key matches the binary [arg SEARCHTERM].
+[opt_def [const public_key]]
+[opt_def [const sha1_hash]]
+Returns certificates that have a SHA1 hash which matches the binary [arg SEARCHTERM].
+[opt_def [const signature_hash]]
+Returns certificates that have a signature hash which matches the binary [arg SEARCHTERM].
+[opt_def [const subject_cert]]
+[opt_def [const subject_name]]
+Returns certificates whose subject exactly matches [arg SEARCHTERM].
+[arg SEARCHTERM] is a X.509 name in encoded form as returned
+by [uri #cert_name_to_blob [cmd cert_name_to_blob]].
+[opt_def [const subject_substring]]
+Returns certificates whose subject contains the string [arg SEARCHTERM].
+Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
+
+[list_end]
+
+[call [cmd cert_system_store_open] [arg NAME] [opt [arg LOCATION]] [opt [arg options]]]
+Opens a logical system store and returns a handle to a cached copy.
+[arg NAME] is the name of the logical store such as [const Root] or
+[const My]. [arg LOCATION] specifies the location of the system store 
+and must be one of
+the values listed in [sectref "Certificate stores"].
+[nl]
+Refer to the documentation of
+[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
+of [arg options].
+[nl]
+The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+when no longer needed.
+
+[call [cmd cert_system_store_delete] [arg NAME] [arg LOCATION]]
+Deletes a certificate physical store that is part of a logical system
+store. [arg NAME] is the name of the physical store including the
+system store component, e.g. [const Root\\.Default]. [arg LOCATION]
+specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
+
+[call [cmd crypt_context_acquire] [opt [arg options]]]
+Returns a handle to a cryptographic context for a particular key container
+in a [uri #cryptographicserviceproviders CSP].
+
+[list_begin opt]
+[opt_def [cmd -create] [arg BOOLEAN]] If specified as [const true],
+the key container is created if it does not exist. If [const false] (default)
+an error is generated if the key container does not exist.
+[opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP to be used.
+If unspecified, the default Microsoft CSP for the system is used.
+[opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
+CSP. Defaults to [const prov_rsa_full]. 
+See [sectref "Cryptographic Service Providers"] for all possible types.
+[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
+Specifies the name of the key container for which the context is to
+be returned. If unspecified, the context returned is for the default
+container.
+[opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
+[const user] (default) or [const machine]. Normally the key container
+is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
+the key container is treated as a computer container. This is
+needed when an application must access the keys from a process where
+the user profile is not loaded.
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to create the context. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will raise an error if a user prompt was required.
+[opt_def [cmd -verifycontext] [arg BOOLEAN]] If specified as [const true]
+(default), the context is not intended for use with persisted private keys.
+If this option is specified as [const true], [cmd -keycontainer] must
+not be specified if the CSP is file-based. If specified as [const false],
+the returned context provides access to persisted private keys in the
+container. Specifying this option as [const true] results in a key container
+being created in memory and deleted when the cryptographic context is
+released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
+
 [list_end]
 
 [list_end]
