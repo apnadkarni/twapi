@@ -953,10 +953,7 @@ namespace eval twapi::com::test {
         $pobjs -iterate pobj {
             break
         }
-        set ifc [$pobj -proxy]
-        set method_id [$ifc @GetIDOfOneName GetOwner]
-        $ifc Release
-        set prototype "func $method_id ui4 GetOwner (\[out\] bstr user, \[out\] bstr domain )"
+        set prototype "func [$pobj -dispid GetOwner] ui4 GetOwner (\[out\] bstr user, \[out\] bstr domain )"
     } -cleanup {
         $wmi -destroy
         $pobjs -destroy
