@@ -601,11 +601,14 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
                 result.type = TRT_GETLASTERROR;
             break;
 
+#ifndef CERT_REQUEST_ORIGINATOR_PROP_ID
+# define CERT_REQUEST_ORIGINATOR_PROP_ID 71
+#endif
+        case CERT_REQUEST_ORIGINATOR_PROP_ID:
         case CERT_AUTO_ENROLL_PROP_ID:
         case CERT_EXTENDED_ERROR_INFO_PROP_ID:
         case CERT_FRIENDLY_NAME_PROP_ID:
         case CERT_PVK_FILE_PROP_ID:
-        case CERT_REQUEST_ORIGINATOR_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
             result.value.unicode.str = TwapiAlloc(n);
@@ -1600,7 +1603,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
-        DEFINE_FNCODE_CMD(crypt_release_key, 10009), // Doc TBD
+        DEFINE_FNCODE_CMD(crypt_key_free, 10009), // Doc TBD
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
