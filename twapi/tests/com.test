@@ -945,6 +945,29 @@ namespace eval twapi::com::test {
     ################################################################
     
     test define_dispatch_prototype-1.0 {
+        Basic test for define_dispatch_prototype
+    } -setup {
+        package require twapi_wmi
+        set wmi [twapi::wmi_root]
+        set pobjs [$wmi ExecQuery "select * from Win32_process where ProcessId='[pid]'"]
+        $pobjs -iterate pobj {
+            break
+        }
+        set ifc [$pobj -proxy]
+        set method_id [$ifc @GetIDOfOneName GetOwner]
+        $ifc Release
+        set prototype "func $method_id ui4 GetOwner (\[out\] bstr user, \[out\] bstr domain )"
+    } -cleanup {
+        $wmi -destroy
+        $pobjs -destroy
+        $pobj -destroy
+    } -body {
+        twapi::define_dispatch_prototypes {{269AD56A-8A67-4129-BC8C-0506DCFE9880}} $prototype
+        $pobj GetOwner user domain
+        list [twapi::variant_value $user] [twapi::variant_value $domain]
+    } -result [list $::env(USERNAME) $::env(USERDOMAIN)]
+
+    test define_dispatch_prototype-2.0 {
         TBD
     } -constraints {
         TBD
