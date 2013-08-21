@@ -627,7 +627,7 @@ proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false}}
 }
 
 
-#
+# TBD - document
 # Returns a string value from a formatted variant value pair {VT_xxx value}
 # $addref controls whether we do an AddRef when the value is a pointer to
 # an interface. $raw controls whether interface pointers are returned
@@ -1058,8 +1058,8 @@ proc twapi::_dispatch_prototype_load {guid protolist} {
 proc twapi::_parse_dispatch_paramdef {paramdef} {
     set errormsg "Invalid parameter or return type declaration '$paramdef'"
 
-    set paramregex {^(\[[^\]]*\])?\s*(\w+)\s*(\[\s*\])?\s*([*]?)\s*(\w+)?\s*$}
-    if {![regexp $paramregex $paramdef def attrs paramtype safearray ptr paramname]} {
+    set paramregex {^(\[[^\]]*\])?\s*(\w+)\s*(\[\s*\])?\s*([*]?)\s*(\w+)?$}
+    if {![regexp $paramregex [string trim $paramdef] def attrs paramtype safearray ptr paramname]} {
         error $errormsg
     }
 
@@ -3024,7 +3024,6 @@ twapi::class create ::twapi::Automation {
     }
 
     method -destroy {} {
-        # For backwords compatibility. Synonym for destroy
         my destroy
     }
 
