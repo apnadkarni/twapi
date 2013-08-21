@@ -3063,6 +3063,12 @@ twapi::class create ::twapi::Automation {
         return [$_proxy @SetGuid $guid]
     }
 
+    # Return the disp id for a method/property
+    method -dispid {name} {
+        my variable _proxy
+        return [$_proxy @GetIDOfOneName $name]
+    }
+
     # Prints methods in an interface
     method -print {} {
         my variable _proxy
