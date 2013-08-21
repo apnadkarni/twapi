@@ -240,6 +240,7 @@ proc twapi::_cert_get_name {field hcert args} {
         subject { set field 0 }
         issuer  { set field 1 }
         default { badargs! "Invalid name type '$field': must be \"subject\" or \"issuer\"."
+        }
     }
     array set opts [parseargs args {
         {name.arg oid_common_name}
@@ -415,19 +416,19 @@ proc twapi::crypt_key_container_delete args {
     array set opts [parseargs args {
         keycontainer.arg
         csp.arg
-        {type.arg prov_rsa_full}
-        {storage.arg user {machine user}}
+        {csptype.arg prov_rsa_full}
+        {keysettype.arg user {machine user}}
     } -maxleftover 0 -nulldefault]
 
     set flags 0x10;             # CRYPT_DELETEKEYSET
-    if {$opts(storage) eq "machine"} {
+    if {$opts(keysettype) eq "machine"} {
         incr flags 0x20;        # CRYPT_MACHINE_KEYSET
     }
 
-    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(type)] $flags]
+    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags]
 }
 
-proc twapi::crypt_context_generate_key {hprov algid args} {
+proc twapi::crypt_key_generate {hprov algid args} {
 
     array set opts [parseargs args {
         {archivable.bool 0 0x4000}
@@ -475,7 +476,7 @@ proc twapi::crypt_context_generate_key {hprov algid args} {
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
 
-proc twapi::crypt_context_get_key {hprov keytype} {
+proc twapi::crypt_key_get {hprov keytype} {
     return [switch $keytype {
         keyexchange {CryptGetUserKey $hprov 1}
         signature   {CryptGetUserKey $hprov 2}
