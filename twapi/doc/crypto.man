@@ -770,7 +770,9 @@ the values listed in [sectref "Certificate stores"].
 
 [call [cmd crypt_context_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a particular key container
-in a [uri #cryptographicserviceproviders CSP].
+in a [uri #cryptographicserviceproviders CSP]. The hande must be freed
+when no longer required by calling 
+[uri #crypt_context_free [cmd crypt_context_free]].
 
 [list_begin opt]
 [opt_def [cmd -create] [arg BOOLEAN]] If specified as [const true],
@@ -805,6 +807,68 @@ being created in memory and deleted when the cryptographic context is
 released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
 
 [list_end]
+
+[call [cmd crypt_context_free] [arg HCRYPT]]
+Frees a cryptographic context returned by
+[uri #crypt_context_free [cmd crypt_context_free]].
+
+
+[call [cmd crypt_key_container_delete] [opt [arg options]]]
+Deletes the key container identified by the specified options.
+[list_begin opt]
+[opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP for
+the key container.
+If unspecified, the default Microsoft CSP for the system is used.
+[opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
+CSP. Defaults to [const prov_rsa_full]. 
+See [sectref "Cryptographic Service Providers"] for all possible types.
+[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
+Specifies the name of the key container to be deleted in
+the CSP. If unspecified, the default container is deleted.
+[opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
+[const user] (default) or [const machine]. Normally the key container
+is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
+the key container is treated as a computer container.
+[list_end]
+
+[call [cmd crypt_key_free] [arg HCRYPTKEY]]
+Frees a handle to a cryptographic key.
+
+[call [cmd crypt_key_generate] [arg HCRYPT] [arg ALGORITHM] [opt [arg options]]]
+Generates a new key or public/private key pair in the cryptographic
+context [arg HCRYPT] and returns a handle to it. 
+[arg ALGORITHM] specifies the algorithm with which the keys will be used
+and must be one of 
+[const keyexchange], [const signature], [const dh_ephemeral], [const dh_sandf],
+[const md5], [const sha], [const sha1], [const mac], [const ripemd],
+[const rimemd160], [const ssl3_shamd5], [const hmac], [const sha256],
+[const sha384], [const sha512], [const rsa_sign], [const dss_sign], 
+[const rsa_keyx], [const des], [const 3des], [const 3des112] or
+[const desx].
+
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -archivable] [arg BOOLEAN]]
+If [const true], the key can be exported until its handle is freed
+after which it is no longer exportable.
+[opt_def [cmd -exportable] [arg BOOLEAN]]
+If [const true], the key is exportable. If [const false], session keys
+and private keys are not exportable.
+[opt_def [cmd -pregen] [arg BOOLEAN]] If [const true], specifies
+an initial Diffie-Hellman or DSS key generation. Not applicable
+for other algorithms.
+[opt_def [cmd -userprotected] [arg BOOLEAN]] If [const true],
+the user is notified by some CSP-specific means for some uses of the key.
+[opt_def [cmd -size] [arg KEYSIZE]] Specifies the key size to override
+the default key size. Since default key sizes are platform dependent,
+Microsoft recommends key size be explicitly set.
+[list_end]
+
+[nl]
+The returned handle must be freed by calling
+[uri #crypt_key_free [cmd crypt_key_free]].
+
 
 [list_end]
 
