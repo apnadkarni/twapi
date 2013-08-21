@@ -536,16 +536,16 @@ Other options are ignored if this option is specified.
 [opt_def [cmd -disablelog] [arg BOOLEAN]]
 If specified as true, disables logging of failures.
 Corresponds to the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_NO_FAILURE_LOG]]
+[uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_NO_FAILURE_LOG]]
 in the SDK.
 
 [opt_def [cmd -download] [arg BOOLEAN]]
 If specified as true, allows downloading of code from the Internet or Directory
 Service. This corresponds to setting the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_ENABLE_CODE_DOWNLOAD]].
+[uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_ENABLE_CODE_DOWNLOAD]].
 If specified as false, disallows downloading of code from the Internet or Directory
 Service. This corresponds to setting the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_DISABLE_CODE_DOWNLOAD]].
+[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asphttp://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_DISABLE_CODE_DOWNLOAD]].
 [nl]
 If this option is not specified, neither of the flags is set in the
 underlying call to [cmd CoCreateInstance].
@@ -554,10 +554,10 @@ underlying call to [cmd CoCreateInstance].
 If specified as true, enables activate-as-activator activations where
 a server process is launched under the caller's identity.
 This corresponds to setting the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_ENABLE_AAA]].
+[uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_ENABLE_AAA]].
 If specified as false, disables activate-as-activator activations.
 This corresponds to setting the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_DISABLE_AAA]].
+[uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_DISABLE_AAA]].
 [nl]
 If this option is not specified, neither of the flags is set in the
 underlying call to [cmd CoCreateInstance].
@@ -580,7 +580,7 @@ acceptable.
 [opt_def [cmd -nocustommarshal] [arg BOOLEAN]]
 If true, the object creation will fail if it uses custom marshalling.
 Corresponds to the flag
-[uri "http://msdn.microsoft.com/library/default.asp?url=/library/en-us/com/html/dcb82ff2-56e4-4c7e-a621-7ffd0f1a9d8e.asp" [const CLSCTX_NO_CUSTOM_MARSHAL]].
+[uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_NO_CUSTOM_MARSHAL]].
 
 [list_end]
 
@@ -702,13 +702,14 @@ If the object is known to support the [cmd IDispatchEx] interface as well,
 the [cmd -interface] option may be used to specify that should be used
 instead.
 
-[call [cmd define_dispatch_prototypes] [arg IID] [arg PROTOLIST]]
+[call [cmd define_dispatch_prototypes] [arg IID] [arg PROTOTYPES]]
 Explicitly defines the prototype (call signature) for one or more methods
 or properties of a COM component. [arg IID] is the interface identifier
 for the dispatch
-interface of the COM component. [arg PROTOLIST] is a list of zero
-or more prototype definitions, each of which has the following form
-[example [arg "MEMBERTYPE DISPID RETTYPE NAME (PARAMS)"]]
+interface of the COM component. [arg PROTOTYPES] contains one or more
+prototype definitions, each of which has the following form
+[example [arg "MEMBERTYPE DISPID RETTYPE NAME (PARAMS)"]].
+Note [arg PROTOTYPES] is a text string, [emph not] a Tcl list.
 
 [arg NAME] is the name of the method or property.
 [arg MEMBERTYPE] is one of [cmd func], [cmd propget], or [cmd propput]
