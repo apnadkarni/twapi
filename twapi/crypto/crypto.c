@@ -14,19 +14,6 @@
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
-
-static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
-                                         Tcl_Obj *oidObj, Tcl_Obj *valObj,
-                                         CRYPT_OBJID_BLOB *blobP);
-static TwapiCertGetNameString(
-    Tcl_Interp *interp,
-    PCCERT_CONTEXT certP,
-    DWORD type,
-    DWORD flags,
-    Tcl_Obj *owhat);
-
-
 #ifdef NOTNEEDED
 /* RtlGenRandom in base provides this */
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
@@ -48,6 +35,53 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
     }
 }
 #endif
+
+static Tcl_Obj *ObjFromCERT_ALT_NAME_ENTRY(CERT_ALT_NAME_ENTRY *caneP)
+{
+    Tcl_Obj *objs[2];
+    int nobjs;
+
+    nobjs = 2;
+    switch (caneP->dwAltNameChoice) {
+    case CERT_ALT_NAME_RFC822_NAME: /* FALLTHRU */
+    case CERT_ALT_NAME_DNS_NAME:    /* FALLTHRU */
+    case CERT_ALT_NAME_URL:
+        objs[1] = ObjFromUnicode(caneP->pwszURL);
+        break;
+    case CERT_ALT_NAME_OTHER_NAME:
+        objs[0] = ObjFromString(caneP->pOtherName->pszObjId);
+        objs[1] = ObjFromByteArray(caneP->pOtherName->Value.pbData,
+                                   caneP->pOtherName->Value.cbData);
+        objs[1] = ObjNewList(2, objs);
+        break;
+    case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
+    case CERT_ALT_NAME_IP_ADDRESS:
+        objs[1] = ObjFromByteArray(caneP->IPAddress.pbData,
+                                   caneP->IPAddress.cbData);
+        break;
+    case CERT_ALT_NAME_REGISTERED_ID:
+        objs[1] = ObjFromString(caneP->pszRegisteredID);
+        break;
+    default:
+        nobjs = 1;              /* Only report type */
+    }
+
+    objs[0] = ObjFromDWORD(caneP->dwAltNameChoice);
+    return ObjNewList(nobjs, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_ALT_NAME_INFO(CERT_ALT_NAME_INFO *infP)
+{
+    Tcl_Obj *objP;
+    DWORD i;
+
+    objP = ObjNewList(infP->cAltEntry, NULL);
+    for (i = 0; i < infP->cAltEntry; ++i) {
+        ObjAppendElement(NULL, objP,
+                         ObjFromCERT_ALT_NAME_ENTRY(&infP->rgAltEntry[i]));
+    }
+    return objP;
+}
 
 static Tcl_Obj *ObjFromCRYPT_KEY_PROV_INFO(CRYPT_KEY_PROV_INFO *infP)
 {
@@ -98,7 +132,145 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
     return TCL_OK;
 }
 
-/* Returns pointer to a CRYPT_ALGORITHM_IDENTIFIER structure in algidP
+/* Returns CERT_ALT_NAME_ENTRY structure in *caneP
+   using memory from ticP->memlifo. Caller responsible for storage
+   in both success and error cases
+*/
+static TCL_RESULT ParseCERT_ALT_NAME_ENTRY(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *nameObj,
+    CERT_ALT_NAME_ENTRY *caneP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    DWORD name_type;
+    int n;
+    Tcl_Obj **otherObjs;
+    void *pv;
+    
+    if (ObjGetElements(NULL, nameObj, &nobjs, &objs) != TCL_OK ||
+        nobjs != 2 ||
+        ObjToDWORD(NULL, objs[0], &name_type) != TCL_OK) {
+        goto format_error;
+    }
+
+    switch (name_type) {
+    case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
+    case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
+    case CERT_ALT_NAME_URL:
+        pv = ObjToUnicodeN(objs[1], &n);
+        caneP->pwszRfc822Name = MemLifoCopy(&ticP->memlifo, pv, sizeof(WCHAR) * (n+1));
+        break;
+    case CERT_ALT_NAME_REGISTERED_ID:
+        pv = ObjToStringN(objs[1], &n);
+        caneP->pszRegisteredID = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        break;
+    case CERT_ALT_NAME_OTHER_NAME:
+        caneP->pOtherName = MemLifoAlloc(&ticP->memlifo, sizeof(CERT_OTHER_NAME), NULL);
+        if (ObjGetElements(NULL, objs[1], &n, &otherObjs) != TCL_OK ||
+            n != 2)
+            goto format_error;
+        pv = ObjToStringN(otherObjs[0], &n);
+        caneP->pOtherName->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        pv = ObjToByteArray(otherObjs[1], &n);
+        caneP->pOtherName->Value.pbData = MemLifoCopy(&ticP->memlifo, pv, n);
+        caneP->pOtherName->Value.cbData = n;
+        break;
+    case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
+    case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
+        pv = ObjToByteArray(objs[1], &n);
+        caneP->IPAddress.pbData = MemLifoCopy(&ticP->memlifo, pv, n);
+        caneP->IPAddress.cbData = n;
+        break;
+        
+    default:
+        goto format_error;
+    }
+
+    caneP->dwAltNameChoice = name_type;
+    return TCL_OK;
+
+format_error:
+    ObjSetResult(ticP->interp,
+                 Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(nameObj)));
+    return TCL_ERROR;
+}
+
+
+
+/* Returns CERT_ALT_NAME_INFO structure in *caniP
+   using memory from ticP->memlifo. Caller responsible for storage
+   in both success and error cases
+*/
+static TCL_RESULT ParseCERT_ALT_NAME_INFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *altnameObj,
+    CERT_ALT_NAME_INFO *caniP
+    )
+{
+    Tcl_Obj **nameObjs;
+    int       nnames, i;
+    TCL_RESULT res;
+    CERT_ALT_NAME_ENTRY *entriesP;
+
+    if ((res = ObjGetElements(ticP->interp, altnameObj, &nnames, &nameObjs))
+        != TCL_OK)
+        return res;
+
+    if (nnames == 0) {
+        caniP->cAltEntry = 0;
+        caniP->rgAltEntry = NULL;
+        return TCL_OK;
+    }
+
+    entriesP = MemLifoAlloc(&ticP->memlifo, nnames * sizeof(*entriesP), NULL);
+
+    for (i = 0; i < nnames; ++i) {
+        res = ParseCERT_ALT_NAME_ENTRY(ticP, nameObjs[i], &entriesP[i]);
+        if (res != TCL_OK)
+            return res;
+    }
+
+    caniP->cAltEntry = nnames;
+    caniP->rgAltEntry = entriesP;
+    return TCL_OK;
+}
+
+
+/* Returns CERT_ENHKEY_USAGE structure in *cekuP
+   using memory from ticP->memlifo. Caller responsible for storage
+   in both success and error cases
+*/
+static TCL_RESULT ParseCERT_ENHKEY_USAGE(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *cekuObj,
+    CERT_ENHKEY_USAGE *cekuP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    int       i, n;
+    char     *p;
+    TCL_RESULT res;
+
+    if ((res = ObjGetElements(ticP->interp, cekuObj, &nobjs, &objs)) != TCL_OK)
+        return res;
+
+    cekuP->cUsageIdentifier = nobjs;
+    cekuP->rgpszUsageIdentifier = MemLifoAlloc(&ticP->memlifo,
+                                               nobjs * sizeof(cekuP->rgpszUsageIdentifier[0]),
+                                               NULL);
+    for (i = 0; i < nobjs; ++i) {
+        p = ObjToStringN(objs[i], &n);
+        cekuP->rgpszUsageIdentifier[i] = MemLifoCopy(&ticP->memlifo, p, n+1);
+    }
+
+    return TCL_OK;
+}
+
+
+/* Fill in CRYPT_ALGORITHM_IDENTIFIER structure in *algidP
    using memory from ticP->memlifo. Caller responsible for storage
    in both success and error cases
 */
@@ -152,6 +324,209 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     return TCL_OK;
 }
 
+static TCL_RESULT TwapiCryptDecodeObject(
+    Tcl_Interp *interp,
+    void *poid, /* Either a Tcl_Obj or a #define X509* int value */
+    void *penc,
+    DWORD nenc,
+    Tcl_Obj **objPP)
+{
+    Tcl_Obj *objP;
+    union {
+        void *pv;
+        CERT_ENHKEY_USAGE *enhkeyP;
+        CERT_ALT_NAME_INFO *altnameP;
+    } u;
+    DWORD n;
+    LPCSTR oid;
+    DWORD_PTR dwoid;
+
+    /*
+     * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
+     * This is how the CryptDecodeObjEx API works
+     */
+    if ((DWORD_PTR) poid <= 65535) {
+        dwoid = (DWORD_PTR) poid;
+        oid = poid;
+    } else {
+        /* It's a Tcl_Obj */
+        Tcl_Obj *oidObj = poid;
+        if (ObjToDWORD(NULL, oidObj, &n) == TCL_OK && n < 65536) {
+            dwoid = (DWORD_PTR) n;
+            oid = (LPSTR) (DWORD_PTR) n;
+        } else {
+            oid = ObjToString(oidObj);
+            if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
+                dwoid = (DWORD_PTR) X509_ENHANCED_KEY_USAGE;
+            else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
+                     STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
+                     STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
+                     STREQ(oid, szOID_ISSUER_ALT_NAME)) {
+                dwoid = (DWORD_PTR) X509_ALTERNATE_NAME;
+            } else
+                dwoid = 65536;      /* Will return as a byte array */
+        }
+    }
+
+    if (! CryptDecodeObjectEx(
+            X509_ASN_ENCODING|PKCS_7_ASN_ENCODING,
+            oid, penc, nenc,
+            CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG | CRYPT_DECODE_SHARE_OID_STRING_FLAG,
+            NULL,
+            &u.pv,
+            &n))
+        return TwapiReturnSystemError(interp);
+    
+    switch (dwoid) {
+    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
+        objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
+                            u.enhkeyP->rgpszUsageIdentifier);
+        break;
+    case (DWORD_PTR) X509_ALTERNATE_NAME:
+        objP = ObjFromCERT_ALT_NAME_INFO(u.altnameP);
+        break;
+    default:
+        objP = ObjFromByteArray(u.pv, n);
+        break;
+    }
+
+    LocalFree(u.pv);
+    *objPP = objP;
+    return TCL_OK;
+}
+    
+/*
+ * Note: Allocates memory for blobP from lifoP. Note structure internal
+ * pointers may point to Tcl_Obj areas within valObj so
+ *  TREAT RETURNED STRUCTURES AS VOLATILE.
+ *
+ * We use MemLifo instead of letting CryptEncodeObjectEx do its own
+ * memory allocation because it greatly simplifies freeing memory in
+ * caller when multiple allocations are made.
+ */
+static TCL_RESULT TwapiCryptEncodeObject(
+    TwapiInterpContext *ticP,
+    void *poid, /* Either a Tcl_Obj or a #define X509* int value */
+    Tcl_Obj *valObj,
+    CRYPT_OBJID_BLOB *blobP)
+{
+    DWORD     dw;
+    TCL_RESULT res;
+    void     *penc;
+    int       nenc;
+    union {
+        CERT_ALT_NAME_INFO cani;
+        CERT_ENHKEY_USAGE  ceku;
+    } u;
+    Tcl_Interp *interp = ticP->interp;
+    LPCSTR oid;
+    DWORD_PTR dwoid;
+
+    /*
+     * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
+     * This is how the CryptEncodeObjEx API works
+     */
+    if ((DWORD_PTR) poid <= 65535) {
+        dwoid = (DWORD_PTR) poid;
+        oid = poid;
+    } else {
+        /* It's a Tcl_Obj */
+        Tcl_Obj *oidObj = poid;
+        if (ObjToDWORD(NULL, oidObj, &dw) == TCL_OK && dw < 65536) {
+            dwoid = (DWORD_PTR) dw;
+            oid = (LPSTR) (DWORD_PTR) dw;
+        } else {
+            oid = ObjToString(oidObj);
+            if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
+                dwoid = (DWORD_PTR) X509_ENHANCED_KEY_USAGE;
+            else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
+                     STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
+                     STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
+                     STREQ(oid, szOID_ISSUER_ALT_NAME)) {
+                dwoid = (DWORD_PTR) X509_ALTERNATE_NAME;
+            } else
+                dwoid = 65536;      /* Will return as a byte array */
+        }
+    }
+
+
+    switch (dwoid) {
+    case (DWORD_PTR) X509_ALTERNATE_NAME:
+        if ((res = ParseCERT_ALT_NAME_INFO(ticP, valObj, &u.cani)) != TCL_OK)
+            return res;
+        break;
+    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
+        if ((res = ParseCERT_ENHKEY_USAGE(ticP, valObj, &u.ceku)) != TCL_OK)
+            return res;
+        break;
+    default:
+        return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID");
+    }
+
+    /* Assume 1000 bytes enough but get as much as we can */
+    penc = MemLifoAlloc(&ticP->memlifo, 1000, &nenc);
+    if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                            oid, &u, 
+                            0, NULL, penc, &nenc) == 0) {
+        if (GetLastError() != ERROR_MORE_DATA)
+            return TwapiReturnSystemError(interp);
+        /* Retry with specified buffer size */
+        penc = MemLifoAlloc(&ticP->memlifo, nenc, &nenc);
+        if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                                oid, &u, 0, NULL, penc, &nenc) == 0)
+            return TwapiReturnSystemError(interp);
+    }
+    
+    blobP->cbData = nenc;
+    blobP->pbData = penc;
+
+    /* Note caller has to MemLifoPopFrame to release lifo memory */
+    return TCL_OK;
+}
+
+/* Returns pointer to a CERT_EXTENSIONS_IDENTIFIER structure in *extsPP
+   using memory from ticP->memlifo. Caller responsible for storage in both
+   success and error cases.
+   Can return NULL in *extsPP if extObj is empty list.
+*/
+static TCL_RESULT ParseCERT_EXTENSION(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *extObj,
+    CERT_EXTENSION *extP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs, n;
+    TCL_RESULT res;
+    void      *pv;
+    BOOL       bval;
+
+    if ((res = ObjGetElements(ticP->interp, extObj, &nobjs, &objs)) != TCL_OK)
+        return res;
+    if (nobjs != 2 && nobjs != 3) {
+        ObjSetStaticResult(ticP->interp, "Certificate extension format invalid or not implemented");
+        return TCL_ERROR;
+    }
+    if ((res = ObjToBoolean(ticP->interp, objs[1], &bval)) != TCL_OK)
+        return res;
+
+    pv = ObjToStringN(objs[0], &n);
+    extP->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+    extP->fCritical = (BOOL) bval;
+    if (nobjs == 3) {
+        res = TwapiCryptEncodeObject(ticP,
+                                     objs[0], objs[2],
+                                     &extP->Value);
+        if (res != TCL_OK)
+            return res;
+    } else {
+        extP->Value.cbData = 0;
+        extP->Value.pbData = NULL;
+    }
+
+    return TCL_OK;
+}
+
 /* Returns pointer to a CERT_EXTENSIONS_IDENTIFIER structure in *extsPP
    using memory from ticP->memlifo. Caller responsible for storage in both
    success and error cases.
@@ -166,9 +541,8 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
 {
     CERT_EXTENSION *extsP;
     Tcl_Obj **objs;
-    int       i, n, nobjs;
+    int       i, nobjs;
     TCL_RESULT res;
-    char *p;
     Tcl_Interp *interp = ticP->interp;
 
     if ((res = ObjGetElements(interp, extsObj, &nobjs, &objs)) != TCL_OK)
@@ -182,32 +556,8 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
 
     extsP = MemLifoAlloc(&ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
     for (i = 0; i < nobjs; ++i) {
-        Tcl_Obj **extobjs;
-        int       nextobjs;
-        int       bval;
-        PCERT_EXTENSION extP = &extsP[i];
-        if ((res = ObjGetElements(interp, objs[i], &nextobjs, &extobjs)) != TCL_OK)
+        if ((res = ParseCERT_EXTENSION(ticP, objs[i], &extsP[i])) != TCL_OK)
             return res;
-        if (nextobjs != 2 && nextobjs != 3) {
-            ObjSetStaticResult(interp, "Certificate extension format invalid or not implemented");
-            return TCL_ERROR;
-        }
-        if ((res = ObjToBoolean(interp, extobjs[1], &bval)) != TCL_OK)
-            return res;
-        p = ObjToStringN(extobjs[0], &n);
-        extP->pszObjId = MemLifoCopy(&ticP->memlifo, p, n+1);
-        extP->fCritical = (BOOL) bval;
-        if (nextobjs == 3) {
-            res = TwapiCryptEncodeObject(
-                interp, &ticP->memlifo,
-                extobjs[0], extobjs[2],
-                &extP->Value);
-            if (res != TCL_OK)
-                return res;
-        } else {
-            extP->Value.cbData = 0;
-            extP->Value.pbData = NULL;
-        }
     }
     *extsPP = extsP;
     *nextsP = nobjs;
@@ -281,138 +631,6 @@ static TCL_RESULT ParseSYSTEMTIME(
     return TCL_OK;
 }
 
-static TCL_RESULT TwapiCryptDecodeObject(Tcl_Interp *interp, LPCSTR oid, void *penc, DWORD nenc, Tcl_Obj **objPP)
-{
-    Tcl_Obj *objP;
-    void *pv;
-    DWORD n;
-
-    /* We handle only DWORD OIDs. These are passed as LPSTR due to the
-       CryptDecodeObjectEx accepting either type as parameters */
-
-    if (! CryptDecodeObjectEx(
-            X509_ASN_ENCODING|PKCS_7_ASN_ENCODING,
-            oid, penc, nenc,
-            CRYPT_DECODE_ALLOC_FLAG | CRYPT_DECODE_NOCOPY_FLAG | CRYPT_DECODE_SHARE_OID_STRING_FLAG,
-            NULL,
-            &pv,
-            &n))
-        return TwapiReturnSystemError(interp);
-    
-    switch ((DWORD_PTR) oid) {
-    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
-        objP = ObjFromArgvA(((CERT_ENHKEY_USAGE*)pv)->cUsageIdentifier,
-                            ((CERT_ENHKEY_USAGE*)pv)->rgpszUsageIdentifier);
-        break;
-    default:
-        LocalFree(pv);
-        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
-    }
-
-    LocalFree(pv);
-    *objPP = objP;
-    return TCL_OK;
-}
-    
-                                         
-/*
- * Note: Allocates memory for blobP from lifoP. Note structure internal
- * pointers may point to Tcl_Obj areas within valObj so
- *  TREAT RETURNED STRUCTURES AS VOLATILE.
- *
- * We use MemLifo instead of letting CryptEncodeObjectEx do its own
- * memory allocation because it greatly simplifies freeing memory in
- * caller when multiple allocations are made.
- */
-static TCL_RESULT TwapiCryptEncodeObject(Tcl_Interp *interp, MemLifo *lifoP,
-                                  Tcl_Obj *oidObj, Tcl_Obj *valObj,
-                                  CRYPT_OBJID_BLOB *blobP)
-{
-    LPCSTR    soid;
-    DWORD     dw;
-    Tcl_Obj **objs;
-    int       nobjs;
-    int       status;
-    void     *penc;
-    int       nenc;
-    union {
-        void *pv;
-        CERT_ALT_NAME_ENTRY  *altnameP;
-    } p;
-
-    /* Note: X509_ALTERNATE_NAME etc. are integer values cast as LPSTR in
-       headers. Hence all the casting around soid. Ugh and Yuck */
-
-    /* The oidobj may be specified as either a string or an integer */
-    if (ObjToDWORD(NULL, oidObj, &dw) == TCL_OK && dw < 65536) {
-        soid = (LPSTR) (DWORD_PTR) dw;
-    } else {
-        soid = ObjToString(oidObj);
-        if (STREQ(soid, szOID_SUBJECT_ALT_NAME) ||
-            STREQ(soid, szOID_ISSUER_ALT_NAME)) {
-            soid = X509_ALTERNATE_NAME; /* soid NOW A DWORD!!! */
-        } else {
-            ObjSetResult(interp, Tcl_ObjPrintf("Unsupported OID \"%s\"",soid));
-            return TCL_ERROR;
-        }
-    }
-
-    switch ((DWORD_PTR)soid) {
-    case (DWORD_PTR) X509_ALTERNATE_NAME:
-        p.altnameP = MemLifoAlloc(lifoP, sizeof(*p.altnameP), NULL);
-        if ((status = ObjGetElements(interp, valObj, &nobjs, &objs)) != TCL_OK)
-            return status;
-        if (nobjs != 2 ||
-            ObjToDWORD(NULL, objs[0], &p.altnameP->dwAltNameChoice) != TCL_OK)
-            goto invalid_name_error;
-        switch (p.altnameP->dwAltNameChoice) {
-        case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
-        case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
-        case CERT_ALT_NAME_URL:
-            p.altnameP->pwszRfc822Name = ObjToUnicode(objs[1]);
-            break;
-        case CERT_ALT_NAME_REGISTERED_ID:
-            p.altnameP->pszRegisteredID = ObjToString(objs[1]);
-            break;
-        case CERT_ALT_NAME_OTHER_NAME: /* FALLTHRU */
-        case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
-        case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
-        default:
-            goto invalid_name_error;
-        }
-        break;
-
-    default:
-        ObjSetResult(interp, Tcl_ObjPrintf("Unsupported OID constant \"%d\"", (DWORD_PTR) soid));
-        return TCL_ERROR;
-    }
-
-    /* Assume 256 bytes enough but get as much as we can */
-    penc = MemLifoAlloc(lifoP, 256, &nenc);
-    if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
-                            soid, /* Yuck */
-                            p.pv, 0, NULL, penc, &nenc) == 0) {
-        if (GetLastError() != ERROR_MORE_DATA)
-            return TwapiReturnSystemError(interp);
-        /* Retry with specified buffer size */
-        penc = MemLifoAlloc(lifoP, nenc, &nenc);
-        if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
-                                soid, /* Yuck */
-                                p.pv, 0, NULL, penc, &nenc) == 0)
-            return TwapiReturnSystemError(interp);
-    }
-    
-    blobP->cbData = nenc;
-    blobP->pbData = penc;
-
-    /* Note caller has to MemLifoPopFrame to release lifo memory */
-    return TCL_OK;
-
-invalid_name_error:
-    ObjSetResult(interp,
-                     Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(valObj)));
-    return TCL_ERROR;
-}
 
 static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -558,7 +776,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
                 TwapiFree(pv);
                 return TwapiReturnSystemError(interp);
             }        
-            res = TwapiCryptDecodeObject(interp, X509_ENHANCED_KEY_USAGE, pv, n, &result.value.obj);
+            res = TwapiCryptDecodeObject(interp, (void*)X509_ENHANCED_KEY_USAGE, pv, n, &result.value.obj);
             TwapiFree(pv);
             if (res != TCL_OK)
                 return res;
@@ -1256,7 +1474,9 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     void *bufP;
     DWORD buf_sz;
     Tcl_Obj *s1Obj, *s2Obj;
+    BOOL bval;
     int func = PtrToInt(clientdata);
+    Tcl_Obj *objs[3];
 
     --objc;
     ++objv;
@@ -1586,6 +1806,25 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         }
         break;
 
+    case 10027:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        /* We only allow the following flags */
+        if (dw & ~(CRYPT_ACQUIRE_CACHE_FLAG|CRYPT_ACQUIRE_COMPARE_KEY_FLAG|CRYPT_ACQUIRE_SILENT_FLAG|CRYPT_ACQUIRE_USE_PROV_INFO_FLAG)) {
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid flags");
+        }
+        if (CryptAcquireCertificatePrivateKey(certP,dw,NULL,&dwp,&dw2,&bval)) {
+            objs[0] = ObjFromOpaque((void*)dwp, "HCRYPTPROV");
+            objs[1] = ObjFromLong(dw2);
+            objs[2] = ObjFromBoolean(bval);
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 3;
+            result.type = TRT_OBJV;
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1620,10 +1859,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumSystemStore, 10024),
         DEFINE_FNCODE_CMD(CertEnumPhysicalStore, 10025),
         DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
+        DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
     Tcl_CreateObjCommand(interp, "twapi::CertCreateSelfSignCertificate", Twapi_CertCreateSelfSignCertificate, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CryptSignAndEncodeCertificate", Twapi_CryptSignAndEncodeCert, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CertFindCertificateInStore", Twapi_CertFindCertificateInStore, ticP, NULL);
 
     return TwapiSspiInitCalls(interp, ticP);
