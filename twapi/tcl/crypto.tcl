@@ -680,8 +680,7 @@ proc twapi::cert_create_self_signed {subject args} {
         {gmt.bool 1}
         {altnames.arg {}}
         {keyusage.arg {}}
-        {criticalaltnames.bool 0}
-        {criticalkeyusage.bool 0}
+        {critical {}}
     } -maxleftover 0 -ignoreunknown]
 
     set name_blob [cert_name_to_blob $subject]
@@ -722,13 +721,15 @@ proc twapi::cert_create_self_signed {subject args} {
     # Generate the extensions list
     set exts {}
     if {[info exists opts(altnames)]} {
+        set critical [expr {"altnames" in $opts(critical)}]
         # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 1]
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
         # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 0]
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
     }
     if {[info exists opts(keyusage)]} {
-        lappend exts [_make_keyusage_ext $opts(keyusage) $opts(criticalkeyusage)]
+        set critical [expr {"keyusage" in $opts(critical)}]
+        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
     }
 
     set flags 0;                # Always 0 for now
@@ -743,8 +744,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         {gmt.bool 0}
         signaturealgorithm.arg
         {altnames.arg {}}
-        {criticalaltnames.bool 0}
-        {criticalkeyusage.bool 0}
+        {critical.arg {}}
         {keyusage.arg {}}
     } -maxleftover 0]
 
@@ -772,13 +772,15 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     # Generate the extensions list
     set exts {}
     if {[info exists opts(altnames)]} {
+        set critical [expr {"altnames" in $opts(critical)}]
         # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 1]
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
         # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 0]
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
     }
     if {[info exists opts(keyusage)]} {
-        lappend exts [_make_keyusage_ext $opts(keyusage) $opts(criticalkeyusage)]
+        set critical [expr {"keyusage" in $opts(critical)}]
+        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
     }
 
     set flags 0;                # Always 0 for now
@@ -1221,7 +1223,7 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
         clientauth "1.3.6.1.5.5.7.3.2"
         codesign   "1.3.6.1.5.5.7.3.3"
         email      "1.3.6.1.5.5.7.3.4"
-        ipsecend "1.3.6.1.5.5.7.3.5"
+        ipsecendsystem "1.3.6.1.5.5.7.3.5"
         ipsectunnel "1.3.6.1.5.5.7.3.6"
         ipsecuser "1.3.6.1.5.5.7.3.7"
         timestamp "1.3.6.1.5.5.7.3.8"
