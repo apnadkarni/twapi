@@ -1644,7 +1644,7 @@ badformat:
 }
 
 
-int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP)
+TCL_RESULT ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP)
 {
     int       objc, i;
     Tcl_Obj **objv;
@@ -1963,6 +1963,7 @@ Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 {
     struct in_addr inaddr;
     inaddr.S_un.S_addr = addr;
+    /* TBD - multithreading issues here? */
     return ObjFromString(inet_ntoa(inaddr));
 }
 
