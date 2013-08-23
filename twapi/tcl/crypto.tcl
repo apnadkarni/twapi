@@ -680,6 +680,8 @@ proc twapi::cert_create_self_signed {subject args} {
         {gmt.bool 1}
         {altnames.arg {}}
         {keyusage.arg {}}
+        {criticalaltnames.bool 0}
+        {criticalkeyusage.bool 0}
     } -maxleftover 0 -ignoreunknown]
 
     set name_blob [cert_name_to_blob $subject]
@@ -717,6 +719,17 @@ proc twapi::cert_create_self_signed {subject args} {
                      [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
 
     
+    # Generate the extensions list
+    set exts {}
+    if {[info exists opts(altnames)]} {
+        # Issuer
+        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 1]
+        # Subject
+        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 0]
+    }
+    if {[info exists opts(keyusage)]} {
+        lappend exts [_make_keyusage_ext $opts(keyusage) $opts(criticalkeyusage)]
+    }
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $start $end $exts]
@@ -728,8 +741,11 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         start.int
         end.int
         {gmt.bool 0}
-        {extensions.arg {}}
         signaturealgorithm.arg
+        {altnames.arg {}}
+        {criticalaltnames.bool 0}
+        {criticalkeyusage.bool 0}
+        {keyusage.arg {}}
     } -maxleftover 0]
 
     set name_blob [cert_name_to_blob $subject]
@@ -740,16 +756,31 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     }
 
     if {![info exists opts(start)]} {
-        set opts(start) [clock seconds]
+        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
     }
+
     if {![info exists opts(end)]} {
-        set opts(end) [clock add $opts(start) 1 year]
+        set opts(end) $opts(start)
+        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
     }
     if {$opts(end) <= $opts(start)} {
         badargs! "Start time $opts(start) is greater than end time $opts(end)"
     }
     set start [_seconds_to_timelist $opts(start) $opts(gmt)]
     set end [_seconds_to_timelist $opts(end) $opts(gmt)]
+
+    # Generate the extensions list
+    set exts {}
+    if {[info exists opts(altnames)]} {
+        # Issuer
+        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 1]
+        # Subject
+        lappend exts [_make_altnames_ext $opts(altnames) $opts(criticalaltnames) 0]
+    }
+    if {[info exists opts(keyusage)]} {
+        lappend exts [_make_keyusage_ext $opts(keyusage) $opts(criticalkeyusage)]
+    }
+
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $start $end $opts(extensions)]
 }
@@ -1163,6 +1194,51 @@ twapi::proc* twapi::oids {} {
 } {
     variable _name_oid_map
     return [array get _name_oid_map]
+}
+
+
+proc twapi::_make_altnames_ext {altnames critical {issuer 0}} {
+    set names {}
+    foreach {alttype altname} $altnames {
+        lappend names [list \
+                           [dict get {
+                               other 1
+                               email 2
+                               dns   3
+                               directory 5
+                               url 7
+                               ip  8
+                               registered 9
+                           } $alttype] $altname]
+    }
+
+    return [list [expr {$issuer ? "2.5.29.18" : "2.5.29.17"}] $critical $names]
+}
+
+proc twapi::_make_keyusage_ext {keyusage critical} {
+    set map {
+        serverauth "1.3.6.1.5.5.7.3.1"
+        clientauth "1.3.6.1.5.5.7.3.2"
+        codesign   "1.3.6.1.5.5.7.3.3"
+        email      "1.3.6.1.5.5.7.3.4"
+        ipsecend "1.3.6.1.5.5.7.3.5"
+        ipsectunnel "1.3.6.1.5.5.7.3.6"
+        ipsecuser "1.3.6.1.5.5.7.3.7"
+        timestamp "1.3.6.1.5.5.7.3.8"
+        ipsecintermediate "1.3.6.1.5.5.8.2.2"
+    }
+    set usages {}
+    foreach usage $keyusage {
+        if {[dict exists $map $usage]} {
+            lappend usages [dict get $map $usage]
+        } else {
+            # Any OID will do
+            if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
+                lappend usages $usage
+            }
+        }
+    }
+    return [list "2.5.29.37" $critical $names]
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.
