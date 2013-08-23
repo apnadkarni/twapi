@@ -371,6 +371,34 @@ the [uri #oids [cmd oids]] command. Mapping to and from a specific mnemonic
 can be done through the [uri #oidname [cmd oidname]] and 
 [uri #oid [cmd oid]] commands.
 
+[section "X.509 alternative names"]
+The X.509 certificate extensions allow for a list of alternative names to
+be specified for both the certificate subject and issuer. When
+passed to commands, this list is formatted as a list of alternating
+name format and name value elements. The allowed name formats and
+corresponding values are specified in the following table:
+
+[list_begin opt]
+[opt_def [const other]]
+The value is a pair of elements, the first being an OID and
+the second a binary.
+[opt_def [const email]]
+The value is a RFC 822 email address string.
+[opt_def [const dns]]
+The value is a DNS name string.
+[opt_def [const directory]]
+The value is directory name in binary format.
+[opt_def [const url]]
+The value is a URL string.
+[opt_def [const ip]]
+The value is a binary octet string containing an IP address.
+[opt_def [const registered]]
+The value is a registered OID in string format.
+[list_end]
+
+
+
+
 [section Commands]
 
 [list_begin definitions]
@@ -410,6 +438,10 @@ available.
 [nl]
 The following options may be specified:
 [list_begin opt]
+[opt_def [cmd -altnames] [arg ALTNAMES]]
+Specifies X.509 Alternative Name values to include in the certificate.
+[arg ALTNAMES] is a list of alternating name type and name value elements
+as described in [sectref "X.509 alternative names"].
 [opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP to be used.
 If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
@@ -420,8 +452,6 @@ Specifies the end of the certificate validity period.
 [arg ENDTIME] is specified as a time list of the form
 [arg {YEAR MONTH DAY HOUR MIN SEC}].
 Defaults to one year beyond the start time.
-[opt_def [cmd -extensions] [arg EXTENSIONLIST]]
-Specifies a list of certificate extensions to include in the certificate.
 [opt_def [cmd -gmt] [arg BOOLEAN]]
 If [const true] (default), assumes the [cmd -start] and [cmd -end]
 options are specified in GMT. Otherwise, local timezone is assumed.
@@ -433,6 +463,14 @@ the default container for the CSP is used.
 depending on whether the key container is user-specific or not.
 [opt_def [cmd -keytype] [arg KEYTYPE]]
 [arg KEYTYPE] must be one of [const signature] (default) or [const keyexchange].
+[opt_def [cmd -keyusage] [arg KEYUSAGE]]
+Specifies values to use for the X.509 enhanced key usage extension.
+[arg KEYUSAGE] is a list containing one or more values from 
+[const clientauth], [const codesign], [const email],
+[const ipsecendsystem], [const ipsecintermediate]. [const ipsectunnel],
+[const ipsecuser], [const serverauth] or [const timestamp]. It may
+also be an valid [uri #asn1objectidentifiers OID].
+
 [opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
 for any information that may be required to retrieve the keys. If this
 option is specified as [const true], the user is never prompted. Instead
@@ -448,6 +486,59 @@ Specifies the start of the certificate validity period.
 [arg {YEAR MONTH DAY HOUR MIN SEC}].
 Defaults to the current time.
 [list_end]
+
+The returned certificate handle must be freed by calling
+[uri #cert_free [cmd cert_free]].
+
+[call [cmd cert_create_self_signed_from_crypt_context] [arg SUBJECT] [arg HCRYPT] [opt [arg options]]]
+Creates a new certificate context for a self-signed certificate
+and returns a handle to it. The certificate is signed using the
+cryptographic context referenced by [arg HCRYPT]. Alternatively, the 
+[uri #cert_create_self_signed [cmd cert_create_self_signed]]
+may be used instead to explicitly specify the CSP and key container.
+[nl]
+[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -altnames] [arg ALTNAMES]]
+Specifies X.509 Alternative Name values to include in the certificate.
+[arg ALTNAMES] is a list of alternating name type and name value elements
+as described in [sectref "X.509 alternative names"].
+[opt_def [cmd -end] [arg ENDTIME]]
+Specifies the end of the certificate validity period. 
+[arg ENDTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to one year beyond the start time.
+[opt_def [cmd -gmt] [arg BOOLEAN]]
+If [const true] (default), assumes the [cmd -start] and [cmd -end]
+options are specified in GMT. Otherwise, local timezone is assumed.
+[opt_def [cmd -keyusage] [arg KEYUSAGE]]
+Specifies values to use for the X.509 enhanced key usage extension.
+[arg KEYUSAGE] is a list containing one or more values from 
+[const clientauth], [const codesign], [const email],
+[const ipsecendsystem], [const ipsecintermediate]. [const ipsectunnel],
+[const ipsecuser], [const serverauth] or [const timestamp]. It may
+also be an valid [uri #asn1objectidentifiers OID].
+
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to retrieve the keys. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will raise an error if a user prompt would have been required.
+[opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
+Specifies the signature algorithm to use for signing the certificate.
+[arg SIGLAGORITHM] is the OID (see [sectref "ASN.1 Object Identifiers"])
+corresponding to a signature algorithm. Defaults to the SHA1RSA algorithm
+if unspecified.
+[opt_def [cmd -start] [arg STARTTIME]]
+Specifies the start of the certificate validity period. 
+[arg STARTTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to the current time.
+[list_end]
+
+The returned certificate handle must be freed by calling
+[uri #cert_free [cmd cert_free]].
 
 [call [cmd cert_enum_properties] [arg HCERT]]
 Returns a list properties defined for the certificate context [arg HCERT].
