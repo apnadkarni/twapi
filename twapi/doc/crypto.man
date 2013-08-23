@@ -98,7 +98,7 @@ A CSP may be associated with multiple key containers, each identified by a name.
 The specific key container and the keys within that container that
 are used for an operation depends on the 
 [sectref "Cryptographic contexts"] is bound at the time the context is
-created via the [uri #crypt_context_acquire [cmd crypt_context_acquire]]
+created via the [uri #crypt_acquire [cmd crypt_acquire]]
 command. This command also allows creation of new key containers within
 a CSP if they do not exist.
 
@@ -109,7 +109,7 @@ exact access depends on the account group membership
 (e.g. whether an adminitrator or not) and operating system version.
 Applications can set specific access rules by setting a 
 [uri security.html DACL] on the container using 
-[uri #crypt_context_security_descriptor [cmd crypt_context_security_descriptor]].
+[uri #crypt_set_security_descriptor [cmd crypt_set_security_descriptor]].
 
 [para]
 To delete key containers, use the
@@ -117,7 +117,7 @@ To delete key containers, use the
 
 [para]
 Depending on the CSP chosen, key containers may be empty when created. 
-The command [uri #crypt_context_generate_key [cmd crypt_context_generate_key]]
+The command [uri #crypt_key_generate [cmd crypt_key_generate]]
 adds keys to the container. The algorithm with which the key will be
 used and the purpose (encryption, signing etc.) can be specified
 so the appropriate type of key is generated. The container may
@@ -131,27 +131,15 @@ who has access to them.
 Refer to the [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa380255(v=vs.85).aspx "Windows SDK CryptoAPI documentation"]
 for details. It is possible to change the default access permissions
 for a key container. The
-[uri #crypt_context_security_descriptor [cmd crypt_context_security_descriptor]]
-command can be used retrieve and change the security descriptor for
+[uri #crypt_get_security_descriptor [cmd crypt_get_security_descriptor]] and
+[uri #crypt_set_security_descriptor [cmd crypt_set_security_descriptor]]
+commands can be used retrieve and change the security descriptor for
 a key container.
-
-[para]
-The key algorithm is specified using mnemonics such as [const 3des],
-[const sha256] etc. In some cases, the key is identified not by
-the algorithm but the intended use. In particular,
-in the case of public key cryptography, two types of keys
-are commonly used - one for signing, and one for exchanging a symmetric
-key for encryption. When generating keys or selecting them
-for operations, these are identified as [const signature] and
-[const keyexchange] respectively. For a list of algorithm identifiers
-see the description of 
-[uri #crypt_context_generate_key [cmd crypt_context_generate_key]].
-Note that not all algorithms are supported on all platforms.
 
 [section "Cryptographic contexts"]
 In order to perform cryptographic operations, an application must
 choose a CSP, the algorithms to use and their parameters including keys.
-The command [uri #crypt_context_acquire [cmd crypt_context_acquire]]
+The command [uri #crypt_acquire [cmd crypt_acquire]]
 takes these are parameters and
 returns a handle to a [emph "cryptographic context"] that
 binds the desired combination together. This handle can then be used
@@ -162,32 +150,32 @@ Once a context is created, the various parameters associated with it can
 be retrieved.
 [list_begin bullet]
 [bullet]
-[uri #crypt_context_csp [cmd crypt_context_csp]] returns the name
+[uri #crypt_csp [cmd crypt_csp]] returns the name
 of the owning CSP.
 [bullet]
-[uri #crypt_context_csptype [cmd crypt_context_csptype]] returns the type
+[uri #crypt_csptype [cmd crypt_csptype]] returns the type
 of the CSP.
 [bullet]
-[uri #crypt_context_key_container [cmd crypt_context_key_container]]
+[uri #crypt_key_container_name [cmd crypt_key_container_name]]
 returns the name of key container currently associated with the context.
 [bullet]
-[uri #crypt_context_key_containers [cmd crypt_context_key_containers]]
+[uri #crypt_key_container_names [cmd crypt_key_container_names]]
 returns the names of the other key containers owned by the CSP.
 [bullet]
-[uri #crypt_context_get_key [cmd crypt_context_get_key]] returns the
+[uri #crypt_key_get [cmd crypt_key_get]] returns the
 keys in the container.
 [bullet]
-[uri #crypt_context_keyset_type [cmd crypt_context_keyset_type]] returns
+[uri #crypt_keyset_type [cmd crypt_keyset_type]] returns
 whether the key set in the container is per-user or per-machine.
-[uri #crypt_context_session_key_size [cmd crypt_context_session_key_size]] 
+[uri #crypt_session_key_size [cmd crypt_session_key_size]] 
 and
-[uri #crypt_context_symmetric_key_size [cmd crypt_context_symmetric_key_size]]
+[uri #crypt_symmetric_key_size [cmd crypt_symmetric_key_size]]
 return the size of the keys in the container.
 
 [list_end]
 
 When no longer needed, cryptographic contexts must be freed with
-the [uri #crypt_context_free [cmd crypt_context_free]] command.
+the [uri #crypt_free [cmd crypt_free]] command.
 
 [section "Certificate stores"]
 The CryptoAPI interface provides functions for handling and storage of
@@ -297,7 +285,7 @@ if desired.
 Creating a new certificate involves several steps. As always, first
 a cryptographic context is needed that defines the algorithms,
 keys etc. that will be used to create the certificate.
-[example {set crypt [crypt_context_acquire -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1]}]
+[example {set crypt [crypt_acquire -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1]}]
 This assumes a key container called twapi_test_container does not exist.
 All the options specified above happen to be the defaults if unspecified.
 [para]
@@ -305,8 +293,8 @@ The key container is created without any keys so we need to generate
 public/private key pairs. As we will use the certificate for both
 signing and key exchange, we generate two key pairs for the container.
 [example_begin]
-crypt_release_key [lb]crypt_context_generate_key $crypt signature -exportable 1[rb]
-crypt_release_key [lb]crypt_context_generate_key $crypt keyexchange -exportable 1[rb]
+crypt_key_free [lb]crypt_key_generate $crypt signature -exportable 1[rb]
+crypt_key_free [lb]crypt_key_generate $crypt keyexchange -exportable 1[rb]
 [example_end]
 Note we immediately release the key handles as they are not needed. This
 does not destroy the underlying keys. Also, because we want to write
@@ -323,7 +311,7 @@ for future use or export it to a file. This is illustrated in
 succeeding sections of this document.
 [para]
 The cryptographic context is not needed any more and can be released.
-[example {crypt_context_release $crypt}]
+[example {crypt_free $crypt}]
 
 [section "Adding and deleting certificates from a store"]
 Certificates can be added and deleted from certificate stores with
@@ -372,6 +360,17 @@ cert_free $mcert
 cert_store_close $store
 [example_end]
 
+[section "ASN.1 Object Identifiers"]
+An ASN.1 object identifier (OID) is a dotted decimal string such
+as [const 1.2.3.4] that represents a ASN.1 class or attribute.
+Many CryptoAPI command arguments use OID's to represent types and values
+such as algorithm identifiers. OID's can be passed in their dotted
+decimal form, or, for some commonly used ones, a mnemonic identifer.
+The list of mnemonic identifiers can be obtained through
+the [uri #oids [cmd oids]] command. Mapping to and from a specific mnemonic
+can be done through the [uri #oidname [cmd oidname]] and 
+[uri #oid [cmd oid]] commands.
+
 [section Commands]
 
 [list_begin definitions]
@@ -398,6 +397,57 @@ or [const newline].
 
 See [uri #cert_name_to_blob [cmd cert_name_to_blob]] for the reverse
 operation.
+
+[call [cmd cert_create_self_signed] [arg SUBJECT] [opt [arg options]]]
+Creates a new certificate context for a self-signed certificate
+and returns a handle to it. The certificate is signed using 
+a cryptographic context based on the specified options. Alternatively, the 
+[uri #cert_create_self_signed_from_crypt_context [cmd cert_create_self_signed_from_crypt_context]]
+may be used instead if a handle to a cryptographic context is already
+available.
+[nl]
+[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP to be used.
+If unspecified, the default Microsoft CSP for the system is used.
+[opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
+CSP. Defaults to [const prov_rsa_full]. 
+See [sectref "Cryptographic Service Providers"] for all possible types.
+[opt_def [cmd -end] [arg ENDTIME]]
+Specifies the end of the certificate validity period. 
+[arg ENDTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to one year beyond the start time.
+[opt_def [cmd -extensions] [arg EXTENSIONLIST]]
+Specifies a list of certificate extensions to include in the certificate.
+[opt_def [cmd -gmt] [arg BOOLEAN]]
+If [const true] (default), assumes the [cmd -start] and [cmd -end]
+options are specified in GMT. Otherwise, local timezone is assumed.
+[opt_def [cmd -keycontainer] [arg CONTAINERNAME]]
+Specifies the name of the key container to use. If unspecified,
+the default container for the CSP is used.
+[opt_def [cmd -keysettype] [arg KEYSETTYPE]]
+[arg KEYSETTYPE] type must be [const user] (default) or [const machine]
+depending on whether the key container is user-specific or not.
+[opt_def [cmd -keytype] [arg KEYTYPE]]
+[arg KEYTYPE] must be one of [const signature] (default) or [const keyexchange].
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to retrieve the keys. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will raise an error if a user prompt would have been required.
+[opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
+Specifies the signature algorithm to use for signing the certificate.
+[arg SIGLAGORITHM] is the OID (see [sectref "ASN.1 Object Identifiers"])
+corresponding to a signature algorithm. Defaults to the SHA1RSA algorithm
+if unspecified.
+[opt_def [cmd -start] [arg STARTTIME]]
+Specifies the start of the certificate validity period. 
+[arg STARTTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to the current time.
+[list_end]
 
 [call [cmd cert_enum_properties] [arg HCERT]]
 Returns a list properties defined for the certificate context [arg HCERT].
@@ -636,8 +686,6 @@ option is specified as [const true], the user is never prompted. Instead
 the command will raise an error if a user prompt was required.
 [list_end]
 
-
-
 [call [cmd cert_store_add_certificate] [arg HSTORE] [arg HCERT] [opt "[cmd -disposition] [arg DISPOSITION]"]]
 Adds a new certificate to a certificate store. [arg HSTORE] is the handle
 to the store and [arg HCERT] is a handle to a certificate context.
@@ -768,11 +816,11 @@ system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 
-[call [cmd crypt_context_acquire] [opt [arg options]]]
+[call [cmd crypt_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a particular key container
 in a [uri #cryptographicserviceproviders CSP]. The hande must be freed
 when no longer required by calling 
-[uri #crypt_context_free [cmd crypt_context_free]].
+[uri #crypt_free [cmd crypt_free]].
 
 [list_begin opt]
 [opt_def [cmd -create] [arg BOOLEAN]] If specified as [const true],
@@ -808,10 +856,13 @@ released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowled
 
 [list_end]
 
-[call [cmd crypt_context_free] [arg HCRYPT]]
+[call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
-[uri #crypt_context_free [cmd crypt_context_free]].
+[uri #crypt_free [cmd crypt_free]].
 
+[call [cmd crypt_get_security_descriptor] [arg HCRYPT]]
+Returns the [uri security.html#securitydescriptors "security descriptor"]
+associated with a CSP key container whose handle is [arg HCRYPT].
 
 [call [cmd crypt_key_container_delete] [opt [arg options]]]
 Deletes the key container identified by the specified options.
@@ -830,6 +881,13 @@ the CSP. If unspecified, the default container is deleted.
 is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
 the key container is treated as a computer container.
 [list_end]
+
+[call [cmd crypt_key_container_name] [arg HCRYPT]]
+Returns the name of key container for the cryptographic context.
+
+[call [cmd crypt_key_container_names] [arg HCRYPT]]
+Returns the names of the other key containers owned by the CSP other
+than the one current one.
 
 [call [cmd crypt_key_free] [arg HCRYPTKEY]]
 Frees a handle to a cryptographic key.
@@ -869,9 +927,33 @@ Microsoft recommends key size be explicitly set.
 The returned handle must be freed by calling
 [uri #crypt_key_free [cmd crypt_key_free]].
 
+[call [cmd crypt_key_get] [arg HCRYPT] [arg keytype]]
+Returns a handle to one of two public/private key pairs in a key container.
+ [arg HCRYPT]
+is a handle to the CSP key container. [arg keytype] must be either
+[const keyexchange] or [const signature] and specifies which
+of the two key pairs in the container.
+
+[nl]
+The returned handle must be freed by calling
+[uri #crypt_key_free [cmd crypt_key_free]].
+
+[call [cmd crypt_keyset_type] [arg HCRYPT]]
+Returns [const user] or [const machine] depending on
+whether the key set in the container is per-user or per-machine.
+
+[call [cmd crypt_set_security_descriptor] [arg HCRYPT] [opt [arg SECD]]]
+Sets the [uri security.html#securitydescriptors "security descriptor"]
+associated with a CSP key container whose handle is [arg HCRYPT].
+
+[call [cmd crypt_session_key_size] [arg HCRYPT]]
+Returns the size of the session key in the container.
+
+[call [cmd crypt_symmetric_key_size] [arg HCRYPT]]
+Returns the size of the symmetric key in the container.
 
 [list_end]
 
-[keywords authentication "message digest" encryption decryption SSPI ]
+[keywords certificate "certificate store" key cryptography encryption decryption CryptoAPI ]
 
 [manpage_end]

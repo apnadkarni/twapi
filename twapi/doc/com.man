@@ -624,12 +624,22 @@ Returns the default property of the COM object.
 [call "[arg COMOBJ] [cmd -destroy]"]
 Destroys the COM object, removing any bindings and releasing resources.
 
+[call "[arg COMOBJ] [cmd -dispid]" [arg NAME]]
+Returns the DISPID for a property or name. This is useful when manually
+defining prototypes using [uri #define_dispatch_prototypes [cmd define_dispatch_prototypes]].
+
 [call "[arg COMOBJ] [cmd -get]" [arg PROPERTY] [opt "[arg parameter] ..."]]
 Returns the value of the specified property. Optional parameters may be
 specified if the property is an indexed property.
 
-[call "[arg COMOBJ] [cmd -interface]"]
+[call "[arg COMOBJ] [cmd -interface]" [arg ADDREF]]
 Returns the internal [cmd IDispatch] pointer. Used for debugging purposes.
+If [arg ADDREF] is true (default), the interface reference count
+is incremented and caller must at some point call
+[cmd twapi::IUknown_Release]
+on the returned interface pointer
+to release the interface. If [arg ADDREF] is [const false],
+caller must [emph not] release the interface itself.
 
 [call "[arg COMOBJ] [cmd -isnull]"]
 Returns [const true] if the object is a NULL COM object, false otherwise.
