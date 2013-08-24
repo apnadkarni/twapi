@@ -6,189 +6,6 @@
 
 namespace eval twapi {}
 
-# Maps OID mnemonics
-proc twapi::oid {oid} {
-    # TBD - clean up table for rarely used OIDs
-    set map {
-        oid_common_name                   "2.5.4.3"
-        oid_sur_name                      "2.5.4.4"
-        oid_device_serial_number          "2.5.4.5"
-        oid_country_name                  "2.5.4.6"
-        oid_locality_name                 "2.5.4.7"
-        oid_state_or_province_name        "2.5.4.8"
-        oid_street_address                "2.5.4.9"
-        oid_organization_name             "2.5.4.10"
-        oid_organizational_unit_name      "2.5.4.11"
-        oid_title                         "2.5.4.12"
-        oid_description                   "2.5.4.13"
-        oid_search_guide                  "2.5.4.14"
-        oid_business_category             "2.5.4.15"
-        oid_postal_address                "2.5.4.16"
-        oid_postal_code                   "2.5.4.17"
-        oid_post_office_box               "2.5.4.18"
-        oid_physical_delivery_office_name "2.5.4.19"
-        oid_telephone_number              "2.5.4.20"
-        oid_telex_number                  "2.5.4.21"
-        oid_teletext_terminal_identifier  "2.5.4.22"
-        oid_facsimile_telephone_number    "2.5.4.23"
-        oid_x21_address                   "2.5.4.24"
-        oid_international_isdn_number     "2.5.4.25"
-        oid_registered_address            "2.5.4.26"
-        oid_destination_indicator         "2.5.4.27"
-        oid_user_password                 "2.5.4.35"
-        oid_user_certificate              "2.5.4.36"
-        oid_ca_certificate                "2.5.4.37"
-        oid_authority_revocation_list     "2.5.4.38"
-        oid_certificate_revocation_list   "2.5.4.39"
-        oid_cross_certificate_pair        "2.5.4.40"
-
-        oid_rsa               "1.2.840.113549"
-        oid_pkcs              "1.2.840.113549.1"
-        oid_rsa_hash          "1.2.840.113549.2"
-        oid_rsa_encrypt       "1.2.840.113549.3"
-
-        oid_pkcs_1            "1.2.840.113549.1.1"
-        oid_pkcs_2            "1.2.840.113549.1.2"
-        oid_pkcs_3            "1.2.840.113549.1.3"
-        oid_pkcs_4            "1.2.840.113549.1.4"
-        oid_pkcs_5            "1.2.840.113549.1.5"
-        oid_pkcs_6            "1.2.840.113549.1.6"
-        oid_pkcs_7            "1.2.840.113549.1.7"
-        oid_pkcs_8            "1.2.840.113549.1.8"
-        oid_pkcs_9            "1.2.840.113549.1.9"
-        oid_pkcs_10           "1.2.840.113549.1.10"
-        oid_pkcs_12           "1.2.840.113549.1.12"
-
-        oid_rsa_rsa           "1.2.840.113549.1.1.1"
-        oid_rsa_md2rsa        "1.2.840.113549.1.1.2"
-        oid_rsa_md4rsa        "1.2.840.113549.1.1.3"
-        oid_rsa_md5rsa        "1.2.840.113549.1.1.4"
-        oid_rsa_sha1rsa       "1.2.840.113549.1.1.5"
-        oid_rsa_setoaep_rsa   "1.2.840.113549.1.1.6"
-
-        oid_rsa_dh            "1.2.840.113549.1.3.1"
-
-        oid_rsa_data          "1.2.840.113549.1.7.1"
-        oid_rsa_signeddata    "1.2.840.113549.1.7.2"
-        oid_rsa_envelopeddata "1.2.840.113549.1.7.3"
-        oid_rsa_signenvdata   "1.2.840.113549.1.7.4"
-        oid_rsa_digesteddata  "1.2.840.113549.1.7.5"
-        oid_rsa_hasheddata    "1.2.840.113549.1.7.5"
-        oid_rsa_encrypteddata "1.2.840.113549.1.7.6"
-
-        oid_rsa_emailaddr     "1.2.840.113549.1.9.1"
-        oid_rsa_unstructname  "1.2.840.113549.1.9.2"
-        oid_rsa_contenttype   "1.2.840.113549.1.9.3"
-        oid_rsa_messagedigest "1.2.840.113549.1.9.4"
-        oid_rsa_signingtime   "1.2.840.113549.1.9.5"
-        oid_rsa_countersign   "1.2.840.113549.1.9.6"
-        oid_rsa_challengepwd  "1.2.840.113549.1.9.7"
-        oid_rsa_unstructaddr  "1.2.840.113549.1.9.8"
-        oid_rsa_extcertattrs  "1.2.840.113549.1.9.9"
-        oid_rsa_certextensions "1.2.840.113549.1.9.14"
-        oid_rsa_smimecapabilities "1.2.840.113549.1.9.15"
-        oid_rsa_prefersigneddata "1.2.840.113549.1.9.15.1"
-
-        oid_rsa_smimealg              "1.2.840.113549.1.9.16.3"
-        oid_rsa_smimealgesdh          "1.2.840.113549.1.9.16.3.5"
-        oid_rsa_smimealgcms3deswrap   "1.2.840.113549.1.9.16.3.6"
-        oid_rsa_smimealgcmsrc2wrap    "1.2.840.113549.1.9.16.3.7"
-
-        oid_rsa_md2           "1.2.840.113549.2.2"
-        oid_rsa_md4           "1.2.840.113549.2.4"
-        oid_rsa_md5           "1.2.840.113549.2.5"
-
-        oid_rsa_rc2cbc        "1.2.840.113549.3.2"
-        oid_rsa_rc4           "1.2.840.113549.3.4"
-        oid_rsa_des_ede3_cbc  "1.2.840.113549.3.7"
-        oid_rsa_rc5_cbcpad    "1.2.840.113549.3.9"
-
-
-        oid_ansi_x942         "1.2.840.10046"
-        oid_ansi_x942_dh      "1.2.840.10046.2.1"
-
-        oid_x957              "1.2.840.10040"
-        oid_x957_dsa          "1.2.840.10040.4.1"
-        oid_x957_sha1dsa      "1.2.840.10040.4.3"
-
-        oid_ds                "2.5"
-        oid_dsalg             "2.5.8"
-        oid_dsalg_crpt        "2.5.8.1"
-        oid_dsalg_hash        "2.5.8.2"
-        oid_dsalg_sign        "2.5.8.3"
-        oid_dsalg_rsa         "2.5.8.1.1"
-
-        oid_oiw               "1.3.14"
-
-        oid_oiwsec            "1.3.14.3.2"
-        oid_oiwsec_md4rsa     "1.3.14.3.2.2"
-        oid_oiwsec_md5rsa     "1.3.14.3.2.3"
-        oid_oiwsec_md4rsa2    "1.3.14.3.2.4"
-        oid_oiwsec_desecb     "1.3.14.3.2.6"
-        oid_oiwsec_descbc     "1.3.14.3.2.7"
-        oid_oiwsec_desofb     "1.3.14.3.2.8"
-        oid_oiwsec_descfb     "1.3.14.3.2.9"
-        oid_oiwsec_desmac     "1.3.14.3.2.10"
-        oid_oiwsec_rsasign    "1.3.14.3.2.11"
-        oid_oiwsec_dsa        "1.3.14.3.2.12"
-        oid_oiwsec_shadsa     "1.3.14.3.2.13"
-        oid_oiwsec_mdc2rsa    "1.3.14.3.2.14"
-        oid_oiwsec_sharsa     "1.3.14.3.2.15"
-        oid_oiwsec_dhcommmod  "1.3.14.3.2.16"
-        oid_oiwsec_desede     "1.3.14.3.2.17"
-        oid_oiwsec_sha        "1.3.14.3.2.18"
-        oid_oiwsec_mdc2       "1.3.14.3.2.19"
-        oid_oiwsec_dsacomm    "1.3.14.3.2.20"
-        oid_oiwsec_dsacommsha "1.3.14.3.2.21"
-        oid_oiwsec_rsaxchg    "1.3.14.3.2.22"
-        oid_oiwsec_keyhashseal "1.3.14.3.2.23"
-        oid_oiwsec_md2rsasign "1.3.14.3.2.24"
-        oid_oiwsec_md5rsasign "1.3.14.3.2.25"
-        oid_oiwsec_sha1       "1.3.14.3.2.26"
-        oid_oiwsec_dsasha1    "1.3.14.3.2.27"
-        oid_oiwsec_dsacommsha1 "1.3.14.3.2.28"
-        oid_oiwsec_sha1rsasign "1.3.14.3.2.29"
-
-        oid_oiwdir            "1.3.14.7.2"
-        oid_oiwdir_crpt       "1.3.14.7.2.1"
-        oid_oiwdir_hash       "1.3.14.7.2.2"
-        oid_oiwdir_sign       "1.3.14.7.2.3"
-        oid_oiwdir_md2        "1.3.14.7.2.2.1"
-        oid_oiwdir_md2rsa     "1.3.14.7.2.3.1"
-
-        oid_infosec                       "2.16.840.1.101.2.1"
-        oid_infosec_sdnssignature         "2.16.840.1.101.2.1.1.1"
-        oid_infosec_mosaicsignature       "2.16.840.1.101.2.1.1.2"
-        oid_infosec_sdnsconfidentiality   "2.16.840.1.101.2.1.1.3"
-        oid_infosec_mosaicconfidentiality "2.16.840.1.101.2.1.1.4"
-        oid_infosec_sdnsintegrity         "2.16.840.1.101.2.1.1.5"
-        oid_infosec_mosaicintegrity       "2.16.840.1.101.2.1.1.6"
-        oid_infosec_sdnstokenprotection   "2.16.840.1.101.2.1.1.7"
-        oid_infosec_mosaictokenprotection "2.16.840.1.101.2.1.1.8"
-        oid_infosec_sdnskeymanagement     "2.16.840.1.101.2.1.1.9"
-        oid_infosec_mosaickeymanagement   "2.16.840.1.101.2.1.1.10"
-        oid_infosec_sdnskmandsig          "2.16.840.1.101.2.1.1.11"
-        oid_infosec_mosaickmandsig        "2.16.840.1.101.2.1.1.12"
-        oid_infosec_suiteasignature       "2.16.840.1.101.2.1.1.13"
-        oid_infosec_suiteaconfidentiality "2.16.840.1.101.2.1.1.14"
-        oid_infosec_suiteaintegrity       "2.16.840.1.101.2.1.1.15"
-        oid_infosec_suiteatokenprotection "2.16.840.1.101.2.1.1.16"
-        oid_infosec_suiteakeymanagement   "2.16.840.1.101.2.1.1.17"
-        oid_infosec_suiteakmandsig        "2.16.840.1.101.2.1.1.18"
-        oid_infosec_mosaicupdatedsig      "2.16.840.1.101.2.1.1.19"
-        oid_infosec_mosaickmandupdsig     "2.16.840.1.101.2.1.1.20"
-        oid_infosec_mosaicupdatedinteg    "2.16.840.1.101.2.1.1.21"
-    }
-
-    if {[dict exists $map $oid]} {
-        return [dict get $map $oid]
-    }
-    if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
-        return $oid
-    } else {
-        badargs! "Invalid OID '$oid'"
-    }
-}
 
 ################################################################
 # Certificate procs
@@ -511,6 +328,10 @@ proc twapi::cert_set_key_prov {hcert args} {
     Twapi_SetCertContextKeyProvInfo $hcert \
         [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} $keytype]
     return
+}
+
+proc twapi::cert_export {hcert} {
+    return [lindex [Twapi_CertGetEncoded $hcert] 1]
 }
 
 ################################################################
@@ -1007,7 +828,6 @@ twapi::proc* twapi::oidname {oid} {
         badargs! "Invalid OID '$name'"
     }
 }
-
 
 twapi::proc* twapi::oids {} {
     variable _oid_name_map

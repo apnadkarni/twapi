@@ -1662,7 +1662,19 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         CertFreeCertificateContext(certP);
         break;
 
-    case 10015: // TBD
+    case 10015: // Twapi_CertGetEncoded
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (certP->pbCertEncoded && certP->cbCertEncoded) {
+            objs[0] = ObjFromDWORD(certP->dwCertEncodingType);
+            objs[1] = ObjFromByteArray(certP->pbCertEncoded, certP->cbCertEncoded);
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 2;
+            result.type = TRT_OBJV;
+        }
+        /* else empty result */
+
         break;
             
     case 10016: // CertUnregisterSystemStore
@@ -1844,6 +1856,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),
         DEFINE_FNCODE_CMD(cert_free, 10014), //CertFreeCertificateContext - doc
+        DEFINE_FNCODE_CMD(Twapi_CertGetEncoded, 10015),
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
