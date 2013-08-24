@@ -313,6 +313,17 @@ succeeding sections of this document.
 The cryptographic context is not needed any more and can be released.
 [example {crypt_free $crypt}]
 
+[section "Exporting a certificate"]
+The encoded certificate associated with a certificate context can
+be retrieved with the [uri #cert_export [cmd cert_export]] command.
+This can be written to a file or otherwise distributed.
+[example_begin]
+set fd [lb]open MyCert.cer w[rb]
+chan configure $fd -translation binary
+puts -nonewline $fd [lb]cert_export $hcert[rb]
+close $fd
+[example_end]
+
 [section "Adding and deleting certificates from a store"]
 Certificates can be added and deleted from certificate stores with
 the commands
@@ -343,7 +354,10 @@ Notice we have specified exactly the key container we had created earlier.
 The certificate is now stored in the memory store and will be available
 as long as the volatile memory store is not closed. As a final step
 we will export the certificate and the private keys to a file. This step
-is only necessary if we want to move the certificate elsewhere.
+is only necessary if we want to move the certificate elsewhere. 
+(Note if we only wanted to export the certificate without private keys, we
+ would follow the procedure in [sectref "Exporting a certificate"].
+
 [example_begin]
 set fd [lb]open MyCert.pfx w[rb]
 chan configure $fd -translation binary
@@ -542,6 +556,11 @@ The returned certificate handle must be freed by calling
 
 [call [cmd cert_enum_properties] [arg HCERT]]
 Returns a list properties defined for the certificate context [arg HCERT].
+
+[call [cmd cert_export] [arg HCERT]]
+Returns the encoded certificate for a certificate context.
+This is encoded using X.509 ASN.1 and
+can be written to a file or otherwise distributed.
 
 [call [cmd cert_file_store_open] [arg PATH] [opt [arg options]]]
 Opens a certificate store from a file [arg PATH]
