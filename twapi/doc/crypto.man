@@ -936,9 +936,9 @@ the user profile is not loaded.
 for any information that may be required to create the context. If this
 option is specified as [const true], the user is never prompted. Instead
 the command will raise an error if a user prompt was required.
-[opt_def [cmd -verifycontext] [arg BOOLEAN]] If specified as [const true]
-(default), the context is not intended for use with persisted private keys.
-If this option is specified as [const true], [cmd -keycontainer] must
+[opt_def [cmd -verifycontext] [arg BOOLEAN]] If specified as [const true],
+the context is intended for use with ephemeral keys which are not persisted.
+Default is [const false]. When [const true], [cmd -keycontainer] must
 not be specified if the CSP is file-based. If specified as [const false],
 the returned context provides access to persisted private keys in the
 container. Specifying this option as [const true] results in a key container

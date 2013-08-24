@@ -524,7 +524,7 @@ proc twapi::crypt_acquire {args} {
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
-        {verifycontext.bool 1 0xf0000000}
+        {verifycontext.bool 0 0xf0000000}
     } -maxleftover 0 -nulldefault]
     
     # Based on http://support.microsoft.com/kb/238187, if verifycontext
@@ -701,8 +701,6 @@ proc twapi::cert_create_self_signed {subject args} {
     if {$opts(end) <= $opts(start)} {
         badargs! "Start time $opts(start) is greater than end time $opts(end)"
     }
-    set start [_seconds_to_timelist $opts(start) $opts(gmt)]
-    set end [_seconds_to_timelist $opts(end) $opts(gmt)]
 
     # 0x1 ->  CERT_KEY_CONTEXT_PROP_ID (not sure this is actually needed TBD*/
     set kiflags [expr {$opts(silent) | 0x1}]
@@ -733,7 +731,7 @@ proc twapi::cert_create_self_signed {subject args} {
     }
 
     set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $start $end $exts]
+    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $opts(start) $opts(end) $exts]
 }
 
 proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
@@ -763,11 +761,6 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         set opts(end) $opts(start)
         lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
     }
-    if {$opts(end) <= $opts(start)} {
-        badargs! "Start time $opts(start) is greater than end time $opts(end)"
-    }
-    set start [_seconds_to_timelist $opts(start) $opts(gmt)]
-    set end [_seconds_to_timelist $opts(end) $opts(gmt)]
 
     # Generate the extensions list
     set exts {}
@@ -784,7 +777,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     }
 
     set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $start $end $opts(extensions)]
+    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
 }
 
 
@@ -1240,7 +1233,7 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
             }
         }
     }
-    return [list "2.5.29.37" $critical $names]
+    return [list "2.5.29.37" $critical $usages]
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.
