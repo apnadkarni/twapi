@@ -325,7 +325,7 @@ unmodified.
 [para]
 The sample code below adds the certificate we created in the previous
 section to a memory store. First we create the memory store.
-[example {set store [cert_create_memory_store]}]
+[example {set store [cert_memory_store_open]}]
 Then we add the certificate to it.
 [example {set mcert [cert_store_add_certificate $store $cert]}]
 This creates a copy of the certificate we created earlier. Since we

@@ -508,8 +508,8 @@ proc twapi::cert_set_key_prov {hcert args} {
     # TBD - does the keytype matter ? In case of self signed cert
     # which (keyexchange/signature) or both have to be specified ?
     set keytype [expr {$opts(keytype) eq "signature" ? 2 : 1}]
-    Twapi_CertSetCertificateKeyProvInfo $hcert \
-        [list $opts(keycontainer) $opts(csp) $opts(csptype) $flags {} $keytype]
+    Twapi_SetCertContextKeyProvInfo $hcert \
+        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} $keytype]
     return
 }
 
