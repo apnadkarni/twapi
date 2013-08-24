@@ -1588,7 +1588,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
     case 10009: // CryptDestroyKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
+                         GETPTR(pv, HCRYPTKEY),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1601,8 +1601,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (CryptGenKey((HCRYPTPROV) pv, dw, dw2, &dwp)) {
-            if (TwapiRegisterPointer(interp, (void*)dwp, CryptDestroyKey) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
             TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
         } else
             result.type = TRT_GETLASTERROR;
@@ -1696,8 +1694,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (CryptGetUserKey((HCRYPTPROV) pv, dw, &dwp)) {
-            if (TwapiRegisterPointer(interp, (void*)dwp, CryptDestroyKey) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
             TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
         } else
             result.type = TRT_GETLASTERROR;
