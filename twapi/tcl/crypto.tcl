@@ -334,6 +334,13 @@ proc twapi::cert_export {hcert} {
     return [lindex [Twapi_CertGetEncoded $hcert] 1]
 }
 
+proc twapi::cert_enhanced_usage {hcert {loc both}} {
+    if {![dict exists {property 4 extension 2 both 0} $loc]} {
+        badargs! "Invalid enhanced usage location \"$loc\". Should be one of \"property\", \"extension\" or \"both\""
+    }
+    return [CertGetEnhancedKeyUsage $hcert $loc]
+}
+
 ################################################################
 # Provider contexts
 
