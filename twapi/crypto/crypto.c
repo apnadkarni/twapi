@@ -36,6 +36,17 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 }
 #endif
 
+static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
+{
+    Tcl_Obj *objs[2];
+    if (blobP->cbData && blobP->pbData)
+        objs[0] = ObjFromByteArray(blobP->pbData, blobP->cbData);
+    else
+        objs[0] = ObjFromEmptyString();
+    objs[1] = ObjFromDWORD(blobP->cUnusedBits);
+    return ObjNewList(2, objs);
+}
+
 static Tcl_Obj *ObjFromCERT_ALT_NAME_ENTRY(CERT_ALT_NAME_ENTRY *caneP)
 {
     Tcl_Obj *objs[2];
@@ -336,6 +347,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
         void *pv;
         CERT_ENHKEY_USAGE *enhkeyP;
         CERT_ALT_NAME_INFO *altnameP;
+        CRYPT_BIT_BLOB     *bitsP;
     } u;
     DWORD n;
     LPCSTR oid;
@@ -358,6 +370,8 @@ static TCL_RESULT TwapiCryptDecodeObject(
             oid = ObjToString(oidObj);
             if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
                 dwoid = (DWORD_PTR) X509_ENHANCED_KEY_USAGE;
+            else if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
+                dwoid = (DWORD_PTR) X509_KEY_USAGE;
             else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
                      STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
@@ -378,6 +392,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
         return TwapiReturnSystemError(interp);
     
     switch (dwoid) {
+    case (DWORD_PTR) X509_KEY_USAGE:
+        objP = ObjFromCRYPT_BIT_BLOB(u.bitsP);
+        break;
     case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
         objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
                             u.enhkeyP->rgpszUsageIdentifier);
@@ -417,6 +434,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     union {
         CERT_ALT_NAME_INFO cani;
         CERT_ENHKEY_USAGE  ceku;
+        CRYPT_BIT_BLOB     bitblob;
     } u;
     Tcl_Interp *interp = ticP->interp;
     LPCSTR oid;
@@ -439,6 +457,8 @@ static TCL_RESULT TwapiCryptEncodeObject(
             oid = ObjToString(oidObj);
             if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
                 dwoid = (DWORD_PTR) X509_ENHANCED_KEY_USAGE;
+            else if (STREQ(oid, szOID_KEY_USAGE))
+                dwoid = (DWORD_PTR) X509_KEY_USAGE;
             else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
                      STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
@@ -459,6 +479,9 @@ static TCL_RESULT TwapiCryptEncodeObject(
         if ((res = ParseCERT_ENHKEY_USAGE(ticP, valObj, &u.ceku)) != TCL_OK)
             return res;
         break;
+    case (DWORD_PTR) X509_KEY_USAGE:
+        if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
+            return res;
     default:
         return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID");
     }
