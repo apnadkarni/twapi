@@ -8,8 +8,7 @@ namespace eval twapi {}
 
 
 ################################################################
-# Certificate procs
-# TBD - document
+# Certificate Stores
 
 # Close a certificate store
 proc twapi::cert_store_close {hstore} {
@@ -186,6 +185,17 @@ proc twapi::cert_store_export {hstore password args} {
     return [::twapi::PFXExportCertStoreEx $hstore $password {} $flags]
 }
 
+proc twapi::cert_store_commit {hstore args} {
+    array set opts [parseargs args {
+        {force.bool 0}
+    } -maxleftover 0]
+    
+    return [Twapi_CertStoreCommit $hstore $opts(force)]
+}
+
+################################################################
+# Certificates
+
 interp alias {} twapi::cert_subject_name {} twapi::_cert_get_name subject
 interp alias {} twapi::cert_issuer_name {} twapi::_cert_get_name issuer
 
@@ -341,8 +351,122 @@ proc twapi::cert_enhanced_usage {hcert {loc both}} {
     return [CertGetEnhancedKeyUsage $hcert $loc]
 }
 
+proc twapi::cert_create_self_signed {subject args} {
+    array set opts [parseargs args {
+        keytype.arg signature {keyexchange signature}
+        {keycontainer.arg {}}
+        {keysettype.arg user {machine user}}
+        {silent.bool 0 0x40}
+        {csp.arg {}}
+        {csptype.arg {}}
+        signaturealgorithm.arg
+        start.int
+        end.int
+        {gmt.bool 1}
+        {altnames.arg {}}
+        {keyusage.arg {}}
+        {critical {}}
+    } -maxleftover 0 -ignoreunknown]
+
+    set name_blob [cert_name_to_blob $subject]
+    if {[info exists opts(signaturealgorithm)]} {
+        set alg [list [oid $opts(signaturealgorithm)]]
+    } else {
+        set alg {}
+    }
+
+    if {![info exists opts(start)]} {
+        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
+    }
+
+    if {![info exists opts(end)]} {
+        set opts(end) $opts(start)
+        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
+    }
+    if {$opts(end) <= $opts(start)} {
+        badargs! "Start time $opts(start) is greater than end time $opts(end)"
+    }
+
+    # 0x1 ->  CERT_KEY_CONTEXT_PROP_ID (not sure this is actually needed TBD*/
+    set kiflags [expr {$opts(silent) | 0x1}]
+    if {$opts(keysettype) eq "machine"} {
+        incr kiflags 0x20;  # CRYPT_MACHINE_KEYSET
+    }
+    set keyinfo [list \
+                     $opts(keycontainer) \
+                     $opts(csp) \
+                     $opts(csptype) \
+                     $kiflags \
+                     {} \
+                     [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
+
+    
+    # Generate the extensions list
+    set exts {}
+    if {[info exists opts(altnames)]} {
+        set critical [expr {"altnames" in $opts(critical)}]
+        # Issuer
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
+        # Subject
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
+    }
+    if {[info exists opts(keyusage)]} {
+        set critical [expr {"keyusage" in $opts(critical)}]
+        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
+    }
+
+    set flags 0;                # Always 0 for now
+    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $opts(start) $opts(end) $exts]
+}
+
+proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
+    array set opts [parseargs args {
+        {silent.bool 0 0x40}
+        start.int
+        end.int
+        {gmt.bool 0}
+        signaturealgorithm.arg
+        {altnames.arg {}}
+        {critical.arg {}}
+        {keyusage.arg {}}
+    } -maxleftover 0]
+
+    set name_blob [cert_name_to_blob $subject]
+    if {[info exists opts(signaturealgorithm)]} {
+        set alg [list [oid $opts(signaturealgorithm)]]
+    } else {
+        set alg {}
+    }
+
+    if {![info exists opts(start)]} {
+        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
+    }
+
+    if {![info exists opts(end)]} {
+        set opts(end) $opts(start)
+        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
+    }
+
+    # Generate the extensions list
+    set exts {}
+    if {[info exists opts(altnames)]} {
+        set critical [expr {"altnames" in $opts(critical)}]
+        # Issuer
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
+        # Subject
+        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
+    }
+    if {[info exists opts(keyusage)]} {
+        set critical [expr {"keyusage" in $opts(critical)}]
+        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
+    }
+
+    set flags 0;                # Always 0 for now
+    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
+}
+
 ################################################################
-# Provider contexts
+# Cryptographic context commands
 
 proc twapi::crypt_acquire {args} {
     array set opts [parseargs args {
@@ -493,121 +617,6 @@ proc twapi::crypt_symmetric_key_size {hprov} {
     binary scan [CryptGetProvParam $hprov 19 0] i i
     return $i
 }
-
-proc twapi::cert_create_self_signed {subject args} {
-    array set opts [parseargs args {
-        keytype.arg signature {keyexchange signature}
-        {keycontainer.arg {}}
-        {keysettype.arg user {machine user}}
-        {silent.bool 0 0x40}
-        {csp.arg {}}
-        {csptype.arg {}}
-        signaturealgorithm.arg
-        start.int
-        end.int
-        {gmt.bool 1}
-        {altnames.arg {}}
-        {keyusage.arg {}}
-        {critical {}}
-    } -maxleftover 0 -ignoreunknown]
-
-    set name_blob [cert_name_to_blob $subject]
-    if {[info exists opts(signaturealgorithm)]} {
-        set alg [list [oid $opts(signaturealgorithm)]]
-    } else {
-        set alg {}
-    }
-
-    if {![info exists opts(start)]} {
-        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
-    }
-
-    if {![info exists opts(end)]} {
-        set opts(end) $opts(start)
-        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
-    }
-    if {$opts(end) <= $opts(start)} {
-        badargs! "Start time $opts(start) is greater than end time $opts(end)"
-    }
-
-    # 0x1 ->  CERT_KEY_CONTEXT_PROP_ID (not sure this is actually needed TBD*/
-    set kiflags [expr {$opts(silent) | 0x1}]
-    if {$opts(keysettype) eq "machine"} {
-        incr kiflags 0x20;  # CRYPT_MACHINE_KEYSET
-    }
-    set keyinfo [list \
-                     $opts(keycontainer) \
-                     $opts(csp) \
-                     $opts(csptype) \
-                     $kiflags \
-                     {} \
-                     [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
-
-    
-    # Generate the extensions list
-    set exts {}
-    if {[info exists opts(altnames)]} {
-        set critical [expr {"altnames" in $opts(critical)}]
-        # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-        # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
-    }
-    if {[info exists opts(keyusage)]} {
-        set critical [expr {"keyusage" in $opts(critical)}]
-        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
-    }
-
-    set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $opts(start) $opts(end) $exts]
-}
-
-proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
-    array set opts [parseargs args {
-        {silent.bool 0 0x40}
-        start.int
-        end.int
-        {gmt.bool 0}
-        signaturealgorithm.arg
-        {altnames.arg {}}
-        {critical.arg {}}
-        {keyusage.arg {}}
-    } -maxleftover 0]
-
-    set name_blob [cert_name_to_blob $subject]
-    if {[info exists opts(signaturealgorithm)]} {
-        set alg [list [oid $opts(signaturealgorithm)]]
-    } else {
-        set alg {}
-    }
-
-    if {![info exists opts(start)]} {
-        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
-    }
-
-    if {![info exists opts(end)]} {
-        set opts(end) $opts(start)
-        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
-    }
-
-    # Generate the extensions list
-    set exts {}
-    if {[info exists opts(altnames)]} {
-        set critical [expr {"altnames" in $opts(critical)}]
-        # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-        # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
-    }
-    if {[info exists opts(keyusage)]} {
-        set critical [expr {"keyusage" in $opts(critical)}]
-        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
-    }
-
-    set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
-}
-
 
 ################################################################
 # Utility procs
