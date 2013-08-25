@@ -1833,6 +1833,33 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         } else
             result.type = TRT_GETLASTERROR;
         break;
+
+    case 10028: // CertGetEnhancedKeyUsage
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        dw2 = 0;
+        result.type = TRT_GETLASTERROR;
+        if (CertGetEnhancedKeyUsage(certP, dw, NULL, &dw2)) {
+            pv = TwapiAlloc(dw2);
+            if (CertGetEnhancedKeyUsage(certP, dw, pv, &dw2)) {
+                CERT_ENHKEY_USAGE *ceuP = pv;
+                result.type = TRT_OBJ;
+                if (ceuP->cUsageIdentifier)
+                    result.value.obj = ObjFromArgvA(ceuP->cUsageIdentifier,
+                                                    ceuP->rgpszUsageIdentifier);
+                else {
+                    if (GetLastError() == CRYPT_E_NOT_FOUND) {
+                        /* Extension not present -> all uses valid */
+                        result.value.obj = STRING_LITERAL_OBJ("*");
+                    } else /* No valid uses */
+                        result.type = TRT_EMPTY;
+                }
+            }
+            TwapiFree(pv);
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1869,6 +1896,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumPhysicalStore, 10025),
         DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
         DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027),
+        DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
