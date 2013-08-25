@@ -1860,6 +1860,18 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             TwapiFree(pv);
         }
         break;
+
+    case 10029: // Twapi_CertStoreCommit
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CertControlStore(pv, dw ? CERT_STORE_CTRL_COMMIT_FORCE_FLAG : 0,
+                               CERT_STORE_CTRL_COMMIT, NULL))
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1897,6 +1909,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
         DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027),
         DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
+        DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

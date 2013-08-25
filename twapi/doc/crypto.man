@@ -846,6 +846,11 @@ is less than that of the new certificate. Otherwise an error is raised.
 [call [cmd cert_store_close] [arg HSTORE]]
 Releases the specified handle to a certificate store.
 
+[call [cmd cert_store_commit] [arg HSTORE] [opt "[cmd -force] [arg BOOLEAN]"]]
+Commits any changes made to a certificate store. If [cmd -force] is
+specified as [const true], the store is written out even if no changes
+have been made to the in-memory copy.
+
 [call [cmd cert_store_export] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
 Returns a binary containing all the certificates in a certificate store.
 [arg HSTORE] is a handle to the store and [arg PASSWORD] is the password
@@ -985,6 +990,12 @@ being created in memory and deleted when the cryptographic context is
 released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
 
 [list_end]
+
+[call [cmd crypt_csp] [arg HCRYPT]]
+Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
+
+[call [cmd crypt_csptype] [arg HCRYPT]]
+Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
 
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
