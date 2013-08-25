@@ -365,6 +365,7 @@ proc twapi::cert_create_self_signed {subject args} {
         {gmt.bool 1}
         {altnames.arg {}}
         {keyusage.arg {}}
+        {enhkeyusage.arg {}}
         {critical {}}
     } -maxleftover 0 -ignoreunknown]
 
@@ -410,6 +411,10 @@ proc twapi::cert_create_self_signed {subject args} {
         # Subject
         lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
     }
+    if {[info exists opts(enhkeyusage)]} {
+        set critical [expr {"enhkeyusage" in $opts(critical)}]
+        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) $critical]
+    }
     if {[info exists opts(keyusage)]} {
         set critical [expr {"keyusage" in $opts(critical)}]
         lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
@@ -428,6 +433,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         signaturealgorithm.arg
         {altnames.arg {}}
         {critical.arg {}}
+        {enhkeyusage.arg {}}
         {keyusage.arg {}}
     } -maxleftover 0]
 
@@ -455,6 +461,10 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
         # Subject
         lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
+    }
+    if {[info exists opts(enhkeyusage)]} {
+        set critical [expr {"enhkeyusage" in $opts(critical)}]
+        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) $critical]
     }
     if {[info exists opts(keyusage)]} {
         set critical [expr {"keyusage" in $opts(critical)}]
@@ -1046,20 +1056,20 @@ proc twapi::_make_altnames_ext {altnames critical {issuer 0}} {
     return [list [expr {$issuer ? "2.5.29.18" : "2.5.29.17"}] $critical $names]
 }
 
-proc twapi::_make_keyusage_ext {keyusage critical} {
+proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
     set map {
-        serverauth "1.3.6.1.5.5.7.3.1"
-        clientauth "1.3.6.1.5.5.7.3.2"
-        codesign   "1.3.6.1.5.5.7.3.3"
+        server_auth "1.3.6.1.5.5.7.3.1"
+        client_auth "1.3.6.1.5.5.7.3.2"
+        code_sign   "1.3.6.1.5.5.7.3.3"
         email      "1.3.6.1.5.5.7.3.4"
-        ipsecendsystem "1.3.6.1.5.5.7.3.5"
-        ipsectunnel "1.3.6.1.5.5.7.3.6"
-        ipsecuser "1.3.6.1.5.5.7.3.7"
+        ipsec_endsystem "1.3.6.1.5.5.7.3.5"
+        ipsec_tunnel "1.3.6.1.5.5.7.3.6"
+        ipsec_user "1.3.6.1.5.5.7.3.7"
         timestamp "1.3.6.1.5.5.7.3.8"
-        ipsecintermediate "1.3.6.1.5.5.8.2.2"
+        ipsec_intermediate "1.3.6.1.5.5.8.2.2"
     }
     set usages {}
-    foreach usage $keyusage {
+    foreach usage $enhkeyusage {
         if {[dict exists $map $usage]} {
             lappend usages [dict get $map $usage]
         } else {
@@ -1070,6 +1080,40 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
         }
     }
     return [list "2.5.29.37" $critical $usages]
+}
+
+
+proc twapi::_make_keyusage_ext {keyusage critical} {
+
+    set map_byte1 {
+        digital_signature     0x80
+        non_repudiation       0x40
+        key_encipherment      0x20
+        data_encipherment     0x10
+        key_agreement         0x08
+        key_cert_sign         0x04
+        crl_sign              0x02
+        encipher_only         0x01
+    }
+    set map_byte2 {
+        decipher_only         0x80
+    }
+
+    set byte1 0
+    set byte2 0
+    foreach usage $keyusage {
+        if {[dict exists $map_byte1 $usage]} {
+            set byte1 [expr {$byte1 | [dict get $map_byte1 $usage]}]
+        } elseif {[dict exists $map_byte2 $usage]} {
+            set byte2 [expr {$byte2 | [dict get $map_byte2 $usage]}]
+        } else {
+            error "Invalid key usage value \"$keyusage\""
+        }
+    }
+
+    set bin [binary format cc $byte1 $byte2]
+    # 7 -> # unused bits in last byte
+    return [list "2.5.29.15" $critical [list $bin 7]]
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.
