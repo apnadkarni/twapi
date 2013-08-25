@@ -258,6 +258,24 @@ as well.
 When no longer needed, certificate contexts must be freed by calling
 [uri #cert_free [cmd cert_free]].
 
+[section "Getting certificate contents"]
+
+The encoded certificate associated with a certificate context can
+be retrieved with the [uri #cert_export [cmd cert_export]] command.
+This can be written to a file or otherwise distributed.
+[example_begin]
+set fd [lb]open MyCert.cer w[rb]
+chan configure $fd -translation binary
+puts -nonewline $fd [lb]cert_export $hcert[rb]
+close $fd
+[example_end]
+
+[para]
+The list of permitted uses of a certificate can be retrieved 
+through the [uri #cert_enhanced_usage [cmd cert_enhanced_usage]]
+command.
+
+
 [section "Finding a certificate in a store"]
 An existing certificate in a store can be retrieved in one of two ways:
 [list_begin bullet]
@@ -313,17 +331,6 @@ succeeding sections of this document.
 The cryptographic context is not needed any more and can be released.
 [example {crypt_free $crypt}]
 
-[section "Exporting a certificate"]
-The encoded certificate associated with a certificate context can
-be retrieved with the [uri #cert_export [cmd cert_export]] command.
-This can be written to a file or otherwise distributed.
-[example_begin]
-set fd [lb]open MyCert.cer w[rb]
-chan configure $fd -translation binary
-puts -nonewline $fd [lb]cert_export $hcert[rb]
-close $fd
-[example_end]
-
 [section "Adding and deleting certificates from a store"]
 Certificates can be added and deleted from certificate stores with
 the commands
@@ -356,7 +363,7 @@ as long as the volatile memory store is not closed. As a final step
 we will export the certificate and the private keys to a file. This step
 is only necessary if we want to move the certificate elsewhere. 
 (Note if we only wanted to export the certificate without private keys, we
- would follow the procedure in [sectref "Exporting a certificate"].
+ would follow the procedure in [sectref "Getting certificate contents"].
 
 [example_begin]
 set fd [lb]open MyCert.pfx w[rb]
@@ -553,6 +560,19 @@ Defaults to the current time.
 
 The returned certificate handle must be freed by calling
 [uri #cert_free [cmd cert_free]].
+
+[call [cmd cert_enhanced_usage] [arg HCERT] [opt [arg SOURCE]]]
+Returns the list of permitted uses of a certificate
+as a list of OID's based on the Enhanced Key Usage (EKU) certificate
+extension content and/or the EKU certificate property.
+If [arg SOURCE] is not specified or is [const both], the
+OID's present in both the extension [emph and] the property
+are returned. If [arg SOURCE] is [const extension] or [const property]
+only those corresponding values are returned, the other is not
+considered. In the case where neither the extension nor the property is
+present, the string [const *] is returned indicating the certificate
+is considered valid for all uses. If the returned list is empty,
+the certificate is considered invalid for any use.
 
 [call [cmd cert_enum_properties] [arg HCERT]]
 Returns a list properties defined for the certificate context [arg HCERT].

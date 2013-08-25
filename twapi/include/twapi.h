@@ -401,13 +401,13 @@ enum {
 
 
 /* Create a string obj from a string literal. */
-#define STRING_LITERAL_OBJ(x) ObjFromStringN(x, sizeof(x)-1)
+#define STRING_LITERAL_OBJ(x) ObjFromStringN((x), sizeof(x)-1)
 
+/*
+ *  Macros to append field name and values to a list
+ */
 
-
-/* Macros to append field name and values to a list */
-
-/* Appends a struct DWORD field name and value pair to a given Tcl list object */
+/* Append a struct DWORD field name and value to a Tcl list object */
 #define Twapi_APPEND_DWORD_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
@@ -426,7 +426,7 @@ enum {
     ObjAppendElement((interp_), (listp_), ObjFromLong((WORD)((structp_)->field_))); \
   } while (0)
 
-/* Appends a struct ULONGLONG field name and value pair to a given Tcl list object */
+/* Append a struct ULONGLONG field name and value to a Tcl list object */
 #define Twapi_APPEND_ULONGLONG_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
@@ -463,7 +463,7 @@ enum {
   } while (0)
 
 
-/* Appends a struct Unicode field name and string pair to a Tcl list object */
+/* Appends a struct Unicode field name and string to a Tcl list object */
 #define Twapi_APPEND_LSA_UNICODE_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
