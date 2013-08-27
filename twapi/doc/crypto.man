@@ -271,8 +271,11 @@ close $fd
 [example_end]
 
 [para]
-The list of permitted uses of a certificate can be retrieved 
-through the [uri #cert_enhanced_usage [cmd cert_enhanced_usage]]
+A certificate contains two extensions, Intended Key Usage
+and Enhanced Key Usage that contain its intended
+or allowed use. These extensions can be retrieved with
+the [uri #cert_key_usage [cmd cert_key_usage]]
+and [uri #cert_enhkey_usage [cmd cert_enhkey_usage]]
 command.
 
 
@@ -549,9 +552,8 @@ See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
 The returned certificate handle must be freed by calling
 [uri #cert_free [cmd cert_free]].
 
-[call [cmd cert_enhanced_usage] [arg HCERT] [opt [arg SOURCE]]]
-Returns the list of permitted uses of a certificate
-as a list of OID's based on the Enhanced Key Usage (EKU) certificate
+[call [cmd cert_enhkey_usage] [arg HCERT] [opt [arg SOURCE]]]
+Returns a list of OID's based on the Enhanced Key Usage (EKU) certificate
 extension content and/or the EKU certificate property.
 If [arg SOURCE] is not specified or is [const both], the
 OID's present in both the extension [emph and] the property
@@ -696,6 +698,11 @@ and linefeed characters are treated as separators.
 
 See [uri #cert_blob_to_name [cmd cert_blob_to_name]] for the reverse
 operation.
+
+[call [cmd cert_key_usage] [arg HCERT]]
+Returns a list of the Intended Key Usage values in a certificate.
+In the case where the extension is not
+present, the string [const *] is returned.
 
 [call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
 Returns a subject name field from the certificate context [arg HCERT]. 
