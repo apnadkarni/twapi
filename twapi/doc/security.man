@@ -412,6 +412,17 @@ each can be obtained through the
 [uri \#get_logon_session_info [cmd get_logon_session_info]] command.
 
 
+[section "Credentials"]
+
+The Windows credentials manager maintains a cache of credentials for
+a user account or logon session. The [cmd twapi_security] package
+provides some additional commands to those already
+present in the [cmd twapi_base] package.
+[para]
+The [uri #credentials [cmd credentials]] returns a list of credentials
+for the calling process.
+
+
 [section "User Account Control"]
 
 Windows Vista and later versions
@@ -487,6 +498,43 @@ returns 1 if at least one of the privileges is enabled, and 0 otherwise.
 
 [call [cmd close_token] [arg TOKEN]]
 Frees resources associated with an access token.
+
+[call [cmd credentials] [opt [arg TARGETPATTERN]]]
+Returns a list of current credentials from the user's credential set.
+If [arg TARGETPATTERN] is not specified, all credentials are returned.
+Otherwise, only those with targets matching [arg TARGETPATTERN] are returned.
+[arg TARGETPATERN] is a name prefix optionally terminating in a wildcard
+[const *] character.
+[nl]
+The returned list elements are dictionaries with the following keys:
+
+[list_begin opt]
+[opt_def [const comment]] Any associated descriptive comment for the credential
+that might be added by the user.
+[opt_def [const lastwritten]] The last time the credentials were written
+as the number of 100ns since Jan 1, 1601
+(see [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]).
+[opt_def persist] One of the values [const session], [const local_machine]
+or [const enterprise] depending on whether the credentials are persisted
+for the current logon session only, or are persisted on the local system
+and are visible to future logon session for the user on that system,
+or are persisted on the local system and are visible to logon session
+for that user from other systems.
+[opt_def [const target]] The name of the target for which the credential
+is applicable.
+[opt_def [const targetalias]] An alias for the target.
+[opt_def [const type]] The credential type which is one of
+[const generic], [const domain_password], [const domain_certificate], 
+[const domain_visible_password]
+[const generic_certificate], [const domain_extended.]
+[opt_def [const username]] The user name associated with the target
+credential.
+[list_end]
+The dictionary may contain other elements. These should be ignored
+and are liable to change.
+[nl]
+For more information, see the description of the
+[uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa374788(v=vs.85).aspx "CREDENTIALS"] structure in the Windows SDK.
 
 [call [cmd disable_all_token_privileges] [arg TOKEN]]
 This command disables all privileges in the token.
