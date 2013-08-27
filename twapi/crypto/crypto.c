@@ -1895,6 +1895,28 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         else
             result.type = TRT_GETLASTERROR;
         break;
+
+    case 10030: // Twapi_CertGetIntendedKeyUsage
+        if (TwapiGetArgs(interp, objc, objv, GETINT(dw),
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            BYTE buf[2];
+            /* We do not currently support more than 2 bytes at Tcl level */
+            dw = CertGetIntendedKeyUsage(dw, certP->pCertInfo, buf, ARRAYSIZE(buf));
+            if (dw) {
+                result.value.binary.p = buf;
+                result.value.binary.len = ARRAYSIZE(buf);
+                result.type = TRT_BINARY;
+            } else {
+                if (GetLastError() == 0)
+                    result.type = TRT_EMPTY;
+                else
+                    result.type = TRT_GETLASTERROR;
+            }
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1933,6 +1955,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027),
         DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
+        DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

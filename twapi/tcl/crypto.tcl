@@ -141,6 +141,7 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
         set type [expr [dict get $term_types $type]]
     }
 
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
     return [CertFindCertificateInStore $hstore 0x10001 0 $type $term $hcert]
 }
 
@@ -344,11 +345,18 @@ proc twapi::cert_export {hcert} {
     return [lindex [Twapi_CertGetEncoded $hcert] 1]
 }
 
-proc twapi::cert_enhanced_usage {hcert {loc both}} {
+proc twapi::cert_enhkey_usage {hcert {loc both}} {
     if {![dict exists {property 4 extension 2 both 0} $loc]} {
         badargs! "Invalid enhanced usage location \"$loc\". Should be one of \"property\", \"extension\" or \"both\""
     }
+    # TBD - does this have to be mapped to symbols ?
     return [CertGetEnhancedKeyUsage $hcert $loc]
+}
+
+proc twapi::cert_key_usage {hcert} {
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    binary scan [Twapi_CertGetIntendedKeyUsage 0x10001 $hcert] c* bytes
+    return [_decode_keyusage_bytes $bytes]
 }
 
 proc twapi::cert_create_self_signed {subject args} {
@@ -1082,10 +1090,10 @@ proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
     return [list "2.5.29.37" $critical $usages]
 }
 
-
-proc twapi::_make_keyusage_ext {keyusage critical} {
-
-    set map_byte1 {
+twapi::proc* twapi::_init_keyusage_names {} {
+    variable _keyusage_byte1
+    variable _keyusage_byte2
+    set _keyusage_byte1 {
         digital_signature     0x80
         non_repudiation       0x40
         key_encipherment      0x20
@@ -1095,17 +1103,22 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
         crl_sign              0x02
         encipher_only         0x01
     }
-    set map_byte2 {
+    set _keyusage_byte2 {
         decipher_only         0x80
     }
+} {}
+
+proc twapi::_make_keyusage_ext {keyusage critical} {
+    variable _keyusage_byte1
+    variable _keyusage_byte2
 
     set byte1 0
     set byte2 0
     foreach usage $keyusage {
-        if {[dict exists $map_byte1 $usage]} {
-            set byte1 [expr {$byte1 | [dict get $map_byte1 $usage]}]
-        } elseif {[dict exists $map_byte2 $usage]} {
-            set byte2 [expr {$byte2 | [dict get $map_byte2 $usage]}]
+        if {[dict exists $_keyusage_byte1 $usage]} {
+            set byte1 [expr {$byte1 | [dict get $_keyusage_byte1 $usage]}]
+        } elseif {[dict exists $_keyusage_byte2 $usage]} {
+            set byte2 [expr {$byte2 | [dict get $_keyusage_byte2 $usage]}]
         } else {
             error "Invalid key usage value \"$keyusage\""
         }
@@ -1114,6 +1127,47 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
     set bin [binary format cc $byte1 $byte2]
     # 7 -> # unused bits in last byte
     return [list "2.5.29.15" $critical [list $bin 7]]
+}
+
+# Given a list integer bytes, decode to key usage flags
+proc twapi::_decode_keyusage_bytes {bytes} {
+    variable _keyusage_byte1
+    variable _keyusage_byte2
+    
+    if {[llength $bytes] == 0} {
+        return *;               # Field not present, TBD
+    }
+
+    set usages {}
+    set byte [lindex $bytes 0]
+    dict for {key val} $_keyusage_byte1 {
+        if {$byte & $val} {
+            lappend usages $key
+        }
+    } 
+
+    set byte [lindex $bytes 1]
+    dict for {key val} $_keyusage_byte2 {
+        if {$byte & $val} {
+            lappend usages $key
+            set byte [expr {$byte & ~$val}]
+        }
+    } 
+
+    # For the second byte, not all bits are defined. Error if any
+    # that we do not understand
+    if {$byte} {
+        error "Key usage sequence $bytes includes unsupported bits"
+    }
+
+    # If there are more bytes, they should all be 0 as well
+    foreach byte [lrange $bytes 2 end] {
+        if {$byte} {
+            error "Key usage sequence $bytes includes unsupported bits"
+        }
+    }
+
+    return $usages
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.

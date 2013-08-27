@@ -845,159 +845,6 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
-{
-    int nobjs, user_len, password_len ;
-    Tcl_Obj **objs;
-    LPWSTR target, user, password;
-    DWORD autherr, save, flags;
-    TCL_RESULT res;
-    CREDUI_INFOW cui, *cuiP;
-    WCHAR *user_buf, *password_buf;
-    DWORD status;
-    BOOL bsave;
-    Tcl_Obj *resultObjs[3], *objP, *passwordObj;
-    Tcl_Interp *interp = ticP->interp;
-    MemLifoMarkHandle mark;
-
-    mark = MemLifoPushMark(&ticP->memlifo);
-    user_buf = NULL;
-    password_buf = NULL;
-
-    res = TwapiGetArgsEx(ticP, objc, objv, 
-                       GETSTRW(target), ARGUNUSED, GETINT(autherr), 
-                       GETSTRWN(user, user_len), GETOBJ(passwordObj),
-                       GETBOOL(save),
-                       GETINT(flags), ARGEND);
-    if (res != TCL_OK)
-        goto vamoose;
-
-    bsave = save ? TRUE : FALSE;
-
-    if (uiObj == NULL) {
-        if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
-            /* Not documented but for cmdline version one of these flags
-               is required else you get ERROR_INVALID_FLAGS */
-            res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "CredUICmdLinePromptForCredentials requires REQUIRE_SMARTCARD or EXCLUDE_CERTIFICATES flag to be specified.");
-            goto vamoose;
-        }
-        cuiP = NULL;
-    }
-    else {
-        if ((res = ObjGetElements(interp, uiObj, &nobjs, &objs)) != TCL_OK)
-            goto vamoose;
-        if (nobjs == 0)
-            cuiP = NULL;
-        else {
-            if ((res = TwapiGetArgsEx(ticP, nobjs, objs,
-                                     GETHWND(cui.hwndParent),
-                                     GETEMPTYASNULL(cui.pszMessageText),
-                                     GETEMPTYASNULL(cui.pszCaptionText),
-                                     GETHANDLET(cui.hbmBanner, HBITMAP),
-                                     ARGEND)) != TCL_OK)
-                goto vamoose;
-        
-            cui.cbSize = sizeof(cui);
-            cuiP = &cui;
-        }
-    }
-
-    if ((res = ObjDecrypt(interp, passwordObj, &objP)) != TCL_OK)
-        goto vamoose;
-    password = ObjToUnicodeN(objP, &password_len);
-
-    if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
-        password_len > CREDUI_MAX_PASSWORD_LENGTH) {
-        Tcl_DecrRefCount(objP);
-        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
-        goto vamoose;
-    }
-    user_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
-    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
-    /* Zero first as recommended by MSDN */
-    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
-    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
-
-    CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
-    CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
-
-    /* Zero out the decrypted password */
-    TWAPI_ASSERT(! Tcl_IsShared(objP));
-    password = ObjToUnicodeN(objP, &password_len);
-    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-    Tcl_DecrRefCount(objP);
-    objP = NULL;
-    password = NULL;            /* Since this pointed into objP */
-
-    if (uiObj) {
-        status = CredUIPromptForCredentialsW(
-            cuiP, target, NULL, autherr,
-            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
-            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
-    } else {
-        status = CredUICmdLinePromptForCredentialsW(
-            target, NULL, autherr,
-            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
-            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
-    }
-
-    switch (status) {
-    case NO_ERROR:
-        objP = ObjFromUnicode(password_buf);
-        res = ObjEncrypt(interp, objP, &resultObjs[1]);
-        Tcl_DecrRefCount(objP);
-        if (res != TCL_OK)
-            break;
-        resultObjs[0] = ObjFromUnicode(user_buf);
-        resultObjs[2] = ObjFromBoolean(bsave);
-        ObjSetResult(interp, ObjNewList(3, resultObjs));
-        res = TCL_OK;
-        break;
-    case ERROR_CANCELLED:
-        res = TCL_OK;           /* Return empty result */
-        break;
-    default:
-        Twapi_AppendSystemError(interp, status);
-        res = TCL_ERROR;
-        break;
-    }
-
-vamoose:
-    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
-    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
-
-    MemLifoPopMark(mark);
-    return res;
-}
-
-
-#if 0
-/* Not explicitly visible in Win2K and XP SP0 so we use CheckTokenMembership
-   directly for which this is a wrapper */
-BOOL IsUserAnAdmin();
-#endif
-
-static TCL_RESULT Twapi_CredUIPromptObjCmd(
-    TwapiInterpContext *ticP,
-    Tcl_Interp *interp,
-    int  objc,
-    Tcl_Obj *CONST objv[])
-{
-    if (objc < 2)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    return Twapi_CredPrompt(ticP, objv[1], objc+2, &objv[2]);
-}
-
-static TCL_RESULT Twapi_CredUICmdLinePromptObjCmd(
-    TwapiInterpContext *ticP,
-    Tcl_Interp *interp,
-    int  objc,
-    Tcl_Obj *CONST objv[])
-{
-    return Twapi_CredPrompt(ticP, NULL, objc+1, &objv[1]);
-}
-
-
 static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2;
@@ -1017,6 +864,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         TOKEN_OWNER towner;
         LSA_UNICODE_STRING lsa_ustr;
         TOKEN_PRIVILEGES *tokprivsP;
+        PCREDENTIALW *credsPP;
     } u;
     ULONG  lsa_count;
     LSA_UNICODE_STRING *lsa_strings;
@@ -1125,6 +973,31 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 502:
             return Twapi_GetNamedSecurityInfo(interp, s, dw, dw2);
+        case 503: // CredEnumerate
+            /* Note dw is ignored as not supported on XP. Always pass 0 */
+            NULLIFY_EMPTY(s);
+            if (CredEnumerateW(s, 0, &dw2, &u.credsPP)) {
+                result.value.obj = ObjEmptyList();
+                for (dw = 0; dw < dw2; ++dw) {
+                    Tcl_Obj *objs[10];
+                    objs[0] = ObjFromDWORD(u.credsPP[dw]->Flags);
+                    objs[1] = ObjFromDWORD(u.credsPP[dw]->Type);
+                    objs[2] = ObjFromUnicode(u.credsPP[dw]->TargetName);
+                    objs[3] = ObjFromUnicode(u.credsPP[dw]->Comment);
+                    objs[4] = ObjFromFILETIME(&u.credsPP[dw]->LastWritten);
+                    objs[5] = ObjFromByteArray(u.credsPP[dw]->CredentialBlob,
+                                               u.credsPP[dw]->CredentialBlobSize);
+                    objs[6] = ObjFromDWORD(u.credsPP[dw]->Persist);
+                    objs[7] = ObjEmptyList(); /* Place holder for attributes */
+                    objs[8] = ObjFromUnicode(u.credsPP[dw]->TargetAlias);
+                    objs[9] = ObjFromUnicode(u.credsPP[dw]->UserName);
+                    ObjAppendElement(interp, result.value.obj, ObjNewList(ARRAYSIZE(objs), objs));
+                }
+                CredFree(u.credsPP);
+                result.type = TRT_OBJ;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
     } else if (func < 2000) {
         /* Args - handle, int, optional int */
@@ -1437,6 +1310,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(LookupPrivilegeValue, 402),
         DEFINE_FNCODE_CMD(ConvertStringSecurityDescriptorToSecurityDescriptor, 501),
         DEFINE_FNCODE_CMD(GetNamedSecurityInfo, 502),
+        DEFINE_FNCODE_CMD(CredEnumerate, 503),
         DEFINE_FNCODE_CMD(GetSecurityInfo, 1003),
         DEFINE_FNCODE_CMD(OpenThreadToken, 1004),
         DEFINE_FNCODE_CMD(OpenProcessToken, 1005),
@@ -1467,8 +1341,6 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SecCallDispatch), SecCallDispatch, Twapi_SecCallObjCmd);
-    Tcl_CreateObjCommand(interp, "twapi::CredUIPromptForCredentials", Twapi_CredUIPromptObjCmd, ticP, NULL); // TBD - Tcl
-    Tcl_CreateObjCommand(interp, "twapi::CredUICmdLinePromptForCredentials", Twapi_CredUICmdLinePromptObjCmd, ticP, NULL); // TBD - Tcl
 
     return TCL_OK;
 }

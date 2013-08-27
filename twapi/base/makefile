@@ -29,7 +29,7 @@ TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\win.tcl \
 	..\tcl\adsi.tcl
 
-EXTRALIBS = gdi32.lib 
+EXTRALIBS = gdi32.lib  $(SDKLIB)credui.lib
 
 !include ..\include\rules.inc
 

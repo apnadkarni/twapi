@@ -7,14 +7,29 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0.21 Beta"]
-
-[para]
+[section "Version 4.0.24 Beta"]
 Major changes in this release are support for Windows event tracing,
+new Windows event logging API,
+greatly enhanced support for CryptoAPI including certificate handling,
 enhancements to the COM module and architectural changes for modularity
 and run-time performance.
 
 [list_begin bullet]
+
+[bullet]
+Added [uri crypto.html CryptoAPI] support for creation and manipulation
+of certificates and certificate stores.
+
+[bullet]
+Added [uri base.html#read_credentials [cmd read_credentials]],
+[uri base.html#credentials_dialog [cmd credentials_dialog]],
+[uri base.html#confirm_credentials [cmd confirm_credentials]] and
+[uri security.html#credentials [cmd credentials]].
+
+
+[bullet]
+Added [uri base.html#conceal [cmd conceal]] and
+[uri base.html#reveal [cmd reveal]].
 
 [bullet]
 Added support for the [uri eventlog.html "new event logging infrastructure"]

@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include <wincred.h>
 
 static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     Tcl_Interp *interp,
@@ -1327,6 +1328,14 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_OBJ;
         result.value.obj = ObjFromOpaque((void *) dwp, cP);
         break;
+    case 10039: // CredUIConfirmCredential
+        CHECK_NARGS(interp, objc, 2);
+        CHECK_INTEGER_OBJ(interp, dw, objv[1]);
+        /* Note we do not treat any value as an error since it can happen
+           in normal operation that some cred is no longer cached */
+        result.type = TRT_DWORD;
+        result.value.ival = CredUIConfirmCredentialsW(ObjToUnicode(objv[0]), dw);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1836,6 +1845,159 @@ overrun:
     return TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
 }
 
+static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
+{
+    int nobjs, user_len, password_len ;
+    Tcl_Obj **objs;
+    LPWSTR target, user, password;
+    DWORD autherr, save, flags;
+    TCL_RESULT res;
+    CREDUI_INFOW cui, *cuiP;
+    WCHAR *user_buf, *password_buf;
+    DWORD status;
+    BOOL bsave;
+    Tcl_Obj *resultObjs[3], *objP, *passwordObj;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    user_buf = NULL;
+    password_buf = NULL;
+
+    res = TwapiGetArgsEx(ticP, objc, objv, 
+                       GETSTRW(target), ARGUNUSED, GETINT(autherr), 
+                       GETSTRWN(user, user_len), GETOBJ(passwordObj),
+                       GETBOOL(save),
+                       GETINT(flags), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    bsave = save ? TRUE : FALSE;
+
+    if (uiObj == NULL) {
+        if ((flags & ( CREDUI_FLAGS_REQUIRE_SMARTCARD | CREDUI_FLAGS_EXCLUDE_CERTIFICATES)) == 0) {
+            /* Not documented but for cmdline version one of these flags
+               is required else you get ERROR_INVALID_FLAGS */
+            res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "CredUICmdLinePromptForCredentials requires REQUIRE_SMARTCARD or EXCLUDE_CERTIFICATES flag to be specified.");
+            goto vamoose;
+        }
+        cuiP = NULL;
+    }
+    else {
+        if ((res = ObjGetElements(interp, uiObj, &nobjs, &objs)) != TCL_OK)
+            goto vamoose;
+        if (nobjs == 0)
+            cuiP = NULL;
+        else {
+            if ((res = TwapiGetArgsEx(ticP, nobjs, objs,
+                                     GETHWND(cui.hwndParent),
+                                     GETEMPTYASNULL(cui.pszMessageText),
+                                     GETEMPTYASNULL(cui.pszCaptionText),
+                                     GETHANDLET(cui.hbmBanner, HBITMAP),
+                                     ARGEND)) != TCL_OK)
+                goto vamoose;
+        
+            cui.cbSize = sizeof(cui);
+            cuiP = &cui;
+        }
+    }
+
+    if (Tcl_GetCharLength(passwordObj) == 0)
+        objP = ObjFromEmptyString();
+    else {
+        if ((res = ObjDecrypt(interp, passwordObj, &objP)) != TCL_OK)
+            goto vamoose;
+    }
+    password = ObjToUnicodeN(objP, &password_len);
+
+    if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
+        password_len > CREDUI_MAX_PASSWORD_LENGTH) {
+        Tcl_DecrRefCount(objP);
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
+        goto vamoose;
+    }
+    user_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
+    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
+    /* Zero first as recommended by MSDN */
+    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
+    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
+
+    CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
+    CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
+
+    /* Zero out the decrypted password */
+    TWAPI_ASSERT(! Tcl_IsShared(objP));
+    password = ObjToUnicodeN(objP, &password_len);
+    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
+    Tcl_DecrRefCount(objP);
+    objP = NULL;
+    password = NULL;            /* Since this pointed into objP */
+
+    if (uiObj) {
+        status = CredUIPromptForCredentialsW(
+            cuiP, target, NULL, autherr,
+            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
+            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
+    } else {
+        status = CredUICmdLinePromptForCredentialsW(
+            target, NULL, autherr,
+            user_buf, CREDUI_MAX_USERNAME_LENGTH+1,
+            password_buf, CREDUI_MAX_PASSWORD_LENGTH+1, &bsave, flags);
+    }
+
+    switch (status) {
+    case NO_ERROR:
+        objP = ObjFromUnicode(password_buf);
+        res = ObjEncrypt(interp, objP, &resultObjs[1]);
+        Tcl_DecrRefCount(objP);
+        if (res != TCL_OK)
+            break;
+        resultObjs[0] = ObjFromUnicode(user_buf);
+        resultObjs[2] = ObjFromBoolean(bsave);
+        ObjSetResult(interp, ObjNewList(3, resultObjs));
+        res = TCL_OK;
+        break;
+    case ERROR_CANCELLED:
+        res = TCL_OK;           /* Return empty result */
+        break;
+    default:
+        Twapi_AppendSystemError(interp, status);
+        res = TCL_ERROR;
+        break;
+    }
+
+vamoose:
+    if (user_buf)
+        SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
+    if (password_buf)
+        SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
+static TCL_RESULT Twapi_CredUIPromptObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    if (objc < 2)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    return Twapi_CredPrompt(ticP, objv[1], objc-2, &objv[2]);
+}
+
+static TCL_RESULT Twapi_CredUICmdLinePromptObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return Twapi_CredPrompt(ticP, NULL, objc-1, &objv[1]);
+}
+
+
+
 void TwapiDefineFncodeCmds(Tcl_Interp *interp, int count,
                                         struct fncode_dispatch_s *tabP, TwapiTclObjCmd *cmdfn)
 {
@@ -1961,8 +2123,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
-        DEFINE_FNCODE_CMD(reveal, 1006), // TBD Document
-        DEFINE_FNCODE_CMD(conceal, 1007), // TBD Document
+        DEFINE_FNCODE_CMD(reveal, 1006),
+        DEFINE_FNCODE_CMD(conceal, 1007),
         DEFINE_FNCODE_CMD(Twapi_AddressToPointer, 1008),
         DEFINE_FNCODE_CMD(IsValidSid, 1009),
         DEFINE_FNCODE_CMD(VariantTimeToSystemTime, 1010),
@@ -2023,6 +2185,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(OpenEventLog, 10036),
         DEFINE_FNCODE_CMD(RegisterEventSource, 10037),
         DEFINE_FNCODE_CMD(pointer_from_address, 10038),
+        DEFINE_FNCODE_CMD(CredUIConfirmCredentials, 10039),
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
@@ -2054,6 +2217,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(TranslateName, Twapi_TranslateNameObjCmd),
         DEFINE_TCL_CMD(FormatMessageFromModule, Twapi_FormatMessageFromModuleObjCmd),
         DEFINE_TCL_CMD(FormatMessageFromString, Twapi_FormatMessageFromStringObjCmd),
+        DEFINE_TCL_CMD(CredUIPromptForCredentials, Twapi_CredUIPromptObjCmd),
+        DEFINE_TCL_CMD(CredUICmdLinePromptForCredentials, Twapi_CredUICmdLinePromptObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallHDispatch), CallHDispatch, Twapi_CallHObjCmd);
@@ -2061,9 +2226,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallIntArgDispatch), CallIntArgDispatch, Twapi_CallIntArgObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallOneArgDispatch), CallOneArgDispatch, Twapi_CallOneArgObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallArgsDispatch), CallArgsDispatch, Twapi_CallArgsObjCmd);
-
     TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
-
     TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
 
     return TCL_OK;

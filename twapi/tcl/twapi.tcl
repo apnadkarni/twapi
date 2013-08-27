@@ -21,6 +21,15 @@ namespace eval twapi {
     ################################################################
     # Following procs are used early in init process so defined here
 
+    # Dict lookup, returns key if not in dict
+    proc dictk {d key} {
+        if {[dict exists $d $key]} {
+            return [dict get $d $key]
+        } else {
+            return $key
+        }
+    }
+
     # Defines a proc with some initialization code
     proc proc* {procname arglist initcode body} {
         if {![string match ::* $procname]} {

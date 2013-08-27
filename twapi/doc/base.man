@@ -45,7 +45,7 @@ An application can wait on a handle to be signalled using the
 cancelled by calling
 [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]] command.
 
-[section "User SID information"]
+[section "User Accounts"]
 The [package twapi_base] package includes some commonly used commands related to
 user accounts. 
 The command [uri \#lookup_account_name [cmd lookup_account_name]],
@@ -55,10 +55,27 @@ and [uri \#map_account_to_sid [cmd map_account_to_sid]]
 translate between user and group account names and their SID's.
 The command [uri \#is_valid_sid_syntax [cmd is_valid_sid_syntax]]
 validates the syntax of an SID.
+
 [para]
-A more complete set of commands related to accounts and security
+Commands [uri #read_credentials [cmd read_credentials]],
+[uri #credentials_dialog [cmd credentials_dialog]] and
+[uri #confirm_credentials [cmd confirm_credentials]]
+allow interfacing to the Windows credentials manager and getting
+user credentials such as passwords from the user.
+
+[para]
+A more complete set of commands related to accounts, credentials and security
 are in the [uri users.html [package twapi_account]] and 
 [uri security.html [package twapi_security]] packages.
+
+
+
+
+[section "Writing to the Windows event log"]
+Commands for writing to the Windows event log are included
+in the [package twapi_base] package. Documentation for these
+is however part of the
+[uri eventlog.html [package twapi_eventlog]] package.
 
 [section "Error generation and handling"]
 The [package twapi_base] module also provides various facilities 
@@ -72,12 +89,6 @@ occured. The global [cmd errorCode] contains a list with additional
 information about the error. The first element is the error class
 and determines the format of the rest of the list. This may take
 one of the following values:
-
-[section "Writing to the Windows event log"]
-Commands for writing to the Windows event log are included
-in the [package twapi_base] package. Documentation for these
-is however part of the
-[uri eventlog.html [package twapi_eventlog]] package.
 
 [list_begin opt]
 [opt_def [const TWAPI_WIN32]]
@@ -132,6 +143,13 @@ and [uri \#free_library [cmd free_library]] can be used to load
 and free DLL's.
 
 [para]
+Some data like passwords need to be protected in memory. For example,
+in case of error exceptions being logged to file, plaintext passwords should
+not be exposed. The [uri #conceal [cmd conceal]] and [uri #reveal [cmd reveal]]
+commands can be used for this purpose. Many TWAPI commands that
+deal with passwords expect them to be passed in this protected form.
+
+[para]
 The commands [uri #tclcast [cmd tclcast]] and [uri #tcltype [cmd tcltype]]
 are useful for manipulating internal Tcl value types. This is sometimes useful
 and required when dealing with external APIs and data formats like
@@ -149,8 +167,11 @@ was registered using [uri #wait_on_handle [cmd wait_on_handle]].
 Closes the operating system handle [arg HANDLE]. If the handle has been
 registered for asynchronous notifications via
 [uri #wait_on_handle [cmd wait_on_handle]], the notifications are
-canceled (via 
-[uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
+canceled (via [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
+
+[call [cmd conceal] [arg PLAINTEXT]]
+Returns an encrypted binary string corresponding to [arg PLAINTEXT].
+[uri #reveal [cmd reveal]] can be used to decrypt the result.
 
 [call [cmd create_file] [arg PATH] [opt [arg options]]]
 This is a thin wrapper around the Win32 [cmd CreateFile] function that returns
@@ -189,6 +210,45 @@ file attributes and extended attributes are to be copied
 for the file that is being created. Defaults to NULL.
 [list_end]
 Refer to the Windows SDK for additional details.
+
+
+[call [cmd credentials_dialog] [opt [arg options]]]
+Shows a dialog prompting the user for credentials. Returns a list
+of three elements, the user name, the password, and a boolean indicating
+whether the user selected for the credentials to be saved or not.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -bitmap] [arg HANDLE]]
+Specifies a hande to a bitmap to be displayed in the dialog.
+[opt_def [cmd -caption] [arg CAPTION]]
+Specifies a caption to be displayed.
+[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -forceui] [arg BOOLEAN]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -message] [arg MESSAGE]]
+Specifies a message to be displayed to the user.
+[opt_def [cmd -parent] [arg HWIN]]
+Specifies the handle of a windows to be used as the parent for the dialog.
+[opt_def [cmd -password] [arg PASSWORD]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -persist] [arg BOOLEAN]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -showsaveoption] [arg BOOLEAN]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -target] [arg TARGETNAME]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -type] [arg TARGETTYPE]]
+See [uri #read_credentials [cmd read_credentials]].
+[opt_def [cmd -username] [arg USERNAME]]
+See [uri #read_credentials [cmd read_credentials]].
+[list_end]
+
+The command [uri #read_credentials [cmd read_credentials]] provides
+a console version of this command.
+
+
 
 [call [cmd debuglog] [opt [arg MESSAGE]] [opt [arg MESSAGE]] [arg ...]]
 Writes each specified argument as a message to an internal log.
@@ -546,6 +606,56 @@ of an error being generated and are not removed from [arg ARGLISTVAR].
 Returns the specified number of random bytes. This is a call into
 the RtlGenRandom Win32 API.
 
+[call [cmd read_credentials] [opt [arg options]]]
+Prompts the user for credentials via the console. Returns a list
+of three elements, the user name, the password, and a boolean indicating
+whether the user selected for the credentials to be saved or not.
+[nl]
+The following options
+may be specified:
+[list_begin opt]
+[cmd -expectconfirmation] option lets the manager know the application
+will call [cmd confirm_credentials] after verifying credentials. If
+[const false], the credentials manager will not hold on to the credentials
+and [cmd confirm_credentials] need not be called. Generally,
+if [cmd -persist] is specified as true, this option should also
+be specified as [const true] and [cmd confirm_credentials] called
+after verifying the credentials.
+[opt_def [cmd -forceui] [arg BOOLEAN]]
+If specified as [const true], the user is prompted even if the credentials
+manager already has the requested credentials. Default is [const false].
+[opt_def [cmd -password] [arg PASSWORD]]
+The password to be used as default. [arg PASSWORD] must be in the
+form accepted by [uri #reveal [cmd reveal]].
+[opt_def [cmd -persist] [arg BOOLEAN]]
+If [const true], credentials are to be persisted by the credentials
+manager if so desired by the user. Default is [const false].
+[opt_def [cmd -showsaveoption] [arg BOOLEAN]]
+Specifies whether the user should be given the option to save the credentials.
+Defaults to [const true] (meaning user is given the choice). If specified
+as [const false], credentials are persisted depending on the [cmd -persist]
+option.
+[opt_def [cmd -target] [arg TARGETNAME]]
+Name of the target for the credentials, for example the server name.
+This is used as the key when retrieving credentials.
+[opt_def [cmd -type] [arg TARGETTYPE]]
+Specifies the type of credentials. [arg TARGETTYPE] must be
+[const generic] (default) or [const domain].
+[opt_def [cmd -username] [arg USERNAME]]
+The user name to display as the default. Defaults to the empty string.
+[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
+The credentials manager can persist credentials that are valid so they can be
+returned later without prompting the user. The application needs
+to inform it whether the returned credentials are valid or not by calling
+[uri #confirm_credentials [cmd confirm_credentials]]. When [const true],
+[list_end]
+
+The command [uri #credentials_dialog [cmd credentials_dialog]] provides
+a GUI version of this command.
+
+[call [cmd reveal] [arg ENCRYPTED]]
+Decrypts a binary string that was encrypted by [uri #conceal [cmd conceal]].
+
 [call [cmd secs_since_1970_to_large_system_time] [arg SECONDS]]
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
@@ -655,6 +765,6 @@ system error message for [arg WINERROR] is appended to it.
 
 [list_end]
 
-[keywords "format messages" "messages" "system messages" "environment string" "expand environment strings" "argument parsing" "option parsing" "version" "TWAPI version" "time conversion" "SID" "user account" "error handling" "error messages" "exception handling"]
+[keywords "format messages" "messages" "system messages" "environment string" "expand environment strings" "argument parsing" "option parsing" "version" "TWAPI version" "time conversion" "SID" "user account" "error handling" "error messages" "exception handling" password credentials]
 
 [manpage_end]

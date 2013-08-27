@@ -1072,6 +1072,94 @@ proc twapi::eventlog_log {message args} {
     return
 }
 
+# Prompt for a password at the console
+proc twapi::read_credentials {args} {
+    array set opts [parseargs args {
+        target.arg
+        winerror.int
+        username.arg
+        password.arg
+        persist.bool
+        {type.arg generic {domain generic runas}}
+        {forceui.bool 0 0x80}
+        {showsaveoption.bool true}
+        {expectconfirmation.bool 0 0x20000}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(persist) && ! $opts(expectconfirmation)} {
+        badargs! "Option -expectconfirmation must be specified as true if -persist is true"
+    }
+
+    # 0x8 -> CREDUI_FLAGS_EXCLUDE_CERTIFICATES (needed for console)
+    set flags [expr {0x8 | $opts(forceui) | $opts(expectconfirmation)}]
+
+    if {$opts(persist)} {
+        if {! $opts(showsaveoption)} {
+            incr flags 0x1000;  # CREDUI_FLAGS_PERSIST
+        }
+    } else {
+        incr flags 0x2;         # CREDUI_FLAGS_DO_NOT_PERSIST
+        if {$opts(showsaveoption)} {
+            incr flags 0x40;    # CREDUI_FLAGS_SHOW_SAVE_CHECK_BOX
+        }
+    }
+
+    incr flags [dict get {domain 0 generic 0x40000 runas 0x80000} $opts(type)]
+
+    return [CredUICmdLinePromptForCredentials $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+}
+
+# Prompt for a password at the console
+proc twapi::credentials_dialog {args} {
+    array set opts [parseargs args {
+        target.arg
+        winerror.int
+        username.arg
+        password.arg
+        persist.bool
+        {type.arg generic {domain generic runas}}
+        {forceui.bool 0 0x80}
+        {showsaveoption.bool true}
+        {expectconfirmation.bool 0 0x20000}
+        {fillusername.bool 0 0x800}
+        {filllocaladmins.bool 0 0x4}
+        {notifyfail.bool 0 0x1}
+        {passwordonly.bool 0 0x200}
+        {requirecertificate.bool 0 0x10}
+        {requiresmartcard.bool 0 0x100}
+        {validateusername.bool 0 0x400}
+        {parent.arg NULL}
+        message.arg
+        caption.arg
+        {bitmap.arg NULL}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(persist) && ! $opts(expectconfirmation)} {
+        badargs! "Option -willconfirm must be specified as true if -persist is true"
+    }
+
+    set flags [expr { 0x8 | $opts(forceui) | $opts(notifyfail) | $opts(expectconfirmation) | $opts(fillusername) | $opts(filllocaladmins)}]
+
+    if {$opts(persist)} {
+        if {! $opts(showsaveoption)} {
+            incr flags 0x1000;  # CREDUI_FLAGS_PERSIST
+        }
+    } else {
+        incr flags 0x2;         # CREDUI_FLAGS_DO_NOT_PERSIST
+        if {$opts(showsaveoption)} {
+            incr flags 0x40;    # CREDUI_FLAGS_SHOW_SAVE_CHECK_BOX
+        }
+    }
+
+    incr flags [dict get {domain 0 generic 0x40000 runas 0x80000} $opts(type)]
+
+    return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+}
+
+proc twapi::confirm_credentials {target valid} {
+    return [CredUIConfirmCredential $target $valid]
+}
+
 # Validate a handle for a mode. Always raises error if handle is invalid
 # If handle valid but not for that mode, will raise error iff $raise_error
 # is non-empty. Returns 1 if valid, 0 otherwise

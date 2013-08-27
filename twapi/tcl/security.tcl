@@ -1762,6 +1762,28 @@ proc twapi::reset_thread_token {} {
 }
 
 
+proc twapi::credentials {{pattern {}}} {
+    trap {
+        set raw [CredEnumerate  $pattern 0]
+    } onerror {TWAPI_WIN32 1168} {
+        # Not found / no entries
+        return {}
+    }
+
+    set ret {}
+    foreach cred $raw {
+        set rec [twine {flags type target comment lastwritten credblob persist attributes targetalias username} $cred]
+        dict with rec {
+            set type [dictk {
+                1 generic 2 domain_password 3 domain_certificate 4 domain_visible_password 5 generic_certificate 6 domain_extended} $type]
+            set persist [dictk {
+                1 session 2 local_machine 3 enterprise
+            } $persist]
+        }
+        lappend ret $rec
+    }
+    return $ret
+}
 
 # Returns true if null security descriptor
 proc twapi::_null_secd {secd} {
