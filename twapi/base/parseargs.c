@@ -316,11 +316,15 @@ int Twapi_ParseargsObjCmd(
     int         ignoreunknown = 0;
     int         nulldefault = 0;
     int         hyphenated = 0;
+    int         setvars = 0;
     Tcl_Obj    *newargvObj = NULL;
     int         maxleftover = INT_MAX;
-    Tcl_Obj    *namevalList = NULL;
-    Tcl_Obj    *values[20];
+#define TWAPI_PARSEARGS_STATIC 20
+    Tcl_Obj    *values[TWAPI_PARSEARGS_STATIC];
     Tcl_Obj    **valuesP = NULL;
+    Tcl_Obj    *retObjs[2*TWAPI_PARSEARGS_STATIC];
+    Tcl_Obj    **retP = NULL;
+    int         nret = 0;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "argvVar optlist ?-ignoreunknown? ?-nulldefault? ?-hyphenated? ?-maxleftover COUNT? ?--?");
@@ -337,23 +341,20 @@ int Twapi_ParseargsObjCmd(
     opts =  objv[2]->internalRep.ptrAndLongRep.ptr;
     nopts = objv[2]->internalRep.ptrAndLongRep.value;
 
-    if (nopts > ARRAYSIZE(values)) {
-        valuesP = MemLifoAlloc(&ticP->memlifo, nopts * sizeof(*valuesP), NULL);
-    } else
+    if (nopts > TWAPI_PARSEARGS_STATIC) {
+        valuesP = MemLifoPushFrame(&ticP->memlifo, nopts * sizeof(*valuesP), NULL);
+        retP = MemLifoAlloc(&ticP->memlifo, 2*nopts*sizeof(Tcl_Obj*), NULL);
+    } else {
         valuesP = values;
+        retP = retObjs;
+    }
 
     for (k = 0; k < nopts; ++k)
         valuesP[k] = NULL;      /* Values corresponding to each option */
 
     for (j = 3 ; j < objc ; ++j) {
         char *s = ObjToString(objv[j]);
-        if (STREQ("-ignoreunknown", s)) {
-            ignoreunknown = 1;
-        }
-        else if (STREQ("-hyphenated", s)) {
-            hyphenated = 1;
-        }
-        else if (STREQ("-nulldefault", s)) {
+        if (STREQ("-nulldefault", s)) {
             nulldefault = 1;
         }
         else if (STREQ("-maxleftover", s)) {
@@ -366,6 +367,15 @@ int Twapi_ParseargsObjCmd(
             if (ObjToInt(interp, objv[j], &maxleftover) != TCL_OK) {
                 goto invalid_args_error;
             }
+        }
+        else if (STREQ("-setvars", s)) {
+            setvars = 1;
+        }
+        else if (STREQ("-ignoreunknown", s)) {
+            ignoreunknown = 1;
+        }
+        else if (STREQ("-hyphenated", s)) {
+            hyphenated = 1;
         }
         else {
             Tcl_AppendResult(interp, "Extra argument or unknown option '",
@@ -383,7 +393,6 @@ int Twapi_ParseargsObjCmd(
         goto error_return;
 
     newargvObj = ObjNewList(0, NULL);
-    namevalList = ObjNewList(0, NULL);
 
     /* OK, now go through the passed arguments */
     for (iarg = 0; iarg < argc; ++iarg) {
@@ -592,8 +601,9 @@ int Twapi_ParseargsObjCmd(
         } else {
             objP = ObjFromStringN(ObjToString(opts[k].name), opts[k].name_len);
         }
-        ObjAppendElement(interp, namevalList, objP);
-        ObjAppendElement(interp, namevalList, valuesP[k]);
+
+        retP[nret++] = objP;
+        retP[nret++] = valuesP[k];
     }
 
 
@@ -613,6 +623,19 @@ int Twapi_ParseargsObjCmd(
         ++iarg;
     }
 
+    if (setvars) {
+        for (j = 0; j < nret; j += 2) {
+            if (Tcl_ObjSetVar2(interp, retP[j], NULL, retP[j+1], TCL_LEAVE_ERR_MSG) == NULL)
+                goto error_return;
+        }
+    } else
+        ObjSetResult(interp, ObjNewList(nret, retP));
+
+    /* VERY IMPORTANT: Note we do this LAST!! Because retP[] may hold
+       references to some of the objects in the variable objv[1], we
+       do not want those going away when the variable's value changes.
+       So only update the variable after we create a list from retP above
+    */
     if (Tcl_ObjSetVar2(interp, objv[1], NULL, newargvObj, TCL_LEAVE_ERR_MSG)
         == NULL) {
         goto error_return;
@@ -621,16 +644,26 @@ int Twapi_ParseargsObjCmd(
     if (valuesP && valuesP != values)
         MemLifoPopFrame(&ticP->memlifo);
 
-    return ObjSetResult(interp, namevalList);
+    return TCL_OK;
 
 invalid_args_error:
     Tcl_SetObjErrorCode(interp, Twapi_MakeTwapiErrorCodeObj(TWAPI_INVALID_ARGS));
 
 error_return:
+    /* Free up allocated resources that were not used because of error */
     if (newargvObj)
         Tcl_DecrRefCount(newargvObj);
-    if (namevalList)
-        Tcl_DecrRefCount(namevalList);
+    if (retP && nret) {
+        /* Note we cannot just Tcl_DecrRefCount retP[] objects since
+           some will have ref 0 and some that came from argv[] 1 or more.
+           To free, we need to incr and then decr. Otherwise we will
+           land up freeing a ref of 1 belong to someone else
+        */
+        for (j = 0; j < nret; ++j) {
+            Tcl_IncrRefCount(retP[j]);
+            Tcl_DecrRefCount(retP[j]);
+        }
+    }
     if (valuesP && valuesP != values)
         MemLifoPopFrame(&ticP->memlifo);
 

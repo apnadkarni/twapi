@@ -522,7 +522,7 @@ namespace eval twapi::parseargs::test {
 
     test parseargs-8.0 {
         Verify -hyphenated
-    } {
+    } -body {
         set vargs {-a arg -i 5 -b}
         twapi::parseargs vargs {
             a.arg
@@ -530,7 +530,77 @@ namespace eval twapi::parseargs::test {
             b.switch
             c.int
         } -nulldefault -hyphenated
-    } {-a arg -i 5 -b 1 -c 0}
+    } -result {-a arg -i 5 -b 1 -c 0}
+
+    test parseargs-9.0 {
+        Verify large number of options
+    } -setup {
+        set largs {}
+        set options {}
+        set result {}
+        for {set i 0} {$i < 100} {incr i} {
+            lappend options a$i.arg i$i.int b$i.bool s$i.switch o$i
+            lappend largs -a$i arg$i -i$i $i -b$i [expr {$i & 1}] -s$i -o$i
+            lappend result a$i arg$i i$i $i b$i [expr {$i & 1}] s$i 1 o$i 1
+        }
+    } -body {
+        equal_lists [twapi::parseargs largs $options] $result
+    } -result 1
+
+    test parseargs-10.0 {
+        Verify -setvars large number of options
+    } -body {
+        # Do not want to pollute variable names so do in a lambda
+        apply {{} {
+            set largs {}
+            set options {}
+            set result {}
+            for {set i 0} {$i < 100} {incr i} {
+                lappend options a$i.arg i$i.int b$i.bool s$i.switch o$i
+                lappend largs -a$i arg$i -i$i $i -b$i [expr {$i & 1}] -s$i -o$i
+                lappend result a$i arg$i i$i $i b$i [expr {$i & 1}] s$i 1 o$i 1
+            }
+            twapi::parseargs largs $options -setvars
+            foreach {var val} $result {
+                if {[set $var] != $val} {
+                    return 0
+                }
+            }
+            return 1
+        }}
+    } -result 1
+
+    test parseargs-10.1 {
+        Verify -setvars vars not set
+    } -body {
+        # Do not want to pollute variable names so do in a lambda
+        apply {{} {
+            set largs {}
+            twapi::parseargs largs {a.arg i.int b.bool s.switch o} -setvars
+            foreach var {a i b} {
+                if {[info exists $var]} {
+                    return 0
+                }
+            }
+            return 1
+        }}
+    } -result 1
+
+    test parseargs-10.2 {
+        Verify -setvars -nulldefault
+    } -body {
+        # Do not want to pollute variable names so do in a lambda
+        apply {{} {
+            set largs {}
+            twapi::parseargs largs {a.arg i.int b.bool s.switch o} -setvars -nulldefault
+            foreach {var val} {a "" i 0 b 0 s 0 o 0} {
+                if {[set $var] != $val} {
+                    return 0
+                }
+            }
+            return 1
+        }}
+    } -result 1
 
     ################################################################
 
