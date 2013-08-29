@@ -226,7 +226,11 @@ name of the driver object that the system uses to load the driver.
 
 [opt_def [cmd -password] [arg PASSWORD]]
 Specifies the password corresponding to the user account specified in
-the [cmd -account] option.
+the [cmd -account] option. 
+[arg PASSWORD] but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
 This option is ignored if the [cmd -account] option is not specified.
 [list_end]
 
@@ -806,7 +810,10 @@ See description of this option in command
 [opt_def [cmd -password] [arg PASSWORD]]
 Specifies the password corresponding to the user account specified in
 the [cmd -account] option.
-This option is ignored if the [cmd -account] option is not specified.
+[arg PASSWORD] but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.This option is ignored if the [cmd -account] option is not specified.
 [list_end]
 
 [call [cmd start_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]

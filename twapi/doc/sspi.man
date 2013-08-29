@@ -274,11 +274,6 @@ at which the credentials expire.
 [nl]
 The following options may be specified with the command:
 [list_begin opt]
-[opt_def [cmd -domain] [arg DOMAIN]]
-Specifies the domain to which the user account belongs. Not
-all security providers support this. By default, the user account
-for the current process is used.
-
 [opt_def [cmd -getexpiration]]
 If specified, the expiration time for the returned credentials is also
 returned. See description of command return value above.
@@ -289,10 +284,6 @@ be used. By default, this is [const NTLM]. The list of available
 security packages on a system can be obtained through
 [uri \#sspi_enumerate_packages [cmd sspi_enumerate_packages]].
 
-[opt_def [cmd -password] [arg PASSWORD]]
-Specifies the password for retrieving credentials to the user
-account specified by the [cmd -user] option.
-
 [opt_def [cmd -principal.arg] [arg PRINCIPAL]]
 Specifies the name of the principal whose credentials are to be
 referenced. By default, this is the user account under which
@@ -301,10 +292,6 @@ the process is running.
 Indicates how the credentials will be used, based on [arg DIRECTION] -
 [const inbound], [const outbound] or [const both] (default).
 
-[opt_def [cmd -user] [arg USERNAME]]
-Specifies the name of the user account. Not
-all security providers support this. By default, the user account
-for the current process is used.
 [list_end]
 
 [nl]

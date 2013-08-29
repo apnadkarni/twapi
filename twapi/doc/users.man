@@ -645,8 +645,11 @@ account.
 [opt_def [cmd -home_dir] [arg PATH]] Sets the account's home directory path.
 [opt_def [cmd -script_path] [arg PATH]] Sets the path to the
 logon script for the account.
-[opt_def [cmd -password] [arg STRING]] Sets the password for the account.
-[list_end]
+[opt_def [cmd -password] [arg PASSWORD]] Sets the password for the account.
+[arg PASSWORD] but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.[list_end]
 
 [call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
 
@@ -772,6 +775,10 @@ may be used to specify a system as described in [sectref "Standard Options"].
 [call [cmd set_user_password] [arg USERNAME] [arg PASSWORD] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 
 Sets the password of the specified user account to [arg PASSWORD].
+[arg PASSWORD] but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
 The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 

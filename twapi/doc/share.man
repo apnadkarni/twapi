@@ -139,6 +139,10 @@ Specifies the user account to use to connect to the network share. By
 default, this is the current user account.
 [opt_def [cmd -password] [arg PASSWORD]]
 Specifies the password to be used for connecting to the network share.
+[arg PASSWORD] but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
 This option is ignored if either [cmd -defaultpassword]
 or [cmd -nopassword] is specified.
 [opt_def [cmd -defaultpassword]]
