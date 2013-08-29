@@ -26,10 +26,19 @@ Added [uri base.html#read_credentials [cmd read_credentials]],
 [uri base.html#confirm_credentials [cmd confirm_credentials]] and
 [uri security.html#credentials [cmd credentials]].
 
-
 [bullet]
 Added [uri base.html#conceal [cmd conceal]] and
 [uri base.html#reveal [cmd reveal]].
+
+[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
+Many commands which take a password as an argument now expect it to be
+passed in encrypted form as returned by 
+[uri base.html#read_credentials [cmd read_credentials]],
+[uri base.html#credentials_dialog [cmd credentials_dialog]] and
+[uri base.html#conceal [cmd conceal]]. Unencrypted
+forms of passwords are still accepted by existing but are deprecated and 
+support will be dropped in a future release. Commands new in 4.0 will
+only work with the new encrypted form.
 
 [bullet]
 Added support for the [uri eventlog.html "new event logging infrastructure"]

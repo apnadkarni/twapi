@@ -1038,6 +1038,9 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     Tcl_Obj **loginObjs;
     int nobjs;
     EVT_RPC_LOGIN erl;
+    TCL_RESULT res;
+    WCHAR *passwordP;
+    int password_len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(login_class),
                      ARGSKIP, ARGUSEDEFAULT, GETINT(timeout), GETINT(flags),
@@ -1059,12 +1062,16 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     erl.Server = ObjToUnicode(loginObjs[0]);
     erl.User = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[1]);
     erl.Domain = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[2]);
-    /* TBD - use [conceal]ed password ? */
-    erl.Password = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[3]);
-    return TwapiReturnNonnullHandle(interp,
-                                    EvtOpenSession(login_class, &erl,
-                                                   timeout, flags),
-                                    "EVT_HANDLE");
+    passwordP = ObjDecryptPassword(loginObjs[3], &password_len);
+    erl.Password = passwordP;
+    NULLIFY_EMPTY(erl.Password);
+    res = TwapiReturnNonnullHandle(interp,
+                                   EvtOpenSession(login_class, &erl,
+                                                  timeout, flags),
+                                   "EVT_HANDLE");
+    SecureZeroMemory(passwordP, sizeof(WCHAR) * password_len);
+    TwapiFree(passwordP);
+    return res;
 }
 
 int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])

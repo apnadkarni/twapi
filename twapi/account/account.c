@@ -455,9 +455,8 @@ static int Twapi_NetUserAdd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     userinfo.usri1_name        = ObjToUnicode(objv[2]);
 
     /* Now get the decrypted password object */
-    decryptedP = ObjDecryptUnicode(interp, objv[3], &decrypted_len);
-    /* decryptedP may be NULL in which case we will assume password plaintext */
-    userinfo.usri1_password    = decryptedP ? decryptedP : ObjToUnicode(objv[3]);
+    decryptedP = ObjDecryptPassword(objv[3], &decrypted_len);
+    userinfo.usri1_password    = decryptedP;
     userinfo.usri1_password_age = 0;
     userinfo.usri1_priv        = priv;
     userinfo.usri1_home_dir    = ObjToLPWSTR_NULL_IF_EMPTY(objv[5]);
@@ -467,10 +466,8 @@ static int Twapi_NetUserAdd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 
     status = NetUserAdd(ObjToLPWSTR_NULL_IF_EMPTY(objv[1]), 1, (LPBYTE) &userinfo, &error_parm);
 
-    if (decryptedP) {
-        SecureZeroMemory(decryptedP, sizeof(WCHAR) * decrypted_len);
-        TwapiFree(decryptedP);
-    }
+    TwapiFreeDecryptedPassword(decryptedP, decrypted_len);
+
     if (status == NERR_Success)
         return TCL_OK;
 
@@ -578,10 +575,12 @@ int Twapi_NetUserSetInfoLPWSTR(
 int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
-    LPWSTR s1;
+    LPWSTR s1, s3;
     DWORD   dw;
     TwapiResult result;
     Tcl_Obj *s1Obj, *s2Obj;
+    WCHAR *passwordP = NULL;
+    int    password_len;
 
     /* Note: to prevent shimmering issues, we do not extract the internal
        string pointers s1 and s2 until integer args have been parsed */
@@ -616,13 +615,17 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1011:
     case 1052:
     case 1053:
-        s1 = ObjToUnicode(s1Obj);
-        if (*s1 == 0)
-            s1 = NULL;
+        if (func == 1003) {
+            s3 = ObjDecryptPassword(objv[4], &password_len);
+        } else
+            s3 = ObjToUnicode(objv[4]);
+        s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1,
                                                        ObjToUnicode(s2Obj),
-                                                       ObjToUnicode(objv[4]));
+                                                       s3);
+        if (func == 1003)
+            TwapiFreeDecryptedPassword(s3, password_len);
         break;
     }
 

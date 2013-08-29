@@ -111,25 +111,12 @@ proc twapi::sspi_new_credentials {args} {
         {package.arg NTLM}
         {usage.arg both {inbound outbound both}}
         getexpiration
-        user.arg
-        {domain.arg ""}
-        {password.arg ""}
     } -maxleftover 0]
 
-    # Do not want error stack to include password but how to scrub it? - TBD
-    if {[info exists opts(user)]} {
-        set auth [Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY $opts(user) $opts(domain) $opts(password)]
-    } else {
-        set auth NULL
-    }
+    set creds [AcquireCredentialsHandle $opts(principal) $opts(package) \
+                   [kl_get {inbound 1 outbound 2 both 3} $opts(usage)] \
+                   "" {}]
 
-    trap {
-        set creds [AcquireCredentialsHandle $opts(principal) $opts(package) \
-                       [kl_get {inbound 1 outbound 2 both 3} $opts(usage)] \
-                       "" $auth]
-    } finally {
-        Twapi_Free_SEC_WINNT_AUTH_IDENTITY $auth; # OK if NULL
-    }
     if {$opts(getexpiration)} {
         return [kl_create2 {-handle -expiration} $creds]
     } else {

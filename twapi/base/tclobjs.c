@@ -4185,3 +4185,21 @@ error_return:
 }
 
 
+/* If decryption fails, assumes password in unencrypted form and returns it.
+ * Returned buffer must be freed via TwapiFree
+ */
+WCHAR * ObjDecryptPassword(Tcl_Obj *objP, int *ncharsP)
+{
+    WCHAR *uniP;
+
+    uniP =  ObjDecryptUnicode(NULL, objP, ncharsP);
+    return uniP ? uniP : TwapiAllocWStringFromObj(objP, ncharsP);
+}
+
+void TwapiFreeDecryptedPassword(WCHAR *p, int len)
+{
+    if (p) {
+        SecureZeroMemory(p, len * sizeof(WCHAR));
+        TwapiFree(p);
+    }
+}

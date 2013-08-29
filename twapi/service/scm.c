@@ -522,9 +522,10 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     LPWSTR dependencies = NULL;
     TCL_RESULT res;
     LPWSTR path, logrp, start_name, password, display_name;
+    int password_len;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
-    Tcl_Obj *tagObj, *depObj;
+    Tcl_Obj *tagObj, *depObj, *passwordObj;
 
     mark = MemLifoPushMark(&ticP->memlifo);
 
@@ -534,7 +535,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
                          GETINT(error_control), GETTOKENNULL(path),
                          GETTOKENNULL(logrp), GETOBJ(tagObj), GETOBJ(depObj),
                          GETTOKENNULL(start_name),
-                         GETTOKENNULL(password), GETTOKENNULL(display_name),
+                         GETOBJ(passwordObj), GETTOKENNULL(display_name),
                          ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -560,9 +561,12 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
             goto vamoose;
     }
     
+    password = ObjDecryptPassword(passwordObj, &password_len);
     if (ChangeServiceConfigW(h, service_type, start_type, error_control,
                              path, logrp, tag_idP, dependencies,
-                             start_name, password, display_name)) {
+                             start_name,
+                             lstrcmpW(password, NULL_TOKEN_L) ? password : NULL,
+                             display_name)) {
         /* If caller wants new tag id returned (by not specifying
          * an empty tagid, return it, else return empty string.
          */
@@ -571,6 +575,8 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         res = TCL_OK;
     } else
         res = TwapiReturnSystemError(interp);
+
+    TwapiFreeDecryptedPassword(password, password_len);
 
 vamoose:    
     MemLifoPopMark(mark);
@@ -588,12 +594,12 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     DWORD tag_id;
     DWORD *tag_idP;
     LPWSTR dependencies;
-    int res;
+    int res, password_len;
     LPWSTR service_name, display_name, path, logrp;
     LPWSTR service_start_name, password;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
-    Tcl_Obj *tagObj, *depObj;
+    Tcl_Obj *tagObj, *depObj, *passwordObj;
 
     dependencies = NULL;
     mark = MemLifoPushMark(&ticP->memlifo);
@@ -606,7 +612,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
                          GETSTRW(path), GETSTRW(logrp),
                          GETOBJ(tagObj), GETOBJ(depObj),
                          GETEMPTYASNULL(service_start_name),
-                         GETEMPTYASNULL(password),
+                         GETOBJ(passwordObj),
                          ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -629,10 +635,15 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
             goto vamoose;
     }
 
+    password = ObjDecryptPassword(passwordObj, &password_len);
+
     svcH = CreateServiceW(
         scmH, service_name, display_name, access, service_type,
         start_type, error_control, path, logrp,
-        tag_idP, dependencies, service_start_name, password);
+        tag_idP, dependencies, service_start_name,
+        password[0] ? password : NULL);
+
+    TwapiFreeDecryptedPassword(password, password_len);
 
     /* Check return handle validity */
     if (svcH) {

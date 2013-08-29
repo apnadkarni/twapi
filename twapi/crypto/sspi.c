@@ -19,9 +19,11 @@ static int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *s
 static int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 static int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 static Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
+#ifdef OBSOLETE
 static SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
-    LPCWSTR user, LPCWSTR domain, LPCWSTR password);
-static void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP);
+    LPCWSTR user, LPCWSTR domain, LPCWSTR password, int *nbytes);
+static void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP, int nbytes);
+#endif
 
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
@@ -344,10 +346,12 @@ int Twapi_AcceptSecurityContext(
     return TCL_OK;
 }
 
-SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
+#ifdef OBSOLETE
+static SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     LPCWSTR    user,
     LPCWSTR    domain,
-    LPCWSTR    password
+    LPCWSTR    password,
+    int *nbytesP                 /* So it can be cleared when freeing */
     )
 {
     int userlen, domainlen, passwordlen;
@@ -357,7 +361,8 @@ SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     domainlen  = lstrlenW(domain);
     passwordlen = lstrlenW(password);
 
-    swaiP = TwapiAlloc(sizeof(*swaiP)+sizeof(WCHAR)*(userlen+domainlen+passwordlen+3));
+    *nbytesP = sizeof(*swaiP) + sizeof(WCHAR)*(userlen+domainlen+passwordlen+3);
+    swaiP = TwapiAlloc(*nbytesP);
 
     swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
     swaiP->User  = (LPWSTR) (sizeof(*swaiP)+(char *)swaiP);
@@ -374,11 +379,14 @@ SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
     return swaiP;
 }
 
-void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP)
+void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP, int nbytes)
 {
-    if (swaiP)
+    if (swaiP) {
+        SecureZeroMemory(swaiP, nbytes);
         TwapiFree(swaiP);
+    }
 }
+#endif
 
 int Twapi_QueryContextAttributes(
     Tcl_Interp *interp,
@@ -674,32 +682,36 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
         case 10018:
+#ifdef OBSOLETE
             CHECK_NARGS_RANGE(interp, objc, 1, 3);
             pv = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(
                 ObjToUnicode(objv[0]),
                 objc > 1 ? ObjToUnicode(objv[1]) : L"",
                 objc > 2 ? ObjToUnicode(objv[2]) : L"");
             TwapiResult_SET_NONNULL_PTR(result, SEC_WINNT_AUTH_IDENTITY_W*, pv);
+#endif
             break;
         case 10019:
+#ifdef OBSOLETE
             if (objc != 1)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             Twapi_Free_SEC_WINNT_AUTH_IDENTITY(h);
+#endif
             break;
         case 10020:
             luidP = &luid;
             if (TwapiGetArgs(interp, objc, objv,
                              ARGSKIP, ARGSKIP, GETINT(dw),
                              GETVAR(luidP, ObjToLUID_NULL),
-                             GETVOIDP(pv), ARGEND) != TCL_OK)
+                             ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival = AcquireCredentialsHandleW(
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
                 ObjToUnicode(objv[1]),
-                dw, luidP, pv, NULL, NULL, &sech, &largeint);
+                dw, luidP, NULL, NULL, NULL, &sech, &largeint);
             if (result.value.ival) {
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 break;

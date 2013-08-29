@@ -850,8 +850,9 @@ have been made to the in-memory copy.
 Returns a binary containing all the certificates in a certificate store.
 [arg HSTORE] is a handle to the store and [arg PASSWORD] is the password
 to be used for encrypting the returned content. [arg PASSWORD] itself
-must not be in plaintext, but should be in encrypted form as returned
-by the [uri security.html#password [cmd password]] or
+must not be in plaintext, but should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
 [uri base.html#conceal [cmd conceal]] commands.
 [nl]
 The following options may be specified with the command:

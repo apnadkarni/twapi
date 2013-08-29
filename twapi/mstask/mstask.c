@@ -364,9 +364,6 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     TwapiResult result;
     DWORD dw1;
     HANDLE h;
-    BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
-    BSTR bstr2 = NULL;
-    BSTR bstr3 = NULL;
     int tcl_status;
     void *pv;
     GUID guid, guid2;
@@ -376,6 +373,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     SYSTEMTIME systime, systime2;
     TASK_TRIGGER tasktrigger;
     int func = PtrToInt(clientdata);
+    WCHAR *s, *passwordP;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
@@ -416,7 +414,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             if (objc != 3)
                 goto badargs;
             if (ObjToOpaque(interp, objv[2], &pv, "IScheduledWorkItem") != TCL_OK)
-                goto ret_error;
+                return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->AddWorkItem(
                 ifc.taskscheduler,
@@ -534,7 +532,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             if (objc != 2)
                 goto badargs;
             if (ObjToWord(interp, objv[1], &w) != TCL_OK)
-                goto ret_error;
+                return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->DeleteTrigger(
                 ifc.scheduledworkitem, w);
@@ -667,15 +665,16 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             hr = ifc.scheduledworkitem->lpVtbl->Run(ifc.scheduledworkitem);
             break;
         case 5219: // SetAccountInformation
-            if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETOBJ(sObj),
-                             ARGUSEDEFAULT,
-                             GETOBJ(s2Obj),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
+            CHECK_NARGS_RANGE(interp, objc, 2, 3);
+            s = ObjToUnicode(objv[1]);
+            if (objc == 2 || s[0] == 0)
+                passwordP = NULL;
+            else
+                passwordP = ObjDecryptPassword(objv[2], &dw1);
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
-                ifc.scheduledworkitem, ObjToUnicode(sObj), ObjToLPWSTR_NULL_IF_EMPTY(s2Obj));
+                ifc.scheduledworkitem, s, passwordP);
+            TwapiFreeDecryptedPassword(passwordP, dw1);
             break;
         case 5220: // SetComment
             if (objc != 2)
@@ -695,7 +694,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             if (objc != 2)
                 goto badargs;
             if (ObjToWord(interp, objv[1], &w) != TCL_OK)
-                goto ret_error;
+                return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetErrorRetryCount(
                 ifc.scheduledworkitem, w);
@@ -704,7 +703,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             if (objc != 2)
                 goto badargs;
             if (ObjToWord(interp, objv[1], &w) != TCL_OK)
-                goto ret_error;
+                return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetErrorRetryInterval(
                 ifc.scheduledworkitem, w);
@@ -887,21 +886,11 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     }
 
     /* Note when hr == 0, result.type can be BADFUNCTION code! */
-    tcl_status = TwapiSetResult(interp, &result);
-
-vamoose:
-    // Free bstr AFTER setting result as result.value.unicode may point to it */
-    SysFreeString(bstr1);        /* OK if bstr is NULL */
-    SysFreeString(bstr2);
-    SysFreeString(bstr3);
-    return tcl_status;
+    return TwapiSetResult(interp, &result);
 
 badargs:
     TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
-ret_error:
-    tcl_status = TCL_ERROR;
-    goto vamoose;
+    return TCL_ERROR;
 }
 
 static int TwapiMstaskInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)

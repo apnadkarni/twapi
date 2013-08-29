@@ -146,7 +146,7 @@ Tcl_Obj *ObjFromUSE_INFO(
         ADD_LPWSTR_(domainname);
         // FALLTHRU
     case 1:
-        ADD_LPWSTR_(password);
+        ADD_LPWSTR_(password);  /* Does this contain a valid value and need to be encrypted ? - TBD */
         ADD_DWORD_(status);
         ADD_DWORD_(asg_type);
         ADD_DWORD_(refcount);
@@ -525,8 +525,9 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     HWND          winH;
     LPWSTR  usernameP;
     int                   ignore_password;
-    LPWSTR  passwordP;
-    DWORD                 flags;
+    LPWSTR  passwordP, decrypted_password;
+    int     password_len;
+    DWORD   flags;
 
     WCHAR accessname[MAX_PATH];
     DWORD accessname_size;
@@ -545,15 +546,19 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     netresource.lpRemoteName = ObjToUnicode(objv[3]);
     netresource.lpProvider = ObjToLPWSTR_NULL_IF_EMPTY(objv[4]);
     usernameP = ObjToLPWSTR_NULL_IF_EMPTY(objv[5]);
-    passwordP = ObjToLPWSTR_NULL_IF_EMPTY(objv[7]);
+    decrypted_password = ObjDecryptPassword(objv[7], &password_len);
 
     if (ignore_password) {
-        passwordP = L"";
+        passwordP = L"";        /* Password is ignored */
+    } else {
+        passwordP = decrypted_password;
+        NULLIFY_EMPTY(passwordP); /* If NULL, default password */
     }
 
     accessname_size = ARRAYSIZE(accessname);
     error = WNetUseConnectionW(winH, &netresource, passwordP, usernameP, flags,
                                accessname, &accessname_size, &outflags);
+    TwapiFreeDecryptedPassword(decrypted_password, password_len);
     if (error == NO_ERROR) {
         ObjSetResult(interp, ObjFromUnicode(accessname));
         return TCL_OK;

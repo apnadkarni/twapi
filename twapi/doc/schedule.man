@@ -164,7 +164,11 @@ Sets [arg PARAMSTRING] as the parameters to be passed to the application
 when the task is run.
 [opt_def [cmd -password] [arg PASSWORD]]
 Specifies [arg PASSWORD] as the password associated with the user account
-specified with the [cmd -account] option.
+specified with the [cmd -account] option. [arg PASSWORD] 
+should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
 [opt_def [cmd -priority] [arg PRIORITY]]
 Sets the priority for the process executing the task. [arg PRIORITY] must
 be one of [const normal], [const abovenormal], [const belownormal],
