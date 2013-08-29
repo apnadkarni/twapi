@@ -870,6 +870,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     LSA_UNICODE_STRING *lsa_strings;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    WCHAR *passwordP;
 
     /* These will be freed at end of routine if not NULL! */
     daclP = saclP = NULL;
@@ -1110,14 +1111,15 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              ARGSKIP, ARGSKIP, ARGSKIP,
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
+            passwordP = ObjDecryptPassword(objv[2], &dw3);
             if (LogonUserW(
                     ObjToUnicode(objv[0]),
                     ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
-                    ObjToUnicode(objv[2]),
-                    dw, dw2, &result.value.hval))
+                    passwordP, dw, dw2, &result.value.hval))
                 result.type = TRT_HANDLE;
             else
                 result.type = TRT_GETLASTERROR;
+            TwapiFreeDecryptedPassword(passwordP, dw3);
             break;
             
         case 10015:

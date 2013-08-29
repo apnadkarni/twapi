@@ -1292,6 +1292,8 @@ TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *)
 #define ObjFromULONG_PTR  ObjFromDWORD_PTR
 #define ObjFromSIZE_T     ObjFromDWORD_PTR
 
+TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
+
 #define ObjFromLARGE_INTEGER(val_) ObjFromWideInt((val_).QuadPart)
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
@@ -1315,11 +1317,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars);
 TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *interp, Tcl_Obj *objP, int *ncharsP);
-
-
-
-
-TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
+TWAPI_EXTERN WCHAR * ObjDecryptPassword(Tcl_Obj *objP, int *ncharsP);
+TWAPI_EXTERN void TwapiFreeDecryptedPassword(WCHAR *, int nchars);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);

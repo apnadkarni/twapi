@@ -204,6 +204,13 @@ namespace eval twapi::mstask::test {
     } -body {
     } -result ""
 
+    test task-101.0 {
+        Check use of encrypted password when creating task (using conceal)
+    } -constraints {
+	TBD
+    } -body {
+    } -result ""
+
     ################################################################
 
     test mstask_delete-1.0 {

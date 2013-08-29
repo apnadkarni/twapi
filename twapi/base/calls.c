@@ -1919,8 +1919,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
             goto vamoose;
         }
         CopyMemory(password_buf, decryptP, sizeof(WCHAR) * (password_len+1));
-        SecureZeroMemory(decryptP, sizeof(WCHAR) * password_len);
-        TwapiFree(decryptP);
+        TwapiFreeDecryptedPassword(decryptP, password_len);
     }
 
     if (user_len > CREDUI_MAX_USERNAME_LENGTH) {
