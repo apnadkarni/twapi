@@ -29,10 +29,6 @@ int Twapi_NetLocalGroupGetInfo(Tcl_Interp *interp, LPCWSTR server,
                                LPCWSTR group, DWORD level);
 int Twapi_NetUserSetInfoDWORD(int fun, LPCWSTR server, LPCWSTR user, DWORD dw);
 int Twapi_NetUserSetInfoLPWSTR(int fun, LPCWSTR server, LPCWSTR user, LPWSTR s);
-int Twapi_NetUserAdd(Tcl_Interp *interp, LPCWSTR servername, LPWSTR name,
-                     LPWSTR password, DWORD priv, LPWSTR home_dir,
-                     LPWSTR comment, DWORD flags, LPWSTR script_path);
-
 
 /*
  * Control how large buffers passed to NetEnum* functions be. This
@@ -439,51 +435,57 @@ int Twapi_NetLocalGroupGetInfo(
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
 }
 
-int Twapi_NetUserAdd(
-    Tcl_Interp *interp,
-    LPCWSTR     servername,
-    LPWSTR     name,
-    LPWSTR     password,
-    DWORD       priv,
-    LPWSTR     home_dir,
-    LPWSTR     comment,
-    DWORD       flags,
-    LPWSTR     script_path
-    )
+static int Twapi_NetUserAdd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    DWORD       priv, flags;
     NET_API_STATUS status;
     USER_INFO_1    userinfo;
     DWORD          error_parm;
     char          *error_field;
+    WCHAR         *decryptedP;
+    int            decrypted_len;
+    TCL_RESULT res;
 
-    userinfo.usri1_name        = name;
-    userinfo.usri1_password    = password;
+    CHECK_NARGS(interp, objc, 9);
+
+    /* As always to avoid shimmering problems, extract integer object first */
+    CHECK_INTEGER_OBJ(interp, priv, objv[4]);
+    CHECK_INTEGER_OBJ(interp, flags, objv[7]);
+
+    userinfo.usri1_name        = ObjToUnicode(objv[2]);
+
+    /* Now get the decrypted password object */
+    decryptedP = ObjDecryptUnicode(interp, objv[3], &decrypted_len);
+    /* decryptedP may be NULL in which case we will assume password plaintext */
+    userinfo.usri1_password    = decryptedP ? decryptedP : ObjToUnicode(objv[3]);
     userinfo.usri1_password_age = 0;
     userinfo.usri1_priv        = priv;
-    userinfo.usri1_home_dir    = home_dir;
-    userinfo.usri1_comment     = comment;
+    userinfo.usri1_home_dir    = ObjToLPWSTR_NULL_IF_EMPTY(objv[5]);
+    userinfo.usri1_comment     = ObjToLPWSTR_NULL_IF_EMPTY(objv[6]);
     userinfo.usri1_flags       = flags;
-    userinfo.usri1_script_path = script_path;
+    userinfo.usri1_script_path = ObjToLPWSTR_NULL_IF_EMPTY(objv[8]);
 
-    status = NetUserAdd(servername, 1, (LPBYTE) &userinfo, &error_parm);
+    status = NetUserAdd(ObjToLPWSTR_NULL_IF_EMPTY(objv[1]), 1, (LPBYTE) &userinfo, &error_parm);
+
+    if (decryptedP) {
+        SecureZeroMemory(decryptedP, sizeof(WCHAR) * decrypted_len);
+        TwapiFree(decryptedP);
+    }
     if (status == NERR_Success)
         return TCL_OK;
 
     /* Indicate the parameter */
-    ObjSetStaticResult(interp, "Error adding user account: ");
-    error_field = NULL;
     switch (error_parm) {
-    case 0: error_field = "user name"; break;
-    case 1: error_field = "password";  break;
-    case 3: error_field = "privilege level";  break;
-    case 4: error_field = "home directory";  break;
-    case 5: error_field = "comment";  break;
-    case 6: error_field = "flags";  break;
-    case 7: error_field = "script path";  break;
+    case 0: error_field = "user name "; break;
+    case 1: error_field = "password ";  break;
+    case 3: error_field = "privilege level ";  break;
+    case 4: error_field = "home directory ";  break;
+    case 5: error_field = "comment ";  break;
+    case 6: error_field = "flags ";  break;
+    case 7: error_field = "script path ";  break;
+    default: error_field = ""; break;
     }
-    if (error_field) {
-        Tcl_AppendResult(interp, " invalid ", error_field, " field. ", NULL);
-    }
+    ObjSetResult(interp, Tcl_ObjPrintf("Error adding user account: invalid %sfied.", error_field));
     return Twapi_AppendSystemError(interp, status);
 }
 
@@ -936,19 +938,6 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     objv += 3;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 9: // NetUserAdd
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s3Obj), GETINT(dw),
-                         GETOBJ(s4Obj), GETOBJ(s5Obj),
-                         GETINT(dw2), GETOBJ(s6Obj), ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        return Twapi_NetUserAdd(interp,
-                                ObjToLPWSTR_NULL_IF_EMPTY(s1Obj),
-                                ObjToUnicode(s2Obj),
-                                ObjToUnicode(s3Obj), dw,
-                                ObjToLPWSTR_NULL_IF_EMPTY(s4Obj),
-                                ObjToLPWSTR_NULL_IF_EMPTY(s5Obj),
-                                dw2, ObjToLPWSTR_NULL_IF_EMPTY(s6Obj));
     case 10:
     case 11:
     case 12:
@@ -1045,7 +1034,6 @@ static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
 static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s AcctCallDispatch[] = {
-        DEFINE_FNCODE_CMD(NetUserAdd, 9),
         DEFINE_FNCODE_CMD(NetUserGetInfo, 10),
         DEFINE_FNCODE_CMD(NetGroupGetInfo, 11),
         DEFINE_FNCODE_CMD(NetLocalGroupGetInfo, 12),
@@ -1077,6 +1065,7 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     /* TBD - write Tcl commands to add / delete multiple members at a time */
     /* TBD - write Tcl commands to add / delete SIDs */
     Tcl_CreateObjCommand(interp, "twapi::Twapi_NetLocalGroupMembers", Twapi_NetLocalGroupMembersObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::NetUserAdd", Twapi_NetUserAdd, ticP, NULL);
 
     /* Set buffer size for testing purposes. Should really be grouped with
        other commands but they all take server and user parameters */

@@ -1207,20 +1207,17 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
                      GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (ObjDecrypt(interp, objv[1], &objP) != TCL_OK)
+    password = ObjDecryptUnicode(interp, objv[1], &password_len);
+    if (password == NULL)
         return TCL_ERROR;
-    password = ObjToUnicodeN(objP, &password_len);
     
     blob.cbData = 0;
     blob.pbData = NULL;
 
     status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
     
-    TWAPI_ASSERT(! Tcl_IsShared(objP));
     SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-    Tcl_DecrRefCount(objP);
-    objP = NULL;
-    password = NULL;            /* Since this pointed into objP */
+    TwapiFree(password);
 
     if (!status)
         return TwapiReturnSystemError(interp);
