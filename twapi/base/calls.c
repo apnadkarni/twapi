@@ -743,12 +743,16 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
-    case 1006: // DecryptObject
+    case 1006: // reveal
+        result.value.unicode.str = ObjDecryptUnicode(interp, objv[0],
+                                                     &result.value.unicode.len);
+        if (result.value.unicode.str == NULL)
+            return TCL_ERROR;
+        result.type = TRT_UNICODE_DYNAMIC;
+        break;
     case 1007: // EncryptObject
-        
-        dw = (func == 1006 ? ObjDecrypt : ObjEncrypt)(interp, objv[0], &result.value.obj);
-        if (dw != TCL_OK)
-            return dw;
+        s = ObjToUnicodeN(objv[0], &dw);
+        result.value.obj = ObjEncryptUnicode(interp, s, dw);
         result.type = TRT_OBJ;
         break;
 
@@ -1849,14 +1853,14 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
 {
     int nobjs, user_len, password_len ;
     Tcl_Obj **objs;
-    LPWSTR target, user, password;
+    LPWSTR target, user;
     DWORD autherr, save, flags;
     TCL_RESULT res;
     CREDUI_INFOW cui, *cuiP;
     WCHAR *user_buf, *password_buf;
     DWORD status;
     BOOL bsave;
-    Tcl_Obj *resultObjs[3], *objP, *passwordObj;
+    Tcl_Obj *resultObjs[3], *passwordObj;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
 
@@ -1902,37 +1906,31 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
         }
     }
 
-    if (Tcl_GetCharLength(passwordObj) == 0)
-        objP = ObjFromEmptyString();
-    else {
-        if ((res = ObjDecrypt(interp, passwordObj, &objP)) != TCL_OK)
+    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
+    if (Tcl_GetCharLength(passwordObj) == 0) {
+        password_buf[0] = 0;
+    } else {
+        WCHAR *decryptP;
+        decryptP = ObjDecryptUnicode(interp, passwordObj, &password_len);
+        if (decryptP == NULL)
             goto vamoose;
+        if (password_len > CREDUI_MAX_PASSWORD_LENGTH) {
+            res = TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
+            goto vamoose;
+        }
+        CopyMemory(password_buf, decryptP, sizeof(WCHAR) * (password_len+1));
+        SecureZeroMemory(decryptP, sizeof(WCHAR) * password_len);
+        TwapiFree(decryptP);
     }
-    password = ObjToUnicodeN(objP, &password_len);
 
-    if (user_len > CREDUI_MAX_USERNAME_LENGTH ||
-        password_len > CREDUI_MAX_PASSWORD_LENGTH) {
-        Tcl_DecrRefCount(objP);
-        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User or password too long");
+    if (user_len > CREDUI_MAX_USERNAME_LENGTH) {
+        res = TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
         goto vamoose;
     }
     user_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
-    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
-    /* Zero first as recommended by MSDN */
-    SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
-    SecureZeroMemory(password_buf, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH+1));
-
     CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
-    CopyMemory(password_buf, password, sizeof(WCHAR) * (password_len+1));
 
     /* Zero out the decrypted password */
-    TWAPI_ASSERT(! Tcl_IsShared(objP));
-    password = ObjToUnicodeN(objP, &password_len);
-    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-    Tcl_DecrRefCount(objP);
-    objP = NULL;
-    password = NULL;            /* Since this pointed into objP */
-
     if (uiObj) {
         status = CredUIPromptForCredentialsW(
             cuiP, target, NULL, autherr,
@@ -1947,10 +1945,8 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
 
     switch (status) {
     case NO_ERROR:
-        objP = ObjFromUnicode(password_buf);
-        res = ObjEncrypt(interp, objP, &resultObjs[1]);
-        Tcl_DecrRefCount(objP);
-        if (res != TCL_OK)
+        resultObjs[1] = ObjEncryptUnicode(interp, password_buf, -1);
+        if (resultObjs[1] == NULL)
             break;
         resultObjs[0] = ObjFromUnicode(user_buf);
         resultObjs[2] = ObjFromBoolean(bsave);

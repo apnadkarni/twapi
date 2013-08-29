@@ -1313,9 +1313,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *re
 
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN TCL_RESULT MakeEncryptedObj(Tcl_Interp *interp, char *p, int len, Tcl_Obj **);
-TWAPI_EXTERN TCL_RESULT ObjEncrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **);
-TWAPI_EXTERN TCL_RESULT ObjDecrypt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Obj **);
+TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars);
+TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *interp, Tcl_Obj *objP, int *ncharsP);
+
+
 
 
 TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
