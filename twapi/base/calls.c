@@ -95,14 +95,17 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                 *(Tcl_Obj **)p = objP; // May be NULL (when use_default is 1)
             break;
         case ARGVERIFIEDPTR:
+        case ARGVERIFIEDORNULL:
             typeP = va_arg(ap, char *);
             pv = va_arg(ap, void *);
             ptrval = NULL;
-            if (objP && ObjToOpaque(interp, objP, &ptrval, typeP) != TCL_OK)
-                goto argerror;
-            ival = TwapiVerifyPointer(interp, ptrval, pv);
-            if (ival != TWAPI_NO_ERROR) {
-                TwapiReturnError(interp, ival);
+            if (objP) {
+                if (ObjToVerifiedPointerOrNull(interp, objP, &ptrval,
+                                               typeP, pv) != TCL_OK)
+                    goto argerror;
+            }
+            if (fmtch == ARGVERIFIEDPTR && ptrval == NULL) {
+                TwapiReturnError(interp, TWAPI_NULL_POINTER);
                 goto argerror;
             }
             if (p)
@@ -354,14 +357,17 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                 *(Tcl_Obj **)p = objP; // May be NULL (when use_default is 1)
             break;
         case ARGVERIFIEDPTR:
+        case ARGVERIFIEDORNULL:
             typeP = va_arg(ap, char *);
             pv = va_arg(ap, void *);
             ptrval = NULL;
-            if (objP && ObjToOpaque(interp, objP, &ptrval, typeP) != TCL_OK)
-                goto argerror;
-            ival = TwapiVerifyPointer(interp, ptrval, pv);
-            if (ival != TWAPI_NO_ERROR) {
-                TwapiReturnError(interp, ival);
+            if (objP) {
+                if (ObjToVerifiedPointerOrNull(interp, objP, &ptrval,
+                                               typeP, pv) != TCL_OK)
+                    goto argerror;
+            }
+            if (fmtch == ARGVERIFIEDPTR && ptrval == NULL) {
+                TwapiReturnError(interp, TWAPI_NULL_POINTER);
                 goto argerror;
             }
             if (p)

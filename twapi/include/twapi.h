@@ -369,7 +369,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpA((x), (y)) )
 #define STREQUN(x, y, n) \
     (((x)[0] == (y)[0]) && (strncmp(x, y, n) == 0))
-#define WSTREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! wcscmp((x), (y)) )
+#define WSTREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpW((x), (y)) )
 
 /* Make a pointer null if it points to empty element (generally used
    when we want to treat empty strings as null pointers */
@@ -730,6 +730,7 @@ typedef struct {
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
 #define ARGVERIFIEDPTR 'z'
+#define ARGVERIFIEDORNULL 'Z'
 #define ARGSKIP     'x'   /* Leave arg parsing to caller */
 #define ARGUNUSED ARGSKIP /* For readability when even caller does not care */
 #define ARGUSEDEFAULT '?'
@@ -752,6 +753,7 @@ typedef struct {
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
 #define GETVERIFIEDPTR(v, typesym, verifier)    ARGVERIFIEDPTR, &(v), #typesym, (verifier)
 #define GETVERIFIEDVOIDP(v, verifier)    ARGVERIFIEDPTR, &(v), NULL, (verifier)
+#define GETVERIFIEDORNULL(v, typesym, verifier)    ARGVERIFIEDORNULL, &(v), #typesym, (verifier)
 #define GETHANDLE(v)   GETVOIDP(v)
 #define GETHANDLET(v, typesym) GETPTR(v, typesym)
 #define GETHWND(v) GETHANDLET(v, HWND)
@@ -762,11 +764,6 @@ typedef struct {
 /* For GETARGVA/GETWARGVW, v is of type char **, or WCHAR ** */
 #define GETARGVA(v, n) ARGVA, (&v), &(n)
 #define GETARGVW(v, n) ARGVW, (&v), &(n)
-
-#define GETWSTR ha-ha
-#define GETWSTRN ha-ha
-#define GETNULLIFEMPTY ha-ha
-
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
@@ -1258,8 +1255,11 @@ TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define OPAQUE_REP_CTYPE(objP_)  ((Tcl_Obj *) (objP_)->internalRep.twoPtrValue.ptr2)
 
 TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP);
-TWAPI_EXTERN int ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, char *name);
-TWAPI_EXTERN int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
+TWAPI_EXTERN TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, const char *name);
+TWAPI_EXTERN TCL_RESULT ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
+TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
+TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
+
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")

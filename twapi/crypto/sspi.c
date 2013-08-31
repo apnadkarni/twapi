@@ -19,11 +19,6 @@ static int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *s
 static int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 static int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 static Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
-#ifdef OBSOLETE
-static SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
-    LPCWSTR user, LPCWSTR domain, LPCWSTR password, int *nbytes);
-static void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP, int nbytes);
-#endif
 
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
@@ -346,47 +341,119 @@ int Twapi_AcceptSecurityContext(
     return TCL_OK;
 }
 
-#ifdef OBSOLETE
-static SEC_WINNT_AUTH_IDENTITY_W *Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY (
-    LPCWSTR    user,
-    LPCWSTR    domain,
-    LPCWSTR    password,
-    int *nbytesP                 /* So it can be cleared when freeing */
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
+    TwapiInterpContext *ticP,
+    Tcl_Obj *authObj,
+    SEC_WINNT_AUTH_IDENTITY_W **swaiPP
     )
 {
+    LPCWSTR    user;
+    LPCWSTR    domain;
+    Tcl_Obj *passwordObj;
+    LPWSTR    password, decryptedP;
     int userlen, domainlen, passwordlen;
+    Tcl_Obj **objv;
+    int objc;
+    TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
+    
+    if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
+        return res;
 
-    userlen    = lstrlenW(user);
-    domainlen  = lstrlenW(domain);
-    passwordlen = lstrlenW(password);
-
-    *nbytesP = sizeof(*swaiP) + sizeof(WCHAR)*(userlen+domainlen+passwordlen+3);
-    swaiP = TwapiAlloc(*nbytesP);
-
-    swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-    swaiP->User  = (LPWSTR) (sizeof(*swaiP)+(char *)swaiP);
-    swaiP->UserLength = (unsigned short) userlen;
-    swaiP->Domain = swaiP->UserLength + 1 + swaiP->User;
-    swaiP->DomainLength = (unsigned short) domainlen;
-    swaiP->Password = swaiP->DomainLength + 1 + swaiP->Domain;
-    swaiP->PasswordLength = (unsigned short) passwordlen;
-
-    CopyMemory(swaiP->User, user, sizeof(WCHAR)*(userlen+1));
-    CopyMemory(swaiP->Domain, domain, sizeof(WCHAR)*(domainlen+1));
-    CopyMemory(swaiP->Password, password, sizeof(WCHAR)*(passwordlen+1));
-
-    return swaiP;
-}
-
-void Twapi_Free_SEC_WINNT_AUTH_IDENTITY (SEC_WINNT_AUTH_IDENTITY_W *swaiP, int nbytes)
-{
-    if (swaiP) {
-        SecureZeroMemory(swaiP, nbytes);
-        TwapiFree(swaiP);
+    if (objc == 0) {
+        *swaiPP = NULL;
+        return TCL_OK;
     }
+
+    swaiP = MemLifoAlloc(&ticP->memlifo, sizeof(*swaiP), NULL);
+    swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETSTRWN(swaiP->User, swaiP->UserLength),
+                         GETSTRWN(swaiP->Domain, swaiP->DomainLength),
+                         GETOBJ(passwordObj),
+                         ARGEND);
+    if (res != TCL_OK)
+        return res;
+
+    password = ObjDecryptPassword(passwordObj, &swaiP->PasswordLength);
+    swaiP->Password = MemLifoCopy(&ticP->memlifo, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
+    TwapiFreeDecryptedPassword(password, swaiP->PasswordLength);
+
+    *swaiPP = swaiP;
+    return TCL_OK;
 }
-#endif
+
+
+static TCL_RESULT ParseSCHANNEL_CRED (
+    TwapiInterpContext *ticP,
+    Tcl_Obj *authObj,
+    SCHANNEL_CRED **credPP
+    )
+{
+    Tcl_Obj **objv;
+    int objc;
+    TCL_RESULT res;
+    Tcl_Obj *certsObj;
+    SCHANNEL_CRED *credP;
+    
+    if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
+        return res;
+
+    if (objc == 0) {
+        *credPP = NULL;
+        return TCL_OK;
+    }
+
+    credP = MemLifoAlloc(&ticP->memlifo, sizeof(*credP), NULL);
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETINT(credP->dwVersion),
+                         GETOBJ(certsObj),
+                         GETVERIFIEDORNULL(credP->hRootStore, HCERTSTORE, CertCloseStore),
+                         ARGUSEDEFAULT,
+                         ARGUNUSED, /* aphMappers */
+                         ARGUNUSED, /* palgSupportedAlgs */
+                         GETINT(credP->grbitEnabledProtocols),
+                         GETINT(credP->dwMinimumCipherStrength),
+                         GETINT(credP->dwMaximumCipherStrength),
+                         GETINT(credP->dwSessionLifespan),
+                         GETINT(credP->dwFlags),
+                         GETINT(credP->dwCredFormat),
+                         ARGEND);
+    if (res != TCL_OK)
+        return res;
+
+    TWAPI_ASSERT(SCHANNEL_CRED_VERSION == 3);
+    if (credP->dwVersion != SCHANNEL_CRED_VERSION) {
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid SCHANNEL_CRED_VERSION");
+    }
+
+    res = ObjGetElements(ticP->interp, certsObj, &objc, &objv);
+    credP->cCreds = objc;
+    credP->paCred = MemLifoAlloc(&ticP->memlifo, objc * sizeof(*credP->paCred), NULL);
+    while (objc--) {
+        res = ObjToVerifiedPointer(ticP->interp, objv[objc],
+                                   (void **)&credP->paCred[objc],
+                                   "CERT_CONTEXT*",
+                                   CertFreeCertificateContext);
+        /* TBD - should we dup the cert context ? Will that even help ?
+           What if the app frees the cert_context ? Dos AcquireCredentials
+           dup the context ? */
+        if (res != TCL_OK)
+            return res;
+    }
+
+    credP->cMappers = 0;
+    credP->aphMappers = NULL;
+    credP->cSupportedAlgs = 0;
+    credP->palgSupportedAlgs = NULL;
+
+    *credPP = credP;
+    return TCL_OK;
+}
+
+
+
 
 int Twapi_QueryContextAttributes(
     Tcl_Interp *interp,
@@ -622,6 +689,70 @@ static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         ticP, &sech, dw, dw2, cP, dw3);
 }
 
+static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    LUID luid, *luidP;
+    LPWSTR principalP;
+    LPWSTR packageP;
+    DWORD cred_use;
+    Tcl_Obj *authObj;
+    Tcl_Obj **authObjs;
+    SECURITY_STATUS status;
+    LARGE_INTEGER timestamp;
+    SecHandle credH; 
+    Tcl_Obj *objs[2];
+    MemLifoMarkHandle mark;
+    TCL_RESULT res = TCL_ERROR;
+    int is_unisp;
+    void *pv;
+
+    pv = NULL;
+    mark = MemLifoPushMark(&ticP->memlifo);
+    luidP = &luid;
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETEMPTYASNULL(principalP), GETSTRW(packageP),
+                       GETINT(cred_use), GETVAR(luidP, ObjToLUID_NULL),
+                       GETOBJ(authObj), ARGEND) != TCL_OK)
+        goto vamoose;
+
+    if (WSTREQ(packageP, UNISP_NAME_W) == 0) {
+        if (ParseSCHANNEL_CRED(ticP, authObj, &(SCHANNEL_CRED *)pv) != TCL_OK)
+            goto vamoose;
+        is_unisp = 1;
+    } else if (WSTREQ(packageP, WDIGEST_SP_NAME_W) ||
+              WSTREQ(packageP, NTLMSP_NAME) ||
+              WSTREQ(packageP, NEGOSSP_NAME_W) ||
+              WSTREQ(packageP, MICROSOFT_KERBEROS_NAME_W)) {
+        if (ParseSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
+            goto vamoose;
+        is_unisp = 0;
+    } else {
+        return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported SSPI package");
+    }
+
+    status = AcquireCredentialsHandleW(principalP, packageP, cred_use,
+                                       luidP, pv, NULL, NULL, &credH, &timestamp);
+    if (status != SEC_E_OK) {
+        Twapi_AppendSystemError(ticP->interp, status);
+        goto vamoose;
+    }
+    objs[0] = ObjFromSecHandle(&credH);
+    objs[1] = ObjFromWideInt(timestamp.QuadPart);
+    ObjSetResult(ticP->interp, ObjNewList(2, objs));
+
+    res = TCL_OK;
+
+vamoose:
+    if (pv && !is_unisp) {
+        SEC_WINNT_AUTH_IDENTITY_W *swaiP = pv;
+        if (swaiP->Password && swaiP->PasswordLength)
+            SecureZeroMemory(swaiP->Password, sizeof(WCHAR)*(swaiP->PasswordLength));
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -631,8 +762,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     HANDLE h;
     SecHandle sech, sech2, *sech2P;
     SecBufferDesc sbd, *sbdP;
-    LUID luid, *luidP;
-    LARGE_INTEGER largeint;
     Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
 
@@ -681,47 +810,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
-        case 10018:
-#ifdef OBSOLETE
-            CHECK_NARGS_RANGE(interp, objc, 1, 3);
-            pv = Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY(
-                ObjToUnicode(objv[0]),
-                objc > 1 ? ObjToUnicode(objv[1]) : L"",
-                objc > 2 ? ObjToUnicode(objv[2]) : L"");
-            TwapiResult_SET_NONNULL_PTR(result, SEC_WINNT_AUTH_IDENTITY_W*, pv);
-#endif
-            break;
-        case 10019:
-#ifdef OBSOLETE
-            if (objc != 1)
-                return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EMPTY;
-            Twapi_Free_SEC_WINNT_AUTH_IDENTITY(h);
-#endif
-            break;
-        case 10020:
-            luidP = &luid;
-            if (TwapiGetArgs(interp, objc, objv,
-                             ARGSKIP, ARGSKIP, GETINT(dw),
-                             GETVAR(luidP, ObjToLUID_NULL),
-                             ARGSKIP, ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.value.ival = AcquireCredentialsHandleW(
-                ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
-                ObjToUnicode(objv[1]),
-                dw, luidP, NULL, NULL, NULL, &sech, &largeint);
-            if (result.value.ival) {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                break;
-            }
-            objs[0] = ObjFromSecHandle(&sech);
-            objs[1] = ObjFromWideInt(largeint.QuadPart);
-            result.type = TRT_OBJV;
-            result.value.objv.objPP = objs;
-            result.value.objv.nobj = 2;
-            break;
         case 10021:
             sech2P = &sech2;
             if (TwapiGetArgs(interp, objc, objv,
@@ -825,9 +913,6 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FreeCredentialsHandle, 102),
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
-        DEFINE_FNCODE_CMD(Twapi_Allocate_SEC_WINNT_AUTH_IDENTITY, 10018),
-        DEFINE_FNCODE_CMD(Twapi_Free_SEC_WINNT_AUTH_IDENTITY, 10019),
-        DEFINE_FNCODE_CMD(AcquireCredentialsHandle, 10020),
         DEFINE_FNCODE_CMD(InitializeSecurityContext, 10021),
         DEFINE_FNCODE_CMD(AcceptSecurityContext, 10022),
         DEFINE_FNCODE_CMD(QueryContextAttributes, 10023),
@@ -838,6 +923,7 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SspiDispatch), SspiDispatch, Twapi_SspiCallObjCmd);
     Tcl_CreateObjCommand(interp, "twapi::CallSignEncrypt", Twapi_SignEncryptObjCmd, ticP, NULL);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(SignEncryptAliasDispatch), SignEncryptAliasDispatch, "twapi::CallSignEncrypt");
+    Tcl_CreateObjCommand(interp, "twapi::AcquireCredentialsHandle", Twapi_AcquireCredentialsHandleObjCmd, ticP, NULL);
 
     return TCL_OK;
 }
