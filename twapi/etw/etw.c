@@ -405,8 +405,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
         buf_sz += sizeof(WCHAR) * (MAX_TRACE_NAME_CHARS + 1);
     }
 
-    etP = TwapiAlloc(buf_sz);
-    ZeroMemory(etP, buf_sz);
+    etP = TwapiAllocZero(buf_sz);
     etP->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
     etP->Wnode.BufferSize = buf_sz;
 
