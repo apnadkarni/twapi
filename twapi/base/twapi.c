@@ -886,7 +886,8 @@ int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
         }
         return TWAPI_NO_ERROR;
     }
-    return TWAPI_POINTER_UNREGISTERED;
+
+    return p ? TWAPI_POINTER_UNREGISTERED : TWAPI_NULL_POINTER;
 }
 
 TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag)

@@ -297,6 +297,14 @@ void* MemLifoCopy(MemLifo *l, void *srcP, DWORD nbytes)
     return dstP;
 }
 
+void* MemLifoZeroes(MemLifo *l, DWORD nbytes)
+{
+    void *dstP = MemLifoAlloc(l, nbytes, NULL);
+    if (dstP)
+        memset(dstP, 0, nbytes);
+    return dstP;
+}
+
 MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
 {
     MemLifoMarkHandle m;			/* Previous (existing) mark */

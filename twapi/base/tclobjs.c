@@ -1738,7 +1738,7 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name)
     return objP;
 }
 
-TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, char *name)
+TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name)
 {
     char *s;
 
@@ -1787,6 +1787,37 @@ int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, c
     }
 
     return TCL_ERROR;
+}
+
+TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
+{
+    void *pv;
+    TCL_RESULT res;
+
+    res = ObjToOpaque(interp, objP, &pv, name);
+    if (res == TCL_OK && pv) {
+        int error = TwapiVerifyPointer(interp, pv, verifier);
+        if (error != TWAPI_NO_ERROR)
+            res = TwapiReturnError(interp, error);
+    }
+    if (res == TCL_OK)
+        *pvP = pv;
+    return res;
+}
+
+TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
+{
+    void *pv;
+    TCL_RESULT res;
+
+    res = ObjToVerifiedPointerOrNull(interp, objP, &pv, name, verifier);
+    if (res == TCL_OK) {
+        if (pv == NULL)
+            res = TwapiReturnError(interp, TWAPI_NULL_POINTER);
+    }
+    if (res == TCL_OK)
+        *pvP = pv;
+    return res;
 }
 
 int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP) 
