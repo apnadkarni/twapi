@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include "twapi_base.h"
 #include "tclTomMath.h"
 
 /*
@@ -1789,35 +1790,49 @@ int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, c
     return TCL_ERROR;
 }
 
-TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
+TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *ticP, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
 {
     void *pv;
     TCL_RESULT res;
 
-    res = ObjToOpaque(interp, objP, &pv, name);
+    res = ObjToOpaque(ticP->interp, objP, &pv, name);
     if (res == TCL_OK && pv) {
-        int error = TwapiVerifyPointer(interp, pv, verifier);
+        int error = TwapiVerifyPointerTic(ticP, pv, verifier);
         if (error != TWAPI_NO_ERROR)
-            res = TwapiReturnError(interp, error);
+            res = TwapiReturnError(ticP->interp, error);
     }
     if (res == TCL_OK)
         *pvP = pv;
     return res;
 }
 
-TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
+TCL_RESULT ObjToVerifiedPointerTic(TwapiInterpContext *ticP, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
 {
     void *pv;
     TCL_RESULT res;
 
-    res = ObjToVerifiedPointerOrNull(interp, objP, &pv, name, verifier);
+    res = ObjToVerifiedPointerOrNullTic(ticP, objP, &pv, name, verifier);
     if (res == TCL_OK) {
         if (pv == NULL)
-            res = TwapiReturnError(interp, TWAPI_NULL_POINTER);
+            res = TwapiReturnError(ticP->interp, TWAPI_NULL_POINTER);
     }
     if (res == TCL_OK)
         *pvP = pv;
     return res;
+}
+
+TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier) 
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return ObjToVerifiedPointerTic(ticP, objP, pvP, name, verifier);
+}
+
+TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return ObjToVerifiedPointerOrNullTic(ticP, objP, pvP, name, verifier);
 }
 
 int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP) 
