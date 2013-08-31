@@ -618,18 +618,14 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE),
-                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     /* 4th arg is supposed to describe a previously returned buffer
        that we can reuse. It may also be NULL
     */
-    if (ervhP) {
-        status = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
-        if (status != TWAPI_NO_ERROR)
-            return TwapiReturnError(interp, status);
-    } else {
+    if (ervhP == NULL) {
         /* Need to allocate buffer */
 
         /* TBD - instrument reallocation needs */
@@ -869,15 +865,12 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                      GETHANDLET(hpub, EVT_HANDLE),
                      GETHANDLET(hev, EVT_HANDLE),
                      GETINT(msgid),
-                     GETPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
                      GETINT(flags),
                      ARGUSEDEFAULT, ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;
     
     if (ervhP) {
-        winerr = TwapiVerifyPointer(interp, ervhP, Twapi_EvtRenderValuesObjCmd);
-        if (winerr != TWAPI_NO_ERROR)
-            return TwapiReturnError(interp, winerr);
         nvalues = ervhP->header.count;
         valuesP = ERVHP_BUFFER(ervhP);
     } else {
