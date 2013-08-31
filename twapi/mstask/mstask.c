@@ -364,10 +364,9 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     TwapiResult result;
     DWORD dw1;
     HANDLE h;
-    int tcl_status;
     void *pv;
     GUID guid, guid2;
-    Tcl_Obj *sObj, *s2Obj;
+    Tcl_Obj *sObj;
     WORD w, w2;
     Tcl_Obj *objs[4];
     SYSTEMTIME systime, systime2;

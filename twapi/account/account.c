@@ -444,7 +444,6 @@ static int Twapi_NetUserAdd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     char          *error_field;
     WCHAR         *decryptedP;
     int            decrypted_len;
-    TCL_RESULT res;
 
     CHECK_NARGS(interp, objc, 9);
 
@@ -914,9 +913,9 @@ vamoose:
 
 static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *s1Obj, *s2Obj, *s3Obj, *s4Obj, *s5Obj, *s6Obj;
+    Tcl_Obj *s1Obj, *s2Obj;
     LPWSTR s1, s2, s3;
-    DWORD   dw, dw2;
+    DWORD   dw;
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
