@@ -348,11 +348,8 @@ static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
     SEC_WINNT_AUTH_IDENTITY_W **swaiPP
     )
 {
-    LPCWSTR    user;
-    LPCWSTR    domain;
     Tcl_Obj *passwordObj;
-    LPWSTR    password, decryptedP;
-    int userlen, domainlen, passwordlen;
+    LPWSTR    password;
     Tcl_Obj **objv;
     int objc;
     TCL_RESULT res;
@@ -696,7 +693,6 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     LPWSTR packageP;
     DWORD cred_use;
     Tcl_Obj *authObj;
-    Tcl_Obj **authObjs;
     SECURITY_STATUS status;
     LARGE_INTEGER timestamp;
     SecHandle credH; 
@@ -757,12 +753,9 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 {
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4;
-    LPVOID pv;
     Tcl_Obj *s1Obj;
-    HANDLE h;
     SecHandle sech, sech2, *sech2P;
     SecBufferDesc sbd, *sbdP;
-    Tcl_Obj *objs[2];
     int func = PtrToInt(clientdata);
 
     --objc;
