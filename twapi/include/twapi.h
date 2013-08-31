@@ -1259,6 +1259,8 @@ TWAPI_EXTERN TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP
 TWAPI_EXTERN TCL_RESULT ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types);
 TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
 TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
+TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerTic(TwapiInterpContext *, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
+TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
 
 #define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
 #define ObjToHANDLE ObjToLPVOID
@@ -1467,6 +1469,9 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
 #define NEW_TIC     1
     );
 
+TWAPI_EXTERN TCL_RESULT TwapiRegisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
+TWAPI_EXTERN int TwapiUnregisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
+TWAPI_EXTERN int TwapiVerifyPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag);

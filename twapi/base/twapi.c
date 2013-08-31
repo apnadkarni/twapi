@@ -6,6 +6,7 @@
  */
 
 #include "twapi.h"
+#include "twapi_base.h"
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 #include "tclTomMath.h"
 
@@ -868,13 +869,11 @@ static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
     }
 }
 
-int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
+int TwapiVerifyPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
-    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
     void *stored_type;
 
-    TWAPI_ASSERT(ticP);
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
     he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
@@ -890,39 +889,49 @@ int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
     return p ? TWAPI_POINTER_UNREGISTERED : TWAPI_NULL_POINTER;
 }
 
-TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
+int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return TwapiVerifyPointerTic(ticP, p, typetag);
+}
+
+TCL_RESULT TwapiRegisterPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
-    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
     int new_entry;
 
-    TWAPI_ASSERT(ticP);
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
     if (p == NULL)
-        return TwapiReturnError(interp, TWAPI_NULL_POINTER);
+        return TwapiReturnError(ticP->interp, TWAPI_NULL_POINTER);
 
     he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->pointers, p, &new_entry);
     if (he && new_entry) {
         Tcl_SetHashValue(he, typetag);
         return TCL_OK;
     } else {
-        return TwapiReturnError(interp, TWAPI_POINTER_ALREADY_REGISTERED);
+        return TwapiReturnError(ticP->interp, TWAPI_POINTER_ALREADY_REGISTERED);
     }
 }
 
-TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
+TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return TwapiRegisterPointerTic(ticP, p, typetag);
+}
+
+TCL_RESULT TwapiUnregisterPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
-    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
     void *stored_type;
     int code;
 
-    TWAPI_ASSERT(ticP);
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
     if (p == NULL)
-        return TwapiReturnError(interp, TWAPI_NULL_POINTER);
+        return TwapiReturnError(ticP->interp, TWAPI_NULL_POINTER);
 
     he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
     code = TWAPI_POINTER_UNREGISTERED;
@@ -936,6 +945,13 @@ TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typet
         code = TWAPI_POINTER_TYPE_MISMATCH;
     }
 
-    return TwapiReturnError(interp, code);
+    return TwapiReturnError(ticP->interp, code);
+}
+
+TCL_RESULT TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag)
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return TwapiUnregisterPointerTic(ticP, p, typetag);
 }
 

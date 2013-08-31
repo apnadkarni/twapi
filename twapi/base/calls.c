@@ -362,8 +362,8 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
             pv = va_arg(ap, void *);
             ptrval = NULL;
             if (objP) {
-                if (ObjToVerifiedPointerOrNull(interp, objP, &ptrval,
-                                               typeP, pv) != TCL_OK)
+                if (ObjToVerifiedPointerOrNullTic(ticP, objP, &ptrval,
+                                                  typeP, pv) != TCL_OK)
                     goto argerror;
             }
             if (fmtch == ARGVERIFIEDPTR && ptrval == NULL) {

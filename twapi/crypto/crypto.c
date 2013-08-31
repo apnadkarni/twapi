@@ -1257,30 +1257,19 @@ static TCL_RESULT Twapi_CertFindCertificateInStore(
     if (TwapiGetArgs(interp, objc, objv,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
                      GETINT(enctype), GETINT(flags), GETINT(findtype),
-                     GETOBJ(findObj), GETPTR(certP, CERT_CONTEXT*),
+                     GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    if (certP) {
-        i = TwapiVerifyPointer(interp, certP, CertFreeCertificateContext);
-        if (i != TWAPI_NO_ERROR)
-            return TwapiReturnError(interp, i);
-    }
-
     res = TCL_OK;
     switch (findtype) {
     case CERT_FIND_ANY:
         pv = NULL;
         break;
     case CERT_FIND_EXISTING:
-        res = ObjToOpaque(interp, findObj, (void **)&cert2P, "CERT_CONTEXT*");
-        if (res == TCL_OK) {
-            i = TwapiVerifyPointer(interp, cert2P, CertFreeCertificateContext);
-            if (i != TWAPI_NO_ERROR)
-                res = TwapiReturnError(interp, i);
-            else
-                pv = (void *)cert2P;
-        }
+        res = ObjToVerifiedPointerTic(ticP, findObj, (void **)&cert2P, "CERT_CONTEXT*", CertFreeCertificateContext);
+        if (res == TCL_OK)
+            pv = (void *)cert2P;
         break;
     case CERT_FIND_SUBJECT_CERT:
         pv = &cinfo;
