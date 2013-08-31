@@ -618,7 +618,7 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE),
-                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*, Twapi_EvtRenderValuesObjCmd),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -865,7 +865,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                      GETHANDLET(hpub, EVT_HANDLE),
                      GETHANDLET(hev, EVT_HANDLE),
                      GETINT(msgid),
-                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*),
+                     GETVERIFIEDORNULL(ervhP, TwapiEVT_RENDER_VALUES_HEADER*, Twapi_EvtRenderValuesObjCmd),
                      GETINT(flags),
                      ARGUSEDEFAULT, ARGSKIP, ARGEND) != TCL_OK)
         return TCL_ERROR;

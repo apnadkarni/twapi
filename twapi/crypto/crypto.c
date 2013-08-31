@@ -1246,7 +1246,6 @@ static TCL_RESULT Twapi_CertFindCertificateInStore(
     PCCERT_CONTEXT certP, cert2P;
     DWORD         enctype, flags, findtype, dw;
     Tcl_Obj      *findObj;
-    int           i;
     void         *pv;
     CERT_BLOB     blob;
     CERT_INFO     cinfo;
@@ -1257,7 +1256,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStore(
     if (TwapiGetArgs(interp, objc, objv,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
                      GETINT(enctype), GETINT(flags), GETINT(findtype),
-                     GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*),
+                     GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
     
