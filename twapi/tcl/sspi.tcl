@@ -4,6 +4,15 @@
 #
 # See the file LICENSE for license
 
+if {0} {
+TBD - from curl -
+schannel: Removed extended error connection setup flag
+According KB975858 this flag may cause problems on Windows 7 and
+Windows Server 2008 R2 systems. Extended error information is not
+currently used by libcurl and therefore not a requirement.
+
+}
+
 namespace eval twapi {
 
     proc* _init_security_context_syms {} {

@@ -14,6 +14,32 @@
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+
+void TwapiRegisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
+{
+    if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext)
+        != TCL_OK)
+        Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(interp));
+}
+
+void TwapiRegisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
+{
+    if (TwapiRegisterPointerTic(ticP, certP, CertFreeCertificateContext)
+        != TCL_OK)
+        Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(ticP->interp));
+}
+
+TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
+{
+    return TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext);
+}
+
+TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
+{
+    return TwapiUnregisterPointerTic(ticP, certP, CertFreeCertificateContext);
+}
+
+
 #ifdef NOTNEEDED
 /* RtlGenRandom in base provides this */
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
@@ -742,8 +768,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
         exts.rgExtension ? &exts : NULL);
 
     if (certP) {
-        if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+        TwapiRegisterCertPointerTic(ticP, certP);
         ObjSetResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
         status = TCL_OK;
     } else {
@@ -1332,8 +1357,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStore(
             pv,
             certP);
         if (certP) {
-            if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiRegisterCertPointerTic(ticP, certP);
             ObjSetResult(interp, ObjFromOpaque((void*)certP, "CERT_CONTEXT*"));
         } else {
             /* EOF is not an error */
@@ -1546,7 +1570,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         /* Unregister previous context since the next call will free it,
            EVEN ON FAILURES */
-        if (TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+        if (TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = CertDeleteCertificateFromStore(certP);
@@ -1562,12 +1586,11 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         /* Unregister previous context since the next call will free it */
         if (certP &&
-            TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+            TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
             return TCL_ERROR;
         certP = CertEnumCertificatesInStore(pv, certP);
         if (certP) {
-            if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiRegisterCertPointer(interp, certP);
             TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
         } else {
             result.value.ival = GetLastError();
@@ -1663,7 +1686,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
            implement the CertDuplicateCertificateContext call */
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK ||
-            TwapiUnregisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
+            TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
             return TCL_ERROR;
         TWAPI_ASSERT(certP);
         result.type = TRT_EMPTY;
