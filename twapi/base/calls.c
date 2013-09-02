@@ -1602,7 +1602,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
 
     bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*MAX_PATH, &nbytes);
     sz = nbytes/sizeof(WCHAR);
-    res = TwapiGetArgs(interp, objc, objv,
+    res = TwapiGetArgs(interp, objc-1, objv+1,
                        GETOBJ(nameObj), GETINT(fmt), GETINT(desired_fmt),
                        ARGEND);
     if (res == TCL_OK) {
