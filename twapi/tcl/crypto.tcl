@@ -7,6 +7,26 @@
 namespace eval twapi {}
 
 
+if {0} {
+    TBD - associating private key with cert
+    from http://stackoverflow.com/questions/749654/associate-private-key-to-certificate-for-pfxexportcertstoreex:
+
+Apparently, CertSetCertificateContextProperty(p, CERT_KEY_PROV_HANDLE_PROP_ID ...)
+
+is not good. Need to do this instead:
+
+CRYPT_KEY_PROV_INFO kpi;
+ZeroMemory( & kpi, sizeof(kpi) );
+kpi.pwszContainerName = "my-container-name";
+kpi.dwProvType = PROV_RSA_FULL;
+kpi.dwKeySpec = AT_KEYEXCHANGE;
+kpi.dwFlags = CRYPT_MACHINE_KEYSET;
+CertSetCertificateContextProperty( pCert, CERT_KEY_PROV_INFO_PROP_ID, 0, & kpi);
+It's critical that provider name and other crap match the information that was used to generate actual key. It's not needed to set provider handle or any of that stuff. It also must be done before CertAddCertificateContextToStore.
+
+This is the only way that I found to attach private key to a certificate.
+}
+
 ################################################################
 # Certificate Stores
 

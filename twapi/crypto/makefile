@@ -8,3 +8,5 @@ OBJS  = $(OBJDIR)\crypto.obj $(OBJDIR)\sspi.obj
 TCLFILES=..\tcl\crypto.tcl ..\tcl\sspi.tcl
 
 !include ..\include\rules.inc
+
+$(OBJS): twapi_crypto.h

@@ -192,24 +192,37 @@ int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp)
     return TCL_OK;
 }
 
-int Twapi_InitializeSecurityContext(
+static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
+    TwapiInterpContext *ticP,
     Tcl_Interp *interp,
-    SecHandle *credentialP,
-    SecHandle *contextP,
-    LPWSTR     targetP,
-    ULONG      contextreq,
-    ULONG      reserved1,
-    ULONG      targetdatarep,
-    SecBufferDesc *sbd_inP,
-    ULONG     reserved2)
+    int objc, Tcl_Obj *CONST objv[])
 {
+    SecHandle credential, context, *contextP;
+    LPWSTR     targetP;
+    ULONG      contextreq, reserved1, targetdatarep, reserved2;
+    SecBufferDesc sbd_in, *sbd_inP;
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
     SECURITY_STATUS status;
     CtxtHandle    new_context;
     ULONG         new_context_attr;
-    Tcl_Obj      *objv[5];
+    Tcl_Obj      *objs[5];
     TimeStamp     expiration;
+
+    contextP = &context;
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETVAR(credential, ObjToSecHandle),
+                       GETVAR(contextP, ObjToSecHandle_NULL),
+                       GETSTRW(targetP),
+                       GETINT(contextreq),
+                       GETINT(reserved1),
+                       GETINT(targetdatarep),
+                       GETVAR(sbd_in, ObjToSecBufferDescRO),
+                       GETINT(reserved2),
+                       ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    sbd_inP = sbd_in.cBuffers ? &sbd_in : NULL;
 
     /* We will ask the function to allocate buffer for us */
     sb_out.BufferType = SECBUFFER_TOKEN;
@@ -221,7 +234,7 @@ int Twapi_InitializeSecurityContext(
     sbd_out.ulVersion = SECBUFFER_VERSION;
 
     status = InitializeSecurityContextW(
-        credentialP,
+        &credential,
         contextP,
         targetP,
         contextreq | ISC_REQ_ALLOCATE_MEMORY,
@@ -236,50 +249,65 @@ int Twapi_InitializeSecurityContext(
 
     switch (status) {
     case SEC_E_OK:
-        objv[0] = STRING_LITERAL_OBJ("ok");
+        objs[0] = STRING_LITERAL_OBJ("ok");
         break;
     case SEC_I_CONTINUE_NEEDED:
-        objv[0] = STRING_LITERAL_OBJ("continue");
+        objs[0] = STRING_LITERAL_OBJ("continue");
         break;
     case SEC_I_COMPLETE_NEEDED:
-        objv[0] = STRING_LITERAL_OBJ("complete");
+        objs[0] = STRING_LITERAL_OBJ("complete");
         break;
     case SEC_I_COMPLETE_AND_CONTINUE:
-        objv[0] = STRING_LITERAL_OBJ("complete_and_continue");
+        objs[0] = STRING_LITERAL_OBJ("complete_and_continue");
+        break;
+    case SEC_I_INCOMPLETE_CREDENTIALS:
+        objs[0] = STRING_LITERAL_OBJ("incomplete_credentials");
         break;
     default:
-        return Twapi_AppendSystemError(interp, status);
+        TwapiFreeSecBufferDesc(sbd_inP);
+        Twapi_AppendSystemError(interp, status);
+        return TCL_ERROR;
     }
 
-    objv[1] = ObjFromSecHandle(&new_context);
-    objv[2] = ObjFromSecBufferDesc(&sbd_out);
-    objv[3] = ObjFromLong(new_context_attr);
-    objv[4] = ObjFromWideInt(expiration.QuadPart);
+    objs[1] = ObjFromSecHandle(&new_context);
+    objs[2] = ObjFromSecBufferDesc(&sbd_out);
+    objs[3] = ObjFromLong(new_context_attr);
+    objs[4] = ObjFromWideInt(expiration.QuadPart);
 
-    ObjSetResult(interp, ObjNewList(5, objv));
+    ObjSetResult(interp, ObjNewList(5, objs));
 
+    /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
         FreeContextBuffer(sb_out.pvBuffer);
 
+    TwapiFreeSecBufferDesc(sbd_inP);
     return TCL_OK;
 }
 
-
-int Twapi_AcceptSecurityContext(
-    Tcl_Interp *interp,
-    SecHandle *credentialP,
-    SecHandle *contextP,
-    SecBufferDesc *sbd_inP,
-    ULONG      contextreq,
-    ULONG      targetdatarep)
+static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    SecHandle credential, context, *contextP;
+    SecBufferDesc sbd_in, *sbd_inP;
+    ULONG      contextreq, targetdatarep;
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
     SECURITY_STATUS status;
     CtxtHandle    new_context;
     ULONG         new_context_attr;
-    Tcl_Obj      *objv[5];
+    Tcl_Obj      *objs[5];
     TimeStamp     expiration;
+
+    contextP = &context;
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETVAR(credential, ObjToSecHandle),
+                       GETVAR(contextP, ObjToSecHandle_NULL),
+                       GETVAR(sbd_in, ObjToSecBufferDescRO),
+                       GETINT(contextreq),
+                       GETINT(targetdatarep),
+                       ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    sbd_inP = sbd_in.cBuffers ? &sbd_in : NULL;
 
     /* We will ask the function to allocate buffer for us */
     sb_out.BufferType = SECBUFFER_TOKEN;
@@ -296,7 +324,7 @@ int Twapi_AcceptSecurityContext(
        We assume the latter rfor now.
     */
     status = AcceptSecurityContext(
-        credentialP,
+        &credential,
         contextP,
         sbd_inP,
         contextreq | ASC_REQ_ALLOCATE_MEMORY,
@@ -308,36 +336,40 @@ int Twapi_AcceptSecurityContext(
 
     switch (status) {
     case SEC_E_OK:
-        objv[0] = STRING_LITERAL_OBJ("ok");
+        objs[0] = STRING_LITERAL_OBJ("ok");
         break;
     case SEC_I_CONTINUE_NEEDED:
-        objv[0] = STRING_LITERAL_OBJ("continue");
+        objs[0] = STRING_LITERAL_OBJ("continue");
         break;
     case SEC_I_COMPLETE_NEEDED:
-        objv[0] = STRING_LITERAL_OBJ("complete");
+        objs[0] = STRING_LITERAL_OBJ("complete");
         break;
     case SEC_I_COMPLETE_AND_CONTINUE:
-        objv[0] = STRING_LITERAL_OBJ("complete_and_continue");
+        objs[0] = STRING_LITERAL_OBJ("complete_and_continue");
         break;
     case SEC_E_INCOMPLETE_MESSAGE:
-        objv[0] = STRING_LITERAL_OBJ("incomplete_message");
+        objs[0] = STRING_LITERAL_OBJ("incomplete_message");
         break;
     default:
-        return Twapi_AppendSystemError(interp, status);
+        Twapi_AppendSystemError(interp, status);
+        TwapiFreeSecBufferDesc(sbd_inP);
+        return TCL_ERROR;
     }
 
-    objv[1] = ObjFromSecHandle(&new_context);
-    objv[2] = ObjFromSecBufferDesc(&sbd_out);
-    objv[3] = ObjFromLong(new_context_attr);
-    objv[4] = ObjFromWideInt(expiration.QuadPart);
+    objs[1] = ObjFromSecHandle(&new_context);
+    objs[2] = ObjFromSecBufferDesc(&sbd_out);
+    objs[3] = ObjFromLong(new_context_attr);
+    objs[4] = ObjFromWideInt(expiration.QuadPart);
 
     ObjSetResult(interp,
-                     ObjNewList(5, objv));
+                     ObjNewList(5, objs));
 
 
+    /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
         FreeContextBuffer(sb_out.pvBuffer);
 
+    TwapiFreeSecBufferDesc(sbd_inP);
     return TCL_OK;
 }
 
@@ -435,7 +467,9 @@ static TCL_RESULT ParseSCHANNEL_CRED (
                                    CertFreeCertificateContext);
         /* TBD - should we dup the cert context ? Will that even help ?
            What if the app frees the cert_context ? Dos AcquireCredentials
-           dup the context ? */
+           dup the context ? Apparently so - see comment in
+           http://www.coastrd.com/c-schannel-smtp */
+
         if (res != TCL_OK)
             return res;
     }
@@ -468,6 +502,7 @@ int Twapi_QueryContextAttributes(
         SecPkgContext_StreamSizes    streamsizes;
         SecPkgContext_NativeNamesW   nativenames;
         SecPkgContext_PasswordExpiry passwordexpiry;
+        CERT_CONTEXT *certP;
     } param;
     SECURITY_STATUS ss;
     Tcl_Obj *obj;
@@ -484,6 +519,8 @@ int Twapi_QueryContextAttributes(
     case SECPKG_ATTR_NAMES:
     case SECPKG_ATTR_NATIVE_NAMES:
     case SECPKG_ATTR_PASSWORD_EXPIRY:
+    case SECPKG_ATTR_LOCAL_CERT_CONTEXT:
+    case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
         ss = QueryContextAttributesW(ctxP, attr, &param);
         if (ss == SEC_E_OK) {
             switch (attr) {
@@ -531,6 +568,11 @@ int Twapi_QueryContextAttributes(
                 break;
             case SECPKG_ATTR_PASSWORD_EXPIRY:
                 obj = ObjFromWideInt(param.passwordexpiry.tsPasswordExpires.QuadPart);
+                break;
+            case SECPKG_ATTR_LOCAL_CERT_CONTEXT: /* FALLTHRU */
+            case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
+                TwapiRegisterCertPointer(interp, param.certP);
+                obj = ObjFromOpaque(param.certP, "CERT_CONTEXT*");
                 break;
             }
         }
@@ -752,9 +794,8 @@ vamoose:
 static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
-    DWORD dw, dw2, dw3, dw4;
-    Tcl_Obj *s1Obj;
-    SecHandle sech, sech2, *sech2P;
+    DWORD dw, dw2;
+    SecHandle sech;
     SecBufferDesc sbd, *sbdP;
     int func = PtrToInt(clientdata);
 
@@ -803,43 +844,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     } else {
         /* Free-for-all - each func responsible for checking arguments */
         switch (func) {
-        case 10021:
-            sech2P = &sech2;
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETVAR(sech, ObjToSecHandle),
-                             GETVAR(sech2P, ObjToSecHandle_NULL),
-                             GETOBJ(s1Obj),
-                             GETINT(dw),
-                             GETINT(dw2),
-                             GETINT(dw3),
-                             GETVAR(sbd, ObjToSecBufferDescRO),
-                             GETINT(dw4),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            sbdP = sbd.cBuffers ? &sbd : NULL;
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = Twapi_InitializeSecurityContext(
-                interp, &sech, sech2P, ObjToUnicode(s1Obj),
-                dw, dw2, dw3, sbdP, dw4);
-            TwapiFreeSecBufferDesc(sbdP);
-            break;
-
-        case 10022: // AcceptSecurityContext
-            sech2P = &sech2;
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETVAR(sech, ObjToSecHandle),
-                             GETVAR(sech2P, ObjToSecHandle_NULL),
-                             GETVAR(sbd, ObjToSecBufferDescRO),
-                             GETINT(dw),
-                             GETINT(dw2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            sbdP = sbd.cBuffers ? &sbd : NULL;
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = Twapi_AcceptSecurityContext(
-                interp, &sech, sech2P, sbdP, dw, dw2);
-            TwapiFreeSecBufferDesc(sbdP);
-            break;
         
         case 10023: // QueryContextAttributes
             if (TwapiGetArgs(interp, objc, objv,
@@ -906,17 +910,21 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FreeCredentialsHandle, 102),
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
-        DEFINE_FNCODE_CMD(InitializeSecurityContext, 10021),
-        DEFINE_FNCODE_CMD(AcceptSecurityContext, 10022),
         DEFINE_FNCODE_CMD(QueryContextAttributes, 10023),
         DEFINE_FNCODE_CMD(VerifySignature, 10024),
         DEFINE_FNCODE_CMD(DecryptMessage, 10025),
     };
 
+    struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(AcquireCredentialsHandle, Twapi_AcquireCredentialsHandleObjCmd),
+        DEFINE_TCL_CMD(CallSignEncrypt, Twapi_SignEncryptObjCmd),
+        DEFINE_TCL_CMD(InitializeSecurityContext, Twapi_InitializeSecurityContextObjCmd),
+        DEFINE_TCL_CMD(AcceptSecurityContext, Twapi_AcceptSecurityContextObjCmd),
+    };
+
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SspiDispatch), SspiDispatch, Twapi_SspiCallObjCmd);
-    Tcl_CreateObjCommand(interp, "twapi::CallSignEncrypt", Twapi_SignEncryptObjCmd, ticP, NULL);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(SignEncryptAliasDispatch), SignEncryptAliasDispatch, "twapi::CallSignEncrypt");
-    Tcl_CreateObjCommand(interp, "twapi::AcquireCredentialsHandle", Twapi_AcquireCredentialsHandleObjCmd, ticP, NULL);
 
     return TCL_OK;
 }
