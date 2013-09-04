@@ -150,7 +150,6 @@ int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP)
 }
 
 
-
 Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP) 
 {
     Tcl_Obj *resultObj;
@@ -206,7 +205,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     SECURITY_STATUS status;
     CtxtHandle    new_context;
     ULONG         new_context_attr;
-    Tcl_Obj      *objs[5];
+    Tcl_Obj      *objs[6];
     TimeStamp     expiration;
 
     contextP = &context;
@@ -224,7 +223,10 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
 
     sbd_inP = sbd_in.cBuffers ? &sbd_in : NULL;
 
-    /* We will ask the function to allocate buffer for us */
+    /*
+     * We will ask the function to allocate buffer for us
+     * Note all the providers we support take a single output buffer.
+     */
     sb_out.BufferType = SECBUFFER_TOKEN;
     sb_out.cbBuffer   = 0;
     sb_out.pvBuffer   = NULL;
@@ -274,7 +276,24 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     objs[3] = ObjFromLong(new_context_attr);
     objs[4] = ObjFromWideInt(expiration.QuadPart);
 
-    ObjSetResult(interp, ObjNewList(5, objs));
+    /* Check if there was any unprocessed left over data that 
+       has to be passed back to the caller */
+    objs[5] = NULL;
+    if (sbd_inP) {
+        int i;
+        /* Go backward because EXTRA buffer likely to be at end */
+        for (i = sbd_inP->cBuffers - 1; i >= 0; --i) {
+            SecBuffer *sbP = &sbd_inP->pBuffers[i];
+            if (sbP->BufferType == SECBUFFER_EXTRA &&
+                sbP->pvBuffer && sbP->cbBuffer) {
+                objs[5] = ObjFromByteArray(sbP->pvBuffer, sbP->cbBuffer);
+                break;
+            }
+        }
+    }
+
+    ObjSetResult(interp,
+                 ObjNewList(objs[5] == NULL ? 5 : 6, objs));
 
     /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
@@ -294,7 +313,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     SECURITY_STATUS status;
     CtxtHandle    new_context;
     ULONG         new_context_attr;
-    Tcl_Obj      *objs[5];
+    Tcl_Obj      *objs[6];
     TimeStamp     expiration;
 
     contextP = &context;
@@ -321,7 +340,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     /* TBD - MSDN says expiration pointer should be NULL until
        last call in negotiation sequence. Does it really need
        to be NULL or can we expect caller just ignore the result?
-       We assume the latter rfor now.
+       We assume the latter for now.
     */
     status = AcceptSecurityContext(
         &credential,
@@ -361,9 +380,24 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     objs[3] = ObjFromLong(new_context_attr);
     objs[4] = ObjFromWideInt(expiration.QuadPart);
 
-    ObjSetResult(interp,
-                     ObjNewList(5, objs));
+    /* Check if there was any unprocessed left over data that 
+       has to be passed back to the caller */
+    objs[5] = NULL;
+    if (sbd_inP) {
+        int i;
+        /* Go backward because EXTRA buffer likely to be at end */
+        for (i = sbd_inP->cBuffers - 1; i >= 0; --i) {
+            SecBuffer *sbP = &sbd_inP->pBuffers[i];
+            if (sbP->BufferType == SECBUFFER_EXTRA &&
+                sbP->pvBuffer && sbP->cbBuffer) {
+                objs[5] = ObjFromByteArray(sbP->pvBuffer, sbP->cbBuffer);
+                break;
+            }
+        }
+    }
 
+    ObjSetResult(interp,
+                 ObjNewList(objs[5] == NULL ? 5 : 6, objs));
 
     /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
@@ -594,138 +628,117 @@ int Twapi_QueryContextAttributes(
     return TCL_OK;
 }
 
-int Twapi_MakeSignature(
-    TwapiInterpContext *ticP,
-    SecHandle *ctxP,
-    ULONG qop,
-    int datalen,
-    void *dataP, /* Points into Tcl_Obj, must NOT be modified ! */
-    ULONG seqnum)
+static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    SecHandle sech;
+    ULONG qop;
+    ULONG seqnum;
+
     SECURITY_STATUS ss;
     SecPkgContext_Sizes spc_sizes;
-    void *sigP;
     SecBuffer sbufs[2];
     SecBufferDesc sbd;
+    Tcl_Obj *objs[ARRAYSIZE(sbufs)];
+    Tcl_Obj *dataObj;
 
-    ss = QueryContextAttributesW(ctxP, SECPKG_ATTR_SIZES, &spc_sizes);
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVAR(sech, ObjToSecHandle),
+                     GETINT(qop),
+                     GETOBJ(dataObj),
+                     GETINT(seqnum),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+
+    ss = QueryContextAttributesW(&sech, SECPKG_ATTR_SIZES, &spc_sizes);
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(ticP->interp, ss);
 
-    /* TBD - change to directly use ByteArray without memlifo allocs */
-
-    sigP = MemLifoPushFrame(&ticP->memlifo, spc_sizes.cbMaxSignature, NULL);
-    
+    objs[0] = ObjFromByteArray(NULL, spc_sizes.cbMaxSignature);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].cbBuffer   = spc_sizes.cbMaxSignature;
-    sbufs[0].pvBuffer   = sigP;
-    sbufs[1].BufferType = SECBUFFER_DATA | SECBUFFER_READONLY;
-    sbufs[1].cbBuffer   = datalen;
-    sbufs[1].pvBuffer   = dataP;
+    sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
 
+    objs[1] = Tcl_DuplicateObj(dataObj);
+    TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
+    sbufs[1].BufferType = SECBUFFER_DATA | SECBUFFER_READONLY;
+    sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
+    
     sbd.cBuffers = 2;
     sbd.pBuffers = sbufs;
     sbd.ulVersion = SECBUFFER_VERSION;
 
-    ss = MakeSignature(ctxP, qop, &sbd, seqnum);
+    ss = MakeSignature(&sech, qop, &sbd, seqnum);
     if (ss != SEC_E_OK) {
+        int i;
         Twapi_AppendSystemError(ticP->interp, ss);
+        for (i=0; i < ARRAYSIZE(objs); ++i)
+            Tcl_DecrRefCount(objs[i]);
     } else {
-        Tcl_Obj *objv[2];
-        objv[0] = ObjFromByteArray(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
-        objv[1] = ObjFromByteArray(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
-        ObjSetResult(ticP->interp, ObjNewList(2, objv));
+        int i;
+        for (i=0; i < ARRAYSIZE(objs); ++i)
+            Tcl_SetByteArrayLength(objs[i], sbufs[i].cbBuffer);
+        ObjSetResult(ticP->interp, ObjNewList(2, objs));
     }
-
-    MemLifoPopFrame(&ticP->memlifo);
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
 }
 
 
-int Twapi_EncryptMessage(
-    TwapiInterpContext *ticP,
-    SecHandle *ctxP,
-    ULONG qop,
-    int   datalen,
-    void *dataP, /* Must not be modified, may point into Tcl_Obj owned space */
-    ULONG seqnum
-    )
+static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    SecHandle sech;
+    ULONG qop;
+    ULONG seqnum;
     SECURITY_STATUS ss;
     SecPkgContext_Sizes spc_sizes;
-    void *padP;
-    void *trailerP;
-    void *edataP;
     SecBuffer sbufs[3];
     SecBufferDesc sbd;
+    Tcl_Obj *dataObj;
+    Tcl_Obj *objs[ARRAYSIZE(sbufs)];
 
-    ss = QueryContextAttributesW(ctxP, SECPKG_ATTR_SIZES, &spc_sizes);
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVAR(sech, ObjToSecHandle),
+                     GETINT(qop),
+                     GETOBJ(dataObj),
+                     GETINT(seqnum),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    ss = QueryContextAttributesW(&sech, SECPKG_ATTR_SIZES, &spc_sizes);
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(ticP->interp, ss);
 
-    ss = SEC_E_INSUFFICIENT_MEMORY; /* Assumed error */
-
-    /* TBD - change to directly use ByteArray without memlifo allocs */
-
-    trailerP = MemLifoPushFrame(&ticP->memlifo,
-                                spc_sizes.cbSecurityTrailer, NULL);
-    padP = MemLifoAlloc(&ticP->memlifo, spc_sizes.cbBlockSize, NULL);
-    edataP = MemLifoCopy(&ticP->memlifo, dataP, datalen);
-    
+    objs[0] = ObjFromByteArray(NULL, spc_sizes.cbSecurityTrailer);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].cbBuffer   = spc_sizes.cbSecurityTrailer;
-    sbufs[0].pvBuffer   = trailerP;
+    sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
+
+    objs[1] = Tcl_DuplicateObj(dataObj);
+    TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA;
-    sbufs[1].cbBuffer   = datalen;
-    sbufs[1].pvBuffer   = edataP;
+    sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
+    
+    objs[2] = ObjFromByteArray(NULL, spc_sizes.cbBlockSize);
     sbufs[2].BufferType = SECBUFFER_PADDING;
-    sbufs[2].cbBuffer   = spc_sizes.cbBlockSize;
-    sbufs[2].pvBuffer   = padP;
+    sbufs[2].pvBuffer   = ObjToByteArray(objs[2], &sbufs[2].cbBuffer);
 
     sbd.cBuffers = 3;
     sbd.pBuffers = sbufs;
     sbd.ulVersion = SECBUFFER_VERSION;
 
-    ss = EncryptMessage(ctxP, qop, &sbd, seqnum);
+    ss = EncryptMessage(&sech, qop, &sbd, seqnum);
     if (ss != SEC_E_OK) {
+        int i;
         Twapi_AppendSystemError(ticP->interp, ss);
+        for (i=0; i < ARRAYSIZE(objs); ++i)
+            Tcl_DecrRefCount(objs[i]);
     } else {
-        Tcl_Obj *objv[3];
-        objv[0] = ObjFromByteArray(sbufs[0].pvBuffer, sbufs[0].cbBuffer);
-        objv[1] = ObjFromByteArray(sbufs[1].pvBuffer, sbufs[1].cbBuffer);
-        objv[2] = ObjFromByteArray(sbufs[2].pvBuffer, sbufs[2].cbBuffer);
-        ObjSetResult(ticP->interp, ObjNewList(3, objv));
+        int i;
+        for (i=0; i < ARRAYSIZE(objs); ++i)
+            Tcl_SetByteArrayLength(objs[i], sbufs[i].cbBuffer);
+        ObjSetResult(ticP->interp, ObjNewList(3, objs));
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
-
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
-}
-
-static int Twapi_SignEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    SecHandle sech;
-    int func;
-    DWORD dw, dw2, dw3;
-    unsigned char *cP;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(func),
-                     GETVAR(sech, ObjToSecHandle),
-                     GETINT(dw),
-                     ARGSKIP,
-                     GETINT(dw3),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
-
-    if (func != 1 && func != 2)
-        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-
-    cP = ObjToByteArray(objv[4], &dw2);
-
-    return (func == 1 ? Twapi_MakeSignature : Twapi_EncryptMessage) (
-        ticP, &sech, dw, dw2, cP, dw3);
 }
 
 static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -899,11 +912,6 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
 int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    static struct alias_dispatch_s SignEncryptAliasDispatch[] = {
-        DEFINE_ALIAS_CMD(MakeSignature, 1),
-        DEFINE_ALIAS_CMD(EncryptMessage, 2)
-    };
-
     static struct fncode_dispatch_s SspiDispatch[] = {
         DEFINE_FNCODE_CMD(EnumerateSecurityPackages, 1),
         DEFINE_FNCODE_CMD(QuerySecurityContextToken, 101),
@@ -917,14 +925,14 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     struct tcl_dispatch_s TclDispatch[] = {
         DEFINE_TCL_CMD(AcquireCredentialsHandle, Twapi_AcquireCredentialsHandleObjCmd),
-        DEFINE_TCL_CMD(CallSignEncrypt, Twapi_SignEncryptObjCmd),
         DEFINE_TCL_CMD(InitializeSecurityContext, Twapi_InitializeSecurityContextObjCmd),
         DEFINE_TCL_CMD(AcceptSecurityContext, Twapi_AcceptSecurityContextObjCmd),
+        DEFINE_TCL_CMD(EncryptMessage, Twapi_EncryptMessageObjCmd),
+        DEFINE_TCL_CMD(MakeSignature, Twapi_MakeSignatureObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SspiDispatch), SspiDispatch, Twapi_SspiCallObjCmd);
     TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
-    TwapiDefineAliasCmds(interp, ARRAYSIZE(SignEncryptAliasDispatch), SignEncryptAliasDispatch, "twapi::CallSignEncrypt");
 
     return TCL_OK;
 }
