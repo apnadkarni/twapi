@@ -15,6 +15,10 @@ currently used by libcurl and therefore not a requirement.
 
 namespace eval twapi {
 
+    # Holds SSPI security context handles
+    variable _sspi_state
+    array set _sspi_state {}
+
     proc* _init_security_context_syms {} {
         variable _server_security_context_syms
         variable _client_security_context_syms
@@ -169,6 +173,7 @@ proc ::twapi::sspi_client_new_context {cred args} {
 
     set drep [kl_get {native 0x10 network 0} $opts(datarep)]
     return [_construct_sspi_security_context \
+                sspiclient#[TwapiId] \
                 [InitializeSecurityContext \
                      $cred \
                      "" \
@@ -188,7 +193,12 @@ proc ::twapi::sspi_client_new_context {cred args} {
 
 # Delete a security context
 proc twapi::sspi_close_security_context {ctx} {
-    DeleteSecurityContext [kl_get $ctx -handle]
+    variable _sspi_state
+
+    _sspi_validate_handle $ctx
+    
+    DeleteSecurityContext [dict get $_sspi_state($ctx) Handle]
+    unset _sspi_state($ctx)
 }
 
 # Take the next step in client side authentication
@@ -196,76 +206,89 @@ proc twapi::sspi_close_security_context {ctx} {
 #   {done data newctx}
 #   {continue data newctx}
 proc twapi::sspi_security_context_next {ctx {response ""}} {
-    switch -exact -- [kl_get $ctx -state] {
-        ok {
-            # Should not be passed remote response data in this state
-            if {[string length $response]} {
-                error "Unexpected remote response data passed."
-            }
-            # See if there is any data to send.
-            set data ""
-            foreach buf [kl_get $ctx -output] {
-                append data [lindex $buf 1]
-            }
-            return [list done $data [kl_set $ctx -output [list ]]]
-        }
-        continue {
-            # See if there is any data to send.
-            set data ""
-            foreach buf [kl_get $ctx -output] {
-                append data [lindex $buf 1]
-            }
-            # Either we are receiving response from the remote system
-            # or we have to send it data. Both cannot be empty
-            if {[string length $response] != 0} {
-                # We are given a response. Pass it back in
-                # to SSPI.
-                # "2" buffer type is SECBUFFER_TOKEN
-                set inbuflist [list [list 2 $response]]
-                if {[kl_get $ctx -type] eq "client"} {
-                    set rawctx [InitializeSecurityContext \
-                                    [kl_get $ctx -credentials] \
-                                    [kl_get $ctx -handle] \
-                                    [kl_get $ctx -target] \
-                                    [kl_get $ctx -inattr] \
-                                    0 \
-                                    [kl_get $ctx -datarep] \
-                                    $inbuflist \
-                                    0]
-                } else {
-                    set rawctx [AcceptSecurityContext \
-                                    [kl_get $ctx -credentials] \
-                                    [kl_get $ctx -handle] \
-                                    $inbuflist \
-                                    [kl_get $ctx -inattr] \
-                                    [kl_get $ctx -datarep] \
-                                   ]
+    variable _sspi_state
+
+    _sspi_validate_handle $ctx
+
+    dict with _sspi_state($ctx) {
+        # Note the dictionary content variables are
+        #   State, Handle, Output, Outattr, Expiration,
+        #   Ctxtype, Inattr, Target, Datarep, Credentials
+        switch -exact -- $State {
+            ok {
+                # Should not be passed remote response data in this state
+                if {[string length $response]} {
+                    error "Unexpected remote response data passed."
                 }
-                set newctx [_construct_sspi_security_context \
-                                $rawctx \
-                                [kl_get $ctx -type] \
-                                [kl_get $ctx -inattr] \
-                                [kl_get $ctx -target] \
-                                [kl_get $ctx -credentials] \
-                                [kl_get $ctx -datarep] \
-                               ]
-                # Recurse to return next state
-                return [sspi_security_context_next $newctx]
-            } elseif {[string length $data] != 0} {
-                # We have to send data to the remote system and await its
-                # response. Reset output buffers to empty
-                return [list continue $data [kl_set $ctx -output [list ]]]
-            } else {
-                error "No token data available to send to remote system"
+                # See if there is any data to send.
+                set data ""
+                foreach buf $Output {
+                    # First element is buffer type, which we do not care
+                    # Second element is actual data
+                    append data [lindex $buf 1]
+                }
+
+                set Output {}
+                # We return the context handle as third element for backwards
+                # compatibility reasons - TBD
+                return [list done $data $ctx]
             }
-        }
-        complete -
-        complete_and_continue -
-        incomplete_message {
-            # TBD
-            error "State '[kl_get $ctx -state]' handling not implemented."
+            continue {
+                # See if there is any data to send.
+                set data ""
+                foreach buf $Output {
+                    append data [lindex $buf 1]
+                }
+                # Either we are receiving response from the remote system
+                # or we have to send it data. Both cannot be empty
+                if {[string length $response] != 0} {
+                    # We are given a response. Pass it back in
+                    # to SSPI.
+                    # "2" buffer type is SECBUFFER_TOKEN
+                    set inbuflist [list [list 2 $response]]
+                    if {$Ctxtype eq "client"} {
+                        set rawctx [InitializeSecurityContext \
+                                        $Credentials \
+                                        $Handle \
+                                        $Target \
+                                        $Inattr \
+                                        0 \
+                                        $Datarep \
+                                        $inbuflist \
+                                        0]
+                    } else {
+                        set rawctx [AcceptSecurityContext \
+                                        $Credentials \
+                                        $Handle \
+                                        $inbuflist \
+                                        $Inattr \
+                                        $Datarep]
+                    }
+                    lassign $rawctx State Handle Output Outattr Expiration
+                    # Will recurse at proc end
+                } elseif {[string length $data] != 0} {
+                    # We have to send data to the remote system and await its
+                    # response. Reset output buffers to empty
+                    set Output {}
+                    return [list continue $data $ctx]
+                } else {
+                    # TBD - is this really an error ?
+                    error "No token data available to send to remote system (SSPI context $ctx)"
+                }
+            }
+            complete -
+            complete_and_continue -
+            incomplete_message {
+                # TBD
+                error "State $State handling not implemented."
+            }
         }
     }
+
+    # Recurse to return next state
+    # Note this has to be OUTSIDE the [dict with] else it will not
+    # see the updated values
+    return [sspi_security_context_next $ctx]
 }
 
 # Return a server context
@@ -295,6 +318,7 @@ proc ::twapi::sspi_server_new_context {cred clientdata args} {
 
     set drep [kl_get {native 0x10 network 0} $opts(datarep)]
     return [_construct_sspi_security_context \
+                sspiserver#[TwapiId] \
                 [AcceptSecurityContext \
                      $cred \
                      "" \
@@ -312,15 +336,19 @@ proc ::twapi::sspi_server_new_context {cred clientdata args} {
 
 # Get the security context flags after completion of request
 proc ::twapi::sspi_get_security_context_features {ctx} {
+    variable _sspi_state
+
+    _sspi_validate_handle $ctx
+
     _init_security_context_syms
 
     # We could directly look in the context itself but intead we make
     # an explicit call, just in case they change after initial setup
-    set flags [QueryContextAttributes [kl_get $ctx -handle] 14]
+    set flags [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 14]
 
-    # Mapping of symbols depends on whether it is a client or server
-    # context
-    if {[kl_get $ctx -type] eq "client"} {
+        # Mapping of symbols depends on whether it is a client or server
+        # context
+    if {[dict get $_sspi_state($ctx) Ctxtype] eq "client"} {
         upvar 0 [namespace current]::_client_security_context_syms syms
     } else {
         upvar 0 [namespace current]::_server_security_context_syms syms
@@ -336,27 +364,33 @@ proc ::twapi::sspi_get_security_context_features {ctx} {
 
 # Get the user name for a security context
 proc twapi::sspi_get_security_context_username {ctx} {
-    return [QueryContextAttributes [kl_get $ctx -handle] 1]
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+    return [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 1]
 }
 
 # Get the field size information for a security context
+# TBD - update for SSL
 proc twapi::sspi_get_security_context_sizes {ctx} {
-    if {![kl_vget $ctx -sizes sizes]} {
-        set sizes [QueryContextAttributes [kl_get $ctx -handle] 0]
-    }
+    variable _sspi_state
+    _sspi_validate_handle $ctx
 
-    return [kl_create2 {-maxtoken -maxsig -blocksize -trailersize} $sizes]
+    set sizes [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 0]
+    return [twine {-maxtoken -maxsig -blocksize -trailersize} $sizes]
 }
 
 # Returns a signature
 proc twapi::sspi_generate_signature {ctx data args} {
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+
     array set opts [parseargs args {
         {seqnum.int 0}
         {qop.int 0}
     } -maxleftover 0]
 
     return [MakeSignature \
-                [kl_get $ctx -handle] \
+                [dict get $_sspi_state($ctx) Handle] \
                 $opts(qop) \
                 $data \
                 $opts(seqnum)]
@@ -364,13 +398,16 @@ proc twapi::sspi_generate_signature {ctx data args} {
 
 # Verify signature
 proc twapi::sspi_verify_signature {ctx sig data args} {
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+
     array set opts [parseargs args {
         {seqnum.int 0}
     } -maxleftover 0]
 
     # Buffer type 2 - Token, 1- Data
     return [VerifySignature \
-                [kl_get $ctx -handle] \
+                [dict get $_sspi_state($ctx) Handle] \
                 [list [list 2 $sig] [list 1 $data]] \
                 $opts(seqnum)]
 }
@@ -378,13 +415,16 @@ proc twapi::sspi_verify_signature {ctx sig data args} {
 # Encrypts a data as per a context
 # Returns {securitytrailer encrypteddata padding}
 proc twapi::sspi_encrypt {ctx data args} {
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+
     array set opts [parseargs args {
         {seqnum.int 0}
         {qop.int 0}
     } -maxleftover 0]
 
     return [EncryptMessage \
-                [kl_get $ctx -handle] \
+                [dict get $_sspi_state($ctx) Handle] \
                 $opts(qop) \
                 $data \
                 $opts(seqnum)]
@@ -392,23 +432,36 @@ proc twapi::sspi_encrypt {ctx data args} {
 
 # Decrypts a message
 proc twapi::sspi_decrypt {ctx sig data padding args} {
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+
     array set opts [parseargs args {
         {seqnum.int 0}
     } -maxleftover 0]
 
     # Buffer type 2 - Token, 1- Data, 9 - padding
     set decrypted [DecryptMessage \
-                       [kl_get $ctx -handle] \
+                       [dict get $_sspi_state($ctx) Handle] \
                        [list [list 2 $sig] [list 1 $data] [list 9 $padding]] \
                        $opts(seqnum)]
-    set plaintext ""
+    set plaintext {}
     # Pick out only the data buffers, ignoring pad buffers and signature
+    # Optimize copies by keeping as a list so in the common case of a 
+    # single buffer can return it as is. Multiple buffers are expensive
+    # because Tcl will shimmer each byte array into a list and then
+    # incur additional copies during joining
     foreach buf $decrypted {
+        # SECBUFFER_DATA -> 1
         if {[lindex $buf 0] == 1} {
-            append plaintext [lindex $buf 1]
+            lappend plaintext [lindex $buf 1]
         }
     }
-    return $plaintext
+
+    if {[llength $plaintext] < 2} {
+        return [lindex $plaintext 0]
+    } else {
+        return [join $plaintext ""]
+    }
 }
 
 
@@ -417,16 +470,26 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
 
 
 # Construct a high level SSPI security context structure
-# ctx is context as returned from C level code
-proc twapi::_construct_sspi_security_context {ctx ctxtype inattr target credentials datarep} {
-    set result [kl_create2 \
-                    {-state -handle -output -outattr -expiration} \
-                    $ctx]
-    set result [kl_set $result -type $ctxtype]
-    set result [kl_set $result -inattr $inattr]
-    set result [kl_set $result -target $target]
-    set result [kl_set $result -datarep $datarep]
-    return [kl_set $result -credentials $credentials]
+# rawctx is context as returned from C level code
+proc twapi::_construct_sspi_security_context {id rawctx ctxtype inattr target credentials datarep} {
+    variable _sspi_state
+    
+    set _sspi_state($id) [twine \
+                                {State Handle Output Outattr Expiration} \
+                                $rawctx]
+    dict set _sspi_state($id) Ctxtype $ctxtype
+    dict set _sspi_state($id) Inattr $inattr
+    dict set _sspi_state($id) Target $target
+    dict set _sspi_state($id) Datarep $datarep
+    dict set _sspi_state($id) Credentials $credentials
 
+    return $id
 }
 
+proc twapi::_sspi_validate_handle {ctx} {
+    variable _sspi_state
+
+    if {![info exists _sspi_state($ctx)]} {
+        badargs! "Invalid SSPI security context handle $ctx" 3
+    }
+}
