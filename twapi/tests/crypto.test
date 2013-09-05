@@ -12,9 +12,9 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
-proc setup_contexts {} {
-    set ccred [twapi::sspi_new_credentials -usage outbound]
-    set scred [twapi::sspi_new_credentials -usage inbound]
+proc setup_contexts {package} {
+    set ccred [twapi::sspi_new_credentials -usage outbound -package $package]
+    set scred [twapi::sspi_new_credentials -usage inbound -package $package]
     set cctx [twapi::sspi_client_new_context $ccred -target LUNA -confidentiality true -connection true]
     foreach {step data cctx} [twapi::sspi_security_context_next $cctx] break
     set sctx [twapi::sspi_server_new_context $scred $data]
@@ -26,50 +26,50 @@ proc setup_contexts {} {
     return [list $cctx $sctx]
 }
 
-#
-# Set up system-specific constants that are used to match test results
+proc encrypt_test {cctx sctx} {
+    lassign [twapi::sspi_encrypt $cctx abc] sig data padding
+    set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    lassign [twapi::sspi_encrypt $cctx 123 -seqnum 1] sig data padding
+    set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    lassign [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] sig data padding
+    set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
+}
+
+proc encrypt_test_noseq {cctx sctx} {
+    lassign [twapi::sspi_encrypt $cctx abc] sig data padding
+    set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    lassign [twapi::sspi_encrypt $cctx 123] sig data padding
+    set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    lassign [twapi::sspi_encrypt $cctx \001\002\003] sig data padding
+    set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+    return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
+}
+
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
-    test encrypt-1.0 {
-        Verify basic encryption and decryption
-    } -setup {
-        foreach {cctx sctx} [setup_contexts] break
-    } -body {
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx abc] break
-        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx 123 -seqnum 1] break
-        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] break
-        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        list $data1 $data2 $data3
-    } -cleanup {
-        twapi::sspi_close_security_context $sctx
-        twapi::sspi_close_security_context $cctx
-    } -result [list abc 123 \001\002\003]
+    foreach pkg {NTLM Negotiate Kerberos WDigest} {
+        test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
+            encrypt_test $cctx $sctx
+        } -cleanup {
+            twapi::sspi_close_security_context $sctx
+            twapi::sspi_close_security_context $cctx
+        } -result 1
 
-    test encrypt-1.1 {
-        Verify basic encryption and decryption without explicit seqnum
-    } -setup {
-        foreach {cctx sctx} [setup_contexts] break
-    } -body {
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx abc] break
-        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx 123] break
-        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        foreach {sig data padding} [twapi::sspi_encrypt $cctx \001\002\003] break
-        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        list $data1 $data2 $data3
-    } -cleanup {
-        twapi::sspi_close_security_context $sctx
-        twapi::sspi_close_security_context $cctx
-    } -result [list abc 123 \001\002\003]
-        
+        test encrypt-${pkg}-1.1 "Verify basic encryption and decryption without seq num - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
+            encrypt_test_noseq $cctx $sctx
+        } -cleanup {
+            twapi::sspi_close_security_context $sctx
+            twapi::sspi_close_security_context $cctx
+        } -result 1
+    }
+
     test sign-1.0 {
         Verify basic signing and verification
     } -setup {
-        foreach {cctx sctx} [setup_contexts] break
+        foreach {cctx sctx} [setup_contexts NTLM] break
     } -body {
         foreach {sig data} [twapi::sspi_generate_signature $cctx abcd] break
         set flags1 [twapi::sspi_verify_signature $sctx $sig $data]
