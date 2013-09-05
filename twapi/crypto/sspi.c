@@ -294,9 +294,10 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
             }
         }
     }
+    if (objs[5] == NULL)
+        objs[5] = ObjFromEmptyString();
 
-    ObjSetResult(interp,
-                 ObjNewList(objs[5] == NULL ? 5 : 6, objs));
+    ObjSetResult(interp, ObjNewList(6, objs));
 
     /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
@@ -398,9 +399,10 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
             }
         }
     }
+    if (objs[5] == NULL)
+        objs[5] = ObjFromEmptyString();
 
-    ObjSetResult(interp,
-                 ObjNewList(objs[5] == NULL ? 5 : 6, objs));
+    ObjSetResult(interp, ObjNewList(6, objs));
 
     /* Note sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
     if (sb_out.pvBuffer)
