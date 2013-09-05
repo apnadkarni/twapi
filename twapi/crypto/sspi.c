@@ -265,6 +265,9 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     case SEC_I_INCOMPLETE_CREDENTIALS:
         objs[0] = STRING_LITERAL_OBJ("incomplete_credentials");
         break;
+    case SEC_E_INCOMPLETE_MESSAGE:
+        objs[0] = STRING_LITERAL_OBJ("incomplete_message");
+        break;
     default:
         TwapiFreeSecBufferDesc(sbd_inP);
         Twapi_AppendSystemError(interp, status);
@@ -652,7 +655,7 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 
     ss = QueryContextAttributesW(&sech, SECPKG_ATTR_SIZES, &spc_sizes);
     if (ss != SEC_E_OK)
-        return Twapi_AppendSystemError(ticP->interp, ss);
+        return Twapi_AppendSystemError(interp, ss);
 
     objs[0] = ObjFromByteArray(NULL, spc_sizes.cbMaxSignature);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
@@ -670,14 +673,14 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     ss = MakeSignature(&sech, qop, &sbd, seqnum);
     if (ss != SEC_E_OK) {
         int i;
-        Twapi_AppendSystemError(ticP->interp, ss);
+        Twapi_AppendSystemError(interp, ss);
         for (i=0; i < ARRAYSIZE(objs); ++i)
             Tcl_DecrRefCount(objs[i]);
     } else {
         int i;
         for (i=0; i < ARRAYSIZE(objs); ++i)
             Tcl_SetByteArrayLength(objs[i], sbufs[i].cbBuffer);
-        ObjSetResult(ticP->interp, ObjNewList(2, objs));
+        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
     }
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
@@ -735,10 +738,163 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         int i;
         for (i=0; i < ARRAYSIZE(objs); ++i)
             Tcl_SetByteArrayLength(objs[i], sbufs[i].cbBuffer);
-        ObjSetResult(ticP->interp, ObjNewList(3, objs));
+        ObjSetResult(ticP->interp, ObjNewList(ARRAYSIZE(objs), objs));
     }
 
     return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
+}
+
+
+static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    SecHandle sech;
+    ULONG qop;
+    SECURITY_STATUS ss;
+    SecPkgContext_StreamSizes sizes;
+    SecBuffer sbufs[4];
+    SecBufferDesc sbd;
+    Tcl_Obj *dataObj;
+    Tcl_Obj *objs[2];           /* 0 encrypted data, 1 leftover data */
+    char *dataP, *encP;
+    DWORD   datalen;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVAR(sech, ObjToSecHandle),
+                     GETINT(qop),
+                     GETOBJ(dataObj),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    ss = QueryContextAttributesW(&sech, SECPKG_ATTR_STREAM_SIZES, &sizes);
+    if (ss != SEC_E_OK)
+        return Twapi_AppendSystemError(interp, ss);
+
+    dataP = ObjToByteArray(dataObj, &datalen);
+    if (datalen > sizes.cbMaximumMessage) {
+        objs[1] = ObjFromByteArray(dataP+sizes.cbMaximumMessage,
+                                       datalen-sizes.cbMaximumMessage);
+        datalen = sizes.cbMaximumMessage;
+    } else
+        objs[1] = ObjFromEmptyString();
+
+    objs[0] = ObjFromByteArray(NULL, sizes.cbHeader + datalen + sizes.cbTrailer);
+    encP = ObjToByteArray(objs[0], NULL);
+    CopyMemory(encP + sizes.cbHeader, dataP, datalen);
+
+    sbufs[0].BufferType = SECBUFFER_STREAM_HEADER;
+    sbufs[0].pvBuffer   = encP;
+    sbufs[0].cbBuffer   = sizes.cbHeader;
+
+    sbufs[1].BufferType = SECBUFFER_DATA;
+    sbufs[1].pvBuffer   = encP + sizes.cbHeader;
+    sbufs[1].cbBuffer   = datalen;
+
+    sbufs[2].BufferType = SECBUFFER_STREAM_TRAILER;
+    sbufs[2].pvBuffer   = encP + sizes.cbHeader + datalen;
+    sbufs[2].cbBuffer   = sizes.cbTrailer;
+
+    sbufs[3].BufferType = SECBUFFER_EMPTY;
+    sbufs[3].pvBuffer   = NULL;
+    sbufs[3].cbBuffer   = 0;
+
+    sbd.cBuffers = 4;
+    sbd.pBuffers = sbufs;
+    sbd.ulVersion = SECBUFFER_VERSION;
+
+    ss = EncryptMessage(&sech, qop, &sbd, 0);
+    if (ss != SEC_E_OK) {
+        int i;
+        Twapi_AppendSystemError(interp, ss);
+        for (i=0; i < ARRAYSIZE(objs); ++i)
+            Tcl_DecrRefCount(objs[i]);
+    } else {
+        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
+    }
+
+    return ss == SEC_E_OK ? TCL_OK : TCL_ERROR;
+}
+
+
+static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    SecHandle sech;
+    SECURITY_STATUS ss;
+    SecBuffer sbufs[4];
+    SecBufferDesc sbd;
+    Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
+    char *encP;
+    int  i, enclen;
+    TCL_RESULT res;
+
+    CHECK_NARGS(interp, objc, 3);
+    if (ObjToSecHandle(interp, objv[1], &sech) != TCL_OK)
+        return TCL_ERROR;
+
+    encP = ObjToByteArray(objv[2], &enclen);
+
+    /* Note DecryptMessage decrypts in place so we cannot pass encP */
+    /* TBD - if objv[2] is not shared, can we directly decrypt in there 
+       instead of allocing from memlifo ? */
+
+    sbufs[0].BufferType = SECBUFFER_DATA;
+    sbufs[0].pvBuffer   = MemLifoPushFrame(&ticP->memlifo, enclen, NULL);
+    CopyMemory(sbufs[0].pvBuffer, encP, enclen);
+    sbufs[0].cbBuffer   = enclen;
+
+    for (i = 1; i < ARRAYSIZE(sbufs); ++i)
+        sbufs[i].BufferType = SECBUFFER_EMPTY;
+
+    sbd.cBuffers = 4;
+    sbd.pBuffers = sbufs;
+    sbd.ulVersion = SECBUFFER_VERSION;
+
+    ss = DecryptMessage(&sech, &sbd, 0, NULL);
+    switch (ss) {
+    case SEC_E_OK:
+    case SEC_I_CONTEXT_EXPIRED:
+    case SEC_I_RENEGOTIATE:
+        /* We do not know which of the output buffers 1-3 contain
+           decrypted data and extra data */
+        for (i = 1; i < ARRAYSIZE(sbufs); ++i) {
+            if (sbufs[i].BufferType == SECBUFFER_DATA)
+                break;
+        }
+        if (i < ARRAYSIZE(sbufs))
+            objs[1] = ObjFromByteArray(sbufs[i].pvBuffer, sbufs[i].cbBuffer);
+        else
+            objs[1] = ObjFromEmptyString();
+
+        for (i = 1; i < ARRAYSIZE(sbufs); ++i) {
+            if (sbufs[i].BufferType == SECBUFFER_EXTRA)
+                break;
+        }
+        if (i < ARRAYSIZE(sbufs))
+            objs[2] = ObjFromByteArray(sbufs[i].pvBuffer, sbufs[i].cbBuffer);
+        else
+            objs[2] = ObjFromEmptyString();
+        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
+
+        switch (ss) {
+        case SEC_E_OK:
+            objs[0] = STRING_LITERAL_OBJ("ok");
+            break;
+        case SEC_I_CONTEXT_EXPIRED:
+            ObjSetResult(interp, STRING_LITERAL_OBJ("expired"));
+            break;
+        case SEC_I_RENEGOTIATE:
+            ObjSetResult(interp, STRING_LITERAL_OBJ("renegotiate"));
+            break;
+        }
+        res = TCL_OK;
+        break;
+
+    default:
+        res = Twapi_AppendSystemError(ticP->interp, ss);
+        break;
+    }
+
+    MemLifoPopFrame(&ticP->memlifo);
+    return res;
 }
 
 static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -929,6 +1085,8 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(AcceptSecurityContext, Twapi_AcceptSecurityContextObjCmd),
         DEFINE_TCL_CMD(EncryptMessage, Twapi_EncryptMessageObjCmd),
         DEFINE_TCL_CMD(MakeSignature, Twapi_MakeSignatureObjCmd),
+        DEFINE_TCL_CMD(EncryptStream, Twapi_EncryptStreamObjCmd),
+        DEFINE_TCL_CMD(DecryptStream, Twapi_DecryptStreamObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(SspiDispatch), SspiDispatch, Twapi_SspiCallObjCmd);
