@@ -6,7 +6,23 @@
 
 namespace eval twapi {
 
-    # Holds SSPI security context handles
+
+    # Holds SSPI security contexts indexed by a handle
+    # Each element is a dict with the following keys:
+    #   State - state of the security context - see sspi_step
+    #   Handle - the Win32 SecHandle for the context
+    #   Input - Pending input from remote end to be passed in to
+    #    SSPI provider (only valid for streams)
+    #   Output - list of SecBuffers that contain data to be sent
+    #    to remote end during a SSPI negotiation
+    #   Inattr - requested context attributes
+    #   Outattr - context attributes returned from service provider
+    #    (currently not used)
+    #   Expiration - time when context will expire
+    #   Ctxtype - client, server
+    #   Target -
+    #   Datarep - data representation format
+    #   Credentials - handle for credentials to pass to sspi provider
     variable _sspi_state
     array set _sspi_state {}
 
@@ -22,6 +38,7 @@ namespace eval twapi {
             connection           0x800
             delegate             0x1
             extendederror        0x8000
+            identify             0x80000
             integrity            0x20000
             mutualauth           0x2
             replaydetect         0x4
@@ -35,6 +52,7 @@ namespace eval twapi {
             connection           0x800
             delegate             0x1
             extendederror        0x4000
+            identify             0x20000
             integrity            0x10000
             manualvalidation     0x80000
             mutualauth           0x2
@@ -119,7 +137,12 @@ proc twapi::sspi_credentials {args} {
         getexpiration
     } -maxleftover 0]
 
-    set creds [AcquireCredentialsHandle $opts(principal) $opts(package) \
+    set creds [AcquireCredentialsHandle $opts(principal) \
+                   [dictmap {
+                       unisp {Microsoft Unified Security Protocol Provider}
+                       ssl {Microsoft Unified Security Protocol Provider}
+                       tls {Microsoft Unified Security Protocol Provider}
+                   } $opts(package)] \
                    [kl_get {inbound 1 outbound 2 both 3} $opts(usage)] \
                    "" {}]
 
@@ -148,6 +171,7 @@ proc twapi::sspi_client_context {cred args} {
         connection.bool
         delegate.bool
         extendederror.bool
+        identify.bool
         integrity.bool
         manualvalidation.bool
         mutualauth.bool
@@ -200,7 +224,7 @@ proc twapi::sspi_close_context {ctx} {
 #   {done data newctx extradata}
 #   {continue data newctx extradata}
 interp alias {} twapi::sspi_security_context_next {} twapi::sspi_step
-proc twapi::sspi_step {ctx {response ""}} {
+proc twapi::sspi_step {ctx {received ""}} {
     variable _sspi_state
 
     _sspi_validate_handle $ctx
@@ -209,6 +233,9 @@ proc twapi::sspi_step {ctx {response ""}} {
         # Note the dictionary content variables are
         #   State, Handle, Output, Outattr, Expiration,
         #   Ctxtype, Inattr, Target, Datarep, Credentials
+
+        # Append new input to existing input
+        append Input $received
         switch -exact -- $State {
             ok {
                 # See if there is any data to send.
@@ -222,23 +249,21 @@ proc twapi::sspi_step {ctx {response ""}} {
                 set Output {}
                 # We return the context handle as third element for backwards
                 # compatibility reasons - TBD
-                # $response at this point contains left over input that is
-                # actually application data (streaming case). Application
-                # should pass this to decrypt commands
-                return [list done $data $ctx $response]
+                # $Input at this point contains left over input that is
+                # actually application data (streaming case).
+                # Application should pass this to decrypt commands
+                return [list done $data $ctx $Input[set Input ""]]
             }
             continue {
-                # See if there is any data to send.
-                # Either we are receiving response from the remote system
-                # or we have to send it data. Both cannot be empty
-                if {[string length $response] != 0} {
-                    # We are given a response. Pass it back in
-                    # to SSPI. Most providers take only the first
+                # Continue with the negotiation
+                if {[string length $Input] != 0} {
+                    # Pass in received data to SSPI.
+                    # Most providers take only the first buffer
                     # but SChannel/UNISP need the second. Since
                     # others don't seem to mind the second buffer
                     # we always include it
                     # 2 -> SECBUFFER_TOKEN, 0 -> SECBUFFER_EMPTY
-                    set inbuflist [list [list 2 $response] [list 0]]
+                    set inbuflist [list [list 2 $Input] [list 0]]
                     if {$Ctxtype eq "client"} {
                         set rawctx [InitializeSecurityContext \
                                         $Credentials \
@@ -259,9 +284,10 @@ proc twapi::sspi_step {ctx {response ""}} {
                     }
                     lassign $rawctx State Handle out Outattr Expiration extra
                     lappend Output {*}$out
+                    set Input $extra
                     # Will recurse at proc end
                 } else {
-                    # There was no response passed in. Return any data
+                    # There was no received data. Return any data
                     # to be sent to remote end
                     set data ""
                     foreach buf $Output {
@@ -271,10 +297,13 @@ proc twapi::sspi_step {ctx {response ""}} {
                     return [list continue $data $ctx ""]
                 }
             }
-            complete -
-            complete_and_continue -
-            incomplete_credentials -
             incomplete_message {
+                # Caller has to get more data from remote end
+                return [list continue "" $ctx ""]
+            }
+            incomplete_credentials -
+            complete -
+            complete_and_continue {
                 # TBD
                 error "State $State handling not implemented."
             }
@@ -285,7 +314,7 @@ proc twapi::sspi_step {ctx {response ""}} {
     # been processed.
     # This has to be OUTSIDE the [dict with] else it will not
     # see the updated values
-    return [sspi_step $ctx $extra]
+    return [sspi_step $ctx]
 }
 
 # Return a server context
@@ -300,6 +329,7 @@ proc twapi::sspi_server_context {cred clientdata args} {
         connection.bool
         delegate.bool
         extendederror.bool
+        identify.bool
         integrity.bool
         mutualauth.bool
         replaydetect.bool
@@ -472,14 +502,14 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
 proc twapi::_construct_sspi_security_context {id rawctx ctxtype inattr target credentials datarep} {
     variable _sspi_state
     
-    set _sspi_state($id) [twine \
-                                {State Handle Output Outattr Expiration} \
-                                $rawctx]
-    dict set _sspi_state($id) Ctxtype $ctxtype
-    dict set _sspi_state($id) Inattr $inattr
-    dict set _sspi_state($id) Target $target
-    dict set _sspi_state($id) Datarep $datarep
-    dict set _sspi_state($id) Credentials $credentials
+    set _sspi_state($id) [dict merge [dict create Ctxtype $ctxtype \
+                                          Inattr $inattr \
+                                          Target $target \
+                                          Datarep $datarep \
+                                          Credentials $credentials] \
+                              [twine \
+                                   {State Handle Output Outattr Expiration Input} \
+                                   $rawctx]]
 
     return $id
 }
