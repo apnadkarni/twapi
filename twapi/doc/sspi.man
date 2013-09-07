@@ -133,7 +133,11 @@ other servers as the client. Requires [cmd -mutualauth] to also
 be specified as [const true].
 
 [opt_def [cmd -extendederror] [arg BOOL]]
-When [const true], the remote end is notified of errors.
+When [const true], the remote end is notified of errors. Note that
+several Windows versions, including Windows 7, may experience SSL/TLS
+negotiation failures
+when this option is specified. See Microsoft Knowledgebase article KB975858
+for details.
 
 [opt_def [cmd -integrity] [arg BOOL]]
 If specified as [const true], messages are to be signed.
