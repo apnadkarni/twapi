@@ -929,7 +929,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
                        GETOBJ(authObj), ARGEND) != TCL_OK)
         goto vamoose;
 
-    if (WSTREQ(packageP, UNISP_NAME_W) == 0) {
+    if (WSTREQ(packageP, UNISP_NAME_W)) {
         if (ParseSCHANNEL_CRED(ticP, authObj, &(SCHANNEL_CRED *)pv) != TCL_OK)
             goto vamoose;
         is_unisp = 1;

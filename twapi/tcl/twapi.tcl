@@ -22,7 +22,7 @@ namespace eval twapi {
     # Following procs are used early in init process so defined here
 
     # Dict lookup, returns key if not in dict
-    proc dictk {d key} {
+    proc dictmap {d key} {
         if {[dict exists $d $key]} {
             return [dict get $d $key]
         } else {
