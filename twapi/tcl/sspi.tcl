@@ -110,7 +110,8 @@ proc twapi::sspi_enumerate_packages {args} {
 
 
 # Return sspi credentials
-proc twapi::sspi_new_credentials {args} {
+interp alias {} twapi::sspi_new_credentials {} twapi::sspi_credentials
+proc twapi::sspi_credentials {args} {
     array set opts [parseargs args {
         {principal.arg ""}
         {package.arg NTLM}
@@ -135,7 +136,8 @@ proc twapi::sspi_free_credentials {cred} {
 }
 
 # Return a client context
-proc ::twapi::sspi_client_new_context {cred args} {
+interp alias {} twapi::sspi_client_new_context {} twapi::sspi_client_context
+proc twapi::sspi_client_context {cred args} {
     _init_security_context_syms
     variable _client_security_context_syms
 
@@ -184,7 +186,7 @@ proc ::twapi::sspi_client_new_context {cred args} {
 }
 
 # Delete a security context
-proc twapi::sspi_close_security_context {ctx} {
+proc twapi::sspi_close_context {ctx} {
     variable _sspi_state
 
     _sspi_validate_handle $ctx
@@ -195,9 +197,10 @@ proc twapi::sspi_close_security_context {ctx} {
 
 # Take the next step in client side authentication
 # Returns
-#   {done data newctx}
-#   {continue data newctx}
-proc twapi::sspi_security_context_next {ctx {response ""}} {
+#   {done data newctx extradata}
+#   {continue data newctx extradata}
+interp alias {} twapi::sspi_security_context_next {} twapi::sspi_step
+proc twapi::sspi_step {ctx {response ""}} {
     variable _sspi_state
 
     _sspi_validate_handle $ctx
@@ -282,11 +285,12 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
     # been processed.
     # This has to be OUTSIDE the [dict with] else it will not
     # see the updated values
-    return [sspi_security_context_next $ctx $extra]
+    return [sspi_step $ctx $extra]
 }
 
 # Return a server context
-proc ::twapi::sspi_server_new_context {cred clientdata args} {
+interp alias {} twapi::sspi_server_new_context {} twapi::sspi_server_context
+proc twapi::sspi_server_context {cred clientdata args} {
     _init_security_context_syms
     variable _server_security_context_syms
 
@@ -329,7 +333,7 @@ proc ::twapi::sspi_server_new_context {cred clientdata args} {
 
 
 # Get the security context flags after completion of request
-proc ::twapi::sspi_get_security_context_features {ctx} {
+proc ::twapi::sspi_get_context_features {ctx} {
     variable _sspi_state
 
     _sspi_validate_handle $ctx
@@ -357,7 +361,7 @@ proc ::twapi::sspi_get_security_context_features {ctx} {
 }
 
 # Get the user name for a security context
-proc twapi::sspi_get_security_context_username {ctx} {
+proc twapi::sspi_get_context_username {ctx} {
     variable _sspi_state
     _sspi_validate_handle $ctx
     return [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 1]
@@ -365,7 +369,7 @@ proc twapi::sspi_get_security_context_username {ctx} {
 
 # Get the field size information for a security context
 # TBD - update for SSL
-proc twapi::sspi_get_security_context_sizes {ctx} {
+proc twapi::sspi_get_context_sizes {ctx} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 
@@ -374,7 +378,7 @@ proc twapi::sspi_get_security_context_sizes {ctx} {
 }
 
 # Returns a signature
-proc twapi::sspi_generate_signature {ctx data args} {
+proc twapi::sspi_sign {ctx data args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 
@@ -391,7 +395,7 @@ proc twapi::sspi_generate_signature {ctx data args} {
 }
 
 # Verify signature
-proc twapi::sspi_verify_signature {ctx sig data args} {
+proc twapi::sspi_verify {ctx sig data args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 

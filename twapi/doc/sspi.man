@@ -26,10 +26,10 @@ encrypting data passed between a client and a server.
 [section "SSPI security context establishment"]
 On the client side, the application program starts off by retrieving
 the credentials to be used to authenticate itself to the server by calling
-[uri \#sspi_new_credentials [cmd sspi_new_credentials]] with
+[uri \#sspi_credentials [cmd sspi_credentials]] with
 the [cmd -outbound] option. It then creates a new client security
 context by calling
-[uri \#sspi_client_new_context [cmd sspi_client_new_context]]
+[uri \#sspi_client_context [cmd sspi_client_context]]
 specifying appropriate desired security characteristics. The application
 then exchanges messages with the server to complete the authentication.
 
@@ -38,7 +38,7 @@ Depending on the security protocol in use, the authentication between
 the client and the server may require multiple message exchanges between
 the client and the server. Once it obtains its security context,
 the client calls
-[uri \#sspi_security_context_next [cmd sspi_security_context_next]]
+[uri \#sspi_step [cmd sspi_step]]
 passing it the security context. This command returns an indication
 of whether the authentication is complete, or more exchanges with the
 server are required. In the latter case, data returned by the command
@@ -52,14 +52,14 @@ the client and the server.
 [para]
 On the server side, the application program starts off by retrieving
 its own credentials by calling
-[uri \#sspi_new_credentials [cmd sspi_new_credentials]] with
+[uri \#sspi_credentials [cmd sspi_credentials]] with
 the [cmd -inbound]. It then creates a new server security
 context by calling
-[uri \#sspi_server_new_context [cmd sspi_server_new_context]]
+[uri \#sspi_server_context [cmd sspi_server_context]]
 passing it the authentication data sent by the client. The server
 then enters the authentication loop described below. From this point
 on, the server follows the authentication loop calling
-[uri \#sspi_security_context_next [cmd sspi_security_context_next]]
+[uri \#sspi_step [cmd sspi_step]]
 in the same manner as described above for the client.
 
 [para]
@@ -68,9 +68,9 @@ the server, its characteristics, including the negotiated parameters,
 security principal name etc. can be retrieved through
 commands
 [uri \#sspi_get_security_context_flags [cmd sspi_get_security_context_flags]],
-[uri \#sspi_get_security_context_username [cmd sspi_get_security_context_username]]
+[uri \#sspi_get_context_username [cmd sspi_get_context_username]]
 and
-[uri \#sspi_get_security_context_sizes [cmd sspi_get_security_context_sizes]].
+[uri \#sspi_get_context_sizes [cmd sspi_get_context_sizes]].
 
 
 
@@ -80,15 +80,15 @@ resources associated with their credentials by calling
 [uri \#sspi_free_credentials [cmd sspi_free_credentials]].
 Similarly, the security context should be released when
 no longer needed by calling
-[uri \#sspi_close_security_context [cmd sspi_close_security_context]].
+[uri \#sspi_close_context [cmd sspi_close_context]].
 
 
 [section "SSPI message signing and encryption"]
 Once a security context has been completely created as above, it
 can then be used to generate and verify messages signatures using
-[uri \#sspi_generate_signature [cmd sspi_generate_signature]]
+[uri \#sspi_sign [cmd sspi_sign]]
 and
-[uri \#sspi_verify_signature [cmd sspi_verify_signature]]
+[uri \#sspi_verify [cmd sspi_verify]]
 respectively.
 
 [para]
@@ -101,11 +101,11 @@ messages using
 
 [list_begin definitions]
 
-[call [cmd sspi_client_new_context] [arg CREDENTIALS] [opt [arg options]]]
+[call [cmd sspi_client_context] [arg CREDENTIALS] [opt [arg options]]]
 Initiates the building of a new client-side, security context from
 based on the specified credentials. [arg CREDENTIALS] is a
 handle to credentials returned by
-[uri #sspi_new_credentials [cmd sspi_new_credentials]].
+[uri #sspi_credentials [cmd sspi_credentials]].
 The returned value, which is a handle to a security context,
 should be treated as opaque by the caller
 and used as described in [sectref "SSPI security context establishment"].
@@ -167,12 +167,12 @@ If specified as [const true], a new session key must be negotiated.
 [nl]
 When a security context is no longer required, it should be released
 by calling
-[uri #sspi_close_security_context [cmd sspi_close_security_context]].
+[uri #sspi_close_context [cmd sspi_close_context]].
 
-[call [cmd sspi_close_security_context] [arg CONTEXT]]
+[call [cmd sspi_close_context] [arg CONTEXT]]
 Closes a security context constructed through
-[uri #sspi_client_new_context [cmd sspi_client_new_context]] or
-[uri #sspi_server_new_context [cmd sspi_server_new_context]] or
+[uri #sspi_client_context [cmd sspi_client_context]] or
+[uri #sspi_server_context [cmd sspi_server_context]] or
 and frees any associated resources.
 
 [call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
@@ -204,11 +204,11 @@ capabilties of the provider.
 
 
 
-[call [cmd sspi_generate_signature] [arg CONTEXT] [arg DATA] [opt [arg options]]]
+[call [cmd sspi_sign] [arg CONTEXT] [arg DATA] [opt [arg options]]]
 Generates a signature for [arg DATA] based on the supplied security context.
 Returns a list containing the generated signature and [arg DATA].
 
-[call [cmd sspi_get_security_context_features] [arg CONTEXT]]
+[call [cmd sspi_get_context_features] [arg CONTEXT]]
 After a security context is established, this command may be
 used to retrieve information about what security features were
 negotiated. The command returns a keyed list with boolean values
@@ -246,7 +246,7 @@ If [const true], indicates a stream oriented connection.
 
 [list_end]
 
-[call [cmd sspi_get_security_context_sizes] [arg CONTEXT]]
+[call [cmd sspi_get_context_sizes] [arg CONTEXT]]
 Returns a keyed list with the following fields:
 [list_begin opt]
 [opt_def [cmd -maxtoken]]
@@ -259,14 +259,14 @@ Messages should preferably be a multiple of this value.
 Size of security trailer to be appended to messages.
 [list_end]
 
-[call [cmd sspi_get_security_context_username] [arg CONTEXT]]
+[call [cmd sspi_get_context_username] [arg CONTEXT]]
 [emph TBD]
 
 [call [cmd sspi_free_credentials] arg CREDENTIALS]
 Frees resources associated with credentials returned by
-[uri \#sspi_new_credentials [cmd sspi_new_credentials]].
+[uri \#sspi_credentials [cmd sspi_credentials]].
 
-[call [cmd sspi_new_credentials] [opt [arg options]]]
+[call [cmd sspi_credentials] [opt [arg options]]]
 Returns credentials that can be used to negotiate and establish a
 security context. The command returns a handle to the credentials
 unless the [cmd -getexpiration] option is specified in which
@@ -303,7 +303,7 @@ The returned credentials must be freed by calling
 [uri \#sspi_free_credentials [cmd sspi_free_credentials]]
 when no longer needed.
 
-[call [cmd sspi_security_context_next] [arg CONTEXT] [opt [arg RESPONSE]]]
+[call [cmd sspi_step] [arg CONTEXT] [opt [arg RESPONSE]]]
 Depending on the security provider in use, building a security context
 may require negotiation with multiple message exchanges between
 the client and server. This command
@@ -314,10 +314,10 @@ for an overview of this process.
 [nl]
 [arg CONTEXT] contains the security context being built. This is the return
 value from
-[uri #sspi_client_new_context [cmd sspi_client_new_context]],
-[uri #sspi_server_new_context [cmd sspi_server_new_context]] or
+[uri #sspi_client_context [cmd sspi_client_context]],
+[uri #sspi_server_context [cmd sspi_server_context]] or
 from a previous call to
-[uri #sspi_security_context_next [cmd sspi_security_context_next]].
+[uri #sspi_step [cmd sspi_step]].
 
 [nl]
 The command returns a list containing three elements. The first element
@@ -327,7 +327,7 @@ negotiation is required. In both cases, if the second element of the returned
 list is not an empty string, it contains data to be sent to the remote end to
 either complete or continue the negotiation. The application should keep
 calling
-[uri #sspi_security_context_next [cmd sspi_security_context_next]]
+[uri #sspi_step [cmd sspi_step]]
 until it returns [const done] as the first element of the returned list.
 Finally, the third element of the returned list contains the updated
 context. Callers should pass this in as [arg CONTEXT] in the next call
@@ -337,13 +337,13 @@ to the command.
 The command will raise a Tcl exception if the security context negotiation
 fails for any reason, including authentication failures.
 
-[call [cmd sspi_server_new_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
+[call [cmd sspi_server_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
 
 Initiates the building of a new server-side, security context from
 based on the specified credentials and security data received from
 the client. [arg CREDENTIALS] is a
 handle to credentials returned by
-[uri #sspi_new_credentials [cmd sspi_new_credentials]].
+[uri #sspi_credentials [cmd sspi_credentials]].
 The returned value, which is a handle to a security context,
 should be treated as opaque by the caller
 and used as described in [sectref "SSPI security context establishment"].
@@ -394,9 +394,9 @@ If specified as [const true], indicates a stream oriented connection.
 [nl]
 When a security context is no longer required, it should be released
 by calling
-[uri #sspi_close_security_context [cmd sspi_close_security_context]].
+[uri #sspi_close_context [cmd sspi_close_context]].
 
-[call [cmd sspi_verify_signature] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
+[call [cmd sspi_verify] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
 Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
 is valid. Generates a Tcl error if the signature is not valid else
 returns an integer mask that indicates the level of protection (provider
