@@ -4,15 +4,6 @@
 #
 # See the file LICENSE for license
 
-if {0} {
-TBD - from curl -
-schannel: Removed extended error connection setup flag
-According KB975858 this flag may cause problems on Windows 7 and
-Windows Server 2008 R2 systems. Extended error information is not
-currently used by libcurl and therefore not a requirement.
-
-}
-
 namespace eval twapi {
 
     # Holds SSPI security context handles
@@ -23,6 +14,7 @@ namespace eval twapi {
         variable _server_security_context_syms
         variable _client_security_context_syms
         variable _secpkg_capability_syms
+
 
         # Symbols used for mapping server security context flags
         array set _server_security_context_syms {
@@ -216,10 +208,6 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
         #   Ctxtype, Inattr, Target, Datarep, Credentials
         switch -exact -- $State {
             ok {
-                # Should not be passed remote response data in this state
-                if {[string length $response]} {
-                    error "Unexpected remote response data passed."
-                }
                 # See if there is any data to send.
                 set data ""
                 foreach buf $Output {
@@ -231,21 +219,23 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
                 set Output {}
                 # We return the context handle as third element for backwards
                 # compatibility reasons - TBD
-                return [list done $data $ctx]
+                # $response at this point contains left over input that is
+                # actually application data (streaming case). Application
+                # should pass this to decrypt commands
+                return [list done $data $ctx $response]
             }
             continue {
                 # See if there is any data to send.
-                set data ""
-                foreach buf $Output {
-                    append data [lindex $buf 1]
-                }
                 # Either we are receiving response from the remote system
                 # or we have to send it data. Both cannot be empty
                 if {[string length $response] != 0} {
                     # We are given a response. Pass it back in
-                    # to SSPI.
-                    # "2" buffer type is SECBUFFER_TOKEN
-                    set inbuflist [list [list 2 $response]]
+                    # to SSPI. Most providers take only the first
+                    # but SChannel/UNISP need the second. Since
+                    # others don't seem to mind the second buffer
+                    # we always include it
+                    # 2 -> SECBUFFER_TOKEN, 0 -> SECBUFFER_EMPTY
+                    set inbuflist [list [list 2 $response] [list 0]]
                     if {$Ctxtype eq "client"} {
                         set rawctx [InitializeSecurityContext \
                                         $Credentials \
@@ -264,20 +254,23 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
                                         $Inattr \
                                         $Datarep]
                     }
-                    lassign $rawctx State Handle Output Outattr Expiration
+                    lassign $rawctx State Handle out Outattr Expiration extra
+                    lappend Output {*}$out
                     # Will recurse at proc end
-                } elseif {[string length $data] != 0} {
-                    # We have to send data to the remote system and await its
-                    # response. Reset output buffers to empty
-                    set Output {}
-                    return [list continue $data $ctx]
                 } else {
-                    # TBD - is this really an error ?
-                    error "No token data available to send to remote system (SSPI context $ctx)"
+                    # There was no response passed in. Return any data
+                    # to be sent to remote end
+                    set data ""
+                    foreach buf $Output {
+                        append data [lindex $buf 1]
+                    }
+                    set Output {}
+                    return [list continue $data $ctx ""]
                 }
             }
             complete -
             complete_and_continue -
+            incomplete_credentials -
             incomplete_message {
                 # TBD
                 error "State $State handling not implemented."
@@ -285,10 +278,11 @@ proc twapi::sspi_security_context_next {ctx {response ""}} {
         }
     }
 
-    # Recurse to return next state
-    # Note this has to be OUTSIDE the [dict with] else it will not
+    # Recurse to return next state. $extra contains data that has not
+    # been processed.
+    # This has to be OUTSIDE the [dict with] else it will not
     # see the updated values
-    return [sspi_security_context_next $ctx]
+    return [sspi_security_context_next $ctx $extra]
 }
 
 # Return a server context
