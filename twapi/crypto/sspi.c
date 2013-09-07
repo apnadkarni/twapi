@@ -103,8 +103,8 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
 
     sbdP->pBuffers = TwapiAlloc(objc*sizeof(SecBuffer));
     
-    /* Each element of the list is a SecBuffer consisting of a pair
-     * containing the integer type and the data itself
+    /* Each element of the list is a SecBuffer consisting of the
+     * integer type and optionally the data itself
      */
     for (i=0; i < objc; ++i) {
         Tcl_Obj **bufobjv;
@@ -114,19 +114,24 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
         char     *dataP;
         if (ObjGetElements(interp, objv[i], &bufobjc, &bufobjv) != TCL_OK)
             return TCL_ERROR;
-        if (bufobjc != 2 ||
+        if ((bufobjc != 1 && bufobjc != 2) ||
             Tcl_GetIntFromObj(interp, bufobjv[0], &buftype) != TCL_OK) {
             ObjSetStaticResult(interp, "Invalid SecBuffer format");
             goto handle_error;
         }
-        dataP = ObjToByteArray(bufobjv[1], &datalen);
-        sbdP->pBuffers[i].pvBuffer = TwapiAlloc(datalen);
+        if (bufobjc == 2) {
+            dataP = ObjToByteArray(bufobjv[1], &datalen);
+            sbdP->pBuffers[i].pvBuffer = TwapiAlloc(datalen);
+            sbdP->pBuffers[i].cbBuffer = datalen;
+            CopyMemory(sbdP->pBuffers[i].pvBuffer, dataP, datalen);
+        } else {
+            sbdP->pBuffers[i].pvBuffer = NULL;
+            sbdP->pBuffers[i].cbBuffer = 0;
+        }
         sbdP->cBuffers++;
-        sbdP->pBuffers[i].cbBuffer = datalen;
         if (readonly)
             buftype |= SECBUFFER_READONLY;
         sbdP->pBuffers[i].BufferType = buftype;
-        CopyMemory(sbdP->pBuffers[i].pvBuffer, dataP, datalen);
     }
 
     return TCL_OK;
