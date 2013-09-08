@@ -212,10 +212,7 @@ proc twapi::sspi_client_context {cred args} {
 # Delete a security context
 proc twapi::sspi_close_context {ctx} {
     variable _sspi_state
-
-    _sspi_validate_handle $ctx
-    
-    DeleteSecurityContext [dict get $_sspi_state($ctx) Handle]
+    DeleteSecurityContext [_sspi_context_handle $ctx]
     unset _sspi_state($ctx)
 }
 
@@ -366,13 +363,13 @@ proc twapi::sspi_server_context {cred clientdata args} {
 proc ::twapi::sspi_get_context_features {ctx} {
     variable _sspi_state
 
-    _sspi_validate_handle $ctx
+    set ctxh [_sspi_context_handle $ctx]
 
     _init_security_context_syms
 
     # We could directly look in the context itself but intead we make
     # an explicit call, just in case they change after initial setup
-    set flags [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 14]
+    set flags [QueryContextAttributes $ctxh 14]
 
         # Mapping of symbols depends on whether it is a client or server
         # context
@@ -392,33 +389,25 @@ proc ::twapi::sspi_get_context_features {ctx} {
 
 # Get the user name for a security context
 proc twapi::sspi_get_context_username {ctx} {
-    variable _sspi_state
-    _sspi_validate_handle $ctx
-    return [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 1]
+    return [QueryContextAttributes [_sspi_context_handle $ctx] 1]
 }
 
 # Get the field size information for a security context
 # TBD - update for SSL
 proc twapi::sspi_get_context_sizes {ctx} {
-    variable _sspi_state
-    _sspi_validate_handle $ctx
-
-    set sizes [QueryContextAttributes [dict get $_sspi_state($ctx) Handle] 0]
+    set sizes [QueryContextAttributes [_sspi_context_handle $ctx] 0]
     return [twine {-maxtoken -maxsig -blocksize -trailersize} $sizes]
 }
 
 # Returns a signature
 proc twapi::sspi_sign {ctx data args} {
-    variable _sspi_state
-    _sspi_validate_handle $ctx
-
     array set opts [parseargs args {
         {seqnum.int 0}
         {qop.int 0}
     } -maxleftover 0]
 
     return [MakeSignature \
-                [dict get $_sspi_state($ctx) Handle] \
+                [_sspi_context_handle $ctx] \
                 $opts(qop) \
                 $data \
                 $opts(seqnum)]
@@ -426,16 +415,13 @@ proc twapi::sspi_sign {ctx data args} {
 
 # Verify signature
 proc twapi::sspi_verify {ctx sig data args} {
-    variable _sspi_state
-    _sspi_validate_handle $ctx
-
     array set opts [parseargs args {
         {seqnum.int 0}
     } -maxleftover 0]
 
     # Buffer type 2 - Token, 1- Data
     return [VerifySignature \
-                [dict get $_sspi_state($ctx) Handle] \
+                [_sspi_context_handle $ctx] \
                 [list [list 2 $sig] [list 1 $data]] \
                 $opts(seqnum)]
 }
@@ -443,20 +429,36 @@ proc twapi::sspi_verify {ctx sig data args} {
 # Encrypts a data as per a context
 # Returns {securitytrailer encrypteddata padding}
 proc twapi::sspi_encrypt {ctx data args} {
-    variable _sspi_state
-    _sspi_validate_handle $ctx
-
     array set opts [parseargs args {
         {seqnum.int 0}
         {qop.int 0}
     } -maxleftover 0]
 
     return [EncryptMessage \
-                [dict get $_sspi_state($ctx) Handle] \
+                [_sspi_context_handle $ctx] \
                 $opts(qop) \
                 $data \
                 $opts(seqnum)]
 }
+
+proc twapi::sspi_encrypt_stream {ctx data args} {
+    variable _sspi_state
+    
+    set h [_sspi_context_handle $ctx]
+
+    array set opts [parseargs args {
+        {qop.int 0}
+    } -maxleftover 0]
+
+    set enc ""
+    while {[string length $data]} {
+        lassign [EncryptStream $h $opts(qop) $data] fragment data
+        append enc $fragment
+    }
+
+    return $enc
+}
+
 
 # Decrypts a message
 proc twapi::sspi_decrypt {ctx sig data padding args} {
@@ -492,6 +494,13 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
     }
 }
 
+# Decrypts a stream
+proc twapi::sspi_decrypt_stream {ctx data} {
+    variable _sspi_state
+    _sspi_validate_handle $ctx
+
+    return [DecryptStream [_sspi_context_handle $ctx] $data]
+}
 
 ################################################################
 # Utility procs
@@ -520,4 +529,14 @@ proc twapi::_sspi_validate_handle {ctx} {
     if {![info exists _sspi_state($ctx)]} {
         badargs! "Invalid SSPI security context handle $ctx" 3
     }
+}
+
+proc twapi::_sspi_context_handle {ctx} {
+    variable _sspi_state
+
+    if {![info exists _sspi_state($ctx)]} {
+        badargs! "Invalid SSPI security context handle $ctx" 3
+    }
+
+    return [dict get $_sspi_state($ctx) Handle]
 }

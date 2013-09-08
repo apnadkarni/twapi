@@ -857,11 +857,21 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 
     ss = DecryptMessage(&sech, &sbd, 0, NULL);
     switch (ss) {
+    case SEC_E_INCOMPLETE_MESSAGE:
+        objs[0] = STRING_LITERAL_OBJ("incomplete_message");
+        objs[1] = ObjFromEmptyString();
+        objs[2] = objv[2];      /* Return input as the incomplete fragment */
+        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
+        res = TCL_OK;
+        break;
+
     case SEC_E_OK:
     case SEC_I_CONTEXT_EXPIRED:
     case SEC_I_RENEGOTIATE:
         /* We do not know which of the output buffers 1-3 contain
-           decrypted data and extra data */
+         * decrypted data and extra data
+         * TBD - Is handling of context_expired and renegoitate correct ?
+        */
         for (i = 1; i < ARRAYSIZE(sbufs); ++i) {
             if (sbufs[i].BufferType == SECBUFFER_DATA)
                 break;
@@ -879,19 +889,19 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
             objs[2] = ObjFromByteArray(sbufs[i].pvBuffer, sbufs[i].cbBuffer);
         else
             objs[2] = ObjFromEmptyString();
-        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
 
         switch (ss) {
         case SEC_E_OK:
             objs[0] = STRING_LITERAL_OBJ("ok");
             break;
         case SEC_I_CONTEXT_EXPIRED:
-            ObjSetResult(interp, STRING_LITERAL_OBJ("expired"));
+            objs[0] = STRING_LITERAL_OBJ("expired");
             break;
         case SEC_I_RENEGOTIATE:
-            ObjSetResult(interp, STRING_LITERAL_OBJ("renegotiate"));
+            objs[0] = STRING_LITERAL_OBJ("renegotiate");
             break;
         }
+        ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
         res = TCL_OK;
         break;
 
