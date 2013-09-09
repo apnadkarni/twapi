@@ -273,12 +273,16 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     case SEC_E_INCOMPLETE_MESSAGE:
         objs[0] = STRING_LITERAL_OBJ("incomplete_message");
         break;
+    case SEC_I_CONTEXT_EXPIRED:
+        objs[0] = STRING_LITERAL_OBJ("expired");
+        break;
     default:
         TwapiFreeSecBufferDesc(sbd_inP);
         Twapi_AppendSystemError(interp, status);
         return TCL_ERROR;
     }
 
+    /* TBD - check if below is valid for ALL status values */
     objs[1] = ObjFromSecHandle(&new_context);
     objs[2] = ObjFromSecBufferDesc(&sbd_out);
     objs[3] = ObjFromLong(new_context_attr);
@@ -378,12 +382,16 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     case SEC_E_INCOMPLETE_MESSAGE:
         objs[0] = STRING_LITERAL_OBJ("incomplete_message");
         break;
+    case SEC_I_CONTEXT_EXPIRED:
+        objs[0] = STRING_LITERAL_OBJ("expired");
+        break;
     default:
         Twapi_AppendSystemError(interp, status);
         TwapiFreeSecBufferDesc(sbd_inP);
         return TCL_ERROR;
     }
 
+    /* TBD - check if below is valid for all status */
     objs[1] = ObjFromSecHandle(&new_context);
     objs[2] = ObjFromSecBufferDesc(&sbd_out);
     objs[3] = ObjFromLong(new_context_attr);
@@ -546,11 +554,12 @@ int Twapi_QueryContextAttributes(
         SecPkgContext_StreamSizes    streamsizes;
         SecPkgContext_NativeNamesW   nativenames;
         SecPkgContext_PasswordExpiry passwordexpiry;
+        SecPkgContext_PackageInfoW pkginfo;
         CERT_CONTEXT *certP;
     } param;
     SECURITY_STATUS ss;
     Tcl_Obj *obj;
-    Tcl_Obj *objv[5];
+    Tcl_Obj *objs[6];
 
     buf = NULL;
     obj = NULL;
@@ -563,6 +572,7 @@ int Twapi_QueryContextAttributes(
     case SECPKG_ATTR_NAMES:
     case SECPKG_ATTR_NATIVE_NAMES:
     case SECPKG_ATTR_PASSWORD_EXPIRY:
+    case SECPKG_ATTR_PACKAGE_INFO:
     case SECPKG_ATTR_LOCAL_CERT_CONTEXT:
     case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
         ss = QueryContextAttributesW(ctxP, attr, &param);
@@ -577,24 +587,24 @@ int Twapi_QueryContextAttributes(
                 obj = ObjFromLong(param.flags.Flags);
                 break;
             case SECPKG_ATTR_SIZES:
-                objv[0] = ObjFromLong(param.sizes.cbMaxToken);
-                objv[1] = ObjFromLong(param.sizes.cbMaxSignature);
-                objv[2] = ObjFromLong(param.sizes.cbBlockSize);
-                objv[3] = ObjFromLong(param.sizes.cbSecurityTrailer);
-                obj = ObjNewList(4, objv);
+                objs[0] = ObjFromLong(param.sizes.cbMaxToken);
+                objs[1] = ObjFromLong(param.sizes.cbMaxSignature);
+                objs[2] = ObjFromLong(param.sizes.cbBlockSize);
+                objs[3] = ObjFromLong(param.sizes.cbSecurityTrailer);
+                obj = ObjNewList(4, objs);
                 break;
             case SECPKG_ATTR_STREAM_SIZES:
-                objv[0] = ObjFromLong(param.streamsizes.cbHeader);
-                objv[1] = ObjFromLong(param.streamsizes.cbTrailer);
-                objv[2] = ObjFromLong(param.streamsizes.cbMaximumMessage);
-                objv[3] = ObjFromLong(param.streamsizes.cBuffers);
-                objv[4] = ObjFromLong(param.streamsizes.cbBlockSize);
-                obj = ObjNewList(5, objv);
+                objs[0] = ObjFromLong(param.streamsizes.cbHeader);
+                objs[1] = ObjFromLong(param.streamsizes.cbTrailer);
+                objs[2] = ObjFromLong(param.streamsizes.cbMaximumMessage);
+                objs[3] = ObjFromLong(param.streamsizes.cBuffers);
+                objs[4] = ObjFromLong(param.streamsizes.cbBlockSize);
+                obj = ObjNewList(5, objs);
                 break;
             case SECPKG_ATTR_LIFESPAN:
-                objv[0] = ObjFromWideInt(param.lifespan.tsStart.QuadPart);
-                objv[1] = ObjFromWideInt(param.lifespan.tsExpiry.QuadPart);
-                obj = ObjNewList(2, objv);
+                objs[0] = ObjFromWideInt(param.lifespan.tsStart.QuadPart);
+                objs[1] = ObjFromWideInt(param.lifespan.tsExpiry.QuadPart);
+                obj = ObjNewList(2, objs);
                 break;
             case SECPKG_ATTR_NAMES:
                 buf = param.names.sUserName; /* Freed later */
@@ -602,9 +612,9 @@ int Twapi_QueryContextAttributes(
                     obj = ObjFromUnicode(buf);
                 break;
             case SECPKG_ATTR_NATIVE_NAMES:
-                objv[0] = ObjFromUnicode(param.nativenames.sClientName ? param.nativenames.sClientName : L"");
-                objv[1] = ObjFromUnicode(param.nativenames.sServerName ? param.nativenames.sServerName : L"");
-                obj = ObjNewList(2, objv);
+                objs[0] = ObjFromUnicode(param.nativenames.sClientName ? param.nativenames.sClientName : L"");
+                objs[1] = ObjFromUnicode(param.nativenames.sServerName ? param.nativenames.sServerName : L"");
+                obj = ObjNewList(2, objs);
                 if (param.nativenames.sClientName)
                     FreeContextBuffer(param.nativenames.sClientName);
                 if (param.nativenames.sServerName)
@@ -612,6 +622,18 @@ int Twapi_QueryContextAttributes(
                 break;
             case SECPKG_ATTR_PASSWORD_EXPIRY:
                 obj = ObjFromWideInt(param.passwordexpiry.tsPasswordExpires.QuadPart);
+                break;
+            case SECPKG_ATTR_PACKAGE_INFO:
+                buf = param.pkginfo.PackageInfo; /* So it can be freed */
+                if (param.pkginfo.PackageInfo) {
+                    objs[0] = ObjFromULONG(param.pkginfo.PackageInfo->fCapabilities);
+                    objs[1] = ObjFromInt(param.pkginfo.PackageInfo->wVersion);
+                    objs[2] = ObjFromInt(param.pkginfo.PackageInfo->wRPCID);
+                    objs[3] = ObjFromULONG(param.pkginfo.PackageInfo->cbMaxToken);
+                    objs[4] = ObjFromUnicode(param.pkginfo.PackageInfo->Name);
+                    objs[5] = ObjFromUnicode(param.pkginfo.PackageInfo->Comment);
+                    obj = ObjNewList(6, objs);
+                }
                 break;
             case SECPKG_ATTR_LOCAL_CERT_CONTEXT: /* FALLTHRU */
             case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
@@ -623,7 +645,7 @@ int Twapi_QueryContextAttributes(
         break;
         
     default:
-        ObjSetStaticResult(interp, "Unsupported QuerySecurityContext attribute id");
+        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
     }
 
     if (buf)
@@ -982,6 +1004,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     TwapiResult result;
     DWORD dw, dw2;
     SecHandle sech;
+    SecBuffer sb;
     SecBufferDesc sbd, *sbdP;
     int func = PtrToInt(clientdata);
 
@@ -1025,6 +1048,17 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         case 104: // ImpersonateSecurityContext
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = ImpersonateSecurityContext(&sech);
+            break;
+        case 105: // Twapi_ApplyControlToken_SCHANNEL_SHUTDOWN
+            dw = SCHANNEL_SHUTDOWN;
+            sb.pvBuffer = &dw;
+            sb.BufferType = SECBUFFER_TOKEN;
+            sb.cbBuffer = sizeof(dw);
+            sbd.cBuffers = 1;
+            sbd.pBuffers = &sb;
+            sbd.ulVersion = SECBUFFER_VERSION;
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            result.value.ival = ApplyControlToken(&sech, &sbd);
             break;
         }
     } else {
@@ -1091,6 +1125,7 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FreeCredentialsHandle, 102),
         DEFINE_FNCODE_CMD(DeleteSecurityContext, 103),
         DEFINE_FNCODE_CMD(ImpersonateSecurityContext, 104),
+        DEFINE_FNCODE_CMD(Twapi_ApplyControlToken_SCHANNEL_SHUTDOWN, 105),
         DEFINE_FNCODE_CMD(QueryContextAttributes, 10023),
         DEFINE_FNCODE_CMD(VerifySignature, 10024),
         DEFINE_FNCODE_CMD(DecryptMessage, 10025),

@@ -54,15 +54,15 @@ namespace eval twapi::crypto::test {
         test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
             encrypt_test $cctx $sctx
         } -cleanup {
-            twapi::sspi_close_context $sctx
-            twapi::sspi_close_context $cctx
+            twapi::sspi_delete_context $sctx
+            twapi::sspi_delete_context $cctx
         } -result 1
 
         test encrypt-${pkg}-1.1 "Verify basic encryption and decryption without seq num - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
             encrypt_test_noseq $cctx $sctx
         } -cleanup {
-            twapi::sspi_close_context $sctx
-            twapi::sspi_close_context $cctx
+            twapi::sspi_delete_context $sctx
+            twapi::sspi_delete_context $cctx
         } -result 1
     }
 
@@ -77,8 +77,8 @@ namespace eval twapi::crypto::test {
         set flags2 [twapi::sspi_verify $sctx $sig $data]
         list [string is integer -strict $flags1] [string is integer -strict $flags2]
     } -cleanup {
-        twapi::sspi_close_context $sctx
-        twapi::sspi_close_context $cctx
+        twapi::sspi_delete_context $sctx
+        twapi::sspi_delete_context $cctx
     } -result [list 1 1]
         
     test sspi_enumerate_packages-1.0 {
