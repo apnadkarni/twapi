@@ -71,7 +71,7 @@ commands
 [uri \#sspi_get_context_username [cmd sspi_get_context_username]]
 and
 [uri \#sspi_get_context_sizes [cmd sspi_get_context_sizes]].
-
+These commands are not supported by all security providers.
 
 
 [para]
@@ -80,7 +80,7 @@ resources associated with their credentials by calling
 [uri \#sspi_free_credentials [cmd sspi_free_credentials]].
 Similarly, the security context should be released when
 no longer needed by calling
-[uri \#sspi_close_context [cmd sspi_close_context]].
+[uri \#sspi_delete_context [cmd sspi_delete_context]].
 
 
 [section "SSPI message signing and encryption"]
@@ -167,9 +167,9 @@ If specified as [const true], a new session key must be negotiated.
 [nl]
 When a security context is no longer required, it should be released
 by calling
-[uri #sspi_close_context [cmd sspi_close_context]].
+[uri #sspi_delete_context [cmd sspi_delete_context]].
 
-[call [cmd sspi_close_context] [arg CONTEXT]]
+[call [cmd sspi_delete_context] [arg CONTEXT]]
 Closes a security context constructed through
 [uri #sspi_client_context [cmd sspi_client_context]] or
 [uri #sspi_server_context [cmd sspi_server_context]] or
@@ -312,26 +312,36 @@ exchange is required. See [sectref "SSPI security context establishment"]
 for an overview of this process.
 
 [nl]
-[arg CONTEXT] contains the security context being built. This is the return
-value from
-[uri #sspi_client_context [cmd sspi_client_context]],
-[uri #sspi_server_context [cmd sspi_server_context]] or
-from a previous call to
-[uri #sspi_step [cmd sspi_step]].
+[arg CONTEXT] is a handle to the security context being built.
+This is the return value from
+[uri #sspi_client_context [cmd sspi_client_context]] or
+[uri #sspi_server_context [cmd sspi_server_context]].
 
 [nl]
 The command returns a list containing three elements. The first element
-is either [const done], indicating that building of the security context
-was successfully completed, or [const continue], indicating that additional
-negotiation is required. In both cases, if the second element of the returned
-list is not an empty string, it contains data to be sent to the remote end to
-either complete or continue the negotiation. The application should keep
-calling
-[uri #sspi_step [cmd sspi_step]]
-until it returns [const done] as the first element of the returned list.
-Finally, the third element of the returned list contains the updated
-context. Callers should pass this in as [arg CONTEXT] in the next call
-to the command.
+may be one of the following values:
+[list_begin opt]
+[opt_def [const done]]
+Indicates that the security context negotiation is completed.
+The application can use it for cryptographic operations such as signing
+or encryption.
+[opt_def [const continue]]
+The security context negotiation is in progress. Additional steps are
+required in the negotiation process and [cmd sspi_step] must be
+called again with additional data received from the remote end.
+[opt_def [const disconnected]]
+The negotiation is terminated and cannot be used for cryptographic
+operations. Caller should delete the context using
+[uri #sspi_delete_context [cmd sspi_delete_context]].
+[list_end]
+If the second element of the returned
+list is not an empty string, it contains data that must be sent to the
+remote end. This is true for [emph "all three cases"] above.
+[nl]
+Finally, the third element of the returned list contains leftover
+application data after negotiation is complete. If not empty,
+it must be passed to the decryption commands. This is for
+stream oriented contexts only (like SSL/TLS).
 
 [nl]
 The command will raise a Tcl exception if the security context negotiation
@@ -394,7 +404,7 @@ If specified as [const true], indicates a stream oriented connection.
 [nl]
 When a security context is no longer required, it should be released
 by calling
-[uri #sspi_close_context [cmd sspi_close_context]].
+[uri #sspi_delete_context [cmd sspi_delete_context]].
 
 [call [cmd sspi_verify] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
 Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
