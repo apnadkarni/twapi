@@ -13,14 +13,14 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
 proc setup_contexts {package} {
-    set ccred [twapi::sspi_credentials -usage outbound -package $package]
-    set scred [twapi::sspi_credentials -usage inbound -package $package]
+    set ccred [twapi::sspi_credentials -direction outbound -package $package]
+    set scred [twapi::sspi_credentials -direction inbound -package $package]
     set cctx [twapi::sspi_client_context $ccred -target LUNA -confidentiality true -connection true]
-    foreach {step data cctx} [twapi::sspi_step $cctx] break
+    lassign [twapi::sspi_step $cctx] step data extra
     set sctx [twapi::sspi_server_context $scred $data]
-    foreach {step data sctx} [twapi::sspi_step $sctx] break
-    foreach {step data cctx} [twapi::sspi_step $cctx $data] break
-    foreach {step data sctx} [twapi::sspi_step $sctx $data] break
+    lassign [twapi::sspi_step $sctx] step data extra
+    lassign [twapi::sspi_step $cctx $data] step data extra
+    lassign [twapi::sspi_step $sctx $data] step data extra
     twapi::sspi_free_credentials $scred
     twapi::sspi_free_credentials $ccred
     return [list $cctx $sctx]
