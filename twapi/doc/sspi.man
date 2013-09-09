@@ -292,7 +292,7 @@ security packages on a system can be obtained through
 Specifies the name of the principal whose credentials are to be
 referenced. By default, this is the user account under which
 the process is running.
-[opt_def [cmd -usage] [arg DIRECTION]]
+[opt_def [cmd -direction] [arg DIRECTION]]
 Indicates how the credentials will be used, based on [arg DIRECTION] -
 [const inbound], [const outbound] or [const both] (default).
 
@@ -340,7 +340,7 @@ remote end. This is true for [emph "all three cases"] above.
 [nl]
 Finally, the third element of the returned list contains leftover
 application data after negotiation is complete. If not empty,
-it must be passed to the decryption commands. This is for
+it must be passed to the decryption commands. This occurs for
 stream oriented contexts only (like SSL/TLS).
 
 [nl]
