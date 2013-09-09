@@ -20,6 +20,12 @@ and run-time performance.
 Added [uri crypto.html CryptoAPI] support for creation and manipulation
 of certificates and certificate stores.
 
+[bullet] [emph "INCOMPATIBILITY"]
+The experimental 
+[uri sspi.html SSPI] interface has been completely redone (post 4.0b23)
+and commands in older versions are no longer present.
+Enhancements include support for stream interfaces and SSL/TLS.
+
 [bullet]
 Added [uri base.html#read_credentials [cmd read_credentials]],
 [uri base.html#credentials_dialog [cmd credentials_dialog]],

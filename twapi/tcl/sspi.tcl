@@ -128,7 +128,6 @@ proc twapi::sspi_enumerate_packages {args} {
 
 
 # Return sspi credentials
-interp alias {} twapi::sspi_new_credentials {} twapi::sspi_credentials
 proc twapi::sspi_credentials {args} {
     array set opts [parseargs args {
         {principal.arg ""}
@@ -159,7 +158,6 @@ proc twapi::sspi_free_credentials {cred} {
 }
 
 # Return a client context
-interp alias {} twapi::sspi_client_new_context {} twapi::sspi_client_context
 proc twapi::sspi_client_context {cred args} {
     _init_security_context_syms
     variable _client_security_context_syms
@@ -210,17 +208,59 @@ proc twapi::sspi_client_context {cred args} {
 }
 
 # Delete a security context
-proc twapi::sspi_close_context {ctx} {
+proc twapi::sspi_delete_context {ctx} {
     variable _sspi_state
     DeleteSecurityContext [_sspi_context_handle $ctx]
     unset _sspi_state($ctx)
+}
+
+# Shuts down a security context in orderly fashion
+# Caller should start sspi_step
+proc twapi::sspi_close_context {ctx} {
+    variable _sspi_state
+
+    _sspi_context_handle $ctx;  # Verify handle
+    dict with _sspi_state($ctx) {
+        switch -nocase -- [lindex [QueryContextAttributes $Handle 10] 4] {
+            schannel - 
+            "Microsoft Unified Security Protocol Provider" {}
+            default { return }
+        }
+
+        # Signal to security provider we want to shutdown
+        Twapi_ApplyControlToken_SCHANNEL_SHUTDOWN $Handle
+
+        if {$Ctxtype eq "client"} {
+            set rawctx [InitializeSecurityContext \
+                            $Credentials \
+                            $Handle \
+                            $Target \
+                            $Inattr \
+                            0 \
+                            $Datarep \
+                            [list ] \
+                            0]
+        } else {
+            set rawctx [AcceptSecurityContext \
+                            $Credentials \
+                            $Handle \
+                            [list ] \
+                            $Inattr \
+                            $Datarep]
+        }
+        lassign $rawctx State Handle out Outattr Expiration extra
+        if {$State in {ok expired}} {
+            return [list done [_gather_secbuf_data $out]]
+        } else {
+            return [list continue [_gather_secbuf_data $out]]
+        }
+    }
 }
 
 # Take the next step in client side authentication
 # Returns
 #   {done data newctx extradata}
 #   {continue data newctx extradata}
-interp alias {} twapi::sspi_security_context_next {} twapi::sspi_step
 proc twapi::sspi_step {ctx {received ""}} {
     variable _sspi_state
 
@@ -235,21 +275,13 @@ proc twapi::sspi_step {ctx {received ""}} {
         append Input $received
         switch -exact -- $State {
             ok {
-                # See if there is any data to send.
-                set data ""
-                foreach buf $Output {
-                    # First element is buffer type, which we do not care
-                    # Second element is actual data
-                    append data [lindex $buf 1]
-                }
-
+                set data [_gather_secbuf_data $Output]
                 set Output {}
-                # We return the context handle as third element for backwards
-                # compatibility reasons - TBD
+
                 # $Input at this point contains left over input that is
                 # actually application data (streaming case).
                 # Application should pass this to decrypt commands
-                return [list done $data $ctx $Input[set Input ""]]
+                return [list done $data $Input[set Input ""]]
             }
             continue {
                 # Continue with the negotiation
@@ -291,12 +323,16 @@ proc twapi::sspi_step {ctx {received ""}} {
                         append data [lindex $buf 1]
                     }
                     set Output {}
-                    return [list continue $data $ctx ""]
+                    return [list continue $data ""]
                 }
             }
             incomplete_message {
                 # Caller has to get more data from remote end
-                return [list continue "" $ctx ""]
+                return [list continue "" ""]
+            }
+            expired {
+                # Remote end closed in middle of negotiation
+                return [list disconnected "" ""]
             }
             incomplete_credentials -
             complete -
@@ -307,15 +343,13 @@ proc twapi::sspi_step {ctx {received ""}} {
         }
     }
 
-    # Recurse to return next state. $extra contains data that has not
-    # been processed.
-    # This has to be OUTSIDE the [dict with] else it will not
+    # Recurse to return next state.
+    # This has to be OUTSIDE the [dict with] above else it will not
     # see the updated values
     return [sspi_step $ctx]
 }
 
 # Return a server context
-interp alias {} twapi::sspi_server_new_context {} twapi::sspi_server_context
 proc twapi::sspi_server_context {cred clientdata args} {
     _init_security_context_syms
     variable _server_security_context_syms
@@ -360,7 +394,7 @@ proc twapi::sspi_server_context {cred clientdata args} {
 
 
 # Get the security context flags after completion of request
-proc ::twapi::sspi_get_context_features {ctx} {
+proc ::twapi::sspi_context_attributes {ctx} {
     variable _sspi_state
 
     set ctxh [_sspi_context_handle $ctx]
@@ -539,4 +573,18 @@ proc twapi::_sspi_context_handle {ctx} {
     }
 
     return [dict get $_sspi_state($ctx) Handle]
+}
+
+proc twapi::_gather_secbuf_data {bufs} {
+    if {[llength $bufs] == 1} {
+        return [lindex [lindex $bufs 0] 1]
+    } else {
+        set data ""
+        foreach buf $bufs {
+            # First element is buffer type, which we do not care
+            # Second element is actual data
+            append data [lindex $buf 1]
+        }
+    }
+    return $data
 }
