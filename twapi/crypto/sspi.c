@@ -949,7 +949,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     Tcl_Obj *objs[2];
     MemLifoMarkHandle mark;
     TCL_RESULT res = TCL_ERROR;
-    int is_unisp;
+    int is_unisp, n;
     void *pv;
 
     pv = NULL;
@@ -961,19 +961,32 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
                        GETOBJ(authObj), ARGEND) != TCL_OK)
         goto vamoose;
 
-    if (WSTREQ(packageP, UNISP_NAME_W)) {
-        if (ParseSCHANNEL_CRED(ticP, authObj, &(SCHANNEL_CRED *)pv) != TCL_OK)
+    if (ObjListLength(interp, authObj, &n) != TCL_OK)
+        goto vamoose;
+
+    if (n == 0)
+        pv = NULL;
+    else {
+        if (WSTREQ(packageP, UNISP_NAME_W) ||
+            WSTREQ(packageP, SCHANNEL_NAME_W)) {
+            if (ParseSCHANNEL_CRED(ticP, authObj, &(SCHANNEL_CRED *)pv) != TCL_OK)
+                goto vamoose;
+            is_unisp = 1;
+        } else if (WSTREQ(packageP, WDIGEST_SP_NAME_W) ||
+                   WSTREQ(packageP, NTLMSP_NAME) ||
+                   WSTREQ(packageP, NEGOSSP_NAME_W) ||
+                   WSTREQ(packageP, MICROSOFT_KERBEROS_NAME_W)) {
+            /* TBD - SDK has the comment that for RPC this memory
+               must be valid for the lifetime of the binding handle. Is
+               that true for SSPI also. Test */
+            if (ParseSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
+                goto vamoose;
+            is_unisp = 0;
+        } else {
+            TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
+                               Tcl_ObjPrintf("Non-default authentication is not supported for SSPI package %s.", packageP));
             goto vamoose;
-        is_unisp = 1;
-    } else if (WSTREQ(packageP, WDIGEST_SP_NAME_W) ||
-              WSTREQ(packageP, NTLMSP_NAME) ||
-              WSTREQ(packageP, NEGOSSP_NAME_W) ||
-              WSTREQ(packageP, MICROSOFT_KERBEROS_NAME_W)) {
-        if (ParseSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
-            goto vamoose;
-        is_unisp = 0;
-    } else {
-        return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported SSPI package");
+        }
     }
 
     status = AcquireCredentialsHandleW(principalP, packageP, cred_use,

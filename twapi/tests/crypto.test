@@ -13,8 +13,8 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
 proc setup_contexts {package} {
-    set ccred [twapi::sspi_credentials -direction outbound -package $package]
-    set scred [twapi::sspi_credentials -direction inbound -package $package]
+    set ccred [twapi::sspi_acquire_credentials -direction outbound -package $package]
+    set scred [twapi::sspi_acquire_credentials -direction inbound -package $package]
     set cctx [twapi::sspi_client_context $ccred -target LUNA -confidentiality true -connection true]
     lassign [twapi::sspi_step $cctx] step data extra
     set sctx [twapi::sspi_server_context $scred $data]

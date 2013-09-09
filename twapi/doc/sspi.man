@@ -26,7 +26,7 @@ encrypting data passed between a client and a server.
 [section "SSPI security context establishment"]
 On the client side, the application program starts off by retrieving
 the credentials to be used to authenticate itself to the server by calling
-[uri \#sspi_credentials [cmd sspi_credentials]] with
+[uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]] with
 the [cmd -outbound] option. It then creates a new client security
 context by calling
 [uri \#sspi_client_context [cmd sspi_client_context]]
@@ -52,7 +52,7 @@ the client and the server.
 [para]
 On the server side, the application program starts off by retrieving
 its own credentials by calling
-[uri \#sspi_credentials [cmd sspi_credentials]] with
+[uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]] with
 the [cmd -inbound]. It then creates a new server security
 context by calling
 [uri \#sspi_server_context [cmd sspi_server_context]]
@@ -105,7 +105,7 @@ messages using
 Initiates the building of a new client-side, security context from
 based on the specified credentials. [arg CREDENTIALS] is a
 handle to credentials returned by
-[uri #sspi_credentials [cmd sspi_credentials]].
+[uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]].
 The returned value, which is a handle to a security context,
 should be treated as opaque by the caller
 and used as described in [sectref "SSPI security context establishment"].
@@ -264,9 +264,9 @@ Size of security trailer to be appended to messages.
 
 [call [cmd sspi_free_credentials] arg CREDENTIALS]
 Frees resources associated with credentials returned by
-[uri \#sspi_credentials [cmd sspi_credentials]].
+[uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]].
 
-[call [cmd sspi_credentials] [opt [arg options]]]
+[call [cmd sspi_acquire_credentials] [opt [arg options]]]
 Returns credentials that can be used to negotiate and establish a
 security context. The command returns a handle to the credentials
 unless the [cmd -getexpiration] option is specified in which
@@ -353,7 +353,7 @@ Initiates the building of a new server-side, security context from
 based on the specified credentials and security data received from
 the client. [arg CREDENTIALS] is a
 handle to credentials returned by
-[uri #sspi_credentials [cmd sspi_credentials]].
+[uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]].
 The returned value, which is a handle to a security context,
 should be treated as opaque by the caller
 and used as described in [sectref "SSPI security context establishment"].
