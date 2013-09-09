@@ -127,15 +127,51 @@ proc twapi::sspi_enumerate_packages {args} {
     return $recdata
 }
 
-
-# Return sspi credentials
-proc twapi::sspi_credentials {args} {
+proc twapi::sspi_schannel_credentials args {
     parseargs args {
-        {principal.arg ""}
+        certificates.arg
+        {rootstore.arg NULL}
+        sessionlifespan.int
+        usedefaultclientcert.bool
+        {disablereconnects.bool 0 0x80}
+        {revocationcheck.arg none {full endonly excluderoot none}}
+        {ignoreerrorrevocationoffline.bool 0 0x1000}
+        {ignoreerrornorevocationcheck.bool 0 0x800}
+        validateservercert.bool
+    } -setvars -nulldefault -maxleftover 0
+
+    set flags [expr {$disablereconnects | $ignoreerrornorevocationcheck | $ignoreerrorrevocationoffline}]
+    incr flags [dict get {
+        none 0 full 0x200 excluderoot 0x400 endonly 0x100
+    } $revocationcheck]
+        
+    if {$validateservercert} {
+        incr flags 0x20;        # SCH_CRED_AUTO_CRED_VALIDATION
+    } else {
+        incr flags 0x8;         # SCH_CRED_MANUAL_CRED_VALIDATION
+    }
+    if {$usedefaultclientcert} {
+        incr flags 0x40;         # SCH_CRED_USE_DEFAULT_CREDS
+    } else {
+        incr flags 0x10;         # SCH_CRED_NO_DEFAULT_CREDS 
+    }
+
+    # 3 -> SCHANNEL_CRED_VERSION
+    return [list 3 $certificates $rootstore {} {} 0 0 0 $sessionlifespan $flags 0]
+}
+
+proc twapi::sspi_winnt_identity_credentials {user domain password} {
+    return [list $user $domain $password]
+}
+
+proc twapi::sspi_acquire_credentials {args} {
+    parseargs args {
+        {credentials.arg {}}
+        principal.arg
         {package.arg NTLM}
         {direction.arg both {inbound outbound both}}
         getexpiration
-    } -maxleftover 0 -setvars
+    } -maxleftover 0 -setvars -nulldefault
 
     set creds [AcquireCredentialsHandle $principal \
                    [dictmap {
