@@ -104,6 +104,7 @@ proc twapi::sspi_enumerate_packages {args} {
         return $names
     }
 
+    # TBD - why is this hyphenated ?
     array set opts [parseargs args {
         all capabilities version rpcid maxtokensize name comment
     } -maxleftover 0 -hyphenated]
@@ -129,23 +130,23 @@ proc twapi::sspi_enumerate_packages {args} {
 
 # Return sspi credentials
 proc twapi::sspi_credentials {args} {
-    array set opts [parseargs args {
+    parseargs args {
         {principal.arg ""}
         {package.arg NTLM}
-        {usage.arg both {inbound outbound both}}
+        {direction.arg both {inbound outbound both}}
         getexpiration
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
-    set creds [AcquireCredentialsHandle $opts(principal) \
+    set creds [AcquireCredentialsHandle $principal \
                    [dictmap {
                        unisp {Microsoft Unified Security Protocol Provider}
                        ssl {Microsoft Unified Security Protocol Provider}
                        tls {Microsoft Unified Security Protocol Provider}
-                   } $opts(package)] \
-                   [kl_get {inbound 1 outbound 2 both 3} $opts(usage)] \
+                   } $package] \
+                   [kl_get {inbound 1 outbound 2 both 3} $direction] \
                    "" {}]
 
-    if {$opts(getexpiration)} {
+    if {$getexpiration} {
         return [kl_create2 {-handle -expiration} $creds]
     } else {
         return [lindex $creds 0]
@@ -162,7 +163,7 @@ proc twapi::sspi_client_context {cred args} {
     _init_security_context_syms
     variable _client_security_context_syms
 
-    array set opts [parseargs args {
+    parseargs args {
         target.arg
         {datarep.arg network {native network}}
         confidentiality.bool
@@ -178,22 +179,22 @@ proc twapi::sspi_client_context {cred args} {
         stream.bool
         usesessionkey.bool
         usesuppliedcreds.bool
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0 -nulldefault -setvars
 
     set context_flags 0
     foreach {opt flag} [array get _client_security_context_syms] {
-        if {$opts($opt)} {
+        if {[set $opt]} {
             set context_flags [expr {$context_flags | $flag}]
         }
     }
 
-    set drep [kl_get {native 0x10 network 0} $opts(datarep)]
+    set drep [kl_get {native 0x10 network 0} $datarep]
     return [_construct_sspi_security_context \
                 sspiclient#[TwapiId] \
                 [InitializeSecurityContext \
                      $cred \
                      "" \
-                     $opts(target) \
+                     $target \
                      $context_flags \
                      0 \
                      $drep \
@@ -201,7 +202,7 @@ proc twapi::sspi_client_context {cred args} {
                      0] \
                 client \
                 $context_flags \
-                $opts(target) \
+                $target \
                 $cred \
                 $drep \
                ]
@@ -354,7 +355,7 @@ proc twapi::sspi_server_context {cred clientdata args} {
     _init_security_context_syms
     variable _server_security_context_syms
 
-    array set opts [parseargs args {
+    parseargs args {
         {datarep.arg network {native network}}
         confidentiality.bool
         connection.bool
@@ -366,16 +367,16 @@ proc twapi::sspi_server_context {cred clientdata args} {
         replaydetect.bool
         sequencedetect.bool
         stream.bool
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0 -nulldefault -setvars
 
     set context_flags 0
     foreach {opt flag} [array get _server_security_context_syms] {
-        if {$opts($opt)} {
+        if {[set $opt]} {
             set context_flags [expr {$context_flags | $flag}]
         }
     }
 
-    set drep [kl_get {native 0x10 network 0} $opts(datarep)]
+    set drep [kl_get {native 0x10 network 0} $datarep]
     return [_construct_sspi_security_context \
                 sspiserver#[TwapiId] \
                 [AcceptSecurityContext \
@@ -435,44 +436,44 @@ proc twapi::sspi_get_context_sizes {ctx} {
 
 # Returns a signature
 proc twapi::sspi_sign {ctx data args} {
-    array set opts [parseargs args {
+    parseargs args {
         {seqnum.int 0}
         {qop.int 0}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
     return [MakeSignature \
                 [_sspi_context_handle $ctx] \
-                $opts(qop) \
+                $qop \
                 $data \
-                $opts(seqnum)]
+                $seqnum]
 }
 
 # Verify signature
 proc twapi::sspi_verify {ctx sig data args} {
-    array set opts [parseargs args {
+    parseargs args {
         {seqnum.int 0}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
     # Buffer type 2 - Token, 1- Data
     return [VerifySignature \
                 [_sspi_context_handle $ctx] \
                 [list [list 2 $sig] [list 1 $data]] \
-                $opts(seqnum)]
+                $seqnum]
 }
 
 # Encrypts a data as per a context
 # Returns {securitytrailer encrypteddata padding}
 proc twapi::sspi_encrypt {ctx data args} {
-    array set opts [parseargs args {
+    parseargs args {
         {seqnum.int 0}
         {qop.int 0}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
     return [EncryptMessage \
                 [_sspi_context_handle $ctx] \
-                $opts(qop) \
+                $qop \
                 $data \
-                $opts(seqnum)]
+                $seqnum]
 }
 
 proc twapi::sspi_encrypt_stream {ctx data args} {
@@ -480,13 +481,13 @@ proc twapi::sspi_encrypt_stream {ctx data args} {
     
     set h [_sspi_context_handle $ctx]
 
-    array set opts [parseargs args {
+    parseargs args {
         {qop.int 0}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
     set enc ""
     while {[string length $data]} {
-        lassign [EncryptStream $h $opts(qop) $data] fragment data
+        lassign [EncryptStream $h $qop $data] fragment data
         append enc $fragment
     }
 
@@ -499,15 +500,15 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 
-    array set opts [parseargs args {
+    parseargs args {
         {seqnum.int 0}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
     # Buffer type 2 - Token, 1- Data, 9 - padding
     set decrypted [DecryptMessage \
                        [dict get $_sspi_state($ctx) Handle] \
                        [list [list 2 $sig] [list 1 $data] [list 9 $padding]] \
-                       $opts(seqnum)]
+                       $seqnum]
     set plaintext {}
     # Pick out only the data buffers, ignoring pad buffers and signature
     # Optimize copies by keeping as a list so in the common case of a 
