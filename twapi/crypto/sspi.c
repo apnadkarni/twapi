@@ -20,6 +20,36 @@ static int ObjToSecBufferDescRO(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc 
 static int ObjToSecBufferDescRW(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP);
 static Tcl_Obj *ObjFromSecBufferDesc(SecBufferDesc *sbdP);
 
+/* Returns a Tcl_Obj from the SECBUFFER_EXTRA buffer in a SecBufferDesc.
+   If no such buffer or sbdP is NULL, returns an empty Tcl_Obj.
+   First buffer is expected to contain the input data.
+*/
+static Tcl_Obj *ObjFromSECBUFFER_EXTRA(SecBufferDesc *sbdP) 
+{
+    int i;
+    if (sbdP) {
+        SecBuffer *sb0P = &sbdP->pBuffers[0]; /* Should contain input data */
+        /*
+         * Go backward because EXTRA buffer likely to be at end. First
+         * buffer is the input so we do not check that. 
+         */
+        for (i = sbdP->cBuffers - 1; i > 0; --i) {
+            SecBuffer *sbP = &sbdP->pBuffers[i];
+            /* MSDN docs say "pvBuffer" does not contain a copy of the
+               data. What they probably mean is that it points into
+               the original data, not to a copy of it. But the sample
+               code in MSDN and curl etc. does not make use of this field
+               so neither do we, just to be safe. */
+            if (sbP->BufferType == SECBUFFER_EXTRA && sbP->cbBuffer) {
+                TWAPI_ASSERT(sb0P->cbBuffer > sbP->cbBuffer);
+                return ObjFromByteArray(((char*) sb0P->pvBuffer) + (sb0P->cbBuffer - sbP->cbBuffer),
+                                        sbP->cbBuffer);
+            }
+        }
+    }
+    return ObjFromEmptyString();
+}
+
 Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 {
     Tcl_Obj *objv[2];
@@ -226,7 +256,13 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
                        ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    sbd_inP = sbd_in.cBuffers ? &sbd_in : NULL;
+    if (sbd_in.cBuffers == 0)
+        sbd_inP = NULL;
+    else {
+        if (sbd_in.pBuffers[0].BufferType != SECBUFFER_TOKEN)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "First buffer type must be SECBUFFER_TOKEN");
+        sbd_inP = &sbd_in;
+    }
 
     /*
      * We will ask the function to allocate buffer for us
@@ -290,21 +326,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
 
     /* Check if there was any unprocessed left over data that 
        has to be passed back to the caller */
-    objs[5] = NULL;
-    if (sbd_inP) {
-        int i;
-        /* Go backward because EXTRA buffer likely to be at end */
-        for (i = sbd_inP->cBuffers - 1; i >= 0; --i) {
-            SecBuffer *sbP = &sbd_inP->pBuffers[i];
-            if (sbP->BufferType == SECBUFFER_EXTRA &&
-                sbP->pvBuffer && sbP->cbBuffer) {
-                objs[5] = ObjFromByteArray(sbP->pvBuffer, sbP->cbBuffer);
-                break;
-            }
-        }
-    }
-    if (objs[5] == NULL)
-        objs[5] = ObjFromEmptyString();
+    objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
 
     ObjSetResult(interp, ObjNewList(6, objs));
 
@@ -339,7 +361,13 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                        ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    sbd_inP = sbd_in.cBuffers ? &sbd_in : NULL;
+    if (sbd_in.cBuffers == 0)
+        sbd_inP = NULL;
+    else {
+        if (sbd_in.pBuffers[0].BufferType != SECBUFFER_TOKEN)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "First buffer type must be SECBUFFER_TOKEN");
+        sbd_inP = &sbd_in;
+    }
 
     /* We will ask the function to allocate buffer for us */
     sb_out.BufferType = SECBUFFER_TOKEN;
@@ -399,21 +427,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 
     /* Check if there was any unprocessed left over data that 
        has to be passed back to the caller */
-    objs[5] = NULL;
-    if (sbd_inP) {
-        int i;
-        /* Go backward because EXTRA buffer likely to be at end */
-        for (i = sbd_inP->cBuffers - 1; i >= 0; --i) {
-            SecBuffer *sbP = &sbd_inP->pBuffers[i];
-            if (sbP->BufferType == SECBUFFER_EXTRA &&
-                sbP->pvBuffer && sbP->cbBuffer) {
-                objs[5] = ObjFromByteArray(sbP->pvBuffer, sbP->cbBuffer);
-                break;
-            }
-        }
-    }
-    if (objs[5] == NULL)
-        objs[5] = ObjFromEmptyString();
+    objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
 
     ObjSetResult(interp, ObjNewList(6, objs));
 
@@ -907,9 +921,18 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
             if (sbufs[i].BufferType == SECBUFFER_EXTRA)
                 break;
         }
-        if (i < ARRAYSIZE(sbufs))
-            objs[2] = ObjFromByteArray(sbufs[i].pvBuffer, sbufs[i].cbBuffer);
-        else
+        if (i < ARRAYSIZE(sbufs)) {
+            TWAPI_ASSERT(enclen > sbufs[i].cbBuffer);
+            TWAPI_ASSERT(encP == ObjToByteArray(objv[2], NULL));
+            /* MSDN docs say "pvBuffer" does not contain a copy of the
+               data. What they probably mean is that it points into
+               the original data, not to a copy of it. But the sample
+               code in MSDN and curl etc. does not make use of this field
+               so neither do we, just to be safe. Instead calculate base
+               on counts and the original data pointer
+            */
+            objs[2] = ObjFromByteArray(encP + (enclen - sbufs[i].cbBuffer), sbufs[i].cbBuffer);
+        } else
             objs[2] = ObjFromEmptyString();
 
         switch (ss) {
