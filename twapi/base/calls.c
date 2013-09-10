@@ -1913,7 +1913,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
     }
 
     password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
-    if (Tcl_GetCharLength(passwordObj) == 0) {
+    if (ObjCharLength(passwordObj) == 0) {
         password_buf[0] = 0;
     } else {
         WCHAR *decryptP;

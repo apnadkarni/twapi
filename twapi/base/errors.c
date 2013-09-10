@@ -345,7 +345,7 @@ int Twapi_AppendSystemErrorEx(
     if (ObjListIndex(NULL, errorCodeObj, 2, &msgObj) == TCL_OK &&
         msgObj != NULL) {
         Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
-        if (Tcl_GetCharLength(resultObj)) {
+        if (ObjCharLength(resultObj)) {
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         }
         Tcl_AppendObjToObj(resultObj, msgObj);
