@@ -432,7 +432,7 @@ int Twapi_InternalCastObjCmd(
         switch (vt) {
         case VT_EMPTY:
         case VT_NULL:
-            if (Tcl_GetCharLength(objv[2]) != 0)
+            if (ObjCharLength(objv[2]) != 0)
                 goto error_handler;
             objP = ObjFromEmptyString();
             Tcl_InvalidateStringRep(objP);
@@ -1225,7 +1225,7 @@ int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
 
 int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP)
 {
-    if (Tcl_GetCharLength(objP) == 0) {
+    if (ObjCharLength(objP) == 0) {
         *guidPP = NULL;
         return TCL_OK;
     } else 
@@ -1266,7 +1266,7 @@ int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP)
 
 int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP)
 {
-    if (Tcl_GetCharLength(objP) == 0) {
+    if (ObjCharLength(objP) == 0) {
         *uuidPP = NULL;
         return TCL_OK;
     } else 
@@ -1343,7 +1343,7 @@ TCL_RESULT ObjToMultiSzEx (
             return TCL_ERROR;
         if (objPtr == NULL)
             break;              /* No more items */
-        len += Tcl_GetCharLength(objPtr) + 1;
+        len += ObjCharLength(objPtr) + 1;
     }
 
     ++len;                      /* One extra null char at the end */
@@ -1568,7 +1568,7 @@ int ObjToLUID(Tcl_Interp *interp, Tcl_Obj *objP, LUID *luidP)
 */
 int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP)
 {
-    if (Tcl_GetCharLength(objP) == 0) {
+    if (ObjCharLength(objP) == 0) {
         *luidPP = NULL;
         return TCL_OK;
     } else
@@ -3144,7 +3144,7 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
     /* Figure out how much space we need */
     sz = nitems * sizeof(LSA_UNICODE_STRING);
     for (i = 0; i < nitems; ++i) {
-        sz += sizeof(*dstP) * (Tcl_GetCharLength(listobjv[i]) + 1);
+        sz += sizeof(*dstP) * (ObjCharLength(listobjv[i]) + 1);
     }
 
     ustrP = TwapiAlloc(sz);
@@ -3988,6 +3988,11 @@ Tcl_Obj *ObjFromStringN(const char *s, int len)
 Tcl_Obj *ObjFromString(const char *s)
 {
     return Tcl_NewStringObj(s, -1);
+}
+
+int ObjCharLength(Tcl_Obj *objP)
+{
+    return Tcl_GetCharLength(objP);
 }
 
 TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP)
