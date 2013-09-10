@@ -1502,7 +1502,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     LPWSTR s1;
     LPSTR  cP;
     struct _CRYPTOAPI_BLOB blob;
-    PCCERT_CONTEXT certP;
+    PCCERT_CONTEXT certP, cert2P;
     void *bufP;
     DWORD buf_sz;
     Tcl_Obj *s1Obj, *s2Obj;
@@ -1925,6 +1925,28 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             }
         }
         break;
+    case 10031: // CertGetIssuerCertificateFromStore
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDORNULL(cert2P, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        
+        certP = CertGetIssuerCertificateFromStore(pv, certP, cert2P, &dw);
+        if (certP) {
+            TwapiRegisterCertPointer(interp, certP);
+            objs[0] = ObjFromOpaque((void*)certP, "CERT_CONTEXT*");
+            objs[1] = ObjFromDWORD(dw);
+            result.type= TRT_OBJV;
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 2;
+        } else {
+            result.type =
+                GetLastError() == CRYPT_E_NOT_FOUND ?
+                TRT_EMPTY : TRT_GETLASTERROR;
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -1964,6 +1986,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
+        DEFINE_FNCODE_CMD(CertGetIssuerCertificateFromStore, 10031),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
