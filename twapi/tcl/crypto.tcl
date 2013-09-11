@@ -154,12 +154,7 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
         public_key 6<<16
     }
 
-    if {![string is integer -strict $type]} {
-        if {![dict exists $term_types $term]} {
-            badargs! "Invalid certificate find type '$type'. Must be one of [join [dict keys $term_types] {, }]"
-        }
-        set type [expr [dict get $term_types $type]]
-    }
+    set type [expr [dict! $term_types $type 1]]
 
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
     return [CertFindCertificateInStore $hstore 0x10001 0 $type $term $hcert]
@@ -366,11 +361,8 @@ proc twapi::cert_export {hcert} {
 }
 
 proc twapi::cert_enhkey_usage {hcert {loc both}} {
-    if {![dict exists {property 4 extension 2 both 0} $loc]} {
-        badargs! "Invalid enhanced usage location \"$loc\". Should be one of \"property\", \"extension\" or \"both\""
-    }
-    # TBD - does this have to be mapped to symbols ?
-    return [CertGetEnhancedKeyUsage $hcert $loc]
+    # TBD - does return value have to be mapped to symbols ?
+    return [CertGetEnhancedKeyUsage $hcert [dict! {property 4 extension 2 both 0} $loc 1]]
 }
 
 proc twapi::cert_key_usage {hcert} {
@@ -501,6 +493,88 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
+}
+
+proc twapi::cert_verify {hcert args} {
+
+    parseargs args {
+        {ignoreerrors.arg {}}
+        {cacheendcert.bool 0 0x1}
+        {revocationcheckcacheonly.bool 0 0x80000000}
+        {urlretrievalcacheonly.bool 0 0x4}
+        {disablepass1qualityfiltering.bool 0 0x40}
+        {returnlowerqualitycontexts.bool 0 0x80}
+        {disableauthrootautoupdate.bool 0 0x100}
+        {revocationcheck.arg all {none all leaf excluderoot}}
+        usageall.arg
+        usageany.arg 
+        {engine.arg user {user machine}}
+        {timestamp.arg ""}
+        {hstore.arg NULL}
+        server.arg
+    } -setvars -maxleftover 0
+
+    set flags [dict! {none 0 all 0x20000000 leaf 0x10000000 excluderoot 0x40000000} $revocationcheck]
+    set flags [tcl::mathop::| $flags $cacheendcert $revocationcheckcacheonly $urlretrievalcacheonly $disablepass1qualityfiltering $returnlowerqualitycontexts $disableauthrootautoupdate]
+
+    set usage_op 1;             # USAGE_MATCH_TYPE_OR
+    if {[info exists usageall]} {
+        if {[info exists usageany]} {
+            error "Only one of -usageall and -usageany may be specified"
+        }
+        set usage_op 0;         # USAGE_MATCH_TYPE_AND
+        set usage [_get_enhkey_usage_oids $usageall]
+    } else {
+        lappend usageany;       # Ensure it exists
+        set usage [_get_enhkey_usage_oids $usageany]
+    }
+
+    set chainh [CertGetCertificateChain \
+                    [dict* {user NULL machine {1 HCERTCHAINENGINE}} $engine] \
+                    $hcert $timestamp $hstore \
+                    [list [list $usage_op $usage]] $flags]
+
+    trap {
+        set verify_flags 0
+        foreach ignore $ignoreerrors {
+            set verify_flags [expr {$verify_flags | [dict! {
+                time             0x07
+                basicconstraints 0x08
+                unknownca        0x10
+                usage            0x20
+                name             0x40
+                policy           0x80
+                revocation       0xf00
+                criticalextensions 0x2000
+            } $ignore]}]
+        }
+
+        if {[info exists server]} {
+            set role 2;         # AUTHTYPE_SERVER
+        } else {
+            set role 1;         # AUTHTYPE_CLIENT
+            set server ""
+        }
+
+        # I have no clue as to why some of these options have to
+        # be specified in two different places
+        set checks 0
+        foreach {verify check} {
+            0x7 0x2000
+            0xf00 0x80
+            0x10 0x100
+            0x20 0x200
+            0x40 0x1000
+        } {
+            if {$verify_flags & $verify} {
+                set checks [expr {$checks | $check}]
+            }
+        }
+
+        return [Twapi_CertVerifyChainPolicySSL $chainh [list $role $checks $server]]
+    } finally {
+        CertFreeCertificateChain $chainh
+    }
 }
 
 ################################################################
@@ -781,11 +855,7 @@ proc twapi::_system_store_id {name} {
         users    0x60000
     }
 
-    if {![dict exists $system_stores $name]} {
-        badargs! "Invalid system store name $name" 3
-    }
-
-    return [dict get $system_stores $name]
+    return [dict! $system_stores $name 2]
 }
 
 twapi::proc* twapi::_csp_type_name_to_id prov {
@@ -883,7 +953,7 @@ twapi::proc* twapi::oidname {oid} {
     }
 }
 
-twapi::proc* twapi::oids {} {
+twapi::proc* twapi::oids {{pattern *}} {
     variable _oid_name_map
     variable _name_oid_map
 
@@ -997,6 +1067,16 @@ twapi::proc* twapi::oids {} {
         oid_dsalg_sign        "2.5.8.3"
         oid_dsalg_rsa         "2.5.8.1.1"
 
+        oid_pkix_kp_server_auth "1.3.6.1.5.5.7.3.1"
+        oid_pkix_kp_client_auth "1.3.6.1.5.5.7.3.2"
+        oid_pkix_kp_code_signing   "1.3.6.1.5.5.7.3.3"
+        oid_pkix_kp_email_protection      "1.3.6.1.5.5.7.3.4"
+        oid_pkix_kp_ipsec_end_system "1.3.6.1.5.5.7.3.5"
+        oid_pkix_kp_ipsec_tunnel "1.3.6.1.5.5.7.3.6"
+        oid_pkix_kp_ipsec_user "1.3.6.1.5.5.7.3.7"
+        oid_pkix_kp_timestamp_signing "1.3.6.1.5.5.7.3.8"
+        oid_pkix_kp_ipsec_ike_intermediate "1.3.6.1.5.5.8.2.2"
+
         oid_oiw               "1.3.14"
 
         oid_oiwsec            "1.3.14.3.2"
@@ -1062,7 +1142,7 @@ twapi::proc* twapi::oids {} {
     array set _oid_name_map [swapl [array get _name_oid_map]]
 } {
     variable _name_oid_map
-    return [array get _name_oid_map]
+    return [array get _name_oid_map $pattern]
 }
 
 
@@ -1084,30 +1164,27 @@ proc twapi::_make_altnames_ext {altnames critical {issuer 0}} {
     return [list [expr {$issuer ? "2.5.29.18" : "2.5.29.17"}] $critical $names]
 }
 
-proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
-    set map {
-        server_auth "1.3.6.1.5.5.7.3.1"
-        client_auth "1.3.6.1.5.5.7.3.2"
-        code_sign   "1.3.6.1.5.5.7.3.3"
-        email      "1.3.6.1.5.5.7.3.4"
-        ipsec_endsystem "1.3.6.1.5.5.7.3.5"
-        ipsec_tunnel "1.3.6.1.5.5.7.3.6"
-        ipsec_user "1.3.6.1.5.5.7.3.7"
-        timestamp "1.3.6.1.5.5.7.3.8"
-        ipsec_intermediate "1.3.6.1.5.5.8.2.2"
-    }
-    set usages {}
-    foreach usage $enhkeyusage {
-        if {[dict exists $map $usage]} {
-            lappend usages [dict get $map $usage]
-        } else {
+proc twapi::_get_enhkey_usage_oids {names} {
+    array set map [oids oid_pkix_kp_*]
+
+    set oids {}
+    foreach name $names {
+        if {[info exists map($name)]} {
+            lappend oids $map($name)
+        } elseif {[info exists map(oid_pkix_kp_$name)]} {
+            lappend oids $map(oid_pkix_kp_$name)
+        } elseif {[regexp {^\d([\d\.]*\d)?$} $name]} {
             # Any OID will do
-            if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
-                lappend usages $usage
-            }
+            lappend oids $name
+        } else {
+            error "Invalid Enhanced Key Usage OID \"$name\""
         }
     }
-    return [list "2.5.29.37" $critical $usages]
+    return $oids
+}
+
+proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
+    return [list "2.5.29.37" $critical [_get_enhkey_usage_oids $enhkeyusage]]
 }
 
 twapi::proc* twapi::_init_keyusage_names {} {

@@ -67,10 +67,10 @@ Once a security context is established, either on the client or
 the server, its characteristics, including the negotiated parameters,
 security principal name etc. can be retrieved through
 commands
-[uri \#sspi_get_security_context_flags [cmd sspi_get_security_context_flags]],
-[uri \#sspi_get_context_username [cmd sspi_get_context_username]]
+[uri \#sspi_context_features [cmd sspi_context_features]],
+[uri \#sspi_context_username [cmd sspi_context_username]]
 and
-[uri \#sspi_get_context_sizes [cmd sspi_get_context_sizes]].
+[uri \#sspi_context_sizes [cmd sspi_context_sizes]].
 These commands are not supported by all security providers.
 
 
@@ -208,7 +208,7 @@ capabilties of the provider.
 Generates a signature for [arg DATA] based on the supplied security context.
 Returns a list containing the generated signature and [arg DATA].
 
-[call [cmd sspi_get_context_features] [arg CONTEXT]]
+[call [cmd sspi_context_features] [arg CONTEXT]]
 After a security context is established, this command may be
 used to retrieve information about what security features were
 negotiated. The command returns a keyed list with boolean values
@@ -246,7 +246,7 @@ If [const true], indicates a stream oriented connection.
 
 [list_end]
 
-[call [cmd sspi_get_context_sizes] [arg CONTEXT]]
+[call [cmd sspi_context_sizes] [arg CONTEXT]]
 Returns a keyed list with the following fields:
 [list_begin opt]
 [opt_def [cmd -maxtoken]]
@@ -259,7 +259,7 @@ Messages should preferably be a multiple of this value.
 Size of security trailer to be appended to messages.
 [list_end]
 
-[call [cmd sspi_get_context_username] [arg CONTEXT]]
+[call [cmd sspi_context_username] [arg CONTEXT]]
 [emph TBD]
 
 [call [cmd sspi_free_credentials] arg CREDENTIALS]

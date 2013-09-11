@@ -22,13 +22,23 @@ namespace eval twapi {
     # Following procs are used early in init process so defined here
 
     # Dict lookup, returns key if not in dict
-    proc dictmap {d key} {
+    proc dict* {d key} {
         if {[dict exists $d $key]} {
             return [dict get $d $key]
         } else {
             return $key
         }
     }
+
+    proc dict! {d key {frame 0}} {
+        if {[dict exists $d $key]} {
+            return [dict get $d $key]
+        } else {
+            # frame is how must above the caller errorInfo must appear
+            return [badargs! "Bad value \"$key\". Must be one of [join [dict keys $d] {, }]" [incr frame 2]]
+        }
+    }
+
 
     # Defines a proc with some initialization code
     proc proc* {procname arglist initcode body} {

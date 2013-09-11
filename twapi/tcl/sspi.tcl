@@ -174,7 +174,7 @@ proc twapi::sspi_acquire_credentials {args} {
     } -maxleftover 0 -setvars -nulldefault
 
     set creds [AcquireCredentialsHandle $principal \
-                   [dictmap {
+                   [dict* {
                        unisp {Microsoft Unified Security Protocol Provider}
                        ssl {Microsoft Unified Security Protocol Provider}
                        tls {Microsoft Unified Security Protocol Provider}
@@ -431,7 +431,7 @@ proc twapi::sspi_server_context {cred clientdata args} {
 
 
 # Get the security context flags after completion of request
-proc ::twapi::sspi_context_attributes {ctx} {
+proc ::twapi::sspi_context_features {ctx} {
     variable _sspi_state
 
     set ctxh [_sspi_context_handle $ctx]
@@ -459,15 +459,25 @@ proc ::twapi::sspi_context_attributes {ctx} {
 }
 
 # Get the user name for a security context
-proc twapi::sspi_get_context_username {ctx} {
+proc twapi::sspi_context_username {ctx} {
     return [QueryContextAttributes [_sspi_context_handle $ctx] 1]
 }
 
 # Get the field size information for a security context
 # TBD - update for SSL
-proc twapi::sspi_get_context_sizes {ctx} {
+proc twapi::sspi_context_sizes {ctx} {
     set sizes [QueryContextAttributes [_sspi_context_handle $ctx] 0]
     return [twine {-maxtoken -maxsig -blocksize -trailersize} $sizes]
+}
+
+# TBD - document
+proc twapi::sspi_remote_cert {ctx} {
+    return [QueryContextAttributes [_sspi_context_handle $ctx] 0x53]
+}
+
+# TBD - document
+proc twapi::sspi_local_cert {ctx} {
+    return [QueryContextAttributes [_sspi_context_handle $ctx] 0x54]
 }
 
 # Returns a signature
@@ -572,6 +582,7 @@ proc twapi::sspi_decrypt_stream {ctx data} {
 
     return [DecryptStream [_sspi_context_handle $ctx] $data]
 }
+
 
 ################################################################
 # Utility procs

@@ -306,6 +306,98 @@ static TCL_RESULT ParseCERT_ENHKEY_USAGE(
     return TCL_OK;
 }
 
+/* Returns CERT_CHAIN_PARA structure using memory from ticP->memlifo.
+ * Caller responsible for storage in both success and error cases
+ */
+static TCL_RESULT ParseCERT_CHAIN_PARA(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *paramObj,
+    CERT_CHAIN_PARA *paramP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    int       i, n;
+    char     *p;
+    Tcl_Interp *interp = ticP->interp;
+    TCL_RESULT res;
+
+    /*
+     * CERT_CHAIN_PARA is a list, currently containing exactly one element -
+     * the RequestedUsage field. This is a list of two elements, a DWORD
+     * indicating the boolean operation and an array of CERT_ENHKEY_USAGE
+     */
+    if (ObjGetElements(NULL, paramObj, &n, &objs) != TCL_OK ||
+        n != 1 ||
+        ObjGetElements(NULL, objs[0], &n, &objs) != TCL_OK ||
+        n != 2 ||
+        ObjToInt(NULL, objs[0], &i) != TCL_OK)
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid CERT_CHAIN_PARA");
+
+    ZeroMemory(paramP, sizeof(paramP));
+
+    paramP->cbSize = sizeof(*paramP);
+    paramP->RequestedUsage.dwType = i;
+    if (ParseCERT_ENHKEY_USAGE(ticP, objs[1], &paramP->RequestedUsage.Usage)
+        != TCL_OK)
+        return TCL_ERROR;
+
+    return TCL_OK;
+}
+
+/* Returns CERT_CHAIN_POLICY_PARA structure using memory from ticP->memlifo.
+ * Caller responsible for releasing storage in both success and error cases
+ */
+static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *paramObj,
+    CERT_CHAIN_POLICY_PARA **policy_paramPP
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    int       flags, n;
+    CERT_CHAIN_POLICY_PARA *policy_paramP;
+    
+    /*
+     * CERT_CHAIN_POLICY_PARA is a list, currently containing one or two
+     * elements - a flags field, and optionally an
+     * SSL_EXTRA_CERT_CHAIN_POLICY_PARA field.
+     */
+    if (ObjGetElements(NULL, paramObj, &n, &objs) != TCL_OK ||
+        (n != 1 && n != 2) ||
+        ObjToInt(NULL, objs[0], &flags) != TCL_OK)
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_CHAIN_POLICY_PARA");
+
+    policy_paramP = MemLifoAlloc(&ticP->memlifo, sizeof(*policy_paramP), NULL);
+    ZeroMemory(policy_paramP, sizeof(*policy_paramP));
+    policy_paramP->cbSize = sizeof(*policy_paramP);
+    policy_paramP->dwFlags = flags;
+
+    if (n == 1)
+        policy_paramP->pvExtraPolicyPara = NULL;
+    else {
+        SSL_EXTRA_CERT_CHAIN_POLICY_PARA *sslP;
+        /* Parse the SSL_EXTRA_CERT_CHAIN_POLICY_PARA */
+        if (ObjGetElements(NULL, objs[0], &n, &objs) != TCL_OK)
+            goto error_return;
+        sslP = MemLifoAlloc(&ticP->memlifo, sizeof(*sslP), NULL);
+        sslP->cbSize = sizeof(*sslP);
+        if (TwapiGetArgsEx(ticP, n, objs,
+                           GETINT(sslP->dwAuthType),
+                           GETINT(sslP->fdwChecks),
+                           GETSTRW(sslP->pwszServerName),
+                           ARGEND) != TCL_OK)
+            goto error_return;
+        policy_paramP->pvExtraPolicyPara = sslP;
+    }
+
+    return TCL_OK;
+
+error_return:
+    return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid SSL_EXTRA_CERT_CHAIN_POLICY_PARA");
+
+}
 
 /* Fill in CRYPT_ALGORITHM_IDENTIFIER structure in *algidP
    using memory from ticP->memlifo. Caller responsible for storage
@@ -1263,7 +1355,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
 }
 
 
-static TCL_RESULT Twapi_CertFindCertificateInStore(
+static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
     TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -1372,7 +1464,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStore(
     return res;
 }
 
-static TCL_RESULT Twapi_CryptSignAndEncodeCert(
+static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     TwapiInterpContext *ticP, Tcl_Interp *interp, int objc,
     Tcl_Obj *CONST objv[])
 {
@@ -1490,6 +1582,82 @@ BOOL WINAPI TwapiCertEnumPhysicalStoreCallback(
 
     ObjAppendElement(NULL, listObj, ObjNewList(4, objs));
     return TRUE;          /* Continue iteration */
+}
+
+static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HCERTCHAINENGINE hce;
+    CERT_CONTEXT *certP;
+    Tcl_Obj *paramObj, *ftObj;
+    FILETIME  ft, *ftP;
+    HCERTSTORE hstore;
+    DWORD flags;
+    MemLifoMarkHandle mark;
+    TCL_RESULT res;
+    CERT_CHAIN_PARA chain_params;
+    PCCERT_CHAIN_CONTEXT chainP;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETHANDLET(hce, HCERTCHAINENGINE),
+                     GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                     GETOBJ(ftObj),
+                     GETVERIFIEDORNULL(hstore, HCERTSTORE, CertCloseStore),
+                     GETOBJ(paramObj), GETINT(flags),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+                     
+    if (ObjToFILETIME(NULL, ftObj, &ft) == TCL_OK)
+        ftP = &ft;
+    else {
+        if (ObjCharLength(ftObj) != 0)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid time format");
+        ftP = NULL;
+    }
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    res = ParseCERT_CHAIN_PARA(ticP, paramObj, &chain_params);
+    if (res == TCL_OK) {
+        if (CertGetCertificateChain(hce, certP, ftP, hstore, &chain_params, flags, NULL, &chainP)) {
+            /* TBD - do we need to register and verify this pointer ? */
+            ObjSetResult(ticP->interp, ObjFromOpaque((void*)chainP, "CERT_CHAIN_CONTEXT*"));
+        } else
+            res = TwapiReturnSystemError(ticP->interp);
+    }
+    
+    MemLifoPopMark(mark);
+    return res;
+}
+
+static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    PCERT_CHAIN_POLICY_PARA policy_paramP;
+    CERT_CHAIN_POLICY_STATUS policy_status;
+    CERT_CHAIN_CONTEXT *chainP;
+    Tcl_Obj *paramObj;
+    TCL_RESULT res;
+    MemLifoMarkHandle mark;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETHANDLET(chainP, CERT_CHAIN_CONTEXT*),
+                     GETOBJ(paramObj), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    res = ParseCERT_CHAIN_POLICY_PARA_SSL(ticP, paramObj, &policy_paramP);
+    if (res == TCL_OK) {
+        ZeroMemory(&policy_status, sizeof(policy_status));
+        policy_status.cbSize = sizeof(policy_status);
+        if (CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL,
+                                             chainP,
+                                             policy_paramP,
+                                             &policy_status)) {
+            ObjSetResult(interp, ObjFromLong(policy_status.dwError));
+        } else
+            res = TwapiReturnSystemError(interp);
+    }
+
+    MemLifoPopMark(mark);
+    return res;
 }
 
 
@@ -1925,6 +2093,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             }
         }
         break;
+
     case 10031: // CertGetIssuerCertificateFromStore
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
@@ -1946,6 +2115,15 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 GetLastError() == CRYPT_E_NOT_FOUND ?
                 TRT_EMPTY : TRT_GETLASTERROR;
         }
+        break;
+
+    case 10032:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(pv, CERT_CHAIN_CONTEXT*),
+                         ARGEND) != 0)
+            return TCL_ERROR;
+        CertFreeCertificateChain(pv);
+        result.type = TRT_EMPTY;
         break;
     }
 
@@ -1969,7 +2147,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),
-        DEFINE_FNCODE_CMD(cert_free, 10014), //CertFreeCertificateContext - doc
+        DEFINE_FNCODE_CMD(cert_free, 10014),
         DEFINE_FNCODE_CMD(Twapi_CertGetEncoded, 10015),
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
@@ -1987,12 +2165,19 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
         DEFINE_FNCODE_CMD(CertGetIssuerCertificateFromStore, 10031),
+        DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
+    };
+
+    static struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(CertCreateSelfSignCertificate, Twapi_CertCreateSelfSignCertificate),
+        DEFINE_TCL_CMD(CryptSignAndEncodeCertificate, Twapi_CryptSignAndEncodeCertObjCmd),
+        DEFINE_TCL_CMD(CertFindCertificateInStore, Twapi_CertFindCertificateInStoreObjCmd),
+        DEFINE_TCL_CMD(CertGetCertificateChain, Twapi_CertGetCertificateChainObjCmd),
+        DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
-    Tcl_CreateObjCommand(interp, "twapi::CertCreateSelfSignCertificate", Twapi_CertCreateSelfSignCertificate, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CryptSignAndEncodeCertificate", Twapi_CryptSignAndEncodeCert, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CertFindCertificateInStore", Twapi_CertFindCertificateInStore, ticP, NULL);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
 
     return TwapiSspiInitCalls(interp, ticP);
 }

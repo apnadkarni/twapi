@@ -1311,7 +1311,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
 TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromString(const char *s);
-
+TWAPI_EXTERN int ObjCharLength(Tcl_Obj *);
 TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *remain);
 
