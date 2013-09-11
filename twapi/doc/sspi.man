@@ -88,7 +88,7 @@ Once a security context has been completely created as above, it
 can then be used to generate and verify messages signatures using
 [uri \#sspi_sign [cmd sspi_sign]]
 and
-[uri \#sspi_verify [cmd sspi_verify]]
+[uri \#sspi_verify_signature [cmd sspi_verify_signature]]
 respectively.
 
 [para]
@@ -406,7 +406,7 @@ When a security context is no longer required, it should be released
 by calling
 [uri #sspi_delete_context [cmd sspi_delete_context]].
 
-[call [cmd sspi_verify] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
+[call [cmd sspi_verify_signature] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
 Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
 is valid. Generates a Tcl error if the signature is not valid else
 returns an integer mask that indicates the level of protection (provider
