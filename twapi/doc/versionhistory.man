@@ -22,7 +22,7 @@ of certificates and certificate stores.
 
 [bullet] [emph "INCOMPATIBILITY"]
 The experimental 
-[uri sspi.html SSPI] interface has been completely redone (post 4.0b23)
+[uri sspi.html SSPI] interface has been completely redone (post-4.0b23)
 and commands in older versions are no longer present.
 Enhancements include support for stream interfaces and SSL/TLS.
 
