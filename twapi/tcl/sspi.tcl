@@ -495,7 +495,7 @@ proc twapi::sspi_sign {ctx data args} {
 }
 
 # Verify signature
-proc twapi::sspi_verify {ctx sig data args} {
+proc twapi::sspi_verify_signature {ctx sig data args} {
     parseargs args {
         {seqnum.int 0}
     } -maxleftover 0 -setvars

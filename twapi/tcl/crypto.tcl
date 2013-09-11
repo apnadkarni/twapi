@@ -495,7 +495,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
 }
 
-proc twapi::cert_verify {hcert args} {
+proc twapi::cert_ssl_verify {hcert args} {
 
     parseargs args {
         {ignoreerrors.arg {}}
@@ -571,7 +571,28 @@ proc twapi::cert_verify {hcert args} {
             }
         }
 
-        return [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
+        set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
+        return [dict*  {
+            0x00000000 ok
+            0x80096004 signature
+            0x80092010 revoked
+            0x800B0109 untrustedroot
+            0x800B010D untrustedtestroot
+            0x800B010A chaining
+            0x800B0110 wrongusage
+            0x800B0101 expired
+            0x800B0114 name
+            0x800B0113 policy
+            0x80096019 basicconstraints
+            0x800B0105 criticalextension
+            0x800B0102 validityperiodnesting
+            0x80092012 norevocationcheck
+            0x80092013 revocationoffline
+            0x800B010F cnmatch
+            0x800B0106 purpose
+            0x800B0103 carole
+        } [format 0x%8.8X $status]]
+
     } finally {
         CertFreeCertificateChain $chainh
     }
