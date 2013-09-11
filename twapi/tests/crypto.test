@@ -72,9 +72,9 @@ namespace eval twapi::crypto::test {
         foreach {cctx sctx} [setup_contexts NTLM] break
     } -body {
         foreach {sig data} [twapi::sspi_sign $cctx abcd] break
-        set flags1 [twapi::sspi_verify $sctx $sig $data]
+        set flags1 [twapi::sspi_verify_signature $sctx $sig $data]
         foreach {sig data} [twapi::sspi_sign $cctx 1234] break
-        set flags2 [twapi::sspi_verify $sctx $sig $data]
+        set flags2 [twapi::sspi_verify_signature $sctx $sig $data]
         list [string is integer -strict $flags1] [string is integer -strict $flags2]
     } -cleanup {
         twapi::sspi_delete_context $sctx
