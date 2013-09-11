@@ -571,7 +571,7 @@ proc twapi::cert_verify {hcert args} {
             }
         }
 
-        return [Twapi_CertVerifyChainPolicySSL $chainh [list $role $checks $server]]
+        return [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
     } finally {
         CertFreeCertificateChain $chainh
     }

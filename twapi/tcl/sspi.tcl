@@ -169,7 +169,7 @@ proc twapi::sspi_acquire_credentials {args} {
         {credentials.arg {}}
         principal.arg
         {package.arg NTLM}
-        {direction.arg both {inbound outbound both}}
+        {role.arg both {client server inbound outbound both}}
         getexpiration
     } -maxleftover 0 -setvars -nulldefault
 
@@ -179,7 +179,7 @@ proc twapi::sspi_acquire_credentials {args} {
                        ssl {Microsoft Unified Security Protocol Provider}
                        tls {Microsoft Unified Security Protocol Provider}
                    } $package] \
-                   [kl_get {inbound 1 outbound 2 both 3} $direction] \
+                   [kl_get {inbound 1 server 1 outbound 2 client 2 both 3} $role] \
                    "" {}]
 
     if {$getexpiration} {
