@@ -379,7 +379,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
     else {
         SSL_EXTRA_CERT_CHAIN_POLICY_PARA *sslP;
         /* Parse the SSL_EXTRA_CERT_CHAIN_POLICY_PARA */
-        if (ObjGetElements(NULL, objs[0], &n, &objs) != TCL_OK)
+        if (ObjGetElements(NULL, objs[1], &n, &objs) != TCL_OK)
             goto error_return;
         sslP = MemLifoAlloc(&ticP->memlifo, sizeof(*sslP), NULL);
         sslP->cbSize = sizeof(*sslP);
@@ -392,6 +392,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
         policy_paramP->pvExtraPolicyPara = sslP;
     }
 
+    *policy_paramPP = policy_paramP;
     return TCL_OK;
 
 error_return:
