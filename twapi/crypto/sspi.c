@@ -259,7 +259,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     if (sbd_in.cBuffers == 0)
         sbd_inP = NULL;
     else {
-        if (sbd_in.pBuffers[0].BufferType != SECBUFFER_TOKEN)
+        if ((sbd_in.pBuffers[0].BufferType & ~SECBUFFER_ATTRMASK) != SECBUFFER_TOKEN)
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "First buffer type must be SECBUFFER_TOKEN");
         sbd_inP = &sbd_in;
     }
@@ -364,7 +364,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     if (sbd_in.cBuffers == 0)
         sbd_inP = NULL;
     else {
-        if (sbd_in.pBuffers[0].BufferType != SECBUFFER_TOKEN)
+        if ((sbd_in.pBuffers[0].BufferType & ~SECBUFFER_ATTRMASK) != SECBUFFER_TOKEN)
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "First buffer type must be SECBUFFER_TOKEN");
         sbd_inP = &sbd_in;
     }
@@ -548,9 +548,6 @@ static TCL_RESULT ParseSCHANNEL_CRED (
     *credPP = credP;
     return TCL_OK;
 }
-
-
-
 
 int Twapi_QueryContextAttributes(
     Tcl_Interp *interp,
@@ -1167,7 +1164,7 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DecryptMessage, 10025),
     };
 
-    struct tcl_dispatch_s TclDispatch[] = {
+    static struct tcl_dispatch_s TclDispatch[] = {
         DEFINE_TCL_CMD(AcquireCredentialsHandle, Twapi_AcquireCredentialsHandleObjCmd),
         DEFINE_TCL_CMD(InitializeSecurityContext, Twapi_InitializeSecurityContextObjCmd),
         DEFINE_TCL_CMD(AcceptSecurityContext, Twapi_AcceptSecurityContextObjCmd),
