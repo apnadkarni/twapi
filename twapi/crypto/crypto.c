@@ -163,7 +163,7 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
 
     if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK ||
         TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
-                       GETINT(blobP->cUnusedBits)) != TCL_OK ||
+                       GETINT(blobP->cUnusedBits), ARGEND) != TCL_OK ||
         blobP->cUnusedBits > 7) {
         ObjSetStaticResult(interp, "Invalid CERT_PUBLIC_KEY_INFO structure");
         return TCL_ERROR;
@@ -599,6 +599,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     case (DWORD_PTR) X509_KEY_USAGE:
         if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
             return res;
+        break;
     default:
         return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID");
     }
@@ -786,7 +787,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
     CERT_EXTENSIONS exts;
-    Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj;
+    Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj, *provparaObj;
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(&ticP->memlifo);
@@ -818,10 +819,11 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                            GETSTRW(ki.pwszProvName),
                            GETINT(ki.dwProvType),
                            GETINT(ki.dwFlags),
-                           GETINT(ki.cProvParam),
-                           ARGSKIP,
+                           GETOBJ(provparaObj),
                            GETINT(ki.dwKeySpec),
                            ARGEND) != TCL_OK
+            ||
+            ObjListLength(NULL, provparaObj, &ki.cProvParam) != TCL_OK
             ||
             ki.cProvParam != 0) {
             ObjSetStaticResult(interp, "Invalid or unimplemented provider parameters");

@@ -378,14 +378,14 @@ proc twapi::cert_create_self_signed {subject args} {
         {keysettype.arg user {machine user}}
         {silent.bool 0 0x40}
         {csp.arg {}}
-        {csptype.arg {}}
+        {csptype.arg {prov_rsa_full}}
         signaturealgorithm.arg
         start.int
         end.int
         {gmt.bool 1}
-        {altnames.arg {}}
-        {keyusage.arg {}}
-        {enhkeyusage.arg {}}
+        altnames.arg
+        keyusage.arg
+        enhkeyusage.arg
         {critical {}}
     } -maxleftover 0 -ignoreunknown]
 
@@ -408,15 +408,14 @@ proc twapi::cert_create_self_signed {subject args} {
         badargs! "Start time $opts(start) is greater than end time $opts(end)"
     }
 
-    # 0x1 ->  CERT_KEY_CONTEXT_PROP_ID (not sure this is actually needed TBD*/
-    set kiflags [expr {$opts(silent) | 0x1}]
+    set kiflags $opts(silent)
     if {$opts(keysettype) eq "machine"} {
         incr kiflags 0x20;  # CRYPT_MACHINE_KEYSET
     }
     set keyinfo [list \
                      $opts(keycontainer) \
                      $opts(csp) \
-                     $opts(csptype) \
+                     [_csp_type_name_to_id $opts(csptype)] \
                      $kiflags \
                      {} \
                      [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
@@ -700,11 +699,7 @@ proc twapi::crypt_key_generate {hprov algid args} {
 }
 
 proc twapi::crypt_key_get {hprov keytype} {
-    return [switch $keytype {
-        keyexchange {CryptGetUserKey $hprov 1}
-        signature   {CryptGetUserKey $hprov 2}
-        default { badargs! "Invalid keytype value '$keytype'" }
-    }]
+    return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keytype]]
 }
 
 proc twapi::crypt_get_security_descriptor {hprov} {

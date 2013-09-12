@@ -75,8 +75,7 @@ In the case of SSL/SChannel based providers, the
 [uri #sspi_local_cert [cmd sspi_local_cert]] and
 [uri #sspi_remote_cert [cmd sspi_remote_cert]] return the certificates
 in use for a connection.
-[nl]
-Not all commands are supported by all security providers.
+Note that not all commands are supported by all security providers.
 
 [para]
 When no longer required, both the server and client ends should free
@@ -137,7 +136,7 @@ be used. By default, this is [const NTLM]. The list of available
 security packages on a system can be obtained through
 [uri \#sspi_enumerate_packages [cmd sspi_enumerate_packages]].
 
-[opt_def [cmd -principal.arg] [arg PRINCIPAL]]
+[opt_def [cmd -principal] [arg PRINCIPAL]]
 Specifies the name of the principal whose credentials are to be
 referenced. By default, this is the user account under which
 the process is running.
@@ -200,7 +199,7 @@ for details.
 [opt_def [cmd -integrity] [arg BOOL]]
 If specified as [const true], messages are to be signed.
 
-[opt_def [cmd -manualvalidation [arg BOOL]]]
+[opt_def [cmd -manualvalidation] [arg BOOL]]
 If [arg BOOL] is [const false] (default), SChannel based providers will
 validate the remote server's certificate. If specified as [const true],
 the provider will not validate the received certificate. It is the
