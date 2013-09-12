@@ -71,8 +71,12 @@ commands
 [uri \#sspi_context_username [cmd sspi_context_username]]
 and
 [uri \#sspi_context_sizes [cmd sspi_context_sizes]].
-These commands are not supported by all security providers.
-
+In the case of SSL/SChannel based providers, the
+[uri #sspi_local_cert [cmd sspi_local_cert]] and
+[uri #sspi_remote_cert [cmd sspi_remote_cert]] return the certificates
+in use for a connection.
+[nl]
+Not all commands are supported by all security providers.
 
 [para]
 When no longer required, both the server and client ends should free
@@ -100,6 +104,60 @@ messages using
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd sspi_acquire_credentials] [opt [arg options]]]
+Returns a credentials handle that can be used to negotiate and establish a
+security context. The command returns the handle to the credentials
+unless the [cmd -getexpiration] option is specified in which
+case it returns a keyed list with two fields: [cmd -handle] which
+is the handle to the credentials, and [cmd -expiration] which
+returns the time (as number of 100ns intervals since January 1, 1601)
+at which the credentials expire.
+
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+
+[opt_def [cmd -credentials] [arg CREDENTIALS]]
+Specifies the credentials to which a handle is to be returned. If unspecified
+the default credentials for the package are used. For NTLM or Negotiate
+providers, the [uri #sspi_winnt_identity_credentials [cmd sspi_winnt_identity_credentials]]
+should be used to return non-default credentials in the appropirate format.
+For SSL/Schannel based providers, the
+[uri #sspi_schannel_credentials [cmd sspi_schannel_credentials]]
+should be used for the same purpose.
+
+[opt_def [cmd -getexpiration]]
+If specified, the expiration time for the returned credentials is also
+returned. See description of command return value above.
+
+[opt_def [cmd -package] [arg SECURITYPACKAGE]]
+Specifies the security package with which the credentials are to
+be used. By default, this is [const NTLM]. The list of available
+security packages on a system can be obtained through
+[uri \#sspi_enumerate_packages [cmd sspi_enumerate_packages]].
+
+[opt_def [cmd -principal.arg] [arg PRINCIPAL]]
+Specifies the name of the principal whose credentials are to be
+referenced. By default, this is the user account under which
+the process is running.
+
+[opt_def [cmd -role] [arg ROLE]]
+Indicates how the credentials will be used, based on [arg ROLE] -
+[const client] or [const outbound] for clients,
+[const server] or [const inbound] for servers and
+[const both] (default) if credentials are used for both purposes.
+Note that SSL/SChannel based providers require separate client
+and server credentials and [const both] is not a valid option for
+them.
+
+[list_end]
+
+[nl]
+The returned credentials handle must be freed by calling
+[uri \#sspi_free_credentials [cmd sspi_free_credentials]]
+when no longer needed.
+
 
 [call [cmd sspi_client_context] [arg CREDENTIALS] [opt [arg options]]]
 Initiates the building of a new client-side, security context from
@@ -142,6 +200,14 @@ for details.
 [opt_def [cmd -integrity] [arg BOOL]]
 If specified as [const true], messages are to be signed.
 
+[opt_def [cmd -manualvalidation [arg BOOL]]]
+If [arg BOOL] is [const false] (default), SChannel based providers will
+validate the remote server's certificate. If specified as [const true],
+the provider will not validate the received certificate. It is the
+caller's responsibility to do so. The remote certificate
+can be retrieved with [uri #sspi_remote_cert [cmd sspi_remote_cert]]
+and verified as described in [uri crypto.html#certificateverification "Certificate verification"].
+
 [opt_def [cmd -mutualauth] [arg BOOL]]
 If specified as [const true], both the client and server are
 to be authenticated.
@@ -157,7 +223,9 @@ If specified as [const true], indicates a stream oriented connection.
 
 [opt_def [cmd -target] [arg TARGET]]
 Specifies the target of the security context. The format depends on the
-security service provider.
+security service provider. In the case of a SSL/SChannel based
+provider, this is generally the name that should match
+the subject name in the certificate sent by the server.
 
 [opt_def [cmd -usesessionkey] [arg BOOL]]
 If specified as [const true], a new session key must be negotiated.
@@ -168,45 +236,6 @@ If specified as [const true], a new session key must be negotiated.
 When a security context is no longer required, it should be released
 by calling
 [uri #sspi_delete_context [cmd sspi_delete_context]].
-
-[call [cmd sspi_delete_context] [arg CONTEXT]]
-Closes a security context constructed through
-[uri #sspi_client_context [cmd sspi_client_context]] or
-[uri #sspi_server_context [cmd sspi_server_context]] or
-and frees any associated resources.
-
-[call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
-Returns the decrypted data. 
-
-[call [cmd sspi_encrypt] [arg CONTEXT] [arg PLAINTEXT] [opt [arg options]]]
-Encrypts [arg PLAINTEXT] based on the specified security context. Returns
-a list of three elements - the encryption token, the encrypted data
-and padding. These must be passed to [uri #sspi_decrypt] for decryption
-to be successful.
-
-[call [cmd sspi_enumerate_packages] [opt [arg options]]]
-If no arguments are specified, 
-returns a list of the names of the security provider packages available
-on the system. If any options are specified, returns a dictionary
-keyed by the package name. The corresponding value is itself a dictionary
-with the keys dependent on the options specified to the command:
-
-[list_begin opt]
-[opt_def [cmd -all]] Same as all options being specified.
-[opt_def [cmd -capabilities]] A list of tokens that describe the 
-capabilties of the provider.
-[opt_def [cmd -comment]] A comment describing the provider.
-[opt_def [cmd -rpcid]] A DCE RPC identifier, if supported.
-[opt_def [cmd -maxtokensize]] Maximum size of a security token.
-[opt_def [cmd -name]] Name of the provider.
-[opt_def [cmd -version]] The version of the provider interface.
-[list_end]
-
-
-
-[call [cmd sspi_sign] [arg CONTEXT] [arg DATA] [opt [arg options]]]
-Generates a signature for [arg DATA] based on the supplied security context.
-Returns a list containing the generated signature and [arg DATA].
 
 [call [cmd sspi_context_features] [arg CONTEXT]]
 After a security context is established, this command may be
@@ -262,90 +291,54 @@ Size of security trailer to be appended to messages.
 [call [cmd sspi_context_username] [arg CONTEXT]]
 [emph TBD]
 
+
+[call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
+Returns the decrypted data. 
+
+[call [cmd sspi_delete_context] [arg CONTEXT]]
+Closes a security context constructed through
+[uri #sspi_client_context [cmd sspi_client_context]] or
+[uri #sspi_server_context [cmd sspi_server_context]] or
+and frees any associated resources.
+
+[call [cmd sspi_encrypt] [arg CONTEXT] [arg PLAINTEXT] [opt [arg options]]]
+Encrypts [arg PLAINTEXT] based on the specified security context. Returns
+a list of three elements - the encryption token, the encrypted data
+and padding. These must be passed to [uri #sspi_decrypt] for decryption
+to be successful.
+
+[call [cmd sspi_enumerate_packages] [opt [arg options]]]
+If no arguments are specified, 
+returns a list of the names of the security provider packages available
+on the system. If any options are specified, returns a dictionary
+keyed by the package name. The corresponding value is itself a dictionary
+with the keys dependent on the options specified to the command:
+
+[list_begin opt]
+[opt_def [cmd -all]] Same as all options being specified.
+[opt_def [cmd -capabilities]] A list of tokens that describe the 
+capabilties of the provider.
+[opt_def [cmd -comment]] A comment describing the provider.
+[opt_def [cmd -rpcid]] A DCE RPC identifier, if supported.
+[opt_def [cmd -maxtokensize]] Maximum size of a security token.
+[opt_def [cmd -name]] Name of the provider.
+[opt_def [cmd -version]] The version of the provider interface.
+[list_end]
+
 [call [cmd sspi_free_credentials] arg CREDENTIALS]
 Frees resources associated with credentials returned by
 [uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]].
 
-[call [cmd sspi_acquire_credentials] [opt [arg options]]]
-Returns credentials that can be used to negotiate and establish a
-security context. The command returns a handle to the credentials
-unless the [cmd -getexpiration] option is specified in which
-case it returns a keyed list with two fields: [cmd -handle] which
-is the handle to the credentials, and [cmd -expiration] which
-returns the time (as number of 100ns intervals since January 1, 1601)
-at which the credentials expire.
+[call [cmd sspi_local_cert] [arg CONTEXT]]
+Returns a certificate context for the certificate for the local end
+of a secured connection. The returned certificate context
+must be freed by calling [uri #cert_free [cmd cert_free]].
 
-[nl]
-The following options may be specified with the command:
-[list_begin opt]
-[opt_def [cmd -getexpiration]]
-If specified, the expiration time for the returned credentials is also
-returned. See description of command return value above.
+[call [cmd sspi_remote_cert] [arg CONTEXT]]
+Returns a certificate context for the certificate sent by the remote
+end of a secured connection. The returned certificate context
+must be freed by calling [uri #cert_free [cmd cert_free]].
 
-[opt_def [cmd -package] [arg SECURITYPACKAGE]]
-Specifies the security package with which the credentials are to
-be used. By default, this is [const NTLM]. The list of available
-security packages on a system can be obtained through
-[uri \#sspi_enumerate_packages [cmd sspi_enumerate_packages]].
-
-[opt_def [cmd -principal.arg] [arg PRINCIPAL]]
-Specifies the name of the principal whose credentials are to be
-referenced. By default, this is the user account under which
-the process is running.
-[opt_def [cmd -direction] [arg DIRECTION]]
-Indicates how the credentials will be used, based on [arg DIRECTION] -
-[const inbound], [const outbound] or [const both] (default).
-
-[list_end]
-
-[nl]
-The returned credentials must be freed by calling
-[uri \#sspi_free_credentials [cmd sspi_free_credentials]]
-when no longer needed.
-
-[call [cmd sspi_step] [arg CONTEXT] [opt [arg RESPONSE]]]
-Depending on the security provider in use, building a security context
-may require negotiation with multiple message exchanges between
-the client and server. This command
-indicates to the caller whether the negotiation is complete or additional
-exchange is required. See [sectref "SSPI security context establishment"]
-for an overview of this process.
-
-[nl]
-[arg CONTEXT] is a handle to the security context being built.
-This is the return value from
-[uri #sspi_client_context [cmd sspi_client_context]] or
-[uri #sspi_server_context [cmd sspi_server_context]].
-
-[nl]
-The command returns a list containing three elements. The first element
-may be one of the following values:
-[list_begin opt]
-[opt_def [const done]]
-Indicates that the security context negotiation is completed.
-The application can use it for cryptographic operations such as signing
-or encryption.
-[opt_def [const continue]]
-The security context negotiation is in progress. Additional steps are
-required in the negotiation process and [cmd sspi_step] must be
-called again with additional data received from the remote end.
-[opt_def [const disconnected]]
-The negotiation is terminated and cannot be used for cryptographic
-operations. Caller should delete the context using
-[uri #sspi_delete_context [cmd sspi_delete_context]].
-[list_end]
-If the second element of the returned
-list is not an empty string, it contains data that must be sent to the
-remote end. This is true for [emph "all three cases"] above.
-[nl]
-Finally, the third element of the returned list contains leftover
-application data after negotiation is complete. If not empty,
-it must be passed to the decryption commands. This occurs for
-stream oriented contexts only (like SSL/TLS).
-
-[nl]
-The command will raise a Tcl exception if the security context negotiation
-fails for any reason, including authentication failures.
 
 [call [cmd sspi_server_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
 
@@ -406,14 +399,88 @@ When a security context is no longer required, it should be released
 by calling
 [uri #sspi_delete_context [cmd sspi_delete_context]].
 
+[call [cmd sspi_sign] [arg CONTEXT] [arg DATA] [opt [arg options]]]
+Generates a signature for [arg DATA] based on the supplied security context.
+Returns a list containing the generated signature and [arg DATA].
+
+[call [cmd sspi_schannel_credentials] [opt [arg options]]]
+Returns credentials that can be passed to 
+the [uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]]
+command for SSL/SChannel providers.
+The credentials are specified through the following options:
+[list_begin opt]
+[opt_def [cmd -certificates] [arg CERTLIST]]
+[arg CERTLIST] is a list of certificate context handles with private
+keys that are used to authenticate the application. Each handle
+corresponds to a key exchange method supported by the application.
+For client applications, the provider will find an appropriate
+certificate if needed.
+[opt_def [cmd -rootstore] [arg HSTORE]]
+Specifies a handle to an additional certificate root store that contains
+root certificates to authenticate incoming client connections. This
+is only used by server applications which need to authenticate clients.
+[list_end]
+
+[call [cmd sspi_step] [arg CONTEXT] [opt [arg RESPONSE]]]
+Depending on the security provider in use, building a security context
+may require negotiation with multiple message exchanges between
+the client and server. This command
+indicates to the caller whether the negotiation is complete or additional
+exchange is required. See [sectref "SSPI security context establishment"]
+for an overview of this process.
+
+[nl]
+[arg CONTEXT] is a handle to the security context being built.
+This is the return value from
+[uri #sspi_client_context [cmd sspi_client_context]] or
+[uri #sspi_server_context [cmd sspi_server_context]].
+
+[nl]
+The command returns a list containing three elements. The first element
+may be one of the following values:
+[list_begin opt]
+[opt_def [const done]]
+Indicates that the security context negotiation is completed.
+The application can use it for cryptographic operations such as signing
+or encryption.
+[opt_def [const continue]]
+The security context negotiation is in progress. Additional steps are
+required in the negotiation process and [cmd sspi_step] must be
+called again with additional data received from the remote end.
+[opt_def [const disconnected]]
+The negotiation is terminated and cannot be used for cryptographic
+operations. Caller should delete the context using
+[uri #sspi_delete_context [cmd sspi_delete_context]].
+[list_end]
+If the second element of the returned
+list is not an empty string, it contains data that must be sent to the
+remote end. This is true for [emph "all three cases"] above.
+[nl]
+Finally, the third element of the returned list contains leftover
+application data after negotiation is complete. If not empty,
+it must be passed to the decryption commands. This occurs for
+stream oriented contexts only (like SSL/TLS).
+
+[nl]
+The command will raise a Tcl exception if the security context negotiation
+fails for any reason, including authentication failures.
+
 [call [cmd sspi_verify_signature] [arg CONTEXT] [arg SIGNATURE] [arg DATA] [opt [arg options]]]
 Verifies that the signature [arg SIGNATURE] for the supplied data [arg DATA]
 is valid. Generates a Tcl error if the signature is not valid else
 returns an integer mask that indicates the level of protection (provider
 dependent).
 
+[call [cmd sspi_winnt_identity_credentials] [arg USER] [arg DOMAIN] [arg PASSWORD]]
+Returns the credentials based on the specified arguments in a format that
+can be passed to the [uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]]
+command when NTLM, Kerberos or Negotiate providers are in use.
+[arg PASSWORD] should be in the form described in
+[uri base.html#passwordprotection "Password protection"].
+
+
 [list_end]
 
-[keywords authentication "message digest" encryption decryption SSPI ]
+[keywords authentication "message digest" encryption decryption SSPI schannel Negotiate NTLM Kerberos]
 
 [manpage_end]

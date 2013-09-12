@@ -2008,7 +2008,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 return TCL_ERROR;
 
             if (pv && TwapiVerifyPointerTic(ticP, pv, NULL) != TWAPI_NO_ERROR)
-                return TwapiReturnError(interp, TWAPI_POINTER_UNREGISTERED);
+                return TwapiReturnError(interp, TWAPI_REGISTERED_POINTER_NOTFOUND);
 
             return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
                 (interp, pv, dw, dw2, dw3, dw4);

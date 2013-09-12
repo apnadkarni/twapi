@@ -36,6 +36,26 @@ typedef struct _TwapiBaseSpecificContext {
 } TwapiBaseSpecificContext;
 #define BASE_CONTEXT(ticP_) ((TwapiBaseSpecificContext *)((ticP_)->module.data.pval))
 
+/*
+ * Struct to keep track of registered pointers.
+ *
+ * Twapi keeps track of pointers passed to the script level to lessen the
+ * probability of double frees. At the same time, some Win32 API's return
+ * the same pointer multiple times (e.g. Cert* APIs) so they need to be
+ * ref counted as well in some cases.
+ *
+ * There are two sets of API's - ref counted and non-refcounted. For
+ * any pointer only one of the two must be used else error/panic will result
+ *  Twapi*Pointer* - non-refcounted API
+ *  Twapi*CountedPointer* - refcounted API
+ *
+ * The tag is to verify that the pointer is of the appropriate kind. Usually
+ * the address of a free routine is used as the tag.
+ */
+typedef struct _TwapiRegisteredPointer {
+    void *tag;                  /* Type tag */
+    int   nrefs;                /* Reference count. -1 for non-refcounted */
+} TwapiRegisteredPointer;
 
 /*
  * Globals
@@ -856,15 +876,21 @@ static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
         for (he = Tcl_FirstHashEntry(&(BASE_CONTEXT(ticP)->atoms), &hs) ;
              he != NULL;
              he = Tcl_NextHashEntry(&hs)) {
-            /* It is safe to delete this element and only this element */
+            /* It is safe to delete this and only this hash element */
             Tcl_Obj *objP = Tcl_GetHashValue(he);
             Tcl_DeleteHashEntry(he);
             Tcl_DecrRefCount(objP);
         }
         Tcl_DeleteHashTable(&(BASE_CONTEXT(ticP)->atoms));
 
-        /* Pointer table has no need for individual entry clean up. Just
-           Blow the whole thing away */
+        for (he = Tcl_FirstHashEntry(&(BASE_CONTEXT(ticP)->pointers), &hs) ;
+             he != NULL;
+             he = Tcl_NextHashEntry(&hs)) {
+            /* It is safe to delete this and only this hash element */
+            TwapiRegisteredPointer *rP = Tcl_GetHashValue(he);
+            Tcl_DeleteHashEntry(he);
+            ckfree((char *)rP);
+        }
         Tcl_DeleteHashTable(&(BASE_CONTEXT(ticP)->pointers));
     }
 }
@@ -872,21 +898,24 @@ static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
 int TwapiVerifyPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
-    void *stored_type;
 
     TWAPI_ASSERT(BASE_CONTEXT(ticP));
 
     he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
     if (he) {
+        /* There are some corner cases where caller sets typetag to NULL
+           to indicate only that pointer of *some* tag is registered. 
+           So do not check tags in that case
+        */
         if (typetag) {
-            stored_type = Tcl_GetHashValue(he);
-            if (stored_type && stored_type != typetag)
-                return TWAPI_POINTER_TYPE_MISMATCH;
+            TwapiRegisteredPointer *rP = Tcl_GetHashValue(he);
+            if (rP->tag && rP->tag != typetag)
+                return TWAPI_REGISTERED_POINTER_TAG_MISMATCH;
         }
         return TWAPI_NO_ERROR;
     }
 
-    return p ? TWAPI_POINTER_UNREGISTERED : TWAPI_NULL_POINTER;
+    return p ? TWAPI_REGISTERED_POINTER_NOTFOUND : TWAPI_NULL_POINTER;
 }
 
 int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag)
@@ -908,10 +937,13 @@ TCL_RESULT TwapiRegisterPointerTic(TwapiInterpContext *ticP, const void *p, void
 
     he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->pointers, p, &new_entry);
     if (he && new_entry) {
-        Tcl_SetHashValue(he, typetag);
+        TwapiRegisteredPointer *rP = (TwapiRegisteredPointer *) ckalloc(sizeof(*rP));
+        rP->tag = typetag;
+        rP->nrefs = -1;         /* non-refcounted pointer */
+        Tcl_SetHashValue(he, rP);
         return TCL_OK;
     } else {
-        return TwapiReturnError(ticP->interp, TWAPI_POINTER_ALREADY_REGISTERED);
+        return TwapiReturnError(ticP->interp, TWAPI_REGISTERED_POINTER_EXISTS);
     }
 }
 
@@ -920,6 +952,42 @@ TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag
     TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
     TWAPI_ASSERT(ticP);
     return TwapiRegisterPointerTic(ticP, p, typetag);
+}
+
+TCL_RESULT TwapiRegisterCountedPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
+{
+    Tcl_HashEntry *he;
+    int new_entry;
+    TwapiRegisteredPointer *rP;
+
+    TWAPI_ASSERT(BASE_CONTEXT(ticP));
+
+    if (p == NULL)
+        return TwapiReturnError(ticP->interp, TWAPI_NULL_POINTER);
+
+    he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->pointers, p, &new_entry);
+    TWAPI_ASSERT(he);
+    if (new_entry) {
+        rP = (TwapiRegisteredPointer *) ckalloc(sizeof(*rP));
+        rP->tag = typetag;
+        rP->nrefs = 1;
+        Tcl_SetHashValue(he, rP);
+    } else {
+        rP = Tcl_GetHashValue(he);
+        if (rP->nrefs < 0)
+            return TwapiReturnError(ticP->interp, TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED);
+        if (rP->tag != typetag)
+            return TwapiReturnError(ticP->interp, TWAPI_REGISTERED_POINTER_TAG_MISMATCH);
+        rP->nrefs += 1;
+    }
+    return TCL_OK;
+}
+
+TCL_RESULT TwapiRegisterCountedPointer(Tcl_Interp *interp, const void *p, void *typetag)
+{
+    TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
+    TWAPI_ASSERT(ticP);
+    return TwapiRegisterCountedPointerTic(ticP, p, typetag);
 }
 
 TCL_RESULT TwapiUnregisterPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
@@ -934,15 +1002,20 @@ TCL_RESULT TwapiUnregisterPointerTic(TwapiInterpContext *ticP, const void *p, vo
         return TwapiReturnError(ticP->interp, TWAPI_NULL_POINTER);
 
     he = Tcl_FindHashEntry(&BASE_CONTEXT(ticP)->pointers, p);
-    code = TWAPI_POINTER_UNREGISTERED;
+    code = TWAPI_REGISTERED_POINTER_NOTFOUND;
     if (he) {
-        if (typetag == NULL || 
-            (stored_type = Tcl_GetHashValue(he)) == NULL ||
-            typetag == stored_type) {
-            Tcl_DeleteHashEntry(he);
+        TwapiRegisteredPointer *rP = Tcl_GetHashValue(he);
+        if (rP->tag != typetag)
+            code = TWAPI_REGISTERED_POINTER_TAG_MISMATCH;
+        else {
+            /* For counted pointers, free if ref count reaches 0.
+               For uncounted pointers ref count is set to -1 already */
+            if (--(rP->nrefs) <= 0) {
+                ckfree((char *) rP);
+                Tcl_DeleteHashEntry(he);
+            }
             return TCL_OK;
         }
-        code = TWAPI_POINTER_TYPE_MISMATCH;
     }
 
     return TwapiReturnError(ticP->interp, code);

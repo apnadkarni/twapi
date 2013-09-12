@@ -128,6 +128,8 @@ proc twapi::sspi_enumerate_packages {args} {
 }
 
 proc twapi::sspi_schannel_credentials args {
+    # TBD - do all these options work ? Check before documenting
+    # since they seem to be duplicated in InitializeSecurityContext
     parseargs args {
         certificates.arg
         {rootstore.arg NULL}

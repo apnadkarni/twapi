@@ -327,10 +327,11 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_BUG_INVALID_STATE_FOR_OP 12
 #define TWAPI_OUT_OF_RANGE 13
 #define TWAPI_UNSUPPORTED_TYPE 14
-#define TWAPI_POINTER_ALREADY_REGISTERED 15
-#define TWAPI_POINTER_TYPE_MISMATCH 16
-#define TWAPI_POINTER_UNREGISTERED 17
+#define TWAPI_REGISTERED_POINTER_EXISTS 15
+#define TWAPI_REGISTERED_POINTER_TAG_MISMATCH 16
+#define TWAPI_REGISTERED_POINTER_NOTFOUND 17
 #define TWAPI_NULL_POINTER 18
+#define TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED 19
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1470,9 +1471,11 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
     );
 
 TWAPI_EXTERN TCL_RESULT TwapiRegisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
+TWAPI_EXTERN TCL_RESULT TwapiRegisterCountedPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiUnregisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiVerifyPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
+TWAPI_EXTERN TCL_RESULT TwapiRegisterCountedPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag);
 

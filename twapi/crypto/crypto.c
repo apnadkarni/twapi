@@ -17,14 +17,17 @@ HMODULE gModuleHandle;     /* DLL handle to ourselves */
 
 void TwapiRegisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
 {
-    if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext)
+    if (TwapiRegisterCountedPointer(interp, certP, CertFreeCertificateContext)
         != TCL_OK)
         Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(interp));
 }
 
 void TwapiRegisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
 {
-    if (TwapiRegisterPointerTic(ticP, certP, CertFreeCertificateContext)
+    /* Certificate pointers are counted pointers since the Cert* API
+       can return the same pointer multiple ways.
+    */
+    if (TwapiRegisterCountedPointerTic(ticP, certP, CertFreeCertificateContext)
         != TCL_OK)
         Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(ticP->interp));
 }
@@ -38,7 +41,6 @@ TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEX
 {
     return TwapiUnregisterPointerTic(ticP, certP, CertFreeCertificateContext);
 }
-
 
 #ifdef NOTNEEDED
 /* RtlGenRandom in base provides this */
@@ -316,11 +318,8 @@ static TCL_RESULT ParseCERT_CHAIN_PARA(
     )
 {
     Tcl_Obj **objs;
-    int       nobjs;
     int       i, n;
-    char     *p;
     Tcl_Interp *interp = ticP->interp;
-    TCL_RESULT res;
 
     /*
      * CERT_CHAIN_PARA is a list, currently containing exactly one element -
@@ -355,7 +354,6 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
     )
 {
     Tcl_Obj **objs;
-    int       nobjs;
     int       flags, n;
     CERT_CHAIN_POLICY_PARA *policy_paramP;
     
@@ -1423,21 +1421,9 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
 
     if (res == TCL_OK) {
         if (certP) {
-            PCCERT_CONTEXT dupP;
-            /* The CertFindCertificateInStore call ALWAYS releases certP so
-               incr its ref count since we leave it to caller to free */
-            dupP = CertDuplicateCertificateContext(certP);
-            /*
-             * As per the docs, currently all Windows system have cert2P == certP 
-             * as they simply increment the ref count. Protect against future
-             * changes by checking for this.
-             */
-            if (dupP != certP) {
-                CertFreeCertificateContext(dupP); /* Since we have no way to
-                                                     return this to caller */
-                TwapiSetStaticResult(interp, "Internal error duplicating cert context");
-                res = TCL_ERROR;
-            }
+            /* The CertFindCertificateInStore call ALWAYS releases certP
+               (even for the error case) */
+            res = TwapiUnregisterCertPointerTic(ticP, certP);
         }
     }
     
