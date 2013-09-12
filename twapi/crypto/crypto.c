@@ -1369,14 +1369,19 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
     CERT_PUBLIC_KEY_INFO pki;
     MemLifoMarkHandle mark = NULL;
 
-    if (TwapiGetArgs(interp, objc, objv,
-                     GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
-                     GETINT(enctype), GETINT(flags), GETINT(findtype),
-                     GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                     ARGEND) != TCL_OK)
-        return TCL_ERROR;
-    
-    res = TCL_OK;
+    certP = NULL;
+    res = TwapiGetArgs(interp, objc, objv,
+                       GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
+                       GETINT(enctype), GETINT(flags), GETINT(findtype),
+                       GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                       ARGEND);
+    if (res != TCL_OK) {
+        /* We have guaranteed caller certP will be freed even on error */
+        if (certP && TwapiUnregisterCertPointerTic(ticP, certP) == TCL_OK)
+            CertFreeCertificateContext(certP);
+        return res;
+    }    
+
     switch (findtype) {
     case CERT_FIND_ANY:
         pv = NULL;
@@ -1416,18 +1421,24 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         res = ParseCERT_PUBLIC_KEY_INFO(ticP, findObj, &pki);
         break;
     default:
-        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        res = TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        break;
     }
 
-    if (res == TCL_OK) {
-        if (certP) {
-            /* The CertFindCertificateInStore call ALWAYS releases certP
-               (even for the error case) */
-            res = TwapiUnregisterCertPointerTic(ticP, certP);
-        }
+    /*
+     * CertFindCertificateInStore ALWAYS releases certP (even in error case)
+     * Caller expects that to happen in all cases so if we are not
+     * calling CertFindCertificateInStore because of previous errors,
+     * do so ourselves
+     */
+    if (certP) {
+        /* Do not change res unless it is an error */
+        if (TwapiUnregisterCertPointerTic(ticP, certP) != TCL_OK)
+            res = TCL_ERROR;
     }
-    
-    if (res == TCL_OK) {
+    if (res != TCL_OK)
+        CertFreeCertificateContext(certP);
+    else {
         certP = CertFindCertificateInStore(
             pv,
             X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
@@ -1664,6 +1675,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     BOOL bval;
     int func = PtrToInt(clientdata);
     Tcl_Obj *objs[3];
+    TCL_RESULT res;
 
     --objc;
     ++objv;
@@ -1833,12 +1845,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         return TwapiCertGetNameString(interp, certP, dw, dw2, objv[3]);
 
     case 10014: // CertFreeCertificateContext
-        /* TBD -
-           CertDuplicateCertificateContext will return the same pointer!
-           However, our registration will barf when trying to release
-           it the second time. Perhaps if the Cert API deals with bad
-           pointer values, do not register it ourselves. Or do not
-           implement the CertDuplicateCertificateContext call */
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK ||
             TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
@@ -2082,17 +2088,28 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 10031: // CertGetIssuerCertificateFromStore
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                         GETVERIFIEDORNULL(cert2P, CERT_CONTEXT*, CertFreeCertificateContext),
-                         GETINT(dw), ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        cert2P = NULL;
+        res = TwapiGetArgs(interp, objc, objv,
+                           GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
+                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETVERIFIEDORNULL(cert2P, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETINT(dw), ARGEND);
         
-        certP = CertGetIssuerCertificateFromStore(pv, certP, cert2P, &dw);
-        if (certP) {
-            TwapiRegisterCertPointer(interp, certP);
-            objs[0] = ObjFromOpaque((void*)certP, "CERT_CONTEXT*");
+        if (cert2P) {
+            /* CertGetIssuerCertificateFromStore frees cert2P */
+            if (TwapiUnregisterCertPointer(interp, cert2P) != TCL_OK)
+                return TCL_ERROR; /* Bad pointer, don't do anything more */
+        }
+        if (res != TCL_OK) {
+            if (cert2P)
+                CertFreeCertificateContext(cert2P); /* That's what we have
+                                                       guaranteed caller */
+            return res;
+        }
+        cert2P = CertGetIssuerCertificateFromStore(pv, certP, cert2P, &dw);
+        if (cert2P) {
+            TwapiRegisterCertPointer(interp, cert2P);
+            objs[0] = ObjFromOpaque((void*)cert2P, "CERT_CONTEXT*");
             objs[1] = ObjFromDWORD(dw);
             result.type= TRT_OBJV;
             result.value.objv.objPP = objs;
