@@ -891,10 +891,15 @@ the next matching certificate in the store specified by the handle
 [const NULL], the search starts from the first certificate in the store.
 If [arg HCERT] is specified, it must be a handle to a certificate context
 returned by a previous call to the command. The search then begins with
-the next certificate in the store.
+the next certificate in the store. The command also frees [arg HCERT]
+(even in case of errors) so caller must not access it after the command
+returns.
 [nl]
-All certificate context handles returned by the command must be released
-by calling [uri #cert_free [cmd cert_free]]. The command returns an
+A certificate context handles returned by the command that is
+not passed back in as [arg HCERT] in a subsequent call, must be released
+by calling [uri #cert_free [cmd cert_free]].
+[nl]
+The command returns an
 empty string when there are no more certificates in the store.
 [nl]
 The criteria for matching are specified by the [arg SEARCHTYPE] and
