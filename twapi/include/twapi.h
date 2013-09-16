@@ -725,8 +725,8 @@ typedef struct {
 #define ARGVW   'R'
 #define ARGASTR      's'
 #define ARGASTRN     'S'
-#define ARGSTRW     'u'
-#define ARGSTRWN    'U'
+#define ARGWSTR     'u'
+#define ARGWSTRN    'U'
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
@@ -745,8 +745,8 @@ typedef struct {
 #define GETDWORD_PTR(v) ARGDWORD_PTR, &(v)
 #define GETASTR(v)      ARGASTR, &(v)
 #define GETASTRN(v, n)  ARGASTRN, &(v), &(n)
-#define GETSTRW(v)     ARGSTRW, &(v)
-#define GETSTRWN(v, n) ARGSTRWN, &(v), &(n)
+#define GETWSTR(v)     ARGWSTR, &(v)
+#define GETWSTRN(v, n) ARGWSTRN, &(v), &(n)
 #define GETEMPTYASNULL(v) ARGEMPTYASNULL, &(v)
 #define GETTOKENNULL(v) ARGTOKENNULL, &(v)
 #define GETWORD(v)     ARGWORD, &(v)

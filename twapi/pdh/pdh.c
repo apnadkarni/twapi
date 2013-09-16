@@ -194,11 +194,11 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     result = TwapiGetArgsEx(ticP, objc, objv,
                             GETEMPTYASNULL(pdh_elements.szMachineName),
-                            GETSTRW(pdh_elements.szObjectName),
+                            GETWSTR(pdh_elements.szObjectName),
                             GETEMPTYASNULL(pdh_elements.szInstanceName),
                             GETEMPTYASNULL(pdh_elements.szParentInstance),
                             GETINT(pdh_elements.dwInstanceIndex),
-                            GETSTRW(pdh_elements.szCounterName),
+                            GETWSTR(pdh_elements.szCounterName),
                             GETINT(dwFlags),
                             ARGEND);
     if (result == TCL_OK) {
