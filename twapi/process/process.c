@@ -453,7 +453,7 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
     if (ObjGetElements(interp, siObj, &objc, &objvP) != TCL_OK ||
         TwapiGetArgsEx(ticP, objc, objvP,
                        GETTOKENNULL(siP->lpDesktop),
-                       GETSTRW(siP->lpTitle),
+                       GETWSTR(siP->lpTitle),
                        GETINT(siP->dwX), GETINT(siP->dwY),
                        GETINT(siP->dwXSize), GETINT(siP->dwYSize),
                        GETINT(siP->dwXCountChars), GETINT(siP->dwYCountChars),

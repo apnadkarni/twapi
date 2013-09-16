@@ -292,7 +292,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
 
     success = 0;
     if (TwapiGetArgsEx(ticP, objc, objv,
-                       GETSTRW(class_name),
+                       GETWSTR(class_name),
                        ARGUSEDEFAULT,
                        GETEMPTYASNULL(system_name),
                        GETVOIDP(reserved),

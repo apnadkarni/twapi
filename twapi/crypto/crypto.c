@@ -42,8 +42,9 @@ TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEX
     return TwapiUnregisterPointerTic(ticP, certP, CertFreeCertificateContext);
 }
 
-#ifdef NOTNEEDED
-/* RtlGenRandom in base provides this */
+/* RtlGenRandom in base provides this but this is much faster if already have
+   a HCRYPTPROV 
+*/
 int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
 {
     BYTE buf[256];
@@ -62,7 +63,6 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
         return TwapiReturnSystemError(interp);
     }
 }
-#endif
 
 static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
 {
@@ -384,7 +384,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
         if (TwapiGetArgsEx(ticP, n, objs,
                            GETINT(sslP->dwAuthType),
                            GETINT(sslP->fdwChecks),
-                           GETSTRW(sslP->pwszServerName),
+                           GETWSTR(sslP->pwszServerName),
                            ARGEND) != TCL_OK)
             goto error_return;
         policy_paramP->pvExtraPolicyPara = sslP;
@@ -815,8 +815,8 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
         kiP = NULL;
     else {
         if (TwapiGetArgsEx(ticP, nobjs, objs,
-                           GETSTRW(ki.pwszContainerName),
-                           GETSTRW(ki.pwszProvName),
+                           GETWSTR(ki.pwszContainerName),
+                           GETWSTR(ki.pwszProvName),
                            GETINT(ki.dwProvType),
                            GETINT(ki.dwFlags),
                            GETOBJ(provparaObj),
@@ -1902,14 +1902,21 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 10018: // CryptGetUserKey
+    case 10034: // CryptGenRandom
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(pv, HCRYPTPROV),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (CryptGetUserKey((HCRYPTPROV) pv, dw, &dwp)) {
-            TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
-        } else
-            result.type = TRT_GETLASTERROR;
+        switch (func) {
+        case 10018: // CryptGetUserKey
+            if (CryptGetUserKey((HCRYPTPROV) pv, dw, &dwp)) {
+                TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 10034:
+            return Twapi_CryptGenRandom(interp, (HCRYPTPROV) pv, dw);
+        }
         break;
 
     case 10019: // CryptSetProvParam
@@ -2207,6 +2214,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertGetIssuerCertificateFromStore, 10031),
         DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
         DEFINE_FNCODE_CMD(CertFindExtension, 10033),
+        DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {

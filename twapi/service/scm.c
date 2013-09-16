@@ -606,10 +606,10 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
 
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(scmH, SC_HANDLE),
-                         GETSTRW(service_name), GETSTRW(display_name),
+                         GETWSTR(service_name), GETWSTR(display_name),
                          GETINT(access), GETINT(service_type),
                          GETINT(start_type), GETINT(error_control),
-                         GETSTRW(path), GETSTRW(logrp),
+                         GETWSTR(path), GETWSTR(logrp),
                          GETOBJ(tagObj), GETOBJ(depObj),
                          GETEMPTYASNULL(service_start_name),
                          GETOBJ(passwordObj),
