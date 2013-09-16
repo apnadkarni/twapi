@@ -859,7 +859,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     naccts = 0;
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETINT(func),
                          GETEMPTYASNULL(servername),
-                         GETSTRW(groupname), GETINT(level),
+                         GETWSTR(groupname), GETINT(level),
                          GETOBJ(acctsObj), ARGEND);
     if (res == TCL_OK)
         res = ObjGetElements(interp, acctsObj, &naccts, &accts);

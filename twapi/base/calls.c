@@ -410,7 +410,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
             if (lenP)
                 *lenP = len;
             break;
-        case ARGSTRW: // Unicode string
+        case ARGWSTR: // Unicode string
         case ARGEMPTYASNULL:
         case ARGTOKENNULL:
             /* TBD - optimization. May be if !Tcl_IsShared(objP), we can
@@ -428,7 +428,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                 }
             }
             break;
-        case ARGSTRWN:
+        case ARGWSTRN:
             /* We want string and its length */
             lenP = va_arg(ap, int *);
             uval = L""; // Defaults
@@ -1875,8 +1875,8 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
     password_buf = NULL;
 
     res = TwapiGetArgsEx(ticP, objc, objv, 
-                       GETSTRW(target), ARGUNUSED, GETINT(autherr), 
-                       GETSTRWN(user, user_len), GETOBJ(passwordObj),
+                       GETWSTR(target), ARGUNUSED, GETINT(autherr), 
+                       GETWSTRN(user, user_len), GETOBJ(passwordObj),
                        GETBOOL(save),
                        GETINT(flags), ARGEND);
     if (res != TCL_OK)

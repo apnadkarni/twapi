@@ -247,7 +247,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETVAR(credential, ObjToSecHandle),
                        GETVAR(contextP, ObjToSecHandle_NULL),
-                       GETSTRW(targetP),
+                       GETWSTR(targetP),
                        GETINT(contextreq),
                        GETINT(reserved1),
                        GETINT(targetdatarep),
@@ -464,8 +464,8 @@ static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
     swaiP = MemLifoAlloc(&ticP->memlifo, sizeof(*swaiP), NULL);
     swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETSTRWN(swaiP->User, swaiP->UserLength),
-                         GETSTRWN(swaiP->Domain, swaiP->DomainLength),
+                         GETWSTRN(swaiP->User, swaiP->UserLength),
+                         GETWSTRN(swaiP->Domain, swaiP->DomainLength),
                          GETOBJ(passwordObj),
                          ARGEND);
     if (res != TCL_OK)
@@ -976,7 +976,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     mark = MemLifoPushMark(&ticP->memlifo);
     luidP = &luid;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
-                       GETEMPTYASNULL(principalP), GETSTRW(packageP),
+                       GETEMPTYASNULL(principalP), GETWSTR(packageP),
                        GETINT(cred_use), GETVAR(luidP, ObjToLUID_NULL),
                        GETOBJ(authObj), ARGEND) != TCL_OK)
         goto vamoose;

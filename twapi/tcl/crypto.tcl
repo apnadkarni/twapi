@@ -339,7 +339,7 @@ proc twapi::cert_set_key_prov {hcert args} {
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {silent.bool 0 0x40}
-        {keytype.arg signature {keyexchange signature}}
+        {keyspec.arg keyexchange {keyexchange signature}}
     } -maxleftover 0 -nulldefault]
 
     set flags $opts(silent)
@@ -348,11 +348,11 @@ proc twapi::cert_set_key_prov {hcert args} {
     }
 
 
-    # TBD - does the keytype matter ? In case of self signed cert
+    # TBD - does the keyspec matter ? In case of self signed cert
     # which (keyexchange/signature) or both have to be specified ?
-    set keytype [expr {$opts(keytype) eq "signature" ? 2 : 1}]
+    set keyspec [expr {$opts(keyspec) eq "signature" ? 2 : 1}]
     Twapi_SetCertContextKeyProvInfo $hcert \
-        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} $keytype]
+        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} $keyspec]
     return
 }
 
@@ -373,28 +373,23 @@ proc twapi::cert_key_usage {hcert} {
 
 proc twapi::cert_create_self_signed {subject args} {
     array set opts [parseargs args {
-        keytype.arg signature {keyexchange signature}
+        {keyspec.arg keyexchange {keyexchange signature}}
         {keycontainer.arg {}}
         {keysettype.arg user {machine user}}
         {silent.bool 0 0x40}
         {csp.arg {}}
         {csptype.arg {prov_rsa_full}}
-        signaturealgorithm.arg
+        {signaturealgoritm.arg oid_rsa_sha1rsa}
         start.int
         end.int
         {gmt.bool 1}
         altnames.arg
-        keyusage.arg
+        critical.arg
         enhkeyusage.arg
-        {critical {}}
+        keyusage.arg
     } -maxleftover 0 -ignoreunknown]
 
     set name_blob [cert_name_to_blob $subject]
-    if {[info exists opts(signaturealgorithm)]} {
-        set alg [list [oid $opts(signaturealgorithm)]]
-    } else {
-        set alg {}
-    }
 
     if {![info exists opts(start)]} {
         set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
@@ -418,7 +413,7 @@ proc twapi::cert_create_self_signed {subject args} {
                      [_csp_type_name_to_id $opts(csptype)] \
                      $kiflags \
                      {} \
-                     [expr {$opts(keytype) eq "keyexchange" ? 1 : 2}]]
+                     [expr {$opts(keyspec) eq "keyexchange" ? 1 : 2}]]
 
     
     # Generate the extensions list
@@ -431,16 +426,16 @@ proc twapi::cert_create_self_signed {subject args} {
         lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
     }
     if {[info exists opts(enhkeyusage)]} {
-        set critical [expr {"enhkeyusage" in $opts(critical)}]
-        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) $critical]
+        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
     }
     if {[info exists opts(keyusage)]} {
-        set critical [expr {"keyusage" in $opts(critical)}]
-        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
+        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
 
     set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo $alg $opts(start) $opts(end) $exts]
+    return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo \
+                [list [oid $opts(signaturealgorithm)]] \
+                $opts(start) $opts(end) $exts]
 }
 
 proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
@@ -449,19 +444,14 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         start.int
         end.int
         {gmt.bool 0}
-        signaturealgorithm.arg
-        {altnames.arg {}}
-        {critical.arg {}}
-        {enhkeyusage.arg {}}
-        {keyusage.arg {}}
+        {signaturealgoritm.arg oid_rsa_sha1rsa}
+        altnames.arg
+        critical.arg
+        enhkeyusage.arg
+        keyusage.arg
     } -maxleftover 0]
 
     set name_blob [cert_name_to_blob $subject]
-    if {[info exists opts(signaturealgorithm)]} {
-        set alg [list [oid $opts(signaturealgorithm)]]
-    } else {
-        set alg {}
-    }
 
     if {![info exists opts(start)]} {
         set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
@@ -482,16 +472,87 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
     }
     if {[info exists opts(enhkeyusage)]} {
-        set critical [expr {"enhkeyusage" in $opts(critical)}]
-        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) $critical]
+        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
     }
     if {[info exists opts(keyusage)]} {
-        set critical [expr {"keyusage" in $opts(critical)}]
-        lappend exts [_make_keyusage_ext $opts(keyusage) $critical]
+        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
 
     set flags 0;                # Always 0 for now
-    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} $alg $opts(start) $opts(end) $exts]
+    return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} \
+                [list [oid $opts(signaturealgorithm)]] \
+                $opts(start) $opts(end) $exts]
+}
+
+proc twapi::cert_create {hprov subject hissuer args} {
+    parseargs args {
+        start.int
+        end.int
+        {gmt.bool 0}
+        {keyspec.arg keyexchange {keyexchange signature}}
+        {signaturealgoritm.arg oid_rsa_sha1rsa}
+        {serialnumber.arg {}}
+        altnames.arg
+        critical.arg
+        enhkeyusage.arg
+        keyusage.arg
+    } -maxleftover 0 -setvars
+    
+    set sigoid [list [oid $signaturealgorithm]]
+
+    if {[info exists serialnumber]} {
+        if {$serialnumber <= 0 || $serialnumber > 0x7fffffffffffffff} {
+            badargs! "Serial number must be specified as a positive wide integer."
+        }
+        # Format as little endian
+        set serialnumber [binary format w $serialnumber]
+    } else {
+        # Generate 15 byte random and add high byte (little endian)
+        # to 0x01 to ensure it is treated as positive
+        set serialnumber "[random 15]\x01"
+    }
+
+    # Validity period
+    if {![info exists start]} {
+        set start [_seconds_to_timelist [clock seconds] $gmt]
+    }
+    if {![info exists end]} {
+        set end $start
+        lset end 0 [expr {[lindex $start 0] + 1}]
+    }
+
+    # Generate the extensions list
+    set exts {}
+    if {[info exists altnames]} {
+        lappend exts [_make_altnames_ext $opts(altnames) [expr {"altnames" in $opts(critical)}] 0]
+    }
+    if {[info exists opts(enhkeyusage)]} {
+        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
+    }
+    if {[info exists opts(keyusage)]} {
+        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
+    }
+
+    # TBD Issuer altnames - get from issuer cert
+    # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
+
+    # 2 -> CERT_V3
+    set cert_info [list \
+                       2 \
+                       $serialnumber \
+                       $sigoid \
+                       [cert_name_to_blob $issuer] \
+                       $start  $end \
+                       [cert_name_to_blob $subject] \
+                       $pubkey \
+                       $issuer_id \
+                       $subject_id \
+                       $exts]
+
+    # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
+    return [CryptSignAndEncodeCert $hprov \
+                [expr {$keyspec eq "signature" ? 2 : 1}] \
+                0x10001 2 $certinfo $sigoid]
 }
 
 proc twapi::cert_ssl_verify {hcert args} {
@@ -698,8 +759,8 @@ proc twapi::crypt_key_generate {hprov algid args} {
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
 
-proc twapi::crypt_key_get {hprov keytype} {
-    return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keytype]]
+proc twapi::crypt_key_get {hprov keyspec} {
+    return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keyspec]]
 }
 
 proc twapi::crypt_get_security_descriptor {hprov} {
@@ -1287,3 +1348,4 @@ proc twapi::_decode_keyusage_bytes {bytes} {
 if {[file tail [info script]] eq "crypto.tcl"} {
     source [file join [file dirname [info script]] sspi.tcl]
 }
+

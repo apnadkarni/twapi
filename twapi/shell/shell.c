@@ -151,7 +151,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     mark = MemLifoPushMark(&ticP->memlifo);
  
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETSTRW(linkPath), GETEMPTYASNULL(objPath),
+                         GETWSTR(linkPath), GETEMPTYASNULL(objPath),
                          GETVAR(itemIds, ObjToPIDL),
                          GETEMPTYASNULL(commandArgs),
                          GETEMPTYASNULL(desc),
