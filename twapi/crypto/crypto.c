@@ -1476,14 +1476,21 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     HCRYPTPROV hprov;
     MemLifoMarkHandle mark;
     DWORD nbytes;
+    DWORD structtype;
 
     mark = MemLifoPushMark(&ticP->memlifo);
     res = TwapiGetArgsEx(ticP, objc, objv, GETHANDLET(hprov, HCRYPTPROV),
                          GETINT(keyspec), GETINT(enctype),
+                         GETINT(structtype),
                          GETOBJ(certinfoObj), GETOBJ(algidObj),
                          ARGEND);
     if (res != TCL_OK)
         goto vamoose;
+
+    if ((DWORD_PTR) structtype != (DWORD_PTR) X509_CERT_TO_BE_SIGNED) {
+        res = TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        goto vamoose;
+    }
 
     res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algidObj, &algid);
     if (res != TCL_OK)
@@ -2131,6 +2138,33 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         CertFreeCertificateChain(pv);
         result.type = TRT_EMPTY;
         break;
+    case 10033: // CertFindExtension
+        res = TwapiGetArgs(interp, objc, objv,
+                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETASTR(cP), ARGEND);
+        if (res != TCL_OK)
+            return res;
+        if (certP->pCertInfo->cExtension && certP->pCertInfo->rgExtension) {
+            CERT_EXTENSION *extP =
+                CertFindExtension(cP,
+                                  certP->pCertInfo->cExtension,
+                                  certP->pCertInfo->rgExtension);
+            if (extP == NULL)
+                result.type = TRT_EMPTY;
+            else {
+                if (TwapiCryptDecodeObject(interp, extP->pszObjId,
+                                           extP->Value.pbData,
+                                           extP->Value.cbData, &objs[2])
+                    != TCL_OK)
+                    return TCL_ERROR;
+                objs[0] = ObjFromString(extP->pszObjId);
+                objs[1] = ObjFromBoolean(extP->fCritical);
+                result.value.objv.objPP = objs;
+                result.value.objv.nobj = 3;
+                result.type = TRT_OBJV;
+            }
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2172,6 +2206,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
         DEFINE_FNCODE_CMD(CertGetIssuerCertificateFromStore, 10031),
         DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
+        DEFINE_FNCODE_CMD(CertFindExtension, 10033),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
