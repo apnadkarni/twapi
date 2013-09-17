@@ -146,9 +146,9 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
         sha1_hash 1<<16
         signature_hash 14<<16
         issuer_name (2<<16)|4
-        subject_name  2<<16
+        subject_name  (2<<16)|7
         issuer_substring (8<<16)|4
-        subject_substring 8<<16
+        subject_substring (8<<16)|7
         property 5<<16
         key_spec 9<<16
         public_key 6<<16
@@ -532,6 +532,9 @@ proc twapi::cert_create {hprov subject hissuer args} {
     if {[info exists opts(keyusage)]} {
         lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
+
+    # Get issuer name and altnames
+    set issuer_name [cert_subject_name $hissuer ]
 
     # TBD Issuer altnames - get from issuer cert
     # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]

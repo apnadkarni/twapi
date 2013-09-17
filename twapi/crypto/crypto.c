@@ -64,6 +64,14 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
     }
 }
 
+static Tcl_Obj *ObjFromCRYPT_BLOB(CRYPT_DATA_BLOB *blobP)
+{
+    if (blobP && blobP->cbData && blobP->pbData)
+        return ObjFromByteArray(blobP->pbData, blobP->cbData);
+    else
+        return ObjFromEmptyString();
+}
+
 static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
 {
     Tcl_Obj *objs[2];
@@ -149,6 +157,22 @@ static Tcl_Obj *ObjFromCRYPT_KEY_PROV_INFO(CRYPT_KEY_PROV_INFO *infP)
     return ObjNewList(6, objs);
 }
 
+static Tcl_Obj *ObjFromCRYPT_ALGORITHM_IDENTIFIER(CRYPT_ALGORITHM_IDENTIFIER *algP)
+{
+    Tcl_Obj *objs[2];
+    objs[0] = ObjFromString(algP->pszObjId);
+    objs[1] = ObjFromCRYPT_BLOB(&algP->Parameters);
+    return ObjNewList(2, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_PUBLIC_KEY_INFO(CERT_PUBLIC_KEY_INFO *cpiP)
+{
+    Tcl_Obj *objs[2];
+    objs[0] = ObjFromCRYPT_ALGORITHM_IDENTIFIER(&cpiP->Algorithm);
+    objs[1] = ObjFromCRYPT_BIT_BLOB(&cpiP->PublicKey);
+    return ObjNewList(2, objs);
+}
+
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BIT_BLOB(
@@ -165,7 +189,7 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
         TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
                        GETINT(blobP->cUnusedBits), ARGEND) != TCL_OK ||
         blobP->cUnusedBits > 7) {
-        ObjSetStaticResult(interp, "Invalid CERT_PUBLIC_KEY_INFO structure");
+        ObjSetStaticResult(interp, "Invalid CRYPT_BIT_BLOB structure");
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -1372,7 +1396,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
     MemLifoMarkHandle mark = NULL;
 
     certP = NULL;
-    res = TwapiGetArgs(interp, objc, objv,
+    res = TwapiGetArgs(interp, objc-1, objv+1,
                        GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
                        GETINT(enctype), GETINT(flags), GETINT(findtype),
                        GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*, CertFreeCertificateContext),
@@ -1442,10 +1466,10 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         CertFreeCertificateContext(certP);
     else {
         certP = CertFindCertificateInStore(
-            pv,
+            hstore,
             X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
             0,
-            CERT_FIND_SUBJECT_STR_W,
+            findtype,
             pv,
             certP);
         if (certP) {
@@ -1886,7 +1910,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = CertUnregisterSystemStore(ObjToUnicode(s1Obj), dw);
         break;
-    case 10017:
+    case 10017: // CertCloseStore
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(pv, HCERTSTORE), ARGUSEDEFAULT,
                          GETINT(dw), ARGEND) != TCL_OK ||
@@ -1962,14 +1986,14 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             break;
         }
         bufP = TwapiAlloc(buf_sz);
-        if (!CryptExportPublicKeyInfoEx((HCRYPTPROV)pv, dw, dw2, cP, dw3, NULL, bufP, &buf_sz)) {
-            TwapiReturnSystemError(interp);
-            TwapiFree(bufP);
-            return TCL_ERROR;
+        if (CryptExportPublicKeyInfoEx((HCRYPTPROV)pv, dw, dw2, cP, dw3, NULL, bufP, &buf_sz)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromCERT_PUBLIC_KEY_INFO(bufP);
+        } else {
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TwapiReturnSystemError(interp);
         }
-        if (TwapiRegisterPointer(interp, bufP, TwapiAlloc) != TCL_OK)
-            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-        TwapiResult_SET_NONNULL_PTR(result, CERT_PUBLIC_KEY_INFO*, bufP);
+        TwapiFree(bufP);
         break;
 
     case 10024:
