@@ -371,6 +371,12 @@ proc twapi::cert_key_usage {hcert} {
     return [_decode_keyusage_bytes $bytes]
 }
 
+# TBD - document
+proc twapi::cert_thumbprint {hcert} {
+    binary scan [cert_get_property $hcert sha1_hash] H* hash
+    return $hash
+}
+
 proc twapi::cert_create_self_signed {subject args} {
     array set opts [parseargs args {
         {keyspec.arg keyexchange {keyexchange signature}}
