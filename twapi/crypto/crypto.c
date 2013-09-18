@@ -175,6 +175,24 @@ static Tcl_Obj *ObjFromCERT_PUBLIC_KEY_INFO(CERT_PUBLIC_KEY_INFO *cpiP)
 
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_BLOB(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    CRYPT_DATA_BLOB *blobP
+    )
+{
+    void *pv;
+    int   len;
+    pv = ObjToByteArray(objP, &len);
+    if (len)
+        blobP->pbData = MemLifoCopy(&ticP->memlifo, pv, len);
+    else
+        blobP->pbData = NULL;
+    blobP->cbData = len;
+    return TCL_OK;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BIT_BLOB(
     TwapiInterpContext *ticP,
     Tcl_Obj *pkObj,
@@ -517,14 +535,14 @@ static TCL_RESULT TwapiCryptDecodeObject(
             else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
                      STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
-                     STREQ(oid, szOID_ISSUER_ALT_NAME)) {
+                     STREQ(oid, szOID_ISSUER_ALT_NAME))
                 dwoid = (DWORD_PTR) X509_ALTERNATE_NAME;
-            } else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
-                dwoid = 65535-1;
             else if (STREQ(oid, szOID_BASIC_CONSTRAINTS2))
                 dwoid = (DWORD_PTR) X509_BASIC_CONSTRAINTS2;
             else if (STREQ(oid, szOID_AUTHORITY_KEY_IDENTIFIER2))
                 dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
+            else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
+                dwoid = 65535-1;
             else
                 dwoid = 65535;      /* Will return as a byte array */
         }
@@ -564,7 +582,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
         break;
     case X509_ALGORITHM_IDENTIFIER:
         objP = ObjFromCRYPT_ALGORITHM_IDENTIFIER(u.pv);
-    case 65535-1:
+    case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         objP = ObjFromCRYPT_BLOB(u.pv);
         break;
     default:
@@ -597,11 +615,17 @@ static TCL_RESULT TwapiCryptEncodeObject(
     void     *penc;
     int       nenc;
     union {
+        CRYPT_DATA_BLOB blob;
         CERT_ALT_NAME_INFO cani;
         CERT_ENHKEY_USAGE  ceku;
         CRYPT_BIT_BLOB     bitblob;
+        CERT_BASIC_CONSTRAINTS2_INFO basic;
+        CERT_AUTHORITY_KEY_ID2_INFO auth_key_id;
+        CRYPT_ALGORITHM_IDENTIFIER algid;
     } u;
     Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj **objs;
+    int       nobjs;
     LPCSTR oid;
     DWORD_PTR dwoid;
 
@@ -627,27 +651,61 @@ static TCL_RESULT TwapiCryptEncodeObject(
             else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
                      STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
-                     STREQ(oid, szOID_ISSUER_ALT_NAME)) {
+                     STREQ(oid, szOID_ISSUER_ALT_NAME))
                 dwoid = (DWORD_PTR) X509_ALTERNATE_NAME;
-            } else
-                dwoid = 65536;      /* Will return as a byte array */
+            else if (STREQ(oid, szOID_BASIC_CONSTRAINTS2))
+                dwoid = (DWORD_PTR) X509_BASIC_CONSTRAINTS2;
+            else if (STREQ(oid, szOID_AUTHORITY_KEY_IDENTIFIER2))
+                dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
+            else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
+                dwoid = 65535-1;
+            else
+                dwoid = 65535;      /* Will return as a byte array */
         }
     }
 
-
     switch (dwoid) {
-    case (DWORD_PTR) X509_ALTERNATE_NAME:
-        if ((res = ParseCERT_ALT_NAME_INFO(ticP, valObj, &u.cani)) != TCL_OK)
+    case (DWORD_PTR) X509_KEY_USAGE:
+        if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
             return res;
         break;
     case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
         if ((res = ParseCERT_ENHKEY_USAGE(ticP, valObj, &u.ceku)) != TCL_OK)
             return res;
         break;
-    case (DWORD_PTR) X509_KEY_USAGE:
-        if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
+    case (DWORD_PTR) X509_ALTERNATE_NAME:
+        if ((res = ParseCERT_ALT_NAME_INFO(ticP, valObj, &u.cani)) != TCL_OK)
             return res;
         break;
+    case (DWORD_PTR) X509_BASIC_CONSTRAINTS2:
+        if (ObjGetElements(NULL, valObj, &nobjs, &objs) != TCL_OK ||
+            nobjs != 3 ||
+            ObjToBoolean(NULL, objs[0], &u.basic.fCA) != TCL_OK ||
+            ObjToBoolean(NULL, objs[1], &u.basic.fPathLenConstraint) != TCL_OK ||
+            ObjToBoolean(NULL, objs[2], &u.basic.dwPathLenConstraint) != TCL_OK) {
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid basic constraints.");
+        }
+        break;
+    case (DWORD_PTR) X509_AUTHORITY_KEY_ID2:
+        if (ObjGetElements(NULL, valObj, &nobjs, &objs) != TCL_OK ||
+            nobjs != 3 ||
+            ParseCRYPT_BLOB(ticP, objs[0], &u.auth_key_id.KeyId) != TCL_OK ||
+            ParseCERT_ALT_NAME_INFO(ticP, objs[1], &u.auth_key_id.AuthorityCertIssuer) != TCL_OK ||
+            ParseCRYPT_BLOB(ticP, objs[2], &u.auth_key_id.AuthorityCertSerialNumber) != TCL_OK) {
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid authority key id.");
+        }
+        break;
+    case X509_ALGORITHM_IDENTIFIER:
+        res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, valObj, &u.algid);
+        if (res != TCL_OK)
+            return res;
+        break;
+    case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
+        res = ParseCRYPT_BLOB(ticP, valObj, &u.blob);
+        if (res != TCL_OK)
+            return res;
+        break;
+        
     default:
         return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID");
     }
@@ -1782,10 +1840,14 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         pv = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
-        /* CertCloseStore does not check ponter validity! So do ourselves*/
-        if (TwapiRegisterPointer(interp, pv, CertCloseStore) != TCL_OK)
-            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
-        TwapiResult_SET_NONNULL_PTR(result, HCERTSTORE, pv);
+        if (pv) {
+            /* CertCloseStore does not check ponter validity! So do ourselves*/
+            if (TwapiRegisterPointer(interp, pv, CertCloseStore) != TCL_OK)
+                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiResult_SET_NONNULL_PTR(result, HCERTSTORE, pv);
+        } else {
+            return TwapiReturnSystemError(interp);
+        }
         break;
 
     case 10004: // CertDeleteCertificateFromStore
@@ -2199,14 +2261,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                            ARGSKIP, ARGEND);
         if (res != TCL_OK)
             return res;
+        result.type = TRT_EMPTY; /* Assume extension does not exist */
         if (certP->pCertInfo->cExtension && certP->pCertInfo->rgExtension) {
             CERT_EXTENSION *extP =
                 CertFindExtension(ObjToString(objv[1]),
                                   certP->pCertInfo->cExtension,
                                   certP->pCertInfo->rgExtension);
-            if (extP == NULL)
-                result.type = TRT_EMPTY;
-            else {
+            if (extP) {
                 if (TwapiCryptDecodeObject(interp, objv[1],
                                            extP->Value.pbData,
                                            extP->Value.cbData, &objs[2])
